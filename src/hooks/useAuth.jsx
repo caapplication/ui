@@ -1,0 +1,187 @@
+import React, { useState, useEffect, createContext, useContext, useCallback, useRef } from 'react';
+import { getProfile as apiGetProfile, getEntities as apiGetEntities, refreshToken as apiRefreshToken } from '@/lib/api';
+import { useNavigate } from 'react-router-dom';
+
+const AuthContext = createContext();
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
+
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const refreshIntervalRef = useRef(null);
+  const navigate = useNavigate();
+
+  const logout = useCallback(() => {
+    setUser(null);
+    localStorage.removeItem('user');
+    localStorage.removeItem('entityData');
+    localStorage.removeItem('beneficiaries');
+    if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+        refreshIntervalRef.current = null;
+    }
+    navigate('/login');
+  }, [navigate]);
+
+  const updateUser = useCallback((updatedData) => {
+    setUser(prevUser => {
+        if (!prevUser) return null;
+        const newUser = { ...prevUser, ...updatedData };
+        localStorage.setItem('user', JSON.stringify(newUser));
+        return newUser;
+    });
+  }, []);
+
+  const startTokenRefresh = useCallback((refreshTokenValue) => {
+    if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+    }
+
+    const refresh = async () => {
+        try {
+            const data = await apiRefreshToken(refreshTokenValue);
+            updateUser({ access_token: data.access_token });
+            console.log("Token refreshed successfully");
+        } catch (error) {
+            console.error("Failed to refresh token, logging out.", error);
+            logout();
+        }
+    };
+    
+    // Refresh every 25 minutes
+    refreshIntervalRef.current = setInterval(refresh, 25 * 60 * 1000); 
+  }, [logout, updateUser]);
+
+
+  useEffect(() => {
+    const handleAuthError = () => {
+        console.warn("Authentication error detected. Logging out.");
+        logout();
+    };
+
+    window.addEventListener('auth-error', handleAuthError);
+
+    return () => {
+        window.removeEventListener('auth-error', handleAuthError);
+    };
+  }, [logout]);
+
+
+  useEffect(() => {
+    const initializeUser = async () => {
+      const savedUser = localStorage.getItem('user');
+      if (savedUser) {
+        try {
+          const parsedUser = JSON.parse(savedUser);
+          setUser(parsedUser);
+          if(parsedUser.refresh_token) {
+            startTokenRefresh(parsedUser.refresh_token);
+          }
+        } catch (error) {
+          console.error("Failed to parse user data", error);
+          logout();
+        }
+      }
+      setLoading(false);
+    };
+    initializeUser();
+
+    return () => {
+        if(refreshIntervalRef.current) {
+            clearInterval(refreshIntervalRef.current);
+        }
+    }
+  }, [logout, startTokenRefresh]);
+
+  const finishLogin = (userData) => {
+    setUser(userData);
+    localStorage.setItem('user', JSON.stringify(userData));
+    if(userData.refresh_token) {
+        startTokenRefresh(userData.refresh_token);
+    }
+  };
+  
+  const login = async (email, password) => {
+    const response = await fetch('https://login-api.snolep.com/login/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'accept': 'application/json'
+      },
+      body: new URLSearchParams({
+        email,
+        password
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+        throw new Error(data.detail || 'Login failed');
+    }
+
+    if (data.role === 'CLIENT_USER') {
+        const [profileData, entitiesData] = await Promise.all([
+            apiGetProfile(data.access_token),
+            apiGetEntities(data.access_token)
+        ]);
+
+        const fullUserData = { ...data, ...profileData, entities: entitiesData || [] };
+
+        if (profileData.is_2fa_enabled) {
+            return { twoFactorEnabled: true, loginData: fullUserData };
+        } else {
+            finishLogin(fullUserData);
+            return { twoFactorEnabled: false };
+        }
+    } else if (data.role === 'CA_ACCOUNTANT') {
+        const profileData = await apiGetProfile(data.access_token);
+        const fullUserData = { ...data, ...profileData, name: data.agency_name };
+        
+        if (profileData.is_2fa_enabled) {
+            return { twoFactorEnabled: true, loginData: fullUserData };
+        } else {
+            finishLogin(fullUserData);
+            return { twoFactorEnabled: false };
+        }
+    } else if (data.role === 'ENTITY_USER') {
+        const profileData = await apiGetProfile(data.access_token);
+        const fullUserData = { ...data, ...profileData, id: data.sub };
+        
+        if (profileData.is_2fa_enabled) {
+            return { twoFactorEnabled: true, loginData: fullUserData };
+        } else {
+            finishLogin(fullUserData);
+            return { twoFactorEnabled: false };
+        }
+    } else {
+        throw new Error('Permission Denied. Your user role is not supported.');
+    }
+  };
+  
+  const verifyOtpAndFinishLogin = async (loginData, otp) => {
+    finishLogin(loginData);
+  }
+
+  const value = {
+    user,
+    login,
+    verifyOtpAndFinishLogin,
+    logout,
+    loading,
+    updateUser,
+  };
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
