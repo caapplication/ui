@@ -1,6 +1,8 @@
+
 import { getAuthHeaders, handleResponse } from './utils';
 
 const CLIENTS_API_BASE_URL = 'https://client-api.snolep.com';
+const FINANCE_API_BASE_URL = 'https://finance-api.snolep.com';
 
 export const getGeneralSettings = async (agencyId, token) => {
     const response = await fetch(`${CLIENTS_API_BASE_URL}/settings/general`, {
@@ -112,6 +114,43 @@ export const updateBusinessType = async (id, data, agencyId, token) => {
 
 export const deleteBusinessType = async (id, agencyId, token) => {
     const response = await fetch(`${CLIENTS_API_BASE_URL}/settings/business-types/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(token, 'application/json', agencyId),
+    });
+    if (response.ok) {
+        return { success: true };
+    }
+    return handleResponse(response);
+};
+
+export const getFinanceHeaders = async (agencyId, token) => {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/finance-headers/`, {
+        method: 'GET',
+        headers: getAuthHeaders(token, 'application/json', agencyId),
+    });
+    return handleResponse(response);
+};
+
+export const createFinanceHeader = async (data, agencyId, token) => {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/finance-headers/`, {
+        method: 'POST',
+        headers: getAuthHeaders(token, 'application/json', agencyId),
+        body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+};
+
+export const updateFinanceHeader = async (id, data, agencyId, token) => {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/finance-headers/${id}/`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(token, 'application/json', agencyId),
+        body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+};
+
+export const deleteFinanceHeader = async (id, agencyId, token) => {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/finance-headers/${id}/`, {
         method: 'DELETE',
         headers: getAuthHeaders(token, 'application/json', agencyId),
     });

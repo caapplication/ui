@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -14,36 +15,29 @@ import ActivityLog from '@/components/finance/ActivityLog';
 const DetailItem = ({ label, value }) => (
     <div className="flex justify-between items-center py-2 border-b border-white/10">
         <p className="text-sm text-gray-400">{label}</p>
-        <p className="text-sm font-semibold text-white">{value}</p>
+        <p className="text-sm font-semibold text-white capitalize">{value}</p>
     </div>
 );
 
-const InvoiceDetailsPage = () => {
-    const { invoiceId } = useParams();
+const VoucherDetailsPage = () => {
+    const { voucherId } = useParams();
     const location = useLocation();
     const navigate = useNavigate();
-    const { attachmentUrl, invoice, beneficiaryName } = location.state || {};
+    const { attachmentUrl, voucher } = location.state || {};
     
-    const invoiceDetails = invoice || {
-        id: invoiceId,
-        bill_number: 'N/A',
-        date: new Date().toISOString(),
-        beneficiary_name: beneficiaryName || 'N/A',
+    const voucherDetails = voucher || {
+        id: voucherId,
+        beneficiaryName: 'N/A',
+        created_date: new Date().toISOString(),
         amount: 0,
-        cgst: 0,
-        sgst: 0,
-        igst: 0,
+        voucher_type: 'N/A',
+        payment_type: 'N/A',
         remarks: 'No remarks available.',
     };
     
-    const totalAmount = (
-        parseFloat(invoiceDetails.amount) + 
-        parseFloat(invoiceDetails.cgst) + 
-        parseFloat(invoiceDetails.sgst) + 
-        parseFloat(invoiceDetails.igst)
-    ).toFixed(2);
-
-    const attachmentToDisplay = attachmentUrl;
+    const beneficiaryName = voucherDetails.beneficiary 
+        ? (voucherDetails.beneficiary.beneficiary_type === 'individual' ? voucherDetails.beneficiary.name : voucherDetails.beneficiary.company_name) 
+        : voucherDetails.beneficiaryName || 'N/A';
 
     return (
         <div className="h-screen w-full flex flex-col text-white bg-transparent p-4 md:p-6">
@@ -52,7 +46,7 @@ const InvoiceDetailsPage = () => {
                     <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
                         <ArrowLeft className="h-6 w-6" />
                     </Button>
-                    <h1 className="text-2xl font-bold">Invoice Details</h1>
+                    <h1 className="text-2xl font-bold">Voucher Details</h1>
                 </div>
             </header>
 
@@ -70,28 +64,23 @@ const InvoiceDetailsPage = () => {
                             <TabsContent value="details" className="mt-4">
                                 <Card className="w-full glass-pane border-none shadow-none">
                                     <CardHeader>
-                                        <CardTitle>{invoiceDetails.bill_number}</CardTitle>
-                                        <CardDescription>Issued to {invoiceDetails.beneficiary_name}</CardDescription>
+                                        <CardTitle>Voucher to {beneficiaryName}</CardTitle>
+                                        <CardDescription>Created on {new Date(voucherDetails.created_date).toLocaleDateString()}</CardDescription>
                                     </CardHeader>
                                     <CardContent className="space-y-2">
-                                        <DetailItem label="Date" value={new Date(invoiceDetails.date).toLocaleDateString()} />
-                                        <DetailItem label="Base Amount" value={`₹${parseFloat(invoiceDetails.amount).toFixed(2)}`} />
-                                        <DetailItem label="CGST" value={`₹${parseFloat(invoiceDetails.cgst).toFixed(2)}`} />
-                                        <DetailItem label="SGST" value={`₹${parseFloat(invoiceDetails.sgst).toFixed(2)}`} />
-                                        <DetailItem label="IGST" value={`₹${parseFloat(invoiceDetails.igst).toFixed(2)}`} />
-                                        <div className="pt-4">
-                                             <DetailItem label="Total Amount" value={`₹${totalAmount}`} />
-                                        </div>
+                                        <DetailItem label="Amount" value={`₹${parseFloat(voucherDetails.amount).toFixed(2)}`} />
+                                        <DetailItem label="Voucher Type" value={voucherDetails.voucher_type} />
+                                        <DetailItem label="Payment Method" value={voucherDetails.payment_type} />
                                         <div className="pt-4">
                                             <p className="text-sm text-gray-400 mb-1">Remarks</p>
-                                            <p className="text-sm text-white p-3 bg-white/5 rounded-md">{invoiceDetails.remarks}</p>
+                                            <p className="text-sm text-white p-3 bg-white/5 rounded-md">{voucherDetails.remarks || 'N/A'}</p>
                                         </div>
                                     </CardContent>
                                 </Card>
                             </TabsContent>
                             <TabsContent value="activity" className="mt-4">
                                 <div className="p-4">
-                                    <ActivityLog itemId={invoiceId} itemType="invoice" />
+                                    <ActivityLog itemId={voucherId} itemType="voucher" />
                                 </div>
                             </TabsContent>
                         </Tabs>
@@ -100,15 +89,15 @@ const InvoiceDetailsPage = () => {
                 <ResizableHandle withHandle />
                 <ResizablePanel defaultSize={60} minSize={30}>
                     <div className="flex h-full items-center justify-center p-2">
-                         {attachmentToDisplay ? (
+                         {attachmentUrl ? (
                             <iframe 
-                                src={attachmentToDisplay} 
-                                title="Invoice Attachment"
+                                src={attachmentUrl} 
+                                title="Voucher Attachment"
                                 className="w-full h-full rounded-md border-none"
                             />
                         ) : (
                             <div className="text-center text-gray-400">
-                                <p>No attachment available for this invoice.</p>
+                                <p>No attachment available for this voucher.</p>
                             </div>
                         )}
                     </div>
@@ -118,4 +107,5 @@ const InvoiceDetailsPage = () => {
     );
 };
 
-export default InvoiceDetailsPage;
+export default VoucherDetailsPage;
+  

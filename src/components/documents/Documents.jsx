@@ -4,32 +4,48 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { FileText, Upload, Trash2, Plus, Share2, Folder, FolderPlus, ArrowLeft, Search, Loader2, RefreshCw, Inbox } from 'lucide-react';
+import { FileText, Upload, Trash2, Plus, Share2, Folder, FolderPlus, ArrowLeft, Search, Loader2, RefreshCw, Inbox, CalendarIcon, Download } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth.jsx';
-import { getDocuments, createFolder, uploadFile, deleteDocument, shareDocument, viewFile, getSharedDocuments, listOrganisations, listAllEntities } from '@/lib/api';
+import { getDocuments, createFolder, uploadFile, deleteDocument, shareDocument, viewFile, getSharedDocuments, listOrganisations, listAllEntities, createCAFolder, uploadCAFile, shareFolder, FINANCE_API_BASE_URL } from '@/lib/api';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { format } from 'date-fns';
 
-const buildFileTree = (items) => {
-  const tree = { id: 'root', name: 'Root', is_folder: true, children: [] };
-  const map = { root: tree };
+const buildFileTree = (folders, documents) => {
+  const root = { id: 'root', name: 'Root', is_folder: true, children: [] };
+  const allItems = {};
 
-  items.forEach(item => {
-    map[item.id] = { ...item, children: item.is_folder ? [] : undefined };
+  folders.forEach(folder => {
+    allItems[folder.id] = { ...folder, is_folder: true, children: [] };
   });
 
-  items.forEach(item => {
-    if (item.parent_id && map[item.parent_id]) {
-      if(map[item.parent_id].children) {
-        map[item.parent_id].children.push(map[item.id]);
-      }
+  documents.forEach(doc => {
+    allItems[doc.id] = { ...doc, is_folder: false };
+  });
+
+  folders.forEach(folder => {
+    if (folder.parent_id && allItems[folder.parent_id]) {
+      allItems[folder.parent_id].children.push(allItems[folder.id]);
     } else {
-      tree.children.push(map[item.id]);
+      root.children.push(allItems[folder.id]);
+    }
+    if (folder.documents) {
+      folder.documents.forEach(doc => {
+        allItems[folder.id].children.push({ ...doc, is_folder: false });
+      });
     }
   });
 
-  return tree;
+  documents.forEach(doc => {
+    if (!doc.folder_id) {
+      root.children.push({ ...doc, is_folder: false });
+    }
+  });
+
+  return root;
 };
 
 
@@ -73,8 +89,10 @@ const Documents = ({ entityId: initialEntityId, quickAction, clearQuickAction })
   const [newFolderName, setNewFolderName] = useState('');
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [shareDoc, setShareDoc] = useState(null);
-  const [shareEmail, setShareEmail] = useState('');
+  const [shareEmails, setShareEmails] = useState('');
+  const [shareExpiryDate, setShareExpiryDate] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [previewFile, setPreviewFile] = useState(null);
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('myFiles'); // 'myFiles' or 'sharedWithMe'
   const [currentClientId, setCurrentClientId] = useState(getInitialEntityId());
@@ -138,11 +156,6 @@ const Documents = ({ entityId: initialEntityId, quickAction, clearQuickAction })
         entityToFetch = initialEntityId;
     }
 
-    if (!entityToFetch && user?.role !== 'CA_ACCOUNTANT') {
-        setIsLoading(false);
-        return;
-    }
-
     if (isRefresh) {
         setIsRefreshing(true);
     } else {
@@ -150,7 +163,7 @@ const Documents = ({ entityId: initialEntityId, quickAction, clearQuickAction })
     }
     try {
         const data = await getDocuments(entityToFetch, user.access_token);
-        const fileTree = buildFileTree(data || []);
+        const fileTree = buildFileTree(data.folders || [], data.documents || []);
         setDocumentsState(fileTree);
     } catch (error) {
         toast({
@@ -173,8 +186,12 @@ const Documents = ({ entityId: initialEntityId, quickAction, clearQuickAction })
         setIsLoading(true);
     }
     try {
-      const data = await getSharedDocuments(user.access_token);
-      setSharedDocuments(data || []);
+      const data = await getSharedDocuments(user.access_token, user.role);
+      const combinedShared = [
+        ...(data.documents || []).map(d => ({ ...d, is_folder: false })),
+        ...(data.folders || []).map(f => ({ ...f, is_folder: true }))
+      ];
+      setSharedDocuments(combinedShared);
     } catch (error) {
       toast({
         title: 'Error fetching shared documents',
@@ -186,7 +203,7 @@ const Documents = ({ entityId: initialEntityId, quickAction, clearQuickAction })
         setIsLoading(false);
         setIsRefreshing(false);
     }
-  }, [user?.access_token, toast]);
+  }, [user?.access_token, user?.role, toast]);
 
   useEffect(() => {
     if (activeTab === 'myFiles') {
@@ -217,6 +234,15 @@ const Documents = ({ entityId: initialEntityId, quickAction, clearQuickAction })
         );
     }
     if (!currentFolder || !currentFolder.children) return [];
+if (activeTab === 'myFiles') {
+    // Exclude shared documents from "My Files" for all roles
+    return currentFolder.children.filter(item => {
+        if (user?.role === 'CA_ACCOUNTANT') {
+            return !sharedDocuments.some(shared => shared.id === item.id);
+        }
+        return !sharedDocuments.some(shared => shared.id === item.id);
+    });
+}
     if (!searchTerm) return currentFolder.children;
     return currentFolder.children.filter(item => 
         item.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -225,18 +251,6 @@ const Documents = ({ entityId: initialEntityId, quickAction, clearQuickAction })
 
   const handleUpload = async (e) => {
     e.preventDefault();
-    let entityForUpload = null;
-    if (user?.role === 'CA_ACCOUNTANT') {
-        entityForUpload = selectedEntityId !== 'all' ? selectedEntityId : (currentClientId !== 'all' ? currentClientId : null);
-    } else {
-        entityForUpload = initialEntityId;
-    }
-
-    if (!entityForUpload) {
-        toast({ title: "No client/entity selected", description: "Please select a client and/or entity before uploading.", variant: "destructive" });
-        return;
-    }
-
     const formData = new FormData(e.target);
     const file = formData.get('file');
     if (!file || file.size === 0) {
@@ -245,10 +259,15 @@ const Documents = ({ entityId: initialEntityId, quickAction, clearQuickAction })
     }
 
     try {
-        await uploadFile(currentFolderId, entityForUpload, file, user.access_token);
+        if (user?.role === 'CA_ACCOUNTANT') {
+            await uploadCAFile(currentFolderId, file, shareExpiryDate, user.access_token);
+        } else {
+            await uploadFile(currentFolderId, initialEntityId, file, shareExpiryDate, user.access_token);
+        }
         toast({ title: "Document Uploaded", description: "New document has been successfully added." });
         setShowUpload(false);
         e.target.reset();
+        setShareExpiryDate(null);
         fetchDocuments(true);
     } catch (error) {
         toast({ title: "Upload Failed", description: error.message, variant: "destructive" });
@@ -260,18 +279,12 @@ const Documents = ({ entityId: initialEntityId, quickAction, clearQuickAction })
       toast({ title: "Invalid Name", description: "Folder name cannot be empty.", variant: "destructive" });
       return;
     }
-    let entityForFolder = null;
-    if (user?.role === 'CA_ACCOUNTANT') {
-        entityForFolder = selectedEntityId !== 'all' ? selectedEntityId : (currentClientId !== 'all' ? currentClientId : null);
-    } else {
-        entityForFolder = initialEntityId;
-    }
-    if (!entityForFolder) {
-        toast({ title: "No client/entity selected", description: "Please select a client and/or entity before creating a folder.", variant: "destructive" });
-        return;
-    }
     try {
-        await createFolder(newFolderName, entityForFolder, currentFolderId, user.access_token);
+        if (user?.role === 'CA_ACCOUNTANT') {
+            await createCAFolder(newFolderName, currentFolderId, user.access_token);
+        } else {
+            await createFolder(newFolderName, initialEntityId, currentFolderId, user.access_token);
+        }
         toast({ title: "Folder Created", description: `Folder "${newFolderName}" has been created.` });
         setShowCreateFolder(false);
         setNewFolderName('');
@@ -302,15 +315,21 @@ const Documents = ({ entityId: initialEntityId, quickAction, clearQuickAction })
   };
 
   const handleConfirmShare = async () => {
-    if (!shareEmail) {
-      toast({ title: "Email required", description: "Please enter an email address to share.", variant: "destructive" });
+    const emails = shareEmails.split(',').map(e => e.trim()).filter(e => e);
+    if (emails.length === 0) {
+      toast({ title: "Email required", description: "Please enter at least one email address to share.", variant: "destructive" });
       return;
     }
     try {
-        await shareDocument(shareDoc.id, shareEmail, user.access_token);
-        toast({ title: "Sharing Document", description: `Sharing ${shareDoc.name} with ${shareEmail}.` });
+        if (shareDoc.is_folder) {
+            // Assuming we share with one email at a time for folders as per backend
+            await shareFolder(shareDoc.id, emails[0], user.access_token);
+        } else {
+            await shareDocument(shareDoc.id, emails, user.access_token);
+        }
+        toast({ title: "Sharing Complete", description: `Successfully shared ${shareDoc.name}.` });
         setShareDialogOpen(false);
-        setShareEmail('');
+        setShareEmails('');
         setShareDoc(null);
     } catch (error) {
         toast({ title: "Share Failed", description: error.message, variant: "destructive" });
@@ -318,11 +337,15 @@ const Documents = ({ entityId: initialEntityId, quickAction, clearQuickAction })
   };
 
   const handleView = async (doc) => {
+    if (doc.is_folder) {
+      setCurrentFolderId(doc.id);
+      return;
+    }
     toast({ title: "Loading...", description: `Opening ${doc.name}.` });
     try {
         const fileBlob = await viewFile(doc.id, user.access_token);
         const fileURL = URL.createObjectURL(fileBlob);
-        window.open(fileURL, '_blank');
+        setPreviewFile({ url: fileURL, name: doc.name });
     } catch (error) {
         toast({ title: "Failed to open file", description: error.message, variant: "destructive" });
     }
@@ -368,11 +391,9 @@ const Documents = ({ entityId: initialEntityId, quickAction, clearQuickAction })
                 </CardHeader>
                 <CardContent>
                 <div className="flex space-x-2">
+                    <Button size="icon" variant="outline" onClick={(e) => {e.stopPropagation(); handleShareClick(item)}}><Share2 className="w-4 h-4" /></Button>
                     {!item.is_folder && (
-                    <>
-                        <Button size="icon" variant="outline" onClick={(e) => {e.stopPropagation(); handleShareClick(item)}}><Share2 className="w-4 h-4" /></Button>
                         <Button size="icon" variant="outline" onClick={(e) => {e.stopPropagation(); handleView(item)}}><FileText className="w-4 h-4" /></Button>
-                    </>
                     )}
                     <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={(e) => {e.stopPropagation(); handleDelete(item.id)}}><Trash2 className="w-4 h-4" /></Button>
                 </div>
@@ -391,33 +412,36 @@ const Documents = ({ entityId: initialEntityId, quickAction, clearQuickAction })
 
   const renderSharedWithMe = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-    {filteredChildren.map((item, index) => (
+      {sharedDocuments.map((item, index) => (
         <motion.div key={item.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: index * 0.05 }}>
-        <Card className="glass-card card-hover" onDoubleClick={() => handleView(item)}>
+          <Card className="glass-card card-hover" onDoubleClick={() => handleView(item)}>
             <CardHeader>
-            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-4">
                 <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-gradient-to-br from-purple-500 to-pink-500">
-                    <FileText className="w-6 h-6 text-white" />
+                  <FileText className="w-6 h-6 text-white" />
                 </div>
                 <div className="flex-1 min-w-0">
-                <CardTitle className="text-base truncate">{item.name}</CardTitle>
-                <CardDescription>Shared by: {item.owner_email}</CardDescription>
+                  <CardTitle className="text-base truncate">{item.name}</CardTitle>
+                  <CardDescription>Shared by: {item.owner_email}</CardDescription>
                 </div>
-            </div>
+              </div>
             </CardHeader>
             <CardContent>
-            <div className="flex space-x-2">
-                <Button size="icon" variant="outline" onClick={(e) => {e.stopPropagation(); handleView(item)}}><FileText className="w-4 h-4" /></Button>
-            </div>
+              <div className="flex space-x-2">
+                <Button size="icon" variant="outline" onClick={(e) => { e.stopPropagation(); handleView(item) }}><FileText className="w-4 h-4" /></Button>
+                <a href={`${FINANCE_API_BASE_URL}/api/documents/${item.id}`} download={item.name}>
+                  <Button size="icon" variant="outline"><Download className="w-4 h-4" /></Button>
+                </a>
+              </div>
             </CardContent>
-        </Card>
+          </Card>
         </motion.div>
-    ))}
-    {filteredChildren.length === 0 && (
+      ))}
+      {sharedDocuments.length === 0 && (
         <div className="text-center py-12 col-span-full">
-        <p className="text-gray-400">{searchTerm ? 'No shared items found matching your search.' : 'No items have been shared with you.'}</p>
+          <p className="text-gray-400">{searchTerm ? 'No shared items found matching your search.' : 'No items have been shared with you.'}</p>
         </div>
-    )}
+      )}
     </div>
   );
 
@@ -470,8 +494,7 @@ const Documents = ({ entityId: initialEntityId, quickAction, clearQuickAction })
                                 <SelectItem value="all">All Clients</SelectItem>
                                 {organisations.map(org => (
                                     <SelectItem key={org.id} value={org.id}>
-                                        {org.name}
-                                    </SelectItem>
+                                        {org.name}</SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
@@ -486,8 +509,7 @@ const Documents = ({ entityId: initialEntityId, quickAction, clearQuickAction })
                                     <SelectItem value="all">All Entities</SelectItem>
                                     {entitiesForFilter.map(entity => (
                                         <SelectItem key={entity.id} value={entity.id}>
-                                            {entity.name}
-                                        </SelectItem>
+                                            {entity.name}</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
@@ -520,6 +542,30 @@ const Documents = ({ entityId: initialEntityId, quickAction, clearQuickAction })
                         <Label htmlFor="file">Select File</Label>
                         <Input id="file" name="file" type="file" required />
                     </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="expiry-date" className="text-right">
+                        Expiry Date
+                      </Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant={"outline"}
+                            className="col-span-3 justify-start text-left font-normal"
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {shareExpiryDate ? format(shareExpiryDate, "PPP") : <span>Pick a date</span>}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                          <Calendar
+                            mode="single"
+                            selected={shareExpiryDate}
+                            onSelect={setShareExpiryDate}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
                     <DialogFooter>
                        <Button variant="ghost" type="button" onClick={() => setShowUpload(false)}>Cancel</Button>
                        <Button type="submit"><Upload className="w-4 h-4 mr-2" />Upload</Button>
@@ -538,19 +584,45 @@ const Documents = ({ entityId: initialEntityId, quickAction, clearQuickAction })
       </motion.div>
 
       <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Share Document</DialogTitle></DialogHeader>
-          <div className="space-y-4 py-4">
-            <p>Sharing: <span className="font-semibold">{shareDoc?.name}</span></p>
-            <Label htmlFor="share-email">Email Address</Label>
-            <Input id="share-email" value={shareEmail} onChange={(e) => setShareEmail(e.target.value)} placeholder="Enter email to share with" />
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Share File/Folder</DialogTitle>
+            <DialogDescription>
+              Enter the email addresses of the users you want to share with.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="emails" className="text-right">
+                Emails
+              </Label>
+              <Input
+                id="emails"
+                value={shareEmails}
+                onChange={(e) => setShareEmails(e.target.value)}
+                className="col-span-3"
+                placeholder="user1@example.com, user2@example.com"
+              />
+            </div>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setShareDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleConfirmShare}>Share</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {previewFile && (
+        <Dialog open={!!previewFile} onOpenChange={() => setPreviewFile(null)}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>{previewFile.name}</DialogTitle>
+            </DialogHeader>
+            <div className="mt-4">
+              <iframe src={previewFile.url} className="w-full h-[600px]" title={previewFile.name} />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 };

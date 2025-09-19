@@ -1,5 +1,5 @@
 
-    import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
     import { Helmet } from 'react-helmet';
     import { Routes, Route, Navigate, useSearchParams, BrowserRouter } from 'react-router-dom';
     import { AuthProvider, useAuth } from '@/hooks/useAuth.jsx';
@@ -32,6 +32,7 @@
     import ClientUserDashboard from '@/components/dashboard/ClientUserDashboard.jsx';
     import TaskDashboardPage from '@/pages/TaskDashboardPage.jsx';
     import InvoiceDetailsPage from '@/pages/InvoiceDetailsPage.jsx';
+    import VoucherDetailsPage from '@/pages/VoucherDetailsPage.jsx';
 
     const ProtectedContent = () => {
       const { user } = useAuth();
@@ -306,6 +307,7 @@
                         <Route path="/" element={<ProtectedContent />} />
                         <Route path="/tasks/:taskId" element={<TaskDashboardPage />} />
                         <Route path="/invoices/:invoiceId" element={<InvoiceDetailsPage />} />
+                        <Route path="/vouchers/:voucherId" element={<VoucherDetailsPage />} />
                         <Route path="*" element={<Navigate to="/" />} />
                     </>
                 ) : (

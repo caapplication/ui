@@ -4,7 +4,7 @@ import { Loader2, RefreshCw, Landmark, Download } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.jsx";
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useToast } from '@/components/ui/use-toast';
-import { getCATeamInvoices, getCATeamVouchers, listOrganisations, getBeneficiaries, listAllEntities } from '@/lib/api';
+import { getCATeamInvoices, getCATeamVouchers, listOrganisations, listAllEntities, getFinanceHeaders, getBeneficiaries } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import InvoiceHistory from '@/components/finance/InvoiceHistory';
@@ -16,14 +16,15 @@ const AccountantFinance = () => {
   const [activeTab, setActiveTab] = useState('vouchers');
   const [organisations, setOrganisations] = useState([]);
   const [entities, setEntities] = useState([]);
+  const [beneficiaries, setBeneficiaries] = useState([]);
   const [selectedOrganisation, setSelectedOrganisation] = useState(null);
   const [selectedEntity, setSelectedEntity] = useState(null);
   
   const [invoices, setInvoices] = useState([]);
   const [vouchers, setVouchers] = useState([]);
-  const [beneficiaries, setBeneficiaries] = useState([]);
   const [selectedVoucher, setSelectedVoucher] = useState(null);
   const [isViewVoucherOpen, setIsViewVoucherOpen] = useState(false);
+  const [financeHeaders, setFinanceHeaders] = useState([]);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isDataLoading, setIsDataLoading] = useState(false);
@@ -35,17 +36,21 @@ const AccountantFinance = () => {
     return entities.filter(e => e.organization_id === selectedOrganisation);
   }, [selectedOrganisation, entities]);
 
-  const fetchOrganisations = useCallback(async () => {
+  const fetchInitialData = useCallback(async () => {
     if (!user?.access_token) return;
     setIsLoading(true);
     try {
-      const [orgData, entityData] = await Promise.all([
+      const [orgData, entityData, headersData, beneficiariesData] = await Promise.all([
         listOrganisations(user.access_token),
-        listAllEntities(user.access_token)
+        listAllEntities(user.access_token),
+        getFinanceHeaders(user.agency_id, user.access_token),
+        getBeneficiaries(user.access_token)
       ]);
       const sortedOrgs = (orgData || []).sort((a, b) => a.name.localeCompare(b.name));
       setOrganisations(sortedOrgs);
       setEntities(entityData || []);
+      setFinanceHeaders(headersData || []);
+      setBeneficiaries(beneficiariesData || []);
       if (sortedOrgs.length > 0) {
         const firstOrgId = sortedOrgs[0].id;
         setSelectedOrganisation(firstOrgId);
@@ -59,15 +64,17 @@ const AccountantFinance = () => {
     } catch (error) {
       toast({
         title: 'Error',
-        description: `Failed to fetch clients: ${error.message}`,
+        description: `Failed to fetch initial data: ${error.message}`,
         variant: 'destructive',
       });
       setOrganisations([]);
       setEntities([]);
+      setFinanceHeaders([]);
+      setBeneficiaries([]);
     } finally {
       setIsLoading(false);
     }
-  }, [user?.access_token, toast]);
+  }, [user?.access_token, user?.agency_id, toast]);
 
   const fetchDataForClient = useCallback(async (isRefresh = false) => {
     if (!selectedEntity || !user?.access_token) return;
@@ -94,10 +101,7 @@ const AccountantFinance = () => {
             getCATeamVouchers(id, user.access_token)
         ]);
         
-        const results = await Promise.allSettled([
-            ...fetchPromises,
-            getBeneficiaries(user.access_token)
-        ]);
+        const results = await Promise.allSettled(fetchPromises);
 
         const allInvoices = [];
         const allVouchers = [];
@@ -116,14 +120,6 @@ const AccountantFinance = () => {
         
       setInvoices(allInvoices);
       setVouchers(allVouchers);
-
-      const beneficiariesResult = results[results.length - 1];
-      if(beneficiariesResult.status === 'fulfilled') {
-          setBeneficiaries(beneficiariesResult.value || []);
-      } else {
-          setBeneficiaries([]);
-      }
-
     } catch (error) {
       toast({
         title: 'Error',
@@ -132,7 +128,6 @@ const AccountantFinance = () => {
       });
       setInvoices([]);
       setVouchers([]);
-      setBeneficiaries([]);
     } finally {
         if(isRefresh) setIsDataLoading(false);
         else setIsLoading(false);
@@ -140,8 +135,8 @@ const AccountantFinance = () => {
   }, [selectedEntity, user?.access_token, toast, filteredEntities, selectedOrganisation]);
 
   useEffect(() => {
-    fetchOrganisations();
-  }, [fetchOrganisations]);
+    fetchInitialData();
+  }, [fetchInitialData]);
 
   useEffect(() => {
     if (selectedEntity || (selectedOrganisation && filteredEntities.length === 0)) {
@@ -165,16 +160,22 @@ const AccountantFinance = () => {
   };
 
   const enrichedVouchers = useMemo(() => {
-    if (!vouchers || !beneficiaries) return [];
-    const beneficiaryMap = new Map(beneficiaries.map(b => [b.id, b.beneficiary_type === 'individual' ? b.name : b.company_name]));
-    return vouchers.map(v => ({
-      ...v,
-      beneficiaryName: beneficiaryMap.get(v.beneficiary_id) || 'Unknown Beneficiary',
-    }));
+    if (!vouchers) return [];
+    return vouchers.map(v => {
+      const beneficiary = v.beneficiary || beneficiaries.find(b => b.id === v.beneficiary_id);
+      const beneficiaryName = beneficiary 
+          ? (beneficiary.beneficiary_type === 'individual' ? beneficiary.name : beneficiary.company_name) 
+          : 'Unknown Beneficiary';
+      return {
+        ...v,
+        beneficiary,
+        beneficiaryName,
+      }
+    });
   }, [vouchers, beneficiaries]);
 
   const handleExportToTally = () => {
-    if (enrichedVouchers.length === 0) {
+    if (vouchers.length === 0) {
       toast({
         title: 'No Vouchers',
         description: 'There are no vouchers to export.',
@@ -182,7 +183,8 @@ const AccountantFinance = () => {
       });
       return;
     }
-    exportVouchersToTallyXML(enrichedVouchers);
+    const org = organisations.find(o => o.id === selectedOrganisation);
+    exportVouchersToTallyXML(vouchers, org?.name || 'Company');
     toast({
       title: 'Export Successful',
       description: 'Vouchers have been exported to Tally XML format.',
@@ -211,7 +213,7 @@ const AccountantFinance = () => {
             </div>
           </div>
           <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto">
-             <Button variant="outline" onClick={handleExportToTally} disabled={enrichedVouchers.length === 0}>
+             <Button variant="outline" onClick={handleExportToTally} disabled={vouchers.length === 0}>
                 <Download className="w-4 h-4 mr-2" />
                 Export to Tally
             </Button>
@@ -263,6 +265,8 @@ const AccountantFinance = () => {
                   vouchers={enrichedVouchers}
                   onDeleteVoucher={() => toast({ title: "Note", description: "Deletion from this view is not supported."})}
                   onViewVoucher={handleViewVoucher}
+                  financeHeaders={financeHeaders}
+                  onRefresh={fetchDataForClient}
                 />
              )}
           </TabsContent>
@@ -275,8 +279,9 @@ const AccountantFinance = () => {
             ) : (
               <InvoiceHistory 
                 invoices={invoices}
-                beneficiaries={beneficiaries}
                 onDeleteInvoice={() => toast({ title: "Note", description: "Deletion from this view is not supported."})}
+                financeHeaders={financeHeaders}
+                onRefresh={fetchDataForClient}
               />
             )}
           </TabsContent>
@@ -287,7 +292,7 @@ const AccountantFinance = () => {
           isOpen={isViewVoucherOpen}
           onOpenChange={setIsViewVoucherOpen}
           voucher={selectedVoucher}
-          beneficiaryName={selectedVoucher.beneficiaryName}
+          beneficiary={selectedVoucher.beneficiary}
         />
       )}
     </div>

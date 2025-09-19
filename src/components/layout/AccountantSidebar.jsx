@@ -38,8 +38,8 @@ const AccountantSidebar = ({ activeTab, setActiveTab, isCollapsed, setIsCollapse
   ];
 
   const variants = {
-    expanded: { width: 240 },
-    collapsed: { width: 80 },
+    expanded: { width: 280 },
+    collapsed: { width: 120 },
   };
 
   const mobileVariants = {

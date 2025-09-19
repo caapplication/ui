@@ -1,3 +1,4 @@
+
 import { handleResponse, getAuthHeaders } from './api/utils';
     import * as auth from './api/auth';
     import * as finance from './api/finance';
@@ -10,7 +11,7 @@ import { handleResponse, getAuthHeaders } from './api/utils';
     import * as tasks from './api/tasks';
     
     const API_BASE_URL = 'https://login-api.snolep.com';
-    const FINANCE_API_BASE_URL = 'https://finance-api.snolep.com';
+    export const FINANCE_API_BASE_URL = 'https://finance-api.snolep.com';
     
     export const { 
         refreshToken, 
@@ -37,15 +38,19 @@ import { handleResponse, getAuthHeaders } from './api/utils';
         deleteOrganisationBankAccount,
         getInvoices,
         addInvoice,
+        updateInvoice,
         deleteInvoice,
         getInvoiceAttachment,
         getVouchers,
         addVoucher,
+        updateVoucher,
         deleteVoucher,
+        getVoucherAttachment,
         getCATeamVouchers,
         getCATeamInvoices,
         getCATeamInvoiceAttachment,
-        exportVouchersToTallyXML
+        exportVouchersToTallyXML,
+        getActivityLog
     } = finance;
     
     export const {
@@ -55,10 +60,13 @@ import { handleResponse, getAuthHeaders } from './api/utils';
         deleteDocument,
         shareDocument,
         viewFile,
-        getSharedDocuments
-    } = documents;
-    
-    export const {
+    getSharedDocuments,
+    createCAFolder,
+    uploadCAFile,
+    shareFolder
+} = documents;
+
+export const {
         createService,
         listServices,
         getServiceDetails,
@@ -121,7 +129,11 @@ import { handleResponse, getAuthHeaders } from './api/utils';
         getBusinessTypes,
         createBusinessType,
         updateBusinessType,
-        deleteBusinessType
+        deleteBusinessType,
+        getFinanceHeaders,
+        createFinanceHeader,
+        updateFinanceHeader,
+        deleteFinanceHeader
     } = settings;
     
     export const {

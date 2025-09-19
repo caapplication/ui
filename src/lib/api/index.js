@@ -1,5 +1,4 @@
-
-    import { handleResponse, getAuthHeaders } from './utils';
+import { handleResponse, getAuthHeaders } from './utils';
     import * as auth from './auth';
     import * as finance from './finance';
     import * as documents from './documents';
@@ -38,15 +37,18 @@
       deleteOrganisationBankAccount,
       getInvoices,
       addInvoice,
+      updateInvoice,
       deleteInvoice,
       getInvoiceAttachment,
       getVouchers,
       addVoucher,
+      updateVoucher,
       deleteVoucher,
       getCATeamVouchers,
       getCATeamInvoices,
       getCATeamInvoiceAttachment,
-      exportVouchersToTallyXML
+      exportVouchersToTallyXML,
+      getActivityLog,
     } = finance;
 
     export const {
@@ -151,4 +153,3 @@
       updateTaskSubtask,
       deleteTaskSubtask
     } = tasks;
-  

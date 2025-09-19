@@ -1,10 +1,15 @@
+
 import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Trash2, Eye, ArrowUp, ArrowDown } from 'lucide-react';
+import { Search, Trash2, Eye, ArrowUp, ArrowDown, Edit, FileText, CheckCircle } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/components/ui/use-toast';
+import { useNavigate } from 'react-router-dom';
+import { getVoucherAttachment, updateVoucher } from '@/lib/api';
 
 const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -14,10 +19,13 @@ const formatDate = (dateString) => {
     };
 };
 
-const VoucherHistory = ({ vouchers, onDeleteVoucher, onViewVoucher }) => {
+const VoucherHistory = ({ vouchers, onDeleteVoucher, onViewVoucher, onEditVoucher, financeHeaders, onRefresh }) => {
   const [voucherSearchTerm, setVoucherSearchTerm] = useState('');
   const [voucherTypeFilter, setVoucherTypeFilter] = useState('all');
   const [sortConfig, setSortConfig] = useState({ key: 'created_date', direction: 'desc' });
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const navigate = useNavigate();
 
   const sortedAndFilteredVouchers = useMemo(() => {
     let sortableVouchers = [...(vouchers || [])];
@@ -60,6 +68,41 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onViewVoucher }) => {
     return <ArrowDown className="w-4 h-4 ml-2" />;
   };
 
+  const handleViewAttachment = async (voucher) => {
+    if (!voucher.attachment_id) {
+        toast({ title: 'No Attachment', description: 'This voucher does not have an attachment.', variant: 'destructive' });
+        return;
+    }
+    try {
+        const attachmentUrl = await getVoucherAttachment(voucher.attachment_id, user.access_token);
+        navigate(`/vouchers/${voucher.id}`, { state: { attachmentUrl, voucher } });
+    } catch (error) {
+       toast({ title: 'Error', description: `Could not fetch attachment: ${error.message}`, variant: 'destructive' });
+    }
+  };
+
+  const handleHeaderChange = async (voucherId, headerId) => {
+    try {
+      await updateVoucher(voucherId, { finance_header_id: headerId }, user.access_token);
+      toast({ title: 'Success', description: 'Voucher header updated.' });
+      onRefresh(true);
+    } catch (error) {
+      const errorMessage = error.message || 'An unexpected error occurred.';
+      toast({ title: 'Error', description: `Failed to update header: ${String(errorMessage)}`, variant: 'destructive' });
+    }
+  };
+
+  const handleMarkAsReady = async (voucherId) => {
+    try {
+      await updateVoucher(voucherId, { is_ready: true }, user.access_token);
+      toast({ title: 'Success', description: 'Voucher marked as ready.' });
+      onRefresh(true);
+    } catch (error) {
+      const errorMessage = error.message || 'An unexpected error occurred.';
+      toast({ title: 'Error', description: `Failed to mark as ready: ${String(errorMessage)}`, variant: 'destructive' });
+    }
+  };
+
   return (
     <Card className="glass-card mt-4">
         <CardHeader>
@@ -99,15 +142,14 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onViewVoucher }) => {
                         <TableHead>Beneficiary</TableHead>
                         <TableHead>Type</TableHead>
                         <TableHead>Amount</TableHead>
-                        <TableHead>Remarks</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
+                        <TableHead>Actions</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {sortedAndFilteredVouchers.map(voucher => {
                         const { date, time } = formatDate(voucher.created_date);
                         return (
-                            <TableRow key={voucher.id}>
+                            <TableRow key={voucher.id} className={`transition-colors ${voucher.is_ready ? 'bg-green-500/10' : ''}`}>
                                 <TableCell>
                                     <div>{date}</div>
                                     <div className="text-xs text-gray-400">{time}</div>
@@ -115,14 +157,44 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onViewVoucher }) => {
                                 <TableCell>{voucher.beneficiaryName}</TableCell>
                                 <TableCell><span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${voucher.voucher_type === 'cash' ? 'bg-green-500/20 text-green-300' : 'bg-pink-500/20 text-pink-300'}`}>{voucher.voucher_type}</span></TableCell>
                                 <TableCell>₹{parseFloat(voucher.amount).toFixed(2)}</TableCell>
-                                <TableCell>{voucher.remarks}</TableCell>
                                 <TableCell className="text-right">
-                                    <Button size="icon" variant="ghost" onClick={() => onViewVoucher(voucher)}>
-                                        <Eye className="w-4 h-4" />
-                                    </Button>
-                                    <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={() => onDeleteVoucher(voucher.id)}>
-                                        <Trash2 className="w-4 h-4" />
-                                    </Button>
+                                    <div className="flex items-center justify-end gap-2">
+                                        {user.role === 'CA_ACCOUNTANT' && financeHeaders && (
+                                            <div className="flex items-center gap-2">
+                                                <Select onValueChange={(value) => handleHeaderChange(voucher.id, value)} defaultValue={voucher.finance_header_id}>
+                                                    <SelectTrigger className="w-[150px] h-8 text-xs">
+                                                        <SelectValue placeholder="Header" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {financeHeaders.map(h => <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>)}
+                                                    </SelectContent>
+                                                </Select>
+                                                <Button size="icon" variant="ghost" onClick={() => handleMarkAsReady(voucher.id)} disabled={voucher.is_ready} className="text-green-400 hover:text-green-300">
+                                                    <CheckCircle className="w-4 h-4" />
+                                                </Button>
+                                            </div>
+                                        )}
+                                        <div className="flex items-center">
+                                        {voucher.attachment_id && (
+                                            <Button size="icon" variant="ghost" onClick={() => handleViewAttachment(voucher)}>
+                                                <FileText className="w-4 h-4" />
+                                            </Button>
+                                        )}
+                                        <Button size="icon" variant="ghost" onClick={() => onViewVoucher(voucher)}>
+                                            <Eye className="w-4 h-4" />
+                                        </Button>
+                                        {onEditVoucher && (
+                                            <Button size="icon" variant="ghost" className="text-sky-400 hover:text-sky-300 hover:bg-sky-500/10" onClick={() => onEditVoucher(voucher)}>
+                                                <Edit className="w-4 h-4" />
+                                            </Button>
+                                        )}
+                                        {onDeleteVoucher && (
+                                            <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={() => onDeleteVoucher(voucher.id)}>
+                                                <Trash2 className="w-4 h-4" />
+                                            </Button>
+                                        )}
+                                        </div>
+                                    </div>
                                 </TableCell>
                             </TableRow>
                         );

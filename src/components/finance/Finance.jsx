@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.j
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useToast } from '@/components/ui/use-toast';
-import { getBeneficiaries, getInvoices, addInvoice, deleteInvoice, addVoucher, getVouchers, deleteVoucher, getBankAccountsForBeneficiary, exportVouchersToTallyXML } from '@/lib/api';
+import { getBeneficiaries, getInvoices, addInvoice, updateInvoice, deleteInvoice, addVoucher, updateVoucher, getVouchers, deleteVoucher, getBankAccountsForBeneficiary, exportVouchersToTallyXML } from '@/lib/api';
 
 import InvoiceForm from '@/components/finance/InvoiceForm';
 import VoucherForm from '@/components/finance/VoucherForm';
@@ -20,6 +20,8 @@ const Finance = ({ organisationBankAccounts, quickAction, clearQuickAction, enti
   const [showVoucherDialog, setShowVoucherDialog] = useState(false);
   const [showViewVoucherDialog, setShowViewVoucherDialog] = useState(false);
   const [selectedVoucher, setSelectedVoucher] = useState(null);
+  const [editingInvoice, setEditingInvoice] = useState(null);
+  const [editingVoucher, setEditingVoucher] = useState(null);
   const [activeTab, setActiveTab] = useState('vouchers');
   
   const [beneficiaries, setBeneficiaries] = useState([]);
@@ -96,17 +98,22 @@ const Finance = ({ organisationBankAccounts, quickAction, clearQuickAction, enti
     }
   }, [quickAction, clearQuickAction]);
 
-  const handleAddInvoiceClick = async (invoiceData) => {
+  const handleAddOrUpdateInvoice = async (invoiceData, invoiceId) => {
     try {
-      await addInvoice(invoiceData, user.access_token);
-      toast({ title: 'Success', description: 'Invoice added successfully.' });
+      if (invoiceId) {
+        await updateInvoice(invoiceId, invoiceData, user.access_token);
+        toast({ title: 'Success', description: 'Invoice updated successfully.' });
+      } else {
+        await addInvoice(invoiceData, user.access_token);
+        toast({ title: 'Success', description: 'Invoice added successfully.' });
+      }
       setShowInvoiceDialog(false);
-      setActiveTab('invoices');
+      setEditingInvoice(null);
       fetchData(true);
     } catch (error) {
       toast({
         title: 'Error',
-        description: `Failed to add invoice: ${error.message}`,
+        description: `Failed to save invoice: ${error.message}`,
         variant: 'destructive',
       });
     }
@@ -125,18 +132,28 @@ const Finance = ({ organisationBankAccounts, quickAction, clearQuickAction, enti
       });
     }
   };
+
+  const handleEditInvoiceClick = (invoice) => {
+    setEditingInvoice(invoice);
+    setShowInvoiceDialog(true);
+  };
   
-  const handleAddVoucherClick = async (voucherData) => {
+  const handleAddOrUpdateVoucher = async (voucherData, voucherId) => {
     try {
-        await addVoucher(voucherData, user.access_token);
-        toast({ title: 'Success', description: 'Voucher added successfully.' });
+        if (voucherId) {
+            await updateVoucher(voucherId, voucherData, user.access_token);
+            toast({ title: 'Success', description: 'Voucher updated successfully.' });
+        } else {
+            await addVoucher(voucherData, user.access_token);
+            toast({ title: 'Success', description: 'Voucher added successfully.' });
+        }
         setShowVoucherDialog(false);
-        setActiveTab('vouchers');
+        setEditingVoucher(null);
         fetchData(true);
     } catch (error) {
         toast({
             title: 'Error',
-            description: `Failed to add voucher: ${error.message}`,
+            description: `Failed to save voucher: ${error.message}`,
             variant: 'destructive',
         });
     }
@@ -156,8 +173,14 @@ const Finance = ({ organisationBankAccounts, quickAction, clearQuickAction, enti
     }
   };
   
+  const handleEditVoucherClick = (voucher) => {
+    setEditingVoucher(voucher);
+    setShowVoucherDialog(true);
+  };
+
   const handleViewVoucherClick = (voucher) => {
-    setSelectedVoucher(voucher);
+    const enrichedVoucher = enrichedVouchers.find(v => v.id === voucher.id);
+    setSelectedVoucher(enrichedVoucher);
     setShowViewVoucherDialog(true);
   };
       
@@ -174,21 +197,38 @@ const Finance = ({ organisationBankAccounts, quickAction, clearQuickAction, enti
     };
   }, [selectedVoucher, beneficiaries, organisationBankAccounts]);
 
-  const handleExportToTally = () => {
-    if (enrichedVouchers.length === 0) {
+  const handleExportToTally = (format) => {
+    const readyVouchers = enrichedVouchers.filter(v => v.is_ready && v.finance_header_id);
+    if (readyVouchers.length === 0) {
       toast({
-        title: 'No Vouchers',
-        description: 'There are no vouchers to export.',
+        title: 'No Ready Vouchers',
+        description: 'There are no vouchers marked as ready with a selected header to export.',
         variant: 'destructive',
       });
       return;
     }
-    exportVouchersToTallyXML(enrichedVouchers, organizationName || 'Company Name');
-    toast({
-      title: 'Export Successful',
-      description: 'Vouchers have been exported to Tally XML format.',
-    });
+
+    if (format === 'xml') {
+      exportVouchersToTallyXML(readyVouchers, organizationName || 'Company Name');
+      toast({
+        title: 'Export Successful',
+        description: 'Vouchers have been exported to Tally XML format.',
+      });
+    } else {
+      // Implement CSV/XLSX export logic here
+      toast({
+        title: 'Coming Soon',
+        description: 'CSV/XLSX export is not yet implemented.',
+      });
+    }
   };
+
+  const closeDialogs = () => {
+    setShowInvoiceDialog(false);
+    setEditingInvoice(null);
+    setShowVoucherDialog(false);
+    setEditingVoucher(null);
+  }
 
   return (
     <div className="p-8">
@@ -199,10 +239,18 @@ const Finance = ({ organisationBankAccounts, quickAction, clearQuickAction, enti
             <Button variant="outline" size="icon" onClick={() => fetchData(true)} disabled={isRefreshing}>
               <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             </Button>
-            <Button variant="outline" onClick={handleExportToTally} disabled={enrichedVouchers.length === 0}>
-                <Download className="w-4 h-4 mr-2" />
-                Export to Tally
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" disabled={enrichedVouchers.length === 0}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Export to Tally
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onSelect={() => handleExportToTally('csv')}>CSV or xlsx</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => handleExportToTally('xml')}>XML</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button>
@@ -212,11 +260,11 @@ const Finance = ({ organisationBankAccounts, quickAction, clearQuickAction, enti
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56">
-                <DropdownMenuItem onSelect={() => { setShowInvoiceDialog(true); setActiveTab('invoices'); }}>
+                <DropdownMenuItem onSelect={() => { setEditingInvoice(null); setShowInvoiceDialog(true); setActiveTab('invoices'); }}>
                   <FileText className="w-4 h-4 mr-2" />
                   <span>Invoice</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => { setShowVoucherDialog(true); setActiveTab('vouchers'); }}>
+                <DropdownMenuItem onSelect={() => { setEditingVoucher(null); setShowVoucherDialog(true); setActiveTab('vouchers'); }}>
                   <Banknote className="w-4 h-4 mr-2" />
                   <span>Voucher</span>
                 </DropdownMenuItem>
@@ -241,6 +289,7 @@ const Finance = ({ organisationBankAccounts, quickAction, clearQuickAction, enti
                   vouchers={enrichedVouchers}
                   onDeleteVoucher={handleDeleteVoucherClick}
                   onViewVoucher={handleViewVoucherClick}
+                  onEditVoucher={handleEditVoucherClick}
                 />
              )}
           </TabsContent>
@@ -255,30 +304,33 @@ const Finance = ({ organisationBankAccounts, quickAction, clearQuickAction, enti
                 invoices={invoices}
                 beneficiaries={beneficiaries}
                 onDeleteInvoice={handleDeleteInvoiceClick}
+                onEditInvoice={handleEditInvoiceClick}
               />
             )}
           </TabsContent>
       </Tabs>
       </motion.div>
 
-      <Dialog open={showInvoiceDialog} onOpenChange={setShowInvoiceDialog}>
+      <Dialog open={showInvoiceDialog} onOpenChange={closeDialogs}>
         <InvoiceForm 
           entityId={entityId}
           beneficiaries={beneficiaries} 
           isLoading={isLoading}
-          onAdd={handleAddInvoiceClick} 
-          onCancel={() => setShowInvoiceDialog(false)} 
+          onSave={handleAddOrUpdateInvoice} 
+          onCancel={closeDialogs} 
+          invoice={editingInvoice}
         />
       </Dialog>
       
-      <Dialog open={showVoucherDialog} onOpenChange={setShowVoucherDialog}>
+      <Dialog open={showVoucherDialog} onOpenChange={closeDialogs}>
         <VoucherForm 
           entityId={entityId}
           beneficiaries={beneficiaries} 
           isLoading={isLoading}
           organisationBankAccounts={organisationBankAccounts}
-          onAdd={handleAddVoucherClick} 
-          onCancel={() => setShowVoucherDialog(false)} 
+          onSave={handleAddOrUpdateVoucher} 
+          onCancel={closeDialogs}
+          voucher={editingVoucher}
         />
       </Dialog>
       

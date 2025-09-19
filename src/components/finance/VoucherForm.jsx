@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+
+import React, { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -7,37 +8,56 @@ import { Textarea } from '@/components/ui/textarea';
 import { Plus, Loader2 } from 'lucide-react';
 import { DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 
-const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onAdd, onCancel, entityId }) => {
-    const [voucherType, setVoucherType] = useState('debit');
-    const [paymentType, setPaymentType] = useState('');
-    const [selectedBeneficiaryId, setSelectedBeneficiaryId] = useState('');
+const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSave, onCancel, entityId, voucher }) => {
+    const isEditing = !!voucher;
     
+    const [voucherType, setVoucherType] = useState(voucher?.voucher_type || 'debit');
+    const [paymentType, setPaymentType] = useState(voucher?.payment_type || '');
+    const [selectedBeneficiaryId, setSelectedBeneficiaryId] = useState(voucher?.beneficiary_id || '');
+    
+    useEffect(() => {
+        if(voucher){
+            setVoucherType(voucher.voucher_type);
+            setPaymentType(voucher.payment_type);
+            setSelectedBeneficiaryId(voucher.beneficiary_id);
+        }
+    }, [voucher])
+
     const handleSubmit = (e) => {
         e.preventDefault();
         const formData = new FormData(e.target);
-        const data = Object.fromEntries(formData.entries());
-        data.entity_id = entityId;
 
-        if (data.voucher_type === 'cash' || data.payment_type !== 'bank') {
-            data.from_bank_account_id = '0';
-            data.to_bank_account_id = '0';
-        }
-        if (data.voucher_type === 'cash') {
-            data.payment_type = 'cash';
+        if (!isEditing) {
+            formData.append('entity_id', entityId);
         }
 
-        onAdd(data);
+        const attachment = formData.get('attachment');
+        if (isEditing && attachment && attachment.size === 0) {
+            formData.delete('attachment');
+        }
+
+        if (formData.get('voucher_type') === 'cash' || formData.get('payment_type') !== 'bank') {
+            formData.set('from_bank_account_id', '0');
+            formData.set('to_bank_account_id', '0');
+        }
+        if (formData.get('voucher_type') === 'cash') {
+            formData.set('payment_type', 'cash');
+        }
+        
+        onSave(formData, voucher?.id);
     };
 
     const selectedBeneficiaryBankAccounts = useMemo(() => {
         if (!selectedBeneficiaryId || !beneficiaries) return [];
-        const beneficiary = beneficiaries.find(b => String(b.id) === selectedBeneficiaryId);
+        const beneficiary = beneficiaries.find(b => String(b.id) === String(selectedBeneficiaryId));
         return beneficiary?.bank_accounts || [];
     }, [selectedBeneficiaryId, beneficiaries]);
 
     return (
         <DialogContent className="max-w-3xl">
-            <DialogHeader><DialogTitle>Add New Voucher</DialogTitle></DialogHeader>
+            <DialogHeader>
+                <DialogTitle>{isEditing ? 'Edit Voucher' : 'Add New Voucher'}</DialogTitle>
+            </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-6 pt-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
@@ -52,13 +72,13 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onAdd
                     </div>
                     <div>
                         <Label htmlFor="amount">Amount</Label>
-                        <Input name="amount" id="amount" type="number" step="0.01" required />
+                        <Input name="amount" id="amount" type="number" step="0.01" required defaultValue={voucher?.amount}/>
                     </div>
                 </div>
 
                 <div>
                     <Label htmlFor="beneficiary_id">Beneficiary</Label>
-                    <Select name="beneficiary_id" required onValueChange={setSelectedBeneficiaryId} value={selectedBeneficiaryId}>
+                    <Select name="beneficiary_id" required onValueChange={setSelectedBeneficiaryId} value={String(selectedBeneficiaryId)}>
                         <SelectTrigger>
                             <SelectValue placeholder={isLoading ? "Loading..." : "Select beneficiary"} />
                         </SelectTrigger>
@@ -96,7 +116,7 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onAdd
                             <>
                                 <div>
                                     <Label htmlFor="from_bank_account_id">From (Organisation Bank)</Label>
-                                    <Select name="from_bank_account_id" required>
+                                    <Select name="from_bank_account_id" required defaultValue={voucher?.from_bank_account_id}>
                                         <SelectTrigger><SelectValue placeholder="Select your bank account" /></SelectTrigger>
                                         <SelectContent>
                                             {(organisationBankAccounts || []).map(acc => (
@@ -109,7 +129,7 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onAdd
                                 </div>
                                 <div className="md:col-span-2">
                                     <Label htmlFor="to_bank_account_id">To (Beneficiary Bank)</Label>
-                                    <Select name="to_bank_account_id" required disabled={!selectedBeneficiaryId || selectedBeneficiaryBankAccounts.length === 0}>
+                                    <Select name="to_bank_account_id" required disabled={!selectedBeneficiaryId || selectedBeneficiaryBankAccounts.length === 0} defaultValue={voucher?.to_bank_account_id}>
                                         <SelectTrigger>
                                             <SelectValue placeholder={
                                                 !selectedBeneficiaryId 
@@ -134,13 +154,21 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onAdd
                 )}
 
                 <div>
+                    <Label htmlFor="attachment">Attachment</Label>
+                    <Input id="attachment" name="attachment" type="file" />
+                    {isEditing && voucher?.attachment_id && <p className="text-xs text-gray-400 mt-1">Leave empty to keep existing attachment.</p>}
+                </div>
+
+                <div>
                     <Label htmlFor="remarks">Remarks</Label>
-                    <Textarea name="remarks" id="remarks" />
+                    <Textarea name="remarks" id="remarks" defaultValue={voucher?.remarks}/>
                 </div>
                
                 <DialogFooter>
                     <DialogClose asChild><Button variant="ghost" type="button" onClick={onCancel}>Cancel</Button></DialogClose>
-                    <Button type="submit" disabled={isLoading}><Plus className="w-4 h-4 mr-2" /> Add Voucher</Button>
+                    <Button type="submit" disabled={isLoading}>
+                      {isEditing ? 'Save Changes' : <><Plus className="w-4 h-4 mr-2" /> Add Voucher</>}
+                    </Button>
                 </DialogFooter>
             </form>
         </DialogContent>
@@ -148,3 +176,4 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onAdd
 };
 
 export default VoucherForm;
+  

@@ -41,8 +41,8 @@ const Sidebar = ({ activeTab, setActiveTab, currentEntity, setCurrentEntity, isC
   }, [user]);
 
   const variants = {
-    expanded: { width: 240 },
-    collapsed: { width: 80 },
+    expanded: { width: 300 },
+    collapsed: { width: 120 },
   };
 
   const mobileVariants = {

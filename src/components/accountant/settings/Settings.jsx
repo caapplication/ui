@@ -1,17 +1,20 @@
+
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, Tag, Settings as SettingsIcon, Users, Globe, Briefcase } from 'lucide-react';
+import { ChevronLeft, Tag, Settings as SettingsIcon, Users, Globe, Briefcase, FileText } from 'lucide-react';
 import TagsContent from './TagsContent';
 import ClientSettingsContent from './ClientSettingsContent';
 import PortalsContent from './PortalsContent';
 import BusinessTypesContent from './BusinessTypesContent';
+import FinanceHeadersContent from './FinanceHeadersContent';
 
 const settingsNav = [
   { id: 'tags', name: 'Tags', icon: Tag, component: TagsContent },
   { id: 'client-settings', name: 'Client Settings', icon: Users, component: ClientSettingsContent },
   { id: 'portals', name: 'Portals', icon: Globe, component: PortalsContent },
   { id: 'business-types', name: 'Business Types', icon: Briefcase, component: BusinessTypesContent },
+  { id: 'finance-headers', name: 'Finance Headers', icon: FileText, component: FinanceHeadersContent },
 ];
 
 const Settings = () => {
@@ -74,3 +77,4 @@ const Settings = () => {
 };
 
 export default Settings;
+  
