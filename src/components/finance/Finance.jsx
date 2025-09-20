@@ -260,13 +260,13 @@ const Finance = ({ organisationBankAccounts, quickAction, clearQuickAction, enti
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56">
-                <DropdownMenuItem onSelect={() => { setEditingInvoice(null); setShowInvoiceDialog(true); setActiveTab('invoices'); }}>
-                  <FileText className="w-4 h-4 mr-2" />
-                  <span>Invoice</span>
-                </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => { setEditingVoucher(null); setShowVoucherDialog(true); setActiveTab('vouchers'); }}>
                   <Banknote className="w-4 h-4 mr-2" />
                   <span>Voucher</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => { setEditingInvoice(null); setShowInvoiceDialog(true); setActiveTab('invoices'); }}>
+                  <FileText className="w-4 h-4 mr-2" />
+                  <span>Invoice</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

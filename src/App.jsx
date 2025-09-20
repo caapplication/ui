@@ -31,8 +31,9 @@ import React, { useState, useEffect, useCallback } from 'react';
     import { useMediaQuery } from '@/hooks/useMediaQuery.jsx';
     import ClientUserDashboard from '@/components/dashboard/ClientUserDashboard.jsx';
     import TaskDashboardPage from '@/pages/TaskDashboardPage.jsx';
-    import InvoiceDetailsPage from '@/pages/InvoiceDetailsPage.jsx';
-    import VoucherDetailsPage from '@/pages/VoucherDetailsPage.jsx';
+import InvoiceDetailsPage from '@/pages/InvoiceDetailsPage.jsx';
+import VoucherDetailsPage from '@/pages/VoucherDetailsPage.jsx';
+import BeneficiaryDetailsPage from '@/pages/BeneficiaryDetailsPage.jsx';
 
     const ProtectedContent = () => {
       const { user } = useAuth();
@@ -308,6 +309,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                         <Route path="/tasks/:taskId" element={<TaskDashboardPage />} />
                         <Route path="/invoices/:invoiceId" element={<InvoiceDetailsPage />} />
                         <Route path="/vouchers/:voucherId" element={<VoucherDetailsPage />} />
+                        <Route path="/beneficiaries/:beneficiaryId" element={<BeneficiaryDetailsPage />} />
                         <Route path="*" element={<Navigate to="/" />} />
                     </>
                 ) : (
@@ -341,4 +343,3 @@ import React, { useState, useEffect, useCallback } from 'react';
     }
 
     export default App;
-  

@@ -19,6 +19,10 @@ const InvoiceForm = ({ entityId, beneficiaries, isLoading, onSave, onCancel, inv
 
     const handleSubmit = (e) => {
         e.preventDefault();
+        if (cgst !== sgst) {
+            alert('CGST and SGST must be equal.');
+            return;
+        }
         const formData = new FormData(e.target);
         if (!isEditing) {
             formData.append('entity_id', entityId);

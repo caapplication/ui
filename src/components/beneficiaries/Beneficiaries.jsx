@@ -6,8 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
-import { Plus, Trash2, Users, Banknote, Building, Search, Loader2 } from 'lucide-react';
+import { Plus, Trash2, Users, Banknote, Building, Search, Loader2, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { 
   getBeneficiaries, 
@@ -17,6 +18,7 @@ import {
   deleteBankAccount,
   getBankAccountsForBeneficiary
 } from '@/lib/api';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const BeneficiaryForm = ({ onAdd, onCancel }) => {
   const [beneficiaryType, setBeneficiaryType] = useState('individual');
@@ -101,23 +103,32 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showAddAccountDialog, setShowAddAccountDialog] = useState(false);
+  const [showViewDialog, setShowViewDialog] = useState(false);
   const [selectedBeneficiary, setSelectedBeneficiary] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const { toast } = useToast();
   const { user } = useAuth();
 
-  const fetchBeneficiaries = useCallback(async () => {
+  const fetchBeneficiaries = useCallback(async (page = 1) => {
     if (!user?.access_token) return;
     setIsLoading(true);
     try {
-      const beneficiariesList = await getBeneficiaries(user.access_token);
-      const beneficiariesWithAccounts = await Promise.all(
-        beneficiariesList.map(async (beneficiary) => {
-          const bankAccounts = await getBankAccountsForBeneficiary(beneficiary.id, user.access_token);
-          return { ...beneficiary, bank_accounts: bankAccounts };
-        })
-      );
-      setBeneficiaries(beneficiariesWithAccounts);
+      const data = await getBeneficiaries(user.access_token, page);
+      if (Array.isArray(data)) {
+        const beneficiariesWithAccounts = await Promise.all(
+          data.map(async (beneficiary) => {
+            const bankAccounts = await getBankAccountsForBeneficiary(beneficiary.id, user.access_token);
+            return { ...beneficiary, bank_accounts: bankAccounts };
+          })
+        );
+        setBeneficiaries(beneficiariesWithAccounts);
+        setTotalPages(1); // Assuming a single page for now
+      } else {
+        setBeneficiaries([]);
+        setTotalPages(1);
+      }
     } catch (error) {
       toast({
         title: 'Error',
@@ -131,8 +142,8 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
   }, [user?.access_token, toast]);
 
   useEffect(() => {
-    fetchBeneficiaries();
-  }, [fetchBeneficiaries]);
+    fetchBeneficiaries(currentPage);
+  }, [fetchBeneficiaries, currentPage]);
   
   useEffect(() => {
     if (quickAction === 'add-beneficiary') {
@@ -165,6 +176,11 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
         variant: 'destructive',
       });
     }
+  };
+
+  const handleView = (beneficiary) => {
+    setSelectedBeneficiary(beneficiary);
+    setShowViewDialog(true);
   };
 
   const handleDelete = async (beneficiaryId) => {
@@ -238,66 +254,54 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
             <Loader2 className="w-8 h-8 animate-spin text-white" />
           </div>
         ) : (
-          <div className="space-y-6">
-            {filteredBeneficiaries.map((b, index) => (
-              <motion.div key={b.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: index * 0.05 }}>
-                <Card className="glass-card card-hover">
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center space-x-4">
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${b.beneficiary_type === 'individual' ? 'bg-gradient-to-br from-sky-500 to-indigo-500' : 'bg-gradient-to-br from-amber-500 to-orange-600'}`}>
-                          {b.beneficiary_type === 'individual' ? <Users className="w-6 h-6 text-white" /> : <Building className="w-6 h-6 text-white" />}
-                        </div>
-                        <div>
-                          <CardTitle className="text-white">{b.beneficiary_type === 'individual' ? b.name : b.company_name}</CardTitle>
-                          <CardDescription className="text-gray-400">{b.email}</CardDescription>
-                        </div>
-                      </div>
-                      <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={() => handleDelete(b.id)}>
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-300">
-                    <p><strong>Phone:</strong> {b.phone}</p>
-                    <p><strong>Aadhar:</strong> {b.aadhar || 'N/A'}</p>
-                    <p><strong>PAN:</strong> {b.pan || 'N/A'}</p>
-                    {b.beneficiary_type === 'company' && <>
-                      <p><strong>GSTIN:</strong> {b.gstin || 'N/A'}</p>
-                      <p><strong>Proprietor:</strong> {b.proprietor_name || 'N/A'}</p>
-                    </>}
-                  </CardContent>
-                  <CardFooter className="flex-col items-start">
-                      <div className="w-full flex justify-between items-center mb-4">
-                          <h4 className="text-lg font-semibold text-white">Bank Accounts</h4>
-                          <Button variant="secondary" size="sm" onClick={() => handleAddAccountClick(b)}><Plus className="w-4 h-4 mr-2"/>Add Account</Button>
-                      </div>
-                      <div className="w-full space-y-2">
-                          {b.bank_accounts && b.bank_accounts.length > 0 ? (
-                              b.bank_accounts.map(acc => (
-                                  <div key={acc.id} className="p-3 rounded-xl bg-white/5 flex items-center justify-between">
-                                      <div className="flex items-center space-x-3">
-                                          <Banknote className="w-5 h-5 text-sky-400"/>
-                                          <div>
-                                              <p className="font-semibold text-white">{acc.bank_name} - {acc.branch_name}</p>
-                                              <p className="text-xs text-gray-400">Acc No: {acc.account_number} • IFSC: {acc.ifsc_code}</p>
-                                          </div>
-                                      </div>
-                                      <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={() => handleDeleteAccountClick(b.id, acc.id)}><Trash2 className="w-4 h-4"/></Button>
-                                  </div>
-                              ))
-                          ) : <p className="text-gray-400 text-sm">No bank accounts added yet.</p>}
-                      </div>
-                  </CardFooter>
-                </Card>
-              </motion.div>
-            ))}
-            {filteredBeneficiaries.length === 0 && (
-              <div className="text-center py-12">
-                <p className="text-gray-400">No beneficiaries found.</p>
+          <Card className="glass-card">
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Phone</TableHead>
+                    <TableHead>PAN</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredBeneficiaries.map((b) => (
+                    <TableRow key={b.id}>
+                      <TableCell>{b.beneficiary_type === 'individual' ? b.name : b.company_name}</TableCell>
+                      <TableCell>{b.email}</TableCell>
+                      <TableCell>{b.phone}</TableCell>
+                      <TableCell>{b.pan || 'N/A'}</TableCell>
+                      <TableCell>
+                        <Link to={`/beneficiaries/${b.id}`}>
+                          <Button size="icon" variant="ghost">
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                        </Link>
+                        <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={() => handleDelete(b.id)}>
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+            <CardFooter className="flex justify-between items-center">
+              <div>
+                <p className="text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
               </div>
-            )}
-          </div>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            </CardFooter>
+          </Card>
         )}
       </motion.div>
       
@@ -320,6 +324,19 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
           <div className="py-4">
             {selectedBeneficiary && <AddBankAccountForm beneficiary={selectedBeneficiary} onAddBankAccount={handleAddAccountSubmit} onCancel={() => setShowAddAccountDialog(false)}/>}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showViewDialog} onOpenChange={setShowViewDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Beneficiary Details</DialogTitle>
+          </DialogHeader>
+          {selectedBeneficiary && (
+            <div className="space-y-4 pt-4">
+              <BeneficiaryForm onAdd={handleAdd} onCancel={() => setShowViewDialog(false)} />
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

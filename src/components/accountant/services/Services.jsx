@@ -34,8 +34,10 @@ const Services = () => {
     }, [user, toast]);
 
     useEffect(() => {
-        fetchServices();
-    }, [fetchServices]);
+        if (!selectedService) {
+            fetchServices();
+        }
+    }, [fetchServices, selectedService]);
 
     const handleSelectService = async (serviceStub) => {
         try {
@@ -60,7 +62,7 @@ const Services = () => {
     
     const handleUpdateService = (updatedService) => {
         setSelectedService(updatedService);
-        setServices(prev => prev.map(s => s.id === updatedService.id ? {...s, ...updatedService} : s));
+        setServices(prev => prev.map(s => s.id === updatedService.id ? updatedService : s));
     }
     
     const handleDeleteService = (serviceId) => {

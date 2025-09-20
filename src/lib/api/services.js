@@ -2,7 +2,7 @@ import { getAuthHeaders, handleResponse } from './utils';
 
 const TASK_API_BASE_URL = 'https://task-api.snolep.com';
 const API_BASE_URL = 'https://client-api.snolep.com';
-const SERVICES_API_URL = 'https://services-api.snolep.com';
+const SERVICES_API_URL = 'https://finance-api.snolep.com';
 
 export const createService = async (serviceData, agencyId, token) => {
     const response = await fetch(`${SERVICES_API_URL}/services/`, {
@@ -14,7 +14,7 @@ export const createService = async (serviceData, agencyId, token) => {
 };
 
 export const listServices = async (agencyId, token) => {
-    const response = await fetch(`${TASK_API_BASE_URL}/services/`, {
+    const response = await fetch(`${SERVICES_API_URL}/services/`, {
         method: 'GET',
         headers: getAuthHeaders(token, 'application/json', agencyId)
     });
@@ -22,7 +22,7 @@ export const listServices = async (agencyId, token) => {
 };
 
 export const getServiceDetails = async (serviceId, agencyId, token) => {
-    const response = await fetch(`${SERVICES_API_URL}/services/${serviceId}`, {
+    const response = await fetch(`${SERVICES_API_URL}/services/${serviceId}?_=${new Date().getTime()}`, {
         method: 'GET',
         headers: getAuthHeaders(token, 'application/json', agencyId)
     });
@@ -71,8 +71,17 @@ export const deleteChecklistItem = async (checklistItemId, agencyId, token) => {
     return handleResponse(response);
 };
 
+export const updateChecklistItem = async (checklistItemId, checklistData, agencyId, token) => {
+    const response = await fetch(`${SERVICES_API_URL}/options/checklists/${checklistItemId}`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(token, 'application/json', agencyId),
+        body: JSON.stringify(checklistData)
+    });
+    return handleResponse(response);
+};
+
 export const addSubtask = async (serviceId, subtaskData, agencyId, token) => {
-    const response = await fetch(`${API_BASE_URL}/options/subtasks/${serviceId}`, {
+    const response = await fetch(`${SERVICES_API_URL}/options/subtasks/${serviceId}`, {
         method: 'POST',
         headers: getAuthHeaders(token, 'application/x-www-form-urlencoded', agencyId),
         body: new URLSearchParams(subtaskData)
@@ -81,7 +90,7 @@ export const addSubtask = async (serviceId, subtaskData, agencyId, token) => {
 };
 
 export const getSubtasks = async (serviceId, agencyId, token) => {
-    const response = await fetch(`${API_BASE_URL}/options/subtasks/${serviceId}`, {
+    const response = await fetch(`${SERVICES_API_URL}/options/subtasks/${serviceId}`, {
         method: 'GET',
         headers: getAuthHeaders(token, 'application/json', agencyId)
     });
@@ -89,7 +98,7 @@ export const getSubtasks = async (serviceId, agencyId, token) => {
 };
 
 export const deleteSubtask = async (subtaskId, agencyId, token) => {
-    const response = await fetch(`${API_BASE_URL}/options/subtasks/${subtaskId}`, {
+    const response = await fetch(`${SERVICES_API_URL}/options/subtasks/${subtaskId}`, {
         method: 'DELETE',
         headers: getAuthHeaders(token, '*/*', agencyId)
     });
@@ -99,7 +108,7 @@ export const deleteSubtask = async (subtaskId, agencyId, token) => {
 export const addSupportingFile = async (serviceId, file, agencyId, token) => {
     const formData = new FormData();
     formData.append('file', file);
-    const response = await fetch(`${API_BASE_URL}/options/supporting-files/${serviceId}`, {
+    const response = await fetch(`${SERVICES_API_URL}/options/supporting-files/${serviceId}`, {
         method: 'POST',
         headers: getAuthHeaders(token, null, agencyId),
         body: formData
@@ -108,7 +117,7 @@ export const addSupportingFile = async (serviceId, file, agencyId, token) => {
 };
 
 export const getSupportingFiles = async (serviceId, agencyId, token) => {
-    const response = await fetch(`${API_BASE_URL}/options/supporting-files/${serviceId}`, {
+    const response = await fetch(`${SERVICES_API_URL}/options/supporting-files/${serviceId}`, {
         method: 'GET',
         headers: getAuthHeaders(token, 'application/json', agencyId)
     });
@@ -116,7 +125,7 @@ export const getSupportingFiles = async (serviceId, agencyId, token) => {
 };
 
 export const deleteSupportingFile = async (fileId, agencyId, token) => {
-    const response = await fetch(`${API_BASE_URL}/options/supporting-files/${fileId}`, {
+    const response = await fetch(`${SERVICES_API_URL}/options/supporting-files/${fileId}`, {
         method: 'DELETE',
         headers: getAuthHeaders(token, '*/*', agencyId)
     });

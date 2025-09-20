@@ -22,8 +22,8 @@ import { getAuthHeaders, handleResponse } from './utils';
         return handleResponse(response);
     };
 
-    export const getBeneficiaries = async (token) => {
-        const response = await fetch(`${FINANCE_API_BASE_URL}/api/beneficiaries/`, {
+    export const getBeneficiaries = async (token, page = 1) => {
+        const response = await fetch(`${FINANCE_API_BASE_URL}/api/beneficiaries/?page=${page}`, {
             headers: getAuthHeaders(token),
         });
         return handleResponse(response);
@@ -42,6 +42,22 @@ import { getAuthHeaders, handleResponse } from './utils';
       const response = await fetch(`${FINANCE_API_BASE_URL}/api/beneficiaries/${beneficiaryId}`, {
         method: 'DELETE',
         headers: getAuthHeaders(token),
+      });
+      return handleResponse(response);
+    };
+
+    export const getBeneficiary = async (beneficiaryId, token) => {
+      const response = await fetch(`${FINANCE_API_BASE_URL}/api/beneficiaries/${beneficiaryId}`, {
+        headers: getAuthHeaders(token),
+      });
+      return handleResponse(response);
+    };
+
+    export const updateBeneficiary = async (beneficiaryId, beneficiaryData, token) => {
+      const response = await fetch(`${FINANCE_API_BASE_URL}/api/beneficiaries/${beneficiaryId}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(token),
+        body: JSON.stringify(beneficiaryData),
       });
       return handleResponse(response);
     };
@@ -71,7 +87,7 @@ import { getAuthHeaders, handleResponse } from './utils';
     };
 
     export const getOrganisationBankAccounts = async (entityId, token) => {
-        const response = await fetch(`${FINANCE_API_BASE_URL}/api/bank_accounts/?entity_id=${entityId}`, {
+        const response = await fetch(`${FINANCE_API_BASE_URL}/api/bank_accounts/?entity_id=${entityId}&masked=false`, {
             headers: getAuthHeaders(token),
         });
         return handleResponse(response);
@@ -90,6 +106,15 @@ import { getAuthHeaders, handleResponse } from './utils';
         const response = await fetch(`${FINANCE_API_BASE_URL}/api/bank_accounts/${bankAccountId}`, {
             method: 'DELETE',
             headers: getAuthHeaders(token),
+        });
+        return handleResponse(response);
+    };
+
+    export const updateOrganisationBankAccount = async (bankAccountId, data, token) => {
+        const response = await fetch(`${FINANCE_API_BASE_URL}/api/bank_accounts/${bankAccountId}`, {
+            method: 'PUT',
+            headers: getAuthHeaders(token),
+            body: JSON.stringify(data),
         });
         return handleResponse(response);
     };
@@ -172,6 +197,13 @@ import { getAuthHeaders, handleResponse } from './utils';
     export const deleteVoucher = async (entityId, voucherId, token) => {
         const response = await fetch(`${FINANCE_API_BASE_URL}/api/vouchers/${voucherId}?entity_id=${entityId}`, {
             method: 'DELETE',
+            headers: getAuthHeaders(token),
+        });
+        return handleResponse(response);
+    };
+
+    export const getVoucher = async (entityId, voucherId, token) => {
+        const response = await fetch(`${FINANCE_API_BASE_URL}/api/vouchers/${voucherId}?entity_id=${entityId}`, {
             headers: getAuthHeaders(token),
         });
         return handleResponse(response);

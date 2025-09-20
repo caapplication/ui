@@ -25,8 +25,9 @@ export const handleResponse = async (response) => {
         }
         
         const errorMessage = error.detail || `HTTP error! status: ${response.status}`;
+        const messageString = typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage);
 
-        if (response.status === 401 || errorMessage.toLowerCase().includes('invalid token') || errorMessage.toLowerCase().includes('token has expired')) {
+        if (response.status === 401 || messageString.toLowerCase().includes('invalid token') || messageString.toLowerCase().includes('token has expired')) {
              // We can't use useAuth here directly as it's not a component.
              // We'll throw a specific error and let a boundary or context handle it.
              // A simpler approach for now is to dispatch a custom event.

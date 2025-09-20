@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -45,7 +45,17 @@ const SettingsTab = ({ service, onUpdate }) => {
     
     const [isRecurring, setIsRecurring] = useState(service?.is_recurring || false);
     const [createDocRequest, setCreateDocRequest] = useState(service?.create_document_collection_request_automatically || false);
-    const [targetDate, setTargetDate] = useState(service?.target_date_creation_date ? new Date(service.target_date_creation_date) : null);
+    const [targetDate, setTargetDate] = useState(null);
+
+    useEffect(() => {
+        if (service?.target_date_creation_date) {
+            const newDate = new Date();
+            newDate.setDate(service.target_date_creation_date);
+            setTargetDate(newDate);
+        } else {
+            setTargetDate(null);
+        }
+    }, [service]);
 
     const handleSave = async (e) => {
         e.preventDefault();
@@ -58,15 +68,15 @@ const SettingsTab = ({ service, onUpdate }) => {
             is_enabled: data.isEnabled === 'on',
             is_checklist_completion_required: data.isChecklistRequired === 'on',
             is_recurring: data.isRecurring === 'on',
-            auto_task_creation_frequency: data.isRecurring === 'on' ? data.frequency : null,
-            target_date_creation_date: targetDate ? targetDate.toISOString() : null,
+            auto_task_creation_frequency: data.isRecurring === 'on' ? parseInt(data.frequency, 10) : null,
+            target_date_creation_date: targetDate ? parseInt(targetDate.getDate(), 10) : null,
             assign_auto_tasks_to_users_of_respective_clients: data.assignToClients === 'on',
             // assign_auto_tasks_to_users: data.assignToClients !== 'on' ? data.assignToUsers : [],
             create_document_collection_request_automatically: data.createDocRequest === 'on',
             document_request_default_message: data.createDocRequest === 'on' ? data.docRequestMessage : null,
             billing_sac_code: data.sacCode,
-            billing_gst_percent: data.gst,
-            billing_default_rate: data.billingRate,
+            billing_gst_percent: parseFloat(data.gst),
+            billing_default_rate: parseFloat(data.billingRate),
             billing_default_billable: data.markBillable === 'on',
         };
 

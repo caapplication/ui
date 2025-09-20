@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Plus, Trash2, GripVertical, Loader2 } from 'lucide-react';
+import { Plus, Trash2, GripVertical, Loader2, Pencil, X, Check } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth.jsx';
-import { addChecklistItem, deleteChecklistItem, getServiceDetails } from '@/lib/api/services';
+import { addChecklistItem, deleteChecklistItem, getServiceDetails, updateChecklistItem } from '@/lib/api/services';
 
 const ChecklistTab = ({ service, onUpdate }) => {
     const [checklist, setChecklist] = useState(service.checklists || []);
@@ -14,6 +14,8 @@ const ChecklistTab = ({ service, onUpdate }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [isDeleting, setIsDeleting] = useState(null);
     const [newItemText, setNewItemText] = useState('');
+    const [editingItemId, setEditingItemId] = useState(null);
+    const [editingItemText, setEditingItemText] = useState('');
 
     useEffect(() => {
         setChecklist(service.checklists || []);
@@ -51,6 +53,32 @@ const ChecklistTab = ({ service, onUpdate }) => {
             setIsDeleting(null);
         }
     };
+
+    const handleUpdateStep = async (id) => {
+        if (!editingItemText.trim()) {
+            toast({ title: "Checklist item cannot be empty.", variant: "destructive" });
+            return;
+        }
+        try {
+            await updateChecklistItem(id, { item_text: editingItemText }, user.agency_id, user.access_token);
+            const updatedService = await getServiceDetails(service.id, user.agency_id, user.access_token);
+            onUpdate(updatedService);
+            setEditingItemId(null);
+            toast({ title: "✅ Success", description: "Checklist item updated." });
+        } catch (error) {
+            toast({ title: "❌ Error", description: `Failed to update item: ${error.message}`, variant: "destructive" });
+        }
+    };
+
+    const startEditing = (item) => {
+        setEditingItemId(item.id);
+        setEditingItemText(item.item_text);
+    };
+
+    const cancelEditing = () => {
+        setEditingItemId(null);
+        setEditingItemText('');
+    };
     
     return (
         <div>
@@ -70,10 +98,34 @@ const ChecklistTab = ({ service, onUpdate }) => {
                             className="flex items-center gap-3 p-2 bg-black/10 rounded-lg"
                         >
                             <GripVertical className="w-5 h-5 text-gray-500 cursor-grab" />
-                            <p className="flex-grow text-white">{item.item_text}</p>
-                            <Button variant="ghost" size="icon" className="text-red-400 hover:text-red-300" onClick={() => handleRemoveStep(item.id)} disabled={isDeleting === item.id}>
-                                {isDeleting === item.id ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5" />}
-                            </Button>
+                            {editingItemId === item.id ? (
+                                <Input 
+                                    value={editingItemText}
+                                    onChange={(e) => setEditingItemText(e.target.value)}
+                                    className="flex-grow"
+                                />
+                            ) : (
+                                <p className="flex-grow text-white">{item.item_text}</p>
+                            )}
+                            {editingItemId === item.id ? (
+                                <>
+                                    <Button variant="ghost" size="icon" onClick={() => handleUpdateStep(item.id)}>
+                                        <Check className="w-5 h-5 text-green-400" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" onClick={cancelEditing}>
+                                        <X className="w-5 h-5 text-red-400" />
+                                    </Button>
+                                </>
+                            ) : (
+                                <>
+                                    <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white" onClick={() => startEditing(item)}>
+                                        <Pencil className="w-5 h-5" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="text-red-400 hover:text-red-300" onClick={() => handleRemoveStep(item.id)} disabled={isDeleting === item.id}>
+                                        {isDeleting === item.id ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5" />}
+                                    </Button>
+                                </>
+                            )}
                         </motion.div>
                     ))}
                 </AnimatePresence>
