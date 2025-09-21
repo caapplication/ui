@@ -5,6 +5,7 @@ import { Plus, FileText, Banknote, ChevronDown, Loader2, RefreshCw, Download } f
 import { Dialog } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.jsx";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { useNavigate, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useToast } from '@/components/ui/use-toast';
 import { getBeneficiaries, getInvoices, addInvoice, updateInvoice, deleteInvoice, addVoucher, updateVoucher, getVouchers, deleteVoucher, getBankAccountsForBeneficiary, exportVouchersToTallyXML } from '@/lib/api';
@@ -22,7 +23,6 @@ const Finance = ({ organisationBankAccounts, quickAction, clearQuickAction, enti
   const [selectedVoucher, setSelectedVoucher] = useState(null);
   const [editingInvoice, setEditingInvoice] = useState(null);
   const [editingVoucher, setEditingVoucher] = useState(null);
-  const [activeTab, setActiveTab] = useState('vouchers');
   
   const [beneficiaries, setBeneficiaries] = useState([]);
   const [invoices, setInvoices] = useState([]);
@@ -31,6 +31,8 @@ const Finance = ({ organisationBankAccounts, quickAction, clearQuickAction, enti
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const fetchData = useCallback(async (isRefresh = false) => {
     if (!entityId || !user?.access_token) return;
@@ -85,18 +87,6 @@ const Finance = ({ organisationBankAccounts, quickAction, clearQuickAction, enti
       };
     });
   }, [vouchers]);
-
-  useEffect(() => {
-    if (quickAction === 'add-invoice') {
-      setActiveTab('invoices');
-      setShowInvoiceDialog(true);
-      clearQuickAction();
-    } else if (quickAction === 'add-voucher') {
-      setActiveTab('vouchers');
-      setShowVoucherDialog(true);
-      clearQuickAction();
-    }
-  }, [quickAction, clearQuickAction]);
 
   const handleAddOrUpdateInvoice = async (invoiceData, invoiceId) => {
     try {
@@ -174,14 +164,13 @@ const Finance = ({ organisationBankAccounts, quickAction, clearQuickAction, enti
   };
   
   const handleEditVoucherClick = (voucher) => {
-    setEditingVoucher(voucher);
-    setShowVoucherDialog(true);
+    const enrichedVoucher = enrichedVouchers.find(v => v.id === voucher.id);
+    navigate(`/vouchers/${voucher.id}`, { state: { voucher: enrichedVoucher, startInEditMode: true, organizationName } });
   };
 
   const handleViewVoucherClick = (voucher) => {
     const enrichedVoucher = enrichedVouchers.find(v => v.id === voucher.id);
-    setSelectedVoucher(enrichedVoucher);
-    setShowViewVoucherDialog(true);
+    navigate(`/vouchers/${voucher.id}`, { state: { voucher: enrichedVoucher, organizationName } });
   };
       
   const selectedVoucherData = React.useMemo(() => {
@@ -239,18 +228,20 @@ const Finance = ({ organisationBankAccounts, quickAction, clearQuickAction, enti
             <Button variant="outline" size="icon" onClick={() => fetchData(true)} disabled={isRefreshing}>
               <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" disabled={enrichedVouchers.length === 0}>
-                  <Download className="w-4 h-4 mr-2" />
-                  Export to Tally
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem onSelect={() => handleExportToTally('csv')}>CSV or xlsx</DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => handleExportToTally('xml')}>XML</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {user.role !== 'CLIENT_USER' && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" disabled={enrichedVouchers.length === 0}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Export to Tally
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onSelect={() => handleExportToTally('csv')}>CSV or xlsx</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => handleExportToTally('xml')}>XML</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button>
@@ -260,11 +251,11 @@ const Finance = ({ organisationBankAccounts, quickAction, clearQuickAction, enti
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56">
-                <DropdownMenuItem onSelect={() => { setEditingVoucher(null); setShowVoucherDialog(true); setActiveTab('vouchers'); }}>
+                <DropdownMenuItem onSelect={() => { setEditingVoucher(null); setShowVoucherDialog(true); }}>
                   <Banknote className="w-4 h-4 mr-2" />
                   <span>Voucher</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => { setEditingInvoice(null); setShowInvoiceDialog(true); setActiveTab('invoices'); }}>
+                <DropdownMenuItem onSelect={() => { setEditingInvoice(null); setShowInvoiceDialog(true); }}>
                   <FileText className="w-4 h-4 mr-2" />
                   <span>Invoice</span>
                 </DropdownMenuItem>
@@ -273,42 +264,46 @@ const Finance = ({ organisationBankAccounts, quickAction, clearQuickAction, enti
           </div>
         </div>
       
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="glass-tab-list">
-              <TabsTrigger value="vouchers">Vouchers</TabsTrigger>
-              <TabsTrigger value="invoices">Invoices</TabsTrigger>
-          </TabsList>
+        <div className="w-full">
+          <div className="flex space-x-4 border-b">
+            <Link to="/finance/vouchers" className={`py-2 px-4 ${location.pathname.includes('/vouchers') ? 'border-b-2 border-white text-white' : 'text-gray-400'}`}>Vouchers</Link>
+            <Link to="/finance/invoices" className={`py-2 px-4 ${location.pathname.includes('/invoices') ? 'border-b-2 border-white text-white' : 'text-gray-400'}`}>Invoices</Link>
+          </div>
           
-          <TabsContent value="vouchers">
-             {isLoading ? (
-               <div className="flex justify-center items-center h-64">
-                 <Loader2 className="w-8 h-8 animate-spin text-white" />
-               </div>
-             ) : (
-                <VoucherHistory 
-                  vouchers={enrichedVouchers}
-                  onDeleteVoucher={handleDeleteVoucherClick}
-                  onViewVoucher={handleViewVoucherClick}
-                  onEditVoucher={handleEditVoucherClick}
-                />
-             )}
-          </TabsContent>
-
-          <TabsContent value="invoices">
-            {isLoading ? (
-              <div className="flex justify-center items-center h-64">
-                <Loader2 className="w-8 h-8 animate-spin text-white" />
-              </div>
-            ) : (
-              <InvoiceHistory 
-                invoices={invoices}
-                beneficiaries={beneficiaries}
-                onDeleteInvoice={handleDeleteInvoiceClick}
-                onEditInvoice={handleEditInvoiceClick}
-              />
-            )}
-          </TabsContent>
-      </Tabs>
+          <div className="mt-4">
+            <Routes>
+              <Route path="/" element={<Navigate to="vouchers" />} />
+              <Route path="vouchers" element={
+                isLoading ? (
+                  <div className="flex justify-center items-center h-64">
+                    <Loader2 className="w-8 h-8 animate-spin text-white" />
+                  </div>
+                ) : (
+                  <VoucherHistory 
+                    vouchers={enrichedVouchers}
+                    onDeleteVoucher={handleDeleteVoucherClick}
+                    onViewVoucher={handleViewVoucherClick}
+                    onEditVoucher={handleEditVoucherClick}
+                  />
+                )
+              } />
+              <Route path="invoices" element={
+                isLoading ? (
+                  <div className="flex justify-center items-center h-64">
+                    <Loader2 className="w-8 h-8 animate-spin text-white" />
+                  </div>
+                ) : (
+                  <InvoiceHistory 
+                    invoices={invoices}
+                    beneficiaries={beneficiaries}
+                    onDeleteInvoice={handleDeleteInvoiceClick}
+                    onEditInvoice={handleEditInvoiceClick}
+                  />
+                )
+              } />
+            </Routes>
+          </div>
+        </div>
       </motion.div>
 
       <Dialog open={showInvoiceDialog} onOpenChange={closeDialogs}>

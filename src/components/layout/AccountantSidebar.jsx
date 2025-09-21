@@ -19,22 +19,24 @@ import { useAuth } from '@/hooks/useAuth.jsx';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useMediaQuery } from '@/hooks/useMediaQuery.jsx';
+import { Link, useLocation } from 'react-router-dom';
 
-const AccountantSidebar = ({ activeTab, setActiveTab, isCollapsed, setIsCollapsed, isOpen, setIsOpen }) => {
+const AccountantSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) => {
   const { user, logout } = useAuth();
   const isDesktop = useMediaQuery("(min-width: 1024px)");
+  const location = useLocation();
 
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'clients', label: 'Clients', icon: Users },
-    { id: 'tasks', label: 'Task Management', icon: ListTodo },
-    { id: 'todos', label: 'To-do List', icon: ListChecks },
-    { id: 'services', label: 'Services', icon: Briefcase },
-    { id: 'finance', label: 'Finance', icon: Landmark },
-    { id: 'organisation', label: 'Organisation', icon: Banknote },
-    { id: 'team-members', label: 'Team Members', icon: UserPlus },
-    { id: 'documents', label: 'Documents', icon: FileText },
-    { id: 'settings', label: 'Settings', icon: Settings },
+    { id: 'dashboard', path: '/', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'clients', path: '/clients', label: 'Clients', icon: Users },
+    { id: 'tasks', path: '/tasks', label: 'Task Management', icon: ListTodo },
+    { id: 'todos', path: '/todos', label: 'To-do List', icon: ListChecks },
+    { id: 'services', path: '/services', label: 'Services', icon: Briefcase },
+    { id: 'finance', path: '/finance', label: 'Finance', icon: Landmark },
+    { id: 'organisation', path: '/organisation', label: 'Organisation', icon: Banknote },
+    { id: 'team-members', path: '/team-members', label: 'Team Members', icon: UserPlus },
+    { id: 'documents', path: '/documents', label: 'Documents', icon: FileText },
+    { id: 'settings', path: '/settings', label: 'Settings', icon: Settings },
   ];
 
   const variants = {
@@ -59,7 +61,7 @@ const AccountantSidebar = ({ activeTab, setActiveTab, isCollapsed, setIsCollapse
       <div className="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar">
         <div className="mb-8">
             <div className={`flex items-center mb-4 ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
-                <div className="flex items-center space-x-4 cursor-pointer min-w-0" onClick={() => setActiveTab('profile')}>
+                <Link to="/profile" className="flex items-center space-x-4 cursor-pointer min-w-0">
                     <Avatar className="w-12 h-12 flex-shrink-0 border-2 border-white/20">
                         <AvatarImage src={user?.profilePictureUrl} alt={user?.name} />
                         <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
@@ -74,7 +76,7 @@ const AccountantSidebar = ({ activeTab, setActiveTab, isCollapsed, setIsCollapse
                     </motion.div>
                     )}
                     </AnimatePresence>
-                </div>
+                </Link>
             </div>
         </div>
 
@@ -82,33 +84,34 @@ const AccountantSidebar = ({ activeTab, setActiveTab, isCollapsed, setIsCollapse
           <ul className="space-y-2">
             {menuItems.map((item) => {
               const Icon = item.icon;
-              const isActive = activeTab === item.id;
+              const isActive = location.pathname === item.path;
               return (
                 <li key={item.id}>
-                  <Button
-                    variant="ghost"
-                    className={`w-full justify-start text-left h-12 relative ${isActive ? 'text-white' : 'text-gray-300'}`}
-                    onClick={() => setActiveTab(item.id)}
-                    title={isCollapsed ? item.label : ''}
-                  >
-                    <AnimatePresence>
-                    {isActive && (
-                      <motion.div
-                        layoutId="active-nav-glow-accountant"
-                        className="absolute inset-0 bg-white/10 rounded-lg shadow-glow-secondary"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                      ></motion.div>
-                    )}
-                    </AnimatePresence>
-                    <Icon className={`w-6 h-6 flex-shrink-0 z-10 ${isCollapsed ? 'mx-auto' : 'mr-4'}`} />
-                     <AnimatePresence>
-                        {!isCollapsed && (
-                          <motion.span variants={textVariants} initial="collapsed" animate="expanded" exit="collapsed" className="flex-1 font-medium z-10">{item.label}</motion.span>
-                        )}
+                  <Link to={item.path}>
+                    <Button
+                      variant="ghost"
+                      className={`w-full justify-start text-left h-12 relative ${isActive ? 'text-white' : 'text-gray-300'}`}
+                      title={isCollapsed ? item.label : ''}
+                    >
+                      <AnimatePresence>
+                      {isActive && (
+                        <motion.div
+                          layoutId="active-nav-glow-accountant"
+                          className="absolute inset-0 bg-white/10 rounded-lg shadow-glow-secondary"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                        ></motion.div>
+                      )}
                       </AnimatePresence>
-                  </Button>
+                      <Icon className={`w-6 h-6 flex-shrink-0 z-10 ${isCollapsed ? 'mx-auto' : 'mr-4'}`} />
+                       <AnimatePresence>
+                          {!isCollapsed && (
+                            <motion.span variants={textVariants} initial="collapsed" animate="expanded" exit="collapsed" className="flex-1 font-medium z-10">{item.label}</motion.span>
+                          )}
+                        </AnimatePresence>
+                    </Button>
+                  </Link>
                 </li>
               );
             })}

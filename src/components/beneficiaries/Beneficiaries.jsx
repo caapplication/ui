@@ -19,6 +19,7 @@ import {
   getBankAccountsForBeneficiary
 } from '@/lib/api';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const BeneficiaryForm = ({ onAdd, onCancel }) => {
   const [beneficiaryType, setBeneficiaryType] = useState('individual');
@@ -108,6 +109,7 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [activeTab, setActiveTab] = useState('individual');
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -153,15 +155,18 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
   }, [quickAction, clearQuickAction]);
 
   const filteredBeneficiaries = useMemo(() => {
-    if (!searchTerm) return beneficiaries;
-    return beneficiaries.filter(b => {
+    const sortedBeneficiaries = [...beneficiaries].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    const filteredByType = sortedBeneficiaries.filter(b => b.beneficiary_type === activeTab);
+    if (!searchTerm) return filteredByType;
+    return filteredByType.filter(b => {
       const term = searchTerm.toLowerCase();
       const name = b.beneficiary_type === 'individual' ? b.name : b.company_name;
       return name?.toLowerCase().includes(term) ||
              b.email?.toLowerCase().includes(term) ||
-             b.pan?.toLowerCase().includes(term);
+             b.pan?.toLowerCase().includes(term) ||
+             b.phone?.toLowerCase().includes(term);
     });
-  }, [searchTerm, beneficiaries]);
+  }, [searchTerm, beneficiaries, activeTab]);
 
   const handleAdd = async (beneficiaryData) => {
     try {
@@ -254,41 +259,88 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
             <Loader2 className="w-8 h-8 animate-spin text-white" />
           </div>
         ) : (
-          <Card className="glass-card">
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead>PAN</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredBeneficiaries.map((b) => (
-                    <TableRow key={b.id}>
-                      <TableCell>{b.beneficiary_type === 'individual' ? b.name : b.company_name}</TableCell>
-                      <TableCell>{b.email}</TableCell>
-                      <TableCell>{b.phone}</TableCell>
-                      <TableCell>{b.pan || 'N/A'}</TableCell>
-                      <TableCell>
-                        <Link to={`/beneficiaries/${b.id}`}>
-                          <Button size="icon" variant="ghost">
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                        </Link>
-                        <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={() => handleDelete(b.id)}>
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-            <CardFooter className="flex justify-between items-center">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="individual">Individual</TabsTrigger>
+              <TabsTrigger value="company">Company</TabsTrigger>
+            </TabsList>
+            <TabsContent value="individual">
+              <Card className="glass-card">
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Phone</TableHead>
+                        <TableHead>PAN</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredBeneficiaries.map((b) => (
+                        <TableRow key={b.id}>
+                          <TableCell>{b.name}</TableCell>
+                          <TableCell>{b.email}</TableCell>
+                          <TableCell>{b.phone}</TableCell>
+                          <TableCell>{b.pan || 'N/A'}</TableCell>
+                          <TableCell>
+                            <Link to={`/beneficiaries/${b.id}`}>
+                              <Button size="icon" variant="ghost">
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                            </Link>
+                            <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={() => handleDelete(b.id)}>
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </TabsContent>
+            <TabsContent value="company">
+              <Card className="glass-card">
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Company Name</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Phone</TableHead>
+                        <TableHead>PAN</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredBeneficiaries.map((b) => (
+                        <TableRow key={b.id}>
+                          <TableCell>{b.company_name}</TableCell>
+                          <TableCell>{b.email}</TableCell>
+                          <TableCell>{b.phone}</TableCell>
+                          <TableCell>{b.pan || 'N/A'}</TableCell>
+                          <TableCell>
+                            <Link to={`/beneficiaries/${b.id}`}>
+                              <Button size="icon" variant="ghost">
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                            </Link>
+                            <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={() => handleDelete(b.id)}>
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        )}
+        <CardFooter className="flex justify-between items-center">
               <div>
                 <p className="text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
               </div>
@@ -300,9 +352,7 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
                   <ChevronRight className="w-4 h-4" />
                 </Button>
               </div>
-            </CardFooter>
-          </Card>
-        )}
+        </CardFooter>
       </motion.div>
       
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>

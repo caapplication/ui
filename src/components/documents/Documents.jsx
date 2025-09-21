@@ -71,12 +71,12 @@ const findPath = (root, id) => {
   return path;
 };
 
-const Documents = ({ entityId: initialEntityId, quickAction, clearQuickAction }) => {
+const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   const { user } = useAuth();
   
   const getInitialEntityId = () => {
     if (user?.role === 'CA_ACCOUNTANT') return 'all';
-    return initialEntityId;
+    return entityId;
   };
 
   const [documentsState, setDocumentsState] = useState({ id: 'root', name: 'Root', is_folder: true, children: [] });
@@ -153,7 +153,7 @@ const Documents = ({ entityId: initialEntityId, quickAction, clearQuickAction })
     if (user?.role === 'CA_ACCOUNTANT') {
         entityToFetch = selectedEntityId !== 'all' ? selectedEntityId : (currentClientId !== 'all' ? currentClientId : null);
     } else {
-        entityToFetch = initialEntityId;
+        entityToFetch = entityId;
     }
 
     if (isRefresh) {
@@ -176,7 +176,7 @@ const Documents = ({ entityId: initialEntityId, quickAction, clearQuickAction })
         setIsLoading(false);
         setIsRefreshing(false);
     }
-  }, [currentClientId, selectedEntityId, user, initialEntityId, toast]);
+  }, [currentClientId, selectedEntityId, user, entityId, toast]);
 
   const fetchSharedDocuments = useCallback(async (isRefresh = false) => {
     if (!user?.access_token) return;
@@ -262,7 +262,7 @@ if (activeTab === 'myFiles') {
         if (user?.role === 'CA_ACCOUNTANT') {
             await uploadCAFile(currentFolderId, file, shareExpiryDate, user.access_token);
         } else {
-            await uploadFile(currentFolderId, initialEntityId, file, shareExpiryDate, user.access_token);
+            await uploadFile(currentFolderId, entityId, file, shareExpiryDate, user.access_token);
         }
         toast({ title: "Document Uploaded", description: "New document has been successfully added." });
         setShowUpload(false);
@@ -283,7 +283,7 @@ if (activeTab === 'myFiles') {
         if (user?.role === 'CA_ACCOUNTANT') {
             await createCAFolder(newFolderName, currentFolderId, user.access_token);
         } else {
-            await createFolder(newFolderName, initialEntityId, currentFolderId, user.access_token);
+            await createFolder(newFolderName, entityId, currentFolderId, user.agency_id, user.access_token);
         }
         toast({ title: "Folder Created", description: `Folder "${newFolderName}" has been created.` });
         setShowCreateFolder(false);

@@ -18,6 +18,7 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction 
   const [isLoading, setIsLoading] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showToggleActiveDialog, setShowToggleActiveDialog] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState(null);
   const [newAccountType, setNewAccountType] = useState("");
   const [visibleAccounts, setVisibleAccounts] = useState({});
@@ -95,10 +96,12 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction 
     setVisibleAccounts(prev => ({ ...prev, [accountId]: !prev[accountId] }));
   };
 
-  const handleToggleActive = async (account) => {
+  const handleToggleActive = async () => {
+    if (!selectedAccount) return;
     try {
-      await updateOrganisationBankAccount(account.id, { is_active: !account.is_active }, user.access_token);
+      await updateOrganisationBankAccount(selectedAccount.id, { is_active: !selectedAccount.is_active }, user.access_token);
       toast({ title: "Success", description: "Bank account status updated successfully." });
+      setShowToggleActiveDialog(false);
       fetchBankAccounts();
     } catch (error) {
       toast({
@@ -171,7 +174,10 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction 
                             <TableCell>{account.branch_name}</TableCell>
                             <TableCell>{account.account_type}</TableCell>
                             <TableCell className="text-right">
-                              <Button size="icon" variant="ghost" onClick={() => handleToggleActive(account)}>
+                              <Button size="icon" variant="ghost" onClick={() => {
+                                setSelectedAccount(account);
+                                setShowToggleActiveDialog(true);
+                              }}>
                                 {account.is_active ? <ToggleRight className="w-6 h-6 text-green-400" /> : <ToggleLeft className="w-6 h-6 text-gray-400" />}
                               </Button>
                             </TableCell>
@@ -232,7 +238,10 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction 
                             <TableCell>{account.branch_name}</TableCell>
                             <TableCell>{account.account_type}</TableCell>
                             <TableCell className="text-right">
-                              <Button size="icon" variant="ghost" onClick={() => handleToggleActive(account)}>
+                              <Button size="icon" variant="ghost" onClick={() => {
+                                setSelectedAccount(account);
+                                setShowToggleActiveDialog(true);
+                              }}>
                                 {account.is_active ? <ToggleRight className="w-6 h-6 text-green-400" /> : <ToggleLeft className="w-6 h-6 text-gray-400" />}
                               </Button>
                               {!account.is_active && (
@@ -329,6 +338,25 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction 
             </Button>
             <Button variant="destructive" onClick={handleDeleteAccount}>
               Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showToggleActiveDialog} onOpenChange={setShowToggleActiveDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Are you sure?</DialogTitle>
+            <DialogDescription>
+              You are about to {selectedAccount?.is_active ? 'deactivate' : 'activate'} this bank account.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setShowToggleActiveDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleToggleActive}>
+              Confirm
             </Button>
           </DialogFooter>
         </DialogContent>

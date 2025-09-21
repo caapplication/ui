@@ -22,17 +22,19 @@ import {
   SelectValue 
 } from '@/components/ui/select';
 import { useMediaQuery } from '@/hooks/useMediaQuery.jsx';
+import { Link, useLocation } from 'react-router-dom';
 
-const Sidebar = ({ activeTab, setActiveTab, currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed, isOpen, setIsOpen }) => {
+const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed, isOpen, setIsOpen }) => {
   const { user, logout } = useAuth();
   const isDesktop = useMediaQuery("(min-width: 1024px)");
+  const location = useLocation();
   
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'finance', label: 'Finance', icon: Landmark },
-    { id: 'documents', label: 'Documents', icon: FileText },
-    { id: 'beneficiaries', label: 'Beneficiaries', icon: Users },
-    { id: 'organisation-bank', label: 'Organisation Bank', icon: Banknote },
+    { id: 'dashboard', path: '/', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'finance', path: '/finance', label: 'Finance', icon: Landmark },
+    { id: 'documents', path: '/documents', label: 'Documents', icon: FileText },
+    { id: 'beneficiaries', path: '/beneficiaries', label: 'Beneficiaries', icon: Users },
+    { id: 'organisation-bank', path: '/organisation-bank', label: 'Organisation Bank', icon: Banknote },
   ];
 
   const entitiesToDisplay = useMemo(() => {
@@ -57,7 +59,6 @@ const Sidebar = ({ activeTab, setActiveTab, currentEntity, setCurrentEntity, isC
 
   const handleEntityChange = (entityId) => {
     setCurrentEntity(entityId);
-    setActiveTab('dashboard');
   };
 
   const handleToggleCollapse = () => setIsCollapsed(!isCollapsed);
@@ -67,7 +68,7 @@ const Sidebar = ({ activeTab, setActiveTab, currentEntity, setCurrentEntity, isC
       <div className="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar">
         <div className="mb-8">
             <div className={`flex items-center mb-4 ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
-                <div className="flex items-center space-x-4 cursor-pointer min-w-0" onClick={() => setActiveTab('profile')}>
+                <Link to="/profile" className="flex items-center space-x-4 cursor-pointer min-w-0">
                     <Avatar className="w-12 h-12 flex-shrink-0 border-2 border-white/20">
                         <AvatarImage src={user?.profilePictureUrl} alt={user?.name} />
                         <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
@@ -82,7 +83,7 @@ const Sidebar = ({ activeTab, setActiveTab, currentEntity, setCurrentEntity, isC
                     </motion.div>
                     )}
                     </AnimatePresence>
-                </div>
+                </Link>
             </div>
         </div>
 
@@ -118,33 +119,34 @@ const Sidebar = ({ activeTab, setActiveTab, currentEntity, setCurrentEntity, isC
           <ul className="space-y-2">
             {menuItems.map((item) => {
               const Icon = item.icon;
-              const isActive = activeTab === item.id;
+              const isActive = location.pathname === item.path;
               return (
                 <li key={item.id}>
-                  <Button
-                    variant="ghost"
-                    className={`w-full justify-start text-left h-12 relative ${isActive ? 'text-white' : 'text-gray-300'}`}
-                    onClick={() => setActiveTab(item.id)}
-                    title={isCollapsed ? item.label : ''}
-                  >
-                    <AnimatePresence>
-                    {isActive && (
-                      <motion.div
-                        layoutId="active-nav-glow-client"
-                        className="absolute inset-0 bg-white/10 rounded-lg shadow-glow-secondary"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                      ></motion.div>
-                    )}
-                    </AnimatePresence>
-                    <Icon className={`w-6 h-6 flex-shrink-0 z-10 ${isCollapsed ? 'mx-auto' : 'mr-4'}`} />
-                     <AnimatePresence>
-                        {!isCollapsed && (
-                          <motion.span variants={textVariants} initial="collapsed" animate="expanded" exit="collapsed" className="flex-1 font-medium z-10">{item.label}</motion.span>
-                        )}
+                  <Link to={item.path}>
+                    <Button
+                      variant="ghost"
+                      className={`w-full justify-start text-left h-12 relative ${isActive ? 'text-white' : 'text-gray-300'}`}
+                      title={isCollapsed ? item.label : ''}
+                    >
+                      <AnimatePresence>
+                      {isActive && (
+                        <motion.div
+                          layoutId="active-nav-glow-client"
+                          className="absolute inset-0 bg-white/10 rounded-lg shadow-glow-secondary"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                        ></motion.div>
+                      )}
                       </AnimatePresence>
-                  </Button>
+                      <Icon className={`w-6 h-6 flex-shrink-0 z-10 ${isCollapsed ? 'mx-auto' : 'mr-4'}`} />
+                       <AnimatePresence>
+                          {!isCollapsed && (
+                            <motion.span variants={textVariants} initial="collapsed" animate="expanded" exit="collapsed" className="flex-1 font-medium z-10">{item.label}</motion.span>
+                          )}
+                        </AnimatePresence>
+                    </Button>
+                  </Link>
                 </li>
               );
             })}

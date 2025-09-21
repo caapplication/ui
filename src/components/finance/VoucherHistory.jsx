@@ -30,25 +30,14 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onViewVoucher, onEditVouche
   const sortedAndFilteredVouchers = useMemo(() => {
     let sortableVouchers = [...(vouchers || [])];
 
-    sortableVouchers.sort((a, b) => {
-      const valueA = sortConfig.key === 'created_date' ? new Date(a[sortConfig.key]) : a[sortConfig.key];
-      const valueB = sortConfig.key === 'created_date' ? new Date(b[sortConfig.key]) : b[sortConfig.key];
-
-      if (valueA < valueB) {
-        return sortConfig.direction === 'asc' ? -1 : 1;
-      }
-      if (valueA > valueB) {
-        return sortConfig.direction === 'asc' ? 1 : -1;
-      }
-      return 0;
-    });
+    sortableVouchers.sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
 
     return sortableVouchers.filter(v => {
       const searchTermMatch = (v.beneficiaryName && v.beneficiaryName.toLowerCase().includes(voucherSearchTerm.toLowerCase()));
       const typeFilterMatch = voucherTypeFilter === 'all' || v.voucher_type === voucherTypeFilter;
       return searchTermMatch && typeFilterMatch;
     });
-  }, [vouchers, voucherSearchTerm, voucherTypeFilter, sortConfig]);
+  }, [vouchers, voucherSearchTerm, voucherTypeFilter]);
 
   const requestSort = (key) => {
     let direction = 'asc';
@@ -142,6 +131,7 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onViewVoucher, onEditVouche
                         <TableHead>Beneficiary</TableHead>
                         <TableHead>Type</TableHead>
                         <TableHead>Amount</TableHead>
+                        <TableHead>Remarks</TableHead>
                         <TableHead>Actions</TableHead>
                     </TableRow>
                 </TableHeader>
@@ -157,43 +147,15 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onViewVoucher, onEditVouche
                                 <TableCell>{voucher.beneficiaryName}</TableCell>
                                 <TableCell><span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${voucher.voucher_type === 'cash' ? 'bg-green-500/20 text-green-300' : 'bg-pink-500/20 text-pink-300'}`}>{voucher.voucher_type}</span></TableCell>
                                 <TableCell>₹{parseFloat(voucher.amount).toFixed(2)}</TableCell>
-                                <TableCell className="text-right">
-                                    <div className="flex items-center justify-end gap-2">
-                                        {user.role === 'CA_ACCOUNTANT' && financeHeaders && (
-                                            <div className="flex items-center gap-2">
-                                                <Select onValueChange={(value) => handleHeaderChange(voucher.id, value)} defaultValue={voucher.finance_header_id}>
-                                                    <SelectTrigger className="w-[150px] h-8 text-xs">
-                                                        <SelectValue placeholder="Header" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {financeHeaders.map(h => <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>)}
-                                                    </SelectContent>
-                                                </Select>
-                                                <Button size="icon" variant="ghost" onClick={() => handleMarkAsReady(voucher.id)} disabled={voucher.is_ready} className="text-green-400 hover:text-green-300">
-                                                    <CheckCircle className="w-4 h-4" />
-                                                </Button>
-                                            </div>
-                                        )}
-                                        <div className="flex items-center">
-                                        {voucher.attachment_id && (
-                                            <Button size="icon" variant="ghost" onClick={() => handleViewAttachment(voucher)}>
-                                                <FileText className="w-4 h-4" />
-                                            </Button>
-                                        )}
-                                        <Button size="icon" variant="ghost" onClick={() => onViewVoucher(voucher)}>
-                                            <Eye className="w-4 h-4" />
+                                <TableCell>{voucher.remarks || 'N/A'}</TableCell>
+                                <TableCell>
+                                    <div className="flex items-center gap-2">
+                                        <Button variant="ghost" size="icon" onClick={() => onEditVoucher(voucher)} className="text-blue-400 hover:text-blue-300">
+                                            <Edit className="w-5 h-5" />
                                         </Button>
-                                        {onEditVoucher && (
-                                            <Button size="icon" variant="ghost" className="text-sky-400 hover:text-sky-300 hover:bg-sky-500/10" onClick={() => onEditVoucher(voucher)}>
-                                                <Edit className="w-4 h-4" />
-                                            </Button>
-                                        )}
-                                        {onDeleteVoucher && (
-                                            <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={() => onDeleteVoucher(voucher.id)}>
-                                                <Trash2 className="w-4 h-4" />
-                                            </Button>
-                                        )}
-                                        </div>
+                                        <Button variant="ghost" size="icon" onClick={() => onViewVoucher(voucher)} className="text-gray-400 hover:text-gray-300">
+                                            <Eye className="w-5 h-5" />
+                                        </Button>
                                     </div>
                                 </TableCell>
                             </TableRow>

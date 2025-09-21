@@ -1,6 +1,6 @@
 import { getAuthHeaders, handleResponse } from './utils';
 
-const FINANCE_API_BASE_URL = 'https://finance-api.snolep.com';
+const FINANCE_API_BASE_URL = 'http://127.0.0.1:8000';
 
 export const getDocuments = async (entityId, token) => {
     let url = `${FINANCE_API_BASE_URL}/api/documents/folders/?exclude_shared=true`;
@@ -13,11 +13,11 @@ export const getDocuments = async (entityId, token) => {
     return handleResponse(response);
 };
 
-export const createFolder = async (folderName, entityId, parentId, token) => {
+export const createFolder = async (folderName, entityId, parentId, agencyId, token) => {
     const response = await fetch(`${FINANCE_API_BASE_URL}/api/documents/folders/`, {
         method: 'POST',
         headers: getAuthHeaders(token),
-        body: JSON.stringify({ name: folderName, entity_id: entityId, parent_id: parentId === 'root' ? null : parentId }),
+        body: JSON.stringify({ name: folderName, entity_id: entityId, parent_id: parentId === 'root' ? null : parentId, agency_id: agencyId }),
     });
     return handleResponse(response);
 };

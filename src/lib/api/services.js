@@ -2,7 +2,7 @@ import { getAuthHeaders, handleResponse } from './utils';
 
 const TASK_API_BASE_URL = 'https://task-api.snolep.com';
 const API_BASE_URL = 'https://client-api.snolep.com';
-const SERVICES_API_URL = 'https://finance-api.snolep.com';
+const SERVICES_API_URL = 'http://127.0.0.1:8000';
 
 export const createService = async (serviceData, agencyId, token) => {
     const response = await fetch(`${SERVICES_API_URL}/services/`, {

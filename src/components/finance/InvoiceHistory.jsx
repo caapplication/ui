@@ -25,13 +25,16 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, financeHeade
       : invoice.beneficiary.company_name;
   };
 
-  const filteredInvoices = useMemo(() => 
-      (invoices || []).filter(inv => {
-          const beneficiaryName = getBeneficiaryName(inv).toLowerCase();
-          const searchTerm = invoiceSearchTerm.toLowerCase();
-          return inv.bill_number.toLowerCase().includes(searchTerm) ||
-                 beneficiaryName.includes(searchTerm);
-      }), [invoices, invoiceSearchTerm]);
+  const filteredInvoices = useMemo(() => {
+    const sortedInvoices = [...(invoices || [])].sort((a, b) => new Date(b.date) - new Date(a.date));
+    if (!invoiceSearchTerm) return sortedInvoices;
+    return sortedInvoices.filter(inv => {
+        const beneficiaryName = getBeneficiaryName(inv).toLowerCase();
+        const searchTerm = invoiceSearchTerm.toLowerCase();
+        return inv.bill_number.toLowerCase().includes(searchTerm) ||
+               beneficiaryName.includes(searchTerm);
+    });
+  }, [invoices, invoiceSearchTerm]);
 
   const handleViewAttachment = async (invoice) => {
     if (!invoice.attachment_id) {
@@ -99,8 +102,10 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, financeHeade
                 <TableHeader>
                     <TableRow>
                         <TableHead>Date</TableHead>
+                        <TableHead>Bill No</TableHead>
                         <TableHead>Beneficiary</TableHead>
                         <TableHead>Amount</TableHead>
+                        <TableHead>Remarks</TableHead>
                         <TableHead>Actions</TableHead>
                     </TableRow>
                 </TableHeader>
@@ -108,8 +113,10 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, financeHeade
                     {filteredInvoices.map(invoice => (
                         <TableRow key={invoice.id}>
                             <TableCell>{new Date(invoice.date).toLocaleDateString()}</TableCell>
+                            <TableCell>{invoice.bill_number}</TableCell>
                             <TableCell>{getBeneficiaryName(invoice)}</TableCell>
                             <TableCell>₹{(parseFloat(invoice.amount) + parseFloat(invoice.cgst) + parseFloat(invoice.sgst) + parseFloat(invoice.igst)).toFixed(2)}</TableCell>
+                            <TableCell>{invoice.remarks || 'N/A'}</TableCell>
                             <TableCell>
                                 <div className="flex items-center gap-2">
                                     <Button variant="link" onClick={() => handleViewAttachment(invoice)} className="text-sky-400">
@@ -117,9 +124,6 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, financeHeade
                                     </Button>
                                     <Button size="icon" variant="ghost" onClick={() => onEditInvoice(invoice)}>
                                         <Edit className="w-4 h-4" />
-                                    </Button>
-                                    <Button size="icon" variant="ghost" onClick={() => onDeleteInvoice(invoice.id)}>
-                                        <Trash2 className="w-4 h-4" />
                                     </Button>
                                 </div>
                             </TableCell>

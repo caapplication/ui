@@ -39,13 +39,10 @@ import BeneficiaryDetailsPage from '@/pages/BeneficiaryDetailsPage.jsx';
       const { user } = useAuth();
       const [searchParams] = useSearchParams();
       const isDesktop = useMediaQuery("(min-width: 1024px)");
-      const initialTab = searchParams.get('tab') || 'dashboard';
 
-      const [activeTab, setActiveTab] = useState(initialTab);
       const [currentEntity, setCurrentEntity] = useState(null);
       const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
       const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-      const [quickAction, setQuickAction] = useState(null);
       const [organisationBankAccounts, setOrganisationBankAccounts] = useState([]);
       
       const fetchOrganisationBankAccounts = useCallback(async () => {
@@ -64,43 +61,20 @@ import BeneficiaryDetailsPage from '@/pages/BeneficiaryDetailsPage.jsx';
         fetchOrganisationBankAccounts();
       }, [fetchOrganisationBankAccounts]);
 
-      const handleQuickAction = useCallback((action) => {
-        const actionMap = {
-          'add-beneficiary': 'beneficiaries',
-          'add-invoice': 'finance',
-          'add-voucher': 'finance',
-          'add-organisation-bank': 'organisation-bank',
-          'upload-document': 'documents',
-        };
-        const targetTab = actionMap[action];
-        if (targetTab) {
-          setActiveTab(targetTab);
-          setQuickAction(action);
-          if (!isDesktop) setIsMobileSidebarOpen(false);
-        }
-      }, [isDesktop]);
-
-      const clearQuickAction = useCallback(() => {
-        setQuickAction(null);
-      }, []);
-
-      const handleTabChange = useCallback((tab) => {
-        setActiveTab(tab);
-        if (!isDesktop) {
-          setIsMobileSidebarOpen(false);
-        }
-      }, [isDesktop]);
-
       useEffect(() => {
-        if (user && user.role === 'ENTITY_USER' && !currentEntity) {
-          setCurrentEntity(user.id);
-        } else if (user && user.role === 'CLIENT_USER' && !currentEntity) {
+        if (user && !currentEntity) {
+          if (user.role === 'ENTITY_USER') {
+            setCurrentEntity(user.id);
+          } else if (user.role === 'CLIENT_USER') {
             const entitiesToDisplay = user.entities || [];
             if (entitiesToDisplay.length > 0) {
-                setCurrentEntity(entitiesToDisplay[0].id);
+              setCurrentEntity(entitiesToDisplay[0].id);
             } else if (user.organization_id) {
-                setCurrentEntity(user.organization_id);
+              setCurrentEntity(user.organization_id);
             }
+          } else if (user.role !== 'CA_ACCOUNTANT') {
+            setCurrentEntity(user.organization_id || user.id);
+          }
         }
       }, [user, currentEntity]);
 
@@ -246,8 +220,6 @@ import BeneficiaryDetailsPage from '@/pages/BeneficiaryDetailsPage.jsx';
       return (
         <div className="flex h-screen bg-transparent overflow-hidden">
           <SidebarComponent 
-            activeTab={activeTab} 
-            setActiveTab={handleTabChange} 
             isCollapsed={isSidebarCollapsed}
             setIsCollapsed={setIsSidebarCollapsed}
             isOpen={isMobileSidebarOpen}
@@ -269,20 +241,20 @@ import BeneficiaryDetailsPage from '@/pages/BeneficiaryDetailsPage.jsx';
               </header>
             )}
             <div className="flex-1 overflow-y-auto">
-              {user.role === 'CA_ACCOUNTANT' ? renderAccountantContent() :
-               user.role === 'ENTITY_USER' ? (
-                currentEntity !== null ? renderEntityContent() : (
-                  <div className="h-full flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
-                  </div>
-                )
-              ) : (
-                currentEntity !== null || user.entities?.length === 0 ? renderClientContent() : (
-                  <div className="h-full flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
-                  </div>
-                )
-              )}
+              <Routes>
+                <Route path="/" element={<Dashboard entityId={currentEntity} entityName={getEntityName(currentEntity)} onQuickAction={() => {}} organisationBankAccounts={organisationBankAccounts} />} />
+                <Route path="/finance/*" element={<Finance entityName={getEntityName(currentEntity)} organisationBankAccounts={organisationBankAccounts} quickAction={null} clearQuickAction={() => {}} entityId={currentEntity} organizationName={user?.organization_name} />} />
+                <Route path="/documents" element={<Documents entityId={currentEntity} quickAction={null} clearQuickAction={() => {}} />} />
+                <Route path="/beneficiaries" element={<Beneficiaries quickAction={null} clearQuickAction={() => {}} />} />
+                <Route path="/organisation-bank" element={<OrganisationBank entityId={currentEntity} entityName={getEntityName(currentEntity)} quickAction={null} clearQuickAction={() => {}} />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/clients" element={<Clients setActiveTab={() => {}} />} />
+                <Route path="/tasks" element={<TaskManagementPage />} />
+                <Route path="/todos" element={<TodoPage />} />
+                <Route path="/services" element={<Services />} />
+                <Route path="/team-members" element={<TeamMembers />} />
+                <Route path="/settings" element={<Settings />} />
+              </Routes>
             </div>
           </main>
         </div>
@@ -305,12 +277,11 @@ import BeneficiaryDetailsPage from '@/pages/BeneficiaryDetailsPage.jsx';
             <Routes>
                 {user ? (
                     <>
-                        <Route path="/" element={<ProtectedContent />} />
+                        <Route path="/*" element={<ProtectedContent />} />
                         <Route path="/tasks/:taskId" element={<TaskDashboardPage />} />
                         <Route path="/invoices/:invoiceId" element={<InvoiceDetailsPage />} />
                         <Route path="/vouchers/:voucherId" element={<VoucherDetailsPage />} />
                         <Route path="/beneficiaries/:beneficiaryId" element={<BeneficiaryDetailsPage />} />
-                        <Route path="*" element={<Navigate to="/" />} />
                     </>
                 ) : (
                     <>

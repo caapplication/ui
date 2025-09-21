@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { deleteVoucher, updateVoucher, getBeneficiaries, getVoucherAttachment } from '@/lib/api';
 import { useToast } from '@/components/ui/use-toast';
@@ -8,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Edit, Trash2 } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, FileText } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import {
   ResizablePanelGroup,
@@ -25,13 +27,70 @@ const DetailItem = ({ label, value }) => (
     </div>
 );
 
+const VoucherPDF = React.forwardRef(({ voucher, organizationName }, ref) => {
+    if (!voucher) return null;
+
+    const beneficiaryName = voucher.beneficiary
+        ? (voucher.beneficiary.beneficiary_type === 'individual' ? voucher.beneficiary.name : voucher.beneficiary.company_name)
+        : voucher.beneficiaryName || 'N/A';
+
+    return (
+        <div ref={ref} className="p-8 bg-white text-black" style={{ width: '210mm', minHeight: '297mm', position: 'absolute', left: '-210mm', top: 0 }}>
+            <div className="text-center mb-8">
+                <h1 className="text-3xl font-bold text-blue-600">{organizationName || 'The Abduz Group'}</h1>
+                <p className="text-gray-500">Payment Voucher</p>
+            </div>
+
+            <div className="flex justify-between items-center border-b pb-4 mb-4">
+                <p><span className="font-bold">Voucher No:</span> {voucher.id}</p>
+                <p><span className="font-bold">Date:</span> {new Date(voucher.created_date).toLocaleDateString()}</p>
+            </div>
+
+            <div className="mb-8">
+                <h2 className="text-lg font-bold mb-2">Paid to:</h2>
+                <p>{beneficiaryName}</p>
+                <p><span className="font-bold">PAN:</span> {voucher.beneficiary?.pan || 'N/A'}</p>
+                <p><span className="font-bold">Email:</span> {voucher.beneficiary?.email || 'N/A'}</p>
+                <p><span className="font-bold">Phone:</span> {voucher.beneficiary?.phone_number || 'N/A'}</p>
+            </div>
+
+            <table className="w-full mb-8">
+                <thead>
+                    <tr className="bg-blue-600 text-white">
+                        <th className="p-2 text-left">Particulars</th>
+                        <th className="p-2 text-right">Amount (INR)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td className="p-2 border-b">{voucher.remarks || 'N/A'}</td>
+                        <td className="p-2 border-b text-right">₹{parseFloat(voucher.amount).toFixed(2)}</td>
+                    </tr>
+                </tbody>
+                <tfoot>
+                    <tr className="bg-blue-600 text-white font-bold">
+                        <td className="p-2 text-left">Total</td>
+                        <td className="p-2 text-right">₹{parseFloat(voucher.amount).toFixed(2)}</td>
+                    </tr>
+                </tfoot>
+            </table>
+
+            <div>
+                <h2 className="text-lg font-bold mb-2">Payment Details:</h2>
+                <p><span className="font-bold">Payment Method:</span> {voucher.payment_type}</p>
+            </div>
+        </div>
+    );
+});
+
 const VoucherDetailsPage = () => {
     const { voucherId } = useParams();
     const location = useLocation();
     const navigate = useNavigate();
     const { user } = useAuth();
     const { toast } = useToast();
-    const { voucher } = location.state || {};
+    const { voucher, startInEditMode, organizationName } = location.state || {};
+    const voucherDetailsRef = useRef(null);
     const [attachmentUrl, setAttachmentUrl] = useState(null);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
@@ -39,6 +98,12 @@ const VoucherDetailsPage = () => {
     const [editedVoucher, setEditedVoucher] = useState(voucher);
     const [fromBankAccounts, setFromBankAccounts] = useState([]);
     const [toBankAccounts, setToBankAccounts] = useState([]);
+
+    useEffect(() => {
+        if (startInEditMode) {
+            setIsEditing(true);
+        }
+    }, [startInEditMode]);
 
     useEffect(() => {
         const fetchVoucherDetails = async () => {
@@ -92,16 +157,44 @@ const VoucherDetailsPage = () => {
         payment_type: 'N/A',
         remarks: 'No remarks available.',
     };
+
+    const handleExportToPDF = () => {
+        const input = voucherDetailsRef.current;
+        html2canvas(input, { 
+            useCORS: true,
+            scale: 2,
+        }).then(canvas => {
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4'
+            });
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+            const canvasWidth = canvas.width;
+            const canvasHeight = canvas.height;
+            const ratio = canvasWidth / canvasHeight;
+            const width = pdfWidth;
+            const height = width / ratio;
+            pdf.addImage(imgData, 'PNG', 0, 0, width, height);
+            pdf.save(`voucher-${voucherId}.pdf`);
+            toast({ title: 'Export Successful', description: 'Voucher details exported to PDF.' });
+        }).catch(error => {
+            toast({ title: 'Export Error', description: `An error occurred: ${error.message}`, variant: 'destructive' });
+        });
+    };
     
     const beneficiaryName = voucherDetails.beneficiary 
         ? (voucherDetails.beneficiary.beneficiary_type === 'individual' ? voucherDetails.beneficiary.name : voucherDetails.beneficiary.company_name) 
         : voucherDetails.beneficiaryName || 'N/A';
 
     const handleDelete = async () => {
+        if (!confirm("Are you sure you want to delete this voucher?")) return;
         try {
             await deleteVoucher(voucherDetails.entity_id, voucherId, user.access_token);
             toast({ title: 'Success', description: 'Voucher deleted successfully.' });
-            navigate(-1);
+            navigate('/finance');
         } catch (error) {
             toast({
                 title: 'Error',
@@ -120,7 +213,7 @@ const VoucherDetailsPage = () => {
             toast({ title: 'Success', description: 'Voucher updated successfully.' });
             setIsEditing(false);
             // NOTE: We are not refreshing the data as the user will be navigated away
-            navigate(-1);
+            navigate('/finance');
         } catch (error) {
             toast({
                 title: 'Error',
@@ -132,9 +225,10 @@ const VoucherDetailsPage = () => {
 
     return (
         <div className="h-screen w-full flex flex-col text-white bg-transparent p-4 md:p-6">
+            <VoucherPDF ref={voucherDetailsRef} voucher={voucher} organizationName={organizationName} />
             <header className="flex items-center justify-between pb-4 border-b border-white/10 mb-4">
                 <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+                    <Button variant="ghost" size="icon" onClick={() => navigate('/finance')}>
                         <ArrowLeft className="h-6 w-6" />
                     </Button>
                     <h1 className="text-2xl font-bold">Voucher Details</h1>
@@ -142,6 +236,9 @@ const VoucherDetailsPage = () => {
                 <div className="flex items-center gap-2">
                     <Button variant="outline" size="icon" onClick={() => setIsEditing(!isEditing)}>
                         <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button variant="outline" size="icon" onClick={handleExportToPDF}>
+                        <FileText className="h-4 w-4" />
                     </Button>
                     <Button variant="destructive" size="icon" onClick={() => setShowDeleteDialog(true)}>
                         <Trash2 className="h-4 w-4" />
@@ -171,125 +268,125 @@ const VoucherDetailsPage = () => {
                 <ResizableHandle withHandle />
                 <ResizablePanel defaultSize={40} minSize={30}>
                     <div className="flex h-full items-start justify-center p-6 overflow-y-auto">
-                        <Tabs defaultValue="details" className="w-full">
-                            <TabsList className="grid w-full grid-cols-2">
-                                <TabsTrigger value="details">Details</TabsTrigger>
-                                <TabsTrigger value="activity">Activity Log</TabsTrigger>
-                            </TabsList>
-                            <TabsContent value="details" className="mt-4">
-                                {isEditing ? (
-                                    <form onSubmit={handleUpdate} className="space-y-4">
+                <Tabs defaultValue="details" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="details">Details</TabsTrigger>
+                        <TabsTrigger value="activity">Activity Log</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="details" className="mt-4">
+                        {isEditing ? (
+                            <form onSubmit={handleUpdate} className="space-y-4">
+                                <div>
+                                    <Label htmlFor="beneficiary_id">Beneficiary</Label>
+                                    <Select name="beneficiary_id" defaultValue={editedVoucher.beneficiary_id}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select a beneficiary" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {beneficiaries.map((b) => (
+                                                <SelectItem key={b.id} value={b.id}>
+                                                    {b.beneficiary_type === 'individual' ? b.name : b.company_name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div>
+                                    <Label htmlFor="amount">Amount</Label>
+                                    <Input name="amount" type="number" defaultValue={editedVoucher.amount} />
+                                </div>
+                                <div>
+                                    <Label htmlFor="voucher_type">Voucher Type</Label>
+                                    <Select name="voucher_type" defaultValue={editedVoucher.voucher_type}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select a voucher type" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="debit">Debit</SelectItem>
+                                            <SelectItem value="credit">Credit</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div>
+                                    <Label htmlFor="payment_type">Payment Method</Label>
+                                    <Select name="payment_type" defaultValue={editedVoucher.payment_type} onValueChange={(value) => setEditedVoucher({ ...editedVoucher, payment_type: value })}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select a payment method" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="cash">Cash</SelectItem>
+                                            <SelectItem value="bank">Bank</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                {editedVoucher.payment_type === 'bank' && (
+                                    <>
                                         <div>
-                                            <Label htmlFor="beneficiary_id">Beneficiary</Label>
-                                            <Select name="beneficiary_id" defaultValue={editedVoucher.beneficiary_id}>
+                                            <Label htmlFor="from_bank_account_id">From (Organisation Bank)</Label>
+                                            <Select name="from_bank_account_id" defaultValue={editedVoucher.from_bank_account_id}>
                                                 <SelectTrigger>
-                                                    <SelectValue placeholder="Select a beneficiary" />
+                                                    <SelectValue placeholder="Select your bank account" />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    {beneficiaries.map((b) => (
-                                                        <SelectItem key={b.id} value={b.id}>
-                                                            {b.beneficiary_type === 'individual' ? b.name : b.company_name}
+                                                    {fromBankAccounts.map((acc) => (
+                                                        <SelectItem key={acc.id} value={acc.id}>
+                                                            {acc.bank_name} - {acc.account_number}
                                                         </SelectItem>
                                                     ))}
                                                 </SelectContent>
                                             </Select>
                                         </div>
                                         <div>
-                                            <Label htmlFor="amount">Amount</Label>
-                                            <Input name="amount" type="number" defaultValue={editedVoucher.amount} />
-                                        </div>
-                                        <div>
-                                            <Label htmlFor="voucher_type">Voucher Type</Label>
-                                            <Select name="voucher_type" defaultValue={editedVoucher.voucher_type}>
+                                            <Label htmlFor="to_bank_account_id">To (Beneficiary Bank)</Label>
+                                            <Select name="to_bank_account_id" defaultValue={editedVoucher.to_bank_account_id}>
                                                 <SelectTrigger>
-                                                    <SelectValue placeholder="Select a voucher type" />
+                                                    <SelectValue placeholder="Select beneficiary's bank account" />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    <SelectItem value="debit">Debit</SelectItem>
-                                                    <SelectItem value="credit">Credit</SelectItem>
+                                                    {toBankAccounts.map((acc) => (
+                                                        <SelectItem key={acc.id} value={acc.id}>
+                                                            {acc.bank_name} - {acc.account_number}
+                                                        </SelectItem>
+                                                    ))}
                                                 </SelectContent>
                                             </Select>
                                         </div>
-                                        <div>
-                                            <Label htmlFor="payment_type">Payment Method</Label>
-                                            <Select name="payment_type" defaultValue={editedVoucher.payment_type} onValueChange={(value) => setEditedVoucher({ ...editedVoucher, payment_type: value })}>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Select a payment method" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="cash">Cash</SelectItem>
-                                                    <SelectItem value="bank">Bank</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                        {editedVoucher.payment_type === 'bank' && (
-                                            <>
-                                                <div>
-                                                    <Label htmlFor="from_bank_account_id">From (Organisation Bank)</Label>
-                                                    <Select name="from_bank_account_id" defaultValue={editedVoucher.from_bank_account_id}>
-                                                        <SelectTrigger>
-                                                            <SelectValue placeholder="Select your bank account" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            {fromBankAccounts.map((acc) => (
-                                                                <SelectItem key={acc.id} value={acc.id}>
-                                                                    {acc.bank_name} - {acc.account_number}
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-                                                <div>
-                                                    <Label htmlFor="to_bank_account_id">To (Beneficiary Bank)</Label>
-                                                    <Select name="to_bank_account_id" defaultValue={editedVoucher.to_bank_account_id}>
-                                                        <SelectTrigger>
-                                                            <SelectValue placeholder="Select beneficiary's bank account" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            {toBankAccounts.map((acc) => (
-                                                                <SelectItem key={acc.id} value={acc.id}>
-                                                                    {acc.bank_name} - {acc.account_number}
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-                                            </>
-                                        )}
-                                        <div>
-                                            <Label htmlFor="remarks">Remarks</Label>
-                                            <Input name="remarks" defaultValue={editedVoucher.remarks} />
-                                        </div>
-                                        <div className="flex justify-end gap-2">
-                                            <Button variant="ghost" onClick={() => setIsEditing(false)}>Cancel</Button>
-                                            <Button type="submit">Save Changes</Button>
-                                        </div>
-                                    </form>
-                                ) : (
-                                    <Card className="w-full glass-pane border-none shadow-none">
-                                        <CardHeader>
-                                            <CardTitle>Voucher to {beneficiaryName}</CardTitle>
-                                            <CardDescription>Created on {new Date(voucherDetails.created_date).toLocaleDateString()}</CardDescription>
-                                        </CardHeader>
-                                        <CardContent className="space-y-2">
-                                            <DetailItem label="Amount" value={`₹${parseFloat(voucherDetails.amount).toFixed(2)}`} />
-                                            <DetailItem label="Voucher Type" value={voucherDetails.voucher_type} />
-                                            <DetailItem label="Payment Method" value={voucherDetails.payment_type} />
-                                            <div className="pt-4">
-                                                <p className="text-sm text-gray-400 mb-1">Remarks</p>
-                                                <p className="text-sm text-white p-3 bg-white/5 rounded-md">{voucherDetails.remarks || 'N/A'}</p>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
+                                    </>
                                 )}
-                            </TabsContent>
-                            <TabsContent value="activity" className="mt-4">
-                                <div className="p-4">
-                                    <ActivityLog itemId={voucherId} itemType="voucher" />
+                                <div>
+                                    <Label htmlFor="remarks">Remarks</Label>
+                                    <Input name="remarks" defaultValue={editedVoucher.remarks} />
                                 </div>
-                            </TabsContent>
-                        </Tabs>
-                    </div>
+                                <div className="flex justify-end gap-2">
+                                    <Button variant="ghost" onClick={() => setIsEditing(false)}>Cancel</Button>
+                                    <Button type="submit">Save Changes</Button>
+                                </div>
+                            </form>
+                        ) : (
+                            <Card className="w-full glass-pane border-none shadow-none bg-gray-800 text-white">
+                                <CardHeader>
+                                    <CardTitle>Voucher to {beneficiaryName}</CardTitle>
+                                    <CardDescription>Created on {new Date(voucherDetails.created_date).toLocaleDateString()}</CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-2">
+                                    <DetailItem label="Amount" value={`₹${parseFloat(voucherDetails.amount).toFixed(2)}`} />
+                                    <DetailItem label="Voucher Type" value={voucherDetails.voucher_type} />
+                                    <DetailItem label="Payment Method" value={voucherDetails.payment_type} />
+                                    <div className="pt-4">
+                                        <p className="text-sm text-gray-400 mb-1">Remarks</p>
+                                        <p className="text-sm text-white p-3 bg-white/5 rounded-md">{voucherDetails.remarks || 'N/A'}</p>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
+                    </TabsContent>
+                    <TabsContent value="activity" className="mt-4">
+                        <div className="p-4">
+                            <ActivityLog itemId={voucherId} itemType="voucher" />
+                        </div>
+                    </TabsContent>
+                </Tabs>
+            </div>
                 </ResizablePanel>
             </ResizablePanelGroup>
 
