@@ -201,7 +201,7 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
           </div>
         ) : (
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList>
               <TabsTrigger value="individual">Individual</TabsTrigger>
               <TabsTrigger value="company">Company</TabsTrigger>
             </TabsList>

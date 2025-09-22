@@ -235,7 +235,7 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction 
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList>
             <TabsTrigger value="active">Active Bank Details</TabsTrigger>
             <TabsTrigger value="inactive">Inactive Bank Details</TabsTrigger>
           </TabsList>
