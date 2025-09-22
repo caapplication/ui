@@ -3,7 +3,7 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { useAuth } from '@/hooks/useAuth.jsx';
-import { deleteVoucher, updateVoucher, getBeneficiaries, getVoucherAttachment } from '@/lib/api';
+import { deleteVoucher, updateVoucher, getBeneficiaries, getVoucherAttachment, getVoucher, getBankAccountsForBeneficiary, getOrganisationBankAccounts } from '@/lib/api';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -27,7 +27,7 @@ const DetailItem = ({ label, value }) => (
     </div>
 );
 
-const VoucherPDF = React.forwardRef(({ voucher, organizationName }, ref) => {
+const VoucherPDF = React.forwardRef(({ voucher, organizationName, entityName }, ref) => {
     if (!voucher) return null;
 
     const beneficiaryName = voucher.beneficiary
@@ -38,6 +38,7 @@ const VoucherPDF = React.forwardRef(({ voucher, organizationName }, ref) => {
         <div ref={ref} className="p-8 bg-white text-black" style={{ width: '210mm', minHeight: '297mm', position: 'absolute', left: '-210mm', top: 0 }}>
             <div className="text-center mb-8">
                 <h1 className="text-3xl font-bold text-blue-600">{organizationName || 'The Abduz Group'}</h1>
+                <h2 className="text-xl font-semibold text-gray-700">{entityName}</h2>
                 <p className="text-gray-500">Payment Voucher</p>
             </div>
 
@@ -83,13 +84,16 @@ const VoucherPDF = React.forwardRef(({ voucher, organizationName }, ref) => {
     );
 });
 
+import { Loader2 } from 'lucide-react';
+
 const VoucherDetailsPage = () => {
     const { voucherId } = useParams();
     const location = useLocation();
     const navigate = useNavigate();
-    const { user } = useAuth();
+    const { user, loading: authLoading } = useAuth();
     const { toast } = useToast();
-    const { voucher, startInEditMode, organizationName } = location.state || {};
+    const { voucher: initialVoucher, startInEditMode, organizationName, entityName } = location.state || {};
+    const [voucher, setVoucher] = useState(initialVoucher);
     const voucherDetailsRef = useRef(null);
     const [attachmentUrl, setAttachmentUrl] = useState(null);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -107,15 +111,43 @@ const VoucherDetailsPage = () => {
 
     useEffect(() => {
         const fetchVoucherDetails = async () => {
-            if (user?.access_token && voucher?.entity_id) {
+            if (authLoading) return;
+
+            let currentEntityId = initialVoucher?.entity_id;
+            if (!currentEntityId && user) {
+                if (user.role === 'ENTITY_USER') {
+                    currentEntityId = user.id;
+                } else if (user.role === 'CLIENT_USER') {
+                    const entitiesToDisplay = user.entities || [];
+                    if (entitiesToDisplay.length > 0) {
+                        currentEntityId = entitiesToDisplay[0].id;
+                    } else if (user.organization_id) {
+                        currentEntityId = user.organization_id;
+                    }
+                } else if (user.role !== 'CA_ACCOUNTANT') {
+                    currentEntityId = user.organization_id || user.id;
+                }
+            }
+
+            if (user?.access_token && currentEntityId) {
                 try {
-                    const data = await getVoucher(voucher.entity_id, voucherId, user.access_token);
+                    const data = await getVoucher(currentEntityId, voucherId, user.access_token);
+                    setVoucher(data);
                     setEditedVoucher(data);
                 } catch (error) {
-                    console.error("Failed to fetch voucher details:", error);
+                    toast({ title: 'Error', description: 'Failed to fetch voucher details.', variant: 'destructive' });
                 }
             }
         };
+
+        if (!voucher) {
+            fetchVoucherDetails();
+        }
+    }, [voucherId, user, voucher, toast, initialVoucher, authLoading]);
+
+    useEffect(() => {
+        if (!voucher) return;
+
         const fetchBeneficiaries = async () => {
             if (user?.access_token) {
                 const data = await getBeneficiaries(user.access_token);
@@ -142,11 +174,10 @@ const VoucherDetailsPage = () => {
                 setToBankAccounts(toAccounts);
             }
         };
-        fetchVoucherDetails();
         fetchBeneficiaries();
         fetchAttachment();
         fetchBankAccounts();
-    }, [user?.access_token, voucher?.attachment_id, voucher?.entity_id, voucherId, editedVoucher?.beneficiary_id]);
+    }, [user, voucher, editedVoucher?.beneficiary_id]);
     
     const voucherDetails = voucher || {
         id: voucherId,
@@ -223,26 +254,23 @@ const VoucherDetailsPage = () => {
         }
     };
 
+    if (authLoading || !voucher) {
+        return (
+            <div className="flex justify-center items-center h-screen">
+                <Loader2 className="w-8 h-8 animate-spin text-white" />
+            </div>
+        );
+    }
+
     return (
         <div className="h-screen w-full flex flex-col text-white bg-transparent p-4 md:p-6">
-            <VoucherPDF ref={voucherDetailsRef} voucher={voucher} organizationName={organizationName} />
+            <VoucherPDF ref={voucherDetailsRef} voucher={voucher} organizationName={organizationName} entityName={entityName} />
             <header className="flex items-center justify-between pb-4 border-b border-white/10 mb-4">
                 <div className="flex items-center gap-4">
                     <Button variant="ghost" size="icon" onClick={() => navigate('/finance')}>
                         <ArrowLeft className="h-6 w-6" />
                     </Button>
                     <h1 className="text-2xl font-bold">Voucher Details</h1>
-                </div>
-                <div className="flex items-center gap-2">
-                    <Button variant="outline" size="icon" onClick={() => setIsEditing(!isEditing)}>
-                        <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button variant="outline" size="icon" onClick={handleExportToPDF}>
-                        <FileText className="h-4 w-4" />
-                    </Button>
-                    <Button variant="destructive" size="icon" onClick={() => setShowDeleteDialog(true)}>
-                        <Trash2 className="h-4 w-4" />
-                    </Button>
                 </div>
             </header>
 
@@ -375,6 +403,17 @@ const VoucherDetailsPage = () => {
                                     <div className="pt-4">
                                         <p className="text-sm text-gray-400 mb-1">Remarks</p>
                                         <p className="text-sm text-white p-3 bg-white/5 rounded-md">{voucherDetails.remarks || 'N/A'}</p>
+                                    </div>
+                                    <div className="flex items-center gap-2 mt-4 justify-end">
+                                        <Button variant="destructive" size="icon" onClick={() => setShowDeleteDialog(true)}>
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                        <Button variant="outline" size="icon" onClick={handleExportToPDF}>
+                                            <FileText className="h-4 w-4" />
+                                        </Button>
+                                        <Button variant="outline" size="icon" onClick={() => setIsEditing(!isEditing)}>
+                                            <Edit className="h-4 w-4" />
+                                        </Button>
                                     </div>
                                 </CardContent>
                             </Card>

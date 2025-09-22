@@ -109,14 +109,6 @@ const InvoiceDetailsPage = () => {
                     </Button>
                     <h1 className="text-2xl font-bold">Invoice Details</h1>
                 </div>
-                <div className="flex items-center gap-2">
-                    <Button variant="outline" size="icon" onClick={() => setIsEditing(!isEditing)}>
-                        <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button variant="destructive" size="icon" onClick={() => setShowDeleteDialog(true)}>
-                        <Trash2 className="h-4 w-4" />
-                    </Button>
-                </div>
             </header>
 
             <ResizablePanelGroup
@@ -149,8 +141,53 @@ const InvoiceDetailsPage = () => {
                             <TabsContent value="details" className="mt-4">
                                 {isEditing ? (
                                     <form onSubmit={handleUpdate} className="space-y-4">
-                                        {/* Edit form fields go here */}
-                                        <Button type="submit">Save Changes</Button>
+                                        <div>
+                                            <Label htmlFor="beneficiary_id">Beneficiary</Label>
+                                            <Select name="beneficiary_id" defaultValue={editedInvoice.beneficiary_id}>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select a beneficiary" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {beneficiaries.map((b) => (
+                                                        <SelectItem key={b.id} value={b.id}>
+                                                            {b.beneficiary_type === 'individual' ? b.name : b.company_name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="bill_number">Bill Number</Label>
+                                            <Input name="bill_number" defaultValue={editedInvoice.bill_number} />
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="date">Date</Label>
+                                            <Input name="date" type="date" defaultValue={new Date(editedInvoice.date).toISOString().split('T')[0]} />
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="amount">Amount</Label>
+                                            <Input name="amount" type="number" defaultValue={editedInvoice.amount} />
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="cgst">CGST</Label>
+                                            <Input name="cgst" type="number" defaultValue={editedInvoice.cgst} />
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="sgst">SGST</Label>
+                                            <Input name="sgst" type="number" defaultValue={editedInvoice.sgst} />
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="igst">IGST</Label>
+                                            <Input name="igst" type="number" defaultValue={editedInvoice.igst} />
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="remarks">Remarks</Label>
+                                            <Input name="remarks" defaultValue={editedInvoice.remarks} />
+                                        </div>
+                                        <div className="flex justify-end gap-2">
+                                            <Button variant="ghost" onClick={() => setIsEditing(false)}>Cancel</Button>
+                                            <Button type="submit">Save Changes</Button>
+                                        </div>
                                     </form>
                                 ) : (
                                     <Card className="w-full glass-pane border-none shadow-none">
@@ -170,6 +207,14 @@ const InvoiceDetailsPage = () => {
                                             <div className="pt-4">
                                                 <p className="text-sm text-gray-400 mb-1">Remarks</p>
                                                 <p className="text-sm text-white p-3 bg-white/5 rounded-md">{invoiceDetails.remarks}</p>
+                                            </div>
+                                            <div className="flex items-center gap-2 mt-4 justify-end">
+                                                <Button variant="destructive" size="icon" onClick={() => setShowDeleteDialog(true)}>
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                                <Button variant="outline" size="icon" onClick={() => setIsEditing(!isEditing)}>
+                                                    <Edit className="h-4 w-4" />
+                                                </Button>
                                             </div>
                                         </CardContent>
                                     </Card>

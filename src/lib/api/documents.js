@@ -1,11 +1,11 @@
 import { getAuthHeaders, handleResponse } from './utils';
 
-const FINANCE_API_BASE_URL = 'https://finance-api.snolep.com';
+const FINANCE_API_BASE_URL = 'https://Finance-api.snolep.com';
 
 export const getDocuments = async (entityId, token) => {
     let url = `${FINANCE_API_BASE_URL}/api/documents/folders/?exclude_shared=true`;
     if (entityId) {
-        url += `?entity_id=${entityId}`;
+        url += `&entity_id=${entityId}`;
     }
     const response = await fetch(url, {
         headers: getAuthHeaders(token),
@@ -77,10 +77,15 @@ export const viewFile = async (documentId, token) => {
     return response.blob();
 };
 
-export const getSharedDocuments = async (token, userRole) => {
-    let url = `${FINANCE_API_BASE_URL}/api/documents/share`;
+export const getSharedDocuments = async (token, userRole, entityId) => {
+    let url = `${FINANCE_API_BASE_URL}/api/documents/shared`;
     if (userRole === 'CA_ACCOUNTANT') {
         url = `${FINANCE_API_BASE_URL}/api/ca/documents/shared/`;
+    }
+    if (entityId) {
+        url += `?entity_id=${entityId}`;
+    } else if (userRole !== 'CA_ACCOUNTANT') {
+        throw new Error("Entity ID is required for this user role.");
     }
     const response = await fetch(url, {
         headers: getAuthHeaders(token),

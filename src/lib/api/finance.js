@@ -1,7 +1,7 @@
 
 import { getAuthHeaders, handleResponse } from './utils';
 
-    const FINANCE_API_BASE_URL = 'https://finance-api.snolep.com';
+    const FINANCE_API_BASE_URL = 'https://Finance-api.snolep.com';
 
     export const getEntities = async (token) => {
       const response = await fetch(`${FINANCE_API_BASE_URL}/api/entities/`, {

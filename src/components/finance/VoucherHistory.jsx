@@ -150,9 +150,6 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onViewVoucher, onEditVouche
                                 <TableCell>{voucher.remarks || 'N/A'}</TableCell>
                                 <TableCell>
                                     <div className="flex items-center gap-2">
-                                        <Button variant="ghost" size="icon" onClick={() => onEditVoucher(voucher)} className="text-blue-400 hover:text-blue-300">
-                                            <Edit className="w-5 h-5" />
-                                        </Button>
                                         <Button variant="ghost" size="icon" onClick={() => onViewVoucher(voucher)} className="text-gray-400 hover:text-gray-300">
                                             <Eye className="w-5 h-5" />
                                         </Button>

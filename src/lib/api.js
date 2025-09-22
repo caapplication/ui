@@ -11,7 +11,7 @@ import { handleResponse, getAuthHeaders } from './api/utils';
     import * as tasks from './api/tasks';
     
     const API_BASE_URL = 'https://login-api.snolep.com';
-    export const FINANCE_API_BASE_URL = 'https://finance-api.snolep.com';
+    export const FINANCE_API_BASE_URL = 'https://Finance-api.snolep.com';
     
     export const { 
         refreshToken, 
@@ -46,6 +46,7 @@ import { handleResponse, getAuthHeaders } from './api/utils';
         getInvoiceAttachment,
         getVouchers,
         addVoucher,
+        getVoucher,
         updateVoucher,
         deleteVoucher,
         getVoucherAttachment,

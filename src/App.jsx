@@ -254,6 +254,10 @@ import BeneficiaryDetailsPage from '@/pages/BeneficiaryDetailsPage.jsx';
                 <Route path="/services" element={<Services />} />
                 <Route path="/team-members" element={<TeamMembers />} />
                 <Route path="/settings" element={<Settings />} />
+                <Route path="/tasks/:taskId" element={<TaskDashboardPage />} />
+                <Route path="/invoices/:invoiceId" element={<InvoiceDetailsPage />} />
+                <Route path="/vouchers/:voucherId" element={<VoucherDetailsPage />} />
+                <Route path="/beneficiaries/:beneficiaryId" element={<BeneficiaryDetailsPage />} />
               </Routes>
             </div>
           </main>
@@ -277,11 +281,8 @@ import BeneficiaryDetailsPage from '@/pages/BeneficiaryDetailsPage.jsx';
             <Routes>
                 {user ? (
                     <>
+                        <Route path="/login" element={<Navigate to="/" />} />
                         <Route path="/*" element={<ProtectedContent />} />
-                        <Route path="/tasks/:taskId" element={<TaskDashboardPage />} />
-                        <Route path="/invoices/:invoiceId" element={<InvoiceDetailsPage />} />
-                        <Route path="/vouchers/:voucherId" element={<VoucherDetailsPage />} />
-                        <Route path="/beneficiaries/:beneficiaryId" element={<BeneficiaryDetailsPage />} />
                     </>
                 ) : (
                     <>

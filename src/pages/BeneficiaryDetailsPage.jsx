@@ -27,6 +27,18 @@ const AddBankAccountForm = ({ beneficiary, onAddBankAccount, onCancel }) => {
                 <div><Label htmlFor="branch_name">Branch Name</Label><Input name="branch_name" id="branch_name" required /></div>
                 <div><Label htmlFor="ifsc_code">IFSC</Label><Input name="ifsc_code" id="ifsc_code" required /></div>
                 <div><Label htmlFor="account_number">Account Number</Label><Input name="account_number" id="account_number" required /></div>
+                <div>
+                    <Label htmlFor="account_type">Account Type</Label>
+                    <Select name="account_type" id="account_type" required>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select account type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="savings">Savings</SelectItem>
+                            <SelectItem value="current">Current</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
             </div>
             <DialogFooter>
                 <DialogClose asChild><Button variant="ghost" type="button" onClick={onCancel}>Cancel</Button></DialogClose>
@@ -133,7 +145,7 @@ const BeneficiaryDetailsPage = () => {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-8 h-full overflow-y-auto">
       <div className="flex items-center gap-4 mb-8">
         <Button variant="ghost" size="icon" onClick={() => navigate('/beneficiaries')}>
           <ArrowLeft className="h-6 w-6" />
@@ -141,11 +153,7 @@ const BeneficiaryDetailsPage = () => {
         <h1 className="text-3xl font-bold text-white">Beneficiary Details</h1>
       </div>
       <Card className="glass-card mb-8">
-        <CardHeader>
-          <CardTitle className="text-2xl font-bold text-white">Beneficiary Details</CardTitle>
-          <CardDescription>View and edit beneficiary information.</CardDescription>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <form onSubmit={handleUpdate}>
             <div className="space-y-4">
               <div>
@@ -214,6 +222,7 @@ const BeneficiaryDetailsPage = () => {
               <TableRow>
                 <TableHead>Bank Name</TableHead>
                 <TableHead>Account Number</TableHead>
+                <TableHead>Account Type</TableHead>
                 <TableHead>IFSC Code</TableHead>
                 <TableHead>Branch Name</TableHead>
                 <TableHead>Actions</TableHead>
@@ -224,6 +233,7 @@ const BeneficiaryDetailsPage = () => {
                 <TableRow key={account.id}>
                   <TableCell>{account.bank_name}</TableCell>
                   <TableCell>{account.account_number}</TableCell>
+                  <TableCell>{account.account_type}</TableCell>
                   <TableCell>{account.ifsc_code}</TableCell>
                   <TableCell>{account.branch_name}</TableCell>
                   <TableCell>

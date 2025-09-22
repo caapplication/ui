@@ -10,7 +10,7 @@ import { handleResponse, getAuthHeaders } from './utils';
     import * as tasks from './tasks';
 
     const API_BASE_URL = 'https://login-api.snolep.com';
-    const FINANCE_API_BASE_URL = 'https://finance-api.snolep.com';
+    const FINANCE_API_BASE_URL = 'https://Finance-api.snolep.com';
 
     export const {
       refreshToken,

@@ -122,9 +122,6 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, financeHeade
                                     <Button variant="link" onClick={() => handleViewAttachment(invoice)} className="text-sky-400">
                                         <FileText className="w-4 h-4" />
                                     </Button>
-                                    <Button size="icon" variant="ghost" onClick={() => onEditInvoice(invoice)}>
-                                        <Edit className="w-4 h-4" />
-                                    </Button>
                                 </div>
                             </TableCell>
                         </TableRow>

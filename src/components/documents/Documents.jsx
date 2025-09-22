@@ -186,7 +186,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
         setIsLoading(true);
     }
     try {
-      const data = await getSharedDocuments(user.access_token, user.role);
+      const data = await getSharedDocuments(user.access_token, user.role, entityId);
       const combinedShared = [
         ...(data.documents || []).map(d => ({ ...d, is_folder: false })),
         ...(data.folders || []).map(f => ({ ...f, is_folder: true }))
@@ -203,7 +203,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
         setIsLoading(false);
         setIsRefreshing(false);
     }
-  }, [user?.access_token, user?.role, toast]);
+  }, [user?.access_token, user?.role, entityId, toast]);
 
   useEffect(() => {
     if (activeTab === 'myFiles') {

@@ -16,7 +16,7 @@ import ViewVoucherDialog from '@/components/finance/ViewVoucherDialog';
 import InvoiceHistory from '@/components/finance/InvoiceHistory';
 import VoucherHistory from '@/components/finance/VoucherHistory';
 
-const Finance = ({ organisationBankAccounts, quickAction, clearQuickAction, entityId, organizationName }) => {
+const Finance = ({ organisationBankAccounts, quickAction, clearQuickAction, entityId, organizationName, entityName }) => {
   const [showInvoiceDialog, setShowInvoiceDialog] = useState(false);
   const [showVoucherDialog, setShowVoucherDialog] = useState(false);
   const [showViewVoucherDialog, setShowViewVoucherDialog] = useState(false);
@@ -165,12 +165,12 @@ const Finance = ({ organisationBankAccounts, quickAction, clearQuickAction, enti
   
   const handleEditVoucherClick = (voucher) => {
     const enrichedVoucher = enrichedVouchers.find(v => v.id === voucher.id);
-    navigate(`/vouchers/${voucher.id}`, { state: { voucher: enrichedVoucher, startInEditMode: true, organizationName } });
+    navigate(`/vouchers/${voucher.id}`, { state: { voucher: enrichedVoucher, startInEditMode: true, organizationName, entityName } });
   };
 
   const handleViewVoucherClick = (voucher) => {
     const enrichedVoucher = enrichedVouchers.find(v => v.id === voucher.id);
-    navigate(`/vouchers/${voucher.id}`, { state: { voucher: enrichedVoucher, organizationName } });
+    navigate(`/vouchers/${voucher.id}`, { state: { voucher: enrichedVoucher, organizationName, entityName } });
   };
       
   const selectedVoucherData = React.useMemo(() => {
