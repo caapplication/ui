@@ -8,9 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
-import { Loader2, Save, Plus, Trash2, ArrowLeft } from 'lucide-react';
+import { Loader2, Save, Plus, Trash2, ArrowLeft, Edit } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from '@/components/ui/dialog';
+import { Switch } from "@/components/ui/switch";
 
 const AddBankAccountForm = ({ beneficiary, onAddBankAccount, onCancel }) => {
     const handleSubmit = (e) => {
@@ -54,10 +55,12 @@ const BeneficiaryDetailsPage = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [beneficiary, setBeneficiary] = useState(null);
+  const [editableBeneficiary, setEditableBeneficiary] = useState(null);
   const [bankAccounts, setBankAccounts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [showAddAccountDialog, setShowAddAccountDialog] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
 
   const fetchBeneficiaryData = useCallback(async () => {
     if (!user?.access_token) return;
@@ -68,6 +71,7 @@ const BeneficiaryDetailsPage = () => {
         getBankAccountsForBeneficiary(beneficiaryId, user.access_token)
       ]);
       setBeneficiary(beneficiaryData);
+      setEditableBeneficiary(beneficiaryData);
       setBankAccounts(bankAccountsData);
     } catch (error) {
       toast({
@@ -88,7 +92,7 @@ const BeneficiaryDetailsPage = () => {
     e.preventDefault();
     const formData = new FormData(e.target);
     const data = Object.fromEntries(formData.entries());
-    const finalData = { ...data, beneficiary_type: beneficiary.beneficiary_type };
+    const finalData = { ...data, beneficiary_type: editableBeneficiary.beneficiary_type };
     try {
       await updateBeneficiary(beneficiaryId, finalData, user.access_token);
       toast({ title: 'Success', description: 'Beneficiary updated successfully.' });
@@ -144,66 +148,50 @@ const BeneficiaryDetailsPage = () => {
     return <div className="p-8 text-white">Beneficiary not found.</div>;
   }
 
+  const beneficiaryName = beneficiary.beneficiary_type === 'individual' ? beneficiary.name : beneficiary.company_name;
+
   return (
     <div className="p-8 h-full overflow-y-auto">
-      <div className="flex items-center gap-4 mb-8">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/beneficiaries')}>
-          <ArrowLeft className="h-6 w-6" />
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={() => navigate('/beneficiaries')}>
+            <ArrowLeft className="h-6 w-6" />
+            </Button>
+            <h1 className="text-3xl font-bold text-white">Beneficiary Details</h1>
+        </div>
+        <Button onClick={() => setIsEditing(true)}>
+            <Edit className="w-4 h-4 mr-2" />
+            Edit Beneficiary
         </Button>
-        <h1 className="text-3xl font-bold text-white">Beneficiary Details</h1>
       </div>
+
       <Card className="glass-card mb-8">
-        <CardContent className="pt-6">
-          <form onSubmit={handleUpdate}>
-            <div className="space-y-4">
-              <div>
-                <Label>Beneficiary Type</Label>
-                <Select
-                  value={beneficiary.beneficiary_type}
-                  onValueChange={(value) => setBeneficiary({ ...beneficiary, beneficiary_type: value })}
-                  disabled={!isEditing}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="individual">Individual</SelectItem>
-                    <SelectItem value="company">Company</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              {beneficiary.beneficiary_type === 'individual' ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div><Label htmlFor="name">Name</Label><Input name="name" id="name" defaultValue={beneficiary.name} disabled={!isEditing} required /></div>
-                  <div><Label htmlFor="phone">Phone</Label><Input name="phone" id="phone" type="tel" defaultValue={beneficiary.phone} disabled={!isEditing} required /></div>
-                  <div className="md:col-span-2"><Label htmlFor="email">Email</Label><Input name="email" id="email" type="email" defaultValue={beneficiary.email} disabled={!isEditing} required /></div>
-                  <div><Label htmlFor="aadhar">Aadhar</Label><Input name="aadhar" id="aadhar" defaultValue={beneficiary.aadhar} disabled={!isEditing} /></div>
-                  <div><Label htmlFor="pan">PAN</Label><Input name="pan" id="pan" defaultValue={beneficiary.pan} disabled={!isEditing} /></div>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div><Label htmlFor="company_name">Company Name</Label><Input name="company_name" id="company_name" defaultValue={beneficiary.company_name} disabled={!isEditing} required /></div>
-                  <div><Label htmlFor="phone">Phone</Label><Input name="phone" id="phone" type="tel" defaultValue={beneficiary.phone} disabled={!isEditing} required /></div>
-                  <div className="md:col-span-2"><Label htmlFor="email">Email Address</Label><Input name="email" id="email" type="email" defaultValue={beneficiary.email} disabled={!isEditing} required /></div>
-                  <div><Label htmlFor="gstin">GSTIN</Label><Input name="gstin" id="gstin" defaultValue={beneficiary.gstin} disabled={!isEditing} /></div>
-                  <div><Label htmlFor="pan">PAN</Label><Input name="pan" id="pan" defaultValue={beneficiary.pan} disabled={!isEditing} /></div>
-                  <div><Label htmlFor="aadhar">Aadhar (of Proprietor)</Label><Input name="aadhar" id="aadhar" defaultValue={beneficiary.aadhar} disabled={!isEditing} /></div>
-                  <div><Label htmlFor="proprietor_name">Proprietor Name</Label><Input name="proprietor_name" id="proprietor_name" defaultValue={beneficiary.proprietor_name} disabled={!isEditing} /></div>
-                </div>
-              )}
+        <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+                <CardTitle>{beneficiaryName}</CardTitle>
+                <CardDescription>{beneficiary.beneficiary_type === 'individual' ? 'Individual' : 'Company'}</CardDescription>
             </div>
-            <div className="flex justify-end gap-4 mt-6">
-              {isEditing ? (
-                <>
-                  <Button variant="ghost" onClick={() => setIsEditing(false)}>Cancel</Button>
-                  <Button type="submit"><Save className="w-4 h-4 mr-2" />Save Changes</Button>
-                </>
-              ) : (
-                <Button onClick={() => setIsEditing(true)}>Edit</Button>
-              )}
+            <div className="flex items-center space-x-2">
+                <Label htmlFor="show-details" className="text-white">Show Details</Label>
+                <Switch id="show-details" checked={showDetails} onCheckedChange={setShowDetails} />
             </div>
-          </form>
-        </CardContent>
+        </CardHeader>
+        {showDetails && (
+            <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-sm">
+                    <div className="space-y-1"><p className="text-gray-400">Email</p><p>{beneficiary.email}</p></div>
+                    <div className="space-y-1"><p className="text-gray-400">Phone</p><p>{beneficiary.phone}</p></div>
+                    <div className="space-y-1"><p className="text-gray-400">PAN</p><p>{beneficiary.pan || 'N/A'}</p></div>
+                    <div className="space-y-1"><p className="text-gray-400">Aadhar</p><p>{beneficiary.aadhar || 'N/A'}</p></div>
+                    {beneficiary.beneficiary_type === 'company' && (
+                        <>
+                            <div className="space-y-1"><p className="text-gray-400">GSTIN</p><p>{beneficiary.gstin || 'N/A'}</p></div>
+                            <div className="space-y-1"><p className="text-gray-400">Proprietor Name</p><p>{beneficiary.proprietor_name || 'N/A'}</p></div>
+                        </>
+                    )}
+                </div>
+            </CardContent>
+        )}
       </Card>
 
       <Card className="glass-card">
@@ -247,6 +235,55 @@ const BeneficiaryDetailsPage = () => {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={isEditing} onOpenChange={setIsEditing}>
+        <DialogContent className="max-w-2xl">
+            <DialogHeader>
+                <DialogTitle>Edit Beneficiary</DialogTitle>
+                <DialogDescription>Make changes to the beneficiary details below.</DialogDescription>
+            </DialogHeader>
+            {editableBeneficiary && (
+                <form onSubmit={handleUpdate} className="space-y-4 pt-4">
+                    <div>
+                        <Label>Beneficiary Type</Label>
+                        <Select
+                        value={editableBeneficiary.beneficiary_type}
+                        onValueChange={(value) => setEditableBeneficiary({ ...editableBeneficiary, beneficiary_type: value })}
+                        >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="individual">Individual</SelectItem>
+                            <SelectItem value="company">Company</SelectItem>
+                        </SelectContent>
+                        </Select>
+                    </div>
+                    {editableBeneficiary.beneficiary_type === 'individual' ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><Label htmlFor="name">Name</Label><Input name="name" id="name" defaultValue={editableBeneficiary.name} required /></div>
+                        <div><Label htmlFor="phone">Phone</Label><Input name="phone" id="phone" type="tel" defaultValue={editableBeneficiary.phone} required /></div>
+                        <div className="md:col-span-2"><Label htmlFor="email">Email</Label><Input name="email" id="email" type="email" defaultValue={editableBeneficiary.email} required /></div>
+                        <div><Label htmlFor="aadhar">Aadhar</Label><Input name="aadhar" id="aadhar" defaultValue={editableBeneficiary.aadhar} /></div>
+                        <div><Label htmlFor="pan">PAN</Label><Input name="pan" id="pan" defaultValue={editableBeneficiary.pan} /></div>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><Label htmlFor="company_name">Company Name</Label><Input name="company_name" id="company_name" defaultValue={editableBeneficiary.company_name} required /></div>
+                        <div><Label htmlFor="phone">Phone</Label><Input name="phone" id="phone" type="tel" defaultValue={editableBeneficiary.phone} required /></div>
+                        <div className="md:col-span-2"><Label htmlFor="email">Email Address</Label><Input name="email" id="email" type="email" defaultValue={editableBeneficiary.email} required /></div>
+                        <div><Label htmlFor="gstin">GSTIN</Label><Input name="gstin" id="gstin" defaultValue={editableBeneficiary.gstin} /></div>
+                        <div><Label htmlFor="pan">PAN</Label><Input name="pan" id="pan" defaultValue={editableBeneficiary.pan} /></div>
+                        <div><Label htmlFor="aadhar">Aadhar (of Proprietor)</Label><Input name="aadhar" id="aadhar" defaultValue={editableBeneficiary.aadhar} /></div>
+                        <div><Label htmlFor="proprietor_name">Proprietor Name</Label><Input name="proprietor_name" id="proprietor_name" defaultValue={editableBeneficiary.proprietor_name} /></div>
+                        </div>
+                    )}
+                    <DialogFooter>
+                        <Button variant="ghost" type="button" onClick={() => setIsEditing(false)}>Cancel</Button>
+                        <Button type="submit"><Save className="w-4 h-4 mr-2" />Save Changes</Button>
+                    </DialogFooter>
+                </form>
+            )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showAddAccountDialog} onOpenChange={setShowAddAccountDialog}>
         <DialogContent>

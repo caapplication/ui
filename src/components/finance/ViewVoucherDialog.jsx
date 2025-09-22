@@ -11,9 +11,10 @@ import ActivityLog from './ActivityLog';
 import { useNavigate } from 'react-router-dom';
 
 const ViewVoucherDialog = ({ voucher, fromAccount, toAccount, beneficiary, isOpen, onOpenChange, organizationName }) => {
-    if (!voucher) return null;
     const { user } = useAuth();
     const navigate = useNavigate();
+    
+    if (!voucher) return null;
 
     const handleViewAttachment = async () => {
         if (!voucher.attachment) return;

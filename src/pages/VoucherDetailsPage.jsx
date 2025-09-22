@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Edit, Trash2, FileText } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, FileText, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import {
   ResizablePanelGroup,
@@ -83,8 +83,6 @@ const VoucherPDF = React.forwardRef(({ voucher, organizationName, entityName }, 
         </div>
     );
 });
-
-import { Loader2 } from 'lucide-react';
 
 const VoucherDetailsPage = () => {
     const { voucherId } = useParams();
@@ -221,10 +219,10 @@ const VoucherDetailsPage = () => {
         : voucherDetails.beneficiaryName || 'N/A';
 
     const handleDelete = async () => {
-        if (!confirm("Are you sure you want to delete this voucher?")) return;
         try {
             await deleteVoucher(voucherDetails.entity_id, voucherId, user.access_token);
             toast({ title: 'Success', description: 'Voucher deleted successfully.' });
+            setShowDeleteDialog(false);
             navigate('/finance');
         } catch (error) {
             toast({
@@ -232,6 +230,7 @@ const VoucherDetailsPage = () => {
                 description: `Failed to delete voucher: ${error.message}`,
                 variant: 'destructive',
             });
+            setShowDeleteDialog(false);
         }
     };
 

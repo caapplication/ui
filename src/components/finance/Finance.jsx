@@ -3,12 +3,12 @@ import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Plus, FileText, Banknote, ChevronDown, Loader2, RefreshCw, Download } from 'lucide-react';
 import { Dialog } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.jsx";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { useNavigate, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
+import { useNavigate, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useToast } from '@/components/ui/use-toast';
 import { getBeneficiaries, getInvoices, addInvoice, updateInvoice, deleteInvoice, addVoucher, updateVoucher, getVouchers, deleteVoucher, getBankAccountsForBeneficiary, exportVouchersToTallyXML } from '@/lib/api';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import InvoiceForm from '@/components/finance/InvoiceForm';
 import VoucherForm from '@/components/finance/VoucherForm';
@@ -33,6 +33,8 @@ const Finance = ({ organisationBankAccounts, quickAction, clearQuickAction, enti
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const activeTab = location.pathname.includes('/invoices') ? 'invoices' : 'vouchers';
 
   const fetchData = useCallback(async (isRefresh = false) => {
     if (!entityId || !user?.access_token) return;
@@ -186,25 +188,22 @@ const Finance = ({ organisationBankAccounts, quickAction, clearQuickAction, enti
     };
   }, [selectedVoucher, beneficiaries, organisationBankAccounts]);
 
-  const handleExportToTally = (format) => {
-    const readyVouchers = enrichedVouchers.filter(v => v.is_ready && v.finance_header_id);
-    if (readyVouchers.length === 0) {
-      toast({
-        title: 'No Ready Vouchers',
-        description: 'There are no vouchers marked as ready with a selected header to export.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
+  const handleExportToTally = async (format) => {
     if (format === 'xml') {
-      exportVouchersToTallyXML(readyVouchers, organizationName || 'Company Name');
-      toast({
-        title: 'Export Successful',
-        description: 'Vouchers have been exported to Tally XML format.',
-      });
+      try {
+        await exportVouchersToTallyXML(entityId, user.access_token);
+        toast({
+          title: 'Export Successful',
+          description: 'Vouchers are being downloaded in Tally XML format.',
+        });
+      } catch (error) {
+        toast({
+          title: 'Export Failed',
+          description: error.message,
+          variant: 'destructive',
+        });
+      }
     } else {
-      // Implement CSV/XLSX export logic here
       toast({
         title: 'Coming Soon',
         description: 'CSV/XLSX export is not yet implemented.',
@@ -265,44 +264,45 @@ const Finance = ({ organisationBankAccounts, quickAction, clearQuickAction, enti
         </div>
       
         <div className="w-full">
-          <div className="flex space-x-4 border-b">
-            <Link to="/finance/vouchers" className={`py-2 px-4 ${location.pathname.includes('/vouchers') ? 'border-b-2 border-white text-white' : 'text-gray-400'}`}>Vouchers</Link>
-            <Link to="/finance/invoices" className={`py-2 px-4 ${location.pathname.includes('/invoices') ? 'border-b-2 border-white text-white' : 'text-gray-400'}`}>Invoices</Link>
-          </div>
-          
-          <div className="mt-4">
-            <Routes>
-              <Route path="/" element={<Navigate to="vouchers" />} />
-              <Route path="vouchers" element={
-                isLoading ? (
-                  <div className="flex justify-center items-center h-64">
-                    <Loader2 className="w-8 h-8 animate-spin text-white" />
-                  </div>
-                ) : (
-                  <VoucherHistory 
-                    vouchers={enrichedVouchers}
-                    onDeleteVoucher={handleDeleteVoucherClick}
-                    onViewVoucher={handleViewVoucherClick}
-                    onEditVoucher={handleEditVoucherClick}
-                  />
-                )
-              } />
-              <Route path="invoices" element={
-                isLoading ? (
-                  <div className="flex justify-center items-center h-64">
-                    <Loader2 className="w-8 h-8 animate-spin text-white" />
-                  </div>
-                ) : (
-                  <InvoiceHistory 
-                    invoices={invoices}
-                    beneficiaries={beneficiaries}
-                    onDeleteInvoice={handleDeleteInvoiceClick}
-                    onEditInvoice={handleEditInvoiceClick}
-                  />
-                )
-              } />
-            </Routes>
-          </div>
+          <Tabs value={activeTab} onValueChange={(value) => navigate(`/finance/${value}`)} className="w-full">
+            <TabsList>
+              <TabsTrigger value="vouchers">Vouchers</TabsTrigger>
+              <TabsTrigger value="invoices">Invoices</TabsTrigger>
+            </TabsList>
+            <div className="mt-4">
+              <Routes>
+                <Route path="/" element={<Navigate to="vouchers" replace />} />
+                <Route path="vouchers" element={
+                  isLoading ? (
+                    <div className="flex justify-center items-center h-64">
+                      <Loader2 className="w-8 h-8 animate-spin text-white" />
+                    </div>
+                  ) : (
+                    <VoucherHistory 
+                      vouchers={enrichedVouchers}
+                      onDeleteVoucher={handleDeleteVoucherClick}
+                      onViewVoucher={handleViewVoucherClick}
+                      onEditVoucher={handleEditVoucherClick}
+                    />
+                  )
+                } />
+                <Route path="invoices" element={
+                  isLoading ? (
+                    <div className="flex justify-center items-center h-64">
+                      <Loader2 className="w-8 h-8 animate-spin text-white" />
+                    </div>
+                  ) : (
+                    <InvoiceHistory 
+                      invoices={invoices}
+                      beneficiaries={beneficiaries}
+                      onDeleteInvoice={handleDeleteInvoiceClick}
+                      onEditInvoice={handleEditInvoiceClick}
+                    />
+                  )
+                } />
+              </Routes>
+            </div>
+          </Tabs>
         </div>
       </motion.div>
 
