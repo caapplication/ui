@@ -217,22 +217,22 @@ export default defineConfig({
 		allowedHosts: true,
 		proxy: {
 			'/login/': {
-				target: 'http://127.0.0.1:8004',
+				target: 'https://login-api.snolep.com',
 				changeOrigin: true,
 				secure: false,
 			},
 			'/organizations/': {
-				target: 'http://127.0.0.1:8004',
+				target: 'https://login-api.snolep.com',
 				changeOrigin: true,
 				secure: false,
 			},
 			'/entities/': {
-				target: 'http://127.0.0.1:8004',
+				target: 'https://login-api.snolep.com',
 				changeOrigin: true,
 				secure: false,
 			},
 			'/clients/': {
-				target: 'http://127.0.0.1:8003',
+				target: 'https://client-api.snolep.com',
 				changeOrigin: true,
 				secure: false,
 			},

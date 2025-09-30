@@ -9,8 +9,8 @@ import { handleResponse, getAuthHeaders } from './utils';
     import * as team from './team';
     import * as tasks from './tasks';
 
-    const API_BASE_URL = 'http://127.0.0.1:8004';
-    const FINANCE_API_BASE_URL = 'http://127.0.0.1:8000';
+    const API_BASE_URL = 'https://login-api.snolep.com';
+    const FINANCE_API_BASE_URL = 'https://finance-api.snolep.com';
 
     export const {
       refreshToken,
@@ -27,12 +27,14 @@ import { handleResponse, getAuthHeaders } from './utils';
       getEntities,
       getDashboardData,
       getBeneficiaries,
+      getBeneficiariesForCA,
       addBeneficiary,
       deleteBeneficiary,
       getBankAccountsForBeneficiary,
       addBankAccount,
       deleteBankAccount,
       getOrganisationBankAccounts,
+      getOrganisationBankAccountsForCA,
       addOrganisationBankAccount,
       deleteOrganisationBankAccount,
       getInvoices,

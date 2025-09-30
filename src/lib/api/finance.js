@@ -1,6 +1,6 @@
 import { getAuthHeaders, handleResponse } from './utils';
 
-const FINANCE_API_BASE_URL = 'http://127.0.0.1:8000';
+const FINANCE_API_BASE_URL = 'https://finance-api.snolep.com';
 
 export const getEntities = async (token) => {
     const response = await fetch(`${FINANCE_API_BASE_URL}/api/entities/`, {
@@ -22,6 +22,13 @@ export const getDashboardData = async (entityId, token) => {
 };
 
 export const getBeneficiaries = async (organisationId, token, skip = 0, limit = 100) => {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/beneficiaries/?organisation_id=${organisationId}&skip=${skip}&limit=${limit}`, {
+        headers: getAuthHeaders(token),
+    });
+    return handleResponse(response);
+};
+
+export const getBeneficiariesForCA = async (organisationId, token, skip = 0, limit = 100) => {
     const response = await fetch(`${FINANCE_API_BASE_URL}/api/beneficiaries/?organisation_id=${organisationId}&skip=${skip}&limit=${limit}`, {
         headers: getAuthHeaders(token),
     });
@@ -86,6 +93,13 @@ export const deleteBankAccount = async (beneficiaryId, bankAccountId, token) => 
 };
 
 export const getOrganisationBankAccounts = async (organisationId, token) => {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/bank_accounts/?organisation_id=${organisationId}&masked=false`, {
+        headers: getAuthHeaders(token),
+    });
+    return handleResponse(response);
+};
+
+export const getOrganisationBankAccountsForCA = async (organisationId, token) => {
     const response = await fetch(`${FINANCE_API_BASE_URL}/api/bank_accounts/?organisation_id=${organisationId}&masked=false`, {
         headers: getAuthHeaders(token),
     });

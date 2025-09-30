@@ -1,4 +1,3 @@
-
 import { handleResponse, getAuthHeaders } from './api/utils';
     import * as auth from './api/auth';
     import * as finance from './api/finance';
@@ -10,8 +9,8 @@ import { handleResponse, getAuthHeaders } from './api/utils';
     import * as team from './api/team';
     import * as tasks from './api/tasks';
     
-    const API_BASE_URL = 'http://127.0.0.1:8004';
-    export const FINANCE_API_BASE_URL = 'http://127.0.0.1:8000';
+    const API_BASE_URL = 'https://login-api.snolep.com';
+    export const FINANCE_API_BASE_URL = 'https://finance-api.snolep.com';
     
     export const { 
         refreshToken, 
@@ -28,6 +27,7 @@ import { handleResponse, getAuthHeaders } from './api/utils';
         getEntities,
         getDashboardData,
         getBeneficiaries,
+        getBeneficiariesForCA,
         addBeneficiary,
         deleteBeneficiary,
         getBeneficiary,
@@ -36,6 +36,7 @@ import { handleResponse, getAuthHeaders } from './api/utils';
         addBankAccount,
         deleteBankAccount,
         getOrganisationBankAccounts,
+        getOrganisationBankAccountsForCA,
         addOrganisationBankAccount,
         updateOrganisationBankAccount,
         deleteOrganisationBankAccount,

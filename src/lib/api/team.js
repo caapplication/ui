@@ -1,6 +1,6 @@
 import { handleResponse, getAuthHeaders } from './utils';
 
-const API_BASE_URL = 'http://127.0.0.1:8004';
+const API_BASE_URL = 'https://login-api.snolep.com';
 const TASKS_API_BASE_URL = 'https://tasks-api.snolep.com';
 
 export const inviteTeamMember = async (email, caId, token) => {

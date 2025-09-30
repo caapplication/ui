@@ -144,7 +144,7 @@ const Vouchers = () => {
   };
 
   const handleViewVoucher = (voucher) => {
-    navigate(`/vouchers/${voucher.id}`, { state: { voucher } });
+    navigate(`/vouchers/ca/${voucher.id}`, { state: { voucher, organisationId: selectedOrganisation } });
   };
 
   const enrichedVouchers = useMemo(() => {
@@ -164,7 +164,7 @@ const Vouchers = () => {
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+      <div className="flex flex-col md:flex-row justify-end items-start md:items-center mb-8 gap-4">
         <div className="flex items-center gap-2">
           <Select value={selectedOrganisation || ''} onValueChange={handleOrganisationChange}>
               <SelectTrigger className="w-full md:w-[200px]">

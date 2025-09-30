@@ -17,6 +17,7 @@ import React, { useState, useEffect, useCallback } from 'react';
     import Profile from '@/components/profile/Profile.jsx';
     import { getOrganisationBankAccounts } from '@/lib/api';
     import AccountantDashboard from '@/components/accountant/AccountantDashboard.jsx';
+    import CADashboard from '@/pages/CADashboard.jsx';
     import AccountantSidebar from '@/components/layout/AccountantSidebar.jsx';
     import Services from '@/components/accountant/services/Services.jsx';
     import Clients from '@/components/accountant/clients/Clients.jsx';
@@ -33,6 +34,7 @@ import React, { useState, useEffect, useCallback } from 'react';
     import TaskDashboardPage from '@/pages/TaskDashboardPage.jsx';
 import InvoiceDetailsPage from '@/pages/InvoiceDetailsPage.jsx';
 import VoucherDetailsPage from '@/pages/VoucherDetailsPage.jsx';
+import VoucherDetailsCAPage from '@/pages/VoucherDetailsCA.jsx';
 import BeneficiaryDetailsPage from '@/pages/BeneficiaryDetailsPage.jsx';
 
     const ProtectedContent = () => {
@@ -182,7 +184,7 @@ import BeneficiaryDetailsPage from '@/pages/BeneficiaryDetailsPage.jsx';
       const renderAccountantContent = () => {
         switch (activeTab) {
             case 'dashboard':
-                return <AccountantDashboard />;
+                return <CADashboard />;
             case 'clients':
                 return <Clients setActiveTab={handleTabChange} />;
             case 'tasks':
@@ -258,6 +260,7 @@ import BeneficiaryDetailsPage from '@/pages/BeneficiaryDetailsPage.jsx';
                 <Route path="/tasks/:taskId" element={<TaskDashboardPage />} />
                 <Route path="/invoices/:invoiceId" element={<InvoiceDetailsPage />} />
                 <Route path="/vouchers/:voucherId" element={<VoucherDetailsPage />} />
+                <Route path="/vouchers/ca/:voucherId" element={<VoucherDetailsCAPage />} />
                 <Route path="/beneficiaries/:beneficiaryId" element={<BeneficiaryDetailsPage />} />
               </Routes>
             </div>

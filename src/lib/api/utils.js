@@ -1,6 +1,6 @@
 import { useAuth } from '@/hooks/useAuth';
 
-export const BASE_URL = 'http://127.0.0.1:8004';
+export const BASE_URL = 'https://login-api.snolep.com';
 
 export const getAuthHeaders = (token, contentType = 'application/json', agencyId = null) => {
     const headers = {

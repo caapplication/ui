@@ -2,6 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer components {
+  .glass-tab-list .tabs-trigger[data-state="active"] {
+    @apply text-white;
+    border-bottom: 2px solid #fff;
+  }
+}
+
 @layer base {
   :root {
     --background: 240 10% 3.9%;

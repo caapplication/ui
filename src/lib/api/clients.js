@@ -1,9 +1,9 @@
 import { getAuthHeaders, handleResponse } from './utils';
     
     const TASK_API_BASE_URL = 'https://task-api.snolep.com';
-    const CLIENTS_API_BASE_URL = 'http://127.0.0.1:8003';
-    const SERVICES_API_BASE_URL = 'http://127.0.0.1:8002';
-    const LOGIN_API_BASE_URL = 'http://127.0.0.1:8004';
+    const CLIENTS_API_BASE_URL = 'https://client-api.snolep.com';
+    const SERVICES_API_BASE_URL = 'https://services-api.snolep.com';
+    const LOGIN_API_BASE_URL = 'https://login-api.snolep.com';
     
     export const listClients = async (agencyId, token) => {
         const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/`, {
