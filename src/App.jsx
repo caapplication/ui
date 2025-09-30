@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
-    import { Helmet } from 'react-helmet';
+    import { Helmet, HelmetProvider } from 'react-helmet-async';
     import { Routes, Route, Navigate, useSearchParams, BrowserRouter } from 'react-router-dom';
     import { AuthProvider, useAuth } from '@/hooks/useAuth.jsx';
     import { Toaster } from '@/components/ui/toaster';
@@ -12,6 +11,7 @@ import React, { useState, useEffect, useCallback } from 'react';
     import Dashboard from '@/components/dashboard/Dashboard';
     import Documents from '@/components/documents/Documents';
     import Finance from '@/components/finance/Finance';
+    import FinancePage from '@/pages/FinancePage';
     import Beneficiaries from '@/components/beneficiaries/Beneficiaries';
     import OrganisationBank from '@/components/organisation/OrganisationBank.jsx';
     import Profile from '@/components/profile/Profile.jsx';
@@ -192,7 +192,7 @@ import BeneficiaryDetailsPage from '@/pages/BeneficiaryDetailsPage.jsx';
             case 'services':
                 return <Services />;
             case 'finance':
-                return <AccountantFinance />;
+                return <FinancePage />;
             case 'organisation':
                 return <Organisation />;
             case 'team-members':
@@ -243,7 +243,7 @@ import BeneficiaryDetailsPage from '@/pages/BeneficiaryDetailsPage.jsx';
             <div className="flex-1 overflow-y-auto">
               <Routes>
                 <Route path="/" element={<Dashboard entityId={currentEntity} entityName={getEntityName(currentEntity)} onQuickAction={() => {}} organisationBankAccounts={organisationBankAccounts} />} />
-                <Route path="/finance/*" element={<Finance entityName={getEntityName(currentEntity)} organisationBankAccounts={organisationBankAccounts} quickAction={null} clearQuickAction={() => {}} entityId={currentEntity} organizationName={user?.organization_name} />} />
+                <Route path="/finance/*" element={user.role === 'CLIENT_USER' ? <Finance entityName={getEntityName(currentEntity)} organisationBankAccounts={organisationBankAccounts} quickAction={null} clearQuickAction={() => {}} entityId={currentEntity} organizationName={user?.organization_name} /> : <FinancePage />} />
                 <Route path="/documents" element={<Documents entityId={currentEntity} quickAction={null} clearQuickAction={() => {}} />} />
                 <Route path="/beneficiaries" element={<Beneficiaries quickAction={null} clearQuickAction={() => {}} />} />
                 <Route path="/organisation-bank" element={<OrganisationBank entityId={currentEntity} entityName={getEntityName(currentEntity)} quickAction={null} clearQuickAction={() => {}} />} />
@@ -252,6 +252,7 @@ import BeneficiaryDetailsPage from '@/pages/BeneficiaryDetailsPage.jsx';
                 <Route path="/tasks" element={<TaskManagementPage />} />
                 <Route path="/todos" element={<TodoPage />} />
                 <Route path="/services" element={<Services />} />
+                <Route path="/organisation" element={<Organisation />} />
                 <Route path="/team-members" element={<TeamMembers />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/tasks/:taskId" element={<TaskDashboardPage />} />
@@ -298,17 +299,19 @@ import BeneficiaryDetailsPage from '@/pages/BeneficiaryDetailsPage.jsx';
 
     function App() {
       return (
-        <BrowserRouter>
+        <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <AuthProvider>
-            <Helmet>
-              <title>Financial Publication Platform - Manage Your Finances</title>
-              <meta name="description" content="Comprehensive financial management platform for documents, beneficiaries, transactions, and invoice management." />
-              <meta property="og:title" content="Financial Publication Platform - Manage Your Finances" />
-              <meta property="og:description" content="Comprehensive financial management platform for documents, beneficiaries, transactions, and invoice management." />
-            </Helmet>
-            <div className="animated-bg"></div>
-            <AppContent />
-            <Toaster />
+            <HelmetProvider>
+              <Helmet>
+                <title>Financial Publication Platform - Manage Your Finances</title>
+                <meta name="description" content="Comprehensive financial management platform for documents, beneficiaries, transactions, and invoice management." />
+                <meta property="og:title" content="Financial Publication Platform - Manage Your Finances" />
+                <meta property="og:description" content="Comprehensive financial management platform for documents, beneficiaries, transactions, and invoice management." />
+              </Helmet>
+              <div className="animated-bg"></div>
+              <AppContent />
+              <Toaster />
+            </HelmetProvider>
           </AuthProvider>
         </BrowserRouter>
       );

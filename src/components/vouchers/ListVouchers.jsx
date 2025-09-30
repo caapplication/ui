@@ -49,7 +49,7 @@ const ListVouchers = ({ vouchers, onDeleteVoucher }) => {
                     <TableCell className="text-gray-300 font-medium">{voucher.date}</TableCell>
                     <TableCell className="text-gray-300 capitalize">{voucher.type}</TableCell>
                     <TableCell className="text-gray-300">{voucher.beneficiaryName}</TableCell>
-                    <TableCell className="text-gray-300 font-semibold">{voucher.amount ? `$${voucher.amount}` : 'N/A'}</TableCell>
+                    <TableCell className="text-gray-300 font-semibold">{voucher.amount ? `₹${voucher.amount}` : 'N/A'}</TableCell>
                     <TableCell className="text-gray-400 truncate max-w-xs">{voucher.remarks || 'N/A'}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end space-x-2">

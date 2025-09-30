@@ -10,16 +10,17 @@ import { getVoucherAttachment } from '@/lib/api';
 import ActivityLog from './ActivityLog';
 import { useNavigate } from 'react-router-dom';
 
-const ViewVoucherDialog = ({ voucher, fromAccount, toAccount, beneficiary, isOpen, onOpenChange, organizationName }) => {
-    if (!voucher) return null;
+const ViewVoucherDialog = ({ voucher, fromAccount, toAccount, beneficiary, isOpen, onOpenChange, organizationName, organisationId }) => {
     const { user } = useAuth();
     const navigate = useNavigate();
+    
+    if (!voucher) return null;
 
     const handleViewAttachment = async () => {
         if (!voucher.attachment) return;
         try {
             const fileURL = await getVoucherAttachment(voucher.attachment.id, user.access_token);
-            navigate(`/vouchers/${voucher.id}`, { state: { attachmentUrl: fileURL, voucher } });
+            navigate(`/vouchers/${voucher.id}`, { state: { attachmentUrl: fileURL, voucher, organisationId, financeHeaders } });
         } catch (error) {
             console.error('Failed to fetch attachment:', error);
         }
@@ -192,6 +193,10 @@ const ViewVoucherDialog = ({ voucher, fromAccount, toAccount, beneficiary, isOpe
                                 View Attachment
                             </Button>
                         )}
+                        <Button variant="outline" onClick={() => navigate(`/vouchers/${voucher.id}`, { state: { voucher, organisationId, organizationName, financeHeaders } })} className="ml-2">
+                            <FileText className="w-4 h-4 mr-2" />
+                            View Full Details
+                        </Button>
                     </div>
                     <DialogClose asChild>
                         <Button variant="secondary">Close</Button>

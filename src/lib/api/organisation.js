@@ -1,7 +1,7 @@
-import { getAuthHeaders, handleResponse } from './utils';
+import { getAuthHeaders, handleResponse, BASE_URL } from './utils';
 
-const API_BASE_URL = 'https://login-api.snolep.com';
-const CLIENT_API_BASE_URL = 'https://client-api.snolep.com';
+const API_BASE_URL = BASE_URL;
+const CLIENT_API_BASE_URL = 'http://127.0.0.1:8003';
 
 export const listOrganisations = async (token) => {
     const response = await fetch(`${API_BASE_URL}/organizations/`, {
@@ -40,8 +40,9 @@ export const deleteOrganisation = async (orgId, token) => {
     return handleResponse(response);
 };
 
-export const listAllEntities = async (token) => {
-    const response = await fetch(`${API_BASE_URL}/entities/`, {
+export const listEntities = async (organization_id, token) => {
+    let url = `${API_BASE_URL}/entities/?organization_id=${organization_id}`;
+    const response = await fetch(url, {
         method: 'GET',
         headers: getAuthHeaders(token)
     });
@@ -126,5 +127,14 @@ export const deleteOrgUser = async (orgId, userId, token) => {
     if (response.status === 204 || response.status === 200) {
         return { success: true };
     }
+    return handleResponse(response);
+};
+
+export const listAllEntities = async (token) => {
+    let url = `${API_BASE_URL}/entities/`;
+    const response = await fetch(url, {
+        method: 'GET',
+        headers: getAuthHeaders(token)
+    });
     return handleResponse(response);
 };

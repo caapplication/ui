@@ -57,6 +57,15 @@ const TeamMembers = () => {
         }
     };
 
+    const handleResendInvite = async (email) => {
+        try {
+            await inviteTeamMember(email, user.id, user.access_token);
+            toast({ title: "Success", description: `Invitation resent to ${email}.` });
+        } catch (error) {
+            toast({ title: "Error", description: `Failed to resend invite: ${error.message}`, variant: "destructive" });
+        }
+    };
+
     const handleEdit = (user) => {
         setEditingUser(user);
         setFormData({ name: user.name, email: user.email, password: '' });
@@ -82,9 +91,9 @@ const TeamMembers = () => {
         }
     };
 
-    const handleDelete = async (userId) => {
+    const handleDelete = async (member) => {
         try {
-            await deleteTeamMember(userId, user.access_token);
+            await deleteTeamMember(member, user.access_token);
             toast({ title: "Success", description: "User deleted successfully." });
             fetchTeamMembers();
         } catch (error) {
@@ -93,11 +102,18 @@ const TeamMembers = () => {
     };
 
     const handleStatusChange = async (member, newStatus) => {
+        if (!member.id) return;
+        const originalTeam = [...team];
+        const updatedTeam = team.map(m =>
+            m.id === member.id ? { ...m, is_active: newStatus } : m
+        );
+        setTeam(updatedTeam);
+
         try {
             await updateTeamMember(member.id, { is_active: newStatus }, user.access_token);
             toast({ title: "Success", description: "User status updated." });
-            fetchTeamMembers();
         } catch (error) {
+            setTeam(originalTeam);
             toast({ title: "Error", description: `Failed to update status: ${error.message}`, variant: "destructive" });
         }
     };
@@ -125,23 +141,36 @@ const TeamMembers = () => {
                         </TableHeader>
                         <TableBody>
                             {team.map(member => (
-                                <TableRow key={member.id} className="border-none hover:bg-white/5">
+                                <TableRow key={member.id || member.email} className="border-none hover:bg-white/5">
                                     <TableCell className="font-medium">{member.name}</TableCell>
                                     <TableCell>{member.email}</TableCell>
                                     <TableCell>
-                                        <div className="flex items-center gap-2">
-                                            <Switch
-                                                checked={member.is_active}
-                                                onCheckedChange={(checked) => handleStatusChange(member, checked)}
-                                            />
-                                            <span className={member.is_active ? 'text-green-400' : 'text-gray-400'}>
-                                                {member.is_active ? 'Active' : 'Inactive'}
-                                            </span>
-                                        </div>
+                                        {member.id ? (
+                                            <div className="flex items-center gap-2">
+                                                <Switch
+                                                    checked={member.is_active}
+                                                    onCheckedChange={(checked) => handleStatusChange(member, checked)}
+                                                />
+                                                <span className={member.is_active ? 'text-green-400' : 'text-gray-400'}>
+                                                    {member.status_message}
+                                                </span>
+                                            </div>
+                                        ) : (
+                                            <span className='text-yellow-400'>Invited</span>
+                                        )}
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        <Button variant="ghost" size="icon" onClick={() => handleEdit(member)}><Edit className="w-4 h-4" /></Button>
-                                        <Button variant="ghost" size="icon" className="text-red-500" onClick={() => handleDelete(member.id)}><Trash2 className="w-4 h-4" /></Button>
+                                        {member.id ? (
+                                            <>
+                                                <Button variant="ghost" size="icon" onClick={() => handleEdit(member)}><Edit className="w-4 h-4" /></Button>
+                                                <Button variant="ghost" size="icon" className="text-red-500" onClick={() => handleDelete(member)}><Trash2 className="w-4 h-4" /></Button>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Button variant="outline" size="sm" onClick={() => handleResendInvite(member.email)}>Resend Invite</Button>
+                                                <Button variant="ghost" size="icon" className="text-red-500" onClick={() => handleDelete(member)}><Trash2 className="w-4 h-4" /></Button>
+                                            </>
+                                        )}
                                     </TableCell>
                                 </TableRow>
                             ))}

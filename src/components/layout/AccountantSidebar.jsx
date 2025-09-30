@@ -29,8 +29,6 @@ const AccountantSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) =
   const menuItems = [
     { id: 'dashboard', path: '/', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'clients', path: '/clients', label: 'Clients', icon: Users },
-    { id: 'tasks', path: '/tasks', label: 'Task Management', icon: ListTodo },
-    { id: 'todos', path: '/todos', label: 'To-do List', icon: ListChecks },
     { id: 'services', path: '/services', label: 'Services', icon: Briefcase },
     { id: 'finance', path: '/finance', label: 'Finance', icon: Landmark },
     { id: 'organisation', path: '/organisation', label: 'Organisation', icon: Banknote },

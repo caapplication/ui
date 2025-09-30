@@ -36,7 +36,7 @@ const TransactionItem = ({ transaction }) => {
                 <p className="text-gray-400 text-sm">{new Date(transaction.created_at).toLocaleDateString()}</p>
             </div>
             <div className={`font-semibold text-lg ${isCredit ? 'text-green-400' : 'text-red-400'}`}>
-                {isCredit ? '+' : '-'}${amount}
+                ₹{amount}
             </div>
         </div>
     );

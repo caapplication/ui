@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Edit, Trash2, FileText } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, FileText, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import {
   ResizablePanelGroup,
@@ -84,15 +84,13 @@ const VoucherPDF = React.forwardRef(({ voucher, organizationName, entityName }, 
     );
 });
 
-import { Loader2 } from 'lucide-react';
-
 const VoucherDetailsPage = () => {
     const { voucherId } = useParams();
     const location = useLocation();
     const navigate = useNavigate();
     const { user, loading: authLoading } = useAuth();
     const { toast } = useToast();
-    const { voucher: initialVoucher, startInEditMode, organizationName, entityName } = location.state || {};
+    const { voucher: initialVoucher, startInEditMode, organizationName, entityName, organisationId, financeHeaders } = location.state || {};
     const [voucher, setVoucher] = useState(initialVoucher);
     const voucherDetailsRef = useRef(null);
     const [attachmentUrl, setAttachmentUrl] = useState(null);
@@ -146,38 +144,50 @@ const VoucherDetailsPage = () => {
     }, [voucherId, user, voucher, toast, initialVoucher, authLoading]);
 
     useEffect(() => {
-        if (!voucher) return;
-
-        const fetchBeneficiaries = async () => {
-            if (user?.access_token) {
-                const data = await getBeneficiaries(user.access_token);
-                setBeneficiaries(data);
+        const fetchData = async () => {
+            if (user?.access_token && organisationId) {
+                try {
+                    const [beneficiariesData, fromAccountsData] = await Promise.all([
+                        getBeneficiaries(organisationId, user.access_token),
+                        getOrganisationBankAccounts(organisationId, user.access_token)
+                    ]);
+                    setBeneficiaries(beneficiariesData || []);
+                    setFromBankAccounts(fromAccountsData || []);
+                } catch (error) {
+                    toast({ title: 'Error', description: 'Failed to fetch initial data.', variant: 'destructive' });
+                }
             }
         };
-        const fetchAttachment = async () => {
-            if (voucher?.attachment_id && user?.access_token) {
+        fetchData();
+    }, [user, organisationId, toast]);
+
+    useEffect(() => {
+        const fetchToAccounts = async () => {
+            if (user?.access_token && editedVoucher?.beneficiary_id) {
+                try {
+                    const toAccounts = await getBankAccountsForBeneficiary(editedVoucher.beneficiary_id, user.access_token);
+                    setToBankAccounts(toAccounts || []);
+                } catch (error) {
+                    toast({ title: 'Error', description: 'Failed to fetch beneficiary bank accounts.', variant: 'destructive' });
+                }
+            }
+        };
+        fetchToAccounts();
+    }, [user, editedVoucher?.beneficiary_id, toast]);
+
+    useEffect(() => {
+        if (voucher?.attachment_id && user?.access_token) {
+            const fetchAttachment = async () => {
                 try {
                     const url = await getVoucherAttachment(voucher.attachment_id, user.access_token);
                     setAttachmentUrl(url);
                 } catch (error) {
                     console.error("Failed to fetch attachment:", error);
                 }
-            }
-        };
-        const fetchBankAccounts = async () => {
-            if (user?.access_token && voucher?.entity_id) {
-                const fromAccounts = await getOrganisationBankAccounts(voucher.entity_id, user.access_token);
-                setFromBankAccounts(fromAccounts);
-            }
-            if (user?.access_token && editedVoucher?.beneficiary_id) {
-                const toAccounts = await getBankAccountsForBeneficiary(editedVoucher.beneficiary_id, user.access_token);
-                setToBankAccounts(toAccounts);
-            }
-        };
-        fetchBeneficiaries();
-        fetchAttachment();
-        fetchBankAccounts();
-    }, [user, voucher, editedVoucher?.beneficiary_id]);
+            };
+            fetchAttachment();
+        }
+    }, [user?.access_token, voucher?.attachment_id]);
     
     const voucherDetails = voucher || {
         id: voucherId,
@@ -221,10 +231,10 @@ const VoucherDetailsPage = () => {
         : voucherDetails.beneficiaryName || 'N/A';
 
     const handleDelete = async () => {
-        if (!confirm("Are you sure you want to delete this voucher?")) return;
         try {
             await deleteVoucher(voucherDetails.entity_id, voucherId, user.access_token);
             toast({ title: 'Success', description: 'Voucher deleted successfully.' });
+            setShowDeleteDialog(false);
             navigate('/finance');
         } catch (error) {
             toast({
@@ -232,6 +242,7 @@ const VoucherDetailsPage = () => {
                 description: `Failed to delete voucher: ${error.message}`,
                 variant: 'destructive',
             });
+            setShowDeleteDialog(false);
         }
     };
 

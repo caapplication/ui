@@ -215,6 +215,28 @@ export default defineConfig({
 			'Cross-Origin-Embedder-Policy': 'credentialless',
 		},
 		allowedHosts: true,
+		proxy: {
+			'/login/': {
+				target: 'http://127.0.0.1:8004',
+				changeOrigin: true,
+				secure: false,
+			},
+			'/organizations/': {
+				target: 'http://127.0.0.1:8004',
+				changeOrigin: true,
+				secure: false,
+			},
+			'/entities/': {
+				target: 'http://127.0.0.1:8004',
+				changeOrigin: true,
+				secure: false,
+			},
+			'/clients/': {
+				target: 'http://127.0.0.1:8003',
+				changeOrigin: true,
+				secure: false,
+			},
+		},
 	},
 	resolve: {
 		extensions: ['.jsx', '.js', '.tsx', '.ts', '.json', ],

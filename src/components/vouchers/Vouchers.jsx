@@ -16,11 +16,10 @@ const Vouchers = ({ beneficiaries, entityName, onAddVoucher }) => {
   const handleAddVoucher = (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
-    const data = Object.fromEntries(formData.entries());
-    onAddVoucher(data);
+    onAddVoucher(formData);
     toast({
       title: "Voucher Created",
-      description: `New ${data.type} voucher has been successfully created for entity: ${entityName}.`
+      description: `New voucher has been successfully created for entity: ${entityName}.`
     });
     e.target.reset();
     setVoucherType('cash');
@@ -76,6 +75,10 @@ const Vouchers = ({ beneficiaries, entityName, onAddVoucher }) => {
                 <div className="md:col-span-2">
                   <Label htmlFor="remarks">Remarks</Label>
                   <Textarea name="remarks" id="remarks" />
+                </div>
+                <div className="md:col-span-2">
+                  <Label htmlFor="attachment">Attachment</Label>
+                  <Input id="attachment" name="attachment" type="file" required />
                 </div>
               </div>
               <div className="flex space-x-2 mt-6">

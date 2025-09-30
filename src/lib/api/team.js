@@ -1,6 +1,6 @@
 import { handleResponse, getAuthHeaders } from './utils';
 
-const API_BASE_URL = 'https://login-api.snolep.com';
+const API_BASE_URL = 'http://127.0.0.1:8004';
 const TASKS_API_BASE_URL = 'https://tasks-api.snolep.com';
 
 export const inviteTeamMember = async (email, caId, token) => {
@@ -29,11 +29,22 @@ export const updateTeamMember = async (memberId, data, token) => {
     return handleResponse(response);
 };
 
-export const deleteTeamMember = async (memberId, token) => {
-    const response = await fetch(`${API_BASE_URL}/team/team-member/${memberId}`, {
+export const deleteTeamMember = async (member, token) => {
+    let url;
+    const options = {
         method: 'DELETE',
         headers: getAuthHeaders(token),
-    });
+    };
+
+    if (member.id) {
+        url = `${API_BASE_URL}/team/team-member/${member.id}`;
+    } else {
+        url = `${API_BASE_URL}/invites/ca-team-member`;
+        options.headers['Content-Type'] = 'application/x-www-form-urlencoded';
+        options.body = new URLSearchParams({ email: member.email });
+    }
+
+    const response = await fetch(url, options);
     return handleResponse(response);
 };
 

@@ -14,6 +14,7 @@ import {
     createOrganisation, 
     updateOrganisation, 
     deleteOrganisation,
+    listEntities,
     listAllEntities,
     createEntity,
     updateEntity,
@@ -32,7 +33,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 
 const Organisation = () => {
     const { user } = useAuth();
@@ -61,6 +62,7 @@ const Organisation = () => {
 
 
     const fetchOrganisations = useCallback(async () => {
+        if (!user) return;
         setIsLoading(true);
         try {
             const data = await listOrganisations(user.access_token);
@@ -74,21 +76,21 @@ const Organisation = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [user.access_token, toast]);
+    }, [user, toast]);
 
     useEffect(() => {
         fetchOrganisations();
     }, [fetchOrganisations]);
 
     const fetchOrgDetails = useCallback(async (orgId) => {
-        if (!orgId || !user.access_token) return;
+        if (!orgId || !user?.access_token) return;
         setIsDetailsLoading(true);
         try {
-            const [allEntitiesData, orgUsersData] = await Promise.all([
-                listAllEntities(user.access_token),
+            const [entitiesData, orgUsersData] = await Promise.all([
+                listEntities(orgId, user.access_token),
                 listOrgUsers(orgId, user.access_token)
             ]);
-            setEntities(allEntitiesData.filter(e => e.organization_id === orgId) || []);
+            setEntities(entitiesData || []);
             const invited = orgUsersData?.invited_users || [];
             const joined = orgUsersData?.joined_users || [];
             const allUsers = [...invited, ...joined];
@@ -102,7 +104,7 @@ const Organisation = () => {
         } finally {
             setIsDetailsLoading(false);
         }
-    }, [user.access_token, toast]);
+    }, [user, toast]);
 
     useEffect(() => {
         if (selectedOrg) {

@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Plus, Loader2 } from 'lucide-react';
 import { DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 
-const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSave, onCancel, entityId, voucher }) => {
+const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSave, onCancel, entityId, voucher, financeHeaders }) => {
     const isEditing = !!voucher;
     
     const [voucherType, setVoucherType] = useState(voucher?.voucher_type || 'debit');
@@ -155,8 +155,22 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
 
                 <div>
                     <Label htmlFor="attachment">Attachment</Label>
-                    <Input id="attachment" name="attachment" type="file" />
+                    <Input id="attachment" name="attachment" type="file" required={!isEditing} />
                     {isEditing && voucher?.attachment_id && <p className="text-xs text-gray-400 mt-1">Leave empty to keep existing attachment.</p>}
+                </div>
+
+                <div>
+                    <Label htmlFor="finance_header_id">Finance Header</Label>
+                    <Select name="finance_header_id" defaultValue={voucher?.finance_header_id}>
+                        <SelectTrigger><SelectValue placeholder="Select a header" /></SelectTrigger>
+                        <SelectContent>
+                            {(financeHeaders || []).map(header => (
+                                <SelectItem key={header.id} value={String(header.id)}>
+                                    {header.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                 </div>
 
                 <div>
@@ -176,4 +190,3 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
 };
 
 export default VoucherForm;
-  

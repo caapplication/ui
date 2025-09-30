@@ -27,6 +27,7 @@ export const AuthProvider = ({ children }) => {
         clearInterval(refreshIntervalRef.current);
         refreshIntervalRef.current = null;
     }
+    window.dispatchEvent(new Event('logout'));
     navigate('/login');
   }, [navigate]);
 
@@ -100,6 +101,32 @@ export const AuthProvider = ({ children }) => {
     }
   }, [logout, startTokenRefresh]);
 
+  useEffect(() => {
+    let activityTimer;
+
+    const resetTimer = () => {
+      clearTimeout(activityTimer);
+      activityTimer = setTimeout(() => {
+        logout();
+      }, 30 * 60 * 1000);
+    };
+
+    const events = ['mousemove', 'keydown', 'scroll', 'click'];
+
+    events.forEach(event => {
+      window.addEventListener(event, resetTimer);
+    });
+
+    resetTimer();
+
+    return () => {
+      clearTimeout(activityTimer);
+      events.forEach(event => {
+        window.removeEventListener(event, resetTimer);
+      });
+    };
+  }, [logout]);
+
   const finishLogin = (userData) => {
     setUser(userData);
     localStorage.setItem('user', JSON.stringify(userData));
@@ -109,7 +136,7 @@ export const AuthProvider = ({ children }) => {
   };
   
   const login = async (email, password) => {
-    const response = await fetch('https://login-api.snolep.com/login/', {
+    const response = await fetch('/login/', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -133,6 +160,10 @@ export const AuthProvider = ({ children }) => {
             apiGetEntities(data.access_token)
         ]);
 
+        if (!profileData.is_active) {
+            logout();
+            throw new Error('Your account is inactive. Please contact support.');
+        }
         const fullUserData = { ...data, ...profileData, entities: entitiesData || [] };
 
         if (profileData.is_2fa_enabled) {
@@ -143,6 +174,10 @@ export const AuthProvider = ({ children }) => {
         }
     } else if (data.role === 'CA_ACCOUNTANT') {
         const profileData = await apiGetProfile(data.access_token);
+        if (!profileData.is_active) {
+            logout();
+            throw new Error('Your account is inactive. Please contact support.');
+        }
         const fullUserData = { ...data, ...profileData, name: data.agency_name };
         
         if (profileData.is_2fa_enabled) {
@@ -153,6 +188,10 @@ export const AuthProvider = ({ children }) => {
         }
     } else if (data.role === 'ENTITY_USER') {
         const profileData = await apiGetProfile(data.access_token);
+        if (!profileData.is_active) {
+            logout();
+            throw new Error('Your account is inactive. Please contact support.');
+        }
         const fullUserData = { ...data, ...profileData, id: data.sub };
         
         if (profileData.is_2fa_enabled) {

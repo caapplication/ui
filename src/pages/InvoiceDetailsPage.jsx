@@ -31,7 +31,7 @@ const InvoiceDetailsPage = () => {
     const navigate = useNavigate();
     const { user } = useAuth();
     const { toast } = useToast();
-    const { attachmentUrl, invoice, beneficiaryName } = location.state || {};
+    const { attachmentUrl, invoice, beneficiaryName, organisationId } = location.state || {};
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [beneficiaries, setBeneficiaries] = useState([]);
@@ -39,13 +39,13 @@ const InvoiceDetailsPage = () => {
 
     useEffect(() => {
         const fetchBeneficiaries = async () => {
-            if (user?.access_token) {
-                const data = await getBeneficiaries(user.access_token);
+            if (user?.access_token && organisationId) {
+                const data = await getBeneficiaries(organisationId, user.access_token);
                 setBeneficiaries(data);
             }
         };
         fetchBeneficiaries();
-    }, [user?.access_token]);
+    }, [user?.access_token, organisationId]);
     
     const invoiceDetails = invoice || {
         id: invoiceId,

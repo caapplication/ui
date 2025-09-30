@@ -52,10 +52,13 @@ import React, { useState, useEffect, useCallback } from 'react';
                     clientsWithData.map(async (client) => {
                         try {
                             const clientServices = await listClientServices(client.id, user.agency_id, user.access_token);
-                            return { ...client, availedServices: clientServices || [] };
+                            return { ...client, availedServices: Array.isArray(clientServices) ? clientServices : [] };
                         } catch (e) {
+                            if (e.message.includes('404')) {
+                                return { ...client, availedServices: [] };
+                            }
                             console.error(`Failed to fetch services for client ${client.id}`, e);
-                            return { ...client, availedServices: [] }; // Return client even if service fetch fails
+                            return { ...client, availedServices: [] };
                         }
                     })
                 );

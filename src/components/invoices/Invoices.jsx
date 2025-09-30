@@ -173,7 +173,7 @@ const Invoices = ({ beneficiaries, invoices, onAddInvoice, onDeleteInvoice }) =>
                         </div>
                     </div>
                      <div className="hidden md:block">
-                        <p className="text-lg text-gray-300">Amount: <span className="font-semibold text-white">${invoice.amount.toFixed(2)}</span></p>
+                        <p className="text-lg text-gray-300">Amount: <span className="font-semibold text-white">₹{invoice.amount.toFixed(2)}</span></p>
                     </div>
                     <div className="flex items-center space-x-2">
                          <Button size="icon" variant="outline" onClick={() => handleView(invoice)}>
@@ -204,10 +204,10 @@ const Invoices = ({ beneficiaries, invoices, onAddInvoice, onDeleteInvoice }) =>
               <p><strong>Beneficiary:</strong> {viewInvoice.beneficiary}</p>
               <p><strong>Date:</strong> {viewInvoice.date}</p>
               <p><strong>File Name:</strong> {viewInvoice.fileName}</p>
-              <p><strong>Total Amount:</strong> ${viewInvoice.amount.toFixed(2)}</p>
-              <p><strong>CGST:</strong> ${viewInvoice.cgst.toFixed(2)}</p>
-              <p><strong>SGST:</strong> ${viewInvoice.sgst.toFixed(2)}</p>
-              <p><strong>IGST:</strong> ${viewInvoice.igst.toFixed(2)}</p>
+              <p><strong>Total Amount:</strong> ₹{viewInvoice.amount.toFixed(2)}</p>
+              <p><strong>CGST:</strong> ₹{viewInvoice.cgst.toFixed(2)}</p>
+              <p><strong>SGST:</strong> ₹{viewInvoice.sgst.toFixed(2)}</p>
+              <p><strong>IGST:</strong> ₹{viewInvoice.igst.toFixed(2)}</p>
               <p><strong>Remarks:</strong> {viewInvoice.remarks || 'N/A'}</p>
             </div>
           )}

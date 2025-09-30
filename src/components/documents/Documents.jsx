@@ -129,9 +129,8 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
     const fetchEntities = async () => {
       if (user?.role === 'CA_ACCOUNTANT' && currentClientId !== 'all' && user?.access_token) {
         try {
-          const allEntities = await listAllEntities(user.access_token);
-          const filtered = allEntities.filter(e => e.organization_id === currentClientId);
-          setEntitiesForFilter(filtered);
+          const allEntities = await listEntities(currentClientId, user.access_token);
+          setEntitiesForFilter(allEntities);
         } catch (error) {
           toast({
             title: 'Error fetching entities',

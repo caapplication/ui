@@ -1,17 +1,19 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
-import { Plus, Trash2, Loader2, RefreshCw, Eye, EyeOff, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Plus, Trash2, Loader2, RefreshCw, Eye, EyeOff, ToggleLeft, ToggleRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { getOrganisationBankAccounts, addOrganisationBankAccount, updateOrganisationBankAccount, deleteOrganisationBankAccount } from '@/lib/api';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+const ITEMS_PER_PAGE = 10;
 
 const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction }) => {
   const [bankAccounts, setBankAccounts] = useState([]);
@@ -23,6 +25,7 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction 
   const [newAccountType, setNewAccountType] = useState("");
   const [visibleAccounts, setVisibleAccounts] = useState({});
   const [activeTab, setActiveTab] = useState("active");
+  const [currentPage, setCurrentPage] = useState(1);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -112,6 +115,110 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction 
     }
   };
 
+  const activeAccounts = bankAccounts.filter(acc => acc.is_active);
+  const inactiveAccounts = bankAccounts.filter(acc => !acc.is_active);
+
+  const accountsToDisplay = activeTab === 'active' ? activeAccounts : inactiveAccounts;
+  const totalPages = Math.ceil(accountsToDisplay.length / ITEMS_PER_PAGE);
+  const paginatedAccounts = accountsToDisplay.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab]);
+
+  const renderTable = (accounts, title, description) => (
+    <Card className="glass-card">
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="flex justify-center items-center h-64">
+            <Loader2 className="w-8 h-8 animate-spin text-white" />
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>Bank Name</TableHead>
+                <TableHead>Account Number</TableHead>
+                <TableHead>IFSC Code</TableHead>
+                <TableHead>Branch Name</TableHead>
+                <TableHead>Account Type</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {accounts.length > 0 ? (
+                accounts.map((account) => (
+                  <TableRow key={account.id}>
+                    <TableCell>{account.bank_name}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <span>
+                          {visibleAccounts[account.id] ? account.account_number : `************${String(account.account_number).slice(-4)}`}
+                        </span>
+                        <Button variant="ghost" size="icon" onClick={() => toggleMask(account.id)}>
+                          {visibleAccounts[account.id] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </Button>
+                      </div>
+                    </TableCell>
+                    <TableCell>{account.ifsc_code}</TableCell>
+                    <TableCell>{account.branch_name}</TableCell>
+                    <TableCell>{account.account_type}</TableCell>
+                    <TableCell className="text-right">
+                      <Button size="icon" variant="ghost" onClick={() => {
+                        setSelectedAccount(account);
+                        setShowToggleActiveDialog(true);
+                      }}>
+                        {account.is_active ? <ToggleRight className="w-6 h-6 text-green-400" /> : <ToggleLeft className="w-6 h-6 text-gray-400" />}
+                      </Button>
+                      {!account.is_active && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => {
+                            setSelectedAccount(account);
+                            setShowDeleteDialog(true);
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4 text-red-400" />
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan="6" className="text-center text-gray-400 py-8">
+                    No {activeTab} bank accounts found.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+      <CardFooter className="flex justify-between items-center">
+        <div>
+          <p className="text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+        </div>
+      </CardFooter>
+    </Card>
+  );
+
   return (
     <div className="p-8">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
@@ -128,149 +235,15 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction 
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList>
             <TabsTrigger value="active">Active Bank Details</TabsTrigger>
             <TabsTrigger value="inactive">Inactive Bank Details</TabsTrigger>
           </TabsList>
           <TabsContent value="active">
-            <Card className="glass-card">
-              <CardHeader>
-                <CardTitle>Active Bank Accounts for {entityName}</CardTitle>
-                <CardDescription>Manage active bank accounts associated with this entity.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <div className="flex justify-center items-center h-64">
-                    <Loader2 className="w-8 h-8 animate-spin text-white" />
-                  </div>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="hover:bg-transparent">
-                        <TableHead>Bank Name</TableHead>
-                        <TableHead>Account Number</TableHead>
-                        <TableHead>IFSC Code</TableHead>
-                        <TableHead>Branch Name</TableHead>
-                        <TableHead>Account Type</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {bankAccounts && bankAccounts.filter(acc => acc.is_active).length > 0 ? (
-                        bankAccounts.filter(acc => acc.is_active).map((account) => (
-                          <TableRow key={account.id}>
-                            <TableCell>{account.bank_name}</TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <span>
-                                  {visibleAccounts[account.id] ? account.account_number : `************${String(account.account_number).slice(-4)}`}
-                                </span>
-                                <Button variant="ghost" size="icon" onClick={() => toggleMask(account.id)}>
-                                  {visibleAccounts[account.id] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                </Button>
-                              </div>
-                            </TableCell>
-                            <TableCell>{account.ifsc_code}</TableCell>
-                            <TableCell>{account.branch_name}</TableCell>
-                            <TableCell>{account.account_type}</TableCell>
-                            <TableCell className="text-right">
-                              <Button size="icon" variant="ghost" onClick={() => {
-                                setSelectedAccount(account);
-                                setShowToggleActiveDialog(true);
-                              }}>
-                                {account.is_active ? <ToggleRight className="w-6 h-6 text-green-400" /> : <ToggleLeft className="w-6 h-6 text-gray-400" />}
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan="5" className="text-center text-gray-400 py-8">
-                            No active bank accounts found for this organisation.
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
+            {renderTable(paginatedAccounts, `Active Bank Accounts for ${entityName}`, "Manage active bank accounts associated with this entity.")}
           </TabsContent>
           <TabsContent value="inactive">
-            <Card className="glass-card">
-              <CardHeader>
-                <CardTitle>Inactive Bank Accounts for {entityName}</CardTitle>
-                <CardDescription>Manage inactive bank accounts associated with this entity.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <div className="flex justify-center items-center h-64">
-                    <Loader2 className="w-8 h-8 animate-spin text-white" />
-                  </div>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="hover:bg-transparent">
-                        <TableHead>Bank Name</TableHead>
-                        <TableHead>Account Number</TableHead>
-                        <TableHead>IFSC Code</TableHead>
-                        <TableHead>Branch Name</TableHead>
-                        <TableHead>Account Type</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {bankAccounts && bankAccounts.filter(acc => !acc.is_active).length > 0 ? (
-                        bankAccounts.filter(acc => !acc.is_active).map((account) => (
-                          <TableRow key={account.id}>
-                            <TableCell>{account.bank_name}</TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <span>
-                                  {visibleAccounts[account.id] ? account.account_number : `************${String(account.account_number).slice(-4)}`}
-                                </span>
-                                <Button variant="ghost" size="icon" onClick={() => toggleMask(account.id)}>
-                                  {visibleAccounts[account.id] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                </Button>
-                              </div>
-                            </TableCell>
-                            <TableCell>{account.ifsc_code}</TableCell>
-                            <TableCell>{account.branch_name}</TableCell>
-                            <TableCell>{account.account_type}</TableCell>
-                            <TableCell className="text-right">
-                              <Button size="icon" variant="ghost" onClick={() => {
-                                setSelectedAccount(account);
-                                setShowToggleActiveDialog(true);
-                              }}>
-                                {account.is_active ? <ToggleRight className="w-6 h-6 text-green-400" /> : <ToggleLeft className="w-6 h-6 text-gray-400" />}
-                              </Button>
-                              {!account.is_active && (
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => {
-                                    setSelectedAccount(account);
-                                    setShowDeleteDialog(true);
-                                  }}
-                                >
-                                  <Trash2 className="w-4 h-4 text-red-400" />
-                                </Button>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan="5" className="text-center text-gray-400 py-8">
-                            No inactive bank accounts found for this organisation.
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
+            {renderTable(paginatedAccounts, `Inactive Bank Accounts for ${entityName}`, "Manage inactive bank accounts associated with this entity.")}
           </TabsContent>
         </Tabs>
       </motion.div>

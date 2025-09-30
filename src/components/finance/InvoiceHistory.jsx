@@ -1,19 +1,19 @@
-
 import React, { useState, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Trash2, FileText, Edit, CheckCircle } from 'lucide-react';
+import { Search, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { getCATeamInvoiceAttachment, getInvoiceAttachment, updateInvoice } from '@/lib/api';
 import { useToast } from '@/components/ui/use-toast';
 import { useNavigate } from 'react-router-dom';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, financeHeaders, onRefresh }) => {
+const ITEMS_PER_PAGE = 10;
+
+const InvoiceHistory = ({ invoices, onRefresh, isAccountantView }) => {
   const [invoiceSearchTerm, setInvoiceSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -35,6 +35,12 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, financeHeade
                beneficiaryName.includes(searchTerm);
     });
   }, [invoices, invoiceSearchTerm]);
+
+  const totalPages = Math.ceil(filteredInvoices.length / ITEMS_PER_PAGE);
+  const paginatedInvoices = filteredInvoices.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   const handleViewAttachment = async (invoice) => {
     if (!invoice.attachment_id) {
@@ -63,26 +69,6 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, financeHeade
     }
   };
 
-  const handleHeaderChange = async (invoiceId, headerId) => {
-    try {
-      await updateInvoice(invoiceId, { finance_header_id: headerId }, user.access_token);
-      toast({ title: 'Success', description: 'Invoice header updated.' });
-      onRefresh(true);
-    } catch (error) {
-      toast({ title: 'Error', description: `Failed to update header: ${error.message}`, variant: 'destructive' });
-    }
-  };
-
-  const handleMarkAsReady = async (invoiceId) => {
-    try {
-      await updateInvoice(invoiceId, { is_ready: true }, user.access_token);
-      toast({ title: 'Success', description: 'Invoice marked as ready.' });
-      onRefresh(true);
-    } catch (error) {
-      toast({ title: 'Error', description: `Failed to mark as ready: ${error.message}`, variant: 'destructive' });
-    }
-  };
-
   return (
     <Card className="glass-card mt-4">
         <CardHeader>
@@ -106,17 +92,25 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, financeHeade
                         <TableHead>Beneficiary</TableHead>
                         <TableHead>Amount</TableHead>
                         <TableHead>Remarks</TableHead>
+                        {isAccountantView && <TableHead>Ready for Export</TableHead>}
                         <TableHead>Actions</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {filteredInvoices.map(invoice => (
+                    {paginatedInvoices.map(invoice => (
                         <TableRow key={invoice.id}>
                             <TableCell>{new Date(invoice.date).toLocaleDateString()}</TableCell>
                             <TableCell>{invoice.bill_number}</TableCell>
                             <TableCell>{getBeneficiaryName(invoice)}</TableCell>
                             <TableCell>₹{(parseFloat(invoice.amount) + parseFloat(invoice.cgst) + parseFloat(invoice.sgst) + parseFloat(invoice.igst)).toFixed(2)}</TableCell>
                             <TableCell>{invoice.remarks || 'N/A'}</TableCell>
+                            {isAccountantView && (
+                                <TableCell>
+                                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${invoice.is_ready ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'}`}>
+                                        {invoice.is_ready ? 'Yes' : 'No'}
+                                    </span>
+                                </TableCell>
+                            )}
                             <TableCell>
                                 <div className="flex items-center gap-2">
                                     <Button variant="link" onClick={() => handleViewAttachment(invoice)} className="text-sky-400">
@@ -128,8 +122,21 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, financeHeade
                     ))}
                 </TableBody>
             </Table>
-            {filteredInvoices.length === 0 && <p className="text-center text-gray-400 py-8">No invoices found.</p>}
+            {paginatedInvoices.length === 0 && <p className="text-center text-gray-400 py-8">No invoices found.</p>}
         </CardContent>
+        <CardFooter className="flex justify-between items-center">
+            <div>
+                <p className="text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
+            </div>
+            <div className="flex items-center gap-2">
+                <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
+                <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
+                <ChevronRight className="w-4 h-4" />
+                </Button>
+            </div>
+        </CardFooter>
     </Card>
   );
 };
