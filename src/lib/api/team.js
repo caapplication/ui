@@ -1,7 +1,7 @@
 import { handleResponse, getAuthHeaders } from './utils';
 
-const API_BASE_URL = 'https://login-api.snolep.com';
-const TASKS_API_BASE_URL = 'https://tasks-api.snolep.com';
+const API_BASE_URL = 'https://login-api.fynivo.in';
+const TASKS_API_BASE_URL = 'https://tasks-api.fynivo.in';
 
 export const inviteTeamMember = async (email, caId, token) => {
     const response = await fetch(`${API_BASE_URL}/invites/ca-team-member`, {

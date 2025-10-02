@@ -1,9 +1,9 @@
 import { getAuthHeaders, handleResponse } from './utils';
     
-    const TASK_API_BASE_URL = 'https://task-api.snolep.com';
-    const CLIENTS_API_BASE_URL = 'https://client-api.snolep.com';
-    const SERVICES_API_BASE_URL = 'https://services-api.snolep.com';
-    const LOGIN_API_BASE_URL = 'https://login-api.snolep.com';
+    const TASK_API_BASE_URL = 'https://task-api.fynivo.in';
+    const CLIENTS_API_BASE_URL = 'https://client-api.fynivo.in';
+    const SERVICES_API_BASE_URL = 'https://services-api.fynivo.in';
+    const LOGIN_API_BASE_URL = 'https://login-api.fynivo.in';
     
     export const listClients = async (agencyId, token) => {
         const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/`, {
