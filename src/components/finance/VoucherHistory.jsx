@@ -3,7 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Search, Eye, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/ui/use-toast';
@@ -20,8 +21,9 @@ const formatDate = (dateString) => {
     };
 };
 
-const VoucherHistory = ({ vouchers, onViewVoucher, isAccountantView }) => {
+const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVoucher, isAccountantView }) => {
   const [voucherSearchTerm, setVoucherSearchTerm] = useState('');
+  const [voucherToDelete, setVoucherToDelete] = useState(null);
   const [voucherTypeFilter, setVoucherTypeFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const { user } = useAuth();
@@ -123,6 +125,25 @@ const VoucherHistory = ({ vouchers, onViewVoucher, isAccountantView }) => {
                                         <Button variant="ghost" size="icon" onClick={() => onViewVoucher(voucher)} className="text-gray-400 hover:text-gray-300">
                                             <Eye className="w-5 h-5" />
                                         </Button>
+                                        <AlertDialog>
+                                          <AlertDialogTrigger asChild>
+                                            <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={() => setVoucherToDelete(voucher.id)}>
+                                              <Trash2 className="w-4 h-4" />
+                                            </Button>
+                                          </AlertDialogTrigger>
+                                          <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                              <AlertDialogDescription>
+                                                This action cannot be undone. This will permanently delete the voucher.
+                                              </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                              <AlertDialogCancel onClick={() => setVoucherToDelete(null)}>Cancel</AlertDialogCancel>
+                                              <AlertDialogAction onClick={() => { onDeleteVoucher(voucherToDelete); setVoucherToDelete(null); }}>Delete</AlertDialogAction>
+                                            </AlertDialogFooter>
+                                          </AlertDialogContent>
+                                        </AlertDialog>
                                     </div>
                                 </TableCell>
                             </TableRow>

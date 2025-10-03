@@ -27,6 +27,7 @@ const Finance = ({ quickAction, clearQuickAction }) => {
   const [invoices, setInvoices] = useState([]);
   const [vouchers, setVouchers] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isMutating, setIsMutating] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   
   const {
@@ -123,6 +124,7 @@ const Finance = ({ quickAction, clearQuickAction }) => {
   }, [vouchers]);
 
   const handleAddOrUpdateInvoice = async (invoiceData, invoiceId) => {
+    setIsMutating(true);
     try {
       if (invoiceId) {
         await updateInvoice(invoiceId, invoiceData, user.access_token);
@@ -140,10 +142,13 @@ const Finance = ({ quickAction, clearQuickAction }) => {
         description: `Failed to save invoice: ${error.message}`,
         variant: 'destructive',
       });
+    } finally {
+      setIsMutating(false);
     }
   };
 
   const handleDeleteInvoiceClick = async (invoiceId) => {
+    setIsMutating(true);
     try {
       await deleteInvoice(selectedEntity, invoiceId, user.access_token);
       toast({ title: 'Success', description: 'Invoice deleted successfully.' });
@@ -154,6 +159,8 @@ const Finance = ({ quickAction, clearQuickAction }) => {
         description: `Failed to delete invoice: ${error.message}`,
         variant: 'destructive',
       });
+    } finally {
+      setIsMutating(false);
     }
   };
 
@@ -163,6 +170,7 @@ const Finance = ({ quickAction, clearQuickAction }) => {
   };
   
   const handleAddOrUpdateVoucher = async (voucherData, voucherId) => {
+    setIsMutating(true);
     try {
         if (voucherId) {
             await updateVoucher(voucherId, voucherData, user.access_token);
@@ -177,13 +185,16 @@ const Finance = ({ quickAction, clearQuickAction }) => {
     } catch (error) {
         toast({
             title: 'Error',
-            description: `Failed to save voucher: ${error.message}`,
-            variant: 'destructive',
-        });
+        description: `Failed to save voucher: ${error.message}`,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsMutating(false);
     }
   };
 
   const handleDeleteVoucherClick = async (voucherId) => {
+    setIsMutating(true);
     try {
       await deleteVoucher(selectedEntity, voucherId, user.access_token);
       toast({ title: 'Success', description: 'Voucher deleted successfully.' });
@@ -194,6 +205,8 @@ const Finance = ({ quickAction, clearQuickAction }) => {
         description: `Failed to delete voucher: ${error.message}`,
         variant: 'destructive',
       });
+    } finally {
+      setIsMutating(false);
     }
   };
   

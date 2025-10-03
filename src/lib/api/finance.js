@@ -1,6 +1,6 @@
 import { getAuthHeaders, handleResponse } from './utils';
 
-const FINANCE_API_BASE_URL = 'https://finance-api.fynivo.in';
+const FINANCE_API_BASE_URL = 'http://localhost:8004';
 
 export const getEntities = async (token) => {
     const response = await fetch(`${FINANCE_API_BASE_URL}/api/entities/`, {
@@ -36,10 +36,11 @@ export const getBeneficiariesForCA = async (organisationId, token, skip = 0, lim
 };
 
 export const addBeneficiary = async (beneficiaryData, token) => {
+    const { organisation_id, ...rest } = beneficiaryData;
     const response = await fetch(`${FINANCE_API_BASE_URL}/api/beneficiaries/`, {
         method: 'POST',
         headers: getAuthHeaders(token, 'application/x-www-form-urlencoded'),
-        body: new URLSearchParams(beneficiaryData),
+        body: new URLSearchParams(rest),
     });
     return handleResponse(response);
 };
@@ -304,4 +305,11 @@ export const getActivityLog = async (itemId, itemType, token) => {
             ]);
         }, 500);
     });
+};
+
+export const getAccountantDashboardStats = async (token) => {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/ca_team/dashboard/stats`, {
+        headers: getAuthHeaders(token),
+    });
+    return handleResponse(response);
 };

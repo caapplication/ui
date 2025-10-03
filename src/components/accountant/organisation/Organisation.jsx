@@ -24,6 +24,7 @@ import {
     inviteOrganizationUser,
     deleteOrgUser
 } from '@/lib/api';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
@@ -333,7 +334,23 @@ const Organisation = () => {
                                 <TableCell className="font-medium">{org.name}</TableCell>
                                 <TableCell className="text-right">
                                     <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleEditOrg(org); }} disabled={isMutating === org.id}><Edit className="w-4 h-4" /></Button>
-                                    <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-400" onClick={(e) => { e.stopPropagation(); handleDeleteOrg(org.id); }} disabled={isMutating === org.id}>{isMutating === org.id ? <Loader2 className="w-4 h-4 animate-spin"/> : <Trash2 className="w-4 h-4" />}</Button>
+                                    <AlertDialog>
+                                      <AlertDialogTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-400" onClick={(e) => e.stopPropagation()} disabled={isMutating === org.id}>{isMutating === org.id ? <Loader2 className="w-4 h-4 animate-spin"/> : <Trash2 className="w-4 h-4" />}</Button>
+                                      </AlertDialogTrigger>
+                                      <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                          <AlertDialogDescription>
+                                            This action cannot be undone. This will permanently delete the organisation.
+                                          </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                          <AlertDialogAction onClick={() => handleDeleteOrg(org.id)}>Delete</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                    </AlertDialog>
                                 </TableCell>
                             </TableRow>
                         ))}
@@ -382,7 +399,23 @@ const Organisation = () => {
                                     <TableCell className="font-medium">{entity.name}</TableCell>
                                     <TableCell className="text-right">
                                         <Button variant="ghost" size="icon" onClick={() => handleEditEntity(entity)} disabled={isMutating === entity.id}><Edit className="w-4 h-4" /></Button>
-                                        <Button variant="ghost" size="icon" className="text-red-500" onClick={() => handleDeleteEntity(entity.id)} disabled={isMutating === entity.id}>{isMutating === entity.id ? <Loader2 className="w-4 h-4 animate-spin"/> : <Trash2 className="w-4 h-4" />}</Button>
+                                        <AlertDialog>
+                                          <AlertDialogTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="text-red-500" disabled={isMutating === entity.id}>{isMutating === entity.id ? <Loader2 className="w-4 h-4 animate-spin"/> : <Trash2 className="w-4 h-4" />}</Button>
+                                          </AlertDialogTrigger>
+                                          <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                              <AlertDialogDescription>
+                                                This action cannot be undone. This will permanently delete the entity.
+                                              </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                              <AlertDialogAction onClick={() => handleDeleteEntity(entity.id)}>Delete</AlertDialogAction>
+                                            </AlertDialogFooter>
+                                          </AlertDialogContent>
+                                        </AlertDialog>
                                     </TableCell>
                                 </TableRow>
                             ))}
@@ -435,7 +468,25 @@ const Organisation = () => {
                                     <TableCell><Badge variant={u.status.toLowerCase() === 'joined' ? 'success' : 'secondary'}>{u.status}</Badge></TableCell>
                                     <TableCell className="text-right">
                                         {u.status.toLowerCase() === 'invited' && <Button onClick={() => handleResendToken(u.email)} disabled={isMutating === u.email}>{isMutating === u.email ? <Loader2 className="w-4 h-4 animate-spin"/> : <><Send className="w-4 h-4 mr-2" /> Resend Invite</>}</Button>}
-                                        {u.status.toLowerCase() === 'joined' && <Button variant="destructive" size="icon" onClick={() => handleDeleteOrgUser(u)} disabled={isMutating === u.user_id}>{isMutating === u.user_id ? <Loader2 className="w-4 h-4 animate-spin"/> : <Trash2 className="w-4 h-4" />}</Button>}
+                                        {u.status.toLowerCase() === 'joined' && 
+                                          <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                              <Button variant="destructive" size="icon" disabled={isMutating === u.user_id}>{isMutating === u.user_id ? <Loader2 className="w-4 h-4 animate-spin"/> : <Trash2 className="w-4 h-4" />}</Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                              <AlertDialogHeader>
+                                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                  This action cannot be undone. This will permanently delete the user.
+                                                </AlertDialogDescription>
+                                              </AlertDialogHeader>
+                                              <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => handleDeleteOrgUser(u)}>Delete</AlertDialogAction>
+                                              </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                          </AlertDialog>
+                                        }
                                     </TableCell>
                                 </TableRow>
                             ))}

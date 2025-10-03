@@ -16,12 +16,10 @@ import React, { useState, useEffect, useCallback } from 'react';
     import OrganisationBank from '@/components/organisation/OrganisationBank.jsx';
     import Profile from '@/components/profile/Profile.jsx';
     import { getOrganisationBankAccounts } from '@/lib/api';
-    import AccountantDashboard from '@/components/accountant/AccountantDashboard.jsx';
-    import CADashboard from '@/pages/CADashboard.jsx';
+    import AccountantDashboard from '@/components/accountant/dashboard/AccountantDashboard.jsx';
     import AccountantSidebar from '@/components/layout/AccountantSidebar.jsx';
     import Services from '@/components/accountant/services/Services.jsx';
     import Clients from '@/components/accountant/clients/Clients.jsx';
-    import AccountantFinance from '@/components/accountant/finance/Finance.jsx';
     import Organisation from '@/components/accountant/organisation/Organisation.jsx';
     import TeamMembers from '@/components/accountant/team/TeamMembers.jsx';
     import Settings from '@/components/accountant/settings/Settings.jsx';
@@ -90,125 +88,6 @@ import BeneficiaryDetailsPage from '@/pages/BeneficiaryDetailsPage.jsx';
         return 'Select Entity';
       };
 
-      const renderClientContent = () => {
-        if (user.role === 'CLIENT_USER' && activeTab === 'dashboard') {
-            return <ClientUserDashboard 
-              entityId={currentEntity} 
-              entityName={getEntityName(currentEntity)} 
-              onQuickAction={handleQuickAction}
-              organisationBankAccounts={organisationBankAccounts}
-            />;
-        }
-
-        switch (activeTab) {
-          case 'dashboard':
-            return <Dashboard 
-                      entityId={currentEntity} 
-                      entityName={getEntityName(currentEntity)} 
-                      onQuickAction={handleQuickAction}
-                      organisationBankAccounts={organisationBankAccounts}
-                    />;
-          case 'finance':
-            return <Finance 
-                      entityName={getEntityName(currentEntity)}
-                      organisationBankAccounts={organisationBankAccounts}
-                      quickAction={quickAction}
-                      clearQuickAction={clearQuickAction}
-                      entityId={currentEntity}
-                      organizationName={user?.organization_name}
-                    />;
-          case 'documents':
-            return <Documents 
-                      entityId={currentEntity}
-                      quickAction={quickAction}
-                      clearQuickAction={clearQuickAction}
-                    />;
-          case 'beneficiaries':
-            return <Beneficiaries 
-                      quickAction={quickAction}
-                      clearQuickAction={clearQuickAction}
-                    />;
-          case 'organisation-bank':
-            return <OrganisationBank
-                      entityId={currentEntity}
-                      entityName={getEntityName(currentEntity)}
-                      quickAction={quickAction}
-                      clearQuickAction={clearQuickAction}
-                    />;
-          case 'profile':
-            return <Profile />;
-          default:
-            return <Dashboard 
-                      entityId={currentEntity} 
-                      entityName={getEntityName(currentEntity)} 
-                      onQuickAction={handleQuickAction}
-                      organisationBankAccounts={organisationBankAccounts}
-                    />;
-        }
-      };
-
-      const renderEntityContent = () => {
-        switch (activeTab) {
-          case 'dashboard':
-            return <Dashboard 
-                      entityId={currentEntity} 
-                      entityName={getEntityName(currentEntity)} 
-                      onQuickAction={handleQuickAction}
-                      organisationBankAccounts={organisationBankAccounts}
-                    />;
-          case 'finance':
-            return <Finance 
-                      entityName={getEntityName(currentEntity)}
-                      organisationBankAccounts={organisationBankAccounts}
-                      quickAction={quickAction}
-                      clearQuickAction={clearQuickAction}
-                      entityId={currentEntity}
-                      organizationName={user?.name}
-                    />;
-          case 'documents':
-            return <Documents 
-                      entityId={currentEntity}
-                    />;
-          case 'profile':
-            return <Profile />;
-          default:
-            return <Dashboard 
-                      entityId={currentEntity} 
-                      entityName={getEntityName(currentEntity)} 
-                      onQuickAction={handleQuickAction}
-                      organisationBankAccounts={organisationBankAccounts}
-                    />;
-        }
-      };
-
-      const renderAccountantContent = () => {
-        switch (activeTab) {
-            case 'dashboard':
-                return <CADashboard />;
-            case 'clients':
-                return <Clients setActiveTab={handleTabChange} />;
-            case 'tasks':
-                return <TaskManagementPage />;
-            case 'todos':
-                return <TodoPage />;
-            case 'services':
-                return <Services />;
-            case 'finance':
-                return <FinancePage />;
-            case 'organisation':
-                return <Organisation />;
-            case 'team-members':
-                return <TeamMembers />;
-            case 'settings':
-                return <Settings />;
-            case 'profile':
-                return <Profile />;
-            case 'documents':
-                return <Documents />;
-            default:
-                return <AccountantDashboard />;
-        }
-      };
 
       let SidebarComponent;
       if (user.role === 'CA_ACCOUNTANT') {
@@ -244,7 +123,7 @@ import BeneficiaryDetailsPage from '@/pages/BeneficiaryDetailsPage.jsx';
             )}
             <div className="flex-1 overflow-y-auto">
               <Routes>
-                <Route path="/" element={<Dashboard entityId={currentEntity} entityName={getEntityName(currentEntity)} onQuickAction={() => {}} organisationBankAccounts={organisationBankAccounts} />} />
+                <Route path="/" element={(user.role === 'CA_ACCOUNTANT' || user.role === 'CA_TEAM') ? <AccountantDashboard /> : <Dashboard entityId={currentEntity} entityName={getEntityName(currentEntity)} onQuickAction={() => {}} organisationBankAccounts={organisationBankAccounts} />} />
                 <Route path="/finance/*" element={user.role === 'CLIENT_USER' ? <Finance entityName={getEntityName(currentEntity)} organisationBankAccounts={organisationBankAccounts} quickAction={null} clearQuickAction={() => {}} entityId={currentEntity} organizationName={user?.organization_name} /> : <FinancePage />} />
                 <Route path="/documents" element={<Documents entityId={currentEntity} quickAction={null} clearQuickAction={() => {}} />} />
                 <Route path="/beneficiaries" element={<Beneficiaries quickAction={null} clearQuickAction={() => {}} />} />
@@ -306,9 +185,9 @@ import BeneficiaryDetailsPage from '@/pages/BeneficiaryDetailsPage.jsx';
           <AuthProvider>
             <HelmetProvider>
               <Helmet>
-                <title>Financial Publication Platform - Manage Your Finances</title>
+                <title>Fynivo: The Future of Finance</title>
                 <meta name="description" content="Comprehensive financial management platform for documents, beneficiaries, transactions, and invoice management." />
-                <meta property="og:title" content="Financial Publication Platform - Manage Your Finances" />
+                <meta property="og:title" content="Fynivo: The Future of Finance" />
                 <meta property="og:description" content="Comprehensive financial management platform for documents, beneficiaries, transactions, and invoice management." />
               </Helmet>
               <div className="animated-bg"></div>

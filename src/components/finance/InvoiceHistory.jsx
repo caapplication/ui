@@ -2,7 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Search, FileText, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { getCATeamInvoiceAttachment, getInvoiceAttachment, updateInvoice } from '@/lib/api';
 import { useToast } from '@/components/ui/use-toast';
@@ -11,8 +12,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 
 const ITEMS_PER_PAGE = 10;
 
-const InvoiceHistory = ({ invoices, onRefresh, isAccountantView }) => {
+const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onRefresh, isAccountantView }) => {
   const [invoiceSearchTerm, setInvoiceSearchTerm] = useState('');
+  const [invoiceToDelete, setInvoiceToDelete] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const { user } = useAuth();
   const { toast } = useToast();
@@ -116,6 +118,25 @@ const InvoiceHistory = ({ invoices, onRefresh, isAccountantView }) => {
                                     <Button variant="link" onClick={() => handleViewAttachment(invoice)} className="text-sky-400">
                                         <FileText className="w-4 h-4" />
                                     </Button>
+                                    <AlertDialog>
+                                      <AlertDialogTrigger asChild>
+                                        <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={() => setInvoiceToDelete(invoice.id)}>
+                                          <Trash2 className="w-4 h-4" />
+                                        </Button>
+                                      </AlertDialogTrigger>
+                                      <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                          <AlertDialogDescription>
+                                            This action cannot be undone. This will permanently delete the invoice.
+                                          </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                          <AlertDialogCancel onClick={() => setInvoiceToDelete(null)}>Cancel</AlertDialogCancel>
+                                          <AlertDialogAction onClick={() => { onDeleteInvoice(invoiceToDelete); setInvoiceToDelete(null); }}>Delete</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                    </AlertDialog>
                                 </div>
                             </TableCell>
                         </TableRow>

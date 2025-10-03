@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { FileText, Upload, Trash2, Plus, Share2, Folder, FolderPlus, ArrowLeft, Search, Loader2, RefreshCw, Inbox, CalendarIcon, Download } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
@@ -83,6 +84,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   const [sharedDocuments, setSharedDocuments] = useState([]);
   const [currentFolderId, setCurrentFolderId] = useState('root');
   const [isLoading, setIsLoading] = useState(true);
+  const [isMutating, setIsMutating] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [showCreateFolder, setShowCreateFolder] = useState(false);
@@ -91,6 +93,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   const [shareDoc, setShareDoc] = useState(null);
   const [shareEmails, setShareEmails] = useState('');
   const [shareExpiryDate, setShareExpiryDate] = useState(null);
+  const [itemToDelete, setItemToDelete] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [previewFile, setPreviewFile] = useState(null);
   const { toast } = useToast();
@@ -250,6 +253,7 @@ if (activeTab === 'myFiles') {
 
   const handleUpload = async (e) => {
     e.preventDefault();
+    setIsMutating(true);
     const formData = new FormData(e.target);
     const file = formData.get('file');
     if (!file || file.size === 0) {
@@ -270,6 +274,8 @@ if (activeTab === 'myFiles') {
         fetchDocuments(true);
     } catch (error) {
         toast({ title: "Upload Failed", description: error.message, variant: "destructive" });
+    } finally {
+      setIsMutating(false);
     }
   };
 
@@ -278,6 +284,7 @@ if (activeTab === 'myFiles') {
       toast({ title: "Invalid Name", description: "Folder name cannot be empty.", variant: "destructive" });
       return;
     }
+    setIsMutating(true);
     try {
         if (user?.role === 'CA_ACCOUNTANT') {
             await createCAFolder(newFolderName, currentFolderId, user.access_token);
@@ -291,12 +298,16 @@ if (activeTab === 'myFiles') {
     } catch (error)
         {
         toast({ title: "Creation Failed", description: error.message, variant: "destructive" });
+    } finally {
+      setIsMutating(false);
     }
   };
 
-  const handleDelete = async (itemId) => {
+  const handleDelete = async () => {
+    if (!itemToDelete) return;
+    setIsMutating(true);
     try {
-        await deleteDocument(itemId, user.access_token);
+        await deleteDocument(itemToDelete, user.access_token);
         toast({ title: "Item Deleted", description: "The selected item has been removed." });
         if (activeTab === 'myFiles') {
           fetchDocuments(true);
@@ -305,6 +316,9 @@ if (activeTab === 'myFiles') {
         }
     } catch (error) {
         toast({ title: "Deletion Failed", description: error.message, variant: "destructive" });
+    } finally {
+      setItemToDelete(null);
+      setIsMutating(false);
     }
   };
 
@@ -394,7 +408,28 @@ if (activeTab === 'myFiles') {
                     {!item.is_folder && (
                         <Button size="icon" variant="outline" onClick={(e) => {e.stopPropagation(); handleView(item)}}><FileText className="w-4 h-4" /></Button>
                     )}
-                    <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={(e) => {e.stopPropagation(); handleDelete(item.id)}}><Trash2 className="w-4 h-4" /></Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={(e) => {e.stopPropagation(); setItemToDelete(item.id)}}>
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete the item.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel onClick={(e) => {e.stopPropagation(); setItemToDelete(null)}} disabled={isMutating}>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={(e) => {e.stopPropagation(); handleDelete()}} disabled={isMutating}>
+                            {isMutating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                 </div>
                 </CardContent>
             </Card>
@@ -527,8 +562,11 @@ if (activeTab === 'myFiles') {
                     <Input id="folder-name" value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)} placeholder="Enter folder name" />
                 </div>
                 <DialogFooter>
-                    <Button variant="ghost" onClick={() => setShowCreateFolder(false)}>Cancel</Button>
-                    <Button onClick={handleCreateFolder}>Create</Button>
+                    <Button variant="ghost" onClick={() => setShowCreateFolder(false)} disabled={isMutating}>Cancel</Button>
+                    <Button onClick={handleCreateFolder} disabled={isMutating}>
+                      {isMutating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                      Create
+                    </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
@@ -566,8 +604,11 @@ if (activeTab === 'myFiles') {
                       </Popover>
                     </div>
                     <DialogFooter>
-                       <Button variant="ghost" type="button" onClick={() => setShowUpload(false)}>Cancel</Button>
-                       <Button type="submit"><Upload className="w-4 h-4 mr-2" />Upload</Button>
+                       <Button variant="ghost" type="button" onClick={() => setShowUpload(false)} disabled={isMutating}>Cancel</Button>
+                       <Button type="submit" disabled={isMutating}>
+                         {isMutating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
+                         Upload
+                       </Button>
                     </DialogFooter>
                 </form>
             </DialogContent>

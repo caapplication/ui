@@ -10,7 +10,7 @@ import { handleResponse, getAuthHeaders } from './utils';
     import * as tasks from './tasks';
 
     const API_BASE_URL = 'https://login-api.fynivo.in';
-    const FINANCE_API_BASE_URL = 'https://finance-api.fynivo.in';
+    const FINANCE_API_BASE_URL = 'http://localhost:8004';
 
     export const {
       refreshToken,
@@ -51,6 +51,7 @@ import { handleResponse, getAuthHeaders } from './utils';
       getCATeamInvoiceAttachment,
       exportVouchersToTallyXML,
       getActivityLog,
+      getAccountantDashboardStats,
     } = finance;
 
     export const {

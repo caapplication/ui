@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Edit, Trash2, UserPlus, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
@@ -163,12 +164,44 @@ const TeamMembers = () => {
                                         {member.id ? (
                                             <>
                                                 <Button variant="ghost" size="icon" onClick={() => handleEdit(member)}><Edit className="w-4 h-4" /></Button>
-                                                <Button variant="ghost" size="icon" className="text-red-500" onClick={() => handleDelete(member)}><Trash2 className="w-4 h-4" /></Button>
+                                                <AlertDialog>
+                                                  <AlertDialogTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="text-red-500"><Trash2 className="w-4 h-4" /></Button>
+                                                  </AlertDialogTrigger>
+                                                  <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                      <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                      <AlertDialogDescription>
+                                                        This action cannot be undone. This will permanently delete the user.
+                                                      </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                      <AlertDialogAction onClick={() => handleDelete(member)}>Delete</AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                  </AlertDialogContent>
+                                                </AlertDialog>
                                             </>
                                         ) : (
                                             <>
                                                 <Button variant="outline" size="sm" onClick={() => handleResendInvite(member.email)}>Resend Invite</Button>
-                                                <Button variant="ghost" size="icon" className="text-red-500" onClick={() => handleDelete(member)}><Trash2 className="w-4 h-4" /></Button>
+                                                <AlertDialog>
+                                                  <AlertDialogTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="text-red-500"><Trash2 className="w-4 h-4" /></Button>
+                                                  </AlertDialogTrigger>
+                                                  <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                      <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                      <AlertDialogDescription>
+                                                        This action cannot be undone. This will permanently delete the user.
+                                                      </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                      <AlertDialogAction onClick={() => handleDelete(member)}>Delete</AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                  </AlertDialogContent>
+                                                </AlertDialog>
                                             </>
                                         )}
                                     </TableCell>

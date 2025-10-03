@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { UploadCloud, File, Download, Trash2, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { addSupportingFile, deleteSupportingFile, getServiceDetails } from '@/lib/api';
@@ -140,9 +141,25 @@ const SupportingFilesTab = ({ service, onUpdate }) => {
                                     <Button variant="ghost" size="icon" onClick={() => handleDownload(file)}>
                                         <Download className="w-5 h-5 text-gray-400 hover:text-white" />
                                     </Button>
-                                    <Button variant="ghost" size="icon" onClick={() => removeFile(file.id)} disabled={isDeleting === file.id}>
-                                        {isDeleting === file.id ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5 text-red-500 hover:text-red-400" />}
-                                    </Button>
+                                    <AlertDialog>
+                                      <AlertDialogTrigger asChild>
+                                        <Button variant="ghost" size="icon" disabled={isDeleting === file.id}>
+                                            {isDeleting === file.id ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5 text-red-500 hover:text-red-400" />}
+                                        </Button>
+                                      </AlertDialogTrigger>
+                                      <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                          <AlertDialogDescription>
+                                            This action cannot be undone. This will permanently delete the file.
+                                          </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                          <AlertDialogAction onClick={() => removeFile(file.id)}>Delete</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                    </AlertDialog>
                                 </div>
                             </motion.div>
                         ))}

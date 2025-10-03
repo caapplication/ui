@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/components/ui/use-toast';
 import { Plus, Trash2, Search, Loader2, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { 
@@ -24,7 +25,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const ITEMS_PER_PAGE = 10;
 
-const BeneficiaryForm = ({ onAdd, onCancel, organisationId }) => {
+const BeneficiaryForm = ({ onAdd, onCancel, organisationId, isMutating }) => {
   const [beneficiaryType, setBeneficiaryType] = useState('individual');
 
   const handleSubmit = (e) => {
@@ -70,8 +71,11 @@ const BeneficiaryForm = ({ onAdd, onCancel, organisationId }) => {
       )}
 
       <DialogFooter>
-        <DialogClose asChild><Button variant="ghost" type="button" onClick={onCancel}>Cancel</Button></DialogClose>
-        <Button type="submit"><Plus className="w-4 h-4 mr-2" /> Save Beneficiary</Button>
+        <DialogClose asChild><Button variant="ghost" type="button" onClick={onCancel} disabled={isMutating}>Cancel</Button></DialogClose>
+        <Button type="submit" disabled={isMutating}>
+          {isMutating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}
+          Save Beneficiary
+        </Button>
       </DialogFooter>
     </form>
   );
@@ -80,9 +84,11 @@ const BeneficiaryForm = ({ onAdd, onCancel, organisationId }) => {
 const Beneficiaries = ({ quickAction, clearQuickAction }) => {
   const [beneficiaries, setBeneficiaries] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isMutating, setIsMutating] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [beneficiaryToDelete, setBeneficiaryToDelete] = useState(null);
   const [activeTab, setActiveTab] = useState('individual');
   const { toast } = useToast();
   const { user } = useAuth();
@@ -93,15 +99,9 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
 
     setIsLoading(true);
     try {
-      const data = await getBeneficiaries(organisationId, user.access_token);
-      if (Array.isArray(data)) {
-        const beneficiariesWithAccounts = await Promise.all(
-          data.map(async (beneficiary) => {
-            const bankAccounts = await getBankAccountsForBeneficiary(beneficiary.id, user.access_token);
-            return { ...beneficiary, bank_accounts: bankAccounts };
-          })
-        );
-        setBeneficiaries(beneficiariesWithAccounts);
+      const response = await getBeneficiaries(organisationId, user.access_token);
+      if (response && Array.isArray(response.beneficiaries)) {
+        setBeneficiaries(response.beneficiaries);
       } else {
         setBeneficiaries([]);
       }
@@ -115,7 +115,7 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [user, toast]);
+  }, [organisationId, user, toast]);
 
   useEffect(() => {
     fetchBeneficiaries();
@@ -149,6 +149,7 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
   );
 
   const handleAdd = async (beneficiaryData) => {
+    setIsMutating(true);
     try {
       await addBeneficiary(beneficiaryData, user.access_token);
       toast({ title: 'Success', description: 'Beneficiary added successfully.' });
@@ -160,14 +161,16 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
         description: `Failed to add beneficiary: ${error.message}`,
         variant: 'destructive',
       });
+    } finally {
+      setIsMutating(false);
     }
   };
 
-  const handleDelete = async (beneficiaryId) => {
-    const organisationId = user.entities?.[0]?.organisation_id;
-    if (!organisationId) return;
+  const handleDelete = async () => {
+    if (!organisationId || !beneficiaryToDelete) return;
+    setIsMutating(true);
     try {
-      await deleteBeneficiary(beneficiaryId, organisationId, user.access_token);
+      await deleteBeneficiary(beneficiaryToDelete, organisationId, user.access_token);
       toast({ title: 'Success', description: 'Beneficiary deleted successfully.' });
       fetchBeneficiaries();
     } catch (error) {
@@ -176,6 +179,9 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
         description: `Failed to delete beneficiary: ${error.message}`,
         variant: 'destructive',
       });
+    } finally {
+      setBeneficiaryToDelete(null);
+      setIsMutating(false);
     }
   };
 
@@ -193,7 +199,7 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <Input placeholder="Search..." className="pl-12" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
             </div>
-            <Button onClick={() => setShowAddDialog(true)}>
+            <Button onClick={() => setShowAddDialog(true)} disabled={!organisationId}>
               <Plus className="w-5 h-5 mr-2" />
               Add New
             </Button>
@@ -236,9 +242,28 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
                                 <Eye className="w-4 h-4" />
                               </Button>
                             </Link>
-                            <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={() => handleDelete(b.id)}>
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={() => setBeneficiaryToDelete(b.id)}>
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    This action cannot be undone. This will permanently delete the beneficiary.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel onClick={() => setBeneficiaryToDelete(null)} disabled={isMutating}>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={handleDelete} disabled={isMutating}>
+                                    {isMutating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -287,9 +312,28 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
                                 <Eye className="w-4 h-4" />
                               </Button>
                             </Link>
-                            <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={() => handleDelete(b.id)}>
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={() => setBeneficiaryToDelete(b.id)}>
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    This action cannot be undone. This will permanently delete the beneficiary.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel onClick={() => setBeneficiaryToDelete(null)} disabled={isMutating}>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={handleDelete} disabled={isMutating}>
+                                    {isMutating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -322,7 +366,7 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
             <DialogTitle>Add New Beneficiary</DialogTitle>
             <CardDescription>Enter the details for the new beneficiary.</CardDescription>
           </DialogHeader>
-          <BeneficiaryForm onAdd={handleAdd} onCancel={() => setShowAddDialog(false)} organisationId={user.entities?.[0]?.organisation_id} />
+          <BeneficiaryForm onAdd={handleAdd} onCancel={() => setShowAddDialog(false)} organisationId={organisationId} isMutating={isMutating} />
         </DialogContent>
       </Dialog>
     </div>

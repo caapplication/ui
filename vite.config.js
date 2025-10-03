@@ -217,22 +217,22 @@ export default defineConfig({
 		allowedHosts: true,
 		proxy: {
 			'/login/': {
-				target: 'https://login-api.snolep.com',
+				target: 'https://login-api.fynivo.in',
 				changeOrigin: true,
 				secure: false,
 			},
 			'/organizations/': {
-				target: 'https://login-api.snolep.com',
+				target: 'https://login-api.fynivo.in',
 				changeOrigin: true,
 				secure: false,
 			},
 			'/entities/': {
-				target: 'https://login-api.snolep.com',
+				target: 'https://login-api.fynivo.in',
 				changeOrigin: true,
 				secure: false,
 			},
 			'/clients/': {
-				target: 'https://client-api.snolep.com',
+				target: 'https://client-api.fynivo.in',
 				changeOrigin: true,
 				secure: false,
 			},
