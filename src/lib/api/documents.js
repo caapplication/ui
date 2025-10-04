@@ -1,6 +1,6 @@
 import { getAuthHeaders, handleResponse } from './utils';
 
-const FINANCE_API_BASE_URL = 'http://localhost:8004';
+const FINANCE_API_BASE_URL = 'https://finance-api.fynivo.in';
 
 export const getDocuments = async (entityId, token) => {
     let url = `${FINANCE_API_BASE_URL}/api/documents/folders/?exclude_shared=true`;

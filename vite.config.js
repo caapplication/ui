@@ -217,22 +217,22 @@ export default defineConfig({
 		allowedHosts: true,
 		proxy: {
 			'/login/': {
-				target: 'http://localhost:8002',
+				target: 'https://login-api.fynivo.in',
 				changeOrigin: true,
 				secure: false,
 			},
 			'/organizations/': {
-				target: 'http://localhost:8002',
+				target: 'https://login-api.fynivo.in',
 				changeOrigin: true,
 				secure: false,
 			},
 			'/entities/': {
-				target: 'http://localhost:8002',
+				target: 'https://login-api.fynivo.in',
 				changeOrigin: true,
 				secure: false,
 			},
 			'/clients/': {
-				target: 'http://localhost:8003',
+				target: 'https://client-api.fynivo.in',
 				changeOrigin: true,
 				secure: false,
 			},
