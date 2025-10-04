@@ -124,7 +124,7 @@ import { getAuthHeaders, handleResponse } from './utils';
     };
     
     export const listClientServices = async (clientId, agencyId, token) => {
-        const response = await fetch(`${SERVICES_API_BASE_URL}/services/${clientId}/services`, {
+        const response = await fetch(`${CLIENTS_API_BASE_URL}/services/${clientId}/services`, {
             method: 'GET',
             headers: getAuthHeaders(token, 'application/json', agencyId)
         });
@@ -133,7 +133,7 @@ import { getAuthHeaders, handleResponse } from './utils';
     
     export const addServicesToClient = async (clientId, serviceIds, agencyId, token) => {
         const payload = serviceIds.map(id => ({ service_id: id }));
-        const response = await fetch(`${SERVICES_API_BASE_URL}/services/${clientId}/services`, {
+        const response = await fetch(`${CLIENTS_API_BASE_URL}/services/${clientId}/services`, {
             method: 'POST',
             headers: getAuthHeaders(token, 'application/json', agencyId),
             body: JSON.stringify(payload)
@@ -142,7 +142,7 @@ import { getAuthHeaders, handleResponse } from './utils';
     };
     
     export const removeServicesFromClient = async (clientId, serviceIds, agencyId, token) => {
-        const response = await fetch(`${SERVICES_API_BASE_URL}/services/${clientId}/services`, {
+        const response = await fetch(`${CLIENTS_API_BASE_URL}/services/${clientId}/services`, {
             method: 'DELETE',
             headers: getAuthHeaders(token, 'application/json', agencyId),
             body: JSON.stringify({ service_ids: serviceIds })
