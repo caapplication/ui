@@ -135,7 +135,7 @@ import BeneficiaryDetailsPage from '@/pages/BeneficiaryDetailsPage.jsx';
                 <Route path="/services" element={<Services />} />
                 <Route path="/organisation" element={<Organisation />} />
                 <Route path="/team-members" element={<TeamMembers />} />
-                <Route path="/settings" element={<Settings />} />
+                <Route path="/settings/*" element={<Settings />} />
                 <Route path="/tasks/:taskId" element={<TaskDashboardPage />} />
                 <Route path="/invoices/:invoiceId" element={<InvoiceDetailsPage />} />
                 <Route path="/vouchers/:voucherId" element={<VoucherDetailsPage />} />

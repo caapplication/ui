@@ -37,6 +37,10 @@ const AccountantSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) =
     { id: 'settings', path: '/settings', label: 'Settings', icon: Settings },
   ];
 
+  const isActive = (path) => {
+    return location.pathname.startsWith(path);
+  }
+
   const variants = {
     expanded: { width: 280 },
     collapsed: { width: 120 },
@@ -82,17 +86,17 @@ const AccountantSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) =
           <ul className="space-y-2">
             {menuItems.map((item) => {
               const Icon = item.icon;
-              const isActive = location.pathname === item.path;
+              const active = isActive(item.path);
               return (
                 <li key={item.id}>
                   <Link to={item.path}>
                     <Button
                       variant="ghost"
-                      className={`w-full justify-start text-left h-12 relative ${isActive ? 'text-white' : 'text-gray-300'}`}
+                      className={`w-full justify-start text-left h-12 relative ${active ? 'text-white' : 'text-gray-300'}`}
                       title={isCollapsed ? item.label : ''}
                     >
                       <AnimatePresence>
-                      {isActive && (
+                      {active && (
                         <motion.div
                           layoutId="active-nav-glow-accountant"
                           className="absolute inset-0 bg-white/10 rounded-lg shadow-glow-secondary"
