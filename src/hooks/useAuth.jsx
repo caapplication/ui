@@ -21,6 +21,8 @@ export const AuthProvider = ({ children }) => {
   const logout = useCallback(() => {
     setUser(null);
     localStorage.removeItem('user');
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('entityId');
     localStorage.removeItem('entityData');
     localStorage.removeItem('beneficiaries');
     if (refreshIntervalRef.current) {
@@ -78,10 +80,11 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const initializeUser = async () => {
       const savedUser = localStorage.getItem('user');
-      if (savedUser) {
+      const accessToken = localStorage.getItem('accessToken');
+      if (savedUser && accessToken) {
         try {
           const parsedUser = JSON.parse(savedUser);
-          setUser(parsedUser);
+          setUser({ ...parsedUser, access_token: accessToken });
           if(parsedUser.refresh_token) {
             startTokenRefresh(parsedUser.refresh_token);
           }
@@ -130,6 +133,10 @@ export const AuthProvider = ({ children }) => {
   const finishLogin = (userData) => {
     setUser(userData);
     localStorage.setItem('user', JSON.stringify(userData));
+    localStorage.setItem('accessToken', userData.access_token);
+    if (userData.entities && userData.entities.length > 0) {
+      localStorage.setItem('entityId', userData.entities[0].id);
+    }
     if(userData.refresh_token) {
         startTokenRefresh(userData.refresh_token);
     }
@@ -173,12 +180,15 @@ export const AuthProvider = ({ children }) => {
             return { twoFactorEnabled: false };
         }
     } else if (data.role === 'CA_ACCOUNTANT') {
-        const profileData = await apiGetProfile(data.access_token);
+        const [profileData, entitiesData] = await Promise.all([
+            apiGetProfile(data.access_token),
+            apiGetEntities(data.access_token)
+        ]);
         if (!profileData.is_active) {
             logout();
             throw new Error('Your account is inactive. Please contact support.');
         }
-        const fullUserData = { ...data, ...profileData, name: data.agency_name };
+        const fullUserData = { ...data, ...profileData, name: data.agency_name, entities: entitiesData || [] };
         
         if (profileData.is_2fa_enabled) {
             return { twoFactorEnabled: true, loginData: fullUserData };
@@ -206,6 +216,8 @@ export const AuthProvider = ({ children }) => {
   };
   
   const verifyOtpAndFinishLogin = async (loginData, otp) => {
+    const { access_token } = loginData;
+    await apiVerify2FA(access_token, otp);
     finishLogin(loginData);
   }
 

@@ -202,9 +202,9 @@ export const addVoucher = async (voucherFormData, token) => {
     return handleResponse(response);
 };
 
-export const updateVoucher = async (voucherId, voucherData, token) => {
+export const updateVoucher = async (voucherId, voucherData, token, entityId) => {
     const isFormData = voucherData instanceof FormData;
-    const response = await fetch(`${FINANCE_API_BASE_URL}/api/vouchers/${voucherId}`, {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/vouchers/${voucherId}?entity_id=${entityId}`, {
         method: 'PATCH',
         headers: getAuthHeaders(token, isFormData ? null : 'application/json'),
         body: isFormData ? voucherData : JSON.stringify(voucherData),
@@ -308,7 +308,7 @@ export const getActivityLog = async (itemId, itemType, token) => {
 };
 
 export const getAccountantDashboardStats = async (token) => {
-    const response = await fetch(`${FINANCE_API_BASE_URL}/api/ca_team/dashboard/stats`, {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/dashboard/`, {
         headers: getAuthHeaders(token),
     });
     return handleResponse(response);

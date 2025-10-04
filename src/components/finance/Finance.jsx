@@ -69,7 +69,9 @@ const Finance = ({ quickAction, clearQuickAction }) => {
   }, [organisationId, user?.access_token, toast]);
 
   const fetchData = useCallback(async (isRefresh = false) => {
-    if (!organisationId || !user?.access_token) return;
+    const token = localStorage.getItem('accessToken');
+    const entityId = localStorage.getItem('entityId');
+    if (!organisationId || !token) return;
 
     if (isRefresh) {
         setIsRefreshing(true);
@@ -77,11 +79,12 @@ const Finance = ({ quickAction, clearQuickAction }) => {
         setIsLoading(true);
     }
     try {
-      const [beneficiariesData, invoicesData, vouchersData] = await Promise.all([
-        getBeneficiaries(organisationId, user.access_token),
-        getInvoices(selectedEntity || organisationId, user.access_token),
-        getVouchers(selectedEntity || organisationId, user.access_token)
-      ]);
+      const promises = [getBeneficiaries(organisationId, token)];
+      if (entityId) {
+        promises.push(getInvoices(entityId, token));
+        promises.push(getVouchers(entityId, token));
+      }
+      const [beneficiariesData, invoicesData, vouchersData] = await Promise.all(promises);
       
       setBeneficiaries(beneficiariesData || []);
       setInvoices(invoicesData || []);
@@ -98,7 +101,7 @@ const Finance = ({ quickAction, clearQuickAction }) => {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [organisationId, selectedEntity, user?.access_token, toast]);
+  }, [organisationId, toast]);
 
   useEffect(() => {
     if (user?.role === 'CLIENT_USER' && user.entities && user.entities.length > 0) {
@@ -110,7 +113,7 @@ const Finance = ({ quickAction, clearQuickAction }) => {
     if (selectedEntity) {
       fetchData();
     }
-  }, [fetchData, selectedEntity]);
+  }, [fetchData, selectedEntity, user]);
 
   const enrichedVouchers = useMemo(() => {
     return (vouchers || []).map(v => {
@@ -124,13 +127,15 @@ const Finance = ({ quickAction, clearQuickAction }) => {
   }, [vouchers]);
 
   const handleAddOrUpdateInvoice = async (invoiceData, invoiceId) => {
+    const token = localStorage.getItem('accessToken');
+    const entityId = localStorage.getItem('entityId');
     setIsMutating(true);
     try {
       if (invoiceId) {
-        await updateInvoice(invoiceId, invoiceData, user.access_token);
+        await updateInvoice(invoiceId, invoiceData, token);
         toast({ title: 'Success', description: 'Invoice updated successfully.' });
       } else {
-        await addInvoice({ ...invoiceData, entity_id: selectedEntity }, user.access_token);
+        await addInvoice({ ...invoiceData, entity_id: entityId }, token);
         toast({ title: 'Success', description: 'Invoice added successfully.' });
       }
       setShowInvoiceDialog(false);
@@ -148,9 +153,11 @@ const Finance = ({ quickAction, clearQuickAction }) => {
   };
 
   const handleDeleteInvoiceClick = async (invoiceId) => {
+    const token = localStorage.getItem('accessToken');
+    const entityId = localStorage.getItem('entityId');
     setIsMutating(true);
     try {
-      await deleteInvoice(selectedEntity, invoiceId, user.access_token);
+      await deleteInvoice(entityId, invoiceId, token);
       toast({ title: 'Success', description: 'Invoice deleted successfully.' });
       fetchData(true);
     } catch (error) {
@@ -170,13 +177,15 @@ const Finance = ({ quickAction, clearQuickAction }) => {
   };
   
   const handleAddOrUpdateVoucher = async (voucherData, voucherId) => {
+    const token = localStorage.getItem('accessToken');
+    const entityId = localStorage.getItem('entityId');
     setIsMutating(true);
     try {
         if (voucherId) {
-            await updateVoucher(voucherId, voucherData, user.access_token);
+            await updateVoucher(voucherId, voucherData, token, entityId);
             toast({ title: 'Success', description: 'Voucher updated successfully.' });
         } else {
-            await addVoucher({ ...voucherData, entity_id: selectedEntity }, user.access_token);
+            await addVoucher({ ...voucherData, entity_id: entityId }, token);
             toast({ title: 'Success', description: 'Voucher added successfully.' });
         }
         setShowVoucherDialog(false);
@@ -194,9 +203,11 @@ const Finance = ({ quickAction, clearQuickAction }) => {
   };
 
   const handleDeleteVoucherClick = async (voucherId) => {
+    const token = localStorage.getItem('accessToken');
+    const entityId = localStorage.getItem('entityId');
     setIsMutating(true);
     try {
-      await deleteVoucher(selectedEntity, voucherId, user.access_token);
+      await deleteVoucher(entityId, voucherId, token);
       toast({ title: 'Success', description: 'Voucher deleted successfully.' });
       fetchData(true);
     } catch (error) {
@@ -225,9 +236,11 @@ const Finance = ({ quickAction, clearQuickAction }) => {
   };
       
   const handleExportToTally = async (format) => {
+    const token = localStorage.getItem('accessToken');
+    const entityId = localStorage.getItem('entityId');
     if (format === 'xml') {
       try {
-        await exportVouchersToTallyXML(selectedEntity, user.access_token);
+        await exportVouchersToTallyXML(entityId, token);
         toast({
           title: 'Export Successful',
           description: 'Vouchers are being downloaded in Tally XML format.',

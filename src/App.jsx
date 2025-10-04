@@ -185,9 +185,9 @@ import BeneficiaryDetailsPage from '@/pages/BeneficiaryDetailsPage.jsx';
           <AuthProvider>
             <HelmetProvider>
               <Helmet>
-                <title>Fynivo: The Future of Finance</title>
+                <title>Fynivo: Simplify Your Finances</title>
                 <meta name="description" content="Comprehensive financial management platform for documents, beneficiaries, transactions, and invoice management." />
-                <meta property="og:title" content="Fynivo: The Future of Finance" />
+                <meta property="og:title" content="Fynivo: Simplify Your Finances" />
                 <meta property="og:description" content="Comprehensive financial management platform for documents, beneficiaries, transactions, and invoice management." />
               </Helmet>
               <div className="animated-bg"></div>

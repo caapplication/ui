@@ -11,6 +11,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
     import { useNavigate } from 'react-router-dom';
     import { startOfWeek, startOfMonth, subDays, format } from 'date-fns';
     import { getAccountantDashboardStats, getInvoices, getVouchers } from '@/lib/api/index';
+import { useOrganisation } from '@/hooks/useOrganisation';
 
     const StatCard = ({ title, value, active, inactive, icon, color, delay }) => {
       const Icon = icon;
@@ -75,6 +76,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 
     const AccountantDashboard = () => {
       const { user } = useAuth();
+      const { selectedEntity } = useOrganisation();
       const { toast } = useToast();
       const navigate = useNavigate();
       const [stats, setStats] = useState({
@@ -89,14 +91,17 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
       const [timeFilter, setTimeFilter] = useState('all');
 
       const fetchData = useCallback(async () => {
+        const token = localStorage.getItem('accessToken');
+        const entityId = localStorage.getItem('entityId');
+        if (!entityId || !token) return;
         setIsLoading(true);
         try {
           const [statsData, invoicesData, vouchersData] = await Promise.all([
-            getAccountantDashboardStats(user.access_token),
-            getInvoices(user.access_token),
-            getVouchers(user.access_token)
+            getAccountantDashboardStats(token),
+            getInvoices(entityId, token),
+            getVouchers(entityId, token)
           ]);
-          setStats(statsData);
+          setStats(prevStats => ({ ...prevStats, ...statsData }));
           setInvoices(invoicesData);
           setVouchers(vouchersData);
           toast({ title: 'Dashboard Loaded', description: 'Displaying latest data.' });
@@ -109,7 +114,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
         } finally {
           setIsLoading(false);
         }
-      }, [user.access_token, toast]);
+      }, [toast]);
 
       useEffect(() => {
         fetchData();
@@ -159,7 +164,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
       return (
         <div className="p-8">
           <motion.h1 initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-4xl font-bold text-white mb-8">
-            Welcome, {user.name}
+            Welcome, {user?.name}
           </motion.h1>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-10">

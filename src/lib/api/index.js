@@ -9,7 +9,7 @@ import { handleResponse, getAuthHeaders } from './utils';
     import * as team from './team';
     import * as tasks from './tasks';
 
-    const API_BASE_URL = 'https://login-api.fynivo.in';
+    const API_BASE_URL = 'http://localhost:8002';
     const FINANCE_API_BASE_URL = 'http://localhost:8004';
 
     export const {

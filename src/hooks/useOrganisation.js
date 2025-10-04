@@ -45,7 +45,7 @@ export const useOrganisation = () => {
       }
     };
     fetchEntities();
-  }, [selectedOrg, user]);
+  }, [selectedOrg, user, organisations]);
 
   return {
     organisations,
@@ -55,6 +55,6 @@ export const useOrganisation = () => {
     selectedEntity,
     setSelectedEntity,
     loading,
-    organisationId: selectedEntity,
+    organisationId: selectedOrg,
   };
 };
