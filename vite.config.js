@@ -217,7 +217,7 @@ export default defineConfig({
 		allowedHosts: true,
 		proxy: {
 			'/login/': {
-				target: '	',
+				target: 'https://login-api.fynivo.in',
 				changeOrigin: true,
 				secure: false,
 			},
