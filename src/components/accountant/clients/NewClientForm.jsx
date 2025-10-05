@@ -110,7 +110,7 @@ import React, { useState, useEffect, useRef } from 'react';
                 gstin: formData.gstin,
                 dob: formData.date_of_birth ? format(formData.date_of_birth, 'yyyy-MM-dd') : null,
                 assigned_ca_user_id: formData.assigned_ca_user_id || null,
-                tags: formData.tag_ids,
+                tag_ids: formData.tag_ids,
                 is_active: formData.is_active,
                 contact_person_name: formData.contact_person_name,
                 date_of_birth: formData.date_of_birth ? format(formData.date_of_birth, 'yyyy-MM-dd') : null,

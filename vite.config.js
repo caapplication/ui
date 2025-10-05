@@ -232,7 +232,7 @@ export default defineConfig({
 				secure: false,
 			},
 			'/clients/': {
-				target: 'https://client-api.fynivo.in/',
+				target: 'http://localhost:8003',
 				changeOrigin: true,
 				secure: false,
 			},

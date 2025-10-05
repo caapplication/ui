@@ -1,7 +1,7 @@
 
 import { getAuthHeaders, handleResponse } from './utils';
 
-const CLIENTS_API_BASE_URL = 'https://client-api.fynivo.in/';
+const CLIENTS_API_BASE_URL = 'http://localhost:8003';
 const FINANCE_API_BASE_URL = 'https://finance-api.fynivo.in/';
 
 export const getGeneralSettings = async (agencyId, token) => {

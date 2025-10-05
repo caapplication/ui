@@ -65,7 +65,7 @@ const FilterPopover = ({ title, options, selectedValue, onSelect, children }) =>
 };
 
 
-const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices, onDeleteClient, onRefresh, businessTypes, onBulkDelete }) => {
+const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices, onDeleteClient, onRefresh, businessTypes, onBulkDelete, teamMembers = [] }) => {
     const { toast } = useToast();
     const [searchTerm, setSearchTerm] = useState('');
     const [filters, setFilters] = useState({
@@ -332,7 +332,12 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
                                 <TableCell><Badge variant={client.is_active ? 'success' : 'destructive'}>{client.is_active ? 'Active' : 'Inactive'}</Badge></TableCell>
                                 <TableCell>
                                     <div className="flex -space-x-2">
-                                        {/* This needs to be populated from API */}
+                                        {client.assigned_to && teamMembers.find(tm => tm.id === client.assigned_to) && (
+                                            <Avatar className="w-8 h-8 border-2 border-gray-800">
+                                                <AvatarImage src={teamMembers.find(tm => tm.id === client.assigned_to).photo} />
+                                                <AvatarFallback>{teamMembers.find(tm => tm.id === client.assigned_to).name.charAt(0)}</AvatarFallback>
+                                            </Avatar>
+                                        )}
                                     </div>
                                 </TableCell>
                                 <TableCell onClick={(e) => e.stopPropagation()}>

@@ -10,10 +10,25 @@ export const getAuthHeaders = (token, contentType = 'application/json', agencyId
     if (contentType) {
         headers['Content-Type'] = contentType;
     }
-    const finalAgencyId = agencyId || localStorage.getItem('agency_id');
+    
+    let finalAgencyId = agencyId;
+
+    if (!finalAgencyId) {
+        try {
+            const savedUser = localStorage.getItem('user');
+            if (savedUser) {
+                const parsedUser = JSON.parse(savedUser);
+                finalAgencyId = parsedUser.agency_id;
+            }
+        } catch (error) {
+            console.error("Failed to parse user data from localStorage", error);
+        }
+    }
+
     if (finalAgencyId) {
         headers['x-agency-id'] = finalAgencyId;
     }
+    
     return headers;
 };
 
@@ -31,9 +46,6 @@ export const handleResponse = async (response) => {
         const messageString = typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage);
 
         if (response.status === 401 || messageString.toLowerCase().includes('invalid token') || messageString.toLowerCase().includes('token has expired')) {
-             // We can't use useAuth here directly as it's not a component.
-             // We'll throw a specific error and let a boundary or context handle it.
-             // A simpler approach for now is to dispatch a custom event.
              window.dispatchEvent(new CustomEvent('auth-error'));
         }
 
@@ -42,6 +54,6 @@ export const handleResponse = async (response) => {
     try {
         return JSON.parse(text);
     } catch (e) {
-        return text; // In case of empty response body or non-json response
+        return text;
     }
 };

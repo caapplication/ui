@@ -212,6 +212,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                                 onBulkDelete={handleBulkDelete}
                                 onRefresh={fetchClientsAndServices}
                                 businessTypes={businessTypes}
+                                teamMembers={teamMembers}
                             />
                         </motion.div>
                     );
