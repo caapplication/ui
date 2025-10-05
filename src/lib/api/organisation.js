@@ -1,7 +1,7 @@
 import { getAuthHeaders, handleResponse, BASE_URL } from './utils';
 
 const API_BASE_URL = BASE_URL;
-const CLIENT_API_BASE_URL = 'https://client-api.snolep.com';
+const CLIENT_API_BASE_URL = 'https://client-api.fynivo.in/';
 
 export const listOrganisations = async (token) => {
     const response = await fetch(`${API_BASE_URL}/organizations/`, {
