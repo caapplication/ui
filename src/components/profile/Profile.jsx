@@ -5,11 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/components/ui/use-toast';
 import { User, Lock, Shield, Camera, Mail, Eye, EyeOff } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { getProfile, updateName, updatePassword, toggle2FA, verify2FA } from '@/lib/api';
+import { getProfile, updateName, updatePassword, toggle2FA, verify2FA, uploadProfilePicture } from '@/lib/api';
 
 const PasswordInput = ({ id, value, onChange, ...props }) => {
     const [showPassword, setShowPassword] = useState(false);
@@ -60,8 +60,9 @@ const Profile = () => {
         try {
             const data = await getProfile(token);
             setProfileData(data);
-            setFirstName(data.first_name || '');
-            setLastName(data.last_name || '');
+            const [firstName, ...lastNameParts] = data.name.split(' ');
+            setFirstName(firstName);
+            setLastName(lastNameParts.join(' '));
             updateUser({ is_2fa_enabled: data.is_2fa_enabled, name: data.name, sub: data.email });
         } catch (error) {
             toast({ title: "Error", description: "Failed to fetch profile data.", variant: "destructive" });
@@ -148,12 +149,21 @@ const Profile = () => {
         }
     };
 
-    const handlePictureUpload = () => {
-         toast({
-            title: "Coming Soon!",
-            description: "🚧 This feature isn't implemented yet—but don't worry! You can request it in your next prompt! 🚀",
-        });
-    }
+    const handlePictureUpload = async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        setIsSubmitting(true);
+        try {
+            const response = await uploadProfilePicture(file, user.access_token);
+            updateUser({ photo_url: response.photo_url });
+            toast({ title: "Success", description: "Profile picture updated successfully." });
+        } catch (error) {
+            toast({ title: "Error", description: error.message, variant: "destructive" });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     if (isLoadingProfile || authLoading) {
         return <div className="p-8 flex justify-center items-center h-full"><div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white"></div></div>;
@@ -177,6 +187,7 @@ const Profile = () => {
                             <CardContent className="pt-6 flex flex-col items-center text-center">
                                 <div className="relative mb-4">
                                     <Avatar className="w-32 h-32 text-4xl border-4 border-white/20">
+                                        <AvatarImage src={user?.photo_url} alt={user?.name} />
                                         <AvatarFallback className="bg-gradient-to-br from-sky-500 to-indigo-600 text-white">
                                             {user?.name?.charAt(0).toUpperCase() || user?.sub?.charAt(0).toUpperCase()}
                                         </AvatarFallback>
@@ -184,7 +195,7 @@ const Profile = () => {
                                     <Button
                                         size="icon"
                                         className="absolute bottom-1 right-1 rounded-full w-10 h-10 bg-white/20 text-white hover:bg-white/30 backdrop-blur-sm border border-white/30"
-                                        onClick={handlePictureUpload}
+                                        onClick={() => fileInputRef.current.click()}
                                     >
                                         <Camera className="w-5 h-5" />
                                     </Button>
@@ -193,6 +204,7 @@ const Profile = () => {
                                         ref={fileInputRef}
                                         className="hidden"
                                         accept="image/*"
+                                        onChange={handlePictureUpload}
                                     />
                                 </div>
                                 <h2 className="text-2xl font-bold text-white">{user?.name || 'User'}</h2>

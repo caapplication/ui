@@ -190,8 +190,6 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
                     Clients
                 </h1>
                 <div className="flex items-center gap-2">
-                    <Button variant="outline" onClick={handleNotImplemented}><Upload className="w-4 h-4 mr-2" /> Import</Button>
-                    <Button variant="outline" onClick={handleNotImplemented}><Download className="w-4 h-4 mr-2" /> Export</Button>
                     <Button onClick={onAddNew}><Plus className="w-4 h-4 mr-2" /> New</Button>
                 </div>
             </div>

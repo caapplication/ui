@@ -17,8 +17,8 @@ const ServiceRow = ({ service, onSelectService, index }) => {
         const fetchClientCount = async () => {
             if (!user || !service.id) return;
             try {
-                const data = await getClientCountForService(service.id, user.agency_id, user.access_token);
-                setClientCount(data.count);
+                const count = await getClientCountForService(service.id, user.agency_id, user.access_token);
+                setClientCount(count);
             } catch (error) {
                 console.error(`Failed to fetch client count for service ${service.id}:`, error);
                 setClientCount(0); // Default to 0 on error

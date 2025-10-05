@@ -1,8 +1,8 @@
 
 import { getAuthHeaders, handleResponse } from './utils';
 
-const CLIENTS_API_BASE_URL = 'https://client-api.fynivo.in';
-const FINANCE_API_BASE_URL = 'https://finance-api.fynivo.in';
+const CLIENTS_API_BASE_URL = 'http://127.0.0.1:8003';
+const FINANCE_API_BASE_URL = 'http://127.0.0.1:8004';
 
 export const getGeneralSettings = async (agencyId, token) => {
     const response = await fetch(`${CLIENTS_API_BASE_URL}/settings/general`, {

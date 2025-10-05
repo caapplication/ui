@@ -1,6 +1,6 @@
 import { useAuth } from '@/hooks/useAuth';
 
-export const BASE_URL = 'https://login-api.fynivo.in';
+export const BASE_URL = 'http://127.0.0.1:8002';
 
 export const getAuthHeaders = (token, contentType = 'application/json', agencyId = null) => {
     const headers = {
@@ -10,8 +10,9 @@ export const getAuthHeaders = (token, contentType = 'application/json', agencyId
     if (contentType) {
         headers['Content-Type'] = contentType;
     }
-    if (agencyId) {
-        headers['x-agency-id'] = agencyId;
+    const finalAgencyId = agencyId || localStorage.getItem('agency_id');
+    if (finalAgencyId) {
+        headers['x-agency-id'] = finalAgencyId;
     }
     return headers;
 };

@@ -55,6 +55,6 @@ export const useOrganisation = () => {
     selectedEntity,
     setSelectedEntity,
     loading,
-    organisationId: selectedOrg,
+    organisationId: selectedEntity || selectedOrg,
   };
 };

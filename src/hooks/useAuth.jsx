@@ -22,6 +22,7 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     localStorage.removeItem('user');
     localStorage.removeItem('accessToken');
+    localStorage.removeItem('agency_id');
     localStorage.removeItem('entityId');
     localStorage.removeItem('entityData');
     localStorage.removeItem('beneficiaries');
@@ -134,6 +135,9 @@ export const AuthProvider = ({ children }) => {
     setUser(userData);
     localStorage.setItem('user', JSON.stringify(userData));
     localStorage.setItem('accessToken', userData.access_token);
+    if (userData.agency_id) {
+      localStorage.setItem('agency_id', userData.agency_id);
+    }
     if (userData.entities && userData.entities.length > 0) {
       localStorage.setItem('entityId', userData.entities[0].id);
     }
@@ -181,7 +185,7 @@ export const AuthProvider = ({ children }) => {
         }
     } else if (data.role === 'CA_ACCOUNTANT') {
         const [profileData, entitiesData] = await Promise.all([
-            apiGetProfile(data.access_token),
+            apiGetProfile(data.access_token, data.agency_id),
             apiGetEntities(data.access_token)
         ]);
         if (!profileData.is_active) {

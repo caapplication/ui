@@ -9,8 +9,8 @@ import { handleResponse, getAuthHeaders } from './utils';
     import * as team from './team';
     import * as tasks from './tasks';
 
-    const API_BASE_URL = 'https://login-api.fynivo.in';
-    const FINANCE_API_BASE_URL = 'https://finance-api.fynivo.in';
+    const API_BASE_URL = 'http://127.0.0.1:8002';
+    const FINANCE_API_BASE_URL = 'http://127.0.0.1:8004';
 
     export const {
       refreshToken,

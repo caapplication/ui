@@ -67,13 +67,13 @@ const AccountantSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) =
                     <Avatar className="w-12 h-12 flex-shrink-0 border-2 border-white/20">
                         <AvatarImage src={user?.profilePictureUrl} alt={user?.name} />
                         <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
-                            {user?.agency_name?.charAt(0).toUpperCase()}
+                            {user?.name?.charAt(0).toUpperCase()}
                         </AvatarFallback>
                     </Avatar>
                     <AnimatePresence>
                     {!isCollapsed && (
                     <motion.div variants={textVariants} initial="collapsed" animate="expanded" exit="collapsed" className="min-w-0 flex-1">
-                        <p className="text-white font-semibold truncate">{user?.agency_name}</p>
+                        <p className="text-white font-semibold truncate">{user?.name}</p>
                         <p className="text-gray-400 text-sm truncate">{user?.sub}</p>
                     </motion.div>
                     )}

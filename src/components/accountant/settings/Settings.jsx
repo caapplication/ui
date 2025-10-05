@@ -1,9 +1,12 @@
 
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, Tag, Settings as SettingsIcon, Users, Globe, Briefcase, FileText } from 'lucide-react';
-import { Link, Route, Routes, useParams, useNavigate } from 'react-router-dom';
+import { Link, Route, Routes, useNavigate } from 'react-router-dom';
+import { useToast } from '@/components/ui/use-toast';
+import { useAuth } from '@/hooks/useAuth.jsx';
+import { getGeneralSettings } from '@/lib/api';
 import TagsContent from './TagsContent';
 import ClientSettingsContent from './ClientSettingsContent';
 import PortalsContent from './PortalsContent';
@@ -19,11 +22,41 @@ const settingsNav = [
 ];
 
 const Settings = () => {
+    const { toast } = useToast();
+    const { user } = useAuth();
+    const [settingsData, setSettingsData] = useState({ clientSettings: null });
+    const [isLoading, setIsLoading] = useState(true);
+
+    const fetchAllSettings = useCallback(async () => {
+        if (!user) return;
+        setIsLoading(true);
+        try {
+            const clientSettings = await getGeneralSettings(user.agency_id, user.access_token);
+            setSettingsData({ clientSettings });
+        } catch (error) {
+            toast({ variant: "destructive", title: "Error", description: "Failed to fetch settings." });
+        } finally {
+            setIsLoading(false);
+        }
+    }, [user, toast]);
+
+    useEffect(() => {
+        fetchAllSettings();
+    }, [fetchAllSettings]);
+
+    if (isLoading) {
+        return <div className="flex justify-center items-center h-full"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div></div>;
+    }
+
     return (
         <Routes>
             <Route path="/" element={<SettingsDashboard />} />
             {settingsNav.map(item => (
-                <Route key={item.path} path={`${item.path}`} element={<SettingsPageWrapper item={item} />} />
+                <Route 
+                    key={item.path} 
+                    path={`${item.path}`} 
+                    element={<SettingsPageWrapper item={item} settingsData={settingsData} />} 
+                />
             ))}
         </Routes>
     );
@@ -62,10 +95,14 @@ const SettingsDashboard = () => (
     </motion.div>
 );
 
-const SettingsPageWrapper = ({ item }) => {
+const SettingsPageWrapper = ({ item, settingsData }) => {
     const navigate = useNavigate();
     const Icon = item.icon;
     const ContentComponent = item.component;
+
+    const contentProps = {
+        'client-settings': { initialSettings: settingsData.clientSettings },
+    };
 
     return (
         <motion.div
@@ -83,7 +120,7 @@ const SettingsPageWrapper = ({ item }) => {
                     <Icon className="h-8 w-8" />
                     {item.name}
                 </h1>
-                <ContentComponent />
+                <ContentComponent {...contentProps[item.path]} />
             </div>
         </motion.div>
     );

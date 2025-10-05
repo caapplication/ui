@@ -100,8 +100,8 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
     setIsLoading(true);
     try {
       const response = await getBeneficiaries(organisationId, user.access_token);
-      if (response && Array.isArray(response.beneficiaries)) {
-        setBeneficiaries(response.beneficiaries);
+      if (response && Array.isArray(response)) {
+        setBeneficiaries(response);
       } else {
         setBeneficiaries([]);
       }

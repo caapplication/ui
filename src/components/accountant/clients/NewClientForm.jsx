@@ -42,10 +42,7 @@ import React, { useState, useEffect, useRef } from 'react';
             tag_ids: [],
         });
     
-        const [photoPreview, setPhotoPreview] = useState(null);
-        const [photoFile, setPhotoFile] = useState(null);
-        const [isSaving, setIsSaving] = useState(false);
-        const fileInputRef = useRef(null);
+    const [isSaving, setIsSaving] = useState(false);
     
         useEffect(() => {
             if (client) {
@@ -72,9 +69,6 @@ import React, { useState, useEffect, useRef } from 'react';
                     assigned_ca_user_id: client.assigned_ca_user_id || '',
                     tag_ids: Array.isArray(client.tags) ? client.tags.map(t => t.id) : (client.tag_ids || []),
                 });
-                if (client.photo) {
-                    setPhotoPreview(client.photo);
-                }
             }
         }, [client]);
     
@@ -102,18 +96,6 @@ import React, { useState, useEffect, useRef } from 'react';
     
         const handleSwitchChange = (name, checked) => {
             setFormData(prev => ({ ...prev, [name]: checked }));
-        };
-    
-        const handlePhotoChange = (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                setPhotoFile(file);
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                    setPhotoPreview(reader.result);
-                };
-                reader.readAsDataURL(file);
-            }
         };
     
         const handleSubmit = async (e) => {
@@ -149,7 +131,7 @@ import React, { useState, useEffect, useRef } from 'react';
                 },
             };
     
-            await onSave(dataToSave, photoFile);
+            await onSave(dataToSave);
             setIsSaving(false);
         };
     
@@ -181,17 +163,7 @@ import React, { useState, useEffect, useRef } from 'react';
                         
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                             <div className="lg:col-span-1 glass-pane p-6 rounded-lg flex flex-col items-center">
-                                <h2 className="text-xl font-semibold mb-4 w-full">Client Profile</h2>
-                                <Avatar className="w-32 h-32 mb-4">
-                                    <AvatarImage src={photoPreview} />
-                                    <AvatarFallback className="bg-gray-700">
-                                        <User className="w-16 h-16 text-gray-400" />
-                                    </AvatarFallback>
-                                </Avatar>
-                                <input type="file" accept="image/*" ref={fileInputRef} onChange={handlePhotoChange} className="hidden" />
-                                <Button type="button" variant="outline" onClick={() => fileInputRef.current.click()}>
-                                    <UploadCloud className="w-4 h-4 mr-2" /> Upload Photo
-                                </Button>
+                                <h2 className="text-xl font-semibold mb-4 w-full">Client Status</h2>
                                  <div className="flex items-center space-x-2 pt-6 w-full justify-center">
                                     <Switch id="is_active" name="is_active" checked={formData.is_active} onCheckedChange={(c) => handleSwitchChange('is_active', c)} />
                                     <Label htmlFor="is_active">Client is Active</Label>
@@ -294,37 +266,6 @@ import React, { useState, useEffect, useRef } from 'react';
                             </div>
                         </div>
     
-                        <div className="glass-pane p-6 rounded-lg">
-                            <h2 className="text-xl font-semibold mb-4">Financials</h2>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                <div>
-                                    <Label htmlFor="opening_balance_amount">Opening Balance Amount</Label>
-                                    <Input id="opening_balance_amount" name="opening_balance_amount" type="number" value={formData.opening_balance_amount} onChange={handleChange} />
-                                </div>
-                                <div>
-                                    <Label htmlFor="opening_balance_type">Balance Type</Label>
-                                    <Select name="opening_balance_type" onValueChange={(v) => handleSelectChange('opening_balance_type', v)} value={formData.opening_balance_type}>
-                                        <SelectTrigger><SelectValue /></SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="credit">Credit</SelectItem>
-                                            <SelectItem value="debit">Debit</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div>
-                                    <Label htmlFor="opening_balance_date">As of Date</Label>
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                            <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formData.opening_balance_date && "text-muted-foreground")}>
-                                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                                {formData.opening_balance_date ? format(new Date(formData.opening_balance_date), "PPP") : <span>Pick a date</span>}
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={formData.opening_balance_date ? new Date(formData.opening_balance_date) : null} onSelect={(d) => handleDateChange('opening_balance_date', d)} initialFocus /></PopoverContent>
-                                    </Popover>
-                                </div>
-                            </div>
-                        </div>
     
                         <div className="glass-pane p-6 rounded-lg">
                             <h2 className="text-xl font-semibold mb-4">Assignments (Optional)</h2>

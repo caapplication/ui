@@ -35,10 +35,13 @@ export const AuthProvider = ({ children }) => {
   const finishLogin = (userData) => {
     setUser(userData);
     localStorage.setItem('user', JSON.stringify(userData));
+    if (userData.agency_id) {
+      localStorage.setItem('agency_id', userData.agency_id);
+    }
   };
   
   const login = async (email, password) => {
-    const response = await fetch('https://login-api.fynivo.in/login/', {
+    const response = await fetch('http://127.0.0.1:8002/login/', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -71,7 +74,7 @@ export const AuthProvider = ({ children }) => {
             return { twoFactorEnabled: false };
         }
     } else if (data.role === 'CA_ACCOUNTANT') {
-        const profileData = await apiGetProfile(data.access_token);
+        const profileData = await apiGetProfile(data.access_token, data.agency_id);
         const fullUserData = { ...data, ...profileData, name: data.agency_name };
         
         if (profileData.is_2fa_enabled) {
@@ -92,6 +95,7 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     setUser(null);
     localStorage.removeItem('user');
+    localStorage.removeItem('agency_id');
     localStorage.removeItem('entityData');
     localStorage.removeItem('beneficiaries');
   };
