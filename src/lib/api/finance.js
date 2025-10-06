@@ -1,6 +1,6 @@
 import { getAuthHeaders, handleResponse } from './utils';
 
-const FINANCE_API_BASE_URL = 'https://finance-api.fynivo.in';
+const FINANCE_API_BASE_URL = 'http://localhost:8004';
 
 export const getEntities = async (token) => {
     const response = await fetch(`${FINANCE_API_BASE_URL}/api/entities/`, {
@@ -14,9 +14,9 @@ export const getEntities = async (token) => {
     });
 };
 
-export const getDashboardData = async (entityId, token) => {
+export const getDashboardData = async (entityId, token, agencyId) => {
     const response = await fetch(`${FINANCE_API_BASE_URL}/api/dashboard/?entity_id=${entityId}`, {
-        headers: getAuthHeaders(token),
+        headers: getAuthHeaders(token, 'application/json', agencyId),
     });
     return handleResponse(response);
 };

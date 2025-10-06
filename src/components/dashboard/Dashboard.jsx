@@ -53,7 +53,7 @@ const Dashboard = ({ entityId, entityName, onQuickAction, organisationBankAccoun
         if (!entityId || !user?.access_token) return;
         setIsLoading(true);
         try {
-            const data = await getDashboardData(entityId, user.access_token);
+            const data = await getDashboardData(entityId, user.access_token, user.agency_id);
             setDashboardData(data);
         } catch (error) {
             toast({

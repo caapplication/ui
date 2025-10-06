@@ -95,8 +95,7 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
   const { organisationId } = useOrganisation();
 
   const fetchBeneficiaries = useCallback(async () => {
-    if (!user?.access_token || !organisationId) return;
-
+    if (!organisationId || !user?.access_token) return;
     setIsLoading(true);
     try {
       const response = await getBeneficiaries(organisationId, user.access_token);
@@ -199,7 +198,7 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <Input placeholder="Search..." className="pl-12" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
             </div>
-            <Button onClick={() => setShowAddDialog(true)} disabled={!organisationId}>
+            <Button onClick={() => setShowAddDialog(true)}>
               <Plus className="w-5 h-5 mr-2" />
               Add New
             </Button>
