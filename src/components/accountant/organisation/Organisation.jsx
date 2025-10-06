@@ -46,6 +46,7 @@ const Organisation = () => {
     const [showOrgForm, setShowOrgForm] = useState(false);
     const [editingOrg, setEditingOrg] = useState(null);
     const [orgName, setOrgName] = useState('');
+    const [orgToDelete, setOrgToDelete] = useState(null);
 
     const [entities, setEntities] = useState([]);
     const [orgUsers, setOrgUsers] = useState([]);
@@ -188,13 +189,18 @@ const Organisation = () => {
         }
     };
     
-    const handleDeleteOrg = async (orgId) => {
-        setIsMutating(orgId);
+    const handleDeleteOrg = async () => {
+        if (!orgToDelete) return;
+        setIsMutating(true);
         try {
-            await deleteOrganisation(orgId, user.access_token);
+            await deleteOrganisation(orgToDelete.id, user.access_token);
             toast({ title: "Success", description: "Organisation deleted." });
+            setOrgToDelete(null);
             fetchOrganisations();
-        } catch(error) {
+            if (selectedOrg && selectedOrg.id === orgToDelete.id) {
+                setSelectedOrg(null);
+            }
+        } catch (error) {
             toast({ title: "Error deleting organisation", description: error.message, variant: "destructive" });
         } finally {
             setIsMutating(false);
@@ -333,24 +339,10 @@ const Organisation = () => {
                             <TableRow key={org.id} className="border-none hover:bg-white/5 cursor-pointer" onClick={() => setSelectedOrg(org)}>
                                 <TableCell className="font-medium">{org.name}</TableCell>
                                 <TableCell className="text-right">
-                                    <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleEditOrg(org); }} disabled={isMutating === org.id}><Edit className="w-4 h-4" /></Button>
-                                    <AlertDialog>
-                                      <AlertDialogTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-400" onClick={(e) => e.stopPropagation()} disabled={isMutating === org.id}>{isMutating === org.id ? <Loader2 className="w-4 h-4 animate-spin"/> : <Trash2 className="w-4 h-4" />}</Button>
-                                      </AlertDialogTrigger>
-                                      <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                          <AlertDialogDescription>
-                                            This action cannot be undone. This will permanently delete the organisation.
-                                          </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                          <AlertDialogAction onClick={() => handleDeleteOrg(org.id)}>Delete</AlertDialogAction>
-                                        </AlertDialogFooter>
-                                      </AlertDialogContent>
-                                    </AlertDialog>
+                                    <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleEditOrg(org); }} disabled={isMutating}><Edit className="w-4 h-4" /></Button>
+                                    <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-400" onClick={(e) => { e.stopPropagation(); setOrgToDelete(org); }} disabled={isMutating}>
+                                        {isMutating && orgToDelete?.id === org.id ? <Loader2 className="w-4 h-4 animate-spin"/> : <Trash2 className="w-4 h-4" />}
+                                    </Button>
                                 </TableCell>
                             </TableRow>
                         ))}
@@ -542,6 +534,23 @@ const Organisation = () => {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <AlertDialog open={!!orgToDelete} onOpenChange={() => setOrgToDelete(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete the organisation "{orgToDelete?.name}".
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setOrgToDelete(null)}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteOrg} disabled={isMutating}>
+                            {isMutating ? <Loader2 className="w-4 h-4 animate-spin" /> : "Delete"}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 };

@@ -9,7 +9,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Plus, Trash2, Search, Loader2, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { 
   getBeneficiaries, 
@@ -90,6 +90,7 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [beneficiaryToDelete, setBeneficiaryToDelete] = useState(null);
   const [activeTab, setActiveTab] = useState('individual');
+  const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
   const { organisationId } = useOrganisation();
@@ -230,39 +231,20 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
                     </TableHeader>
                     <TableBody>
                       {paginatedBeneficiaries.map((b) => (
-                        <TableRow key={b.id}>
+                        <TableRow key={b.id} onClick={() => navigate(`/beneficiaries/${b.id}`)} className="cursor-pointer">
                           <TableCell>{b.name}</TableCell>
                           <TableCell>{b.email}</TableCell>
                           <TableCell>{b.phone}</TableCell>
                           <TableCell>{b.pan || 'N/A'}</TableCell>
-                          <TableCell>
-                            <Link to={`/beneficiaries/${b.id}`}>
-                              <Button size="icon" variant="ghost">
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center gap-2">
+                              <Button size="icon" variant="ghost" onClick={() => navigate(`/beneficiaries/${b.id}`)}>
                                 <Eye className="w-4 h-4" />
                               </Button>
-                            </Link>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={() => setBeneficiaryToDelete(b.id)}>
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    This action cannot be undone. This will permanently delete the beneficiary.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel onClick={() => setBeneficiaryToDelete(null)} disabled={isMutating}>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction onClick={handleDelete} disabled={isMutating}>
-                                    {isMutating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                                    Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                              <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={() => setBeneficiaryToDelete(b.id)}>
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -300,39 +282,20 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
                     </TableHeader>
                     <TableBody>
                       {paginatedBeneficiaries.map((b) => (
-                        <TableRow key={b.id}>
+                        <TableRow key={b.id} onClick={() => navigate(`/beneficiaries/${b.id}`)} className="cursor-pointer">
                           <TableCell>{b.company_name}</TableCell>
                           <TableCell>{b.email}</TableCell>
                           <TableCell>{b.phone}</TableCell>
                           <TableCell>{b.pan || 'N/A'}</TableCell>
-                          <TableCell>
-                            <Link to={`/beneficiaries/${b.id}`}>
-                              <Button size="icon" variant="ghost">
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center gap-2">
+                              <Button size="icon" variant="ghost" onClick={() => navigate(`/beneficiaries/${b.id}`)}>
                                 <Eye className="w-4 h-4" />
                               </Button>
-                            </Link>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={() => setBeneficiaryToDelete(b.id)}>
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    This action cannot be undone. This will permanently delete the beneficiary.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel onClick={() => setBeneficiaryToDelete(null)} disabled={isMutating}>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction onClick={handleDelete} disabled={isMutating}>
-                                    {isMutating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                                    Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                              <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={() => setBeneficiaryToDelete(b.id)}>
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -368,6 +331,24 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
           <BeneficiaryForm onAdd={handleAdd} onCancel={() => setShowAddDialog(false)} organisationId={organisationId} isMutating={isMutating} />
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!beneficiaryToDelete} onOpenChange={(open) => !open && setBeneficiaryToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the beneficiary.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setBeneficiaryToDelete(null)} disabled={isMutating}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} disabled={isMutating}>
+              {isMutating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

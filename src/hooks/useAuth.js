@@ -41,7 +41,7 @@ export const AuthProvider = ({ children }) => {
   };
   
   const login = async (email, password) => {
-    const response = await fetch('https://login-api.fynivo.in/login/', {
+    const response = await fetch('http://localhost:8001/login/', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
