@@ -1,6 +1,6 @@
 import { useAuth } from '@/hooks/useAuth';
 
-export const BASE_URL = 'http://localhost:8001';
+export const BASE_URL = 'https://Login-api.fynivo.in';
 
 export const getAuthHeaders = (token, contentType = 'application/json', agencyId = null) => {
     const headers = {

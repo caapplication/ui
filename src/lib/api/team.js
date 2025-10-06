@@ -1,6 +1,6 @@
 import { handleResponse, getAuthHeaders } from './utils';
 
-const API_BASE_URL = 'http://localhost:8001';
+const API_BASE_URL = 'https://Login-api.fynivo.in';
 const TASKS_API_BASE_URL = 'https://tasks-api.fynivo.in';
 
 export const inviteTeamMember = async (email, caId, token) => {
