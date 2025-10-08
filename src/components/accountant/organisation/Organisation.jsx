@@ -24,6 +24,7 @@ import {
     inviteOrganizationUser,
     deleteOrgUser
 } from '@/lib/api';
+import { inviteCaTeamMember } from '@/lib/api/organisation';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -291,10 +292,10 @@ const Organisation = () => {
             toast({ title: "Error", description: "Email cannot be empty.", variant: "destructive" });
             return;
         }
-        if (!selectedOrg?.id || !user?.agency_id || !user?.access_token) {
+        if (!user?.id || !user?.access_token) {
             toast({
                 title: "❌ Missing Information",
-                description: "Organisation ID, agency ID, or access token is missing.",
+                description: "CA Account ID or access token is missing.",
                 variant: "destructive",
             });
             return;
@@ -302,13 +303,13 @@ const Organisation = () => {
 
         setIsSendingInvite(true);
         try {
-            await inviteOrganizationUser(selectedOrg.id, inviteUserEmail, user.agency_id, user.access_token);
+            await inviteCaTeamMember(inviteUserEmail, user.id, user.access_token);
             toast({
                 title: "✅ Invite Sent!",
                 description: `A password setup link has been sent to ${inviteUserEmail}.`,
             });
             setShowInviteUserDialog(false);
-            fetchOrgDetails(selectedOrg.id);
+            if (selectedOrg?.id) fetchOrgDetails(selectedOrg.id);
         } catch (error) {
             toast({
                 title: "❌ Error",

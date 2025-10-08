@@ -332,12 +332,14 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
                                 <TableCell><Badge variant={client.is_active ? 'success' : 'destructive'}>{client.is_active ? 'Active' : 'Inactive'}</Badge></TableCell>
                                 <TableCell>
                                     <div className="flex -space-x-2">
-                                        {client.assigned_to && teamMembers.find(tm => tm.id === client.assigned_to) && (
-                                            <Avatar className="w-8 h-8 border-2 border-gray-800">
-                                                <AvatarImage src={teamMembers.find(tm => tm.id === client.assigned_to).photo} />
-                                                <AvatarFallback>{teamMembers.find(tm => tm.id === client.assigned_to).name.charAt(0)}</AvatarFallback>
-                                            </Avatar>
-                                        )}
+                                        {client.orgUsers &&
+                                            [...(client.orgUsers.invited_users || []), ...(client.orgUsers.joined_users || [])].map(user => (
+                                                <Avatar key={user.user_id} className="w-8 h-8 border-2 border-gray-800">
+                                                    <AvatarImage src={user.photo} />
+                                                    <AvatarFallback>{user.email.charAt(0)}</AvatarFallback>
+                                                </Avatar>
+                                            ))
+                                        }
                                     </div>
                                 </TableCell>
                                 <TableCell onClick={(e) => e.stopPropagation()}>

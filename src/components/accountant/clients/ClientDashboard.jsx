@@ -5,6 +5,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import ClientDashboardDetails from './ClientDashboardDetails';
 import ClientServicesTab from './ClientServicesTab';
 import ClientPasswordsTab from './ClientPasswordsTab';
+import ClientUsersTab from './ClientUsersTab';
+import ClientEntitiesTab from './ClientEntitiesTab';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { deleteClient } from '@/lib/api';
@@ -26,7 +28,13 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
     const { toast } = useToast();
     const { user } = useAuth();
 
-    const tabs = ['Details', 'Services', 'Passwords'];
+    const tabs = [
+        'Details',
+        'Services',
+        'Passwords',
+        `Users (${(client.orgUsers?.invited_users?.length || 0) + (client.orgUsers?.joined_users?.length || 0)})`,
+        `Entities (${client.entities?.length || 0})`
+    ];
 
     const handleTabClick = (tab) => {
         if(tab === 'Documents') {
@@ -64,7 +72,7 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
     if (!client) return null;
 
     const renderTabContent = () => {
-        switch(activeSubTab) {
+        switch (activeSubTab) {
             case 'Details':
                 return <ClientDashboardDetails client={client} />;
             case 'Services':
@@ -72,6 +80,12 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
             case 'Passwords':
                 return <ClientPasswordsTab client={client} />;
             default:
+                if (activeSubTab.startsWith('Users')) {
+                    return <ClientUsersTab client={client} />;
+                }
+                if (activeSubTab.startsWith('Entities')) {
+                    return <ClientEntitiesTab entities={client.entities || []} />;
+                }
                 return (
                     <div className="glass-pane p-8 rounded-lg text-center">
                         <h3 className="text-xl font-semibold text-white">Coming Soon!</h3>
@@ -136,19 +150,7 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
                             <h2 className="text-xl font-semibold text-white">{client.name}</h2>
                             <p className="text-gray-400">File No.: {client.file_no || 'N/A'}</p>
 
-                            <div className="text-left mt-6">
-                                <h3 className="font-semibold text-white mb-2">Users</h3>
-                                <div className="flex items-center gap-2">
-                                    <Avatar className="w-10 h-10 border-2 border-background">
-                                        <AvatarImage src="/avatars/01.png" />
-                                        <AvatarFallback>U</AvatarFallback>
-                                    </Avatar>
-                                    <div>
-                                        <p className="font-medium text-white">User Name</p>
-                                        <p className="text-sm text-gray-400">user@example.com</p>
-                                    </div>
-                                </div>
-                            </div>
+                            {/* Users section removed as per user request */}
                         </div>
                     </div>
 

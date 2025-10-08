@@ -14,10 +14,14 @@ import React, { useState, useEffect, useRef } from 'react';
     import { useToast } from '@/components/ui/use-toast';
     import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
     import { Badge } from '@/components/ui/badge';
+    import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+    import { createOrganisation } from '@/lib/api/organisation';
+    import { useAuth } from '@/hooks/useAuth';
     
     
     const NewClientForm = ({ onBack, onSave, client, allServices, organisations, businessTypes, teamMembers, tags }) => {
         const { toast } = useToast();
+        const { user } = useAuth();
         const [formData, setFormData] = useState({
             is_active: true,
             name: '',
@@ -43,6 +47,25 @@ import React, { useState, useEffect, useRef } from 'react';
         });
     
     const [isSaving, setIsSaving] = useState(false);
+
+    // State for Add Organisation dialog
+    const [showAddOrgDialog, setShowAddOrgDialog] = useState(false);
+    const [newOrgName, setNewOrgName] = useState('');
+    const [isAddingOrg, setIsAddingOrg] = useState(false);
+
+    // State for org popover open/close
+    const [orgPopoverOpen, setOrgPopoverOpen] = useState(false);
+
+    // Local org list update if onAddOrganisation not provided
+    const [localOrgs, setLocalOrgs] = useState(organisations || []);
+    const orgList = typeof onAddOrganisation === 'function' ? organisations : localOrgs;
+    const addOrganisation = (org) => {
+        if (typeof onAddOrganisation === 'function') {
+            onAddOrganisation(org);
+        } else {
+            setLocalOrgs(prev => [...prev, org]);
+        }
+    };
     
         useEffect(() => {
             if (client) {
@@ -188,12 +211,91 @@ import React, { useState, useEffect, useRef } from 'react';
                                     </div>
                                     <div className="md:col-span-2">
                                         <Label htmlFor="organization_id">Group (Organisation)*</Label>
-                                        <Select name="organization_id" onValueChange={(v) => handleSelectChange('organization_id', v)} value={formData.organization_id} required>
-                                            <SelectTrigger><SelectValue placeholder="Select organization" /></SelectTrigger>
-                                            <SelectContent>
-                                                {organisations.map(org => <SelectItem key={org.id} value={org.id}>{org.name}</SelectItem>)}
-                                            </SelectContent>
-                                        </Select>
+                                        <Popover open={orgPopoverOpen} onOpenChange={setOrgPopoverOpen}>
+                                            <PopoverTrigger asChild>
+                                                <Button variant="outline" className="w-full justify-start text-left font-normal">
+                                                    {orgList.find(org => org.id === formData.organization_id)?.name || "Select organization"}
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0 bg-glass/90 backdrop-blur border border-white/10 rounded-lg shadow-lg" align="start">
+                                                <div className="p-2 border-b border-gray-700 flex items-center justify-between">
+                                                    <span className="font-semibold">Select organisation</span>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="secondary"
+                                                        onClick={() => setShowAddOrgDialog(true)}
+                                                    >
+                                                        + Add
+                                                    </Button>
+                                                </div>
+                                                <Command>
+                                                    <CommandInput placeholder="Search organizations..." />
+                                                    <CommandList>
+                                                        <CommandEmpty>No organizations found.</CommandEmpty>
+                                                        <CommandGroup>
+                                                            {orgList.map(org => (
+                                                            <CommandItem
+                                                                key={org.id}
+                                                                onSelect={() => {
+                                                                    handleSelectChange('organization_id', org.id);
+                                                                    setOrgPopoverOpen(false);
+                                                                }}
+                                                            >
+                                                                {org.name}
+                                                            </CommandItem>
+                                                            ))}
+                                                        </CommandGroup>
+                                                    </CommandList>
+                                                </Command>
+                                            </PopoverContent>
+                                        </Popover>
+                                        {/* Add Organisation Dialog */}
+                                        <Dialog open={showAddOrgDialog} onOpenChange={setShowAddOrgDialog}>
+                                            <DialogContent>
+                                                <DialogHeader>
+                                                    <DialogTitle>Add Organisation</DialogTitle>
+                                                </DialogHeader>
+                                                <div className="py-4">
+                                                    <Label htmlFor="new_org_name">Organisation Name</Label>
+                                                    <Input
+                                                        id="new_org_name"
+                                                        value={newOrgName}
+                                                        onChange={e => setNewOrgName(e.target.value)}
+                                                        className="mb-4 mt-2"
+                                                        autoFocus
+                                                    />
+                                                </div>
+                                                <DialogFooter>
+                                                    <DialogClose asChild>
+                                                        <Button variant="outline" onClick={() => setShowAddOrgDialog(false)}>Cancel</Button>
+                                                    </DialogClose>
+                                                    <Button
+                                                        onClick={async () => {
+                                                            if (!newOrgName.trim()) return;
+                                                            setIsAddingOrg(true);
+                                                            try {
+                                                                // Call API to create org
+                                                                const newOrg = await createOrganisation({ name: newOrgName }, user?.access_token);
+                                                                toast({ title: "Organisation added", description: newOrg.name });
+                                                                // Update org list and select new org
+                                                                addOrganisation(newOrg);
+                                                                handleSelectChange('organization_id', newOrg.id);
+                                                                setShowAddOrgDialog(false);
+                                                                setNewOrgName('');
+                                                            } catch (err) {
+                                                                toast({ title: "Error", description: err.message, variant: "destructive" });
+                                                            } finally {
+                                                                setIsAddingOrg(false);
+                                                            }
+                                                        }}
+                                                        disabled={isAddingOrg}
+                                                    >
+                                                        {isAddingOrg ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                                                        Save
+                                                    </Button>
+                                                </DialogFooter>
+                                            </DialogContent>
+                                        </Dialog>
                                     </div>
                                      <div>
                                         <Label htmlFor="pan">PAN</Label>
@@ -273,12 +375,25 @@ import React, { useState, useEffect, useRef } from 'react';
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                  <div>
                                     <Label>Assigned CA</Label>
-                                    <Select onValueChange={(v) => handleSelectChange('assigned_ca_user_id', v)} value={formData.assigned_ca_user_id}>
-                                        <SelectTrigger><SelectValue placeholder="Select a team member" /></SelectTrigger>
+                                    <Select
+                                        onValueChange={v => handleSelectChange('assigned_ca_user_id', v)}
+                                        value={formData.assigned_ca_user_id ? String(formData.assigned_ca_user_id) : ""}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue>
+                                                {formData.assigned_ca_user_id
+                                                    ? (
+                                                        teamMembers.find(m => String(m.user_id) === String(formData.assigned_ca_user_id))?.name ||
+                                                        teamMembers.find(m => String(m.user_id) === String(formData.assigned_ca_user_id))?.email ||
+                                                        "Select a team member"
+                                                    )
+                                                    : "Select a team member"}
+                                            </SelectValue>
+                                        </SelectTrigger>
                                         <SelectContent>
                                            {teamMembers && teamMembers.length > 0 ? (
                                                teamMembers.map(member => (
-                                                   <SelectItem key={member.user_id} value={member.user_id}>{member.name || member.email}</SelectItem>
+                                                   <SelectItem key={member.user_id} value={String(member.user_id)}>{member.name || member.email}</SelectItem>
                                                ))
                                            ) : (
                                                <SelectItem value="no-members" disabled>No team members found</SelectItem>

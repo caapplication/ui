@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
     import ClientDashboard from '@/components/accountant/clients/ClientDashboard';
     import { AnimatePresence, motion } from 'framer-motion';
     import { useAuth } from '@/hooks/useAuth';
-    import { listClients, createClient, updateClient, listServices as fetchAllServices, deleteClient as apiDeleteClient, listOrganisations, getBusinessTypes, listClientServices, listTeamMembers, getTags, uploadClientPhoto } from '@/lib/api';
+    import { listClients, createClient, updateClient, listServices as fetchAllServices, deleteClient as apiDeleteClient, listOrganisations, getBusinessTypes, listClientServices, listTeamMembers, getTags, uploadClientPhoto, listOrgUsers, listEntities } from '@/lib/api';
     import { useToast } from '@/components/ui/use-toast';
     import { Loader2 } from 'lucide-react';
     
@@ -22,6 +22,7 @@ import React, { useState, useEffect, useCallback } from 'react';
         const [selectedClient, setSelectedClient] = useState(null);
         const [editingClient, setEditingClient] = useState(null);
         const [isLoading, setIsLoading] = useState(true);
+        const [organizationUsers, setOrganizationUsers] = useState([]);
     
         const fetchClientsAndServices = useCallback(async () => {
             setIsLoading(true);
@@ -50,15 +51,27 @@ import React, { useState, useEffect, useCallback } from 'react';
     
                 const clientsWithServices = await Promise.all(
                     clientsWithData.map(async (client) => {
+                        let orgUsers = [];
+                        let entities = [];
                         try {
                             const clientServices = await listClientServices(client.id, user.agency_id, user.access_token);
-                            return { ...client, availedServices: Array.isArray(clientServices) ? clientServices : [] };
+                            const users = await listOrgUsers(client.organization_id, user.access_token);
+                            if (users && (users.invited_users || users.joined_users)) {
+                                orgUsers = users;
+                            } else {
+                                orgUsers = { invited_users: [], joined_users: [] };
+                            }
+                            const entityData = await listEntities(client.organization_id, user.access_token);
+                            if (Array.isArray(entityData)) {
+                                entities = entityData;
+                            }
+                            return { ...client, availedServices: Array.isArray(clientServices) ? clientServices : [], orgUsers, entities };
                         } catch (e) {
                             if (e.message.includes('404')) {
-                                return { ...client, availedServices: [] };
+                                return { ...client, availedServices: [], orgUsers: [], entities: [] };
                             }
-                            console.error(`Failed to fetch services for client ${client.id}`, e);
-                            return { ...client, availedServices: [] };
+                            console.error(`Failed to fetch services, users, or entities for client ${client.id}`, e);
+                            return { ...client, availedServices: [], orgUsers: [], entities: [] };
                         }
                     })
                 );
@@ -183,6 +196,8 @@ import React, { useState, useEffect, useCallback } from 'react';
         };
     
         const renderContent = () => {
+            const currentClient = clients.find(c => c.id === selectedClient?.id) || selectedClient;
+
             if (isLoading) {
                 return (
                     <div className="flex items-center justify-center h-full">
@@ -249,7 +264,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                             className="h-full"
                         >
                             <ClientDashboard 
-                                client={selectedClient} 
+                                client={currentClient} 
                                 onBack={handleBackToList}
                                 onEdit={handleEditClient}
                                 setActiveTab={setActiveTab}

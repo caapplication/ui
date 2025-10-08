@@ -98,7 +98,7 @@ export const resendToken = async (email) => {
     return handleResponse(response);
 };
 
-export const inviteOrganizationUser = async (orgId, email, token) => {
+export const inviteOrganizationUser = async (orgId, email, agencyId, token) => {
     const url = `${API_BASE_URL}/invites/organization-user`;
     const headers = {
         'accept': 'application/json',
@@ -107,7 +107,8 @@ export const inviteOrganizationUser = async (orgId, email, token) => {
     };
     const body = new URLSearchParams({
         email,
-        org_id: orgId
+        org_id: orgId,
+        agency_id: agencyId
     });
 
     const response = await fetch(url, {
@@ -135,6 +136,20 @@ export const listAllEntities = async (token) => {
     const response = await fetch(url, {
         method: 'GET',
         headers: getAuthHeaders(token)
+    });
+    return handleResponse(response);
+};
+
+// Invite CA Team Member (matches curl format)
+export const inviteCaTeamMember = async (email, ca_id, token) => {
+    const response = await fetch(`${API_BASE_URL}/invites/ca-team-member`, {
+        method: 'POST',
+        headers: {
+            'accept': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: new URLSearchParams({ email, ca_id })
     });
     return handleResponse(response);
 };
