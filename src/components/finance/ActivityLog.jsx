@@ -48,25 +48,82 @@ const ActivityLog = ({ itemId, itemType }) => {
         )
     }
 
+    // Debug: print a sample log entry to the console
+    if (logs.length > 0) {
+        // Only print once per mount
+        // eslint-disable-next-line no-console
+        console.log('Sample activity log entry:', logs[0]);
+    }
+
     return (
         <div className="space-y-4">
-            {logs.map(log => (
-                <div key={log.id} className="flex items-start space-x-3">
-                    <div className="flex-shrink-0">
-                        <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center">
-                            <History className="w-4 h-4 text-gray-300" />
+            {logs.map(log => {
+                // Prefer top-level name/email if present (API returns these at top level)
+                let userDisplay = '';
+                if (log.name && log.email) {
+                    userDisplay = `${log.name} (${log.email})`;
+                } else if (log.name) {
+                    userDisplay = log.name;
+                } else if (log.email) {
+                    userDisplay = log.email;
+                } else if (typeof log.user === 'object' && log.user !== null) {
+                    if (log.user.name && log.user.email) {
+                        userDisplay = `${log.user.name} (${log.user.email})`;
+                    } else if (log.user.name) {
+                        userDisplay = log.user.name;
+                    } else if (log.user.email) {
+                        userDisplay = log.user.email;
+                    } else {
+                        userDisplay = 'Unknown User';
+                    }
+                } else if (typeof log.user === 'string') {
+                    userDisplay = log.user;
+                } else {
+                    userDisplay = 'Unknown User';
+                }
+
+                // Human-readable action
+                let actionDisplay = '';
+                if (log.action) {
+                    if (log.action.toLowerCase().includes('create')) {
+                        actionDisplay = 'has created';
+                    } else if (log.action.toLowerCase().includes('update')) {
+                        actionDisplay = 'has updated';
+                    } else if (log.action.toLowerCase().includes('delete')) {
+                        actionDisplay = 'has deleted';
+                    } else {
+                        actionDisplay = log.action.toLowerCase();
+                    }
+                }
+
+                // Human-readable item type
+                let itemTypeDisplay = '';
+                if (itemType === 'invoice') {
+                    itemTypeDisplay = 'invoice';
+                } else if (itemType === 'voucher') {
+                    itemTypeDisplay = 'voucher';
+                } else {
+                    itemTypeDisplay = 'item';
+                }
+
+                return (
+                    <div key={log.id} className="flex items-start space-x-3">
+                        <div className="flex-shrink-0">
+                            <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center">
+                                <History className="w-4 h-4 text-gray-300" />
+                            </div>
+                        </div>
+                        <div>
+                            <p className="text-sm text-white">
+                                <span className="font-semibold">{userDisplay}</span> {actionDisplay} {itemTypeDisplay}.
+                            </p>
+                            <p className="text-xs text-gray-400">
+                                {new Date(log.timestamp).toLocaleString()}
+                            </p>
                         </div>
                     </div>
-                    <div>
-                        <p className="text-sm text-white">
-                            <span className="font-semibold">{log.user}</span> {log.action.toLowerCase()} this item.
-                        </p>
-                        <p className="text-xs text-gray-400">
-                            {new Date(log.timestamp).toLocaleString()}
-                        </p>
-                    </div>
-                </div>
-            ))}
+                );
+            })}
         </div>
     );
 };

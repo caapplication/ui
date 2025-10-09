@@ -69,11 +69,23 @@ import BeneficiaryDetailsPage from '@/pages/BeneficiaryDetailsPage.jsx';
             const entitiesToDisplay = user.entities || [];
             if (entitiesToDisplay.length > 0) {
               setCurrentEntity(entitiesToDisplay[0].id);
-            } else if (user.organization_id) {
+            } else if (
+              user.organization_id &&
+              typeof user.organization_id === 'string' &&
+              user.organization_id.split('.').length !== 3 // not a JWT
+            ) {
               setCurrentEntity(user.organization_id);
             }
           } else if (user.role !== 'CA_ACCOUNTANT') {
-            setCurrentEntity(user.organization_id || user.id);
+            if (
+              user.organization_id &&
+              typeof user.organization_id === 'string' &&
+              user.organization_id.split('.').length !== 3 // not a JWT
+            ) {
+              setCurrentEntity(user.organization_id);
+            } else {
+              setCurrentEntity(user.id);
+            }
           }
         }
       }, [user, currentEntity]);

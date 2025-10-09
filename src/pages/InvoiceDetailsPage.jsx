@@ -8,7 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ArrowLeft, Edit, Trash2 } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, FileText } from 'lucide-react';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import {
   ResizablePanelGroup,
@@ -34,13 +36,17 @@ const InvoiceDetailsPage = () => {
     const { attachmentUrl, invoice, beneficiaryName, organisationId } = location.state || {};
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
+    const invoiceDetailsRef = React.useRef(null);
     const [beneficiaries, setBeneficiaries] = useState([]);
     const [editedInvoice, setEditedInvoice] = useState(invoice);
 
     useEffect(() => {
         const fetchBeneficiaries = async () => {
+            // Debug: log organisationId and fetched beneficiaries
+            console.log('Fetching beneficiaries for organisationId:', organisationId);
             if (user?.access_token && organisationId) {
                 const data = await getBeneficiaries(organisationId, user.access_token);
+                console.log('Fetched beneficiaries:', data);
                 setBeneficiaries(data);
             }
         };
@@ -66,7 +72,32 @@ const InvoiceDetailsPage = () => {
         parseFloat(invoiceDetails.igst)
     ).toFixed(2);
 
-    const attachmentToDisplay = attachmentUrl;
+    // Only use attachmentUrl if it is a non-empty string and not a blob with 0 bytes
+    const [attachmentToDisplay, setAttachmentToDisplay] = useState(attachmentUrl);
+
+    useEffect(() => {
+        // If the attachmentUrl is a blob, check if it's valid (not 0 bytes)
+        if (attachmentUrl && attachmentUrl.startsWith('blob:')) {
+            fetch(attachmentUrl)
+                .then(res => res.blob())
+                .then(blob => {
+                    if (blob.size > 0) {
+                        setAttachmentToDisplay(attachmentUrl);
+                    } else {
+                        setAttachmentToDisplay(null);
+                    }
+                })
+                .catch(() => setAttachmentToDisplay(null));
+        } else {
+            setAttachmentToDisplay(attachmentUrl);
+        }
+        // Clean up blob URL on unmount
+        return () => {
+            if (attachmentUrl && attachmentUrl.startsWith('blob:')) {
+                URL.revokeObjectURL(attachmentUrl);
+            }
+        };
+    }, [attachmentUrl]);
 
     const handleDelete = async () => {
         try {
@@ -100,6 +131,29 @@ const InvoiceDetailsPage = () => {
         }
     };
 
+    const handleExportToPDF = () => {
+        const input = invoiceDetailsRef.current;
+        if (!input) return;
+        html2canvas(input, { backgroundColor: "#1e293b" }).then(canvas => {
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF({
+                orientation: 'portrait',
+            });
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+            const canvasWidth = canvas.width;
+            const canvasHeight = canvas.height;
+            const ratio = canvasWidth / canvasHeight;
+            const width = pdfWidth;
+            const height = width / ratio;
+            pdf.addImage(imgData, 'PNG', 0, 0, width, height);
+            pdf.save(`invoice-${invoiceId}.pdf`);
+            toast({ title: 'Export Successful', description: 'Invoice details exported to PDF.' });
+        }).catch(error => {
+            toast({ title: 'Export Failed', description: error.message, variant: 'destructive' });
+        });
+    };
+
     return (
         <div className="h-screen w-full flex flex-col text-white bg-transparent p-4 md:p-6">
             <header className="flex items-center justify-between pb-4 border-b border-white/10 mb-4">
@@ -122,6 +176,7 @@ const InvoiceDetailsPage = () => {
                                 src={attachmentToDisplay} 
                                 title="Invoice Attachment"
                                 className="w-full h-full rounded-md border-none"
+                                onError={() => setAttachmentToDisplay(null)}
                             />
                         ) : (
                             <div className="text-center text-gray-400">
@@ -190,10 +245,26 @@ const InvoiceDetailsPage = () => {
                                         </div>
                                     </form>
                                 ) : (
-                                    <Card className="w-full glass-pane border-none shadow-none">
+                                    <Card ref={invoiceDetailsRef} className="w-full glass-pane border-none shadow-none">
                                         <CardHeader>
                                             <CardTitle>{invoiceDetails.bill_number}</CardTitle>
-                                            <CardDescription>Issued to {invoiceDetails.beneficiary_name}</CardDescription>
+                                            <CardDescription>
+                                                Issued to {
+                                                    (() => {
+                                                        // Try to resolve beneficiary name from beneficiaries list
+                                                        const beneficiary = beneficiaries.find(
+                                                            b => String(b.id) === String(invoice?.beneficiary_id)
+                                                        );
+                                                        if (beneficiary) {
+                                                            return beneficiary.beneficiary_type === 'individual'
+                                                                ? beneficiary.name
+                                                                : beneficiary.company_name;
+                                                        }
+                                                        // Fallback to beneficiary_name from state or N/A
+                                                        return invoiceDetails.beneficiary_name || 'N/A';
+                                                    })()
+                                                }
+                                            </CardDescription>
                                         </CardHeader>
                                         <CardContent className="space-y-2">
                                             <DetailItem label="Date" value={new Date(invoiceDetails.date).toLocaleDateString()} />
@@ -211,6 +282,9 @@ const InvoiceDetailsPage = () => {
                                             <div className="flex items-center gap-2 mt-4 justify-end">
                                                 <Button variant="destructive" size="icon" onClick={() => setShowDeleteDialog(true)}>
                                                     <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                                <Button variant="outline" size="icon" onClick={handleExportToPDF}>
+                                                    <FileText className="h-4 w-4" />
                                                 </Button>
                                                 <Button variant="outline" size="icon" onClick={() => setIsEditing(!isEditing)}>
                                                     <Edit className="h-4 w-4" />

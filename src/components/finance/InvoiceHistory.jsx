@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Search, FileText, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import { Search, FileText, ChevronLeft, ChevronRight, Trash2, Eye } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { getCATeamInvoiceAttachment, getInvoiceAttachment, updateInvoice } from '@/lib/api';
 import { useToast } from '@/components/ui/use-toast';
@@ -115,9 +115,11 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onRefresh, i
                             )}
                             <TableCell>
                                 <div className="flex items-center gap-2">
-                                    <Button variant="link" onClick={() => handleViewAttachment(invoice)} className="text-sky-400">
-                                        <FileText className="w-4 h-4" />
-                                    </Button>
+                                    {invoice.attachment_id && (
+                                        <Button variant="link" onClick={() => handleViewAttachment(invoice)} className="text-sky-400" title="View Attachment">
+                                            <Eye className="w-4 h-4" />
+                                        </Button>
+                                    )}
                                     <AlertDialog>
                                       <AlertDialogTrigger asChild>
                                         <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={() => setInvoiceToDelete(invoice.id)}>

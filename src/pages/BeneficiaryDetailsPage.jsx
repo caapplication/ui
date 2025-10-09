@@ -63,11 +63,11 @@ const BeneficiaryDetailsPage = () => {
   const [showDetails, setShowDetails] = useState(false);
 
   const fetchBeneficiaryData = useCallback(async () => {
-    if (!user?.access_token) return;
+    if (!user?.access_token || !user?.organization_id) return;
     setIsLoading(true);
     try {
       const [beneficiaryData, bankAccountsData] = await Promise.all([
-        getBeneficiary(beneficiaryId, user.access_token),
+        getBeneficiary(beneficiaryId, user.organization_id, user.access_token),
         getBankAccountsForBeneficiary(beneficiaryId, user.access_token)
       ]);
       setBeneficiary(beneficiaryData);
@@ -82,7 +82,7 @@ const BeneficiaryDetailsPage = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [beneficiaryId, user?.access_token, toast]);
+  }, [beneficiaryId, user?.organization_id, user?.access_token, toast]);
 
   useEffect(() => {
     fetchBeneficiaryData();

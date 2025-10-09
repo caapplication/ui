@@ -24,7 +24,7 @@ import {
     inviteOrganizationUser,
     deleteOrgUser
 } from '@/lib/api';
-import { inviteCaTeamMember } from '@/lib/api/organisation';
+import { inviteCaTeamMember, deleteCaTeamMember } from '@/lib/api/organisation';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -269,12 +269,23 @@ const Organisation = () => {
     };
     
     const handleDeleteOrgUser = async (u) => {
-        const userId = u.user_id;
-        setIsMutating(userId);
+        setIsMutating(u.user_id || u.email);
         try {
-            await deleteOrgUser(selectedOrg.id, userId, user.access_token);
+            // If user is a CA team member (by role or explicit property), use the CA team member delete API (by email)
+            if (
+                u.is_ca_team_member ||
+                u.ca_team_member_token ||
+                u.role === 'CA_TEAM_MEMBER' ||
+                u.role === 'CA_ACCOUNTANT' // adjust as needed for your data
+            ) {
+                await deleteCaTeamMember(u.email, user.access_token);
+            } else {
+                // fallback to org user delete
+                await deleteOrgUser(selectedOrg.id, u.user_id, user.access_token);
+            }
             toast({ title: "Success", description: `User ${u.email} deleted.` });
-            fetchOrgDetails(selectedOrg.id);
+            // Always refresh the user list after deletion
+            if (selectedOrg?.id) fetchOrgDetails(selectedOrg.id);
         } catch (error) {
             toast({ title: "Error", description: error.message, variant: "destructive" });
         } finally {

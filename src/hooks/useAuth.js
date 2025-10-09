@@ -21,6 +21,19 @@ export const AuthProvider = ({ children }) => {
       if (savedUser) {
         try {
           const parsedUser = JSON.parse(savedUser);
+          // Defensive fix: If organization_id looks like a JWT, try to use a proper UUID field if available
+          if (
+            parsedUser.organization_id &&
+            typeof parsedUser.organization_id === 'string' &&
+            parsedUser.organization_id.split('.').length === 3 // JWTs have 2 periods
+          ) {
+            // Try to use another field if available
+            parsedUser.organization_id =
+              parsedUser.organisation_id ||
+              parsedUser.org_id ||
+              parsedUser.ca_account_id ||
+              '';
+          }
           setUser(parsedUser);
         } catch (error) {
           console.error("Failed to parse user data", error);
@@ -65,7 +78,22 @@ export const AuthProvider = ({ children }) => {
             apiGetEntities(data.access_token)
         ]);
 
-        const fullUserData = { ...data, ...profileData, entities: entitiesData || [] };
+        // Ensure organization_id is set to the true organization UUID from profileData
+        const organizationId =
+            profileData.organization_id ||
+            profileData.organisation_id ||
+            profileData.org_id ||
+            data.organization_id ||
+            data.organisation_id ||
+            data.org_id ||
+            '';
+
+        const fullUserData = {
+            ...data,
+            ...profileData,
+            entities: entitiesData || [],
+            organization_id: organizationId
+        };
 
         if (profileData.is_2fa_enabled) {
             return { twoFactorEnabled: true, loginData: fullUserData };
@@ -75,7 +103,23 @@ export const AuthProvider = ({ children }) => {
         }
     } else if (data.role === 'CA_ACCOUNTANT') {
         const profileData = await apiGetProfile(data.access_token, data.agency_id);
-        const fullUserData = { ...data, ...profileData, name: data.agency_name };
+
+        // Ensure organization_id is set to the true organization UUID from profileData
+        const organizationId =
+            profileData.organization_id ||
+            profileData.organisation_id ||
+            profileData.org_id ||
+            data.organization_id ||
+            data.organisation_id ||
+            data.org_id ||
+            '';
+
+        const fullUserData = {
+            ...data,
+            ...profileData,
+            name: data.agency_name,
+            organization_id: organizationId
+        };
         
         if (profileData.is_2fa_enabled) {
             return { twoFactorEnabled: true, loginData: fullUserData };

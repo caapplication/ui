@@ -140,6 +140,20 @@ export const listAllEntities = async (token) => {
     return handleResponse(response);
 };
 
+export const deleteCaTeamMember = async (email, token) => {
+    const response = await fetch(`${API_BASE_URL}/invites/ca-team-member?email=${encodeURIComponent(email)}`, {
+        method: 'DELETE',
+        headers: {
+            'accept': 'application/json',
+            'Authorization': `Bearer ${token}`
+        }
+    });
+    if (response.status === 204 || response.status === 200) {
+        return { success: true };
+    }
+    return handleResponse(response);
+};
+
 // Invite CA Team Member (matches curl format)
 export const inviteCaTeamMember = async (email, ca_id, token) => {
     const response = await fetch(`${API_BASE_URL}/invites/ca-team-member`, {

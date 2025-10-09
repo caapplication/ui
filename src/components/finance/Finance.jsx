@@ -1,16 +1,52 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Plus, FileText, Banknote, ChevronDown, Loader2, RefreshCw, Download } from 'lucide-react';
+import {
+  Plus,
+  FileText,
+  Banknote,
+  ChevronDown,
+  Loader2,
+  RefreshCw,
+  Download,
+} from 'lucide-react';
 import { Dialog } from '@/components/ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { useNavigate, Routes, Route, useLocation, Navigate } from 'react-router-dom';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  useNavigate,
+  Routes,
+  Route,
+  useLocation,
+  Navigate,
+} from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useToast } from '@/components/ui/use-toast';
-import { getBeneficiaries, getInvoices, addInvoice, updateInvoice, deleteInvoice, addVoucher, updateVoucher, getVouchers, deleteVoucher, getBankAccountsForBeneficiary, exportVouchersToTallyXML } from '@/lib/api';
+import {
+  getBeneficiaries,
+  getInvoices,
+  addInvoice,
+  updateInvoice,
+  deleteInvoice,
+  addVoucher,
+  updateVoucher,
+  getVouchers,
+  deleteVoucher,
+  exportVouchersToTallyXML,
+} from '@/lib/api';
 import { useOrganisation } from '@/hooks/useOrganisation';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 import InvoiceForm from '@/components/finance/InvoiceForm';
 import VoucherForm from '@/components/finance/VoucherForm';
@@ -22,14 +58,14 @@ const Finance = ({ quickAction, clearQuickAction }) => {
   const [showVoucherDialog, setShowVoucherDialog] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState(null);
   const [editingVoucher, setEditingVoucher] = useState(null);
-  
+
   const [beneficiaries, setBeneficiaries] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [vouchers, setVouchers] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isMutating, setIsMutating] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  
+
   const {
     organisations,
     selectedOrg,
@@ -37,10 +73,7 @@ const Finance = ({ quickAction, clearQuickAction }) => {
     entities,
     selectedEntity,
     setSelectedEntity,
-    loading: orgLoading,
-    organisationId,
   } = useOrganisation();
-  const [organisationBankAccounts, setOrganisationBankAccounts] = useState([]);
 
   const { user } = useAuth();
   const { toast } = useToast();
@@ -52,59 +85,49 @@ const Finance = ({ quickAction, clearQuickAction }) => {
     setSelectedEntity(null);
   };
 
-  const activeTab = location.pathname.includes('/invoices') ? 'invoices' : 'vouchers';
+  const activeTab = location.pathname.includes('/invoices')
+    ? 'invoices'
+    : 'vouchers';
 
-  useEffect(() => {
-    const fetchBankAccounts = async () => {
-      if (organisationId && user?.access_token) {
-        try {
-          const bankAccounts = await getOrganisationBankAccounts(organisationId, user.access_token);
-          setOrganisationBankAccounts(bankAccounts || []);
-        } catch (error) {
-          toast({ title: 'Error', description: 'Failed to fetch bank accounts.', variant: 'destructive' });
+  const fetchData = useCallback(
+    async (isRefresh = false) => {
+      const token = localStorage.getItem('accessToken');
+      const entityId = localStorage.getItem('entityId');
+      if (!user?.organization_id || !token) return;
+
+      if (isRefresh) setIsRefreshing(true);
+      else setIsLoading(true);
+
+      try {
+        const promises = [getBeneficiaries(user.organization_id, token)];
+        if (entityId) {
+          promises.push(getInvoices(entityId, token));
+          promises.push(getVouchers(entityId, token));
         }
-      }
-    };
-    fetchBankAccounts();
-  }, [organisationId, user?.access_token, toast]);
+        const [beneficiariesData, invoicesData, vouchersData] =
+          await Promise.all(promises);
 
-  const fetchData = useCallback(async (isRefresh = false) => {
-    const token = localStorage.getItem('accessToken');
-    const entityId = localStorage.getItem('entityId');
-    if (!organisationId || !token) return;
-
-    if (isRefresh) {
-        setIsRefreshing(true);
-    } else {
-        setIsLoading(true);
-    }
-    try {
-      const promises = [getBeneficiaries(organisationId, token)];
-      if (entityId) {
-        promises.push(getInvoices(entityId, token));
-        promises.push(getVouchers(entityId, token));
+        setBeneficiaries(beneficiariesData || []);
+        setInvoices(invoicesData || []);
+        setVouchers(vouchersData || []);
+      } catch (error) {
+        toast({
+          title: 'Error',
+          description: `Failed to fetch finance data: ${error.message}`,
+          variant: 'destructive',
+        });
+        setInvoices([]);
+        setVouchers([]);
+      } finally {
+        setIsLoading(false);
+        setIsRefreshing(false);
       }
-      const [beneficiariesData, invoicesData, vouchersData] = await Promise.all(promises);
-      
-      setBeneficiaries(beneficiariesData || []);
-      setInvoices(invoicesData || []);
-      setVouchers(vouchersData || []);
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: `Failed to fetch finance data: ${error.message}`,
-        variant: 'destructive',
-      });
-      setInvoices([]);
-      setVouchers([]);
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, [organisationId, toast]);
+    },
+    [user?.organization_id, toast]
+  );
 
   useEffect(() => {
-    if (user?.role === 'CLIENT_USER' && user.entities && user.entities.length > 0) {
+    if (user?.role === 'CLIENT_USER' && user.entities?.length > 0) {
       setSelectedEntity(user.entities[0].id);
     }
   }, [user]);
@@ -116,9 +139,12 @@ const Finance = ({ quickAction, clearQuickAction }) => {
   }, [fetchData, selectedEntity, user]);
 
   const enrichedVouchers = useMemo(() => {
-    return (vouchers || []).map(v => {
+    return (vouchers || []).map((v) => {
       const beneficiary = v.beneficiary || {};
-      const beneficiaryName = beneficiary.beneficiary_type === 'individual' ? beneficiary.name : beneficiary.company_name;
+      const beneficiaryName =
+        beneficiary.beneficiary_type === 'individual'
+          ? beneficiary.name
+          : beneficiary.company_name;
       return {
         ...v,
         beneficiaryName: beneficiaryName || 'Unknown Beneficiary',
@@ -135,7 +161,10 @@ const Finance = ({ quickAction, clearQuickAction }) => {
         await updateInvoice(invoiceId, invoiceData, token);
         toast({ title: 'Success', description: 'Invoice updated successfully.' });
       } else {
-        await addInvoice({ ...invoiceData, entity_id: entityId }, token);
+        if (invoiceData instanceof FormData) {
+          invoiceData.append('entity_id', entityId);
+        }
+        await addInvoice(invoiceData, token);
         toast({ title: 'Success', description: 'Invoice added successfully.' });
       }
       setShowInvoiceDialog(false);
@@ -145,6 +174,32 @@ const Finance = ({ quickAction, clearQuickAction }) => {
       toast({
         title: 'Error',
         description: `Failed to save invoice: ${error.message}`,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsMutating(false);
+    }
+  };
+
+  const handleAddOrUpdateVoucher = async (voucherData, voucherId) => {
+    const token = localStorage.getItem('accessToken');
+    const entityId = localStorage.getItem('entityId');
+    setIsMutating(true);
+    try {
+      if (voucherId) {
+        await updateVoucher(voucherId, voucherData, token, entityId);
+        toast({ title: 'Success', description: 'Voucher updated successfully.' });
+      } else {
+        await addVoucher(voucherData, token);
+        toast({ title: 'Success', description: 'Voucher added successfully.' });
+      }
+      setShowVoucherDialog(false);
+      setEditingVoucher(null);
+      fetchData(true);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: `Failed to save voucher: ${error.message}`,
         variant: 'destructive',
       });
     } finally {
@@ -171,37 +226,6 @@ const Finance = ({ quickAction, clearQuickAction }) => {
     }
   };
 
-  const handleEditInvoiceClick = (invoice) => {
-    setEditingInvoice(invoice);
-    setShowInvoiceDialog(true);
-  };
-  
-  const handleAddOrUpdateVoucher = async (voucherData, voucherId) => {
-    const token = localStorage.getItem('accessToken');
-    const entityId = localStorage.getItem('entityId');
-    setIsMutating(true);
-    try {
-        if (voucherId) {
-            await updateVoucher(voucherId, voucherData, token, entityId);
-            toast({ title: 'Success', description: 'Voucher updated successfully.' });
-        } else {
-            await addVoucher({ ...voucherData, entity_id: entityId }, token);
-            toast({ title: 'Success', description: 'Voucher added successfully.' });
-        }
-        setShowVoucherDialog(false);
-        setEditingVoucher(null);
-        fetchData(true);
-    } catch (error) {
-        toast({
-            title: 'Error',
-        description: `Failed to save voucher: ${error.message}`,
-        variant: 'destructive',
-      });
-    } finally {
-      setIsMutating(false);
-    }
-  };
-
   const handleDeleteVoucherClick = async (voucherId) => {
     const token = localStorage.getItem('accessToken');
     const entityId = localStorage.getItem('entityId');
@@ -220,21 +244,7 @@ const Finance = ({ quickAction, clearQuickAction }) => {
       setIsMutating(false);
     }
   };
-  
-  const handleEditVoucherClick = (voucher) => {
-    const enrichedVoucher = enrichedVouchers.find(v => v.id === voucher.id);
-    const organizationName = organisations.find(o => o.id === selectedOrg)?.name;
-    const entityName = entities.find(e => e.id === selectedEntity)?.name;
-    navigate(`/vouchers/${voucher.id}`, { state: { voucher: enrichedVoucher, startInEditMode: true, organizationName, entityName, organisationId: selectedOrg } });
-  };
 
-  const handleViewVoucherClick = (voucher) => {
-    const enrichedVoucher = enrichedVouchers.find(v => v.id === voucher.id);
-    const organizationName = organisations.find(o => o.id === selectedOrg)?.name;
-    const entityName = entities.find(e => e.id === selectedEntity)?.name;
-    navigate(`/vouchers/${voucher.id}`, { state: { voucher: enrichedVoucher, organizationName, entityName, organisationId: selectedOrg } });
-  };
-      
   const handleExportToTally = async (format) => {
     const token = localStorage.getItem('accessToken');
     const entityId = localStorage.getItem('entityId');
@@ -265,141 +275,150 @@ const Finance = ({ quickAction, clearQuickAction }) => {
     setEditingInvoice(null);
     setShowVoucherDialog(false);
     setEditingVoucher(null);
-  }
+  };
 
   return (
     <div className="p-8">
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-          <h1 className="text-5xl font-bold text-white">Finance</h1>
-          <div className="flex items-center gap-2">
-            {user.role !== 'CLIENT_USER' && (
-              <>
-                <Select value={selectedOrg} onValueChange={handleOrgChange}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Select Organisation" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {organisations.map(org => <SelectItem key={org.id} value={org.id}>{org.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <Select value={selectedEntity} onValueChange={setSelectedEntity} disabled={!selectedOrg}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Select Entity" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {entities.map(ent => <SelectItem key={ent.id} value={ent.id}>{ent.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </>
-            )}
-            <Button variant="outline" size="icon" onClick={() => fetchData(true)} disabled={isRefreshing || !selectedEntity}>
-              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            </Button>
-            {user.role !== 'CLIENT_USER' && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" disabled={enrichedVouchers.length === 0}>
-                    <Download className="w-4 h-4 mr-2" />
-                    Export to Tally
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem onSelect={() => handleExportToTally('csv')}>CSV or xlsx</DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => handleExportToTally('xml')}>XML</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button disabled={!selectedEntity}>
-                  <Plus className="w-5 h-5 mr-2" />
-                  Add New
-                  <ChevronDown className="w-4 h-4 ml-2" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56">
-                <DropdownMenuItem onSelect={() => { setEditingVoucher(null); setShowVoucherDialog(true); }}>
-                  <Banknote className="w-4 h-4 mr-2" />
-                  <span>Voucher</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => { setEditingInvoice(null); setShowInvoiceDialog(true); }}>
-                  <FileText className="w-4 h-4 mr-2" />
-                  <span>Invoice</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        {/* HEADER SECTION */}
+        <div className="flex flex-col gap-4 mb-8">
+          {/* Top Line: Finance + Filters */}
+          <div className="flex flex-wrap justify-between items-center gap-4">
+            {/* Finance Title + Icon */}
+            <div className="flex items-center gap-4">
+              <div className="bg-primary/10 p-3 rounded-xl">
+                <Landmark className="w-8 h-8 text-primary" />
+              </div>
+              <h1 className="text-3xl sm:text-5xl font-bold text-white">Finance</h1>
+            </div>
+
+            {/* Organisation + Entity Dropdowns + Refresh */}
+            <div className="flex flex-wrap items-center gap-2">
+              <Select value={selectedOrg || ''} onValueChange={handleOrgChange}>
+                <SelectTrigger className="w-[180px] h-9 text-sm bg-[#1E2A47] text-white border border-gray-600">
+                  <SelectValue placeholder="Select organisation" />
+                </SelectTrigger>
+                <SelectContent>
+                  {organisations.map(org => (
+                    <SelectItem key={org.id} value={org.id}>{org.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={selectedEntity || ''}
+                onValueChange={setSelectedEntity}
+                disabled={!selectedOrg}
+              >
+                <SelectTrigger className="w-[180px] h-9 text-sm bg-[#1E2A47] text-white border border-gray-600">
+                  <SelectValue placeholder="Select entity" />
+                </SelectTrigger>
+                <SelectContent>
+                  {entities.length > 1 && <SelectItem value="all">All Entities</SelectItem>}
+                  {entities.map(entity => (
+                    <SelectItem key={entity.id} value={entity.id}>{entity.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => fetchData(true)}
+                disabled={isRefreshing || !selectedOrg}
+              >
+                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
           </div>
+
+          {/* Subtitle */}
+          <p className="text-muted-foreground">
+            Review client invoices and vouchers.
+          </p>
         </div>
-      
-        <div className="w-full">
-          <Tabs value={activeTab} onValueChange={(value) => navigate(`/finance/${value}`)} className="w-full">
-            <TabsList>
-              <TabsTrigger value="vouchers">Vouchers</TabsTrigger>
-              <TabsTrigger value="invoices">Invoices</TabsTrigger>
-            </TabsList>
-            <div className="mt-4">
-              <Routes>
-                <Route path="/" element={<Navigate to="vouchers" replace />} />
-                <Route path="vouchers" element={
+
+        {/* 🔹 Tabs Section */}
+        <Tabs
+          value={activeTab}
+          onValueChange={(value) => navigate(`/finance/${value}`)}
+          className="w-full"
+        >
+          <TabsList>
+            <TabsTrigger value="vouchers">Vouchers</TabsTrigger>
+            <TabsTrigger value="invoices">Invoices</TabsTrigger>
+          </TabsList>
+
+          <div className="mt-6">
+            <Routes>
+              <Route path="/" element={<Navigate to="vouchers" replace />} />
+              <Route
+                path="vouchers"
+                element={
                   isLoading ? (
                     <div className="flex justify-center items-center h-64">
                       <Loader2 className="w-8 h-8 animate-spin text-white" />
                     </div>
                   ) : (
-                    <VoucherHistory 
+                    <VoucherHistory
                       vouchers={enrichedVouchers}
                       onDeleteVoucher={handleDeleteVoucherClick}
-                      onViewVoucher={handleViewVoucherClick}
-                      onEditVoucher={handleEditVoucherClick}
+                      onViewVoucher={(voucher) => console.log(voucher)}
+                      onEditVoucher={(voucher) => console.log(voucher)}
                     />
                   )
-                } />
-                <Route path="invoices" element={
+                }
+              />
+              <Route
+                path="invoices"
+                element={
                   isLoading ? (
                     <div className="flex justify-center items-center h-64">
                       <Loader2 className="w-8 h-8 animate-spin text-white" />
                     </div>
                   ) : (
-                    <InvoiceHistory 
+                    <InvoiceHistory
                       invoices={invoices}
                       beneficiaries={beneficiaries}
                       onDeleteInvoice={handleDeleteInvoiceClick}
-                      onEditInvoice={handleEditInvoiceClick}
+                      onEditInvoice={(invoice) => console.log(invoice)}
                     />
                   )
-                } />
-              </Routes>
-            </div>
-          </Tabs>
-        </div>
+                }
+              />
+            </Routes>
+          </div>
+        </Tabs>
       </motion.div>
 
+      {/* 🔹 Invoice & Voucher Dialogs */}
       <Dialog open={showInvoiceDialog} onOpenChange={closeDialogs}>
-        <InvoiceForm 
+        <InvoiceForm
           entityId={selectedEntity}
-          beneficiaries={beneficiaries} 
+          beneficiaries={beneficiaries}
           isLoading={isLoading}
-          onSave={handleAddOrUpdateInvoice} 
-          onCancel={closeDialogs} 
+          onSave={handleAddOrUpdateInvoice}
+          onCancel={closeDialogs}
           invoice={editingInvoice}
           financeHeaders={[]}
         />
       </Dialog>
-      
+
       <Dialog open={showVoucherDialog} onOpenChange={closeDialogs}>
-        <VoucherForm 
+        <VoucherForm
           entityId={selectedEntity}
-          beneficiaries={beneficiaries} 
+          beneficiaries={beneficiaries}
           isLoading={isLoading}
-          organisationBankAccounts={organisationBankAccounts}
-          onSave={handleAddOrUpdateVoucher} 
+          onSave={handleAddOrUpdateVoucher}
           onCancel={closeDialogs}
           voucher={editingVoucher}
           financeHeaders={[]}
         />
       </Dialog>
-      
     </div>
   );
 };

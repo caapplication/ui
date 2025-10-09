@@ -21,8 +21,8 @@ export const getDashboardData = async (entityId, token, agencyId) => {
     return handleResponse(response);
 };
 
-export const getBeneficiaries = async (organisationId, token, skip = 0, limit = 100) => {
-    const response = await fetch(`${FINANCE_API_BASE_URL}/api/beneficiaries/?organisation_id=${organisationId}&skip=${skip}&limit=${limit}`, {
+export const getBeneficiaries = async (organizationId, token, skip = 0, limit = 100) => {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/beneficiaries/?organization_id=${organizationId}&skip=${skip}&limit=${limit}`, {
         headers: getAuthHeaders(token),
     });
     return handleResponse(response);
@@ -53,8 +53,8 @@ export const deleteBeneficiary = async (beneficiaryId, organisationId, token) =>
     return handleResponse(response);
 };
 
-export const getBeneficiary = async (beneficiaryId, organisationId, token) => {
-    const response = await fetch(`${FINANCE_API_BASE_URL}/api/beneficiaries/${beneficiaryId}?organisation_id=${organisationId}`, {
+export const getBeneficiary = async (beneficiaryId, organizationId, token) => {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/beneficiaries/${beneficiaryId}?organization_id=${organizationId}`, {
         headers: getAuthHeaders(token),
     });
     return handleResponse(response);
@@ -156,7 +156,7 @@ export const addInvoice = async (invoiceFormData, token) => {
 export const updateInvoice = async (invoiceId, invoiceFormData, token) => {
     const isFormData = invoiceFormData instanceof FormData;
     const response = await fetch(`${FINANCE_API_BASE_URL}/api/invoices/${invoiceId}/`, {
-        method: 'PATCH',
+        method: 'PUT',
         headers: getAuthHeaders(token, isFormData ? null : 'application/json'),
         body: isFormData ? invoiceFormData : JSON.stringify(invoiceFormData),
     });
@@ -294,17 +294,11 @@ export const exportVouchersToTallyXML = async (entityId, token) => {
 };
 
 export const getActivityLog = async (itemId, itemType, token) => {
-    console.log(`Fetching activity log for ${itemType} ${itemId} with token ${token}`);
-    // This is a mock implementation
-    return new Promise(resolve => {
-        setTimeout(() => {
-            resolve([
-                { id: 1, user: 'Admin User', action: 'Created', timestamp: '2023-10-27T10:00:00Z' },
-                { id: 2, user: 'Client User', action: 'Viewed', timestamp: '2023-10-27T11:30:00Z' },
-                { id: 3, user: 'Admin User', action: 'Edited Amount', timestamp: '2023-10-28T14:20:00Z' },
-            ]);
-        }, 500);
+    // Call the real backend API for activity logs (plural endpoint)
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/activity_logs/${itemType}/${itemId}`, {
+        headers: getAuthHeaders(token),
     });
+    return handleResponse(response);
 };
 
 export const getAccountantDashboardStats = async (token) => {

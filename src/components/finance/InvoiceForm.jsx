@@ -6,8 +6,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Plus, Loader2 } from 'lucide-react';
 import { DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { useAuth } from '@/hooks/useAuth';
 
 const InvoiceForm = ({ entityId, beneficiaries, isLoading, onSave, onCancel, invoice, financeHeaders }) => {
+    const { user } = useAuth();
     const isEditing = !!invoice;
     const today = new Date().toISOString().split('T')[0];
 
@@ -91,19 +93,21 @@ const InvoiceForm = ({ entityId, beneficiaries, isLoading, onSave, onCancel, inv
                      </div>
                 </div>
 
-                <div>
-                    <Label htmlFor="finance_header_id">Finance Header</Label>
-                    <Select name="finance_header_id" defaultValue={invoice?.finance_header_id}>
-                        <SelectTrigger><SelectValue placeholder="Select a header" /></SelectTrigger>
-                        <SelectContent>
-                            {(financeHeaders || []).map(header => (
-                                <SelectItem key={header.id} value={String(header.id)}>
-                                    {header.name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
+                {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
+                  <div>
+                      <Label htmlFor="finance_header_id">Finance Header</Label>
+                      <Select name="finance_header_id" defaultValue={invoice?.finance_header_id}>
+                          <SelectTrigger><SelectValue placeholder="Select a header" /></SelectTrigger>
+                          <SelectContent>
+                              {(financeHeaders || []).map(header => (
+                                  <SelectItem key={header.id} value={String(header.id)}>
+                                      {header.name}
+                                  </SelectItem>
+                              ))}
+                          </SelectContent>
+                      </Select>
+                  </div>
+                )}
 
                 <div className="space-y-2">
                     <Label>Taxes</Label>

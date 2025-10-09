@@ -1,5 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
+import { useAuth } from '@/hooks/useAuth.jsx';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -7,14 +8,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Plus, Loader2 } from 'lucide-react';
 import { DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { getBankAccountsForBeneficiary } from '@/lib/api';
 
 const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSave, onCancel, entityId, voucher, financeHeaders }) => {
     const isEditing = !!voucher;
-    
+    const { user } = useAuth();
+    const [orgBankAccounts, setOrgBankAccounts] = useState(organisationBankAccounts || []);
+
     const [voucherType, setVoucherType] = useState(voucher?.voucher_type || 'debit');
     const [paymentType, setPaymentType] = useState(voucher?.payment_type || '');
     const [selectedBeneficiaryId, setSelectedBeneficiaryId] = useState(voucher?.beneficiary_id || '');
-    
+
     useEffect(() => {
         if(voucher){
             setVoucherType(voucher.voucher_type);
@@ -22,6 +26,21 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
             setSelectedBeneficiaryId(voucher.beneficiary_id);
         }
     }, [voucher])
+
+    // Fetch organisation bank accounts when entityId changes (add flow)
+    useEffect(() => {
+        const fetchOrgAccounts = async () => {
+            if (!isEditing && entityId && user?.access_token) {
+                try {
+                    const accounts = await import('@/lib/api').then(api => api.getOrganisationBankAccounts(entityId, user.access_token));
+                    setOrgBankAccounts(accounts || []);
+                } catch (error) {
+                    setOrgBankAccounts([]);
+                }
+            }
+        };
+        fetchOrgAccounts();
+    }, [entityId, isEditing, user?.access_token]);
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -43,15 +62,42 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
         if (formData.get('voucher_type') === 'cash') {
             formData.set('payment_type', 'cash');
         }
+
+        // Remove finance_header_id for CLIENT_USER
+        if (user?.role === 'CLIENT_USER') {
+            formData.delete('finance_header_id');
+        }
         
         onSave(formData, voucher?.id);
     };
 
+    // Local state for beneficiary bank accounts (for add flow)
+    const [beneficiaryBankAccounts, setBeneficiaryBankAccounts] = useState([]);
+
+    useEffect(() => {
+        // Fetch beneficiary bank accounts when a beneficiary is selected (add flow)
+        const fetchAccounts = async () => {
+            if (selectedBeneficiaryId && !isEditing && user?.access_token) {
+                try {
+                    const accounts = await getBankAccountsForBeneficiary(selectedBeneficiaryId, user.access_token);
+                    setBeneficiaryBankAccounts(accounts || []);
+                } catch (error) {
+                    setBeneficiaryBankAccounts([]);
+                }
+            }
+        };
+        fetchAccounts();
+    }, [selectedBeneficiaryId, isEditing, user?.access_token]);
+
     const selectedBeneficiaryBankAccounts = useMemo(() => {
-        if (!selectedBeneficiaryId || !beneficiaries) return [];
-        const beneficiary = beneficiaries.find(b => String(b.id) === String(selectedBeneficiaryId));
-        return beneficiary?.bank_accounts || [];
-    }, [selectedBeneficiaryId, beneficiaries]);
+        if (isEditing) {
+            if (!selectedBeneficiaryId || !beneficiaries) return [];
+            const beneficiary = beneficiaries.find(b => String(b.id) === String(selectedBeneficiaryId));
+            return beneficiary?.bank_accounts || [];
+        } else {
+            return beneficiaryBankAccounts;
+        }
+    }, [selectedBeneficiaryId, beneficiaries, isEditing, beneficiaryBankAccounts]);
 
     return (
         <DialogContent className="max-w-3xl">
@@ -119,7 +165,7 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
                                     <Select name="from_bank_account_id" required defaultValue={voucher?.from_bank_account_id}>
                                         <SelectTrigger><SelectValue placeholder="Select your bank account" /></SelectTrigger>
                                         <SelectContent>
-                                            {(organisationBankAccounts || []).map(acc => (
+                                            {(isEditing ? (organisationBankAccounts || []) : orgBankAccounts).map(acc => (
                                                 <SelectItem key={acc.id} value={String(acc.id)}>
                                                    {acc.bank_name} - ...{String(acc.account_number).slice(-4)}
                                                 </SelectItem>
@@ -159,6 +205,7 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
                     {isEditing && voucher?.attachment_id && <p className="text-xs text-gray-400 mt-1">Leave empty to keep existing attachment.</p>}
                 </div>
 
+                {user?.role !== 'CLIENT_USER' && (
                 <div>
                     <Label htmlFor="finance_header_id">Finance Header</Label>
                     <Select name="finance_header_id" defaultValue={voucher?.finance_header_id}>
@@ -172,6 +219,7 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
                         </SelectContent>
                     </Select>
                 </div>
+                )}
 
                 <div>
                     <Label htmlFor="remarks">Remarks</Label>

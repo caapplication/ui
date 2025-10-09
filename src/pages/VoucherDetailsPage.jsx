@@ -145,21 +145,44 @@ const VoucherDetailsPage = () => {
 
     useEffect(() => {
         const fetchData = async () => {
-            if (user?.access_token && organisationId) {
-                try {
-                    const [beneficiariesData, fromAccountsData] = await Promise.all([
-                        getBeneficiaries(organisationId, user.access_token),
-                        getOrganisationBankAccounts(organisationId, user.access_token)
-                    ]);
-                    setBeneficiaries(beneficiariesData || []);
-                    setFromBankAccounts(fromAccountsData || []);
-                } catch (error) {
-                    toast({ title: 'Error', description: 'Failed to fetch initial data.', variant: 'destructive' });
+            let orgIdsToTry = [];
+            if (organisationId) orgIdsToTry.push(organisationId);
+            if (voucher?.entity_id && !orgIdsToTry.includes(voucher.entity_id)) orgIdsToTry.push(voucher.entity_id);
+            if (user?.organization_id && !orgIdsToTry.includes(user.organization_id)) orgIdsToTry.push(user.organization_id);
+
+            let beneficiariesData = [];
+            let fromAccountsData = [];
+            let found = false;
+
+            if (user?.access_token && orgIdsToTry.length > 0) {
+                for (const orgId of orgIdsToTry) {
+                    try {
+                        const [bData, fData] = await Promise.all([
+                            getBeneficiaries(orgId, user.access_token),
+                            getOrganisationBankAccounts(orgId, user.access_token)
+                        ]);
+                        if (bData && bData.length > 0) {
+                            beneficiariesData = bData;
+                            fromAccountsData = fData || [];
+                            found = true;
+                            break;
+                        }
+                    } catch (error) {
+                        // Try next orgId
+                        continue;
+                    }
                 }
+                setBeneficiaries(beneficiariesData || []);
+                setFromBankAccounts(fromAccountsData || []);
+                if (!found) {
+                    toast({ title: 'No Beneficiaries', description: 'No beneficiaries found for this voucher. Please check your organization/entity setup.', variant: 'destructive' });
+                }
+            } else {
+                toast({ title: 'Error', description: 'No valid organization or entity ID for fetching beneficiaries.', variant: 'destructive' });
             }
         };
         fetchData();
-    }, [user, organisationId, toast]);
+    }, [user, organisationId, voucher, toast]);
 
     useEffect(() => {
         const fetchToAccounts = async () => {
