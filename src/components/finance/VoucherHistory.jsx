@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/ui/use-toast';
 import { useNavigate } from 'react-router-dom';
-import { getVoucherAttachment } from '@/lib/api';
+import { getVoucherAttachment, updateVoucher } from '@/lib/api';
+import { getFinanceHeaders } from '@/lib/api/settings';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -21,21 +22,44 @@ const formatDate = (dateString) => {
     };
 };
 
-const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVoucher, isAccountantView }) => {
+import { Check } from 'lucide-react';
+
+const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVoucher, isAccountantView, onRefresh }) => {
   const [voucherSearchTerm, setVoucherSearchTerm] = useState('');
   const [voucherToDelete, setVoucherToDelete] = useState(null);
   const [voucherTypeFilter, setVoucherTypeFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
+  const [financeHeaders, setFinanceHeaders] = useState([]);
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchHeaders = async () => {
+      if (user && (user.role === 'CA_ACCOUNTANT' || user.role === 'CA_TEAM')) {
+        try {
+          const headers = await getFinanceHeaders(user.agency_id, user.access_token);
+          setFinanceHeaders(headers);
+        } catch (error) {
+          toast({
+            title: 'Error',
+            description: `Failed to fetch finance headers: ${error.message}`,
+            variant: 'destructive',
+          });
+        }
+      }
+    };
+    fetchHeaders();
+  }, [user, toast]);
 
   const sortedAndFilteredVouchers = useMemo(() => {
     let sortableVouchers = [...(vouchers || [])];
 
     sortableVouchers.sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
 
-    return sortableVouchers.filter(v => {
+    const unexportedVouchers = sortableVouchers.filter(v => !v.is_exported);
+
+    return unexportedVouchers.filter(v => {
       const searchTermMatch = (v.beneficiaryName && v.beneficiaryName.toLowerCase().includes(voucherSearchTerm.toLowerCase()));
       const typeFilterMatch = voucherTypeFilter === 'all' || v.voucher_type === voucherTypeFilter;
       return searchTermMatch && typeFilterMatch;
@@ -96,6 +120,7 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                         <TableHead>Type</TableHead>
                         <TableHead>Amount</TableHead>
                         <TableHead>Remarks</TableHead>
+                        {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && <TableHead>Header</TableHead>}
                         {isAccountantView && <TableHead>Ready for Export</TableHead>}
                         <TableHead>Actions</TableHead>
                     </TableRow>
@@ -113,6 +138,39 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                                 <TableCell><span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${voucher.voucher_type === 'cash' ? 'bg-green-500/20 text-green-300' : 'bg-pink-500/20 text-pink-300'}`}>{voucher.voucher_type}</span></TableCell>
                                 <TableCell>₹{parseFloat(voucher.amount).toFixed(2)}</TableCell>
                                 <TableCell>{voucher.remarks || 'N/A'}</TableCell>
+                                {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
+                                  <TableCell>
+                                    {voucher.is_ready ? (
+                                      <span>{financeHeaders.find(h => h.id === voucher.finance_header_id)?.name || 'N/A'}</span>
+                                    ) : (
+                                      <Select
+                                        value={voucher.finance_header_id || ''}
+                                        onValueChange={(value) => {
+                                          const selectedHeader = financeHeaders.find(h => h.id === value);
+                                          updateVoucher(voucher.id, { finance_header_id: selectedHeader.id }, user.access_token)
+                                            .then(() => {
+                                              toast({ title: 'Success', description: 'Voucher header updated.' });
+                                              if (onRefresh) onRefresh();
+                                            })
+                                            .catch(err => {
+                                              toast({ title: 'Error', description: `Failed to update voucher header: ${err.message}`, variant: 'destructive' });
+                                            });
+                                        }}
+                                      >
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Select header" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {financeHeaders.map(header => (
+                                            <SelectItem key={header.id} value={header.id}>
+                                              {header.name}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    )}
+                                  </TableCell>
+                                )}
                                 {isAccountantView && (
                                     <TableCell>
                                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${voucher.is_ready ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'}`}>
@@ -125,25 +183,46 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                                         <Button variant="ghost" size="icon" onClick={() => onViewVoucher(voucher)} className="text-gray-400 hover:text-gray-300">
                                             <Eye className="w-5 h-5" />
                                         </Button>
-                                        <AlertDialog>
-                                          <AlertDialogTrigger asChild>
-                                            <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={() => setVoucherToDelete(voucher.id)}>
-                                              <Trash2 className="w-4 h-4" />
-                                            </Button>
-                                          </AlertDialogTrigger>
-                                          <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                              <AlertDialogDescription>
-                                                This action cannot be undone. This will permanently delete the voucher.
-                                              </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                              <AlertDialogCancel onClick={() => setVoucherToDelete(null)}>Cancel</AlertDialogCancel>
-                                              <AlertDialogAction onClick={() => { onDeleteVoucher(voucherToDelete); setVoucherToDelete(null); }}>Delete</AlertDialogAction>
-                                            </AlertDialogFooter>
-                                          </AlertDialogContent>
-                                        </AlertDialog>
+                                        {!voucher.is_ready && voucher.finance_header_id && (user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
+                                          <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className="text-green-400 hover:text-green-300"
+                                            onClick={() => {
+                                              updateVoucher(voucher.id, { is_ready: true }, user.access_token)
+                                                .then(() => {
+                                                  toast({ title: 'Success', description: 'Voucher marked as ready.' });
+                                                  if (onRefresh) onRefresh();
+                                                })
+                                                .catch(err => {
+                                                  toast({ title: 'Error', description: `Failed to mark voucher as ready: ${err.message}`, variant: 'destructive' });
+                                                });
+                                            }}
+                                          >
+                                            <Check className="w-4 h-4" />
+                                          </Button>
+                                        )}
+                                        {!voucher.is_exported && (
+                                          <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                              <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={() => setVoucherToDelete(voucher.id)}>
+                                                <Trash2 className="w-4 h-4" />
+                                              </Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                              <AlertDialogHeader>
+                                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                  This action cannot be undone. This will permanently delete the voucher.
+                                                </AlertDialogDescription>
+                                              </AlertDialogHeader>
+                                              <AlertDialogFooter>
+                                                <AlertDialogCancel onClick={() => setVoucherToDelete(null)}>Cancel</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => { onDeleteVoucher(voucherToDelete); setVoucherToDelete(null); }}>Delete</AlertDialogAction>
+                                              </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                          </AlertDialog>
+                                        )}
                                     </div>
                                 </TableCell>
                             </TableRow>

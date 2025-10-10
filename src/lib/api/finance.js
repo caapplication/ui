@@ -1,6 +1,6 @@
 import { getAuthHeaders, handleResponse } from './utils';
 
-const FINANCE_API_BASE_URL = 'http://localhost:8004';
+const FINANCE_API_BASE_URL = 'https://finance-api.fynivo.in';
 
 export const getEntities = async (token) => {
     const response = await fetch(`${FINANCE_API_BASE_URL}/api/entities/`, {
@@ -155,7 +155,7 @@ export const addInvoice = async (invoiceFormData, token) => {
 
 export const updateInvoice = async (invoiceId, invoiceFormData, token) => {
     const isFormData = invoiceFormData instanceof FormData;
-    const response = await fetch(`${FINANCE_API_BASE_URL}/api/invoices/${invoiceId}/`, {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/invoices/${invoiceId}`, {
         method: 'PATCH',
         headers: getAuthHeaders(token, isFormData ? null : 'application/json'),
         body: isFormData ? invoiceFormData : JSON.stringify(invoiceFormData),
@@ -202,9 +202,9 @@ export const addVoucher = async (voucherFormData, token) => {
     return handleResponse(response);
 };
 
-export const updateVoucher = async (voucherId, voucherData, token, entityId) => {
+export const updateVoucher = async (voucherId, voucherData, token) => {
     const isFormData = voucherData instanceof FormData;
-    const response = await fetch(`${FINANCE_API_BASE_URL}/api/vouchers/${voucherId}?entity_id=${entityId}`, {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/vouchers/${voucherId}`, {
         method: 'PATCH',
         headers: getAuthHeaders(token, isFormData ? null : 'application/json'),
         body: isFormData ? voucherData : JSON.stringify(voucherData),
