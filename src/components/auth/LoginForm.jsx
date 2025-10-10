@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useToast } from '@/components/ui/use-toast';
-import { LogIn, Mail, Lock, ShieldCheck, KeyRound, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, ShieldCheck, KeyRound, Eye, EyeOff } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 const LoginForm = () => {
@@ -90,7 +90,7 @@ const LoginForm = () => {
                 transition={{ delay: 0.3, type: "spring", stiffness: 150, duration: 1 }}
                 className="mx-auto mb-4 w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg shadow-blue-500/30"
               >
-                <LogIn className="w-10 h-10 text-white" />
+                <img src="/logo.png" alt="logo" className="w-10 h-10" />
               </motion.div>
               <CardTitle className="text-3xl font-bold gradient-text">Welcome Back</CardTitle>
               <CardDescription className="text-gray-300">
