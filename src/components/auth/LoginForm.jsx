@@ -74,7 +74,8 @@ const LoginForm = () => {
 
   return (
     <>
-      <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="min-h-screen flex items-center justify-center p-4 relative">
+        <div className="animated-bg"></div>
         <motion.div
           initial={{ opacity: 0, scale: 0.9, y: 50 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -155,6 +156,11 @@ const LoginForm = () => {
             </CardContent>
           </Card>
         </motion.div>
+        <div className="absolute bottom-4 left-0 w-full text-center">
+          <p className="text-base text-gray-400 font-medium">
+            © 2025 fynivo by Snolep Private Limited. All rights reserved.
+          </p>
+        </div>
       </div>
 
       <Dialog open={showOtpDialog} onOpenChange={setShowOtpDialog}>

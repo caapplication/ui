@@ -9,6 +9,7 @@ import {
   Loader2,
   RefreshCw,
   Download,
+  Landmark,
 } from 'lucide-react';
 import { Dialog } from '@/components/ui/dialog';
 import {
@@ -53,7 +54,7 @@ import VoucherForm from '@/components/finance/VoucherForm';
 import InvoiceHistory from '@/components/finance/InvoiceHistory';
 import VoucherHistory from '@/components/finance/VoucherHistory';
 
-const Finance = ({ quickAction, clearQuickAction }) => {
+const ClientFinance = ({ quickAction, clearQuickAction }) => {
   const [showInvoiceDialog, setShowInvoiceDialog] = useState(false);
   const [showVoucherDialog, setShowVoucherDialog] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState(null);
@@ -289,50 +290,39 @@ const Finance = ({ quickAction, clearQuickAction }) => {
           {/* Top Line: Finance + Filters */}
           <div className="flex flex-wrap justify-between items-center gap-4">
             {/* Finance Title + Icon */}
-            <div className="flex items-center gap-4">
-              <div className="bg-primary/10 p-3 rounded-xl">
-                <Landmark className="w-8 h-8 text-primary" />
-              </div>
-              <h1 className="text-3xl sm:text-5xl font-bold text-white">Finance</h1>
+          <div className="flex items-center gap-4">
+            <div className="bg-primary/10 p-3 rounded-xl">
+              <Landmark className="w-8 h-8 text-primary" />
             </div>
+            <h1 className="text-3xl sm:text-5xl font-bold text-white">Finance</h1>
+            {/* Removed Add Voucher and Add Invoice buttons as per user request */}
+          </div>
 
-            {/* Organisation + Entity Dropdowns + Refresh */}
+            {/* Refresh Button and Add Dropdown */}
             <div className="flex flex-wrap items-center gap-2">
-              <Select value={selectedOrg || ''} onValueChange={handleOrgChange}>
-                <SelectTrigger className="w-[180px] h-9 text-sm bg-[#1E2A47] text-white border border-gray-600">
-                  <SelectValue placeholder="Select organisation" />
-                </SelectTrigger>
-                <SelectContent>
-                  {organisations.map(org => (
-                    <SelectItem key={org.id} value={org.id}>{org.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select
-                value={selectedEntity || ''}
-                onValueChange={setSelectedEntity}
-                disabled={!selectedOrg}
-              >
-                <SelectTrigger className="w-[180px] h-9 text-sm bg-[#1E2A47] text-white border border-gray-600">
-                  <SelectValue placeholder="Select entity" />
-                </SelectTrigger>
-                <SelectContent>
-                  {entities.length > 1 && <SelectItem value="all">All Entities</SelectItem>}
-                  {entities.map(entity => (
-                    <SelectItem key={entity.id} value={entity.id}>{entity.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
               <Button
                 variant="outline"
                 size="icon"
                 onClick={() => fetchData(true)}
-                disabled={isRefreshing || !selectedOrg}
+                disabled={isRefreshing}
               >
                 <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
               </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="default" className="ml-2">
+                    + Add New
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setShowVoucherDialog(true)}>
+                    Voucher
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setShowInvoiceDialog(true)}>
+                    Invoice
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
 
@@ -423,4 +413,4 @@ const Finance = ({ quickAction, clearQuickAction }) => {
   );
 };
 
-export default Finance;
+export default ClientFinance;

@@ -10,7 +10,7 @@ import React, { useState, useEffect, useCallback } from 'react';
     import EntitySidebar from '@/components/layout/EntitySidebar';
     import Dashboard from '@/components/dashboard/Dashboard';
     import Documents from '@/components/documents/Documents';
-    import Finance from '@/components/finance/Finance';
+    import ClientFinance from '@/components/finance/ClientFinance';
     import FinancePage from '@/pages/FinancePage';
     import Beneficiaries from '@/components/beneficiaries/Beneficiaries';
     import OrganisationBank from '@/components/organisation/OrganisationBank.jsx';
@@ -34,6 +34,10 @@ import InvoiceDetailsPage from '@/pages/InvoiceDetailsPage.jsx';
 import VoucherDetailsPage from '@/pages/VoucherDetailsPage.jsx';
 import VoucherDetailsCAPage from '@/pages/VoucherDetailsCA.jsx';
 import BeneficiaryDetailsPage from '@/pages/BeneficiaryDetailsPage.jsx';
+import ComingSoon from './pages/ComingSoon.jsx';
+import UpcomingDocuments from './pages/UpcomingDocuments.jsx';
+import UpcomingTask from './pages/UpcomingTask.jsx';
+import UpcomingServices from './pages/UpcomingServices.jsx';
 
     const ProtectedContent = () => {
       const { user } = useAuth();
@@ -136,7 +140,7 @@ import BeneficiaryDetailsPage from '@/pages/BeneficiaryDetailsPage.jsx';
             <div className="flex-1 overflow-y-auto">
               <Routes>
                 <Route path="/" element={(user.role === 'CA_ACCOUNTANT' || user.role === 'CA_TEAM') ? <AccountantDashboard /> : <Dashboard entityId={currentEntity} entityName={getEntityName(currentEntity)} onQuickAction={() => {}} organisationBankAccounts={organisationBankAccounts} />} />
-                <Route path="/finance/*" element={user.role === 'CLIENT_USER' ? <Finance entityName={getEntityName(currentEntity)} organisationBankAccounts={organisationBankAccounts} quickAction={null} clearQuickAction={() => {}} entityId={currentEntity} organizationName={user?.organization_name} /> : <FinancePage />} />
+                <Route path="/finance/*" element={user.role === 'CLIENT_USER' ? <ClientFinance entityName={getEntityName(currentEntity)} organisationBankAccounts={organisationBankAccounts} quickAction={null} clearQuickAction={() => {}} entityId={currentEntity} organizationName={user?.organization_name} /> : <FinancePage />} />
                 <Route path="/documents" element={<Documents entityId={currentEntity} quickAction={null} clearQuickAction={() => {}} />} />
                 <Route path="/beneficiaries" element={<Beneficiaries quickAction={null} clearQuickAction={() => {}} />} />
                 <Route path="/organisation-bank" element={<OrganisationBank entityId={currentEntity} entityName={getEntityName(currentEntity)} quickAction={null} clearQuickAction={() => {}} />} />
@@ -153,6 +157,10 @@ import BeneficiaryDetailsPage from '@/pages/BeneficiaryDetailsPage.jsx';
                 <Route path="/vouchers/:voucherId" element={<VoucherDetailsPage />} />
                 <Route path="/vouchers/ca/:voucherId" element={<VoucherDetailsCAPage />} />
                 <Route path="/beneficiaries/:beneficiaryId" element={<BeneficiaryDetailsPage />} />
+                <Route path="/coming-soon" element={<ComingSoon />} />
+                <Route path="/upcoming/documents" element={<UpcomingDocuments />} />
+                <Route path="/upcoming/task" element={<UpcomingTask />} />
+                <Route path="/upcoming/services" element={<UpcomingServices />} />
               </Routes>
             </div>
           </main>

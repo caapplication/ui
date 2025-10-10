@@ -20,7 +20,7 @@ import { useAuth } from '@/hooks/useAuth.jsx';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useMediaQuery } from '@/hooks/useMediaQuery.jsx';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { Dialog as InfoDialog } from '@/components/ui/dialog';
 
@@ -66,9 +66,7 @@ const AccountantSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) =
 
   const handleToggleCollapse = () => setIsCollapsed(!isCollapsed);
 
-  // Info dialog state
-  const [infoOpen, setInfoOpen] = useState(false);
-  const [infoContent, setInfoContent] = useState('');
+  // No click state needed for hover info
 
   // Upcoming dropdown state
   const [upcomingOpen, setUpcomingOpen] = useState(false);
@@ -85,6 +83,7 @@ const AccountantSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) =
     setInfoOpen(true);
   };
 
+  const navigate = useNavigate();
   const sidebarContent = (
     <div className={`h-full glass-pane flex flex-col p-4`}>
       <div className="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar">
@@ -170,12 +169,22 @@ const AccountantSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) =
                   const active = isActive(item.path);
                   return (
                     <li key={item.id} className="group relative">
-                      <div className="flex">
-                        <Link to={item.path} className="flex-1">
+                      <div>
+                        <div className="flex">
                           <Button
                             variant="ghost"
-                            className={`w-full justify-start text-left h-12 relative ${active ? 'text-white' : 'text-gray-300'}`}
+                            className={`flex-1 w-full justify-start text-left h-12 relative ${active ? 'text-white' : 'text-gray-300'}`}
                             title={isCollapsed ? item.label : ''}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              if (item.id === "documents") {
+                                navigate('/upcoming/documents');
+                              } else if (item.id === "task") {
+                                navigate('/upcoming/task');
+                              } else if (item.id === "services") {
+                                navigate('/upcoming/services');
+                              }
+                            }}
                           >
                             <AnimatePresence>
                             {active && (
@@ -195,19 +204,24 @@ const AccountantSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) =
                               )}
                             </AnimatePresence>
                           </Button>
-                        </Link>
-                        {/* Info icon */}
+                        {/* Info icon with hover to show message */}
                         {!isCollapsed && (
-                          <button
-                            type="button"
-                            className="ml-2 text-gray-400 hover:text-blue-400 focus:outline-none"
-                            onClick={() => handleUpcomingInfo(item)}
-                            tabIndex={-1}
-                            aria-label={`Info about ${item.label}`}
-                          >
-                            <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/><rect x="11" y="10" width="2" height="6" rx="1" fill="currentColor"/><rect x="11" y="7" width="2" height="2" rx="1" fill="currentColor"/></svg>
-                          </button>
+                          <div className="relative flex items-center ml-2 group/info">
+                            <button
+                              type="button"
+                              className="text-gray-400 hover:text-blue-400 focus:outline-none flex items-center"
+                              tabIndex={-1}
+                              aria-label={`Info about ${item.label}`}
+                            >
+                              <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/><rect x="11" y="10" width="2" height="6" rx="1" fill="currentColor"/><rect x="11" y="7" width="2" height="2" rx="1" fill="currentColor"/></svg>
+                            </button>
+                            {/* Inline info message on hover */}
+                            <div className="absolute left-1/2 z-50 -translate-x-1/2 mt-2 w-56 rounded bg-gray-900/90 text-xs text-gray-200 border border-white/10 shadow opacity-0 group-hover/info:opacity-100 pointer-events-none transition-opacity duration-200">
+                              {upcomingInfo[item.id] || "More information coming soon."}
+                            </div>
+                          </div>
                         )}
+                      </div>
                       </div>
                     </li>
                   );
@@ -248,13 +262,7 @@ const AccountantSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) =
             </AnimatePresence>
           </Button>
       </div>
-      {/* Info dialog for sidebar items */}
-      <InfoDialog open={infoOpen} onOpenChange={setInfoOpen}>
-        <div className="p-6">
-          <h2 className="text-lg font-semibold mb-2">Info</h2>
-          <p className="text-gray-200">{infoContent}</p>
-        </div>
-      </InfoDialog>
+      {/* Info dialog for upcoming sidebar items removed as per user request */}
     </div>
   );
 
