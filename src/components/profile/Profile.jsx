@@ -156,7 +156,7 @@ const Profile = () => {
         setIsSubmitting(true);
         try {
             const response = await uploadProfilePicture(file, user.access_token);
-            updateUser({ photo_url: response.photo_url });
+            updateUser({ ...user, photo_url: response.photo_url });
             toast({ title: "Success", description: "Profile picture updated successfully." });
         } catch (error) {
             toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -187,7 +187,7 @@ const Profile = () => {
                             <CardContent className="pt-6 flex flex-col items-center text-center">
                                 <div className="relative mb-4">
                                     <Avatar className="w-32 h-32 text-4xl border-4 border-white/20">
-                                        <AvatarImage src={user?.photo_url} alt={user?.name} />
+                                        <AvatarImage src={user?.photo_url} alt={user?.name} key={user?.photo_url} />
                                         <AvatarFallback className="bg-gradient-to-br from-sky-500 to-indigo-600 text-white">
                                             {user?.name?.charAt(0).toUpperCase() || user?.sub?.charAt(0).toUpperCase()}
                                         </AvatarFallback>
@@ -255,7 +255,7 @@ const Profile = () => {
                                     </div>
                                     <div>
                                         <Label htmlFor="confirm-password">Confirm New Password</Label>
-                                        <PasswordInput id="confirm-password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.targe.value)} />
+                                        <PasswordInput id="confirm-password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
                                     </div>
                                     <div className="flex justify-end">
                                         <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Updating...' : 'Update Password'}</Button>

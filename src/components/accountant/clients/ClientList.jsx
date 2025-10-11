@@ -253,49 +253,24 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
                 <Table>
                     <TableHeader>
                         <TableRow className="border-b border-white/10">
-                            <TableHead className="w-[50px]">
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" className="p-0 h-auto">
-                                            <Checkbox 
-                                                checked={headerCheckboxState}
-                                                onCheckedChange={handleSelectAllOnPage}
-                                            />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent>
-                                        <DropdownMenuItem onSelect={handleSelectAllOnPage.bind(null, true)}>Select all on this page</DropdownMenuItem>
-                                        <DropdownMenuItem onSelect={handleSelectAllMatchingFilters}>Select all matching filters ({filteredClients.length})</DropdownMenuItem>
-                                        <DropdownMenuSeparator />
-                                        <DropdownMenuItem onSelect={handleDeselectAll} className="text-red-500">Select none</DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            </TableHead>
                             <TableHead>Photo</TableHead>
                             <TableHead>Customer ID</TableHead>
                             <TableHead>Name</TableHead>
                             <TableHead>Type</TableHead>
-                            <TableHead>Mobile</TableHead>
                             <TableHead>Organisation</TableHead>
-                            <TableHead>Tags</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead>Users</TableHead>
-                            <TableHead className="w-[50px]"><Button variant="ghost" size="icon"><Settings2 className="w-5 h-5" /></Button></TableHead>
+                            <TableHead>Tags</TableHead>
+                            <TableHead className="w-[50px]"></TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {paginatedClients.map(client => (
                             <TableRow 
-                                key={client.id} 
+                                key={client.id}
                                 className={cn("border-none hover:bg-white/5 cursor-pointer", selectedClients.includes(client.id) && "bg-primary/10")}
                                 onClick={() => onViewClient(client)}
                             >
-                                <TableCell onClick={(e) => e.stopPropagation()}>
-                                    <Checkbox 
-                                        checked={selectedClients.includes(client.id)}
-                                        onCheckedChange={() => handleSelectClient(client.id)}
-                                    />
-                                </TableCell>
                                 <TableCell>
                                     <Avatar>
                                         <AvatarImage src={client.photo} />
@@ -306,30 +281,11 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
                                 <TableCell><span className="text-blue-400 hover:underline">{client.name}</span></TableCell>
                                 <TableCell>{client.client_type}</TableCell>
                                 <TableCell>
-                                    <div className="flex items-center gap-2">
-                                        {client.mobile}
-                                        <Phone className="w-3 h-3 text-green-400 cursor-pointer" onClick={(e) => { e.stopPropagation(); handleNotImplemented(); }} />
-                                        <MessageSquare className="w-3 h-3 text-blue-400 cursor-pointer" onClick={(e) => { e.stopPropagation(); handleNotImplemented(); }} />
-                                    </div>
+                                    {client.organization_name || '-'}
                                 </TableCell>
                                 <TableCell>
-                                    <div className="flex flex-col">
-                                        <span>{client.organization_name || '-'}</span>
-                                        {client.user_id && (
-                                            <span className="text-xs text-green-400 flex items-center gap-1">
-                                                <UserCheck className="w-3 h-3" /> User Assigned
-                                            </span>
-                                        )}
-                                    </div>
+                                    {client.is_active ? <Badge variant="success">Active</Badge> : <Badge variant="destructive">Inactive</Badge>}
                                 </TableCell>
-                                <TableCell>
-                                    {Array.isArray(client.tags) && client.tags.length > 0
-                                        ? client.tags.map(tag => (
-                                            <Badge key={tag.id} style={{ backgroundColor: tag.color }} className="mr-1 text-black">{tag.name}</Badge>
-                                          ))
-                                        : '-'}
-                                </TableCell>
-                                <TableCell><Badge variant={client.is_active ? 'success' : 'destructive'}>{client.is_active ? 'Active' : 'Inactive'}</Badge></TableCell>
                                 <TableCell>
                                     <div className="flex -space-x-2">
                                         {client.orgUsers &&
@@ -342,33 +298,8 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
                                         }
                                     </div>
                                 </TableCell>
-                                <TableCell onClick={(e) => e.stopPropagation()}>
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="icon"><MoreVertical className="w-4 h-4" /></Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent>
-                                            <DropdownMenuItem onClick={() => onViewClient(client)}>View Details</DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => onEditClient(client)}>Edit</DropdownMenuItem>
-                                             <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-500">Delete</DropdownMenuItem>
-                                                </AlertDialogTrigger>
-                                                <AlertDialogContent>
-                                                    <AlertDialogHeader>
-                                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                        <AlertDialogDescription>
-                                                            This will permanently delete the client <span className="font-bold text-white">{client.name}</span>.
-                                                        </AlertDialogDescription>
-                                                    </AlertDialogHeader>
-                                                    <AlertDialogFooter>
-                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={() => onDeleteClient(client.id)} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
-                                                    </AlertDialogFooter>
-                                                </AlertDialogContent>
-                                            </AlertDialog>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
+                                <TableCell>
+                                    -
                                 </TableCell>
                             </TableRow>
                         ))}

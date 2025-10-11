@@ -6,6 +6,7 @@ import React, { useState, useEffect, useRef } from 'react';
     import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
     import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
     import { Calendar } from '@/components/ui/calendar';
+    import { DatePicker } from '@/components/ui/date-picker';
     import { ArrowLeft, CalendarPlus as CalendarIcon, Loader2, UploadCloud, User, X, Check } from 'lucide-react';
     import { format } from 'date-fns';
     import { cn } from '@/lib/utils';
@@ -310,16 +311,14 @@ import React, { useState, useEffect, useRef } from 'react';
                                         <Input id="contact_person_name" name="contact_person_name" value={formData.contact_person_name} onChange={handleChange} />
                                     </div>
                                     <div>
-                                        <Label htmlFor="date_of_birth">Date of Birth / Incorporation</Label>
-                                        <Popover>
-                                            <PopoverTrigger asChild>
-                                                <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formData.date_of_birth && "text-muted-foreground")}>
-                                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                                    {formData.date_of_birth ? format(new Date(formData.date_of_birth), "PPP") : <span>Pick a date</span>}
-                                                </Button>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={formData.date_of_birth ? new Date(formData.date_of_birth) : null} onSelect={(d) => handleDateChange('date_of_birth', d)} initialFocus /></PopoverContent>
-                                        </Popover>
+                                        <Label htmlFor="date_of_birth">Date of Establishment</Label>
+                                        <DatePicker
+                                            value={formData.date_of_birth}
+                                            onChange={(d) => handleDateChange('date_of_birth', d)}
+                                            captionLayout="dropdown-buttons"
+                                            fromYear={1900}
+                                            toYear={new Date().getFullYear()}
+                                        />
                                     </div>
                                  </div>
                             </div>

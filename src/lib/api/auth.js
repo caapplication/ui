@@ -77,9 +77,9 @@ export const verify2FA = async (otp, token) => {
 
 export const uploadProfilePicture = async (file, token) => {
     const formData = new FormData();
-    formData.append('photo', file);
+    formData.append('file', file);
     const response = await fetch(`${API_BASE_URL}/profile/photo`, {
-        method: 'PUT',
+        method: 'POST',
         headers: getAuthHeaders(token, null),
         body: formData
     });

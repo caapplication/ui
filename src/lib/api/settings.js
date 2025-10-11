@@ -124,7 +124,7 @@ export const deleteBusinessType = async (id, agencyId, token) => {
 };
 
 export const getFinanceHeaders = async (agencyId, token) => {
-    const response = await fetch(`${FINANCE_API_BASE_URL}/api/finance-headers/`, {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/finance-headers/?agency_id=${agencyId}`, {
         method: 'GET',
         headers: getAuthHeaders(token, 'application/json', agencyId),
     });

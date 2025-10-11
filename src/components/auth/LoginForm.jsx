@@ -90,7 +90,7 @@ const LoginForm = () => {
                 transition={{ delay: 0.3, type: "spring", stiffness: 150, duration: 1 }}
                 className="mx-auto mb-4 w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg shadow-blue-500/30"
               >
-                <img src="/logo.png" alt="logo" className="w-10 h-10" />
+                <img src="/logo.png" alt="logo" className="w-11 h-11" />
               </motion.div>
               <CardTitle className="text-3xl font-bold gradient-text">Welcome Back</CardTitle>
               <CardDescription className="text-gray-300">
@@ -158,7 +158,7 @@ const LoginForm = () => {
         </motion.div>
         <div className="absolute bottom-4 left-0 w-full text-center">
           <p className="text-base text-gray-400 font-medium">
-            © 2025 fynivo by Snolep Private Limited. All rights reserved.
+            ©️ 2025 Fynivo by Snolep. All rights reserved.
           </p>
         </div>
       </div>
