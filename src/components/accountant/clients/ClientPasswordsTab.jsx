@@ -162,6 +162,7 @@ const ClientPasswordsTab = ({ client }) => {
                             <TableHead>LOGIN PORTAL</TableHead>
                             <TableHead>USERNAME</TableHead>
                             <TableHead>PASSWORD</TableHead>
+                            <TableHead>NOTES</TableHead>
                             <TableHead className="text-right">ACTIONS</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -194,6 +195,9 @@ const ClientPasswordsTab = ({ client }) => {
                                             </Button>
                                             {isRevealed && <Copy className="w-4 h-4 cursor-pointer text-gray-400 hover:text-white" onClick={() => handleCopy(revealedPasswords[p.id], true)} />}
                                         </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <span className="whitespace-pre-line break-words text-gray-300">{p.notes || ''}</span>
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <DropdownMenu>

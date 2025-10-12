@@ -6,6 +6,7 @@ import React, { useState, useEffect, useCallback } from 'react';
     import LoginForm from '@/components/auth/LoginForm';
     import ForgotPassword from '@/components/auth/ForgotPassword';
     import ResetPassword from '@/components/auth/ResetPassword';
+import VerifyToken from '@/pages/VerifyToken.jsx';
     import Sidebar from '@/components/layout/Sidebar';
     import EntitySidebar from '@/components/layout/EntitySidebar';
     import Dashboard from '@/components/dashboard/Dashboard';
@@ -108,6 +109,8 @@ import UpcomingServices from './pages/UpcomingServices.jsx';
       let SidebarComponent;
       if (user.role === 'CA_ACCOUNTANT') {
         SidebarComponent = AccountantSidebar;
+      } else if (user.role === 'CA_TEAM') {
+        SidebarComponent = require('@/components/layout/TeamSidebar.jsx').default;
       } else if (user.role === 'ENTITY_USER') {
         SidebarComponent = EntitySidebar;
       } else {
@@ -192,6 +195,7 @@ import UpcomingServices from './pages/UpcomingServices.jsx';
                         <Route path="/login" element={<LoginForm />} />
                         <Route path="/forgot-password" element={<ForgotPassword />} />
                         <Route path="/reset-password" element={<ResetPassword />} />
+                        <Route path="/auth/verify" element={<VerifyToken />} />
                         <Route path="*" element={<Navigate to="/login" />} />
                     </>
                 )}

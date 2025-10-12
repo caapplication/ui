@@ -23,11 +23,11 @@ export const requestPasswordReset = async (email) => {
     return handleResponse(response);
 };
 
-export const confirmPasswordReset = async (token, newPassword) => {
+export const confirmPasswordReset = async (token, newPassword, confirmPassword) => {
     const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'accept': 'application/json' },
-        body: new URLSearchParams({ token, new_password: newPassword })
+        headers: { 'Content-Type': 'application/json', 'accept': 'application/json' },
+        body: JSON.stringify({ token, new_password: newPassword, confirm_password: confirmPassword })
     });
     return handleResponse(response);
 };
@@ -82,6 +82,39 @@ export const uploadProfilePicture = async (file, token) => {
         method: 'POST',
         headers: getAuthHeaders(token, null),
         body: formData
+    });
+    return handleResponse(response);
+};
+
+/**
+ * Verify a token (e.g., email verification, invite, etc.)
+ * @param {string} token
+ * @returns {Promise<any>}
+ */
+export const verifyToken = async (token) => {
+    const response = await fetch(`${API_BASE_URL}/auth/verify?token=${encodeURIComponent(token)}`, {
+        method: 'GET',
+        headers: { 'accept': 'application/json' }
+    });
+    return handleResponse(response);
+};
+
+/**
+ * Accept invitation or set password after token verification.
+ * @param {string} token
+ * @param {string} name
+ * @param {string} email
+ * @param {string} password
+ * @returns {Promise<any>}
+ */
+export const acceptInvitation = async (token, name, email, password) => {
+    const response = await fetch(`${API_BASE_URL}/auth/verify?token=${encodeURIComponent(token)}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'accept': 'application/json'
+        },
+        body: new URLSearchParams({ name, email, password })
     });
     return handleResponse(response);
 };

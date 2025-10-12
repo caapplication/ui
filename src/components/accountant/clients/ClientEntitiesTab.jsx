@@ -1,7 +1,9 @@
 import React from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
-const ClientEntitiesTab = ({ entities = [] }) => {
+import { Button } from '@/components/ui/button';
+
+const ClientEntitiesTab = ({ entities = [], onEditEntity, onDeleteEntity, isMutating }) => {
     return (
         <div className="glass-pane p-4 rounded-lg">
             <Table>
@@ -17,10 +19,25 @@ const ClientEntitiesTab = ({ entities = [] }) => {
                             <TableRow key={entity.id || entity.entity_id}>
                                 <TableCell>{entity.name}</TableCell>
                                 <TableCell>
-                                    {/* Placeholder for edit/delete actions */}
-                                    <span className="text-gray-400">Edit</span>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="text-blue-400 hover:text-blue-600"
+                                        onClick={() => onEditEntity && onEditEntity(entity)}
+                                        disabled={isMutating}
+                                    >
+                                        Edit
+                                    </Button>
                                     <span className="mx-2 text-gray-300">|</span>
-                                    <span className="text-red-400">Delete</span>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="text-red-400 hover:text-red-600"
+                                        onClick={() => onDeleteEntity && onDeleteEntity(entity)}
+                                        disabled={isMutating}
+                                    >
+                                        Delete
+                                    </Button>
                                 </TableCell>
                             </TableRow>
                         ))

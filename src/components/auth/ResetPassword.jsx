@@ -63,7 +63,7 @@ const ResetPassword = () => {
 
         setLoading(true);
         try {
-            await confirmPasswordReset(token, newPassword);
+            await confirmPasswordReset(token, newPassword, confirmPassword);
             toast({
                 title: "Success",
                 description: "Your password has been reset. Please log in with your new password.",

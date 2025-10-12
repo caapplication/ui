@@ -180,6 +180,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                     setClients(prev => [{ ...finalClient, availedServices: [] }, ...prev]);
                 }
                 setView('list');
+                fetchClientsAndServices();
             } catch (error) {
                 toast({
                     title: 'Error saving client',
