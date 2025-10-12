@@ -49,7 +49,7 @@ const ClientDashboardDetails = ({ client }) => {
     const ledgerBalanceType = client.opening_balance?.opening_balance_type || client.opening_balance_type;
     const balanceColor = ledgerBalanceType === 'credit' ? 'text-green-400' : ledgerBalanceType === 'debit' ? 'text-red-400' : 'text-white';
     
-    const clientEmail = client.contact?.email || client.email;
+    const clientEmail = client.email;
 
     return (
         <div className="space-y-6">
@@ -64,10 +64,9 @@ const ClientDashboardDetails = ({ client }) => {
                     <DetailItem label="PAN" value={client.pan || 'N/A'} />
                     <DetailItem label="Mobile No.">
                         <div className="flex items-center gap-2">
-                            {client.contact?.mobile || client.mobile || 'N/A'}
-                            {(client.contact?.mobile || client.mobile) && <>
-                                <Phone className="w-3 h-3 text-green-400 cursor-pointer" onClick={handleNotImplemented} />
-                                <MessageSquare className="w-3 h-3 text-blue-400 cursor-pointer" onClick={handleNotImplemented} />
+                            {client.mobile || 'N/A'}
+                            {client.mobile && <>
+                                
                             </>}
                         </div>
                     </DetailItem>
@@ -79,9 +78,9 @@ const ClientDashboardDetails = ({ client }) => {
                             </a>
                          ) : 'N/A'}
                     </DetailItem>
-                    <DetailItem label="City" value={client.contact?.city || client.city || 'N/A'} />
-                    <DetailItem label="Pincode" value={client.contact?.postal_code || client.postal_code || 'N/A'} />
-                    <DetailItem label="State" value={client.contact?.state || client.state || 'N/A'} />
+                    <DetailItem label="City" value={client.city || 'N/A'} />
+                    <DetailItem label="Pincode" value={client.postal_code || 'N/A'} />
+                    <DetailItem label="State" value={client.state || 'N/A'} />
                 </div>
                 
                 <div className="mt-6 pt-6 border-t border-white/10 grid grid-cols-1 md:grid-cols-2 gap-6">

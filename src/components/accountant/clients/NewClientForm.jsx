@@ -125,36 +125,31 @@ import React, { useState, useEffect, useRef } from 'react';
         const handleSubmit = async (e) => {
             e.preventDefault();
             setIsSaving(true);
-            
+
+            // Flatten contact and opening_balance fields to match backend expectations
             const dataToSave = {
+                is_active: formData.is_active,
                 name: formData.name,
                 client_type: formData.client_type,
                 organization_id: formData.organization_id,
                 pan: formData.pan,
                 gstin: formData.gstin,
-                dob: formData.date_of_birth ? format(formData.date_of_birth, 'yyyy-MM-dd') : null,
-                assigned_ca_user_id: formData.assigned_ca_user_id || null,
-                tag_ids: formData.tag_ids,
-                is_active: formData.is_active,
                 contact_person_name: formData.contact_person_name,
                 date_of_birth: formData.date_of_birth ? format(formData.date_of_birth, 'yyyy-MM-dd') : null,
-                contact: {
-                    mobile: formData.mobile,
-                    secondary_phone: formData.secondary_phone,
-                    email: formData.email,
-                    address_line1: formData.address_line1,
-                    address_line2: formData.address_line2,
-                    city: formData.city,
-                    state: formData.state,
-                    postal_code: formData.postal_code,
-                },
-                opening_balance: {
-                    amount: formData.opening_balance_amount ? parseFloat(formData.opening_balance_amount) : 0,
-                    opening_balance_type: formData.opening_balance_type,
-                    opening_balance_date: formData.opening_balance_date ? format(formData.opening_balance_date, 'yyyy-MM-dd') : null,
-                },
+                user_ids: [], // You may want to populate this if needed
+                tag_ids: formData.tag_ids,
+                mobile: formData.mobile,
+                secondary_phone: formData.secondary_phone,
+                email: formData.email,
+                address_line1: formData.address_line1,
+                address_line2: formData.address_line2,
+                city: formData.city,
+                postal_code: formData.postal_code,
+                state: formData.state,
+                opening_balance_date: formData.opening_balance_date ? format(formData.opening_balance_date, 'yyyy-MM-dd') : null,
+                opening_balance_amount: formData.opening_balance_amount ? parseFloat(formData.opening_balance_amount) : 0,
             };
-    
+
             await onSave(dataToSave);
             setIsSaving(false);
         };
