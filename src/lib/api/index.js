@@ -124,11 +124,15 @@ import { handleResponse, getAuthHeaders } from './utils';
       getPortals,
       createPortal,
       deletePortal,
-      getBusinessTypes,
-      createBusinessType,
-      updateBusinessType,
-      deleteBusinessType
-    } = settings;
+  getBusinessTypes,
+  createBusinessType,
+  updateBusinessType,
+  deleteBusinessType,
+  getFinanceHeaders,
+  createFinanceHeader,
+  updateFinanceHeader,
+  deleteFinanceHeader
+} = settings;
 
     export const {
       inviteTeamMember,
