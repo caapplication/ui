@@ -48,6 +48,15 @@ export const deleteTeamMember = async (member, token) => {
     return handleResponse(response);
 };
 
+export const resendInvite = async (email, token) => {
+    const response = await fetch(`${API_BASE_URL}/team/team-member/resend-invite`, {
+        method: 'POST',
+        headers: getAuthHeaders(token, 'application/x-www-form-urlencoded'),
+        body: new URLSearchParams({ email }),
+    });
+    return handleResponse(response);
+};
+
 export const listDepartments = async (agencyId, token) => {
     const response = await fetch(`${TASKS_API_BASE_URL}/departments`, {
         method: 'GET',

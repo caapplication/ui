@@ -124,6 +124,26 @@ import React, { useState, useEffect, useRef } from 'react';
     
         const handleSubmit = async (e) => {
             e.preventDefault();
+
+            const requiredFields = {
+                name: "Client Name",
+                client_type: "Client Type",
+                organization_id: "Group (Organisation)",
+                mobile: "Mobile No.",
+                email: "Email"
+            };
+
+            for (const [field, name] of Object.entries(requiredFields)) {
+                if (!formData[field]) {
+                    toast({
+                        title: "Missing Information",
+                        description: `${name} is a required field.`,
+                        variant: "destructive",
+                    });
+                    return;
+                }
+            }
+
             setIsSaving(true);
 
             // Flatten contact and opening_balance fields to match backend expectations
@@ -331,8 +351,8 @@ import React, { useState, useEffect, useRef } from 'react';
                                     <Input id="secondary_phone" name="secondary_phone" value={formData.secondary_phone} onChange={handleChange} />
                                 </div>
                                 <div>
-                                    <Label htmlFor="email">Email</Label>
-                                    <Input id="email" name="email" type="email" value={formData.email} onChange={handleChange} />
+                                    <Label htmlFor="email">Email*</Label>
+                                    <Input id="email" name="email" type="email" value={formData.email} onChange={handleChange} required />
                                 </div>
                                 <div className="md:col-span-2 lg:col-span-3">
                                     <Label htmlFor="address_line1">Address Line 1</Label>

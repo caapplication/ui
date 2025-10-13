@@ -154,6 +154,17 @@ export const deleteCaTeamMember = async (email, token) => {
     return handleResponse(response);
 };
 
+export const deleteInvitedOrgUser = async (email, token) => {
+    const response = await fetch(`${API_BASE_URL}/invites/organization-user?email=${encodeURIComponent(email)}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(token)
+    });
+    if (response.status === 204 || response.status === 200) {
+        return { success: true };
+    }
+    return handleResponse(response);
+};
+
 // Invite CA Team Member (matches curl format)
 export const inviteCaTeamMember = async (email, ca_id, token) => {
     const response = await fetch(`${API_BASE_URL}/invites/ca-team-member`, {

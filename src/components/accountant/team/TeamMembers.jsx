@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Plus, Edit, Trash2, UserPlus, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { listTeamMembers, inviteTeamMember, updateTeamMember, deleteTeamMember } from '@/lib/api';
+import { listTeamMembers, inviteTeamMember, updateTeamMember, deleteTeamMember, resendInvite } from '@/lib/api';
 
 const TeamMembers = () => {
     const [team, setTeam] = useState([]);
@@ -60,7 +60,7 @@ const TeamMembers = () => {
 
     const handleResendInvite = async (email) => {
         try {
-            await inviteTeamMember(email, user.id, user.access_token);
+            await resendInvite(email, user.access_token);
             toast({ title: "Success", description: `Invitation resent to ${email}.` });
         } catch (error) {
             toast({ title: "Error", description: `Failed to resend invite: ${error.message}`, variant: "destructive" });

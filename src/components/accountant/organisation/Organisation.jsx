@@ -303,10 +303,10 @@ const Organisation = () => {
             toast({ title: "Error", description: "Email cannot be empty.", variant: "destructive" });
             return;
         }
-        if (!user?.id || !user?.access_token) {
+        if (!selectedOrg?.id || !user?.access_token) {
             toast({
                 title: "❌ Missing Information",
-                description: "CA Account ID or access token is missing.",
+                description: "Organisation ID or access token is missing.",
                 variant: "destructive",
             });
             return;
@@ -314,13 +314,13 @@ const Organisation = () => {
 
         setIsSendingInvite(true);
         try {
-            await inviteCaTeamMember(inviteUserEmail, user.id, user.access_token);
+            await inviteOrganizationUser(selectedOrg.id, inviteUserEmail, user.agency_id, user.access_token);
             toast({
                 title: "✅ Invite Sent!",
-                description: `A password setup link has been sent to ${inviteUserEmail}.`,
+                description: `An invitation has been sent to ${inviteUserEmail}.`,
             });
             setShowInviteUserDialog(false);
-            if (selectedOrg?.id) fetchOrgDetails(selectedOrg.id);
+            fetchOrgDetails(selectedOrg.id);
         } catch (error) {
             toast({
                 title: "❌ Error",

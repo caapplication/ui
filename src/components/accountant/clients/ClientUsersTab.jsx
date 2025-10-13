@@ -4,15 +4,20 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Filter } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Filter, UserPlus } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { resendToken, deleteOrgUser, inviteOrganizationUser } from '@/lib/api/organisation';
+import { resendToken, deleteOrgUser, inviteOrganizationUser, deleteInvitedOrgUser } from '@/lib/api/organisation';
 import { useToast } from '@/components/ui/use-toast';
 
 const ClientUsersTab = ({ client }) => {
     const { user } = useAuth();
     const { toast } = useToast();
     const [loadingUserId, setLoadingUserId] = useState(null);
+    const [showInviteDialog, setShowInviteDialog] = useState(false);
+    const [inviteEmail, setInviteEmail] = useState('');
 
     const invitedUsers = (client.orgUsers?.invited_users || []).map(user => ({ ...user, status: 'Invited', role: 'CLIENT user' }));
     const joinedUsers = (client.orgUsers?.joined_users || []).map(user => ({ ...user, status: 'Joined', role: 'ENTITY USER' }));
@@ -42,13 +47,15 @@ const ClientUsersTab = ({ client }) => {
 
     // Handler for Delete User
     const handleDeleteUser = async (userObj) => {
-        setLoadingUserId(userObj.user_id);
+        setLoadingUserId(userObj.user_id || userObj.email);
         try {
-            if (client.organization_id && userObj.user_id && user?.access_token) {
+            if (userObj.status === 'Invited') {
+                await deleteInvitedOrgUser(userObj.email, user.access_token);
+            } else {
                 await deleteOrgUser(client.organization_id, userObj.user_id, user.access_token);
-                toast({ title: "User deleted", description: `User ${userObj.email} deleted.` });
-                // Optionally, trigger a refresh here (parent should refetch client/orgUsers)
             }
+            toast({ title: "User deleted", description: `User ${userObj.email} deleted.` });
+            window.location.reload();
         } catch (err) {
             toast({ title: "Error", description: err.message, variant: "destructive" });
         } finally {
@@ -56,9 +63,27 @@ const ClientUsersTab = ({ client }) => {
         }
     };
 
+    // Handler for Invite User
+    const handleInviteUser = async () => {
+        if (!inviteEmail.trim() || !inviteEmail.includes('@')) {
+            toast({ title: "Error", description: "Please enter a valid email.", variant: "destructive" });
+            return;
+        }
+        try {
+            await inviteOrganizationUser(client.organization_id, inviteEmail, user.agency_id, user.access_token);
+            toast({ title: "Success", description: `Invitation sent to ${inviteEmail}.` });
+            setShowInviteDialog(false);
+            setInviteEmail('');
+            // Optionally, trigger a refresh here
+        } catch (error) {
+            toast({ title: "Error", description: `Failed to send invite: ${error.message}`, variant: "destructive" });
+        }
+    };
+
     return (
         <div className="glass-pane p-4 rounded-lg">
-            <div className="flex justify-end mb-2">
+            <div className="flex justify-end mb-2 gap-2">
+                <Button onClick={() => setShowInviteDialog(true)}><UserPlus className="w-4 h-4 mr-2" /> Invite User</Button>
                 <Popover>
                     <PopoverTrigger asChild>
                         <Button variant="secondary" className="flex items-center gap-2">
@@ -106,7 +131,7 @@ const ClientUsersTab = ({ client }) => {
                         <TableHead>Email</TableHead>
                         <TableHead>Role</TableHead>
                         <TableHead>Status</TableHead>
-                        <TableHead>Actions</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -127,34 +152,52 @@ const ClientUsersTab = ({ client }) => {
                                     </Badge>
                                 </TableCell>
                                 <TableCell>
-                                    {user.status === 'Invited' ? (
-                                        <Button
-                                            variant="secondary"
-                                            size="sm"
-                                            disabled={loadingUserId === user.user_id}
-                                            onClick={e => {
-                                                e.stopPropagation();
-                                                handleResendInvite(user);
-                                            }}
-                                        >
-                                            {loadingUserId === user.user_id ? "Sending..." : "Resend Invite"}
-                                        </Button>
-                                    ) : (
-                                        <Button
-                                            variant="destructive"
-                                            size="sm"
-                                            disabled={loadingUserId === user.user_id}
-                                            onClick={e => {
-                                                e.stopPropagation();
-                                                handleDeleteUser(user);
-                                            }}
-                                        >
-                                            <span className="sr-only">Delete</span>
-                                            <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
-                                                <path d="M6 7h12M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2m2 0v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V7h12z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                            </svg>
-                                        </Button>
-                                    )}
+                                    <div className="flex gap-2 justify-end">
+                                        {user.status === 'Invited' ? (
+                                            <>
+                                                <Button
+                                                    variant="secondary"
+                                                    size="sm"
+                                                    disabled={loadingUserId === user.user_id}
+                                                    onClick={e => {
+                                                        e.stopPropagation();
+                                                        handleResendInvite(user);
+                                                    }}
+                                                >
+                                                    {loadingUserId === user.user_id ? "Sending..." : "Resend Invite"}
+                                                </Button>
+                                                <Button
+                                                    variant="destructive"
+                                                    size="sm"
+                                                    disabled={loadingUserId === user.user_id}
+                                                    onClick={e => {
+                                                        e.stopPropagation();
+                                                        handleDeleteUser(user);
+                                                    }}
+                                                >
+                                                    <span className="sr-only">Delete</span>
+                                                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
+                                                        <path d="M6 7h12M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2m2 0v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V7h12z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                    </svg>
+                                                </Button>
+                                            </>
+                                        ) : (
+                                            <Button
+                                                variant="destructive"
+                                                size="sm"
+                                                disabled={loadingUserId === user.user_id}
+                                                onClick={e => {
+                                                    e.stopPropagation();
+                                                    handleDeleteUser(user);
+                                                }}
+                                            >
+                                                <span className="sr-only">Delete</span>
+                                                <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
+                                                    <path d="M6 7h12M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2m2 0v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V7h12z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                </svg>
+                                            </Button>
+                                        )}
+                                    </div>
                                 </TableCell>
                             </TableRow>
                         ))
@@ -167,6 +210,24 @@ const ClientUsersTab = ({ client }) => {
                     )}
                 </TableBody>
             </Table>
+
+            <Dialog open={showInviteDialog} onOpenChange={setShowInviteDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Invite New User</DialogTitle>
+                    </DialogHeader>
+                    <div className="py-4 space-y-4">
+                        <div>
+                            <Label htmlFor="inviteEmail">Email Address</Label>
+                            <Input id="inviteEmail" type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} className="mt-2" placeholder="user@example.com" />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <DialogClose asChild><Button variant="ghost">Cancel</Button></DialogClose>
+                        <Button onClick={handleInviteUser}>Send Invite</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };

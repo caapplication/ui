@@ -148,6 +148,7 @@ export const {
     listTeamMembers,
     updateTeamMember,
     deleteTeamMember,
+    resendInvite,
     listDepartments
 } = team;
 
