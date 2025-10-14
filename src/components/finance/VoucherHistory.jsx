@@ -55,7 +55,7 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
   const sortedAndFilteredVouchers = useMemo(() => {
     let sortableVouchers = [...(vouchers || [])];
 
-    sortableVouchers.sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
+    sortableVouchers.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
     const unexportedVouchers = sortableVouchers.filter(v => !v.is_exported);
 

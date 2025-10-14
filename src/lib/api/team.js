@@ -12,8 +12,12 @@ export const inviteTeamMember = async (email, caId, token) => {
     return handleResponse(response);
 };
 
-export const listTeamMembers = async (token) => {
-    const response = await fetch(`${API_BASE_URL}/team/team-members`, {
+export const listTeamMembers = async (token, status = '') => {
+    let url = `${API_BASE_URL}/team/team-members`;
+    if (status) {
+        url += `?status=${status}`;
+    }
+    const response = await fetch(url, {
         method: 'GET',
         headers: getAuthHeaders(token),
     });
@@ -39,9 +43,7 @@ export const deleteTeamMember = async (member, token) => {
     if (member.id) {
         url = `${API_BASE_URL}/team/team-member/${member.id}`;
     } else {
-        url = `${API_BASE_URL}/invites/ca-team-member`;
-        options.headers['Content-Type'] = 'application/x-www-form-urlencoded';
-        options.body = new URLSearchParams({ email: member.email });
+        url = `${API_BASE_URL}/invites/ca-team-member?email=${encodeURIComponent(member.email)}`;
     }
 
     const response = await fetch(url, options);

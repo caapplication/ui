@@ -151,9 +151,11 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
                             <Select name="payment_type" required onValueChange={setPaymentType} value={paymentType}>
                                 <SelectTrigger><SelectValue placeholder="Select payment type" /></SelectTrigger>
                                 <SelectContent>
+                                    <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
                                     <SelectItem value="upi">UPI</SelectItem>
-                                    <SelectItem value="cash">Cash</SelectItem>
-                                    <SelectItem value="bank">Bank</SelectItem>
+                                    <SelectItem value="card">Card</SelectItem>
+                                    <SelectItem value="cheque">Cheque</SelectItem>
+                                    <SelectItem value="demand_draft">Demand Draft</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>

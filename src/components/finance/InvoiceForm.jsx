@@ -112,8 +112,8 @@ const InvoiceForm = ({ entityId, beneficiaries, isLoading, onSave, onCancel, inv
                 <div className="space-y-2">
                     <Label>Taxes</Label>
                     <div className="grid grid-cols-3 gap-4">
-                       <div><Label htmlFor="cgst" className="text-xs">CGST</Label><Input name="cgst" id="cgst" type="number" step="0.01" value={cgst} onChange={(e) => setCgst(e.target.value)} /></div>
-                       <div><Label htmlFor="sgst" className="text-xs">SGST</Label><Input name="sgst" id="sgst" type="number" step="0.01" value={sgst} onChange={(e) => setSgst(e.target.value)} /></div>
+                       <div><Label htmlFor="cgst" className="text-xs">CGST</Label><Input name="cgst" id="cgst" type="number" step="0.01" value={cgst} onChange={(e) => { setCgst(e.target.value); setSgst(e.target.value); }} /></div>
+                       <div><Label htmlFor="sgst" className="text-xs">SGST</Label><Input name="sgst" id="sgst" type="number" step="0.01" value={sgst} onChange={(e) => { setSgst(e.target.value); setCgst(e.target.value); }} /></div>
                        <div><Label htmlFor="igst" className="text-xs">IGST</Label><Input name="igst" id="igst" type="number" step="0.01" value={igst} onChange={(e) => setIgst(e.target.value)} /></div>
                     </div>
                 </div>

@@ -376,8 +376,11 @@ const VoucherDetailsPage = () => {
                                             <SelectValue placeholder="Select a payment method" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="cash">Cash</SelectItem>
-                                            <SelectItem value="bank">Bank</SelectItem>
+                                            <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                                            <SelectItem value="upi">UPI</SelectItem>
+                                            <SelectItem value="card">Card</SelectItem>
+                                            <SelectItem value="cheque">Cheque</SelectItem>
+                                            <SelectItem value="demand_draft">Demand Draft</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>

@@ -27,7 +27,7 @@ const DetailItem = ({ label, value, children }) => (
     </div>
 );
 
-const ClientDashboardDetails = ({ client }) => {
+const ClientDashboardDetails = ({ client, teamMembers = [] }) => {
     const { toast } = useToast();
     const [showLoginDialog, setShowLoginDialog] = useState(false);
 
@@ -83,26 +83,11 @@ const ClientDashboardDetails = ({ client }) => {
                     <DetailItem label="State" value={client.state || 'N/A'} />
                 </div>
                 
-                <div className="mt-6 pt-6 border-t border-white/10 grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <div className="flex items-center justify-between">
-                            <Label htmlFor="allow-login" className="font-medium text-white">Allow Login</Label>
-                            <Button onClick={() => setShowLoginDialog(true)} disabled={!clientEmail}>Send Invite</Button>
-                        </div>
-                        <p className="text-sm text-gray-400 mt-2">Send an email notification to the client to configure their password and access their dashboard.</p>
-                    </div>
-                    <div>
-                         <DetailItem label="Created By" value={client.created_by_name || 'Admin'} />
-                         <DetailItem label="Created On" value={client.created_at ? format(new Date(client.created_at), 'dd MMM, yyyy') : 'N/A'} />
-                    </div>
+                <div className="mt-6 pt-6 border-t border-white/10 grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <DetailItem label="Created By" value={teamMembers.find(m => m.user_id === client.created_by)?.name || 'Admin'} />
+                    <DetailItem label="Created On" value={client.created_at ? format(new Date(client.created_at), 'dd MMM, yyyy') : 'N/A'} />
                 </div>
             </div>
-            
-            <AllowLoginDialog 
-                isOpen={showLoginDialog} 
-                onClose={() => setShowLoginDialog(false)}
-                client={{...client, email: clientEmail}}
-            />
         </div>
     );
 };

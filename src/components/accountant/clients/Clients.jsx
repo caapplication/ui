@@ -35,7 +35,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                     fetchAllServices(user.agency_id, user.access_token),
                     listOrganisations(user.access_token),
                     getBusinessTypes(user.agency_id, user.access_token),
-                    listTeamMembers(user.access_token),
+                    listTeamMembers(user.access_token, 'joined'),
                     getTags(user.agency_id, user.access_token)
                 ]);
                 
@@ -272,6 +272,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                                 allServices={allServices}
                                 onUpdateClient={handleUpdateClient}
                                 onClientDeleted={handleDeleteClient}
+                                teamMembers={teamMembers}
                             />
                         </motion.div>
                     );

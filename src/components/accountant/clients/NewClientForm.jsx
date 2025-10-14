@@ -144,6 +144,16 @@ import React, { useState, useEffect, useRef } from 'react';
                 }
             }
 
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(formData.email)) {
+                toast({
+                    title: "Invalid Email",
+                    description: "Please enter a valid email address.",
+                    variant: "destructive",
+                });
+                return;
+            }
+
             setIsSaving(true);
 
             // Flatten contact and opening_balance fields to match backend expectations
@@ -388,7 +398,7 @@ import React, { useState, useEffect, useRef } from 'react';
                              <p className="text-sm text-gray-400 mb-4">Assign team members and tags. This can also be done later.</p>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                  <div>
-                                    <Label>Assigned CA</Label>
+                                    <Label>Assigned Team member</Label>
                                     <Select
                                         onValueChange={v => handleSelectChange('assigned_ca_user_id', v)}
                                         value={formData.assigned_ca_user_id ? String(formData.assigned_ca_user_id) : ""}
@@ -405,8 +415,8 @@ import React, { useState, useEffect, useRef } from 'react';
                                             </SelectValue>
                                         </SelectTrigger>
                                         <SelectContent>
-                                           {teamMembers && teamMembers.length > 0 ? (
-                                               teamMembers.map(member => (
+                                           {teamMembers && teamMembers.filter(member => member.status && member.status.toLowerCase() === 'joined').length > 0 ? (
+                                               teamMembers.filter(member => member.status && member.status.toLowerCase() === 'joined').map(member => (
                                                    <SelectItem key={member.user_id} value={String(member.user_id)}>{member.name || member.email}</SelectItem>
                                                ))
                                            ) : (

@@ -258,6 +258,7 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
                             <TableHead>Name</TableHead>
                             <TableHead>Type</TableHead>
                             <TableHead>Organisation</TableHead>
+                            <TableHead>Assigned To</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead>Users</TableHead>
                             <TableHead>Tags</TableHead>
@@ -284,6 +285,24 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
                                     {client.organization_name || '-'}
                                 </TableCell>
                                 <TableCell>
+                                    {(() => {
+                                        const assignedMember = teamMembers.find(
+                                            (member) => String(member.user_id) === String(client.assigned_ca_user_id)
+                                        );
+                                        return assignedMember ? (
+                                            <div className="flex items-center gap-2">
+                                                <Avatar className="w-8 h-8">
+                                                    <AvatarImage src={assignedMember.photo} />
+                                                    <AvatarFallback>{assignedMember.name ? assignedMember.name.charAt(0) : assignedMember.email.charAt(0)}</AvatarFallback>
+                                                </Avatar>
+                                                <span className="text-sm">{assignedMember.name || assignedMember.email}</span>
+                                            </div>
+                                        ) : (
+                                            '-'
+                                        );
+                                    })()}
+                                </TableCell>
+                                <TableCell>
                                     {client.is_active ? <Badge variant="success">Active</Badge> : <Badge variant="destructive">Inactive</Badge>}
                                 </TableCell>
                                 <TableCell>
@@ -299,7 +318,17 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
                                     </div>
                                 </TableCell>
                                 <TableCell>
-                                    -
+                                    <div className="flex flex-wrap gap-1">
+                                        {client.tags && client.tags.length > 0 ? (
+                                            client.tags.map(tag => (
+                                                <Badge key={tag.id} variant="secondary" style={{ backgroundColor: tag.color, color: '#fff' }}>
+                                                    {tag.name}
+                                                </Badge>
+                                            ))
+                                        ) : (
+                                            '-'
+                                        )}
+                                    </div>
                                 </TableCell>
                             </TableRow>
                         ))}

@@ -32,7 +32,7 @@ import {
     DialogFooter
 } from '@/components/ui/dialog';
 
-const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, onUpdateClient, onClientDeleted }) => {
+const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, onUpdateClient, onClientDeleted, teamMembers }) => {
     const [activeSubTab, setActiveSubTab] = useState('Details');
     const [isDeleting, setIsDeleting] = useState(false);
     const [isEntityMutating, setIsEntityMutating] = useState(false);
@@ -136,7 +136,7 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
     const renderTabContent = () => {
         switch (activeSubTab) {
             case 'Details':
-                return <ClientDashboardDetails client={client} />;
+                return <ClientDashboardDetails client={client} teamMembers={teamMembers} />;
             case 'Services':
                 return <ClientServicesTab client={client} allServices={allServices} onUpdateClient={onUpdateClient} />;
             case 'Passwords':

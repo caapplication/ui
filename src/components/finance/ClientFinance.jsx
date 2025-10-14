@@ -53,6 +53,7 @@ import InvoiceForm from '@/components/finance/InvoiceForm';
 import VoucherForm from '@/components/finance/VoucherForm';
 import InvoiceHistory from '@/components/finance/InvoiceHistory';
 import VoucherHistory from '@/components/finance/VoucherHistory';
+import VoucherDetailsPage from '@/pages/VoucherDetailsPage';
 
 const ClientFinance = ({ quickAction, clearQuickAction }) => {
   const [showInvoiceDialog, setShowInvoiceDialog] = useState(false);
@@ -246,6 +247,10 @@ const ClientFinance = ({ quickAction, clearQuickAction }) => {
     }
   };
 
+  const handleViewVoucher = (voucher) => {
+    navigate(`/finance/vouchers/${voucher.id}`, { state: { voucher } });
+  };
+
   const handleExportToTally = async (format) => {
     const token = localStorage.getItem('accessToken');
     const entityId = localStorage.getItem('entityId');
@@ -357,7 +362,7 @@ const ClientFinance = ({ quickAction, clearQuickAction }) => {
                     <VoucherHistory
                       vouchers={enrichedVouchers}
                       onDeleteVoucher={handleDeleteVoucherClick}
-                      onViewVoucher={(voucher) => console.log(voucher)}
+                      onViewVoucher={handleViewVoucher}
                       onEditVoucher={(voucher) => console.log(voucher)}
                     />
                   )

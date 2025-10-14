@@ -157,7 +157,7 @@ import UpcomingServices from './pages/UpcomingServices.jsx';
                 <Route path="/settings/*" element={<Settings />} />
                 <Route path="/tasks/:taskId" element={<TaskDashboardPage />} />
                 <Route path="/invoices/:invoiceId" element={<InvoiceDetailsPage />} />
-                <Route path="/vouchers/:voucherId" element={<VoucherDetailsPage />} />
+                <Route path="/finance/vouchers/:voucherId" element={<VoucherDetailsPage />} />
                 <Route path="/vouchers/ca/:voucherId" element={<VoucherDetailsCAPage />} />
                 <Route path="/beneficiaries/:beneficiaryId" element={<BeneficiaryDetailsPage />} />
                 <Route path="/coming-soon" element={<ComingSoon />} />

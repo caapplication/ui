@@ -51,7 +51,7 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onRefresh, i
   };
 
   const filteredInvoices = useMemo(() => {
-    const sortedInvoices = [...(invoices || [])].sort((a, b) => new Date(b.date) - new Date(a.date));
+    const sortedInvoices = [...(invoices || [])].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     const unexportedInvoices = sortedInvoices.filter(inv => !inv.is_exported);
     if (!invoiceSearchTerm) return unexportedInvoices;
     return unexportedInvoices.filter(inv => {
@@ -68,31 +68,9 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onRefresh, i
     currentPage * ITEMS_PER_PAGE
   );
 
-  const handleViewAttachment = async (invoice) => {
-    if (!invoice.attachment_id) {
-        toast({
-            title: 'No Attachment',
-            description: 'This invoice does not have an attachment.',
-            variant: 'destructive'
-        });
-        return;
-    }
-    try {
-        let attachmentUrl;
-        if (user.role === 'CA_ACCOUNTANT') {
-            attachmentUrl = await getCATeamInvoiceAttachment(invoice.id, user.access_token);
-        } else {
-            attachmentUrl = await getInvoiceAttachment(invoice.attachment_id, user.access_token);
-        }
-        const beneficiaryName = getBeneficiaryName(invoice);
-        navigate(`/invoices/${invoice.id}`, { state: { attachmentUrl, invoice, beneficiaryName } });
-    } catch (error) {
-       toast({
-          title: 'Error',
-          description: `Could not fetch attachment: ${error.message}`,
-          variant: 'destructive'
-      });
-    }
+  const handleViewAttachment = (invoice) => {
+    const beneficiaryName = getBeneficiaryName(invoice);
+    navigate(`/invoices/${invoice.id}`, { state: { invoice, beneficiaryName } });
   };
 
   return (

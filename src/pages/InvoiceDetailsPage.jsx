@@ -225,11 +225,11 @@ const InvoiceDetailsPage = () => {
                                         </div>
                                         <div>
                                             <Label htmlFor="cgst">CGST</Label>
-                                            <Input name="cgst" type="number" defaultValue={editedInvoice.cgst} />
+                                            <Input name="cgst" type="number" defaultValue={editedInvoice.cgst} onChange={(e) => setEditedInvoice({ ...editedInvoice, cgst: e.target.value, sgst: e.target.value })} />
                                         </div>
                                         <div>
                                             <Label htmlFor="sgst">SGST</Label>
-                                            <Input name="sgst" type="number" defaultValue={editedInvoice.sgst} />
+                                            <Input name="sgst" type="number" value={editedInvoice.sgst} onChange={(e) => { setEditedInvoice({ ...editedInvoice, sgst: e.target.value, cgst: e.target.value }); }} />
                                         </div>
                                         <div>
                                             <Label htmlFor="igst">IGST</Label>
