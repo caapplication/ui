@@ -221,7 +221,11 @@ export const deleteVoucher = async (entityId, voucherId, token) => {
 };
 
 export const getVoucher = async (entityId, voucherId, token) => {
-    const response = await fetch(`${FINANCE_API_BASE_URL}/api/vouchers/${voucherId}?entity_id=${entityId}`, {
+    let url = `${FINANCE_API_BASE_URL}/api/vouchers/${voucherId}`;
+    if (entityId) {
+        url += `?entity_id=${entityId}`;
+    }
+    const response = await fetch(url, {
         headers: getAuthHeaders(token),
     });
     return handleResponse(response);

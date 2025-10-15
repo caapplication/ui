@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth.jsx';
-import { deleteInvoice, updateInvoice, getBeneficiaries } from '@/lib/api';
+import { deleteInvoice, updateInvoice, getBeneficiaries, getInvoiceAttachment } from '@/lib/api';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,19 +39,32 @@ const InvoiceDetailsPage = () => {
     const invoiceDetailsRef = React.useRef(null);
     const [beneficiaries, setBeneficiaries] = useState([]);
     const [editedInvoice, setEditedInvoice] = useState(invoice);
+    const [attachmentToDisplay, setAttachmentToDisplay] = useState(attachmentUrl);
+
 
     useEffect(() => {
         const fetchBeneficiaries = async () => {
-            // Debug: log organisationId and fetched beneficiaries
-            console.log('Fetching beneficiaries for organisationId:', organisationId);
-            if (user?.access_token && organisationId) {
-                const data = await getBeneficiaries(organisationId, user.access_token);
-                console.log('Fetched beneficiaries:', data);
+            if (user?.access_token && (organisationId || invoice?.entity_id)) {
+                const data = await getBeneficiaries(organisationId || invoice?.entity_id, user.access_token);
                 setBeneficiaries(data);
             }
         };
         fetchBeneficiaries();
-    }, [user?.access_token, organisationId]);
+    }, [user?.access_token, organisationId, invoice]);
+
+    useEffect(() => {
+        if (invoice?.attachment_id && user?.access_token) {
+            const fetchAttachment = async () => {
+                try {
+                    const url = await getInvoiceAttachment(invoice.attachment_id, user.access_token);
+                    setAttachmentToDisplay(url);
+                } catch (error) {
+                    console.error("Failed to fetch attachment:", error);
+                }
+            };
+            fetchAttachment();
+        }
+    }, [user?.access_token, invoice?.attachment_id]);
     
     const invoiceDetails = invoice || {
         id: invoiceId,
@@ -72,32 +85,14 @@ const InvoiceDetailsPage = () => {
         parseFloat(invoiceDetails.igst)
     ).toFixed(2);
 
-    // Only use attachmentUrl if it is a non-empty string and not a blob with 0 bytes
-    const [attachmentToDisplay, setAttachmentToDisplay] = useState(attachmentUrl);
-
     useEffect(() => {
-        // If the attachmentUrl is a blob, check if it's valid (not 0 bytes)
-        if (attachmentUrl && attachmentUrl.startsWith('blob:')) {
-            fetch(attachmentUrl)
-                .then(res => res.blob())
-                .then(blob => {
-                    if (blob.size > 0) {
-                        setAttachmentToDisplay(attachmentUrl);
-                    } else {
-                        setAttachmentToDisplay(null);
-                    }
-                })
-                .catch(() => setAttachmentToDisplay(null));
-        } else {
-            setAttachmentToDisplay(attachmentUrl);
-        }
         // Clean up blob URL on unmount
         return () => {
-            if (attachmentUrl && attachmentUrl.startsWith('blob:')) {
-                URL.revokeObjectURL(attachmentUrl);
+            if (attachmentToDisplay && attachmentToDisplay.startsWith('blob:')) {
+                URL.revokeObjectURL(attachmentToDisplay);
             }
         };
-    }, [attachmentUrl]);
+    }, [attachmentToDisplay]);
 
     const handleDelete = async () => {
         try {

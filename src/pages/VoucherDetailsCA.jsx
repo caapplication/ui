@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Edit, Trash2, FileText, Loader2 } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, FileText, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import {
   ResizablePanelGroup,
@@ -90,8 +90,9 @@ const VoucherDetailsCAPage = () => {
     const navigate = useNavigate();
     const { user, loading: authLoading } = useAuth();
     const { toast } = useToast();
-    const { voucher: initialVoucher, startInEditMode, organizationName, entityName, organisationId, financeHeaders } = location.state || {};
+    const { voucher: initialVoucher, vouchers, startInEditMode, organizationName, entityName, organisationId, financeHeaders } = location.state || {};
     const [voucher, setVoucher] = useState(initialVoucher);
+    const [currentIndex, setCurrentIndex] = useState(vouchers ? vouchers.findIndex(v => v.id === initialVoucher.id) : -1);
     const voucherDetailsRef = useRef(null);
     const [attachmentUrl, setAttachmentUrl] = useState(null);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -110,39 +111,49 @@ const VoucherDetailsCAPage = () => {
     useEffect(() => {
         if (authLoading || !user?.access_token) return;
 
-        (async () => {
+        const fetchData = async () => {
             try {
-                // Ensure we have the voucher
-                let v = initialVoucher;
-                if (!v) {
-                    // pick an entity id only to read the voucher itself
-                    let entityId = initialVoucher?.entity_id ?? user.organization_id ?? user.id;
-                    v = await getVoucher(entityId, voucherId, user.access_token);
-                    setVoucher(v);
-                    setEditedVoucher(v);
-                } else {
-                    setVoucher(initialVoucher);
-                    setEditedVoucher(initialVoucher);
+                let currentVoucher = initialVoucher;
+                if (!currentVoucher) {
+                    // On refresh, initialVoucher is null. We need to fetch the voucher.
+                    // The entity_id is not known here, so we assume getVoucher can work without it for a CA.
+                    // A better approach would be a dedicated endpoint like /api/ca/vouchers/{voucherId}
+                    // For now, we'll try to fetch it, but this might be brittle.
+                    // Let's assume the voucher object has entity_id and organisation_id
+                    const fetchedVoucher = await getVoucher(null, voucherId, user.access_token);
+                    currentVoucher = fetchedVoucher;
+                }
+                
+                if (!currentVoucher) {
+                    toast({ title: 'Error', description: 'Voucher not found.', variant: 'destructive' });
+                    return;
                 }
 
-                // IMPORTANT: use organisation_id for beneficiaries & org bank accounts
-                const orgId =
-                    organisationId ||
-                    v?.organisation_id ||
-                    user.organization_id;
+                setVoucher(currentVoucher);
+                setEditedVoucher(currentVoucher);
+
+                const orgId = currentVoucher.organisation_id || organisationId || user.organization_id;
+
+                if (!orgId) {
+                    toast({ title: 'Error', description: 'Could not determine organization ID.', variant: 'destructive' });
+                    return;
+                }
 
                 const [beneficiariesData, fromAccountsData] = await Promise.all([
-                    getBeneficiariesForCA(orgId, user.access_token),                 // must hit /api/beneficiaries?organisation_id=...
-                    getOrganisationBankAccountsForCA(orgId, user.access_token),      // org bank accounts
+                    getBeneficiariesForCA(orgId, user.access_token),
+                    getOrganisationBankAccountsForCA(orgId, user.access_token),
                 ]);
 
                 setBeneficiaries(beneficiariesData || []);
                 setFromBankAccounts(fromAccountsData || []);
+
             } catch (error) {
                 toast({ title: 'Error', description: `Failed to fetch data: ${error.message}`, variant: 'destructive' });
             }
-        })();
-    }, [voucherId, authLoading, user?.access_token, organisationId]);
+        };
+
+        fetchData();
+    }, [voucherId, authLoading, user?.access_token, organisationId, initialVoucher]);
 
     useEffect(() => {
         if (!user?.access_token || !editedVoucher?.beneficiary_id) return;
@@ -157,6 +168,12 @@ const VoucherDetailsCAPage = () => {
     }, [user?.access_token, editedVoucher?.beneficiary_id]);
 
     useEffect(() => {
+        if (editedVoucher?.voucher_type === 'cash') {
+            setEditedVoucher(prevState => ({ ...prevState, payment_type: 'cash' }));
+        }
+    }, [editedVoucher?.voucher_type]);
+
+    useEffect(() => {
         if (voucher?.attachment_id && user?.access_token) {
             const fetchAttachment = async () => {
                 try {
@@ -169,6 +186,15 @@ const VoucherDetailsCAPage = () => {
             fetchAttachment();
         }
     }, [user?.access_token, voucher?.attachment_id]);
+
+    const handleNavigate = (direction) => {
+        if (!vouchers || vouchers.length === 0) return;
+        const newIndex = currentIndex + direction;
+        if (newIndex >= 0 && newIndex < vouchers.length) {
+            const nextVoucher = vouchers[newIndex];
+            navigate(`/vouchers/ca/${nextVoucher.id}`, { state: { voucher: nextVoucher, vouchers, organisationId } });
+        }
+    };
     
     const voucherDetails = voucher || {
         id: voucherId,
@@ -235,7 +261,7 @@ const VoucherDetailsCAPage = () => {
             voucher_type: editedVoucher.voucher_type,
             payment_type: editedVoucher.payment_type,
             remarks: editedVoucher.remarks,
-            ...(editedVoucher.payment_type === 'bank' ? {
+            ...(editedVoucher.payment_type === 'bank_transfer' ? {
                 from_bank_account_id: editedVoucher.from_bank_account_id,
                 to_bank_account_id: editedVoucher.to_bank_account_id,
             } : {})
@@ -267,7 +293,18 @@ const VoucherDetailsCAPage = () => {
                     <Button variant="ghost" size="icon" onClick={() => navigate('/finance/ca')}>
                         <ArrowLeft className="h-6 w-6" />
                     </Button>
-                    <h1 className="text-2xl font-bold">Voucher Details</h1>
+                    <div>
+                        <h1 className="text-2xl font-bold">Voucher Details</h1>
+                        <p className="text-sm text-gray-400">Review all cash and debit transactions.</p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" size="icon" onClick={() => handleNavigate(-1)} disabled={!vouchers || currentIndex === 0}>
+                        <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button variant="outline" size="icon" onClick={() => handleNavigate(1)} disabled={!vouchers || currentIndex === vouchers.length - 1}>
+                        <ChevronRight className="h-4 w-4" />
+                    </Button>
                 </div>
             </header>
 
@@ -326,30 +363,40 @@ const VoucherDetailsCAPage = () => {
                                 </div>
                                 <div>
                                     <Label htmlFor="voucher_type">Voucher Type</Label>
-                                    <Select name="voucher_type" defaultValue={editedVoucher.voucher_type}>
+                                    <Select
+                                        value={editedVoucher?.voucher_type}
+                                        onValueChange={(val) => setEditedVoucher(p => ({ ...p, voucher_type: val }))}
+                                    >
                                         <SelectTrigger>
                                             <SelectValue placeholder="Select a voucher type" />
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="debit">Debit</SelectItem>
-                                            <SelectItem value="credit">Credit</SelectItem>
+                                            <SelectItem value="cash">Cash</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
                                 <div>
                                     <Label htmlFor="payment_type">Payment Method</Label>
-                                    <Select
-                                        value={(editedVoucher?.payment_type ?? '').toLowerCase()}
-                                        onValueChange={(val) => setEditedVoucher(p => ({ ...p, payment_type: val }))}
-                                    >
-                                        <SelectTrigger><SelectValue placeholder="Select a payment method" /></SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="cash">Cash</SelectItem>
-                                            <SelectItem value="bank">Bank</SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                    {editedVoucher?.voucher_type === 'cash' ? (
+                                        <Input value="Cash" disabled />
+                                    ) : (
+                                        <Select
+                                            value={(editedVoucher?.payment_type ?? '').toLowerCase()}
+                                            onValueChange={(val) => setEditedVoucher(p => ({ ...p, payment_type: val }))}
+                                        >
+                                            <SelectTrigger><SelectValue placeholder="Select a payment method" /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                                                <SelectItem value="upi">UPI</SelectItem>
+                                                <SelectItem value="card">Card</SelectItem>
+                                                <SelectItem value="cheque">Cheque</SelectItem>
+                                                <SelectItem value="demand_draft">Demand Draft</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    )}
                                 </div>
-                                {editedVoucher?.payment_type === 'bank' && (
+                                {editedVoucher?.payment_type === 'bank_transfer' && (
                                     <>
                                         <Select
                                             value={editedVoucher?.from_bank_account_id ? String(editedVoucher.from_bank_account_id) : ''}
@@ -398,7 +445,7 @@ const VoucherDetailsCAPage = () => {
                                 <CardContent className="space-y-2">
                                     <DetailItem label="Amount" value={`₹${parseFloat(voucherDetails.amount).toFixed(2)}`} />
                                     <DetailItem label="Voucher Type" value={voucherDetails.voucher_type} />
-                                    <DetailItem label="Payment Method" value={voucherDetails.payment_type} />
+                                    <DetailItem label="Payment Method" value={voucherDetails.voucher_type === 'cash' ? 'Cash' : voucherDetails.payment_type} />
                                     <div className="pt-4">
                                         <p className="text-sm text-gray-400 mb-1">Remarks</p>
                                         <p className="text-sm text-white p-3 bg-white/5 rounded-md">{voucherDetails.remarks || 'N/A'}</p>

@@ -55,7 +55,7 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
   const sortedAndFilteredVouchers = useMemo(() => {
     let sortableVouchers = [...(vouchers || [])];
 
-    sortableVouchers.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    sortableVouchers.sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
 
     const unexportedVouchers = sortableVouchers.filter(v => !v.is_exported);
 
@@ -87,30 +87,6 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
 
   return (
     <Card className="glass-card mt-4">
-        <CardHeader>
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                    <CardTitle>Voucher History</CardTitle>
-                    <CardDescription>Review all cash and debit transactions.</CardDescription>
-                </div>
-                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                    <Select value={voucherTypeFilter} onValueChange={setVoucherTypeFilter}>
-                        <SelectTrigger className="w-full sm:w-[180px]">
-                            <SelectValue placeholder="Filter by type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All Types</SelectItem>
-                            <SelectItem value="cash">Cash</SelectItem>
-                            <SelectItem value="debit">Debit</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <div className="relative w-full sm:w-auto sm:max-w-xs">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                        <Input placeholder="Search vouchers..." className="pl-10" value={voucherSearchTerm} onChange={(e) => setVoucherSearchTerm(e.target.value)} />
-                    </div>
-                </div>
-            </div>
-        </CardHeader>
         <CardContent>
              <Table>
                 <TableHeader>

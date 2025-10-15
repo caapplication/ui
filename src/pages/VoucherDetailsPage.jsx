@@ -211,6 +211,12 @@ const VoucherDetailsPage = () => {
             fetchAttachment();
         }
     }, [user?.access_token, voucher?.attachment_id]);
+
+    useEffect(() => {
+        if (editedVoucher?.voucher_type === 'cash') {
+            setEditedVoucher(prevState => ({ ...prevState, payment_type: 'cash' }));
+        }
+    }, [editedVoucher?.voucher_type]);
     
     const voucherDetails = voucher || {
         id: voucherId,
@@ -273,6 +279,12 @@ const VoucherDetailsPage = () => {
         e.preventDefault();
         const formData = new FormData(e.target);
         const data = Object.fromEntries(formData.entries());
+
+        if (data.voucher_type === 'cash' || data.payment_type !== 'bank_transfer') {
+            data.from_bank_account_id = '0';
+            data.to_bank_account_id = '0';
+        }
+
         try {
             await updateVoucher(voucherId, data, user.access_token);
             toast({ title: 'Success', description: 'Voucher updated successfully.' });
@@ -359,32 +371,42 @@ const VoucherDetailsPage = () => {
                                 </div>
                                 <div>
                                     <Label htmlFor="voucher_type">Voucher Type</Label>
-                                    <Select name="voucher_type" defaultValue={editedVoucher.voucher_type}>
+                                    <Select
+                                        name="voucher_type"
+                                        value={editedVoucher?.voucher_type}
+                                        onValueChange={(val) => setEditedVoucher(p => ({ ...p, voucher_type: val }))}
+                                    >
                                         <SelectTrigger>
                                             <SelectValue placeholder="Select a voucher type" />
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="debit">Debit</SelectItem>
-                                            <SelectItem value="credit">Credit</SelectItem>
+                                            <SelectItem value="cash">Cash</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
                                 <div>
                                     <Label htmlFor="payment_type">Payment Method</Label>
-                                    <Select name="payment_type" defaultValue={editedVoucher.payment_type} onValueChange={(value) => setEditedVoucher({ ...editedVoucher, payment_type: value })}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select a payment method" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                                            <SelectItem value="upi">UPI</SelectItem>
-                                            <SelectItem value="card">Card</SelectItem>
-                                            <SelectItem value="cheque">Cheque</SelectItem>
-                                            <SelectItem value="demand_draft">Demand Draft</SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                    {editedVoucher?.voucher_type === 'cash' ? (
+                                        <Input value="Cash" disabled />
+                                    ) : (
+                                        <Select
+                                            name="payment_type"
+                                            value={(editedVoucher?.payment_type ?? '').toLowerCase()}
+                                            onValueChange={(val) => setEditedVoucher(p => ({ ...p, payment_type: val }))}
+                                        >
+                                            <SelectTrigger><SelectValue placeholder="Select a payment method" /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                                                <SelectItem value="upi">UPI</SelectItem>
+                                                <SelectItem value="card">Card</SelectItem>
+                                                <SelectItem value="cheque">Cheque</SelectItem>
+                                                <SelectItem value="demand_draft">Demand Draft</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    )}
                                 </div>
-                                {editedVoucher.payment_type === 'bank' && (
+                                {editedVoucher.payment_type === 'bank_transfer' && (
                                     <>
                                         <div>
                                             <Label htmlFor="from_bank_account_id">From (Organisation Bank)</Label>
@@ -436,7 +458,7 @@ const VoucherDetailsPage = () => {
                                 <CardContent className="space-y-2">
                                     <DetailItem label="Amount" value={`₹${parseFloat(voucherDetails.amount).toFixed(2)}`} />
                                     <DetailItem label="Voucher Type" value={voucherDetails.voucher_type} />
-                                    <DetailItem label="Payment Method" value={voucherDetails.payment_type} />
+                                    <DetailItem label="Payment Method" value={voucherDetails.voucher_type === 'cash' ? 'Cash' : voucherDetails.payment_type} />
                                     <div className="pt-4">
                                         <p className="text-sm text-gray-400 mb-1">Remarks</p>
                                         <p className="text-sm text-white p-3 bg-white/5 rounded-md">{voucherDetails.remarks || 'N/A'}</p>

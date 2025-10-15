@@ -54,7 +54,8 @@ const Vouchers = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
       const results = await Promise.allSettled(fetchPromises);
       const allVouchers = results
         .filter(res => res.status === 'fulfilled' && Array.isArray(res.value))
-        .flatMap(res => res.value);
+        .flatMap(res => res.value)
+        .sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
       
       setVouchers(allVouchers);
     } catch (error) {
@@ -74,7 +75,7 @@ const Vouchers = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
   }, [fetchDataForClient, isDataLoading]); // Refreshes when isDataLoading prop changes
 
   const handleViewVoucher = (voucher) => {
-    navigate(`/vouchers/ca/${voucher.id}`, { state: { voucher, organisationId: selectedOrganisation } });
+    navigate(`/vouchers/ca/${voucher.id}`, { state: { voucher, vouchers: enrichedVouchers, organisationId: selectedOrganisation } });
   };
 
   const enrichedVouchers = useMemo(() => {

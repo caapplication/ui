@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Plus, Loader2 } from 'lucide-react';
-import { DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { getBankAccountsForBeneficiary } from '@/lib/api';
 
 const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSave, onCancel, entityId, voucher, financeHeaders }) => {
@@ -26,6 +26,14 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
             setSelectedBeneficiaryId(voucher.beneficiary_id);
         }
     }, [voucher])
+
+    useEffect(() => {
+        if (voucherType === 'cash') {
+            setPaymentType('cash');
+        } else if (!isEditing) { 
+            setPaymentType('');
+        }
+    }, [voucherType, isEditing]);
 
     // Fetch organisation bank accounts when entityId changes (add flow)
     useEffect(() => {
@@ -55,7 +63,7 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
             formData.delete('attachment');
         }
 
-        if (formData.get('voucher_type') === 'cash' || formData.get('payment_type') !== 'bank') {
+        if (formData.get('voucher_type') === 'cash' || formData.get('payment_type') !== 'bank_transfer') {
             formData.set('from_bank_account_id', '0');
             formData.set('to_bank_account_id', '0');
         }
@@ -103,6 +111,9 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
         <DialogContent className="max-w-3xl">
             <DialogHeader>
                 <DialogTitle>{isEditing ? 'Edit Voucher' : 'Add New Voucher'}</DialogTitle>
+                <DialogDescription>
+                    {isEditing ? 'Update the details of the existing voucher.' : 'Fill in the details to add a new voucher.'}
+                </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-6 pt-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -144,10 +155,10 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
                     </Select>
                 </div>
 
-                {voucherType === 'debit' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <Label htmlFor="payment_type">Payment Type</Label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <Label htmlFor="payment_type">Payment Type</Label>
+                        {voucherType === 'debit' ? (
                             <Select name="payment_type" required onValueChange={setPaymentType} value={paymentType}>
                                 <SelectTrigger><SelectValue placeholder="Select payment type" /></SelectTrigger>
                                 <SelectContent>
@@ -158,48 +169,50 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
                                     <SelectItem value="demand_draft">Demand Draft</SelectItem>
                                 </SelectContent>
                             </Select>
-                        </div>
-
-                        {paymentType === 'bank' && (
-                            <>
-                                <div>
-                                    <Label htmlFor="from_bank_account_id">From (Organisation Bank)</Label>
-                                    <Select name="from_bank_account_id" required defaultValue={voucher?.from_bank_account_id}>
-                                        <SelectTrigger><SelectValue placeholder="Select your bank account" /></SelectTrigger>
-                                        <SelectContent>
-                                            {(isEditing ? (organisationBankAccounts || []) : orgBankAccounts).map(acc => (
-                                                <SelectItem key={acc.id} value={String(acc.id)}>
-                                                   {acc.bank_name} - ...{String(acc.account_number).slice(-4)}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="md:col-span-2">
-                                    <Label htmlFor="to_bank_account_id">To (Beneficiary Bank)</Label>
-                                    <Select name="to_bank_account_id" required disabled={!selectedBeneficiaryId || selectedBeneficiaryBankAccounts.length === 0} defaultValue={voucher?.to_bank_account_id}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder={
-                                                !selectedBeneficiaryId 
-                                                ? "First select a beneficiary" 
-                                                : selectedBeneficiaryBankAccounts.length === 0 
-                                                ? "No bank accounts for this beneficiary" 
-                                                : "Select beneficiary's account"
-                                            } />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {selectedBeneficiaryBankAccounts.map(acc => (
-                                                <SelectItem key={acc.id} value={String(acc.id)}>
-                                                    {acc.bank_name} - {acc.account_number}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </>
+                        ) : (
+                            <Input value="Cash" disabled />
                         )}
                     </div>
-                )}
+
+                    {voucherType === 'debit' && paymentType === 'bank_transfer' && (
+                        <>
+                            <div>
+                                <Label htmlFor="from_bank_account_id">From (Organisation Bank)</Label>
+                                <Select name="from_bank_account_id" required defaultValue={voucher?.from_bank_account_id}>
+                                    <SelectTrigger><SelectValue placeholder="Select your bank account" /></SelectTrigger>
+                                    <SelectContent>
+                                        {(isEditing ? (organisationBankAccounts || []) : orgBankAccounts).map(acc => (
+                                            <SelectItem key={acc.id} value={String(acc.id)}>
+                                               {acc.bank_name} - ...{String(acc.account_number).slice(-4)}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="md:col-span-2">
+                                <Label htmlFor="to_bank_account_id">To (Beneficiary Bank)</Label>
+                                <Select name="to_bank_account_id" required disabled={!selectedBeneficiaryId || selectedBeneficiaryBankAccounts.length === 0} defaultValue={voucher?.to_bank_account_id}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder={
+                                            !selectedBeneficiaryId 
+                                            ? "First select a beneficiary" 
+                                            : selectedBeneficiaryBankAccounts.length === 0 
+                                            ? "No bank accounts for this beneficiary" 
+                                            : "Select beneficiary's account"
+                                        } />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {selectedBeneficiaryBankAccounts.map(acc => (
+                                            <SelectItem key={acc.id} value={String(acc.id)}>
+                                                {acc.bank_name} - {acc.account_number}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </>
+                    )}
+                </div>
 
                 <div>
                     <Label htmlFor="attachment">Attachment</Label>
