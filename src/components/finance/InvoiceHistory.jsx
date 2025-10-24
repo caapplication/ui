@@ -96,52 +96,18 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onRefresh, i
                         <TableHead>Beneficiary</TableHead>
                         <TableHead>Amount</TableHead>
                         <TableHead>Remarks</TableHead>
-                        {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && <TableHead>Header</TableHead>}
                         {isAccountantView && <TableHead>Ready for Export</TableHead>}
                         <TableHead>Actions</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {paginatedInvoices.map(invoice => (
-                        <TableRow key={invoice.id}>
+                        <TableRow key={invoice.id} onClick={() => handleViewAttachment(invoice)} className="cursor-pointer">
                             <TableCell>{new Date(invoice.date).toLocaleDateString()}</TableCell>
                             <TableCell>{invoice.bill_number}</TableCell>
                             <TableCell>{getBeneficiaryName(invoice)}</TableCell>
                             <TableCell>₹{(parseFloat(invoice.amount) + parseFloat(invoice.cgst) + parseFloat(invoice.sgst) + parseFloat(invoice.igst)).toFixed(2)}</TableCell>
                             <TableCell>{invoice.remarks || 'N/A'}</TableCell>
-                            {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
-                              <TableCell>
-                                {invoice.is_ready ? (
-                                  <span>{financeHeaders.find(h => h.id === invoice.finance_header_id)?.name || 'N/A'}</span>
-                                ) : (
-                                  <Select
-                                    value={invoice.finance_header_id || ''}
-                                    onValueChange={(value) => {
-                                      const selectedHeader = financeHeaders.find(h => h.id === value);
-                                      updateInvoice(invoice.id, { finance_header_id: selectedHeader.id }, user.access_token)
-                                        .then(() => {
-                                          toast({ title: 'Success', description: 'Invoice header updated.' });
-                                          if (onRefresh) onRefresh();
-                                        })
-                                        .catch(err => {
-                                          toast({ title: 'Error', description: `Failed to update invoice header: ${err.message}`, variant: 'destructive' });
-                                        });
-                                    }}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Select header" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {financeHeaders.map(header => (
-                                        <SelectItem key={header.id} value={header.id}>
-                                          {header.name}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                )}
-                              </TableCell>
-                            )}
                             {isAccountantView && (
                                 <TableCell>
                                     <span className={`px-3 py-1 rounded-full text-xs font-medium ${invoice.is_ready ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'}`}>
@@ -152,7 +118,7 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onRefresh, i
                                 <TableCell>
                                     <div className="flex items-center gap-2">
                                         {invoice.attachment_id && (
-                                            <Button variant="link" onClick={() => handleViewAttachment(invoice)} className="text-sky-400" title="View Attachment">
+                                            <Button variant="link" onClick={(e) => { e.stopPropagation(); handleViewAttachment(invoice); }} className="text-sky-400" title="View Attachment">
                                                 <Eye className="w-4 h-4" />
                                             </Button>
                                         )}
@@ -174,27 +140,6 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onRefresh, i
                                           >
                                             <Check className="w-4 h-4" />
                                           </Button>
-                                        )}
-                                        {!invoice.is_exported && (
-                                          <AlertDialog>
-                                            <AlertDialogTrigger asChild>
-                                              <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={() => setInvoiceToDelete(invoice.id)}>
-                                                <Trash2 className="w-4 h-4" />
-                                              </Button>
-                                            </AlertDialogTrigger>
-                                            <AlertDialogContent>
-                                              <AlertDialogHeader>
-                                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                <AlertDialogDescription>
-                                                  This action cannot be undone. This will permanently delete the invoice.
-                                                </AlertDialogDescription>
-                                              </AlertDialogHeader>
-                                              <AlertDialogFooter>
-                                                <AlertDialogCancel onClick={() => setInvoiceToDelete(null)}>Cancel</AlertDialogCancel>
-                                                <AlertDialogAction onClick={() => { onDeleteInvoice(invoiceToDelete); setInvoiceToDelete(null); }}>Delete</AlertDialogAction>
-                                              </AlertDialogFooter>
-                                            </AlertDialogContent>
-                                          </AlertDialog>
                                         )}
                                     </div>
                                 </TableCell>

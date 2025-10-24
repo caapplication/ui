@@ -93,8 +93,8 @@ export const deleteBankAccount = async (beneficiaryId, bankAccountId, token) => 
     return handleResponse(response);
 };
 
-export const getOrganisationBankAccounts = async (organisationId, token) => {
-    const response = await fetch(`${FINANCE_API_BASE_URL}/api/bank_accounts/?organisation_id=${organisationId}&masked=false`, {
+export const getOrganisationBankAccounts = async (entityId, token) => {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/bank_accounts/?entity_id=${entityId}&masked=false`, {
         headers: getAuthHeaders(token),
     });
     return handleResponse(response);

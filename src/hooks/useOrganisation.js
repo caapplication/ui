@@ -36,16 +36,34 @@ export const useOrganisation = () => {
         try {
           const ent = await listEntities(selectedOrg, user.access_token);
           setEntities(ent || []);
-          if (ent?.length > 0) {
-            setSelectedEntity(ent[0].id);
-          }
         } catch (error) {
           console.error('Failed to fetch entities:', error);
         }
       }
     };
     fetchEntities();
-  }, [selectedOrg, user, organisations]);
+  }, [selectedOrg, user]);
+
+  useEffect(() => {
+    const storedEntityId = localStorage.getItem('entityId');
+    if (entities.length > 0) {
+      if (storedEntityId && entities.some(e => e.id === storedEntityId)) {
+        setSelectedEntity(storedEntityId);
+      } else {
+        setSelectedEntity(entities[0].id);
+      }
+    }
+  }, [entities]);
+
+  // Wrap setSelectedEntity to also update localStorage
+  const setSelectedEntityAndLocalStorage = (entityId) => {
+    setSelectedEntity(entityId);
+    if (entityId) {
+      localStorage.setItem('entityId', entityId);
+    } else {
+      localStorage.removeItem('entityId');
+    }
+  };
 
   return {
     organisations,
@@ -53,7 +71,7 @@ export const useOrganisation = () => {
     setSelectedOrg,
     entities,
     selectedEntity,
-    setSelectedEntity,
+    setSelectedEntity: setSelectedEntityAndLocalStorage,
     loading,
     organisationId: selectedEntity || selectedOrg,
   };

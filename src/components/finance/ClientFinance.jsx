@@ -55,7 +55,7 @@ import InvoiceHistory from '@/components/finance/InvoiceHistory';
 import VoucherHistory from '@/components/finance/VoucherHistory';
 import VoucherDetailsPage from '@/pages/VoucherDetailsPage';
 
-const ClientFinance = ({ quickAction, clearQuickAction }) => {
+const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
   const [showInvoiceDialog, setShowInvoiceDialog] = useState(false);
   const [showVoucherDialog, setShowVoucherDialog] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState(null);
@@ -68,24 +68,11 @@ const ClientFinance = ({ quickAction, clearQuickAction }) => {
   const [isMutating, setIsMutating] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const {
-    organisations,
-    selectedOrg,
-    setSelectedOrg,
-    entities,
-    selectedEntity,
-    setSelectedEntity,
-  } = useOrganisation();
-
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const handleOrgChange = (orgId) => {
-    setSelectedOrg(orgId);
-    setSelectedEntity(null);
-  };
 
   const activeTab = location.pathname.includes('/invoices')
     ? 'invoices'
@@ -94,18 +81,17 @@ const ClientFinance = ({ quickAction, clearQuickAction }) => {
   const fetchData = useCallback(
     async (isRefresh = false) => {
       const token = localStorage.getItem('accessToken');
-      const entityId = localStorage.getItem('entityId');
-      if (!user?.organization_id || !token) return;
+      if (!user?.organization_id || !token || !entityId) return;
 
       if (isRefresh) setIsRefreshing(true);
       else setIsLoading(true);
 
       try {
-        const promises = [getBeneficiaries(user.organization_id, token)];
-        if (entityId) {
-          promises.push(getInvoices(entityId, token));
-          promises.push(getVouchers(entityId, token));
-        }
+        const promises = [
+          getBeneficiaries(user.organization_id, token),
+          getInvoices(entityId, token),
+          getVouchers(entityId, token),
+        ];
         const [beneficiariesData, invoicesData, vouchersData] =
           await Promise.all(promises);
 
@@ -125,20 +111,14 @@ const ClientFinance = ({ quickAction, clearQuickAction }) => {
         setIsRefreshing(false);
       }
     },
-    [user?.organization_id, toast]
+    [user?.organization_id, toast, entityId]
   );
 
   useEffect(() => {
-    if (user?.role === 'CLIENT_USER' && user.entities?.length > 0) {
-      setSelectedEntity(user.entities[0].id);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (selectedEntity) {
+    if (entityId) {
       fetchData();
     }
-  }, [fetchData, selectedEntity, user]);
+  }, [fetchData, entityId, user]);
 
   const enrichedVouchers = useMemo(() => {
     return (vouchers || []).map((v) => {
@@ -156,7 +136,6 @@ const ClientFinance = ({ quickAction, clearQuickAction }) => {
 
   const handleAddOrUpdateInvoice = async (invoiceData, invoiceId) => {
     const token = localStorage.getItem('accessToken');
-    const entityId = localStorage.getItem('entityId');
     setIsMutating(true);
     try {
       if (invoiceId) {
@@ -185,7 +164,6 @@ const ClientFinance = ({ quickAction, clearQuickAction }) => {
 
   const handleAddOrUpdateVoucher = async (voucherData, voucherId) => {
     const token = localStorage.getItem('accessToken');
-    const entityId = localStorage.getItem('entityId');
     setIsMutating(true);
     try {
       if (voucherId) {
@@ -211,7 +189,6 @@ const ClientFinance = ({ quickAction, clearQuickAction }) => {
 
   const handleDeleteInvoiceClick = async (invoiceId) => {
     const token = localStorage.getItem('accessToken');
-    const entityId = localStorage.getItem('entityId');
     setIsMutating(true);
     try {
       await deleteInvoice(entityId, invoiceId, token);
@@ -230,7 +207,6 @@ const ClientFinance = ({ quickAction, clearQuickAction }) => {
 
   const handleDeleteVoucherClick = async (voucherId) => {
     const token = localStorage.getItem('accessToken');
-    const entityId = localStorage.getItem('entityId');
     setIsMutating(true);
     try {
       await deleteVoucher(entityId, voucherId, token);
@@ -253,7 +229,6 @@ const ClientFinance = ({ quickAction, clearQuickAction }) => {
 
   const handleExportToTally = async (format) => {
     const token = localStorage.getItem('accessToken');
-    const entityId = localStorage.getItem('entityId');
     if (format === 'xml') {
       try {
         await exportVouchersToTallyXML(entityId, token);
@@ -393,7 +368,7 @@ const ClientFinance = ({ quickAction, clearQuickAction }) => {
       {/* 🔹 Invoice & Voucher Dialogs */}
       <Dialog open={showInvoiceDialog} onOpenChange={closeDialogs}>
         <InvoiceForm
-          entityId={selectedEntity}
+          entityId={entityId}
           beneficiaries={beneficiaries}
           isLoading={isLoading}
           onSave={handleAddOrUpdateInvoice}
@@ -405,7 +380,7 @@ const ClientFinance = ({ quickAction, clearQuickAction }) => {
 
       <Dialog open={showVoucherDialog} onOpenChange={closeDialogs}>
         <VoucherForm
-          entityId={selectedEntity}
+          entityId={entityId}
           beneficiaries={beneficiaries}
           isLoading={isLoading}
           onSave={handleAddOrUpdateVoucher}

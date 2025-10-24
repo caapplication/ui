@@ -59,7 +59,7 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
         }
 
         const attachment = formData.get('attachment');
-        if (isEditing && attachment && attachment.size === 0) {
+        if (isEditing && (!attachment || attachment.size === 0)) {
             formData.delete('attachment');
         }
 
@@ -216,7 +216,7 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
 
                 <div>
                     <Label htmlFor="attachment">Attachment</Label>
-                    <Input id="attachment" name="attachment" type="file" required={!isEditing} />
+                    <Input id="attachment" name="attachment" type="file" />
                     {isEditing && voucher?.attachment_id && <p className="text-xs text-gray-400 mt-1">Leave empty to keep existing attachment.</p>}
                 </div>
 

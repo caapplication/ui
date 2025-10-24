@@ -33,7 +33,7 @@ const TransactionItem = ({ transaction }) => {
         <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg hover:bg-white/10 transition-colors duration-300">
             <div>
                 <p className="text-white font-medium capitalize">{transaction.remarks || `${transaction.voucher_type} voucher`}</p>
-                <p className="text-gray-400 text-sm">{new Date(transaction.created_at).toLocaleDateString()}</p>
+                <p className="text-gray-400 text-sm">{new Date(transaction.created_date).toLocaleDateString()}</p>
             </div>
             <div className={`font-semibold text-lg ${isCredit ? 'text-green-400' : 'text-red-400'}`}>
                 ₹{amount}

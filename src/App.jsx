@@ -51,7 +51,7 @@ import UpcomingServices from './pages/UpcomingServices.jsx';
       const [organisationBankAccounts, setOrganisationBankAccounts] = useState([]);
       
       const fetchOrganisationBankAccounts = useCallback(async () => {
-        if (currentEntity && user?.access_token && (user?.role === 'CLIENT_USER' || user?.role === 'ENTITY_USER')) {
+        if (currentEntity && user?.access_token) {
           try {
             const accounts = await getOrganisationBankAccounts(currentEntity, user.access_token);
             setOrganisationBankAccounts(accounts);
@@ -146,7 +146,7 @@ import UpcomingServices from './pages/UpcomingServices.jsx';
                 <Route path="/finance/*" element={user.role === 'CLIENT_USER' ? <ClientFinance entityName={getEntityName(currentEntity)} organisationBankAccounts={organisationBankAccounts} quickAction={null} clearQuickAction={() => {}} entityId={currentEntity} organizationName={user?.organization_name} /> : <FinancePage />} />
                 <Route path="/documents" element={<Documents entityId={currentEntity} quickAction={null} clearQuickAction={() => {}} />} />
                 <Route path="/beneficiaries" element={<Beneficiaries quickAction={null} clearQuickAction={() => {}} />} />
-                <Route path="/organisation-bank" element={<OrganisationBank entityId={currentEntity} entityName={getEntityName(currentEntity)} quickAction={null} clearQuickAction={() => {}} />} />
+                <Route path="/organisation-bank" element={<OrganisationBank entityId={currentEntity} entityName={getEntityName(currentEntity)} quickAction={null} clearQuickAction={() => {}} organisationBankAccounts={organisationBankAccounts} />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/clients" element={<Clients setActiveTab={() => {}} />} />
                 <Route path="/tasks" element={<TaskManagementPage />} />

@@ -30,7 +30,7 @@ const InvoiceForm = ({ entityId, beneficiaries, isLoading, onSave, onCancel, inv
             formData.append('entity_id', entityId);
         }
         const attachment = formData.get('attachment');
-        if (isEditing && attachment && attachment.size === 0) {
+        if (isEditing && (!attachment || attachment.size === 0)) {
             formData.delete('attachment');
         }
         

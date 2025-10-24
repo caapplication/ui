@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ArrowLeft, Edit, Trash2, FileText } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, FileText, ZoomIn, ZoomOut, RefreshCcw } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -40,6 +40,8 @@ const InvoiceDetailsPage = () => {
     const [beneficiaries, setBeneficiaries] = useState([]);
     const [editedInvoice, setEditedInvoice] = useState(invoice);
     const [attachmentToDisplay, setAttachmentToDisplay] = useState(attachmentUrl);
+    const [zoom, setZoom] = useState(1);
+    const [financeHeaders, setFinanceHeaders] = useState([]);
 
 
     useEffect(() => {
@@ -51,6 +53,24 @@ const InvoiceDetailsPage = () => {
         };
         fetchBeneficiaries();
     }, [user?.access_token, organisationId, invoice]);
+
+    useEffect(() => {
+        const fetchHeaders = async () => {
+            if (user && (user.role === 'CA_ACCOUNTANT' || user.role === 'CA_TEAM')) {
+                try {
+                    const headers = await getFinanceHeaders(user.agency_id, user.access_token);
+                    setFinanceHeaders(headers);
+                } catch (error) {
+                    toast({
+                        title: 'Error',
+                        description: `Failed to fetch finance headers: ${error.message}`,
+                        variant: 'destructive',
+                    });
+                }
+            }
+        };
+        fetchHeaders();
+    }, [user, toast]);
 
     useEffect(() => {
         if (invoice?.attachment_id && user?.access_token) {
@@ -149,6 +169,10 @@ const InvoiceDetailsPage = () => {
         });
     };
 
+    const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.1, 3));
+    const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.1, 0.5));
+    const handleZoomReset = () => setZoom(1);
+
     return (
         <div className="h-screen w-full flex flex-col text-white bg-transparent p-4 md:p-6">
             <header className="flex items-center justify-between pb-4 border-b border-white/10 mb-4">
@@ -165,19 +189,42 @@ const InvoiceDetailsPage = () => {
                 className="flex-1 rounded-lg border border-white/10"
             >
                 <ResizablePanel defaultSize={60} minSize={30}>
-                    <div className="flex h-full items-center justify-center p-2">
-                         {attachmentToDisplay ? (
-                            <iframe 
-                                src={attachmentToDisplay} 
-                                title="Invoice Attachment"
-                                className="w-full h-full rounded-md border-none"
-                                onError={() => setAttachmentToDisplay(null)}
-                            />
-                        ) : (
-                            <div className="text-center text-gray-400">
-                                <p>No attachment available for this invoice.</p>
+                    <div className="relative flex h-full w-full flex-col items-center justify-center p-2">
+                        {attachmentToDisplay && !attachmentToDisplay.toLowerCase().endsWith('.pdf') && (
+                            <div className="absolute top-4 right-4 z-10 flex gap-2">
+                                <Button variant="outline" size="icon" onClick={handleZoomIn}>
+                                    <ZoomIn className="h-4 w-4" />
+                                </Button>
+                                <Button variant="outline" size="icon" onClick={handleZoomOut}>
+                                    <ZoomOut className="h-4 w-4" />
+                                </Button>
+                                <Button variant="outline" size="icon" onClick={handleZoomReset}>
+                                    <RefreshCcw className="h-4 w-4" />
+                                </Button>
                             </div>
                         )}
+                        <div className="flex h-full w-full items-center justify-center overflow-auto">
+                            {attachmentToDisplay ? (
+                                attachmentToDisplay.toLowerCase().endsWith('.pdf') ? (
+                                    <iframe
+                                        src={attachmentToDisplay}
+                                        title="Invoice Attachment"
+                                        className="h-full w-full rounded-md border-none"
+                                    />
+                                ) : (
+                                    <img
+                                        src={attachmentToDisplay}
+                                        alt="Invoice Attachment"
+                                        className="max-w-full max-h-full transition-transform duration-200"
+                                        style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }}
+                                    />
+                                )
+                            ) : (
+                                <div className="text-center text-gray-400">
+                                    <p>No attachment available for this invoice.</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </ResizablePanel>
                 <ResizableHandle withHandle />
@@ -216,24 +263,41 @@ const InvoiceDetailsPage = () => {
                                         </div>
                                         <div>
                                             <Label htmlFor="amount">Amount</Label>
-                                            <Input name="amount" type="number" defaultValue={editedInvoice.amount} />
+                                            <Input name="amount" type="number" step="0.01" defaultValue={editedInvoice.amount} />
                                         </div>
                                         <div>
                                             <Label htmlFor="cgst">CGST</Label>
-                                            <Input name="cgst" type="number" defaultValue={editedInvoice.cgst} onChange={(e) => setEditedInvoice({ ...editedInvoice, cgst: e.target.value, sgst: e.target.value })} />
+                                            <Input name="cgst" type="number" step="0.01" defaultValue={editedInvoice.cgst} onChange={(e) => setEditedInvoice({ ...editedInvoice, cgst: e.target.value, sgst: e.target.value })} />
                                         </div>
                                         <div>
                                             <Label htmlFor="sgst">SGST</Label>
-                                            <Input name="sgst" type="number" value={editedInvoice.sgst} onChange={(e) => { setEditedInvoice({ ...editedInvoice, sgst: e.target.value, cgst: e.target.value }); }} />
+                                            <Input name="sgst" type="number" step="0.01" value={editedInvoice.sgst} onChange={(e) => { setEditedInvoice({ ...editedInvoice, sgst: e.target.value, cgst: e.target.value }); }} />
                                         </div>
                                         <div>
                                             <Label htmlFor="igst">IGST</Label>
-                                            <Input name="igst" type="number" defaultValue={editedInvoice.igst} />
+                                            <Input name="igst" type="number" step="0.01" defaultValue={editedInvoice.igst} />
                                         </div>
                                         <div>
                                             <Label htmlFor="remarks">Remarks</Label>
                                             <Input name="remarks" defaultValue={editedInvoice.remarks} />
                                         </div>
+                                        {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
+                                            <div>
+                                                <Label htmlFor="finance_header_id">Header</Label>
+                                                <Select name="finance_header_id" defaultValue={editedInvoice.finance_header_id}>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Select a header" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {financeHeaders.map((h) => (
+                                                            <SelectItem key={h.id} value={h.id}>
+                                                                {h.name}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        )}
                                         <div className="flex justify-end gap-2">
                                             <Button variant="ghost" onClick={() => setIsEditing(false)}>Cancel</Button>
                                             <Button type="submit">Save Changes</Button>

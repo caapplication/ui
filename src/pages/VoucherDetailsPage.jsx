@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Edit, Trash2, FileText, Loader2 } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, FileText, Loader2, ZoomIn, ZoomOut, RefreshCcw } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import {
   ResizablePanelGroup,
@@ -90,7 +90,7 @@ const VoucherDetailsPage = () => {
     const navigate = useNavigate();
     const { user, loading: authLoading } = useAuth();
     const { toast } = useToast();
-    const { voucher: initialVoucher, startInEditMode, organizationName, entityName, organisationId, financeHeaders } = location.state || {};
+    const { voucher: initialVoucher, startInEditMode, organizationName, entityName, organisationId } = location.state || {};
     const [voucher, setVoucher] = useState(initialVoucher);
     const voucherDetailsRef = useRef(null);
     const [attachmentUrl, setAttachmentUrl] = useState(null);
@@ -100,6 +100,8 @@ const VoucherDetailsPage = () => {
     const [editedVoucher, setEditedVoucher] = useState(voucher);
     const [fromBankAccounts, setFromBankAccounts] = useState([]);
     const [toBankAccounts, setToBankAccounts] = useState([]);
+    const [zoom, setZoom] = useState(1);
+    const [financeHeaders, setFinanceHeaders] = useState([]);
 
     useEffect(() => {
         if (startInEditMode) {
@@ -199,6 +201,24 @@ const VoucherDetailsPage = () => {
     }, [user, editedVoucher?.beneficiary_id, toast]);
 
     useEffect(() => {
+        const fetchHeaders = async () => {
+            if (user && (user.role === 'CA_ACCOUNTANT' || user.role === 'CA_TEAM')) {
+                try {
+                    const headers = await getFinanceHeaders(user.agency_id, user.access_token);
+                    setFinanceHeaders(headers);
+                } catch (error) {
+                    toast({
+                        title: 'Error',
+                        description: `Failed to fetch finance headers: ${error.message}`,
+                        variant: 'destructive',
+                    });
+                }
+            }
+        };
+        fetchHeaders();
+    }, [user, toast]);
+
+    useEffect(() => {
         if (voucher?.attachment_id && user?.access_token) {
             const fetchAttachment = async () => {
                 try {
@@ -285,6 +305,10 @@ const VoucherDetailsPage = () => {
             data.to_bank_account_id = '0';
         }
 
+        if (data.finance_header_id) {
+            data.finance_header_id = data.finance_header_id;
+        }
+
         try {
             await updateVoucher(voucherId, data, user.access_token);
             toast({ title: 'Success', description: 'Voucher updated successfully.' });
@@ -325,18 +349,42 @@ const VoucherDetailsPage = () => {
                 className="flex-1 rounded-lg border border-white/10"
             >
                 <ResizablePanel defaultSize={60} minSize={30}>
-                    <div className="flex h-full items-center justify-center p-2">
-                         {attachmentUrl ? (
-                            <iframe 
-                                src={attachmentUrl} 
-                                title="Voucher Attachment"
-                                className="w-full h-full rounded-md border-none"
-                            />
-                        ) : (
-                            <div className="text-center text-gray-400">
-                                <p>No attachment available for this voucher.</p>
+                    <div className="relative flex h-full w-full flex-col items-center justify-center p-2">
+                        {attachmentUrl && !attachmentUrl.toLowerCase().endsWith('.pdf') && (
+                            <div className="absolute top-4 right-4 z-10 flex gap-2">
+                                <Button variant="outline" size="icon" onClick={() => setZoom(z => z + 0.1)}>
+                                    <ZoomIn className="h-4 w-4" />
+                                </Button>
+                                <Button variant="outline" size="icon" onClick={() => setZoom(z => Math.max(0.1, z - 0.1))}>
+                                    <ZoomOut className="h-4 w-4" />
+                                </Button>
+                                <Button variant="outline" size="icon" onClick={() => setZoom(1)}>
+                                    <RefreshCcw className="h-4 w-4" />
+                                </Button>
                             </div>
                         )}
+                        <div className="flex h-full w-full items-center justify-center overflow-auto">
+                            {attachmentUrl ? (
+                                attachmentUrl.toLowerCase().endsWith('.pdf') ? (
+                                    <iframe
+                                        src={attachmentUrl}
+                                        title="Voucher Attachment"
+                                        className="h-full w-full rounded-md border-none"
+                                    />
+                                ) : (
+                                    <img
+                                        src={attachmentUrl}
+                                        alt="Voucher Attachment"
+                                        className="max-w-full max-h-full transition-transform duration-200"
+                                        style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }}
+                                    />
+                                )
+                            ) : (
+                                <div className="text-center text-gray-400">
+                                    <p>No attachment available for this voucher.</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </ResizablePanel>
                 <ResizableHandle withHandle />
@@ -444,6 +492,23 @@ const VoucherDetailsPage = () => {
                                     <Label htmlFor="remarks">Remarks</Label>
                                     <Input name="remarks" defaultValue={editedVoucher.remarks} />
                                 </div>
+                                {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
+                                    <div>
+                                        <Label htmlFor="finance_header_id">Header</Label>
+                                        <Select name="finance_header_id" defaultValue={editedVoucher.finance_header_id}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select a header" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {financeHeaders.map((h) => (
+                                                    <SelectItem key={h.id} value={h.id}>
+                                                        {h.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                )}
                                 <div className="flex justify-end gap-2">
                                     <Button variant="ghost" onClick={() => setIsEditing(false)}>Cancel</Button>
                                     <Button type="submit">Save Changes</Button>

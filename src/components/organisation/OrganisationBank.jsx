@@ -15,9 +15,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const ITEMS_PER_PAGE = 10;
 
-const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction }) => {
-  const [bankAccounts, setBankAccounts] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction, organisationBankAccounts }) => {
+  const [bankAccounts, setBankAccounts] = useState(organisationBankAccounts || []);
+  const [isLoading, setIsLoading] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showToggleActiveDialog, setShowToggleActiveDialog] = useState(false);
@@ -49,7 +49,11 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction 
 
   useEffect(() => {
     fetchBankAccounts();
-  }, [fetchBankAccounts]);
+  }, [entityId, fetchBankAccounts]);
+
+  useEffect(() => {
+    setBankAccounts(organisationBankAccounts || []);
+  }, [organisationBankAccounts]);
 
   useEffect(() => {
     if (quickAction === 'add-organisation-bank') {
@@ -286,6 +290,7 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction 
                   <SelectItem value="DEMAT Account">DEMAT Account</SelectItem>
                   <SelectItem value="Senior Citizens’ Account">Senior Citizens’ Account</SelectItem>
                   <SelectItem value="Salary Account">Salary Account</SelectItem>
+                  <SelectItem value="Credit Cash">Credit Cash</SelectItem>
                 </SelectContent>
               </Select>
             </div>
