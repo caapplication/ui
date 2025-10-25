@@ -3,14 +3,14 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { useAuth } from '@/hooks/useAuth.jsx';
-import { deleteVoucher, updateVoucher, getBeneficiaries, getVoucherAttachment, getVoucher, getBankAccountsForBeneficiary, getOrganisationBankAccounts } from '@/lib/api';
+import { deleteVoucher, updateVoucher, getBeneficiariesForCA, getVoucherAttachment, getVoucher, getBankAccountsForBeneficiary, getOrganisationBankAccountsForCA, getFinanceHeaders } from '@/lib/api.js';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Edit, Trash2, FileText, Loader2, ZoomIn, ZoomOut, RefreshCcw } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, FileText, Loader2, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RefreshCcw } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import {
   ResizablePanelGroup,
@@ -84,14 +84,15 @@ const VoucherPDF = React.forwardRef(({ voucher, organizationName, entityName }, 
     );
 });
 
-const VoucherDetailsPage = () => {
+const VoucherDetailsCAPage = () => {
     const { voucherId } = useParams();
     const location = useLocation();
     const navigate = useNavigate();
     const { user, loading: authLoading } = useAuth();
     const { toast } = useToast();
-    const { voucher: initialVoucher, startInEditMode, organizationName, entityName, organisationId } = location.state || {};
+    const { voucher: initialVoucher, vouchers, startInEditMode, organizationName, entityName, organisationId } = location.state || {};
     const [voucher, setVoucher] = useState(initialVoucher);
+    const [currentIndex, setCurrentIndex] = useState(vouchers ? vouchers.findIndex(v => v.id === initialVoucher.id) : -1);
     const voucherDetailsRef = useRef(null);
     const [attachmentUrl, setAttachmentUrl] = useState(null);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -110,95 +111,83 @@ const VoucherDetailsPage = () => {
     }, [startInEditMode]);
 
     useEffect(() => {
-        const fetchVoucherDetails = async () => {
-            if (authLoading) return;
+        if (authLoading || !user?.access_token) return;
 
-            let currentEntityId = initialVoucher?.entity_id;
-            if (!currentEntityId && user) {
-                if (user.role === 'ENTITY_USER') {
-                    currentEntityId = user.id;
-                } else if (user.role === 'CLIENT_USER') {
-                    const entitiesToDisplay = user.entities || [];
-                    if (entitiesToDisplay.length > 0) {
-                        currentEntityId = entitiesToDisplay[0].id;
-                    } else if (user.organization_id) {
-                        currentEntityId = user.organization_id;
-                    }
-                } else if (user.role !== 'CA_ACCOUNTANT') {
-                    currentEntityId = user.organization_id || user.id;
-                }
-            }
-
-            if (user?.access_token && currentEntityId) {
-                try {
-                    const data = await getVoucher(currentEntityId, voucherId, user.access_token);
-                    setVoucher(data);
-                    setEditedVoucher(data);
-                } catch (error) {
-                    toast({ title: 'Error', description: 'Failed to fetch voucher details.', variant: 'destructive' });
-                }
-            }
-        };
-
-        if (!voucher) {
-            fetchVoucherDetails();
-        }
-    }, [voucherId, user, voucher, toast, initialVoucher, authLoading]);
-
-    useEffect(() => {
         const fetchData = async () => {
-            let orgIdsToTry = [];
-            if (organisationId) orgIdsToTry.push(organisationId);
-            if (voucher?.entity_id && !orgIdsToTry.includes(voucher.entity_id)) orgIdsToTry.push(voucher.entity_id);
-            if (user?.organization_id && !orgIdsToTry.includes(user.organization_id)) orgIdsToTry.push(user.organization_id);
-
-            let beneficiariesData = [];
-            let fromAccountsData = [];
-            let found = false;
-
-            if (user?.access_token && orgIdsToTry.length > 0) {
-                for (const orgId of orgIdsToTry) {
-                    try {
-                        const [bData, fData] = await Promise.all([
-                            getBeneficiaries(orgId, user.access_token),
-                            getOrganisationBankAccounts(orgId, user.access_token)
-                        ]);
-                        if (bData && bData.length > 0) {
-                            beneficiariesData = bData;
-                            fromAccountsData = fData || [];
-                            found = true;
-                            break;
-                        }
-                    } catch (error) {
-                        // Try next orgId
-                        continue;
-                    }
+            try {
+                let currentVoucher = initialVoucher;
+                if (!currentVoucher) {
+                    // On refresh, initialVoucher is null. We need to fetch the voucher.
+                    // The entity_id is not known here, so we assume getVoucher can work without it for a CA.
+                    // A better approach would be a dedicated endpoint like /api/ca/vouchers/{voucherId}
+                    // For now, we'll try to fetch it, but this might be brittle.
+                    // Let's assume the voucher object has entity_id and organisation_id
+                    const fetchedVoucher = await getVoucher(null, voucherId, user.access_token);
+                    currentVoucher = fetchedVoucher;
                 }
+                
+                if (!currentVoucher) {
+                    toast({ title: 'Error', description: 'Voucher not found.', variant: 'destructive' });
+                    return;
+                }
+
+                setVoucher(currentVoucher);
+                setEditedVoucher(currentVoucher);
+
+                const orgId = currentVoucher.organisation_id || organisationId || user.organization_id;
+
+                if (!orgId) {
+                    toast({ title: 'Error', description: 'Could not determine organization ID.', variant: 'destructive' });
+                    return;
+                }
+
+                const [beneficiariesData, fromAccountsData] = await Promise.all([
+                    getBeneficiariesForCA(orgId, user.access_token),
+                    getOrganisationBankAccountsForCA(orgId, user.access_token),
+                ]);
+
                 setBeneficiaries(beneficiariesData || []);
                 setFromBankAccounts(fromAccountsData || []);
-                if (!found) {
-                    toast({ title: 'No Beneficiaries', description: 'No beneficiaries found for this voucher. Please check your organization/entity setup.', variant: 'destructive' });
-                }
-            } else {
-                toast({ title: 'Error', description: 'No valid organization or entity ID for fetching beneficiaries.', variant: 'destructive' });
+
+            } catch (error) {
+                toast({ title: 'Error', description: `Failed to fetch data: ${error.message}`, variant: 'destructive' });
             }
         };
+
         fetchData();
-    }, [user, organisationId, voucher, toast]);
+    }, [voucherId, authLoading, user?.access_token, organisationId, initialVoucher]);
 
     useEffect(() => {
-        const fetchToAccounts = async () => {
-            if (user?.access_token && editedVoucher?.beneficiary_id) {
-                try {
-                    const toAccounts = await getBankAccountsForBeneficiary(editedVoucher.beneficiary_id, user.access_token);
-                    setToBankAccounts(toAccounts || []);
-                } catch (error) {
-                    toast({ title: 'Error', description: 'Failed to fetch beneficiary bank accounts.', variant: 'destructive' });
-                }
+        if (!user?.access_token || !editedVoucher?.beneficiary_id) return;
+        (async () => {
+            try {
+                const toAccounts = await getBankAccountsForBeneficiary(editedVoucher.beneficiary_id, user.access_token);
+                setToBankAccounts(toAccounts || []);
+            } catch {
+                toast({ title: 'Error', description: 'Failed to fetch beneficiary bank accounts.', variant: 'destructive' });
             }
-        };
-        fetchToAccounts();
-    }, [user, editedVoucher?.beneficiary_id, toast]);
+        })();
+    }, [user?.access_token, editedVoucher?.beneficiary_id]);
+
+    useEffect(() => {
+        if (editedVoucher?.voucher_type === 'cash') {
+            setEditedVoucher(prevState => ({ ...prevState, payment_type: 'cash' }));
+        }
+    }, [editedVoucher?.voucher_type]);
+
+    useEffect(() => {
+        if (voucher?.attachment_id && user?.access_token) {
+            const fetchAttachment = async () => {
+                try {
+                    const url = await getVoucherAttachment(voucher.attachment_id, user.access_token);
+                    setAttachmentUrl(url);
+                } catch (error) {
+                    console.error("Failed to fetch attachment:", error);
+                }
+            };
+            fetchAttachment();
+        }
+    }, [user?.access_token, voucher?.attachment_id]);
 
     useEffect(() => {
         const fetchHeaders = async () => {
@@ -218,25 +207,14 @@ const VoucherDetailsPage = () => {
         fetchHeaders();
     }, [user, toast]);
 
-    useEffect(() => {
-        if (voucher?.attachment_id && user?.access_token) {
-            const fetchAttachment = async () => {
-                try {
-                    const url = await getVoucherAttachment(voucher.attachment_id, user.access_token);
-                    setAttachmentUrl(url);
-                } catch (error) {
-                    console.error("Failed to fetch attachment:", error);
-                }
-            };
-            fetchAttachment();
+    const handleNavigate = (direction) => {
+        if (!vouchers || vouchers.length === 0) return;
+        const newIndex = currentIndex + direction;
+        if (newIndex >= 0 && newIndex < vouchers.length) {
+            const nextVoucher = vouchers[newIndex];
+            navigate(`/vouchers/ca/${nextVoucher.id}`, { state: { voucher: nextVoucher, vouchers, organisationId } });
         }
-    }, [user?.access_token, voucher?.attachment_id]);
-
-    useEffect(() => {
-        if (editedVoucher?.voucher_type === 'cash') {
-            setEditedVoucher(prevState => ({ ...prevState, payment_type: 'cash' }));
-        }
-    }, [editedVoucher?.voucher_type]);
+    };
     
     const voucherDetails = voucher || {
         id: voucherId,
@@ -284,7 +262,7 @@ const VoucherDetailsPage = () => {
             await deleteVoucher(voucherDetails.entity_id, voucherId, user.access_token);
             toast({ title: 'Success', description: 'Voucher deleted successfully.' });
             setShowDeleteDialog(false);
-            navigate('/finance');
+            navigate('/finance/ca');
         } catch (error) {
             toast({
                 title: 'Error',
@@ -299,28 +277,26 @@ const VoucherDetailsPage = () => {
         e.preventDefault();
         const formData = new FormData(e.target);
         const data = Object.fromEntries(formData.entries());
-
-        if (data.voucher_type === 'cash' || data.payment_type !== 'bank_transfer') {
-            data.from_bank_account_id = '0';
-            data.to_bank_account_id = '0';
-        }
-
-        if (data.finance_header_id) {
-            data.finance_header_id = data.finance_header_id;
-        }
+        const payload = {
+            beneficiary_id: editedVoucher.beneficiary_id,
+            amount: Number(editedVoucher.amount),
+            voucher_type: editedVoucher.voucher_type,
+            payment_type: editedVoucher.payment_type,
+            remarks: editedVoucher.remarks,
+            ...(editedVoucher.payment_type === 'bank_transfer' ? {
+                from_bank_account_id: editedVoucher.from_bank_account_id,
+                to_bank_account_id: editedVoucher.to_bank_account_id,
+            } : {}),
+            finance_header_id: data.finance_header_id,
+        };
 
         try {
-            await updateVoucher(voucherId, data, user.access_token);
+            await updateVoucher(voucherId, payload, user.access_token);
             toast({ title: 'Success', description: 'Voucher updated successfully.' });
             setIsEditing(false);
-            // NOTE: We are not refreshing the data as the user will be navigated away
-            navigate('/finance');
+            navigate('/finance/ca');
         } catch (error) {
-            toast({
-                title: 'Error',
-                description: `Failed to update voucher: ${error.message}`,
-                variant: 'destructive',
-            });
+            toast({ title: 'Error', description: `Failed to update voucher: ${error.message}`, variant: 'destructive' });
         }
     };
 
@@ -337,10 +313,21 @@ const VoucherDetailsPage = () => {
             <VoucherPDF ref={voucherDetailsRef} voucher={voucher} organizationName={organizationName} entityName={entityName} />
             <header className="flex items-center justify-between pb-4 border-b border-white/10 mb-4">
                 <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="icon" onClick={() => navigate('/finance')}>
+                    <Button variant="ghost" size="icon" onClick={() => navigate('/finance/ca')}>
                         <ArrowLeft className="h-6 w-6" />
                     </Button>
-                    <h1 className="text-2xl font-bold">Voucher Details</h1>
+                    <div>
+                        <h1 className="text-2xl font-bold">Voucher Details</h1>
+                        <p className="text-sm text-gray-400">Review all cash and debit transactions.</p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" size="icon" onClick={() => handleNavigate(-1)} disabled={!vouchers || currentIndex === 0}>
+                        <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button variant="outline" size="icon" onClick={() => handleNavigate(1)} disabled={!vouchers || currentIndex === vouchers.length - 1}>
+                        <ChevronRight className="h-4 w-4" />
+                    </Button>
                 </div>
             </header>
 
@@ -391,22 +378,26 @@ const VoucherDetailsPage = () => {
                 <ResizablePanel defaultSize={40} minSize={30}>
                     <div className="flex h-full items-start justify-center p-6 overflow-y-auto">
                 <Tabs defaultValue="details" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2">
+                    <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger value="details">Details</TabsTrigger>
                         <TabsTrigger value="activity">Activity Log</TabsTrigger>
+                        <TabsTrigger value="beneficiary">Beneficiary</TabsTrigger>
                     </TabsList>
                     <TabsContent value="details" className="mt-4">
                         {isEditing ? (
                             <form onSubmit={handleUpdate} className="space-y-4">
                                 <div>
                                     <Label htmlFor="beneficiary_id">Beneficiary</Label>
-                                    <Select name="beneficiary_id" defaultValue={editedVoucher.beneficiary_id}>
+                                    <Select
+                                        value={editedVoucher?.beneficiary_id ? String(editedVoucher.beneficiary_id) : ''}
+                                        onValueChange={(val) => setEditedVoucher(p => ({ ...p, beneficiary_id: val }))}
+                                    >
                                         <SelectTrigger>
                                             <SelectValue placeholder="Select a beneficiary" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {beneficiaries.map((b) => (
-                                                <SelectItem key={b.id} value={b.id}>
+                                            {beneficiaries.map(b => (
+                                                <SelectItem key={b.id} value={String(b.id)}>
                                                     {b.beneficiary_type === 'individual' ? b.name : b.company_name}
                                                 </SelectItem>
                                             ))}
@@ -420,7 +411,6 @@ const VoucherDetailsPage = () => {
                                 <div>
                                     <Label htmlFor="voucher_type">Voucher Type</Label>
                                     <Select
-                                        name="voucher_type"
                                         value={editedVoucher?.voucher_type}
                                         onValueChange={(val) => setEditedVoucher(p => ({ ...p, voucher_type: val }))}
                                     >
@@ -439,7 +429,6 @@ const VoucherDetailsPage = () => {
                                         <Input value="Cash" disabled />
                                     ) : (
                                         <Select
-                                            name="payment_type"
                                             value={(editedVoucher?.payment_type ?? '').toLowerCase()}
                                             onValueChange={(val) => setEditedVoucher(p => ({ ...p, payment_type: val }))}
                                         >
@@ -454,38 +443,35 @@ const VoucherDetailsPage = () => {
                                         </Select>
                                     )}
                                 </div>
-                                {editedVoucher.payment_type === 'bank_transfer' && (
+                                {editedVoucher?.payment_type === 'bank_transfer' && (
                                     <>
-                                        <div>
-                                            <Label htmlFor="from_bank_account_id">From (Organisation Bank)</Label>
-                                            <Select name="from_bank_account_id" defaultValue={editedVoucher.from_bank_account_id}>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Select your bank account" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {fromBankAccounts.map((acc) => (
-                                                        <SelectItem key={acc.id} value={acc.id}>
-                                                            {acc.bank_name} - {acc.account_number}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                        <div>
-                                            <Label htmlFor="to_bank_account_id">To (Beneficiary Bank)</Label>
-                                            <Select name="to_bank_account_id" defaultValue={editedVoucher.to_bank_account_id}>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Select beneficiary's bank account" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {toBankAccounts.map((acc) => (
-                                                        <SelectItem key={acc.id} value={acc.id}>
-                                                            {acc.bank_name} - {acc.account_number}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
+                                        <Select
+                                            value={editedVoucher?.from_bank_account_id ? String(editedVoucher.from_bank_account_id) : ''}
+                                            onValueChange={(val) => setEditedVoucher(p => ({ ...p, from_bank_account_id: val }))}
+                                        >
+                                            <SelectTrigger><SelectValue placeholder="Select your bank account" /></SelectTrigger>
+                                            <SelectContent>
+                                                {fromBankAccounts.map(acc => (
+                                                    <SelectItem key={acc.id} value={String(acc.id)}>
+                                                        {acc.bank_name} - {acc.account_number}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+
+                                        <Select
+                                            value={editedVoucher?.to_bank_account_id ? String(editedVoucher.to_bank_account_id) : ''}
+                                            onValueChange={(val) => setEditedVoucher(p => ({ ...p, to_bank_account_id: val }))}
+                                        >
+                                            <SelectTrigger><SelectValue placeholder="Select beneficiary's bank account" /></SelectTrigger>
+                                            <SelectContent>
+                                                {toBankAccounts.map(acc => (
+                                                    <SelectItem key={acc.id} value={String(acc.id)}>
+                                                        {acc.bank_name} - {acc.account_number}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                     </>
                                 )}
                                 <div>
@@ -517,7 +503,7 @@ const VoucherDetailsPage = () => {
                         ) : (
                             <Card className="w-full glass-pane border-none shadow-none bg-gray-800 text-white">
                                 <CardHeader>
-                                    <CardTitle>Voucher to {beneficiaryName}</CardTitle>
+                                    <CardTitle>Voucheries to {beneficiaryName}</CardTitle>
                                     <CardDescription>Created on {new Date(voucherDetails.created_date).toLocaleDateString()}</CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-2">
@@ -548,6 +534,19 @@ const VoucherDetailsPage = () => {
                             <ActivityLog itemId={voucherId} itemType="voucher" />
                         </div>
                     </TabsContent>
+                    <TabsContent value="beneficiary" className="mt-4">
+                        <Card className="w-full glass-pane border-none shadow-none bg-gray-800 text-white">
+                            <CardHeader>
+                                <CardTitle>Beneficiary Details</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-2">
+                                <DetailItem label="Name" value={beneficiaryName} />
+                                <DetailItem label="PAN" value={voucherDetails.beneficiary?.pan || 'N/A'} />
+                                <DetailItem label="Email" value={voucherDetails.beneficiary?.email || 'N/A'} />
+                                <DetailItem label="Phone" value={voucherDetails.beneficiary?.phone_number || 'N/A'} />
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
                 </Tabs>
             </div>
                 </ResizablePanel>
@@ -576,4 +575,4 @@ const VoucherDetailsPage = () => {
     );
 };
 
-export default VoucherDetailsPage;
+export default VoucherDetailsCAPage;

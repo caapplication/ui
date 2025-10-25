@@ -3,7 +3,6 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { useAuth } from '@/hooks/useAuth.jsx';
-import { useOrganisation } from '@/hooks/useOrganisation';
 import { deleteVoucher, updateVoucher, getBeneficiariesForCA, getVoucherAttachment, getVoucher, getBankAccountsForBeneficiary, getOrganisationBankAccountsForCA, getFinanceHeaders } from '@/lib/api.js';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -85,14 +84,13 @@ const VoucherPDF = React.forwardRef(({ voucher, organizationName, entityName }, 
     );
 });
 
-const VoucherDetailsCA = () => {
+const VoucherDetailsCAPage = () => {
     const { voucherId } = useParams();
     const location = useLocation();
     const navigate = useNavigate();
     const { user, loading: authLoading } = useAuth();
-    const { organisationId, selectedEntity, loading: orgLoading } = useOrganisation();
     const { toast } = useToast();
-    const { voucher: initialVoucher, vouchers, startInEditMode, organizationName, entityName } = location.state || {};
+    const { voucher: initialVoucher, vouchers, startInEditMode, organizationName, entityName, organisationId } = location.state || {};
     const [voucher, setVoucher] = useState(initialVoucher);
     const [currentIndex, setCurrentIndex] = useState(vouchers ? vouchers.findIndex(v => v.id === initialVoucher.id) : -1);
     const voucherDetailsRef = useRef(null);
@@ -133,13 +131,19 @@ const VoucherDetailsCA = () => {
     }, [voucherId, authLoading, user?.access_token, voucher]);
 
     useEffect(() => {
-        if (orgLoading || !organisationId || !selectedEntity || !user?.access_token) return;
+        if (!voucher || !user?.access_token) return;
 
         const fetchRelatedData = async () => {
+            const orgId = voucher.organisation_id || organisationId;
+            if (!orgId) {
+                toast({ title: 'Error', description: 'Could not determine organization ID from voucher.', variant: 'destructive' });
+                return;
+            }
+
             try {
                 const [beneficiariesData, fromAccountsData] = await Promise.all([
-                    getBeneficiariesForCA(organisationId, user.access_token),
-                    getOrganisationBankAccountsForCA(selectedEntity, user.access_token),
+                    getBeneficiariesForCA(orgId, user.access_token),
+                    getOrganisationBankAccountsForCA(orgId, user.access_token),
                 ]);
 
                 setBeneficiaries(beneficiariesData || []);
@@ -150,7 +154,7 @@ const VoucherDetailsCA = () => {
         };
 
         fetchRelatedData();
-    }, [organisationId, selectedEntity, user?.access_token, orgLoading]);
+    }, [voucher, user?.access_token, organisationId]);
 
     useEffect(() => {
         if (!user?.access_token || !editedVoucher?.beneficiary_id) return;
@@ -207,7 +211,7 @@ const VoucherDetailsCA = () => {
         const newIndex = currentIndex + direction;
         if (newIndex >= 0 && newIndex < vouchers.length) {
             const nextVoucher = vouchers[newIndex];
-            navigate(`/vouchers/ca/${nextVoucher.id}`, { state: { voucher: nextVoucher, vouchers } });
+            navigate(`/vouchers/ca/${nextVoucher.id}`, { state: { voucher: nextVoucher, vouchers, organisationId } });
         }
     };
     
@@ -295,7 +299,7 @@ const VoucherDetailsCA = () => {
         }
     };
 
-    if (authLoading || orgLoading || !voucher) {
+    if (authLoading || !voucher) {
         return (
             <div className="flex justify-center items-center h-screen">
                 <Loader2 className="w-8 h-8 animate-spin text-white" />
@@ -498,7 +502,7 @@ const VoucherDetailsCA = () => {
                         ) : (
                             <Card className="w-full glass-pane border-none shadow-none bg-gray-800 text-white">
                                 <CardHeader>
-                                    <CardTitle>Voucher to {beneficiaryName}</CardTitle>
+                                    <CardTitle>Voucheres to {beneficiaryName}</CardTitle>
                                     <CardDescription>Created on {new Date(voucherDetails.created_date).toLocaleDateString()}</CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-2">
@@ -509,23 +513,21 @@ const VoucherDetailsCA = () => {
                                         <p className="text-sm text-gray-400 mb-1">Remarks</p>
                                         <p className="text-sm text-white p-3 bg-white/5 rounded-md">{voucherDetails.remarks || 'N/A'}</p>
                                     </div>
-                                    {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
-                                        <div className="pt-4">
-                                            <Label htmlFor="finance_header_id">Header</Label>
-                                            <Select name="finance_header_id" defaultValue={editedVoucher.finance_header_id} onValueChange={(value) => setEditedVoucher(p => ({ ...p, finance_header_id: value }))}>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Select a header" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {financeHeaders.map((h) => (
-                                                        <SelectItem key={h.id} value={h.id}>
-                                                            {h.name}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    )}
+                                    <div className="pt-4">
+                                        <Label htmlFor="finance_header_id">Header</Label>
+                                        <Select name="finance_header_id" defaultValue={editedVoucher.finance_header_id} onValueChange={(value) => setEditedVoucher(p => ({ ...p, finance_header_id: value }))}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select a header" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {financeHeaders.map((h) => (
+                                                    <SelectItem key={h.id} value={h.id}>
+                                                        {h.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
                                     <div className="flex items-center gap-2 mt-4 justify-end">
                                         <Button variant="destructive" size="icon" onClick={() => setShowDeleteDialog(true)}>
                                             <Trash2 className="h-4 w-4" />
@@ -536,18 +538,16 @@ const VoucherDetailsCA = () => {
                                         <Button variant="outline" size="icon" onClick={() => setIsEditing(!isEditing)}>
                                             <Edit className="h-4 w-4" />
                                         </Button>
-                                        {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
-                                            <Button onClick={() => {
-                                                updateVoucher(voucherId, { is_ready: true, finance_header_id: editedVoucher.finance_header_id }, user.access_token)
-                                                    .then(() => {
-                                                        toast({ title: 'Success', description: 'Voucher marked as ready.' });
-                                                        navigate('/finance/ca');
-                                                    })
-                                                    .catch(err => {
-                                                        toast({ title: 'Error', description: `Failed to mark voucher as ready: ${err.message}`, variant: 'destructive' });
-                                                    });
-                                            }}>Mark as Ready</Button>
-                                        )}
+                                        <Button onClick={() => {
+                                            updateVoucher(voucherId, { is_ready: true, finance_header_id: editedVoucher.finance_header_id }, user.access_token)
+                                                .then(() => {
+                                                    toast({ title: 'Success', description: 'Voucher marked as ready.' });
+                                                    navigate('/finance/ca');
+                                                })
+                                                .catch(err => {
+                                                    toast({ title: 'Error', description: `Failed to mark voucher as ready: ${err.message}`, variant: 'destructive' });
+                                                });
+                                        }}>Mark as Ready</Button>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -599,4 +599,4 @@ const VoucherDetailsCA = () => {
     );
 };
 
-export default VoucherDetailsCA;
+export default VoucherDetailsCAPage;

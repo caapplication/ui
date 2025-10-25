@@ -16,7 +16,10 @@ export const useOrganisation = () => {
         try {
           const orgs = await listOrganisations(user.access_token);
           setOrganisations(orgs || []);
-          if (orgs?.length > 0) {
+          const storedOrgId = localStorage.getItem('organisationId');
+          if (storedOrgId && orgs?.some(o => o.id === storedOrgId)) {
+            setSelectedOrg(storedOrgId);
+          } else if (orgs?.length > 0) {
             setSelectedOrg(orgs[0].id);
           }
         } catch (error) {
@@ -65,14 +68,25 @@ export const useOrganisation = () => {
     }
   };
 
+  const setSelectedOrgAndLocalStorage = (orgId) => {
+    setSelectedOrg(orgId);
+    if (orgId) {
+      localStorage.setItem('organisationId', orgId);
+    } else {
+      localStorage.removeItem('organisationId');
+    }
+    // When org changes, entity should be cleared to avoid inconsistent state
+    setSelectedEntityAndLocalStorage(null);
+  };
+
   return {
     organisations,
     selectedOrg,
-    setSelectedOrg,
+    setSelectedOrg: setSelectedOrgAndLocalStorage,
     entities,
     selectedEntity,
     setSelectedEntity: setSelectedEntityAndLocalStorage,
     loading,
-    organisationId: selectedEntity || selectedOrg,
+    organisationId: selectedOrg,
   };
 };

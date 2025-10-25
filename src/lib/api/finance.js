@@ -1,6 +1,6 @@
 import { getAuthHeaders, handleResponse } from './utils';
 
-const FINANCE_API_BASE_URL = 'https://finance-api.fynivo.in';
+const FINANCE_API_BASE_URL = 'http://localhost:8004';
 
 export const getEntities = async (token) => {
     const response = await fetch(`${FINANCE_API_BASE_URL}/api/entities/`, {
@@ -22,14 +22,19 @@ export const getDashboardData = async (entityId, token, agencyId) => {
 };
 
 export const getBeneficiaries = async (organizationId, token, skip = 0, limit = 100) => {
-    const response = await fetch(`${FINANCE_API_BASE_URL}/api/beneficiaries/?organization_id=${organizationId}&skip=${skip}&limit=${limit}`, {
+    const userRole = JSON.parse(atob(token.split('.')[1])).role;
+    let url = `${FINANCE_API_BASE_URL}/api/beneficiaries/?organization_id=${organizationId}&skip=${skip}&limit=${limit}`;
+    if (!organizationId && userRole === 'CLIENT_USER') {
+        url = `${FINANCE_API_BASE_URL}/api/beneficiaries/?skip=${skip}&limit=${limit}`;
+    }
+    const response = await fetch(url, {
         headers: getAuthHeaders(token),
     });
     return handleResponse(response);
 };
 
 export const getBeneficiariesForCA = async (organisationId, token, skip = 0, limit = 100) => {
-    const response = await fetch(`${FINANCE_API_BASE_URL}/api/beneficiaries/?organisation_id=${organisationId}&skip=${skip}&limit=${limit}`, {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/beneficiaries/?organization_id=${organisationId}&skip=${skip}&limit=${limit}`, {
         headers: getAuthHeaders(token),
     });
     return handleResponse(response);
@@ -100,8 +105,8 @@ export const getOrganisationBankAccounts = async (entityId, token) => {
     return handleResponse(response);
 };
 
-export const getOrganisationBankAccountsForCA = async (organisationId, token) => {
-    const response = await fetch(`${FINANCE_API_BASE_URL}/api/bank_accounts/?organisation_id=${organisationId}&masked=false`, {
+export const getOrganisationBankAccountsForCA = async (entityId, token) => {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/bank_accounts/?entity_id=${entityId}&masked=false`, {
         headers: getAuthHeaders(token),
     });
     return handleResponse(response);
@@ -221,9 +226,12 @@ export const deleteVoucher = async (entityId, voucherId, token) => {
 };
 
 export const getVoucher = async (entityId, voucherId, token) => {
+    const userRole = JSON.parse(atob(token.split('.')[1])).role;
     let url = `${FINANCE_API_BASE_URL}/api/vouchers/${voucherId}`;
     if (entityId) {
         url += `?entity_id=${entityId}`;
+    } else if (userRole === 'CA_ACCOUNTANT' || userRole === 'CA_TEAM') {
+        url = `${FINANCE_API_BASE_URL}/api/ca_team/vouchers/${voucherId}`;
     }
     const response = await fetch(url, {
         headers: getAuthHeaders(token),
