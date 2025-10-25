@@ -584,13 +584,13 @@ const VoucherDetailsCA = () => {
                                             <Button onClick={() => {
                                                 updateVoucher(voucherId, { is_ready: true, finance_header_id: editedVoucher.finance_header_id }, user.access_token)
                                                     .then(() => {
-                                                        toast({ title: 'Success', description: 'Voucher marked as ready.' });
+                                                        toast({ title: 'Success', description: 'Voucher tagged successfully.' });
                                                         navigate('/finance/ca');
                                                     })
                                                     .catch(err => {
-                                                        toast({ title: 'Error', description: `Failed to mark voucher as ready: ${err.message}`, variant: 'destructive' });
+                                                        toast({ title: 'Error', description: `Failed to tag voucher: ${err.message}`, variant: 'destructive' });
                                                     });
-                                            }}>Mark as Ready</Button>
+                                            }}>Tag</Button>
                                         )}
                                     </div>
                                 </CardContent>
