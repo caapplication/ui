@@ -4,7 +4,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useOrganisation } from '@/hooks/useOrganisation';
-import { deleteVoucher, updateVoucher, getBeneficiariesForCA, getVoucherAttachment, getVoucher, getBankAccountsForBeneficiary, getOrganisationBankAccountsForCA, getFinanceHeaders } from '@/lib/api.js';
+import { deleteVoucher, updateVoucher, getBeneficiariesForCA, getVoucherAttachment, getVoucher, getBankAccountsForBeneficiary, getOrganisationBankAccountsForCA, getFinanceHeaders, getCATeamVouchers } from '@/lib/api.js';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -90,11 +90,12 @@ const VoucherDetailsCA = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const { user, loading: authLoading } = useAuth();
-    const { organisationId, selectedEntity, loading: orgLoading } = useOrganisation();
+    const { organisationId, selectedEntity, entities, loading: orgLoading } = useOrganisation();
     const { toast } = useToast();
     const { voucher: initialVoucher, vouchers, startInEditMode, organizationName, entityName } = location.state || {};
     const [voucher, setVoucher] = useState(initialVoucher);
-    const [currentIndex, setCurrentIndex] = useState(vouchers ? vouchers.findIndex(v => v.id === initialVoucher.id) : -1);
+    const [voucherList, setVoucherList] = useState(vouchers || []);
+    const [currentIndex, setCurrentIndex] = useState(-1);
     const voucherDetailsRef = useRef(null);
     const [attachmentUrl, setAttachmentUrl] = useState(null);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -202,12 +203,55 @@ const VoucherDetailsCA = () => {
         fetchHeaders();
     }, [user, toast]);
 
+    useEffect(() => {
+        const fetchAllVouchers = async () => {
+            if (orgLoading || !selectedEntity || !user?.access_token || entities.length === 0) return;
+
+            let entityIdsToFetch = [];
+            if (selectedEntity === "all") {
+                entityIdsToFetch = entities.map((e) => e.id);
+            } else {
+                entityIdsToFetch = [selectedEntity];
+            }
+
+            try {
+                const results = await Promise.all(
+                    entityIdsToFetch.map(id => getCATeamVouchers(id, user.access_token))
+                );
+                const allVouchers = results.flat().sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
+                setVoucherList(allVouchers);
+            } catch (error) {
+                toast({ title: 'Error', description: `Failed to fetch voucher list: ${error.message}`, variant: 'destructive' });
+            }
+        };
+
+        if (!vouchers || vouchers.length === 0) {
+            fetchAllVouchers();
+        }
+    }, [selectedEntity, user?.access_token, orgLoading, entities, vouchers, toast]);
+
+    useEffect(() => {
+        if (voucherList.length > 0) {
+            const newIndex = voucherList.findIndex(v => v.id === voucherId);
+            setCurrentIndex(newIndex);
+        }
+    }, [voucherList, voucherId]);
+
     const handleNavigate = (direction) => {
-        if (!vouchers || vouchers.length === 0) return;
+        if (!voucherList || voucherList.length === 0) return;
         const newIndex = currentIndex + direction;
-        if (newIndex >= 0 && newIndex < vouchers.length) {
-            const nextVoucher = vouchers[newIndex];
-            navigate(`/vouchers/ca/${nextVoucher.id}`, { state: { voucher: nextVoucher, vouchers } });
+        if (newIndex >= 0 && newIndex < voucherList.length) {
+            const nextVoucher = voucherList[newIndex];
+            navigate(`/vouchers/ca/${nextVoucher.id}`, {
+                state: {
+                    voucher: nextVoucher,
+                    vouchers: voucherList,
+                    organizationName,
+                    entityName
+                },
+                replace: true
+            });
+            setVoucher(nextVoucher);
         }
     };
     
@@ -317,10 +361,10 @@ const VoucherDetailsCA = () => {
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Button variant="outline" size="icon" onClick={() => handleNavigate(-1)} disabled={!vouchers || currentIndex === 0}>
+                    <Button variant="outline" size="icon" onClick={() => handleNavigate(-1)} disabled={!voucherList || currentIndex <= 0}>
                         <ChevronLeft className="h-4 w-4" />
                     </Button>
-                    <Button variant="outline" size="icon" onClick={() => handleNavigate(1)} disabled={!vouchers || currentIndex === vouchers.length - 1}>
+                    <Button variant="outline" size="icon" onClick={() => handleNavigate(1)} disabled={!voucherList || currentIndex >= voucherList.length - 1}>
                         <ChevronRight className="h-4 w-4" />
                     </Button>
                 </div>
