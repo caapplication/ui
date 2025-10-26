@@ -318,10 +318,10 @@ const VoucherDetailsCA = () => {
         const data = Object.fromEntries(formData.entries());
         const payload = {
             beneficiary_id: editedVoucher.beneficiary_id,
-            amount: Number(editedVoucher.amount),
+            amount: Number(data.amount),
             voucher_type: editedVoucher.voucher_type,
             payment_type: editedVoucher.payment_type,
-            remarks: editedVoucher.remarks,
+            remarks: data.remarks,
             ...(editedVoucher.payment_type === 'bank_transfer' ? {
                 from_bank_account_id: editedVoucher.from_bank_account_id,
                 to_bank_account_id: editedVoucher.to_bank_account_id,
@@ -445,7 +445,7 @@ const VoucherDetailsCA = () => {
                                 </div>
                                 <div>
                                     <Label htmlFor="amount">Amount</Label>
-                                    <Input name="amount" type="number" defaultValue={editedVoucher.amount} />
+                                    <Input name="amount" type="number" value={editedVoucher.amount} onChange={(e) => setEditedVoucher(p => ({ ...p, amount: e.target.value }))} />
                                 </div>
                                 <div>
                                     <Label htmlFor="voucher_type">Voucher Type</Label>
@@ -515,7 +515,7 @@ const VoucherDetailsCA = () => {
                                 )}
                                 <div>
                                     <Label htmlFor="remarks">Remarks</Label>
-                                    <Input name="remarks" defaultValue={editedVoucher.remarks} />
+                                    <Input name="remarks" value={editedVoucher.remarks} onChange={(e) => setEditedVoucher(p => ({ ...p, remarks: e.target.value }))} />
                                 </div>
                                 {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
                                     <div>

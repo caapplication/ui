@@ -17,19 +17,24 @@ import {
   addBankAccount,
   deleteBankAccount,
   getBankAccountsForBeneficiary,
+  updateBeneficiary,
   getProfile
 } from '@/lib/api';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-const BeneficiaryForm = ({ onAdd, onCancel }) => {
-  const [beneficiaryType, setBeneficiaryType] = useState('individual');
+const BeneficiaryForm = ({ onAdd, onCancel, isEdit, beneficiary }) => {
+  const [beneficiaryType, setBeneficiaryType] = useState(beneficiary?.beneficiary_type || 'individual');
 
   const handleSubmit = (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
     const data = Object.fromEntries(formData.entries());
-    onAdd({ ...data, beneficiary_type: beneficiaryType });
+    if (isEdit) {
+      onAdd({ ...beneficiary, ...data, beneficiary_type: beneficiaryType });
+    } else {
+      onAdd({ ...data, beneficiary_type: beneficiaryType });
+    }
   };
 
   return (
@@ -115,11 +120,12 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
   const { user } = useAuth();
 
   const fetchBeneficiaries = useCallback(async (page = 1) => {
-    if (!user?.access_token || !user?.organization_id) return;
+    if (!user?.access_token) return;
     setIsLoading(true);
     try {
-      // Always use the organization_id (not entityId) for this API
-      const organisationId = user.organization_id;
+      const organisationId = typeof user.organization_id === 'object' && user.organization_id !== null 
+        ? user.organization_id.id 
+        : user.organization_id;
       const data = await getBeneficiaries(organisationId, user.access_token, 0, 100);
       if (Array.isArray(data)) {
         const beneficiariesWithAccounts = await Promise.all(
@@ -186,6 +192,24 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
     }
   };
 
+  const handleUpdate = async (beneficiaryData) => {
+    try {
+      const organizationId = typeof user.organization_id === 'object' && user.organization_id !== null 
+        ? user.organization_id.id 
+        : user.organization_id;
+      await updateBeneficiary(selectedBeneficiary.id, organizationId, beneficiaryData, user.access_token);
+      toast({ title: 'Success', description: 'Beneficiary updated successfully.' });
+      setShowViewDialog(false);
+      fetchBeneficiaries();
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: `Failed to update beneficiary: ${error.message}`,
+        variant: 'destructive',
+      });
+    }
+  };
+
   const handleView = (beneficiary) => {
     // Ensure the selected beneficiary has the correct organization_id from user context
     setSelectedBeneficiary({
@@ -197,7 +221,10 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
 
   const handleDelete = async (beneficiaryId) => {
     try {
-      await deleteBeneficiary(beneficiaryId, user.access_token);
+      const organizationId = typeof user.organization_id === 'object' && user.organization_id !== null 
+        ? user.organization_id.id 
+        : user.organization_id;
+      await deleteBeneficiary(beneficiaryId, organizationId, user.access_token);
       toast({ title: 'Success', description: 'Beneficiary deleted successfully.' });
       fetchBeneficiaries();
     } catch (error) {
@@ -391,7 +418,7 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
           </DialogHeader>
           {selectedBeneficiary && (
             <div className="space-y-4 pt-4">
-              <BeneficiaryForm onAdd={handleAdd} onCancel={() => setShowViewDialog(false)} />
+              <BeneficiaryForm onAdd={handleUpdate} onCancel={() => setShowViewDialog(false)} isEdit={true} beneficiary={selectedBeneficiary} />
             </div>
           )}
         </DialogContent>

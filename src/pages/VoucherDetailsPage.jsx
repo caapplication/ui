@@ -3,7 +3,7 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { useAuth } from '@/hooks/useAuth.jsx';
-import { deleteVoucher, updateVoucher, getBeneficiariesForCA, getVoucherAttachment, getVoucher, getBankAccountsForBeneficiary, getOrganisationBankAccountsForCA, getFinanceHeaders } from '@/lib/api.js';
+import { deleteVoucher, updateVoucher, getBeneficiaries, getVoucherAttachment, getVoucher, getBankAccountsForBeneficiary, getOrganisationBankAccounts, getFinanceHeaders } from '@/lib/api.js';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -84,7 +84,7 @@ const VoucherPDF = React.forwardRef(({ voucher, organizationName, entityName }, 
     );
 });
 
-const VoucherDetailsCAPage = () => {
+const VoucherDetailsPage = () => {
     const { voucherId } = useParams();
     const location = useLocation();
     const navigate = useNavigate();
@@ -115,15 +115,11 @@ const VoucherDetailsCAPage = () => {
 
         const fetchData = async () => {
             try {
+                const entityId = localStorage.getItem('entityId');
                 let currentVoucher = initialVoucher;
+
                 if (!currentVoucher) {
-                    // On refresh, initialVoucher is null. We need to fetch the voucher.
-                    // The entity_id is not known here, so we assume getVoucher can work without it for a CA.
-                    // A better approach would be a dedicated endpoint like /api/ca/vouchers/{voucherId}
-                    // For now, we'll try to fetch it, but this might be brittle.
-                    // Let's assume the voucher object has entity_id and organisation_id
-                    const fetchedVoucher = await getVoucher(null, voucherId, user.access_token);
-                    currentVoucher = fetchedVoucher;
+                    currentVoucher = await getVoucher(entityId, voucherId, user.access_token);
                 }
                 
                 if (!currentVoucher) {
@@ -134,28 +130,40 @@ const VoucherDetailsCAPage = () => {
                 setVoucher(currentVoucher);
                 setEditedVoucher(currentVoucher);
 
-                const orgId = currentVoucher.organisation_id || organisationId || user.organization_id;
-
-                if (!orgId) {
-                    toast({ title: 'Error', description: 'Could not determine organization ID.', variant: 'destructive' });
-                    return;
-                }
-
-                const [beneficiariesData, fromAccountsData] = await Promise.all([
-                    getBeneficiariesForCA(orgId, user.access_token),
-                    getOrganisationBankAccountsForCA(orgId, user.access_token),
-                ]);
-
-                setBeneficiaries(beneficiariesData || []);
-                setFromBankAccounts(fromAccountsData || []);
-
             } catch (error) {
                 toast({ title: 'Error', description: `Failed to fetch data: ${error.message}`, variant: 'destructive' });
             }
         };
 
         fetchData();
-    }, [voucherId, authLoading, user?.access_token, organisationId, initialVoucher]);
+    }, [voucherId, authLoading, user?.access_token, initialVoucher]);
+
+    useEffect(() => {
+        if (isEditing && user?.access_token && voucher) {
+            const fetchEditData = async () => {
+                try {
+                    const entityId = localStorage.getItem('entityId');
+                    const orgId = voucher.organisation_id || organisationId || user.organization_id;
+
+                    if (!orgId) {
+                        toast({ title: 'Error', description: 'Could not determine organization ID.', variant: 'destructive' });
+                        return;
+                    }
+
+                    const [beneficiariesData, fromAccountsData] = await Promise.all([
+                        getBeneficiaries(orgId, user.access_token),
+                        getOrganisationBankAccounts(entityId, user.access_token),
+                    ]);
+
+                    setBeneficiaries(beneficiariesData || []);
+                    setFromBankAccounts(fromAccountsData || []);
+                } catch (error) {
+                    toast({ title: 'Error', description: `Failed to fetch edit data: ${error.message}`, variant: 'destructive' });
+                }
+            };
+            fetchEditData();
+        }
+    }, [isEditing, user, voucher, organisationId, toast]);
 
     useEffect(() => {
         if (!user?.access_token || !editedVoucher?.beneficiary_id) return;
@@ -212,7 +220,7 @@ const VoucherDetailsCAPage = () => {
         const newIndex = currentIndex + direction;
         if (newIndex >= 0 && newIndex < vouchers.length) {
             const nextVoucher = vouchers[newIndex];
-            navigate(`/vouchers/ca/${nextVoucher.id}`, { state: { voucher: nextVoucher, vouchers, organisationId } });
+            navigate(`/finance/vouchers/${nextVoucher.id}`, { state: { voucher: nextVoucher, vouchers, organisationId } });
         }
     };
     
@@ -259,10 +267,15 @@ const VoucherDetailsCAPage = () => {
 
     const handleDelete = async () => {
         try {
-            await deleteVoucher(voucherDetails.entity_id, voucherId, user.access_token);
+            const entityId = voucherDetails.entity_id || localStorage.getItem('entityId');
+            await deleteVoucher(entityId, voucherId, user.access_token);
             toast({ title: 'Success', description: 'Voucher deleted successfully.' });
             setShowDeleteDialog(false);
-            navigate('/finance/ca');
+            if (user.role === 'CLIENT_USER') {
+                navigate('/finance');
+            } else {
+                navigate('/finance/ca');
+            }
         } catch (error) {
             toast({
                 title: 'Error',
@@ -294,7 +307,11 @@ const VoucherDetailsCAPage = () => {
             await updateVoucher(voucherId, payload, user.access_token);
             toast({ title: 'Success', description: 'Voucher updated successfully.' });
             setIsEditing(false);
-            navigate('/finance/ca');
+            if (user.role === 'CLIENT_USER') {
+                navigate('/finance');
+            } else {
+                navigate('/finance/ca');
+            }
         } catch (error) {
             toast({ title: 'Error', description: `Failed to update voucher: ${error.message}`, variant: 'destructive' });
         }
@@ -313,7 +330,7 @@ const VoucherDetailsCAPage = () => {
             <VoucherPDF ref={voucherDetailsRef} voucher={voucher} organizationName={organizationName} entityName={entityName} />
             <header className="flex items-center justify-between pb-4 border-b border-white/10 mb-4">
                 <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="icon" onClick={() => navigate('/finance/ca')}>
+                    <Button variant="ghost" size="icon" onClick={() => user.role === 'CLIENT_USER' ? navigate('/finance') : navigate('/finance/ca')}>
                         <ArrowLeft className="h-6 w-6" />
                     </Button>
                     <div>
@@ -575,4 +592,4 @@ const VoucherDetailsCAPage = () => {
     );
 };
 
-export default VoucherDetailsCAPage;
+export default VoucherDetailsPage;

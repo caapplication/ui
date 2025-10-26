@@ -66,8 +66,11 @@ const BeneficiaryDetailsPage = () => {
     if (!user?.access_token || !user?.organization_id) return;
     setIsLoading(true);
     try {
+      const organizationId = typeof user.organization_id === 'object' && user.organization_id !== null
+        ? user.organization_id.id
+        : user.organization_id;
       const [beneficiaryData, bankAccountsData] = await Promise.all([
-        getBeneficiary(beneficiaryId, user.organization_id, user.access_token),
+        getBeneficiary(beneficiaryId, organizationId, user.access_token),
         getBankAccountsForBeneficiary(beneficiaryId, user.access_token)
       ]);
       setBeneficiary(beneficiaryData);
@@ -94,7 +97,10 @@ const BeneficiaryDetailsPage = () => {
     const data = Object.fromEntries(formData.entries());
     const finalData = { ...data, beneficiary_type: editableBeneficiary.beneficiary_type };
     try {
-      await updateBeneficiary(beneficiaryId, finalData, user.access_token);
+      const organizationId = typeof user.organization_id === 'object' && user.organization_id !== null
+        ? user.organization_id.id
+        : user.organization_id;
+      await updateBeneficiary(beneficiaryId, organizationId, finalData, user.access_token);
       toast({ title: 'Success', description: 'Beneficiary updated successfully.' });
       setIsEditing(false);
       fetchBeneficiaryData();

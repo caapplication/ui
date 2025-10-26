@@ -23,9 +23,9 @@ export const getDashboardData = async (entityId, token, agencyId) => {
 
 export const getBeneficiaries = async (organizationId, token, skip = 0, limit = 100) => {
     const userRole = JSON.parse(atob(token.split('.')[1])).role;
-    let url = `${FINANCE_API_BASE_URL}/api/beneficiaries/?organization_id=${organizationId}&skip=${skip}&limit=${limit}`;
-    if (!organizationId && userRole === 'CLIENT_USER') {
-        url = `${FINANCE_API_BASE_URL}/api/beneficiaries/?skip=${skip}&limit=${limit}`;
+    let url = `${FINANCE_API_BASE_URL}/api/beneficiaries/?skip=${skip}&limit=${limit}`;
+    if (userRole !== 'CLIENT_USER' && organizationId) {
+        url += `&organization_id=${organizationId}`;
     }
     const response = await fetch(url, {
         headers: getAuthHeaders(token),
@@ -33,8 +33,8 @@ export const getBeneficiaries = async (organizationId, token, skip = 0, limit = 
     return handleResponse(response);
 };
 
-export const getBeneficiariesForCA = async (organisationId, token, skip = 0, limit = 100) => {
-    const response = await fetch(`${FINANCE_API_BASE_URL}/api/beneficiaries/?organization_id=${organisationId}&skip=${skip}&limit=${limit}`, {
+export const getBeneficiariesForCA = async (organizationId, token, skip = 0, limit = 100) => {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/beneficiaries/?organization_id=${organizationId}&skip=${skip}&limit=${limit}`, {
         headers: getAuthHeaders(token),
     });
     return handleResponse(response);
@@ -50,8 +50,8 @@ export const addBeneficiary = async (beneficiaryData, token) => {
     return handleResponse(response);
 };
 
-export const deleteBeneficiary = async (beneficiaryId, organisationId, token) => {
-    const response = await fetch(`${FINANCE_API_BASE_URL}/api/beneficiaries/${beneficiaryId}?organisation_id=${organisationId}`, {
+export const deleteBeneficiary = async (beneficiaryId, organizationId, token) => {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/beneficiaries/${beneficiaryId}?organization_id=${organizationId}`, {
         method: 'DELETE',
         headers: getAuthHeaders(token),
     });
@@ -65,8 +65,8 @@ export const getBeneficiary = async (beneficiaryId, organizationId, token) => {
     return handleResponse(response);
 };
 
-export const updateBeneficiary = async (beneficiaryId, organisationId, beneficiaryData, token) => {
-    const response = await fetch(`${FINANCE_API_BASE_URL}/api/beneficiaries/${beneficiaryId}?organisation_id=${organisationId}`, {
+export const updateBeneficiary = async (beneficiaryId, organizationId, beneficiaryData, token) => {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/beneficiaries/${beneficiaryId}?organization_id=${organizationId}`, {
         method: 'PUT',
         headers: getAuthHeaders(token, 'application/json'),
         body: JSON.stringify(beneficiaryData),
@@ -158,9 +158,9 @@ export const addInvoice = async (invoiceFormData, token) => {
     return handleResponse(response);
 };
 
-export const updateInvoice = async (invoiceId, invoiceFormData, token) => {
+export const updateInvoice = async (invoiceId, entityId, invoiceFormData, token) => {
     const isFormData = invoiceFormData instanceof FormData;
-    const response = await fetch(`${FINANCE_API_BASE_URL}/api/invoices/${invoiceId}`, {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/invoices/${invoiceId}?entity_id=${entityId}`, {
         method: 'PATCH',
         headers: getAuthHeaders(token, isFormData ? null : 'application/json'),
         body: isFormData ? invoiceFormData : JSON.stringify(invoiceFormData),

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth.jsx';
+import { useOrganisation } from '@/hooks/useOrganisation';
 import { deleteInvoice, updateInvoice, getBeneficiaries, getInvoiceAttachment, getFinanceHeaders } from '@/lib/api';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -32,6 +33,7 @@ const InvoiceDetailsPage = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const { user } = useAuth();
+    const { selectedEntity } = useOrganisation();
     const { toast } = useToast();
     const { attachmentUrl, invoice, beneficiaryName, organisationId } = location.state || {};
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -46,13 +48,14 @@ const InvoiceDetailsPage = () => {
 
     useEffect(() => {
         const fetchBeneficiaries = async () => {
-            if (user?.access_token && (organisationId || invoice?.entity_id)) {
-                const data = await getBeneficiaries(organisationId || invoice?.entity_id, user.access_token);
+            const orgIdToFetch = organisationId || user.organization_id;
+            if (user?.access_token && orgIdToFetch) {
+                const data = await getBeneficiaries(orgIdToFetch, user.access_token);
                 setBeneficiaries(data);
             }
         };
         fetchBeneficiaries();
-    }, [user?.access_token, organisationId, invoice]);
+    }, [user, organisationId, invoice]);
 
     useEffect(() => {
         const fetchHeaders = async () => {
@@ -116,7 +119,8 @@ const InvoiceDetailsPage = () => {
 
     const handleDelete = async () => {
         try {
-            await deleteInvoice(invoice.entity_id, invoiceId, user.access_token);
+            const entityId = selectedEntity || localStorage.getItem('entityId');
+            await deleteInvoice(entityId, invoiceId, user.access_token);
             toast({ title: 'Success', description: 'Invoice deleted successfully.' });
             navigate(-1);
         } catch (error) {
@@ -132,8 +136,10 @@ const InvoiceDetailsPage = () => {
         e.preventDefault();
         const formData = new FormData(e.target);
         const data = Object.fromEntries(formData.entries());
+        delete data.date;
         try {
-            await updateInvoice(invoiceId, data, user.access_token);
+            const entityId = selectedEntity || localStorage.getItem('entityId');
+            await updateInvoice(invoiceId, entityId, data, user.access_token);
             toast({ title: 'Success', description: 'Invoice updated successfully.' });
             setIsEditing(false);
             navigate(-1);
@@ -240,7 +246,7 @@ const InvoiceDetailsPage = () => {
                                     <form onSubmit={handleUpdate} className="space-y-4">
                                         <div>
                                             <Label htmlFor="beneficiary_id">Beneficiary</Label>
-                                            <Select name="beneficiary_id" defaultValue={editedInvoice.beneficiary_id}>
+                                            <Select name="beneficiary_id" defaultValue={editedInvoice.beneficiary_id} onValueChange={(value) => setEditedInvoice({ ...editedInvoice, beneficiary_id: value })}>
                                                 <SelectTrigger>
                                                     <SelectValue placeholder="Select a beneficiary" />
                                                 </SelectTrigger>
