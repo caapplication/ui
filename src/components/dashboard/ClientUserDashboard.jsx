@@ -35,7 +35,7 @@ const TransactionItem = ({ transaction }) => {
                 <p className="text-white font-medium capitalize">{transaction.remarks || `${transaction.voucher_type} voucher`}</p>
                 <p className="text-gray-400 text-sm">{new Date(transaction.created_at).toLocaleDateString()}</p>
             </div>
-            <div className={`font-semibold text-lg ${isCredit ? 'text-green-400' : 'text-red-400'}`}>
+<div className={`font-semibold text-lg text-red-400`}>
                 ₹{amount}
             </div>
         </div>
