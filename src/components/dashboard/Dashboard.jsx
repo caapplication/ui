@@ -27,7 +27,6 @@ const StatCard = ({ title, value, description, icon, color, delay }) => {
 };
 
 const TransactionItem = ({ transaction }) => {
-    const isCredit = transaction.voucher_type === 'cash';
     const amount = parseFloat(transaction.amount).toFixed(2);
     return (
         <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg hover:bg-white/10 transition-colors duration-300">
@@ -35,7 +34,7 @@ const TransactionItem = ({ transaction }) => {
                 <p className="text-white font-medium capitalize">{transaction.remarks || `${transaction.voucher_type} voucher`}</p>
                 <p className="text-gray-400 text-sm">{new Date(transaction.created_date).toLocaleDateString()}</p>
             </div>
-            <div className={`font-semibold text-lg ${isCredit ? 'text-green-400' : 'text-red-400'}`}>
+            <div className={`font-semibold text-lg text-red-400`}>
                 ₹{amount}
             </div>
         </div>
