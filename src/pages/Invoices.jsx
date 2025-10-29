@@ -70,7 +70,8 @@ const Invoices = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
   }, [fetchDataForClient, isDataLoading]);
 
   const handleViewInvoice = (invoice) => {
-    navigate(`/invoices/${invoice.id}`, { state: { invoice } });
+    const currentIndex = invoices.findIndex(inv => inv.id === invoice.id);
+    navigate(`/invoices/${invoice.id}`, { state: { invoice, invoices, currentIndex } });
   };
 
   return (

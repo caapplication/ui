@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.jsx";
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -12,6 +13,10 @@ import Invoices from './Invoices';
 import * as XLSX from 'xlsx';
 
 const FinancePage = () => {
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  const tabParam = params.get('tab');
+  const [activeTab, setActiveTab] = useState(tabParam === 'invoices' ? 'invoices' : 'vouchers');
   const {
     organisations,
     selectedOrg,
@@ -139,7 +144,7 @@ const FinancePage = () => {
           )}
         </div>
       </div>
-      <Tabs defaultValue="vouchers" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="flex items-center justify-between mb-8">
           <TabsList className="inline-flex items-center justify-center gap-4 text-lg">
             <TabsTrigger value="vouchers" className="px-4 py-2 transition-all duration-300 ease-in-out">Vouchers</TabsTrigger>

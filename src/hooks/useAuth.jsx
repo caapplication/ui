@@ -214,6 +214,20 @@ export const AuthProvider = ({ children }) => {
             finishLogin(fullUserData);
             return { twoFactorEnabled: false };
         }
+    } else if (data.role === 'CA_TEAM') {
+        const profileData = await apiGetProfile(data.access_token);
+        if (!profileData.is_active) {
+            logout();
+            throw new Error('Your account is inactive. Please contact support.');
+        }
+        const fullUserData = { ...data, ...profileData, id: data.sub };
+        
+        if (profileData.is_2fa_enabled) {
+            return { twoFactorEnabled: true, loginData: fullUserData };
+        } else {
+            finishLogin(fullUserData);
+            return { twoFactorEnabled: false };
+        }
     } else {
         throw new Error('Permission Denied. Your user role is not supported.');
     }

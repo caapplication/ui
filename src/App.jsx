@@ -26,6 +26,7 @@ import VerifyToken from '@/pages/VerifyToken.jsx';
     import Settings from '@/components/accountant/settings/Settings.jsx';
     import TaskManagementPage from '@/components/accountant/tasks/TaskManagementPage.jsx';
     import TodoPage from '@/components/accountant/tasks/TodoPage.jsx';
+    import TeamSidebar from '@/components/layout/TeamSidebar.jsx';
     import { Menu } from 'lucide-react';
     import { Button } from '@/components/ui/button';
     import { useMediaQuery } from '@/hooks/useMediaQuery.jsx';
@@ -110,7 +111,7 @@ import UpcomingServices from './pages/UpcomingServices.jsx';
       if (user.role === 'CA_ACCOUNTANT') {
         SidebarComponent = AccountantSidebar;
       } else if (user.role === 'CA_TEAM') {
-        SidebarComponent = require('@/components/layout/TeamSidebar.jsx').default;
+        SidebarComponent = TeamSidebar;
       } else if (user.role === 'ENTITY_USER') {
         SidebarComponent = EntitySidebar;
       } else {

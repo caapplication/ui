@@ -35,7 +35,7 @@ const InvoiceDetailsPage = () => {
     const { user } = useAuth();
     const { selectedEntity } = useOrganisation();
     const { toast } = useToast();
-    const { attachmentUrl, invoice, beneficiaryName, organisationId } = location.state || {};
+    const { attachmentUrl, invoice, beneficiaryName, organisationId, invoices: invoicesFromState, currentIndex: currentIndexFromState } = location.state || {};
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const invoiceDetailsRef = React.useRef(null);
@@ -44,6 +44,9 @@ const InvoiceDetailsPage = () => {
     const [attachmentToDisplay, setAttachmentToDisplay] = useState(attachmentUrl);
     const [zoom, setZoom] = useState(1);
     const [financeHeaders, setFinanceHeaders] = useState([]);
+    const [invoices, setInvoices] = useState(invoicesFromState || []);
+    const [currentIndex, setCurrentIndex] = useState(currentIndexFromState ?? -1);
+    const [loadingInvoice, setLoadingInvoice] = useState(false);
 
 
     useEffect(() => {
@@ -179,15 +182,72 @@ const InvoiceDetailsPage = () => {
     const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.1, 0.5));
     const handleZoomReset = () => setZoom(1);
 
+    // Navigation logic
+    const handleNavigate = (direction) => {
+        if (!invoices || invoices.length === 0) return;
+        const newIndex = currentIndex + direction;
+        if (newIndex >= 0 && newIndex < invoices.length) {
+            setLoadingInvoice(true);
+            setAttachmentToDisplay(null);
+            setTimeout(() => {
+                const nextInvoice = invoices[newIndex];
+                navigate(`/invoices/${nextInvoice.id}`, {
+                    state: {
+                        invoice: nextInvoice,
+                        invoices,
+                        currentIndex: newIndex
+                    },
+                    replace: true
+                });
+                setEditedInvoice(nextInvoice);
+                setLoadingInvoice(false);
+            }, 1000);
+        }
+    };
+
+    // Tag logic
+    const handleTag = async () => {
+        try {
+            const entityId = selectedEntity || localStorage.getItem('entityId');
+            await updateInvoice(invoiceId, entityId, { is_ready: true, finance_header_id: editedInvoice.finance_header_id }, user.access_token);
+            toast({ title: 'Success', description: 'Invoice tagged successfully.' });
+            navigate(-1);
+        } catch (error) {
+            toast({
+                title: 'Error',
+                description: `Failed to tag invoice: ${error.message}`,
+                variant: 'destructive',
+            });
+        }
+    };
+
+    if (loadingInvoice) {
+        return (
+            <div className="flex justify-center items-center h-screen">
+                <Loader2 className="w-8 h-8 animate-spin text-white" />
+            </div>
+        );
+    }
+
     return (
         <div className="h-screen w-full flex flex-col text-white bg-transparent p-4 md:p-6">
             <header className="flex items-center justify-between pb-4 border-b border-white/10 mb-4">
                 <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+                    <Button variant="ghost" size="icon" onClick={() => navigate('/finance?tab=invoices')}>
                         <ArrowLeft className="h-6 w-6" />
                     </Button>
                     <h1 className="text-2xl font-bold">Invoice Details</h1>
                 </div>
+                {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && invoices && invoices.length > 0 && (
+                    <div className="flex items-center gap-2">
+                        <Button variant="outline" size="icon" onClick={() => handleNavigate(-1)} disabled={currentIndex <= 0}>
+                            <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        </Button>
+                        <Button variant="outline" size="icon" onClick={() => handleNavigate(1)} disabled={currentIndex >= invoices.length - 1}>
+                            <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        </Button>
+                    </div>
+                )}
             </header>
 
             <ResizablePanelGroup
@@ -344,6 +404,27 @@ const InvoiceDetailsPage = () => {
                                                 <p className="text-sm text-gray-400 mb-1">Remarks</p>
                                                 <p className="text-sm text-white p-3 bg-white/5 rounded-md">{invoiceDetails.remarks}</p>
                                             </div>
+                                            {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
+                                                <div className="pt-4">
+                                                    <Label htmlFor="finance_header_id">Header</Label>
+                                                    <Select
+                                                        name="finance_header_id"
+                                                        value={editedInvoice.finance_header_id || ""}
+                                                        onValueChange={(value) => setEditedInvoice(p => ({ ...p, finance_header_id: value }))}
+                                                    >
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Select a header" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {financeHeaders.map((h) => (
+                                                                <SelectItem key={h.id} value={h.id}>
+                                                                    {h.name}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                            )}
                                             <div className="flex items-center gap-2 mt-4 justify-end">
                                                 <Button variant="destructive" size="icon" onClick={() => setShowDeleteDialog(true)}>
                                                     <Trash2 className="h-4 w-4" />
@@ -354,6 +435,11 @@ const InvoiceDetailsPage = () => {
                                                 <Button variant="outline" size="icon" onClick={() => setIsEditing(!isEditing)}>
                                                     <Edit className="h-4 w-4" />
                                                 </Button>
+                                                {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
+                                                    <Button onClick={handleTag} className="bg-blue-600 text-white hover:bg-blue-700">
+                                                        Tag
+                                                    </Button>
+                                                )}
                                             </div>
                                         </CardContent>
                                     </Card>

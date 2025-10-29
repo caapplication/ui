@@ -307,7 +307,7 @@ if (activeTab === 'myFiles') {
     if (!itemToDelete) return;
     setIsMutating(true);
     try {
-        await deleteDocument(itemToDelete, user.access_token);
+        await deleteDocument(itemToDelete.id, itemToDelete.type, user.access_token);
         toast({ title: "Item Deleted", description: "The selected item has been removed." });
         if (activeTab === 'myFiles') {
           fetchDocuments(true);
@@ -410,7 +410,7 @@ if (activeTab === 'myFiles') {
                     )}
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={(e) => {e.stopPropagation(); setItemToDelete(item.id)}}>
+                        <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={(e) => {e.stopPropagation(); setItemToDelete({id: item.id, type: item.is_folder ? 'folder' : 'document'})}}>
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </AlertDialogTrigger>
@@ -497,9 +497,11 @@ if (activeTab === 'myFiles') {
                 <Button onClick={() => setShowCreateFolder(true)} variant="outline">
                   <FolderPlus className="w-5 h-5 mr-2" /> Folder
                 </Button>
-                <Button onClick={() => setShowUpload(true)}>
-                  <Plus className="w-5 h-5 mr-2" /> Upload
-                </Button>
+                {currentFolderId !== 'root' && (
+                  <Button onClick={() => setShowUpload(true)}>
+                    <Plus className="w-5 h-5 mr-2" /> Upload
+                  </Button>
+                )}
               </>
             )}
           </div>

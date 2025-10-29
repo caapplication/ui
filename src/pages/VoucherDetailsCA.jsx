@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Edit, Trash2, FileText, Loader2, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RefreshCcw } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -106,6 +107,7 @@ const VoucherDetailsCA = () => {
     const [toBankAccounts, setToBankAccounts] = useState([]);
     const [zoom, setZoom] = useState(1);
     const [financeHeaders, setFinanceHeaders] = useState([]);
+    const [loadingVoucher, setLoadingVoucher] = useState(false);
 
     useEffect(() => {
         if (startInEditMode) {
@@ -241,17 +243,22 @@ const VoucherDetailsCA = () => {
         if (!voucherList || voucherList.length === 0) return;
         const newIndex = currentIndex + direction;
         if (newIndex >= 0 && newIndex < voucherList.length) {
-            const nextVoucher = voucherList[newIndex];
-            navigate(`/vouchers/ca/${nextVoucher.id}`, {
-                state: {
-                    voucher: nextVoucher,
-                    vouchers: voucherList,
-                    organizationName,
-                    entityName
-                },
-                replace: true
-            });
-            setVoucher(nextVoucher);
+            setLoadingVoucher(true);
+            setAttachmentUrl(null);
+            setTimeout(() => {
+                const nextVoucher = voucherList[newIndex];
+                navigate(`/vouchers/ca/${nextVoucher.id}`, {
+                    state: {
+                        voucher: nextVoucher,
+                        vouchers: voucherList,
+                        organizationName,
+                        entityName
+                    },
+                    replace: true
+                });
+                setVoucher(nextVoucher);
+                setLoadingVoucher(false);
+            }, 1000);
         }
     };
     
@@ -339,7 +346,7 @@ const VoucherDetailsCA = () => {
         }
     };
 
-    if (authLoading || orgLoading || !voucher) {
+    if (authLoading || orgLoading || !voucher || loadingVoucher) {
         return (
             <div className="flex justify-center items-center h-screen">
                 <Loader2 className="w-8 h-8 animate-spin text-white" />
@@ -571,15 +578,38 @@ const VoucherDetailsCA = () => {
                                         </div>
                                     )}
                                     <div className="flex items-center gap-2 mt-4 justify-end">
-                                        <Button variant="destructive" size="icon" onClick={() => setShowDeleteDialog(true)}>
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                        <Button variant="outline" size="icon" onClick={handleExportToPDF}>
-                                            <FileText className="h-4 w-4" />
-                                        </Button>
-                                        <Button variant="outline" size="icon" onClick={() => setIsEditing(!isEditing)}>
-                                            <Edit className="h-4 w-4" />
-                                        </Button>
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button variant="destructive" size="icon" onClick={() => setShowDeleteDialog(true)}>
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>Delete</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button variant="outline" size="icon" onClick={handleExportToPDF}>
+                                                        <FileText className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>Export</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button variant="outline" size="icon" onClick={() => setIsEditing(!isEditing)}>
+                                                        <Edit className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>Edit</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
                                         {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
                                             <Button onClick={() => {
                                                 updateVoucher(voucherId, { is_ready: true, finance_header_id: editedVoucher.finance_header_id }, user.access_token)
@@ -603,17 +633,33 @@ const VoucherDetailsCA = () => {
                         </div>
                     </TabsContent>
                     <TabsContent value="beneficiary" className="mt-4">
-                        <Card className="w-full glass-pane border-none shadow-none bg-gray-800 text-white">
-                            <CardHeader>
-                                <CardTitle>Beneficiary Details</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-2">
-                                <DetailItem label="Name" value={beneficiaryName} />
-                                <DetailItem label="PAN" value={voucherDetails.beneficiary?.pan || 'N/A'} />
-                                <DetailItem label="Email" value={voucherDetails.beneficiary?.email || 'N/A'} />
-                                <DetailItem label="Phone" value={voucherDetails.beneficiary?.phone_number || 'N/A'} />
-                            </CardContent>
-                        </Card>
+                        {(() => {
+                            // Try to resolve the full beneficiary object
+                            let beneficiaryObj = voucherDetails.beneficiary;
+                            if (
+                                (!beneficiaryObj || !beneficiaryObj.phone) &&
+                                beneficiaries &&
+                                voucherDetails.beneficiary_id
+                            ) {
+                                const found = beneficiaries.find(
+                                    b => String(b.id) === String(voucherDetails.beneficiary_id)
+                                );
+                                if (found) beneficiaryObj = found;
+                            }
+                            return (
+                                <Card className="w-full glass-pane border-none shadow-none bg-gray-800 text-white">
+                                    <CardHeader>
+                                        <CardTitle>Beneficiary Details</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-2">
+                                        <DetailItem label="Name" value={beneficiaryObj?.name || beneficiaryName} />
+                                        <DetailItem label="PAN" value={beneficiaryObj?.pan || 'N/A'} />
+                                        <DetailItem label="Email" value={beneficiaryObj?.email || 'N/A'} />
+                                        <DetailItem label="Phone" value={beneficiaryObj?.phone || 'N/A'} />
+                                    </CardContent>
+                                </Card>
+                            );
+                        })()}
                     </TabsContent>
                 </Tabs>
             </div>

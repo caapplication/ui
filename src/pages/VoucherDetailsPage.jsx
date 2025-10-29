@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Edit, Trash2, FileText, Loader2, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RefreshCcw } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -19,6 +20,19 @@ import {
 } from "@/components/ui/resizable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.jsx";
 import ActivityLog from '@/components/finance/ActivityLog';
+
+function formatPaymentMethod(method) {
+    if (!method) return 'N/A';
+    const map = {
+        bank_transfer: 'Bank Transfer',
+        upi: 'UPI',
+        card: 'Card',
+        cheque: 'Cheque',
+        demand_draft: 'Demand Draft',
+        cash: 'Cash'
+    };
+    return map[method.toLowerCase()] || method.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
 
 const DetailItem = ({ label, value }) => (
     <div className="flex justify-between items-center py-2 border-b border-white/10">
@@ -52,7 +66,7 @@ const VoucherPDF = React.forwardRef(({ voucher, organizationName, entityName }, 
                 <p>{beneficiaryName}</p>
                 <p><span className="font-bold">PAN:</span> {voucher.beneficiary?.pan || 'N/A'}</p>
                 <p><span className="font-bold">Email:</span> {voucher.beneficiary?.email || 'N/A'}</p>
-                <p><span className="font-bold">Phone:</span> {voucher.beneficiary?.phone_number || 'N/A'}</p>
+                <p><span className="font-bold">Phone:</span> {voucher.beneficiary?.phone || 'N/A'}</p>
             </div>
 
             <table className="w-full mb-8">
@@ -78,7 +92,7 @@ const VoucherPDF = React.forwardRef(({ voucher, organizationName, entityName }, 
 
             <div>
                 <h2 className="text-lg font-bold mb-2">Payment Details:</h2>
-                <p><span className="font-bold">Payment Method:</span> {voucher.payment_type}</p>
+                <p><span className="font-bold">Payment Method:</span> {formatPaymentMethod(voucher.payment_type)}</p>
             </div>
         </div>
     );
@@ -184,6 +198,7 @@ const VoucherDetailsPage = () => {
     }, [editedVoucher?.voucher_type]);
 
     useEffect(() => {
+        setAttachmentUrl(null);
         if (voucher?.attachment_id && user?.access_token) {
             const fetchAttachment = async () => {
                 try {
@@ -195,7 +210,7 @@ const VoucherDetailsPage = () => {
             };
             fetchAttachment();
         }
-    }, [user?.access_token, voucher?.attachment_id]);
+    }, [user?.access_token, voucher?.attachment_id, voucher?.id]);
 
     useEffect(() => {
         const fetchHeaders = async () => {
@@ -338,6 +353,7 @@ const VoucherDetailsPage = () => {
                         <p className="text-sm text-gray-400">Review all cash and debit transactions.</p>
                     </div>
                 </div>
+                {/* Navigation arrows and image reload logic apply to all roles, including CA_ACCOUNTANT */}
                 <div className="flex items-center gap-2">
                     <Button variant="outline" size="icon" onClick={() => handleNavigate(-1)} disabled={!vouchers || currentIndex === 0}>
                         <ChevronLeft className="h-4 w-4" />
@@ -376,12 +392,13 @@ const VoucherDetailsPage = () => {
                                         className="h-full w-full rounded-md border-none"
                                     />
                                 ) : (
-                                    <img
-                                        src={attachmentUrl}
-                                        alt="Voucher Attachment"
-                                        className="max-w-full max-h-full transition-transform duration-200"
-                                        style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }}
-                                    />
+<img
+    key={attachmentUrl || voucher?.id}
+    src={attachmentUrl}
+    alt="Voucher Attachment"
+    className="max-w-full max-h-full transition-transform duration-200"
+    style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }}
+/>
                                 )
                             ) : (
                                 <div className="text-center text-gray-400">
@@ -526,21 +543,65 @@ const VoucherDetailsPage = () => {
                                 <CardContent className="space-y-2">
                                     <DetailItem label="Amount" value={`₹${parseFloat(voucherDetails.amount).toFixed(2)}`} />
                                     <DetailItem label="Voucher Type" value={voucherDetails.voucher_type} />
-                                    <DetailItem label="Payment Method" value={voucherDetails.voucher_type === 'cash' ? 'Cash' : voucherDetails.payment_type} />
+<DetailItem label="Payment Method" value={
+    voucherDetails.voucher_type === 'cash'
+        ? 'Cash'
+        : formatPaymentMethod(
+            (voucherDetails.payment_type || '')
+                .toString()
+                .toLowerCase()
+                .replace(/\s/g, '_')
+        )
+} />
                                     <div className="pt-4">
                                         <p className="text-sm text-gray-400 mb-1">Remarks</p>
                                         <p className="text-sm text-white p-3 bg-white/5 rounded-md">{voucherDetails.remarks || 'N/A'}</p>
                                     </div>
                                     <div className="flex items-center gap-2 mt-4 justify-end">
-                                        <Button variant="destructive" size="icon" onClick={() => setShowDeleteDialog(true)}>
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                        <Button variant="outline" size="icon" onClick={handleExportToPDF}>
-                                            <FileText className="h-4 w-4" />
-                                        </Button>
-                                        <Button variant="outline" size="icon" onClick={() => setIsEditing(!isEditing)}>
-                                            <Edit className="h-4 w-4" />
-                                        </Button>
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        variant="destructive"
+                                                        size="icon"
+                                                        onClick={() => setShowDeleteDialog(true)}
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>Delete</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="icon"
+                                                        onClick={handleExportToPDF}
+                                                    >
+                                                        <FileText className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>Export</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="icon"
+                                                        onClick={() => setIsEditing(!isEditing)}
+                                                    >
+                                                        <Edit className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>Edit</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -552,17 +613,33 @@ const VoucherDetailsPage = () => {
                         </div>
                     </TabsContent>
                     <TabsContent value="beneficiary" className="mt-4">
-                        <Card className="w-full glass-pane border-none shadow-none bg-gray-800 text-white">
-                            <CardHeader>
-                                <CardTitle>Beneficiary Details</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-2">
-                                <DetailItem label="Name" value={beneficiaryName} />
-                                <DetailItem label="PAN" value={voucherDetails.beneficiary?.pan || 'N/A'} />
-                                <DetailItem label="Email" value={voucherDetails.beneficiary?.email || 'N/A'} />
-                                <DetailItem label="Phone" value={voucherDetails.beneficiary?.phone_number || 'N/A'} />
-                            </CardContent>
-                        </Card>
+                        {(() => {
+                            // Try to resolve the full beneficiary object
+                            let beneficiaryObj = voucherDetails.beneficiary;
+                            if (
+                                (!beneficiaryObj || !beneficiaryObj.phone) &&
+                                beneficiaries &&
+                                voucherDetails.beneficiary_id
+                            ) {
+                                const found = beneficiaries.find(
+                                    b => String(b.id) === String(voucherDetails.beneficiary_id)
+                                );
+                                if (found) beneficiaryObj = found;
+                            }
+                            return (
+                                <Card className="w-full glass-pane border-none shadow-none bg-gray-800 text-white">
+                                    <CardHeader>
+                                        <CardTitle>Beneficiary Details</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-2">
+                                        <DetailItem label="Name" value={beneficiaryObj?.name || beneficiaryName} />
+                                        <DetailItem label="PAN" value={beneficiaryObj?.pan || 'N/A'} />
+                                        <DetailItem label="Email" value={beneficiaryObj?.email || 'N/A'} />
+                                        <DetailItem label="Phone" value={beneficiaryObj?.phone || 'N/A'} />
+                                    </CardContent>
+                                </Card>
+                            );
+                        })()}
                     </TabsContent>
                 </Tabs>
             </div>

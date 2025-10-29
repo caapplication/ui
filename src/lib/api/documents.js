@@ -46,8 +46,8 @@ export const uploadFile = async (folderId, entityId, file, expiryDate, token) =>
     return handleResponse(response);
 };
 
-export const deleteDocument = async (documentId, token) => {
-    const response = await fetch(`${FINANCE_API_BASE_URL}/api/documents/${documentId}`, {
+export const deleteDocument = async (itemId, itemType, token) => {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/documents/${itemId}?item_type=${itemType}`, {
         method: 'DELETE',
         headers: getAuthHeaders(token),
     });

@@ -122,7 +122,13 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                                 )}
                                 <TableCell>
                                     <div className="flex items-center gap-2">
-                                        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onViewVoucher(voucher); }} className="text-gray-400 hover:text-gray-300">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={(e) => { e.stopPropagation(); onViewVoucher(voucher); }}
+                                            className="text-gray-400 hover:text-gray-300"
+                                            tooltip="View: See voucher details"
+                                        >
                                             <Eye className="w-5 h-5" />
                                         </Button>
                                         {!voucher.is_ready && voucher.finance_header_id && (user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (

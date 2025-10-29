@@ -53,8 +53,22 @@ const ListVouchers = ({ vouchers, onDeleteVoucher }) => {
                     <TableCell className="text-gray-400 truncate max-w-xs">{voucher.remarks || 'N/A'}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end space-x-2">
-                        <Button size="icon" variant="outline" onClick={() => handleEdit(voucher)}><Edit className="w-4 h-4" /></Button>
-                        <Button size="icon" variant="destructive" onClick={() => handleDelete(voucher.id)}><Trash2 className="w-4 h-4" /></Button>
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          onClick={() => handleEdit(voucher)}
+                          tooltip="Edit: Modify this voucher"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="destructive"
+                          onClick={() => handleDelete(voucher.id)}
+                          tooltip="Delete: Permanently remove this voucher"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>

@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Search, FileText, ChevronLeft, ChevronRight, Trash2, Eye } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { getCATeamInvoiceAttachment, getInvoiceAttachment, updateInvoice } from '@/lib/api';
 import { getFinanceHeaders } from '@/lib/api/settings';
 import { useToast } from '@/components/ui/use-toast';
@@ -117,10 +118,16 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onRefresh, i
                             )}
                                 <TableCell>
                                     <div className="flex items-center gap-2">
-                                        {invoice.attachment_id && (
-                                            <Button variant="link" onClick={(e) => { e.stopPropagation(); handleViewAttachment(invoice); }} className="text-sky-400" title="View Attachment">
+                                        {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') ? (
+                                            <Button variant="link" onClick={(e) => { e.stopPropagation(); handleViewAttachment(invoice); }} className="text-sky-400" title="View Invoice">
                                                 <Eye className="w-4 h-4" />
                                             </Button>
+                                        ) : (
+                                            invoice.attachment_id && (
+                                                <Button variant="link" onClick={(e) => { e.stopPropagation(); handleViewAttachment(invoice); }} className="text-sky-400" title="View Attachment">
+                                                    <Eye className="w-4 h-4" />
+                                                </Button>
+                                            )
                                         )}
                                         {!invoice.is_ready && invoice.finance_header_id && (user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
                                           <Button
@@ -140,6 +147,20 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onRefresh, i
                                           >
                                             <Check className="w-4 h-4" />
                                           </Button>
+                                        )}
+                                        {(user?.role !== 'CA_ACCOUNTANT' && user?.role !== 'CA_TEAM') && (
+                                            <TooltipProvider>
+                                              <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                  <Button variant="destructive" size="icon" onClick={(e) => { e.stopPropagation(); setInvoiceToDelete(invoice); }}>
+                                                    <Trash2 className="w-4 h-4" />
+                                                  </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                  <p>Delete</p>
+                                                </TooltipContent>
+                                              </Tooltip>
+                                            </TooltipProvider>
                                         )}
                                     </div>
                                 </TableCell>
