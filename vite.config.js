@@ -237,7 +237,7 @@ export default defineConfig({
 				secure: false,
 			},
 			'/api/': {
-				target: 'https://finance-api.fynivo.in',
+				target: 'http://localhost:8004',
 				changeOrigin: true,
 				secure: false,
 			},

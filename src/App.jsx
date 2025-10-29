@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
     import { Helmet, HelmetProvider } from 'react-helmet-async';
-    import { Routes, Route, Navigate, useSearchParams, BrowserRouter } from 'react-router-dom';
+    import { Routes, Route, Navigate, useSearchParams, BrowserRouter, useNavigate } from 'react-router-dom';
     import { AuthProvider, useAuth } from '@/hooks/useAuth.jsx';
     import { Toaster } from '@/components/ui/toaster';
     import LoginForm from '@/components/auth/LoginForm';
@@ -45,6 +45,7 @@ import UpcomingServices from './pages/UpcomingServices.jsx';
       const { user } = useAuth();
       const [searchParams] = useSearchParams();
       const isDesktop = useMediaQuery("(min-width: 1024px)");
+      const navigate = useNavigate();
 
       const [currentEntity, setCurrentEntity] = useState(null);
       const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -106,6 +107,24 @@ import UpcomingServices from './pages/UpcomingServices.jsx';
         return 'Select Entity';
       };
 
+      const handleQuickAction = (action) => {
+        switch (action) {
+          case 'add-beneficiary':
+            navigate('/beneficiaries', { state: { quickAction: 'add-beneficiary' } });
+            break;
+          case 'add-invoice':
+            navigate('/finance', { state: { quickAction: 'add-invoice' } });
+            break;
+          case 'add-voucher':
+            navigate('/finance', { state: { quickAction: 'add-voucher' } });
+            break;
+          case 'add-organisation-bank':
+            navigate('/organisation-bank', { state: { quickAction: 'add-organisation-bank' } });
+            break;
+          default:
+            break;
+        }
+      };
 
       let SidebarComponent;
       if (user.role === 'CA_ACCOUNTANT') {
@@ -143,7 +162,7 @@ import UpcomingServices from './pages/UpcomingServices.jsx';
             )}
             <div className="flex-1 overflow-y-auto">
               <Routes>
-                <Route path="/" element={(user.role === 'CA_ACCOUNTANT' || user.role === 'CA_TEAM') ? <AccountantDashboard /> : <Dashboard entityId={currentEntity} entityName={getEntityName(currentEntity)} onQuickAction={() => {}} organisationBankAccounts={organisationBankAccounts} />} />
+                <Route path="/" element={(user.role === 'CA_ACCOUNTANT' || user.role === 'CA_TEAM') ? <AccountantDashboard /> : <Dashboard entityId={currentEntity} entityName={getEntityName(currentEntity)} onQuickAction={handleQuickAction} organisationBankAccounts={organisationBankAccounts} />} />
                 <Route path="/finance/*" element={user.role === 'CLIENT_USER' ? <ClientFinance entityName={getEntityName(currentEntity)} organisationBankAccounts={organisationBankAccounts} quickAction={null} clearQuickAction={() => {}} entityId={currentEntity} organizationName={user?.organization_name} /> : <FinancePage />} />
                 <Route path="/documents" element={<Documents entityId={currentEntity} quickAction={null} clearQuickAction={() => {}} />} />
                 <Route path="/beneficiaries" element={<Beneficiaries quickAction={null} clearQuickAction={() => {}} />} />

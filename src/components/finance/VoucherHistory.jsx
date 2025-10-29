@@ -25,9 +25,9 @@ const formatDate = (dateString) => {
 import { Check } from 'lucide-react';
 
 const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVoucher, isAccountantView, onRefresh }) => {
-  const [voucherSearchTerm, setVoucherSearchTerm] = useState('');
+  const [activeFilters, setActiveFilters] = useState([]);
+  const [filterValues, setFilterValues] = useState({ dateFrom: '', dateTo: '' });
   const [voucherToDelete, setVoucherToDelete] = useState(null);
-  const [voucherTypeFilter, setVoucherTypeFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [financeHeaders, setFinanceHeaders] = useState([]);
   const { user } = useAuth();
@@ -54,17 +54,34 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
 
   const sortedAndFilteredVouchers = useMemo(() => {
     let sortableVouchers = [...(vouchers || [])];
-
     sortableVouchers.sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
-
     const unexportedVouchers = sortableVouchers.filter(v => !v.is_exported);
 
     return unexportedVouchers.filter(v => {
-      const searchTermMatch = (v.beneficiaryName && v.beneficiaryName.toLowerCase().includes(voucherSearchTerm.toLowerCase()));
-      const typeFilterMatch = voucherTypeFilter === 'all' || v.voucher_type === voucherTypeFilter;
-      return searchTermMatch && typeFilterMatch;
+      let match = true;
+      for (const filter of activeFilters) {
+        if (filter === 'beneficiary') {
+          match = match && v.beneficiaryName && v.beneficiaryName.toLowerCase().includes((filterValues.beneficiary || '').toLowerCase());
+        }
+        if (filter === 'type') {
+          match = match && (filterValues.type === 'all' || v.voucher_type === filterValues.type);
+        }
+        if (filter === 'date') {
+          const from = filterValues.dateFrom ? new Date(filterValues.dateFrom) : null;
+          const to = filterValues.dateTo ? new Date(filterValues.dateTo) : null;
+          const vDate = new Date(v.created_date);
+          if (from && to) {
+            match = match && vDate >= from && vDate <= to;
+          } else if (from) {
+            match = match && vDate >= from;
+          } else if (to) {
+            match = match && vDate <= to;
+          }
+        }
+      }
+      return match;
     });
-  }, [vouchers, voucherSearchTerm, voucherTypeFilter]);
+  }, [vouchers, activeFilters, filterValues]);
 
   const totalPages = Math.ceil(sortedAndFilteredVouchers.length / ITEMS_PER_PAGE);
   const paginatedVouchers = sortedAndFilteredVouchers.slice(
@@ -87,6 +104,90 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
 
   return (
     <Card className="glass-card mt-4">
+        <CardHeader>
+            <div className="flex justify-between items-center">
+                <div className="flex items-center gap-4">
+                    <Select
+                        value=""
+                        onValueChange={filter => {
+                            if (!activeFilters.includes(filter)) {
+                                setActiveFilters([...activeFilters, filter]);
+                            }
+                        }}
+                    >
+                        <SelectTrigger className="w-[180px]">
+                            <SelectValue placeholder="Add Filter" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {!activeFilters.includes('beneficiary') && <SelectItem value="beneficiary">Beneficiary Name</SelectItem>}
+                            {!activeFilters.includes('type') && <SelectItem value="type">Type</SelectItem>}
+                            {!activeFilters.includes('date') && <SelectItem value="date">Date</SelectItem>}
+                        </SelectContent>
+                    </Select>
+                    {activeFilters.map(filter => (
+                        <div key={filter} className="flex items-center gap-2">
+                            {filter === 'beneficiary' && (
+                                <Input
+                                    placeholder="Search by beneficiary..."
+                                    value={filterValues.beneficiary || ''}
+                                    onChange={e => setFilterValues(fv => ({ ...fv, beneficiary: e.target.value }))}
+                                    className="max-w-xs"
+                                />
+                            )}
+                            {filter === 'type' && (
+                                <Select
+                                    value={filterValues.type || 'all'}
+                                    onValueChange={val => setFilterValues(fv => ({ ...fv, type: val }))}
+                                >
+                                    <SelectTrigger className="w-[180px]">
+                                        <SelectValue placeholder="All Types" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Types</SelectItem>
+                                        <SelectItem value="debit">Debit</SelectItem>
+                                        <SelectItem value="cash">Cash</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            )}
+                            {filter === 'date' && (
+                                <div className="flex items-center gap-2">
+                                    <Input
+                                        type="date"
+                                        value={filterValues.dateFrom || ''}
+                                        onChange={e => setFilterValues(fv => ({ ...fv, dateFrom: e.target.value }))}
+                                        className="max-w-xs"
+                                        placeholder="From"
+                                    />
+                                    <span className="text-gray-400">to</span>
+                                    <Input
+                                        type="date"
+                                        value={filterValues.dateTo || ''}
+                                        onChange={e => setFilterValues(fv => ({ ...fv, dateTo: e.target.value }))}
+                                        className="max-w-xs"
+                                        placeholder="To"
+                                    />
+                                </div>
+                            )}
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                    setActiveFilters(activeFilters.filter(f => f !== filter));
+                                    setFilterValues(fv => {
+                                        const newFv = { ...fv };
+                                        delete newFv[filter];
+                                        return newFv;
+                                    });
+                                }}
+                                title="Remove filter"
+                            >
+                                ×
+                            </Button>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </CardHeader>
         <CardContent>
              <Table>
                 <TableHeader>
