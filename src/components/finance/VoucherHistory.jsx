@@ -224,7 +224,7 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                                     <div>{date}</div>
                                     <div className="text-xs text-gray-400">{time}</div>
                                 </TableCell>
-                                <TableCell>{voucher.voucher_id || voucher.id}</TableCell>
+<TableCell>{voucher.voucher_id ? voucher.voucher_id : (voucher.id ? voucher.id : '-')}</TableCell>
                                 <TableCell>
                                     <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${voucher.voucher_type === 'cash' ? 'bg-green-500/20 text-green-300' : 'bg-pink-500/20 text-pink-300'}`}>
                                         {voucher.voucher_type}

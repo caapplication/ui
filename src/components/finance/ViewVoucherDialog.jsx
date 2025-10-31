@@ -38,7 +38,8 @@ const ViewVoucherDialog = ({ voucher, fromAccount, toAccount, beneficiary, isOpe
         doc.setFont("helvetica", "bold");
         doc.setFontSize(18);
         doc.setTextColor(80, 0, 40);
-        doc.text("DEBIT VOUCHER", pageWidth / 2, y + 8, { align: "center" });
+        const voucherTypeHeader = voucher.voucher_type === "cash" ? "CASH VOUCHER" : "DEBIT VOUCHER";
+        doc.text(voucherTypeHeader, pageWidth / 2, y + 8, { align: "center" });
         y += 14;
 
         // Voucher No. and Date
@@ -49,7 +50,7 @@ const ViewVoucherDialog = ({ voucher, fromAccount, toAccount, beneficiary, isOpe
             startY: y,
             head: [[
                 { content: "Voucher No. :", styles: { fillColor: [255, 192, 203] } },
-                voucher.voucher_id || voucher.id,
+                voucher.voucher_id ? voucher.voucher_id : (voucher.id ? voucher.id : "-"),
                 { content: "Date :", styles: { fillColor: [255, 192, 203] } },
                 voucher.created_date ? new Date(voucher.created_date).toLocaleDateString() : ""
             ]],

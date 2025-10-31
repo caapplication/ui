@@ -202,7 +202,7 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onRefresh, i
             <Table>
 <TableHeader>
     <TableRow>
-        <TableHead>Created Date</TableHead>
+        <TableHead>Date</TableHead>
         <TableHead>Invoice Details</TableHead>
         <TableHead>Beneficiary</TableHead>
         <TableHead>Amount</TableHead>
@@ -228,7 +228,7 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onRefresh, i
                     : '-'}
             </TableCell>
             <TableCell>
-                <div className="font-semibold">Invoice No.: {invoice.bill_number}</div>
+                <div className="font-semibold">No.: {invoice.bill_number}</div>
                 <div className="text-xs text-gray-400">Date: {new Date(invoice.date).toLocaleDateString()}</div>
             </TableCell>
                             <TableCell>{getBeneficiaryName(invoice)}</TableCell>
