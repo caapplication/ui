@@ -47,6 +47,7 @@ const InvoiceDetailsPage = () => {
     const [invoices, setInvoices] = useState(invoicesFromState || []);
     const [currentIndex, setCurrentIndex] = useState(currentIndexFromState ?? -1);
     const [loadingInvoice, setLoadingInvoice] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
 
 
     useEffect(() => {
@@ -121,6 +122,7 @@ const InvoiceDetailsPage = () => {
     }, [attachmentToDisplay]);
 
     const handleDelete = async () => {
+        setIsDeleting(true);
         try {
             const entityId = selectedEntity || localStorage.getItem('entityId');
             await deleteInvoice(entityId, invoiceId, user.access_token);
@@ -132,6 +134,8 @@ const InvoiceDetailsPage = () => {
                 description: `Failed to delete invoice: ${error.message}`,
                 variant: 'destructive',
             });
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -454,7 +458,7 @@ const InvoiceDetailsPage = () => {
                     </div>
                 </ResizablePanel>
             </ResizablePanelGroup>
-            <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+            <Dialog open={showDeleteDialog} onOpenChange={isDeleting ? undefined : setShowDeleteDialog}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Are you sure?</DialogTitle>
@@ -463,11 +467,16 @@ const InvoiceDetailsPage = () => {
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
-                        <Button variant="ghost" onClick={() => setShowDeleteDialog(false)}>
+                        <Button variant="ghost" onClick={() => setShowDeleteDialog(false)} disabled={isDeleting}>
                             Cancel
                         </Button>
-                        <Button variant="destructive" onClick={handleDelete}>
-                            Delete
+                        <Button
+                            variant="destructive"
+                            onClick={handleDelete}
+                            disabled={isDeleting}
+                            style={isDeleting ? { opacity: 0.5, pointerEvents: 'none' } : {}}
+                        >
+                            {isDeleting ? 'Deleting...' : 'Delete'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

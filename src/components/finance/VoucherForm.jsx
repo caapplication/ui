@@ -108,7 +108,7 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
     }, [selectedBeneficiaryId, beneficiaries, isEditing, beneficiaryBankAccounts]);
 
     return (
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-3xl" closeDisabled={isLoading}>
             <DialogHeader>
                 <DialogTitle>{isEditing ? 'Edit Voucher' : 'Add New Voucher'}</DialogTitle>
                 <DialogDescription>
@@ -116,10 +116,13 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
                 </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-6 pt-4">
+                <div
+                    style={isLoading ? { opacity: 0.5, pointerEvents: 'none' } : {}}
+                >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <Label htmlFor="voucherType">Voucher Type</Label>
-                        <Select name="voucher_type" required onValueChange={setVoucherType} value={voucherType}>
+                        <Select name="voucher_type" required onValueChange={setVoucherType} value={voucherType} disabled={isLoading}>
                             <SelectTrigger><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="debit">Debit</SelectItem>
@@ -129,13 +132,13 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
                     </div>
                     <div>
                         <Label htmlFor="amount">Amount</Label>
-                        <Input name="amount" id="amount" type="number" step="0.01" required defaultValue={voucher?.amount}/>
+                        <Input name="amount" id="amount" type="number" step="0.01" required defaultValue={voucher?.amount} disabled={isLoading}/>
                     </div>
                 </div>
 
                 <div>
                     <Label htmlFor="beneficiary_id">Beneficiary</Label>
-                    <Select name="beneficiary_id" required onValueChange={setSelectedBeneficiaryId} value={String(selectedBeneficiaryId)}>
+                    <Select name="beneficiary_id" required onValueChange={setSelectedBeneficiaryId} value={String(selectedBeneficiaryId)} disabled={isLoading}>
                         <SelectTrigger>
                             <SelectValue placeholder={isLoading ? "Loading..." : "Select beneficiary"} />
                         </SelectTrigger>
@@ -159,7 +162,7 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
                     <div>
                         <Label htmlFor="payment_type">Payment Type</Label>
                         {voucherType === 'debit' ? (
-                            <Select name="payment_type" required onValueChange={setPaymentType} value={paymentType}>
+                            <Select name="payment_type" required onValueChange={setPaymentType} value={paymentType} disabled={isLoading}>
                                 <SelectTrigger><SelectValue placeholder="Select payment type" /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
@@ -178,7 +181,7 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
                         <>
                             <div>
                                 <Label htmlFor="from_bank_account_id">From (Organisation Bank)</Label>
-                                <Select name="from_bank_account_id" required defaultValue={voucher?.from_bank_account_id}>
+                                <Select name="from_bank_account_id" required defaultValue={voucher?.from_bank_account_id} disabled={isLoading}>
                                     <SelectTrigger><SelectValue placeholder="Select your bank account" /></SelectTrigger>
                                     <SelectContent>
                                         {(isEditing ? (organisationBankAccounts || []) : orgBankAccounts).map(acc => (
@@ -191,7 +194,7 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
                             </div>
                             <div className="md:col-span-2">
                                 <Label htmlFor="to_bank_account_id">To (Beneficiary Bank)</Label>
-                                <Select name="to_bank_account_id" required disabled={!selectedBeneficiaryId || selectedBeneficiaryBankAccounts.length === 0} defaultValue={voucher?.to_bank_account_id}>
+                                <Select name="to_bank_account_id" required disabled={isLoading || !selectedBeneficiaryId || selectedBeneficiaryBankAccounts.length === 0} defaultValue={voucher?.to_bank_account_id}>
                                     <SelectTrigger>
                                         <SelectValue placeholder={
                                             !selectedBeneficiaryId 
@@ -216,14 +219,14 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
 
                 <div>
                     <Label htmlFor="attachment">Attachment</Label>
-                    <Input id="attachment" name="attachment" type="file" />
+                    <Input id="attachment" name="attachment" type="file" disabled={isLoading} />
                     {isEditing && voucher?.attachment_id && <p className="text-xs text-gray-400 mt-1">Leave empty to keep existing attachment.</p>}
                 </div>
 
                 {user?.role !== 'CLIENT_USER' && (
                 <div>
                     <Label htmlFor="finance_header_id">Finance Header</Label>
-                    <Select name="finance_header_id" defaultValue={voucher?.finance_header_id}>
+                    <Select name="finance_header_id" defaultValue={voucher?.finance_header_id} disabled={isLoading}>
                         <SelectTrigger><SelectValue placeholder="Select a header" /></SelectTrigger>
                         <SelectContent>
                             {(financeHeaders || []).map(header => (
@@ -238,13 +241,28 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
 
                 <div>
                     <Label htmlFor="remarks">Remarks</Label>
-                    <Textarea name="remarks" id="remarks" defaultValue={voucher?.remarks}/>
+                    <Textarea name="remarks" id="remarks" defaultValue={voucher?.remarks} disabled={isLoading}/>
+                </div>
                 </div>
                
                 <DialogFooter>
-                    <DialogClose asChild><Button variant="ghost" type="button" onClick={onCancel}>Cancel</Button></DialogClose>
-                    <Button type="submit" disabled={isLoading}>
-                      {isEditing ? 'Save Changes' : <><Plus className="w-4 h-4 mr-2" /> Add Voucher</>}
+                    <DialogClose asChild>
+                        <Button
+                            variant="ghost"
+                            type="button"
+                            onClick={onCancel}
+                            disabled={isLoading}
+                            style={isLoading ? { opacity: 0.5, pointerEvents: 'none' } : {}}
+                        >
+                            Cancel
+                        </Button>
+                    </DialogClose>
+                    <Button
+                        type="submit"
+                        disabled={isLoading}
+                        style={isLoading ? { opacity: 0.5, pointerEvents: 'none' } : {}}
+                    >
+                        {isEditing ? 'Save Changes' : <><Plus className="w-4 h-4 mr-2" /> Add Voucher</>}
                     </Button>
                 </DialogFooter>
             </form>

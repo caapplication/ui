@@ -190,20 +190,20 @@ import React, { useState, useEffect, useRef } from 'react';
             <div className="h-full flex flex-col">
                 <header className="flex justify-between items-center mb-4 flex-shrink-0">
                     <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="icon" onClick={onBack}>
-                            <ArrowLeft className="w-5 h-5" />
-                        </Button>
+<Button variant="ghost" size="icon" onClick={onBack} disabled={isSaving}>
+    <ArrowLeft className="w-5 h-5" />
+</Button>
                         <h1 className="text-2xl font-bold text-white">
                             <span className="text-gray-400 cursor-pointer hover:underline" onClick={onBack}>Clients / </span>
                             {client ? 'Edit Client' : 'New Client'}
                         </h1>
                     </div>
                     <div className="flex items-center gap-2">
-                        <Button variant="outline" onClick={onBack}>Cancel</Button>
-                        <Button onClick={handleSubmit} disabled={isSaving}>
-                            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            {client ? 'Save Changes' : 'Create Client'}
-                        </Button>
+<Button variant="outline" onClick={onBack} disabled={isSaving}>Cancel</Button>
+<Button onClick={handleSubmit} disabled={isSaving} style={isSaving ? { opacity: 0.5, pointerEvents: 'none' } : {}}>
+    {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+    {client ? 'Save Changes' : 'Create Client'}
+</Button>
                     </div>
                 </header>
     
@@ -214,7 +214,7 @@ import React, { useState, useEffect, useRef } from 'react';
                             <div className="lg:col-span-1 glass-pane p-6 rounded-lg flex flex-col items-center">
                                 <h2 className="text-xl font-semibold mb-4 w-full">Client Status</h2>
                                  <div className="flex items-center space-x-2 pt-6 w-full justify-center">
-                                    <Switch id="is_active" name="is_active" checked={formData.is_active} onCheckedChange={(c) => handleSwitchChange('is_active', c)} />
+<Switch id="is_active" name="is_active" checked={formData.is_active} onCheckedChange={(c) => handleSwitchChange('is_active', c)} disabled={isSaving} />
                                     <Label htmlFor="is_active">Client is Active</Label>
                                 </div>
                             </div>
@@ -224,11 +224,11 @@ import React, { useState, useEffect, useRef } from 'react';
                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
                                         <Label htmlFor="name">Client Name*</Label>
-                                        <Input id="name" name="name" value={formData.name} onChange={handleChange} required />
+<Input id="name" name="name" value={formData.name} onChange={handleChange} required disabled={isSaving} />
                                     </div>
                                     <div>
                                         <Label htmlFor="client_type">Client Type*</Label>
-                                        <Select name="client_type" onValueChange={(v) => handleSelectChange('client_type', v)} value={formData.client_type} required>
+<Select name="client_type" onValueChange={(v) => handleSelectChange('client_type', v)} value={formData.client_type} required disabled={isSaving}>
                                             <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
                                             <SelectContent>
                                                 {businessTypes.map(type => <SelectItem key={type.id} value={type.name}>{type.name}</SelectItem>)}
@@ -239,9 +239,9 @@ import React, { useState, useEffect, useRef } from 'react';
                                         <Label htmlFor="organization_id">Group (Organisation)*</Label>
                                         <Popover open={orgPopoverOpen} onOpenChange={setOrgPopoverOpen}>
                                             <PopoverTrigger asChild>
-                                                <Button variant="outline" className="w-full justify-start text-left font-normal">
-                                                    {orgList.find(org => org.id === formData.organization_id)?.name || "Select organization"}
-                                                </Button>
+<Button variant="outline" className="w-full justify-start text-left font-normal" disabled={isSaving}>
+    {orgList.find(org => org.id === formData.organization_id)?.name || "Select organization"}
+</Button>
                                             </PopoverTrigger>
                                             <PopoverContent className="w-[--radix-popover-trigger-width] p-0 bg-glass/90 backdrop-blur border border-white/10 rounded-lg shadow-lg" align="start">
                                                 <div className="p-2 border-b border-gray-700 flex items-center justify-between">
@@ -277,7 +277,7 @@ import React, { useState, useEffect, useRef } from 'react';
                                         </Popover>
                                         {/* Add Organisation Dialog */}
                                         <Dialog open={showAddOrgDialog} onOpenChange={setShowAddOrgDialog}>
-                                            <DialogContent>
+<DialogContent closeDisabled={isAddingOrg}>
                                                 <DialogHeader>
                                                     <DialogTitle>Add Organisation</DialogTitle>
                                                 </DialogHeader>
@@ -325,25 +325,26 @@ import React, { useState, useEffect, useRef } from 'react';
                                     </div>
                                      <div>
                                         <Label htmlFor="pan">PAN</Label>
-                                        <Input id="pan" name="pan" value={formData.pan} onChange={handleChange} />
+<Input id="pan" name="pan" value={formData.pan} onChange={handleChange} disabled={isSaving} />
                                     </div>
                                     <div>
                                         <Label htmlFor="gstin">GSTIN</Label>
-                                        <Input id="gstin" name="gstin" value={formData.gstin} onChange={handleChange} />
+<Input id="gstin" name="gstin" value={formData.gstin} onChange={handleChange} disabled={isSaving} />
                                     </div>
                                     <div>
                                         <Label htmlFor="contact_person_name">Contact Person Name</Label>
-                                        <Input id="contact_person_name" name="contact_person_name" value={formData.contact_person_name} onChange={handleChange} />
+<Input id="contact_person_name" name="contact_person_name" value={formData.contact_person_name} onChange={handleChange} disabled={isSaving} />
                                     </div>
                                     <div>
                                         <Label htmlFor="date_of_birth">Date of Establishment</Label>
-                                        <DatePicker
-                                            value={formData.date_of_birth}
-                                            onChange={(d) => handleDateChange('date_of_birth', d)}
-                                            captionLayout="dropdown-buttons"
-                                            fromYear={1900}
-                                            toYear={new Date().getFullYear()}
-                                        />
+<DatePicker
+    value={formData.date_of_birth}
+    onChange={(d) => handleDateChange('date_of_birth', d)}
+    captionLayout="dropdown-buttons"
+    fromYear={1900}
+    toYear={new Date().getFullYear()}
+    disabled={isSaving}
+/>
                                     </div>
                                  </div>
                             </div>
@@ -354,31 +355,31 @@ import React, { useState, useEffect, useRef } from 'react';
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                  <div>
                                     <Label htmlFor="mobile">Mobile No.*</Label>
-                                    <Input id="mobile" name="mobile" value={formData.mobile} onChange={handleChange} required />
+<Input id="mobile" name="mobile" value={formData.mobile} onChange={handleChange} required disabled={isSaving} />
                                 </div>
                                 <div>
                                     <Label htmlFor="secondary_phone">Secondary Phone</Label>
-                                    <Input id="secondary_phone" name="secondary_phone" value={formData.secondary_phone} onChange={handleChange} />
+<Input id="secondary_phone" name="secondary_phone" value={formData.secondary_phone} onChange={handleChange} disabled={isSaving} />
                                 </div>
                                 <div>
                                     <Label htmlFor="email">Email*</Label>
-                                    <Input id="email" name="email" type="email" value={formData.email} onChange={handleChange} required />
+<Input id="email" name="email" type="email" value={formData.email} onChange={handleChange} required disabled={isSaving} />
                                 </div>
                                 <div className="md:col-span-2 lg:col-span-3">
                                     <Label htmlFor="address_line1">Address Line 1</Label>
-                                    <Input id="address_line1" name="address_line1" value={formData.address_line1} onChange={handleChange} />
+<Input id="address_line1" name="address_line1" value={formData.address_line1} onChange={handleChange} disabled={isSaving} />
                                 </div>
                                  <div className="md:col-span-2 lg:col-span-3">
                                     <Label htmlFor="address_line2">Address Line 2</Label>
-                                    <Input id="address_line2" name="address_line2" value={formData.address_line2} onChange={handleChange} />
+<Input id="address_line2" name="address_line2" value={formData.address_line2} onChange={handleChange} disabled={isSaving} />
                                 </div>
                                 <div>
                                     <Label htmlFor="city">City</Label>
-                                    <Input id="city" name="city" value={formData.city} onChange={handleChange} />
+<Input id="city" name="city" value={formData.city} onChange={handleChange} disabled={isSaving} />
                                 </div>
                                 <div>
                                     <Label htmlFor="state">State</Label>
-                                    <Select name="state" onValueChange={(v) => handleSelectChange('state', v)} value={formData.state}>
+<Select name="state" onValueChange={(v) => handleSelectChange('state', v)} value={formData.state} disabled={isSaving}>
                                         <SelectTrigger><SelectValue placeholder="Select state" /></SelectTrigger>
                                         <SelectContent>
                                             {states.map(state => <SelectItem key={state} value={state}>{state}</SelectItem>)}
@@ -387,7 +388,7 @@ import React, { useState, useEffect, useRef } from 'react';
                                 </div>
                                 <div>
                                     <Label htmlFor="postal_code">Postal Code</Label>
-                                    <Input id="postal_code" name="postal_code" value={formData.postal_code} onChange={handleChange} />
+<Input id="postal_code" name="postal_code" value={formData.postal_code} onChange={handleChange} disabled={isSaving} />
                                 </div>
                             </div>
                         </div>
@@ -399,10 +400,11 @@ import React, { useState, useEffect, useRef } from 'react';
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                  <div>
                                     <Label>Assigned Team member</Label>
-                                    <Select
-                                        onValueChange={v => handleSelectChange('assigned_ca_user_id', v)}
-                                        value={formData.assigned_ca_user_id ? String(formData.assigned_ca_user_id) : ""}
-                                    >
+<Select
+    onValueChange={v => handleSelectChange('assigned_ca_user_id', v)}
+    value={formData.assigned_ca_user_id ? String(formData.assigned_ca_user_id) : ""}
+    disabled={isSaving}
+>
                                         <SelectTrigger>
                                             <SelectValue>
                                                 {formData.assigned_ca_user_id
@@ -429,15 +431,15 @@ import React, { useState, useEffect, useRef } from 'react';
                                     <Label>Tags</Label>
                                      <Popover>
                                         <PopoverTrigger asChild>
-                                            <Button variant="outline" className="w-full justify-start">
-                                                <div className="flex gap-1 flex-wrap">
-                                                    {formData.tag_ids.map(tagId => {
-                                                        const tag = tags.find(t => t.id === tagId);
-                                                        return <Badge key={tagId} variant="secondary">{tag?.name}</Badge>;
-                                                    })}
-                                                    {formData.tag_ids.length === 0 && 'Select tags'}
-                                                </div>
-                                            </Button>
+<Button variant="outline" className="w-full justify-start" disabled={isSaving}>
+    <div className="flex gap-1 flex-wrap">
+        {formData.tag_ids.map(tagId => {
+            const tag = tags.find(t => t.id === tagId);
+            return <Badge key={tagId} variant="secondary">{tag?.name}</Badge>;
+        })}
+        {formData.tag_ids.length === 0 && 'Select tags'}
+    </div>
+</Button>
                                         </PopoverTrigger>
                                         <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
                                             <Command>

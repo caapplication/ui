@@ -41,12 +41,24 @@ const DetailItem = ({ label, value }) => (
     </div>
 );
 
-const VoucherPDF = React.forwardRef(({ voucher, organizationName, entityName }, ref) => {
+const VoucherPDF = React.forwardRef(({ voucher, organizationName, entityName, fromBankAccounts, toBankAccounts }, ref) => {
     if (!voucher) return null;
 
     const beneficiaryName = voucher.beneficiary
         ? (voucher.beneficiary.beneficiary_type === 'individual' ? voucher.beneficiary.name : voucher.beneficiary.company_name)
         : voucher.beneficiaryName || 'N/A';
+
+    // Find from/to bank account details
+    let fromBank = null;
+    let toBank = null;
+    if (voucher.payment_type === 'bank_transfer') {
+        if (fromBankAccounts && voucher.from_bank_account_id) {
+            fromBank = fromBankAccounts.find(acc => String(acc.id) === String(voucher.from_bank_account_id));
+        }
+        if (toBankAccounts && voucher.to_bank_account_id) {
+            toBank = toBankAccounts.find(acc => String(acc.id) === String(voucher.to_bank_account_id));
+        }
+    }
 
     return (
         <div ref={ref} className="p-8 bg-white text-black" style={{ width: '210mm', minHeight: '297mm', position: 'absolute', left: '-210mm', top: 0 }}>
@@ -57,16 +69,35 @@ const VoucherPDF = React.forwardRef(({ voucher, organizationName, entityName }, 
             </div>
 
             <div className="flex justify-between items-center border-b pb-4 mb-4">
-                <p><span className="font-bold">Voucher No:</span> {voucher.id}</p>
+                <div>
+                    <p><span className="font-bold">Voucher No:</span> {voucher.voucher_id || voucher.id}</p>
+                    <p><span className="font-bold">Voucher Type:</span> {voucher.voucher_type ? voucher.voucher_type.charAt(0).toUpperCase() + voucher.voucher_type.slice(1) : 'N/A'}</p>
+                </div>
                 <p><span className="font-bold">Date:</span> {new Date(voucher.created_date).toLocaleDateString()}</p>
             </div>
 
             <div className="mb-8">
                 <h2 className="text-lg font-bold mb-2">Paid to:</h2>
-                <p>{beneficiaryName}</p>
+                <p><span className="font-bold">Beneficiary Name:</span> {beneficiaryName}</p>
                 <p><span className="font-bold">PAN:</span> {voucher.beneficiary?.pan || 'N/A'}</p>
                 <p><span className="font-bold">Email:</span> {voucher.beneficiary?.email || 'N/A'}</p>
                 <p><span className="font-bold">Phone:</span> {voucher.beneficiary?.phone || 'N/A'}</p>
+                {voucher.payment_type === 'bank_transfer' && (
+                    <>
+                        <p>
+                            <span className="font-bold">From Bank Account:</span>
+                            {fromBank
+                                ? ` ${fromBank.bank_name} - ${fromBank.account_number}`
+                                : (voucher.from_bank_account_id || 'N/A')}
+                        </p>
+                        <p>
+                            <span className="font-bold">To Bank Account:</span>
+                            {toBank
+                                ? ` ${toBank.bank_name} - ${toBank.account_number}`
+                                : (voucher.to_bank_account_id || 'N/A')}
+                        </p>
+                    </>
+                )}
             </div>
 
             <table className="w-full mb-8">
@@ -117,6 +148,7 @@ const VoucherDetailsPage = () => {
     const [toBankAccounts, setToBankAccounts] = useState([]);
     const [zoom, setZoom] = useState(1);
     const [financeHeaders, setFinanceHeaders] = useState([]);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     useEffect(() => {
         if (startInEditMode) {
@@ -127,54 +159,65 @@ const VoucherDetailsPage = () => {
     useEffect(() => {
         if (authLoading || !user?.access_token) return;
 
+        let isMounted = true;
         const fetchData = async () => {
             try {
                 const entityId = localStorage.getItem('entityId');
                 let currentVoucher = initialVoucher;
 
-                if (!currentVoucher) {
+                // Retry logic for fetching voucher details
+                let attempts = 0;
+                let maxAttempts = 5;
+                let delay = 800;
+                while ((!currentVoucher || !currentVoucher.from_bank_account_id || !currentVoucher.to_bank_account_id) && attempts < maxAttempts) {
                     currentVoucher = await getVoucher(entityId, voucherId, user.access_token);
+                    if (currentVoucher && currentVoucher.from_bank_account_id && currentVoucher.to_bank_account_id) break;
+                    await new Promise(res => setTimeout(res, delay));
+                    attempts++;
                 }
-                
+
                 if (!currentVoucher) {
                     toast({ title: 'Error', description: 'Voucher not found.', variant: 'destructive' });
                     return;
                 }
 
-                setVoucher(currentVoucher);
-                setEditedVoucher(currentVoucher);
-
+                if (isMounted) {
+                    setVoucher(currentVoucher);
+                    setEditedVoucher(currentVoucher);
+                }
             } catch (error) {
                 toast({ title: 'Error', description: `Failed to fetch data: ${error.message}`, variant: 'destructive' });
             }
         };
 
         fetchData();
+        return () => { isMounted = false; };
     }, [voucherId, authLoading, user?.access_token, initialVoucher]);
 
+    // Always fetch org bank accounts for details view, not just when editing
     useEffect(() => {
-        if (isEditing && user?.access_token && voucher) {
-            const fetchEditData = async () => {
-                try {
-                    const entityId = localStorage.getItem('entityId');
-                    const orgId = voucher.organisation_id || organisationId || user.organization_id;
+        const fetchEditData = async () => {
+            try {
+                const entityId = localStorage.getItem('entityId');
+                const orgId = voucher?.organisation_id || organisationId || user?.organization_id;
 
-                    if (!orgId) {
-                        toast({ title: 'Error', description: 'Could not determine organization ID.', variant: 'destructive' });
-                        return;
-                    }
-
-                    const [beneficiariesData, fromAccountsData] = await Promise.all([
-                        getBeneficiaries(orgId, user.access_token),
-                        getOrganisationBankAccounts(entityId, user.access_token),
-                    ]);
-
-                    setBeneficiaries(beneficiariesData || []);
-                    setFromBankAccounts(fromAccountsData || []);
-                } catch (error) {
-                    toast({ title: 'Error', description: `Failed to fetch edit data: ${error.message}`, variant: 'destructive' });
+                if (!orgId) {
+                    toast({ title: 'Error', description: 'Could not determine organization ID.', variant: 'destructive' });
+                    return;
                 }
-            };
+
+                const [beneficiariesData, fromAccountsData] = await Promise.all([
+                    getBeneficiaries(orgId, user.access_token),
+                    getOrganisationBankAccounts(entityId, user.access_token),
+                ]);
+
+                setBeneficiaries(beneficiariesData || []);
+                setFromBankAccounts(fromAccountsData || []);
+            } catch (error) {
+                toast({ title: 'Error', description: `Failed to fetch edit data: ${error.message}`, variant: 'destructive' });
+            }
+        };
+        if (user?.access_token && (voucher || isEditing)) {
             fetchEditData();
         }
     }, [isEditing, user, voucher, organisationId, toast]);
@@ -250,6 +293,21 @@ const VoucherDetailsPage = () => {
     };
 
     const handleExportToPDF = () => {
+        // For bank transfers, ensure bank account details are loaded
+        if (
+            voucher?.payment_type === 'bank_transfer' &&
+            (
+                !fromBankAccounts.length ||
+                !toBankAccounts.length
+            )
+        ) {
+            toast({
+                title: 'Bank Account Details Not Loaded',
+                description: 'Please wait for bank account details to load before exporting the PDF.',
+                variant: 'destructive'
+            });
+            return;
+        }
         const input = voucherDetailsRef.current;
         html2canvas(input, { 
             useCORS: true,
@@ -269,7 +327,7 @@ const VoucherDetailsPage = () => {
             const width = pdfWidth;
             const height = width / ratio;
             pdf.addImage(imgData, 'PNG', 0, 0, width, height);
-            pdf.save(`voucher-${voucherId}.pdf`);
+            pdf.save(`voucher-${voucher.voucher_id || voucherId}.pdf`);
             toast({ title: 'Export Successful', description: 'Voucher details exported to PDF.' });
         }).catch(error => {
             toast({ title: 'Export Error', description: `An error occurred: ${error.message}`, variant: 'destructive' });
@@ -281,6 +339,7 @@ const VoucherDetailsPage = () => {
         : voucherDetails.beneficiaryName || 'N/A';
 
     const handleDelete = async () => {
+        setIsDeleting(true);
         try {
             const entityId = voucherDetails.entity_id || localStorage.getItem('entityId');
             await deleteVoucher(entityId, voucherId, user.access_token);
@@ -298,6 +357,8 @@ const VoucherDetailsPage = () => {
                 variant: 'destructive',
             });
             setShowDeleteDialog(false);
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -332,7 +393,23 @@ const VoucherDetailsPage = () => {
         }
     };
 
-    if (authLoading || !voucher) {
+    const [showLoading, setShowLoading] = useState(false);
+
+    useEffect(() => {
+        if (
+            voucher &&
+            voucher.payment_type === 'bank_transfer' &&
+            (!fromBankAccounts.length || !toBankAccounts.length)
+        ) {
+            setShowLoading(true);
+            const timer = setTimeout(() => setShowLoading(false), 5000);
+            return () => clearTimeout(timer);
+        } else {
+            setShowLoading(false);
+        }
+    }, [voucher, fromBankAccounts, toBankAccounts]);
+
+    if (authLoading || !voucher || showLoading) {
         return (
             <div className="flex justify-center items-center h-screen">
                 <Loader2 className="w-8 h-8 animate-spin text-white" />
@@ -342,7 +419,14 @@ const VoucherDetailsPage = () => {
 
     return (
         <div className="h-screen w-full flex flex-col text-white bg-transparent p-4 md:p-6">
-            <VoucherPDF ref={voucherDetailsRef} voucher={voucher} organizationName={organizationName} entityName={entityName} />
+            <VoucherPDF
+                ref={voucherDetailsRef}
+                voucher={voucher}
+                organizationName={organizationName}
+                entityName={entityName}
+                fromBankAccounts={fromBankAccounts}
+                toBankAccounts={toBankAccounts}
+            />
             <header className="flex items-center justify-between pb-4 border-b border-white/10 mb-4">
                 <div className="flex items-center gap-4">
                     <Button variant="ghost" size="icon" onClick={() => user.role === 'CLIENT_USER' ? navigate('/finance') : navigate('/finance/ca')}>
@@ -543,16 +627,49 @@ const VoucherDetailsPage = () => {
                                 <CardContent className="space-y-2">
                                     <DetailItem label="Amount" value={`₹${parseFloat(voucherDetails.amount).toFixed(2)}`} />
                                     <DetailItem label="Voucher Type" value={voucherDetails.voucher_type} />
-<DetailItem label="Payment Method" value={
-    voucherDetails.voucher_type === 'cash'
-        ? 'Cash'
-        : formatPaymentMethod(
-            (voucherDetails.payment_type || '')
-                .toString()
-                .toLowerCase()
-                .replace(/\s/g, '_')
-        )
-} />
+                                    <DetailItem
+                                        label="Payment Method"
+                                        value={
+                                            voucherDetails.voucher_type === 'cash'
+                                                ? 'Cash'
+                                                : formatPaymentMethod(
+                                                    (voucherDetails.payment_type || '')
+                                                        .toString()
+                                                        .toLowerCase()
+                                                        .replace(/\s/g, '_')
+                                                )
+                                        }
+                                    />
+                                    {voucherDetails.payment_type === 'bank_transfer' && (
+                                        <>
+                                            <DetailItem
+                                                label="From Bank Account"
+                                                value={
+                                                    (() => {
+                                                        const fromBank = fromBankAccounts.find(
+                                                            acc => String(acc.id) === String(voucherDetails.from_bank_account_id)
+                                                        );
+                                                        return fromBank
+                                                            ? `${fromBank.bank_name} - ${fromBank.account_number}`
+                                                            : voucherDetails.from_bank_account_id || 'N/A';
+                                                    })()
+                                                }
+                                            />
+                                            <DetailItem
+                                                label="To Bank Account"
+                                                value={
+                                                    (() => {
+                                                        const toBank = toBankAccounts.find(
+                                                            acc => String(acc.id) === String(voucherDetails.to_bank_account_id)
+                                                        );
+                                                        return toBank
+                                                            ? `${toBank.bank_name} - ${toBank.account_number}`
+                                                            : voucherDetails.to_bank_account_id || 'N/A';
+                                                    })()
+                                                }
+                                            />
+                                        </>
+                                    )}
                                     <div className="pt-4">
                                         <p className="text-sm text-gray-400 mb-1">Remarks</p>
                                         <p className="text-sm text-white p-3 bg-white/5 rounded-md">{voucherDetails.remarks || 'N/A'}</p>
@@ -575,13 +692,17 @@ const VoucherDetailsPage = () => {
                                             </Tooltip>
                                             <Tooltip>
                                                 <TooltipTrigger asChild>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="icon"
-                                                        onClick={handleExportToPDF}
-                                                    >
-                                                        <FileText className="h-4 w-4" />
-                                                    </Button>
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={handleExportToPDF}
+                            disabled={
+                                voucher?.payment_type === 'bank_transfer' &&
+                                (!fromBankAccounts.length || !toBankAccounts.length)
+                            }
+                        >
+                            <FileText className="h-4 w-4" />
+                        </Button>
                                                 </TooltipTrigger>
                                                 <TooltipContent>
                                                     <p>Export</p>
@@ -646,7 +767,7 @@ const VoucherDetailsPage = () => {
                 </ResizablePanel>
             </ResizablePanelGroup>
 
-            <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+            <Dialog open={showDeleteDialog} onOpenChange={isDeleting ? undefined : setShowDeleteDialog}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Are you sure?</DialogTitle>
@@ -655,11 +776,16 @@ const VoucherDetailsPage = () => {
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
-                        <Button variant="ghost" onClick={() => setShowDeleteDialog(false)}>
+                        <Button variant="ghost" onClick={() => setShowDeleteDialog(false)} disabled={isDeleting}>
                             Cancel
                         </Button>
-                        <Button variant="destructive" onClick={handleDelete}>
-                            Delete
+                        <Button
+                            variant="destructive"
+                            onClick={handleDelete}
+                            disabled={isDeleting}
+                            style={isDeleting ? { opacity: 0.5, pointerEvents: 'none' } : {}}
+                        >
+                            {isDeleting ? 'Deleting...' : 'Delete'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

@@ -137,11 +137,11 @@ import React, { useState, useEffect } from 'react';
               {task ? 'Edit Task' : 'Create New Task'}
             </h1>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={onCancel}>Cancel</Button>
-              <Button onClick={handleSubmit} disabled={isSaving}>
-                {isSaving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-                {task ? 'Save Changes' : 'Create Task'}
-              </Button>
+<Button variant="outline" onClick={onCancel} disabled={isSaving}>Cancel</Button>
+<Button onClick={handleSubmit} disabled={isSaving} style={isSaving ? { opacity: 0.5, pointerEvents: 'none' } : {}}>
+    {isSaving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+    {task ? 'Save Changes' : 'Create Task'}
+</Button>
             </div>
           </div>
           
@@ -151,11 +151,11 @@ import React, { useState, useEffect } from 'react';
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <Label htmlFor="title">Task Title*</Label>
-                  <Input id="title" name="title" placeholder="e.g., File annual tax returns" value={formData.title} onChange={handleChange} required />
+<Input id="title" name="title" placeholder="e.g., File annual tax returns" value={formData.title} onChange={handleChange} required disabled={isSaving} />
                 </div>
                 <div>
                   <Label htmlFor="client_id">Client*</Label>
-                  <Select name="client_id" onValueChange={(v) => handleSelectChange('client_id', v)} value={formData.client_id} required>
+<Select name="client_id" onValueChange={(v) => handleSelectChange('client_id', v)} value={formData.client_id} required disabled={isSaving}>
                     <SelectTrigger><SelectValue placeholder="Select a client" /></SelectTrigger>
                     <SelectContent>
                       {clients && clients.length > 0 ? (
@@ -170,7 +170,7 @@ import React, { useState, useEffect } from 'react';
                 </div>
                 <div>
                   <Label htmlFor="service_id">Service*</Label>
-                  <Select name="service_id" onValueChange={(v) => handleSelectChange('service_id', v)} value={formData.service_id} required>
+<Select name="service_id" onValueChange={(v) => handleSelectChange('service_id', v)} value={formData.service_id} required disabled={isSaving}>
                     <SelectTrigger><SelectValue placeholder="Select a service" /></SelectTrigger>
                     <SelectContent>
                       {services && services.length > 0 ? (
@@ -209,10 +209,10 @@ import React, { useState, useEffect } from 'react';
                 </div>
                 <div className="md:col-span-2">
                   <Label htmlFor="description">Description</Label>
-                  <Textarea id="description" name="description" placeholder="Add a detailed description for the task..." value={formData.description} onChange={handleChange} />
+<Textarea id="description" name="description" placeholder="Add a detailed description for the task..." value={formData.description} onChange={handleChange} disabled={isSaving} />
                 </div>
                 <div className="md:col-span-2 flex items-center space-x-2">
-                  <Switch id="document_request_enabled" checked={formData.document_request_enabled} onCheckedChange={(c) => handleSwitchChange('document_request_enabled', c)} />
+<Switch id="document_request_enabled" checked={formData.document_request_enabled} onCheckedChange={(c) => handleSwitchChange('document_request_enabled', c)} disabled={isSaving} />
                   <Label htmlFor="document_request_enabled">Enable Document Collection Request</Label>
                 </div>
               </div>
@@ -224,19 +224,20 @@ import React, { useState, useEffect } from 'react';
                 <div className="space-y-4">
                   {formData.document_request_items.map((item, index) => (
                     <div key={index} className="flex items-center gap-4 p-2 rounded-md bg-black/20">
-                      <Input 
-                        value={item.name} 
-                        onChange={(e) => updateDocRequestItem(index, 'name', e.target.value)} 
-                        placeholder="e.g., PAN Card Copy"
-                        className="flex-grow"
-                      />
+<Input 
+    value={item.name} 
+    onChange={(e) => updateDocRequestItem(index, 'name', e.target.value)} 
+    placeholder="e.g., PAN Card Copy"
+    className="flex-grow"
+    disabled={isSaving}
+/>
                       <div className="flex items-center space-x-2">
-                        <Switch id={`doc-req-${index}`} checked={item.required} onCheckedChange={(c) => updateDocRequestItem(index, 'required', c)} />
+<Switch id={`doc-req-${index}`} checked={item.required} onCheckedChange={(c) => updateDocRequestItem(index, 'required', c)} disabled={isSaving} />
                         <Label htmlFor={`doc-req-${index}`}>Required</Label>
                       </div>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button variant="destructive" size="icon"><Trash2 className="w-4 h-4" /></Button>
+<Button variant="destructive" size="icon" disabled={isSaving}><Trash2 className="w-4 h-4" /></Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader>
@@ -252,7 +253,7 @@ import React, { useState, useEffect } from 'react';
                     </div>
                   ))}
                 </div>
-                <Button type="button" variant="outline" onClick={addDocRequestItem} className="mt-4"><Plus className="w-4 h-4 mr-2" />Add Document Item</Button>
+<Button type="button" variant="outline" onClick={addDocRequestItem} className="mt-4" disabled={isSaving}><Plus className="w-4 h-4 mr-2" />Add Document Item</Button>
               </div>
             )}
     
@@ -261,7 +262,7 @@ import React, { useState, useEffect } from 'react';
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div>
                   <Label htmlFor="assigned_user_id">Assign To</Label>
-                  <Select name="assigned_user_id" onValueChange={(v) => handleSelectChange('assigned_user_id', v)} value={formData.assigned_user_id}>
+<Select name="assigned_user_id" onValueChange={(v) => handleSelectChange('assigned_user_id', v)} value={formData.assigned_user_id} disabled={isSaving}>
                     <SelectTrigger><SelectValue placeholder="Select a team member" /></SelectTrigger>
                     <SelectContent>
                        {teamMembers && teamMembers.length > 0 ? (
@@ -276,7 +277,7 @@ import React, { useState, useEffect } from 'react';
                 </div>
                 <div>
                   <Label htmlFor="priority">Priority</Label>
-                  <Select name="priority" onValueChange={(v) => handleSelectChange('priority', v)} value={formData.priority}>
+<Select name="priority" onValueChange={(v) => handleSelectChange('priority', v)} value={formData.priority} disabled={isSaving}>
                     <SelectTrigger><SelectValue placeholder="Set priority" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="P1">P1 - Urgent</SelectItem>
@@ -288,7 +289,7 @@ import React, { useState, useEffect } from 'react';
                 </div>
                 <div>
                   <Label htmlFor="tag_id">Tag</Label>
-                  <Select name="tag_id" onValueChange={(v) => handleSelectChange('tag_id', v)} value={formData.tag_id}>
+<Select name="tag_id" onValueChange={(v) => handleSelectChange('tag_id', v)} value={formData.tag_id} disabled={isSaving}>
                     <SelectTrigger><SelectValue placeholder="Select a tag" /></SelectTrigger>
                     <SelectContent>
                       {tags && tags.length > 0 ? (

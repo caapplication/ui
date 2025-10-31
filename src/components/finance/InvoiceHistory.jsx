@@ -46,6 +46,8 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onRefresh, i
     fetchHeaders();
   }, [user, toast]);
 
+  const [readyLoadingId, setReadyLoadingId] = useState(null);
+
   const getBeneficiaryName = (invoice) => {
     if (!invoice.beneficiary) return 'Unknown';
     return invoice.beneficiary.beneficiary_type === 'individual' 
@@ -269,18 +271,29 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onRefresh, i
                                                         variant="outline"
                                                         size="icon"
                                                         className="text-green-400 hover:text-green-300"
-                                                        onClick={() => {
-                                                            updateInvoice(invoice.id, { is_ready: true }, user.access_token)
-                                                                .then(() => {
-                                                                    toast({ title: 'Success', description: 'Invoice marked as ready.' });
-                                                                    if (onRefresh) onRefresh();
-                                                                })
-                                                                .catch(err => {
-                                                                    toast({ title: 'Error', description: `Failed to mark invoice as ready: ${err.message}`, variant: 'destructive' });
-                                                                });
+                                                        disabled={readyLoadingId === invoice.id}
+                                                        style={readyLoadingId === invoice.id ? { opacity: 0.5, pointerEvents: 'none' } : {}}
+                                                        onClick={async () => {
+                                                            setReadyLoadingId(invoice.id);
+                                                            try {
+                                                                await updateInvoice(invoice.id, { is_ready: true }, user.access_token);
+                                                                toast({ title: 'Success', description: 'Invoice marked as ready.' });
+                                                                if (onRefresh) onRefresh();
+                                                            } catch (err) {
+                                                                toast({ title: 'Error', description: `Failed to mark invoice as ready: ${err.message}`, variant: 'destructive' });
+                                                            } finally {
+                                                                setReadyLoadingId(null);
+                                                            }
                                                         }}
                                                     >
-                                                        <Check className="w-4 h-4" />
+                                                        {readyLoadingId === invoice.id ? (
+                                                            <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24">
+                                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
+                                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                                                            </svg>
+                                                        ) : (
+                                                            <Check className="w-4 h-4" />
+                                                        )}
                                                     </Button>
                                                 )}
                                                 {(user?.role !== 'CA_ACCOUNTANT' && user?.role !== 'CA_TEAM') && user?.role !== 'CLIENT_USER' && (

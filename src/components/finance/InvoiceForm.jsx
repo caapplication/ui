@@ -46,15 +46,18 @@ const InvoiceForm = ({ entityId, beneficiaries, isLoading, onSave, onCancel, inv
     }, [amount, cgst, sgst, igst]);
 
     return (
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-3xl" closeDisabled={isLoading}>
             <DialogHeader>
                 <DialogTitle>{isEditing ? 'Edit Invoice' : 'Add New Invoice'}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+                <div
+                    style={isLoading ? { opacity: 0.5, pointerEvents: 'none' } : {}}
+                >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="md:col-span-2">
                       <Label htmlFor="beneficiary_id">Beneficiary</Label>
-                      <Select name="beneficiary_id" required defaultValue={invoice?.beneficiary_id}>
+                      <Select name="beneficiary_id" required defaultValue={invoice?.beneficiary_id} disabled={isLoading}>
                         <SelectTrigger>
                           <SelectValue placeholder={isLoading ? "Loading beneficiaries..." : "Select beneficiary"} />
                         </SelectTrigger>
@@ -76,19 +79,19 @@ const InvoiceForm = ({ entityId, beneficiaries, isLoading, onSave, onCancel, inv
 
                     <div>
                         <Label htmlFor="bill_number">Bill Number</Label>
-                        <Input name="bill_number" id="bill_number" required defaultValue={invoice?.bill_number} />
+                        <Input name="bill_number" id="bill_number" required defaultValue={invoice?.bill_number} disabled={isLoading} />
                     </div>
                     <div>
                         <Label htmlFor="date">Date</Label>
-                        <Input name="date" id="date" type="date" required defaultValue={invoice ? new Date(invoice.date).toISOString().split('T')[0] : today} />
+                        <Input name="date" id="date" type="date" required defaultValue={invoice ? new Date(invoice.date).toISOString().split('T')[0] : today} disabled={isLoading} />
                     </div>
                     <div>
                         <Label htmlFor="amount">Amount (excl. tax)</Label>
-                        <Input name="amount" id="amount" type="number" step="0.01" required value={amount} onChange={(e) => setAmount(e.target.value)} />
+                        <Input name="amount" id="amount" type="number" step="0.01" required value={amount} onChange={(e) => setAmount(e.target.value)} disabled={isLoading} />
                     </div>
                      <div>
                         <Label htmlFor="attachment">Attachment</Label>
-                        <Input id="attachment" name="attachment" type="file" />
+                        <Input id="attachment" name="attachment" type="file" disabled={isLoading} />
                         {isEditing && invoice?.attachment_id && <p className="text-xs text-gray-400 mt-1">Leave empty to keep existing attachment.</p>}
                      </div>
                 </div>
@@ -96,7 +99,7 @@ const InvoiceForm = ({ entityId, beneficiaries, isLoading, onSave, onCancel, inv
                 {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
                   <div>
                       <Label htmlFor="finance_header_id">Finance Header</Label>
-                      <Select name="finance_header_id" defaultValue={invoice?.finance_header_id}>
+                      <Select name="finance_header_id" defaultValue={invoice?.finance_header_id} disabled={isLoading}>
                           <SelectTrigger><SelectValue placeholder="Select a header" /></SelectTrigger>
                           <SelectContent>
                               {(financeHeaders || []).map(header => (
@@ -112,9 +115,9 @@ const InvoiceForm = ({ entityId, beneficiaries, isLoading, onSave, onCancel, inv
                 <div className="space-y-2">
                     <Label>Taxes</Label>
                     <div className="grid grid-cols-3 gap-4">
-                       <div><Label htmlFor="cgst" className="text-xs">CGST</Label><Input name="cgst" id="cgst" type="number" step="0.01" value={cgst} onChange={(e) => { setCgst(e.target.value); setSgst(e.target.value); }} /></div>
-                       <div><Label htmlFor="sgst" className="text-xs">SGST</Label><Input name="sgst" id="sgst" type="number" step="0.01" value={sgst} onChange={(e) => { setSgst(e.target.value); setCgst(e.target.value); }} /></div>
-                       <div><Label htmlFor="igst" className="text-xs">IGST</Label><Input name="igst" id="igst" type="number" step="0.01" value={igst} onChange={(e) => setIgst(e.target.value)} /></div>
+                       <div><Label htmlFor="cgst" className="text-xs">CGST</Label><Input name="cgst" id="cgst" type="number" step="0.01" value={cgst} onChange={(e) => { setCgst(e.target.value); setSgst(e.target.value); }} disabled={isLoading} /></div>
+                       <div><Label htmlFor="sgst" className="text-xs">SGST</Label><Input name="sgst" id="sgst" type="number" step="0.01" value={sgst} onChange={(e) => { setSgst(e.target.value); setCgst(e.target.value); }} disabled={isLoading} /></div>
+                       <div><Label htmlFor="igst" className="text-xs">IGST</Label><Input name="igst" id="igst" type="number" step="0.01" value={igst} onChange={(e) => setIgst(e.target.value)} disabled={isLoading} /></div>
                     </div>
                 </div>
                 
@@ -131,12 +134,17 @@ const InvoiceForm = ({ entityId, beneficiaries, isLoading, onSave, onCancel, inv
 
                 <div>
                     <Label htmlFor="remarks">Remarks</Label>
-                    <Textarea name="remarks" id="remarks" defaultValue={invoice?.remarks}/>
+                    <Textarea name="remarks" id="remarks" defaultValue={invoice?.remarks} disabled={isLoading}/>
+                </div>
                 </div>
                
                 <DialogFooter>
-                  <DialogClose asChild><Button variant="ghost" type="button" onClick={onCancel}>Cancel</Button></DialogClose>
-                  <Button type="submit" disabled={isLoading}>
+                  <DialogClose asChild>
+                    <Button variant="ghost" type="button" onClick={onCancel} disabled={isLoading} style={isLoading ? { opacity: 0.5, pointerEvents: 'none' } : {}}>
+                      Cancel
+                    </Button>
+                  </DialogClose>
+                  <Button type="submit" disabled={isLoading} style={isLoading ? { opacity: 0.5, pointerEvents: 'none' } : {}}>
                     {isEditing ? 'Save Changes' : <><Plus className="w-4 h-4 mr-2" /> Add Invoice</>}
                   </Button>
                 </DialogFooter>

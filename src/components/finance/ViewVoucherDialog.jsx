@@ -27,97 +27,159 @@ const ViewVoucherDialog = ({ voucher, fromAccount, toAccount, beneficiary, isOpe
     };
 
     const handleExportPDF = () => {
-        const doc = new jsPDF();
+        const doc = new jsPDF({ orientation: "landscape" });
 
         const pageWidth = doc.internal.pageSize.getWidth();
-        const pageHeight = doc.internal.pageSize.getHeight();
+        let y = 10;
 
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(22);
-        doc.setTextColor(26, 82, 118);
-        doc.text(organizationName || 'Your Company', pageWidth / 2, 20, { align: 'center' });
+        // Pink header
+        doc.setFillColor(255, 192, 203);
+        doc.rect(0, y, pageWidth, 12, "F");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(18);
+        doc.setTextColor(80, 0, 40);
+        doc.text("DEBIT VOUCHER", pageWidth / 2, y + 8, { align: "center" });
+        y += 14;
 
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(10);
-        doc.setTextColor(128, 128, 128);
-        doc.text('Payment Voucher', pageWidth / 2, 28, { align: 'center' });
-        doc.setLineWidth(0.5);
-        doc.line(15, 32, pageWidth - 15, 32);
-
-        doc.setFontSize(10);
-        doc.setTextColor(50, 50, 50);
-        doc.text(`Voucher No: ${voucher.id.slice(0, 8).toUpperCase()}`, 15, 40);
-        doc.text(`Date: ${new Date(voucher.created_date).toLocaleDateString()}`, pageWidth - 15, 40, { align: 'right' });
-
-        doc.setLineWidth(0.2);
-        doc.line(15, 44, pageWidth - 15, 44);
-
-        const beneficiaryDetails = beneficiary || {};
-        const beneficiaryName = beneficiaryDetails.beneficiary_type === 'individual'
-            ? beneficiaryDetails.name
-            : beneficiaryDetails.company_name || voucher?.beneficiary_name || 'N/A';
-
-        const beneficiaryInfo = [
-            [{ content: 'Paid to:', styles: { fontStyle: 'bold' } }, beneficiaryName],
-            [{ content: 'PAN:', styles: { fontStyle: 'bold' } }, beneficiaryDetails.pan || 'N/A'],
-            [{ content: 'Email:', styles: { fontStyle: 'bold' } }, beneficiaryDetails.email || 'N/A'],
-            [{ content: 'Phone:', styles: { fontStyle: 'bold' } }, beneficiaryDetails.phone || 'N/A'],
-        ];
-
+        // Voucher No. and Date
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(0, 0, 0);
         doc.autoTable({
-            body: beneficiaryInfo,
-            startY: 48,
-            theme: 'plain',
-            tableWidth: 'auto',
-            columnStyles: { 0: { cellWidth: 30 } },
-            styles: {
-                fontSize: 10,
-                cellPadding: 1,
-            }
+            startY: y,
+            head: [[
+                { content: "Voucher No. :", styles: { fillColor: [255, 192, 203] } },
+                voucher.voucher_id || voucher.id,
+                { content: "Date :", styles: { fillColor: [255, 192, 203] } },
+                voucher.created_date ? new Date(voucher.created_date).toLocaleDateString() : ""
+            ]],
+            theme: "plain",
+            styles: { fontSize: 11, cellPadding: 2 },
+            columnStyles: { 0: { fontStyle: "bold" }, 2: { fontStyle: "bold" } }
+        });
+        y = doc.lastAutoTable.finalY + 2;
+
+        // Remitter/Beneficiary Section
+        doc.autoTable({
+            startY: y,
+            head: [[
+                { content: "REMITTER", colSpan: 2, styles: { fillColor: [255, 192, 203], halign: "center" } },
+                { content: "BENEFICIARY", colSpan: 2, styles: { fillColor: [255, 192, 203], halign: "center" } }
+            ]],
+            body: [
+                [
+                    { content: "Entity :", styles: { fontStyle: "bold" } },
+                    organizationName || "N/A",
+                    { content: "Name :", styles: { fontStyle: "bold" } },
+                    (beneficiary?.name || beneficiary?.company_name || voucher?.beneficiary_name || "N/A")
+                ],
+                [
+                    { content: "Address :", styles: { fontStyle: "bold" } },
+                    "P.Namgyal Road, Sheynam, Leh, UT Ladakh -194101", // Example static, replace as needed
+                    { content: "Aadhar :", styles: { fontStyle: "bold" } },
+                    beneficiary?.aadhar || ""
+                ],
+                [
+                    "",
+                    "",
+                    { content: "PAN :", styles: { fontStyle: "bold" } },
+                    beneficiary?.pan || ""
+                ]
+            ],
+            theme: "grid",
+            styles: { fontSize: 10, cellPadding: 2 }
+        });
+        y = doc.lastAutoTable.finalY + 2;
+
+        // Remitter/Beneficiary Bank Section
+        doc.autoTable({
+            startY: y,
+            head: [[
+                { content: "REMITTER BANK", colSpan: 4, styles: { fillColor: [255, 192, 203], halign: "center" } },
+                { content: "BENEFICIARY BANK", colSpan: 4, styles: { fillColor: [255, 192, 203], halign: "center" } }
+            ]],
+            body: [
+                [
+                    { content: "A/C Name :", styles: { fontStyle: "bold" } },
+                    organizationName || "N/A",
+                    { content: "A/C No. :", styles: { fontStyle: "bold" } },
+                    fromAccount?.account_number || "",
+                    { content: "A/C Name :", styles: { fontStyle: "bold" } },
+                    (beneficiary?.name || beneficiary?.company_name || voucher?.beneficiary_name || "N/A"),
+                    { content: "A/C No. :", styles: { fontStyle: "bold" } },
+                    toAccount?.account_number || ""
+                ],
+                [
+                    { content: "Bank :", styles: { fontStyle: "bold" } },
+                    fromAccount?.bank_name || "",
+                    { content: "Branch :", styles: { fontStyle: "bold" } },
+                    fromAccount?.branch || "",
+                    { content: "Bank :", styles: { fontStyle: "bold" } },
+                    toAccount?.bank_name || "",
+                    { content: "Branch :", styles: { fontStyle: "bold" } },
+                    toAccount?.branch || ""
+                ],
+                [
+                    { content: "IFSC :", styles: { fontStyle: "bold" } },
+                    fromAccount?.ifsc || "",
+                    "",
+                    "",
+                    { content: "IFSC :", styles: { fontStyle: "bold" } },
+                    toAccount?.ifsc || "",
+                    "",
+                    ""
+                ]
+            ],
+            theme: "grid",
+            styles: { fontSize: 10, cellPadding: 2 }
+        });
+        y = doc.lastAutoTable.finalY + 2;
+
+        // Payment Info Section
+        doc.autoTable({
+            startY: y,
+            head: [[
+                { content: "PAYMENT INFO", colSpan: 4, styles: { fillColor: [255, 192, 203], halign: "center" } }
+            ]],
+            body: [
+                [
+                    { content: "Amount", styles: { fontStyle: "bold" } },
+                    `₹${parseFloat(voucher.amount).toFixed(2)}`,
+                    { content: "Purpose :", styles: { fontStyle: "bold" } },
+                    voucher.remarks || "N/A"
+                ]
+            ],
+            theme: "grid",
+            styles: { fontSize: 10, cellPadding: 2 }
+        });
+        y = doc.lastAutoTable.finalY + 2;
+
+        // Created By / Approved By Section
+        doc.autoTable({
+            startY: y,
+            head: [[
+                { content: "CREATED BY", colSpan: 2, styles: { fillColor: [255, 192, 203], halign: "center" } },
+                { content: "APPROVED BY", colSpan: 2, styles: { fillColor: [255, 192, 203], halign: "center" } }
+            ]],
+            body: [
+                [
+                    { content: "Name", styles: { fontStyle: "bold" } },
+                    user?.name || "",
+                    { content: "Name", styles: { fontStyle: "bold" } },
+                    "" // Approved By Name (leave blank or fill as needed)
+                ],
+                [
+                    { content: "Date & Time", styles: { fontStyle: "bold" } },
+                    voucher.created_date ? new Date(voucher.created_date).toLocaleString() : "",
+                    { content: "Date & Time", styles: { fontStyle: "bold" } },
+                    "" // Approved By Date & Time (leave blank or fill as needed)
+                ]
+            ],
+            theme: "grid",
+            styles: { fontSize: 10, cellPadding: 2 }
         });
 
-        const transactionColumns = ['Particulars', 'Amount (INR)'];
-        const transactionRows = [
-            [voucher.remarks || 'Payment', `₹${parseFloat(voucher.amount).toFixed(2)}`],
-        ];
-
-        doc.autoTable({
-            head: [transactionColumns],
-            body: transactionRows,
-            startY: doc.autoTable.previous.finalY + 10,
-            theme: 'striped',
-            headStyles: { fillColor: [26, 82, 118] },
-            foot: [['Total', `₹${parseFloat(voucher.amount).toFixed(2)}`]],
-            footStyles: { fontStyle: 'bold' },
-        });
-
-        let paymentDetails = [
-            [{ content: 'Payment Details:', colSpan: 2, styles: { fontStyle: 'bold' } }],
-            ['Payment Method', voucher.payment_type ? `${voucher.payment_type.charAt(0).toUpperCase() + voucher.payment_type.slice(1)}` : 'N/A'],
-        ];
-
-        if (voucher.payment_type === 'bank' && fromAccount) {
-            paymentDetails.push(['From Account', `${fromAccount.bank_name} (...${fromAccount.account_number.slice(-4)})`]);
-        }
-        if (voucher.payment_type === 'bank' && toAccount) {
-            paymentDetails.push(['To Account', `${toAccount.bank_name} (...${toAccount.account_number.slice(-4)})`]);
-        }
-
-        doc.autoTable({
-            body: paymentDetails,
-            startY: doc.autoTable.previous.finalY + 5,
-            theme: 'plain',
-            styles: { fontSize: 9, cellPadding: 1 },
-            columnStyles: { 0: { cellWidth: 30, fontStyle: 'bold' } }
-        });
-
-        const footerY = pageHeight - 20;
-        doc.setFontSize(8);
-        doc.setTextColor(150);
-        doc.line(15, footerY - 5, pageWidth - 15, footerY - 5);
-        doc.text('This is a computer-generated voucher and does not require a signature.', pageWidth / 2, footerY, { align: 'center' });
-
-        doc.save(`voucher-${voucher.id.slice(0, 8)}.pdf`);
+        doc.save(`debit-voucher-${voucher.voucher_id || voucher.id}.pdf`);
     };
 
     // FINAL fallback logic for beneficiary name
