@@ -200,36 +200,37 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onRefresh, i
         </CardHeader>
         <CardContent>
             <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead>Invoice Date</TableHead>
-                        <TableHead>Created Date</TableHead>
-                        <TableHead>Bill No</TableHead>
-                        <TableHead>Beneficiary</TableHead>
-                        <TableHead>Amount</TableHead>
-                        <TableHead>Remarks</TableHead>
-                        {isAccountantView && <TableHead>Ready for Export</TableHead>}
-                        <TableHead>Actions</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {paginatedInvoices.map(invoice => (
-                        <TableRow key={invoice.id} onClick={() => handleViewAttachment(invoice)} className="cursor-pointer">
-                            <TableCell>{new Date(invoice.date).toLocaleDateString()}</TableCell>
-                            <TableCell>
-                                {invoice.created_at
-                                    ? (
-                                        <>
-                                            {new Date(invoice.created_at).toLocaleDateString()}
-                                            <br />
-                                            <span className="text-xs text-gray-400">
-                                                {new Date(invoice.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                            </span>
-                                        </>
-                                    )
-                                    : '-'}
-                            </TableCell>
-                            <TableCell>{invoice.bill_number}</TableCell>
+<TableHeader>
+    <TableRow>
+        <TableHead>Created Date</TableHead>
+        <TableHead>Invoice Details</TableHead>
+        <TableHead>Beneficiary</TableHead>
+        <TableHead>Amount</TableHead>
+        <TableHead>Remarks</TableHead>
+        {isAccountantView && <TableHead>Ready for Export</TableHead>}
+        <TableHead>Actions</TableHead>
+    </TableRow>
+</TableHeader>
+<TableBody>
+    {paginatedInvoices.map(invoice => (
+        <TableRow key={invoice.id} onClick={() => handleViewAttachment(invoice)} className="cursor-pointer">
+            <TableCell>
+                {invoice.created_at
+                    ? (
+                        <>
+                            {new Date(invoice.created_at).toLocaleDateString()}
+                            <br />
+                            <span className="text-xs text-gray-400">
+                                {new Date(invoice.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                        </>
+                    )
+                    : '-'}
+            </TableCell>
+            <TableCell>
+                <div className="font-semibold">Invoice No.: {invoice.bill_number}</div>
+                <div className="text-xs text-gray-400">Date: {new Date(invoice.date).toLocaleDateString()}</div>
+            </TableCell>
                             <TableCell>{getBeneficiaryName(invoice)}</TableCell>
                             <TableCell>₹{(parseFloat(invoice.amount) + parseFloat(invoice.cgst) + parseFloat(invoice.sgst) + parseFloat(invoice.igst)).toFixed(2)}</TableCell>
                             <TableCell>{invoice.remarks || 'N/A'}</TableCell>
