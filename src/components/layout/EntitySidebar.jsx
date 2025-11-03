@@ -49,7 +49,7 @@ const EntitySidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) => {
             <div className={`flex items-center mb-4 ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
                 <Link to="/profile" className="flex items-center space-x-4 cursor-pointer min-w-0">
                     <Avatar className="w-12 h-12 flex-shrink-0 border-2 border-white/20">
-                        <AvatarImage src={user?.profilePictureUrl} alt={user?.name} />
+                        <AvatarImage src={user?.photo_url} alt={user?.name} />
                         <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
                             {user?.name?.charAt(0).toUpperCase()}
                         </AvatarFallback>
