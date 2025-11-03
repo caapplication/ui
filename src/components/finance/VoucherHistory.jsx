@@ -15,10 +15,15 @@ import { getFinanceHeaders } from '@/lib/api/settings';
 const ITEMS_PER_PAGE = 10;
 
 const formatDate = (dateString) => {
-    const date = new Date(dateString);
+    const localDate = new Date(dateString);
+    // The dateString from the backend is in UTC, but JavaScript's `new Date()` parses it as local time.
+    // To correct this, we get the timezone offset from the client's machine and adjust the date.
+    // This creates a new Date object that correctly represents the UTC time.
+    const utcDate = new Date(localDate.getTime() - (localDate.getTimezoneOffset() * 60000));
+    
     return {
-        date: date.toLocaleDateString(),
-        time: date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        date: utcDate.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }),
+        time: utcDate.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' }),
     };
 };
 
@@ -69,7 +74,9 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
           match = match && (v.voucher_id || v.id || '').toLowerCase().includes((filterValues.voucher_id || '').toLowerCase());
         }
         if (filter === 'type') {
-          match = match && (filterValues.type === 'all' || v.voucher_type === filterValues.type);
+          if (filterValues.type && filterValues.type !== 'all') {
+            match = match && v.voucher_type === filterValues.type;
+          }
         }
         if (filter === 'date') {
           const from = filterValues.dateFrom ? new Date(filterValues.dateFrom) : null;

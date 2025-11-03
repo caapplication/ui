@@ -370,7 +370,7 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
         <InvoiceForm
           entityId={entityId}
           beneficiaries={beneficiaries}
-          isLoading={isLoading}
+          isLoading={isMutating}
           onSave={handleAddOrUpdateInvoice}
           onCancel={closeDialogs}
           invoice={editingInvoice}
@@ -382,7 +382,7 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
         <VoucherForm
           entityId={entityId}
           beneficiaries={beneficiaries}
-          isLoading={isLoading}
+          isLoading={isMutating}
           onSave={handleAddOrUpdateVoucher}
           onCancel={closeDialogs}
           voucher={editingVoucher}

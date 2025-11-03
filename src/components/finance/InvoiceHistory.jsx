@@ -218,10 +218,10 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onRefresh, i
                 {invoice.created_at
                     ? (
                         <>
-                            {new Date(invoice.created_at).toLocaleDateString()}
+                            {new Date(invoice.created_at).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}
                             <br />
                             <span className="text-xs text-gray-400">
-                                {new Date(invoice.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                {new Date(invoice.created_at).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })}
                             </span>
                         </>
                     )
