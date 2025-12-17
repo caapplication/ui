@@ -98,13 +98,16 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
     }, [selectedBeneficiaryId, isEditing, user?.access_token]);
 
     const selectedBeneficiaryBankAccounts = useMemo(() => {
-        if (isEditing) {
-            if (!selectedBeneficiaryId || !beneficiaries) return [];
-            const beneficiary = beneficiaries.find(b => String(b.id) === String(selectedBeneficiaryId));
-            return beneficiary?.bank_accounts || [];
-        } else {
-            return beneficiaryBankAccounts;
-        }
+        const accounts = isEditing
+            ? (() => {
+                if (!selectedBeneficiaryId || !beneficiaries) return [];
+                const beneficiary = beneficiaries.find(b => String(b.id) === String(selectedBeneficiaryId));
+                return beneficiary?.bank_accounts || [];
+              })()
+            : beneficiaryBankAccounts;
+
+        // Only show active accounts in voucher bank transfer dropdown
+        return (accounts || []).filter((acc) => acc?.is_active !== false);
     }, [selectedBeneficiaryId, beneficiaries, isEditing, beneficiaryBankAccounts]);
 
     return (

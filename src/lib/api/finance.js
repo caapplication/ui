@@ -1,6 +1,6 @@
 import { getAuthHeaders, handleResponse } from './utils';
 
-const FINANCE_API_BASE_URL = 'https://finance-api.fynivo.in';
+const FINANCE_API_BASE_URL = 'http://127.0.0.1:8004';
 
 export const getEntities = async (token) => {
     const response = await fetch(`${FINANCE_API_BASE_URL}/api/entities/`, {
@@ -90,6 +90,25 @@ export const addBankAccount = async (beneficiaryId, bankAccountData, token) => {
     return handleResponse(response);
 };
 
+export const deactivateBankAccount = async (beneficiaryId, bankAccountId, token) => {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/beneficiaries/${beneficiaryId}/bank_accounts/${bankAccountId}/status`, {
+        method: 'PUT',
+        headers: getAuthHeaders(token, 'application/json'),
+        body: JSON.stringify({ is_active: false }),
+    });
+    return handleResponse(response);
+};
+
+export const reactivateBankAccount = async (beneficiaryId, bankAccountId, token) => {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/beneficiaries/${beneficiaryId}/bank_accounts/${bankAccountId}/status`, {
+        method: 'PUT',
+        headers: getAuthHeaders(token, 'application/json'),
+        body: JSON.stringify({ is_active: true }),
+    });
+    return handleResponse(response);
+};
+
+// Permanent delete (allowed only for inactive accounts on API)
 export const deleteBankAccount = async (beneficiaryId, bankAccountId, token) => {
     const response = await fetch(`${FINANCE_API_BASE_URL}/api/beneficiaries/${beneficiaryId}/bank_accounts/${bankAccountId}`, {
         method: 'DELETE',

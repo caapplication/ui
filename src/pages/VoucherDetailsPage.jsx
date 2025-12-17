@@ -48,7 +48,7 @@ const VoucherPDF = React.forwardRef(({ voucher, organizationName, entityName, fr
         ? (voucher.beneficiary.beneficiary_type === 'individual' ? voucher.beneficiary.name : voucher.beneficiary.company_name)
         : voucher.beneficiaryName || 'N/A';
 
-    // Find from/to bank account details
+    // Find from/to bank account details (prefer live lookup; fallback to voucher snapshot)
     let fromBank = null;
     let toBank = null;
     if (voucher.payment_type === 'bank_transfer') {
@@ -60,8 +60,15 @@ const VoucherPDF = React.forwardRef(({ voucher, organizationName, entityName, fr
         }
     }
 
+    const fromSnapshotLabel = voucher.from_bank_account_name
+        ? `${voucher.from_bank_account_name} - ${voucher.from_bank_account_number || ''}`.trim()
+        : null;
+    const toSnapshotLabel = voucher.to_bank_account_name
+        ? `${voucher.to_bank_account_name} - ${voucher.to_bank_account_number || ''}`.trim()
+        : null;
+
     return (
-        <div ref={ref} className="p-8 bg-white text-black" style={{ width: '210mm', minHeight: '297mm', position: 'absolute', left: '-210mm', top: 0 }}>
+        <div ref={ref} className="p-8 bg-white text-black" style={{ width: '210mm', minHeight: '297mm' }}>
             <div className="text-center mb-8">
                 <h1 className="text-3xl font-bold text-blue-600">{organizationName || 'The Abduz Group'}</h1>
                 <h2 className="text-xl font-semibold text-gray-700">{entityName}</h2>
@@ -88,13 +95,13 @@ const VoucherPDF = React.forwardRef(({ voucher, organizationName, entityName, fr
                             <span className="font-bold">From Bank Account:</span>
                             {fromBank
                                 ? ` ${fromBank.bank_name} - ${fromBank.account_number}`
-                                : (voucher.from_bank_account_id || 'N/A')}
+                                : (fromSnapshotLabel ? ` ${fromSnapshotLabel}` : (voucher.from_bank_account_id || 'N/A'))}
                         </p>
                         <p>
                             <span className="font-bold">To Bank Account:</span>
                             {toBank
                                 ? ` ${toBank.bank_name} - ${toBank.account_number}`
-                                : (voucher.to_bank_account_id || 'N/A')}
+                                : (toSnapshotLabel ? ` ${toSnapshotLabel}` : (voucher.to_bank_account_id || 'N/A'))}
                         </p>
                     </>
                 )}
@@ -149,6 +156,8 @@ const VoucherDetailsPage = () => {
     const [zoom, setZoom] = useState(1);
     const [financeHeaders, setFinanceHeaders] = useState([]);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+
 
     useEffect(() => {
         if (startInEditMode) {
@@ -187,6 +196,8 @@ const VoucherDetailsPage = () => {
                 }
             } catch (error) {
                 toast({ title: 'Error', description: `Failed to fetch data: ${error.message}`, variant: 'destructive' });
+            } finally {
+                setIsLoading(false);
             }
         };
 
@@ -393,23 +404,7 @@ const VoucherDetailsPage = () => {
         }
     };
 
-    const [showLoading, setShowLoading] = useState(false);
-
-    useEffect(() => {
-        if (
-            voucher &&
-            voucher.payment_type === 'bank_transfer' &&
-            (!fromBankAccounts.length || !toBankAccounts.length)
-        ) {
-            setShowLoading(true);
-            const timer = setTimeout(() => setShowLoading(false), 5000);
-            return () => clearTimeout(timer);
-        } else {
-            setShowLoading(false);
-        }
-    }, [voucher, fromBankAccounts, toBankAccounts]);
-
-    if (authLoading || !voucher || showLoading) {
+    if (isLoading) {
         return (
             <div className="flex justify-center items-center h-screen">
                 <Loader2 className="w-8 h-8 animate-spin text-white" />
@@ -417,16 +412,12 @@ const VoucherDetailsPage = () => {
         );
     }
 
+    const isClientUser = user?.role === 'CLIENT_USER';
+    const defaultTab = isClientUser ? 'details' : 'preview';
+    const cols = isClientUser ? 'grid-cols-3' : 'grid-cols-4';
+
     return (
         <div className="h-screen w-full flex flex-col text-white bg-transparent p-4 md:p-6">
-            <VoucherPDF
-                ref={voucherDetailsRef}
-                voucher={voucher}
-                organizationName={organizationName}
-                entityName={entityName}
-                fromBankAccounts={fromBankAccounts}
-                toBankAccounts={toBankAccounts}
-            />
             <header className="flex items-center justify-between pb-4 border-b border-white/10 mb-4">
                 <div className="flex items-center gap-4">
                     <Button variant="ghost" size="icon" onClick={() => user.role === 'CLIENT_USER' ? navigate('/finance') : navigate('/finance/ca')}>
@@ -464,6 +455,7 @@ const VoucherDetailsPage = () => {
                                 </Button>
                                 <Button variant="outline" size="icon" onClick={() => setZoom(1)}>
                                     <RefreshCcw className="h-4 w-4" />
+.
                                 </Button>
                             </div>
                         )}
@@ -495,12 +487,15 @@ const VoucherDetailsPage = () => {
                 <ResizableHandle withHandle />
                 <ResizablePanel defaultSize={40} minSize={30}>
                     <div className="flex h-full items-start justify-center p-6 overflow-y-auto">
-                <Tabs defaultValue="details" className="w-full">
-                    <TabsList className="grid w-full grid-cols-3">
-                        <TabsTrigger value="details">Details</TabsTrigger>
-                        <TabsTrigger value="activity">Activity Log</TabsTrigger>
-                        <TabsTrigger value="beneficiary">Beneficiary</TabsTrigger>
-                    </TabsList>
+                        <Tabs defaultValue={defaultTab} className="w-full">
+                            <TabsList className={`grid w-full ${cols}`}>
+                                {!isClientUser && (
+                                    <TabsTrigger value="preview">Preview</TabsTrigger>
+                                )}
+                                <TabsTrigger value="details">Details</TabsTrigger>
+                                <TabsTrigger value="activity">Activity Log</TabsTrigger>
+                                <TabsTrigger value="beneficiary">Beneficiary</TabsTrigger>
+                            </TabsList>
                     <TabsContent value="details" className="mt-4">
                         {isEditing ? (
                             <form onSubmit={handleUpdate} className="space-y-4">
@@ -625,6 +620,8 @@ const VoucherDetailsPage = () => {
                                     <CardDescription>Created on {new Date(voucherDetails.created_date).toLocaleDateString()}</CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-2">
+                                    <DetailItem label="Invoice ID" value={voucherDetails.invoice_id || 'N/A'} />
+                                    <DetailItem label="Voucher ID" value={voucherDetails.voucher_id || 'N/A'} />
                                     <DetailItem label="Amount" value={`₹${parseFloat(voucherDetails.amount).toFixed(2)}`} />
                                     <DetailItem label="Voucher Type" value={voucherDetails.voucher_type} />
                                     <DetailItem
@@ -649,9 +646,12 @@ const VoucherDetailsPage = () => {
                                                         const fromBank = fromBankAccounts.find(
                                                             acc => String(acc.id) === String(voucherDetails.from_bank_account_id)
                                                         );
-                                                        return fromBank
-                                                            ? `${fromBank.bank_name} - ${fromBank.account_number}`
-                                                            : voucherDetails.from_bank_account_id || 'N/A';
+                                                        if (fromBank) return `${fromBank.bank_name} - ${fromBank.account_number}`;
+
+                                                        const snap = voucherDetails.from_bank_account_name
+                                                            ? `${voucherDetails.from_bank_account_name} - ${voucherDetails.from_bank_account_number || ''}`.trim()
+                                                            : null;
+                                                        return snap || voucherDetails.from_bank_account_id || 'N/A';
                                                     })()
                                                 }
                                             />
@@ -662,9 +662,12 @@ const VoucherDetailsPage = () => {
                                                         const toBank = toBankAccounts.find(
                                                             acc => String(acc.id) === String(voucherDetails.to_bank_account_id)
                                                         );
-                                                        return toBank
-                                                            ? `${toBank.bank_name} - ${toBank.account_number}`
-                                                            : voucherDetails.to_bank_account_id || 'N/A';
+                                                        if (toBank) return `${toBank.bank_name} - ${toBank.account_number}`;
+
+                                                        const snap = voucherDetails.to_bank_account_name
+                                                            ? `${voucherDetails.to_bank_account_name} - ${voucherDetails.to_bank_account_number || ''}`.trim()
+                                                            : null;
+                                                        return snap || voucherDetails.to_bank_account_id || 'N/A';
                                                     })()
                                                 }
                                             />
@@ -762,6 +765,20 @@ const VoucherDetailsPage = () => {
                             );
                         })()}
                     </TabsContent>
+                    {!isClientUser && (
+                        <TabsContent value="preview" className="mt-4">
+                            <div className="overflow-auto" style={{ maxHeight: '80vh' }}>
+                                <VoucherPDF
+                                    ref={voucherDetailsRef}
+                                    voucher={voucher}
+                                    organizationName={organizationName}
+                                    entityName={entityName}
+                                    fromBankAccounts={fromBankAccounts}
+                                    toBankAccounts={toBankAccounts}
+                                />
+                            </div>
+                        </TabsContent>
+                    )}
                 </Tabs>
             </div>
                 </ResizablePanel>

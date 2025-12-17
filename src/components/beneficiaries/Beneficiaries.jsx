@@ -6,14 +6,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
-import { Plus, Trash2, Users, Banknote, Building, Search, Loader2, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
+import { Plus, Users, Banknote, Building, Search, Loader2, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { 
   getBeneficiaries, 
   addBeneficiary, 
-  deleteBeneficiary,
   addBankAccount,
   deleteBankAccount,
   getBankAccountsForBeneficiary,
@@ -54,9 +53,9 @@ const BeneficiaryForm = ({ onAdd, onCancel, isEdit, beneficiary }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div><Label htmlFor="name">Name</Label><Input name="name" id="name" required /></div>
           <div><Label htmlFor="phone">Phone</Label><Input name="phone" id="phone" type="tel" required /></div>
-          <div className="md:col-span-2"><Label htmlFor="email">Email</Label><Input name="email" id="email" type="email" required /></div>
-          <div><Label htmlFor="aadhar">Aadhar</Label><Input name="aadhar" id="aadhar" /></div>
-          <div><Label htmlFor="pan">PAN</Label><Input name="pan" id="pan" /></div>
+          <div className="md:col-span-2"><Label htmlFor="email">Email</Label><Input name="email" id="email" type="email" /></div>
+          <div><Label htmlFor="aadhar">Aadhar</Label><Input name="aadhar" id="aadhar" required /></div>
+          <div><Label htmlFor="pan">PAN</Label><Input name="pan" id="pan" required /></div>
         </div>
       )}
 
@@ -64,11 +63,11 @@ const BeneficiaryForm = ({ onAdd, onCancel, isEdit, beneficiary }) => {
          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div><Label htmlFor="company_name">Company Name</Label><Input name="company_name" id="company_name" required /></div>
             <div><Label htmlFor="phone">Phone</Label><Input name="phone" id="phone" type="tel" required /></div>
-            <div className="md:col-span-2"><Label htmlFor="email">Email Address</Label><Input name="email" id="email" type="email" required /></div>
-            <div><Label htmlFor="gstin">GSTIN</Label><Input name="gstin" id="gstin" /></div>
-            <div><Label htmlFor="pan">PAN</Label><Input name="pan" id="pan" /></div>
-            <div><Label htmlFor="aadhar">Aadhar (of Proprietor)</Label><Input name="aadhar" id="aadhar" /></div>
-            <div><Label htmlFor="proprietor_name">Proprietor Name</Label><Input name="proprietor_name" id="proprietor_name" /></div>
+            <div className="md:col-span-2"><Label htmlFor="email">Email Address</Label><Input name="email" id="email" type="email" /></div>
+            <div><Label htmlFor="gstin">GSTIN</Label><Input name="gstin" id="gstin" required /></div>
+            <div><Label htmlFor="pan">PAN</Label><Input name="pan" id="pan" required /></div>
+            <div><Label htmlFor="aadhar">Aadhar (of Proprietor)</Label><Input name="aadhar" id="aadhar" required /></div>
+            <div><Label htmlFor="proprietor_name">Proprietor Name</Label><Input name="proprietor_name" id="proprietor_name" required /></div>
         </div>
       )}
 
@@ -106,6 +105,8 @@ const AddBankAccountForm = ({ beneficiary, onAddBankAccount, onCancel }) => {
 
 
 const Beneficiaries = ({ quickAction, clearQuickAction }) => {
+  const PAGE_SIZE = 10;
+
   const [beneficiaries, setBeneficiaries] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -114,19 +115,22 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
   const [selectedBeneficiary, setSelectedBeneficiary] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
   const [activeTab, setActiveTab] = useState('individual');
   const { toast } = useToast();
   const { user } = useAuth();
 
-  const fetchBeneficiaries = useCallback(async (page = 1) => {
+  const fetchBeneficiaries = useCallback(async () => {
     if (!user?.access_token) return;
     setIsLoading(true);
     try {
-      const organisationId = typeof user.organization_id === 'object' && user.organization_id !== null 
-        ? user.organization_id.id 
-        : user.organization_id;
-      const data = await getBeneficiaries(organisationId, user.access_token, 0, 100);
+      const organisationId =
+        typeof user.organization_id === 'object' && user.organization_id !== null
+          ? user.organization_id.id
+          : user.organization_id;
+
+      // Fetch a larger list once, then paginate client-side (10 per page)
+      const data = await getBeneficiaries(organisationId, user.access_token, 0, 1000);
+
       if (Array.isArray(data)) {
         const beneficiariesWithAccounts = await Promise.all(
           data.map(async (beneficiary) => {
@@ -135,10 +139,8 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
           })
         );
         setBeneficiaries(beneficiariesWithAccounts);
-        setTotalPages(1); // Assuming a single page for now
       } else {
         setBeneficiaries([]);
-        setTotalPages(1);
       }
     } catch (error) {
       toast({
@@ -153,8 +155,8 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
   }, [user?.organization_id, user?.access_token, toast]);
 
   useEffect(() => {
-    fetchBeneficiaries(currentPage);
-  }, [fetchBeneficiaries, currentPage]);
+    fetchBeneficiaries();
+  }, [fetchBeneficiaries]);
   
   useEffect(() => {
     if (quickAction === 'add-beneficiary') {
@@ -164,24 +166,90 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
   }, [quickAction, clearQuickAction]);
 
   const filteredBeneficiaries = useMemo(() => {
-    const sortedBeneficiaries = [...beneficiaries].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-    const filteredByType = sortedBeneficiaries.filter(b => b.beneficiary_type === activeTab);
+    const getTimestamp = (b) => {
+      const candidates = [
+        b?.created_at,
+        b?.createdAt,
+        b?.created_on,
+        b?.createdOn,
+        b?.updated_at,
+        b?.updatedAt,
+      ];
+
+      for (const value of candidates) {
+        if (!value) continue;
+        const t = Date.parse(value);
+        if (!Number.isNaN(t)) return t;
+      }
+      return null;
+    };
+
+    const hasAnyTimestamp = beneficiaries.some((b) => getTimestamp(b) !== null);
+
+    const sortedBeneficiaries = hasAnyTimestamp
+      ? [...beneficiaries].sort((a, b) => {
+          const ta = getTimestamp(a);
+          const tb = getTimestamp(b);
+
+          if (ta !== null && tb !== null) return tb - ta;
+          if (ta !== null) return -1;
+          if (tb !== null) return 1;
+
+          // Fallback: numeric id desc if possible
+          const ida = typeof a?.id === 'number' ? a.id : Number.parseInt(a?.id, 10);
+          const idb = typeof b?.id === 'number' ? b.id : Number.parseInt(b?.id, 10);
+          if (!Number.isNaN(ida) && !Number.isNaN(idb)) return idb - ida;
+          return 0;
+        })
+      // If API returns oldest->newest and we don't have timestamps, show the last created first.
+      : [...beneficiaries].slice().reverse();
+
+    const filteredByType = sortedBeneficiaries.filter((b) => b.beneficiary_type === activeTab);
+
     if (!searchTerm) return filteredByType;
-    return filteredByType.filter(b => {
+
+    return filteredByType.filter((b) => {
       const term = searchTerm.toLowerCase();
       const name = b.beneficiary_type === 'individual' ? b.name : b.company_name;
-      return name?.toLowerCase().includes(term) ||
-             b.email?.toLowerCase().includes(term) ||
-             b.pan?.toLowerCase().includes(term) ||
-             b.phone?.toLowerCase().includes(term);
+      return (
+        name?.toLowerCase().includes(term) ||
+        b.email?.toLowerCase().includes(term) ||
+        b.pan?.toLowerCase().includes(term) ||
+        b.phone?.toLowerCase().includes(term)
+      );
     });
   }, [searchTerm, beneficiaries, activeTab]);
+
+  const totalPages = useMemo(() => {
+    return Math.max(1, Math.ceil(filteredBeneficiaries.length / PAGE_SIZE));
+  }, [filteredBeneficiaries.length, PAGE_SIZE]);
+
+  const paginatedBeneficiaries = useMemo(() => {
+    const startIndex = (currentPage - 1) * PAGE_SIZE;
+    return filteredBeneficiaries.slice(startIndex, startIndex + PAGE_SIZE);
+  }, [filteredBeneficiaries, currentPage, PAGE_SIZE]);
+
+  // Reset pagination when switching tab or searching
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, activeTab]);
+
+  // Clamp current page if results shrink (e.g. after search)
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
 
   const handleAdd = async (beneficiaryData) => {
     try {
       await addBeneficiary(beneficiaryData, user.access_token);
       toast({ title: 'Success', description: 'Beneficiary added successfully.' });
+
+      // Make sure the latest-added record is visible immediately
       setShowAddDialog(false);
+      setSearchTerm('');
+      if (beneficiaryData?.beneficiary_type) setActiveTab(beneficiaryData.beneficiary_type);
+      setCurrentPage(1);
+
       fetchBeneficiaries();
     } catch (error) {
       toast({
@@ -219,22 +287,6 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
     setShowViewDialog(true);
   };
 
-  const handleDelete = async (beneficiaryId) => {
-    try {
-      const organizationId = typeof user.organization_id === 'object' && user.organization_id !== null 
-        ? user.organization_id.id 
-        : user.organization_id;
-      await deleteBeneficiary(beneficiaryId, organizationId, user.access_token);
-      toast({ title: 'Success', description: 'Beneficiary deleted successfully.' });
-      fetchBeneficiaries();
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: `Failed to delete beneficiary: ${error.message}`,
-        variant: 'destructive',
-      });
-    }
-  };
 
   const handleAddAccountClick = (beneficiary) => {
     setSelectedBeneficiary(beneficiary);
@@ -270,6 +322,32 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
         });
       }
   }
+
+  const PaginationFooter = () => (
+    <CardFooter className="flex justify-between items-center pt-4">
+      <div>
+        <p className="text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
+      </div>
+      <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+          disabled={currentPage === 1}
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+          disabled={currentPage === totalPages}
+        >
+          <ChevronRight className="w-4 h-4" />
+        </Button>
+      </div>
+    </CardFooter>
+  );
 
   return (
     <div className="p-8">
@@ -312,27 +390,33 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredBeneficiaries.map((b) => (
-                        <TableRow key={b.id}>
-                          <TableCell>{b.name}</TableCell>
-                          <TableCell>{b.email}</TableCell>
-                          <TableCell>{b.phone}</TableCell>
-                          <TableCell>{b.pan || 'N/A'}</TableCell>
-                          <TableCell>
-                            <Link to={`/beneficiaries/${b.id}`}>
-                              <Button size="icon" variant="ghost">
-                                <Eye className="w-4 h-4" />
-                              </Button>
-                            </Link>
-                            <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={() => handleDelete(b.id)}>
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+                      {paginatedBeneficiaries.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center text-gray-400">
+                            No beneficiaries found.
                           </TableCell>
                         </TableRow>
-                      ))}
+                      ) : (
+                        paginatedBeneficiaries.map((b) => (
+                          <TableRow key={b.id}>
+                            <TableCell>{b.name}</TableCell>
+                            <TableCell>{b.email || '-'}</TableCell>
+                            <TableCell>{b.phone}</TableCell>
+                            <TableCell>{b.pan || 'N/A'}</TableCell>
+                            <TableCell>
+                              <Link to={`/beneficiaries/${b.id}`}>
+                                <Button size="icon" variant="ghost">
+                                  <Eye className="w-4 h-4" />
+                                </Button>
+                              </Link>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
                     </TableBody>
                   </Table>
                 </CardContent>
+                <PaginationFooter />
               </Card>
             </TabsContent>
             <TabsContent value="company">
@@ -349,44 +433,38 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredBeneficiaries.map((b) => (
-                        <TableRow key={b.id}>
-                          <TableCell>{b.company_name}</TableCell>
-                          <TableCell>{b.email}</TableCell>
-                          <TableCell>{b.phone}</TableCell>
-                          <TableCell>{b.pan || 'N/A'}</TableCell>
-                          <TableCell>
-                            <Link to={`/beneficiaries/${b.id}`}>
-                              <Button size="icon" variant="ghost">
-                                <Eye className="w-4 h-4" />
-                              </Button>
-                            </Link>
-                            <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={() => handleDelete(b.id)}>
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+                      {paginatedBeneficiaries.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center text-gray-400">
+                            No beneficiaries found.
                           </TableCell>
                         </TableRow>
-                      ))}
+                      ) : (
+                        paginatedBeneficiaries.map((b) => (
+                          <TableRow key={b.id}>
+                            <TableCell>{b.company_name}</TableCell>
+                            <TableCell>{b.email || '-'}</TableCell>
+                            <TableCell>{b.phone}</TableCell>
+                            <TableCell>{b.pan || 'N/A'}</TableCell>
+                            <TableCell>
+                              <Link to={`/beneficiaries/${b.id}`}>
+                                <Button size="icon" variant="ghost">
+                                  <Eye className="w-4 h-4" />
+                                </Button>
+                              </Link>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
                     </TableBody>
                   </Table>
                 </CardContent>
+                <PaginationFooter />
               </Card>
             </TabsContent>
           </Tabs>
         )}
-        <CardFooter className="flex justify-between items-center">
-              <div>
-                <p className="text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
-                  <ChevronLeft className="w-4 h-4" />
-                </Button>
-                <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
-        </CardFooter>
+
       </motion.div>
       
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
