@@ -114,6 +114,8 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
   const [showViewDialog, setShowViewDialog] = useState(false);
   const [selectedBeneficiary, setSelectedBeneficiary] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeFilters, setActiveFilters] = useState([]);
+  const [filterValues, setFilterValues] = useState({ name: '', email: '', phone: '', pan: '' });
   const [currentPage, setCurrentPage] = useState(1);
   const [activeTab, setActiveTab] = useState('individual');
   const { toast } = useToast();
@@ -184,41 +186,66 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
       return null;
     };
 
-    const hasAnyTimestamp = beneficiaries.some((b) => getTimestamp(b) !== null);
+    // Sort beneficiaries: newest first
+    const sortedBeneficiaries = [...beneficiaries].sort((a, b) => {
+      // First, try to sort by timestamp (newest first)
+      const ta = getTimestamp(a);
+      const tb = getTimestamp(b);
 
-    const sortedBeneficiaries = hasAnyTimestamp
-      ? [...beneficiaries].sort((a, b) => {
-          const ta = getTimestamp(a);
-          const tb = getTimestamp(b);
+      if (ta !== null && tb !== null) {
+        return tb - ta; // Newest first (descending)
+      }
+      if (ta !== null) return -1; // a has timestamp, b doesn't - a comes first
+      if (tb !== null) return 1;  // b has timestamp, a doesn't - b comes first
 
-          if (ta !== null && tb !== null) return tb - ta;
-          if (ta !== null) return -1;
-          if (tb !== null) return 1;
-
-          // Fallback: numeric id desc if possible
-          const ida = typeof a?.id === 'number' ? a.id : Number.parseInt(a?.id, 10);
-          const idb = typeof b?.id === 'number' ? b.id : Number.parseInt(b?.id, 10);
-          if (!Number.isNaN(ida) && !Number.isNaN(idb)) return idb - ida;
-          return 0;
-        })
-      // If API returns oldest->newest and we don't have timestamps, show the last created first.
-      : [...beneficiaries].slice().reverse();
+      // Fallback: Sort by UUID string comparison (newer UUIDs typically come later in string sort)
+      // This is not perfect but provides some ordering when timestamps aren't available
+      const idA = a?.id?.toString() || '';
+      const idB = b?.id?.toString() || '';
+      
+      // Reverse string comparison to put "newer" UUIDs first
+      // UUIDs are typically generated sequentially, so later UUIDs in string sort are newer
+      return idB.localeCompare(idA);
+    });
 
     const filteredByType = sortedBeneficiaries.filter((b) => b.beneficiary_type === activeTab);
 
-    if (!searchTerm) return filteredByType;
-
+    // Apply active filters
     return filteredByType.filter((b) => {
-      const term = searchTerm.toLowerCase();
-      const name = b.beneficiary_type === 'individual' ? b.name : b.company_name;
-      return (
-        name?.toLowerCase().includes(term) ||
-        b.email?.toLowerCase().includes(term) ||
-        b.pan?.toLowerCase().includes(term) ||
-        b.phone?.toLowerCase().includes(term)
-      );
+      let match = true;
+      for (const filter of activeFilters) {
+        if (filter === 'name') {
+          const searchTerm = (filterValues.name || '').toLowerCase().trim();
+          const name = b.beneficiary_type === 'individual' ? b.name : b.company_name;
+          match = match && (!searchTerm || (name && name.toLowerCase().includes(searchTerm)));
+        }
+        if (filter === 'email') {
+          const searchTerm = (filterValues.email || '').toLowerCase().trim();
+          match = match && (!searchTerm || (b.email && b.email.toLowerCase().includes(searchTerm)));
+        }
+        if (filter === 'phone') {
+          const searchTerm = (filterValues.phone || '').toLowerCase().trim();
+          match = match && (!searchTerm || (b.phone && b.phone.toLowerCase().includes(searchTerm)));
+        }
+        if (filter === 'pan') {
+          const searchTerm = (filterValues.pan || '').toLowerCase().trim();
+          match = match && (!searchTerm || (b.pan && b.pan.toLowerCase().includes(searchTerm)));
+        }
+      }
+      // Also apply general search term if no filters are active
+      if (activeFilters.length === 0 && searchTerm) {
+        const term = searchTerm.toLowerCase();
+        const name = b.beneficiary_type === 'individual' ? b.name : b.company_name;
+        match = match && (
+          name?.toLowerCase().includes(term) ||
+          b.email?.toLowerCase().includes(term) ||
+          b.pan?.toLowerCase().includes(term) ||
+          b.phone?.toLowerCase().includes(term)
+        );
+      }
+      return match;
     });
-  }, [searchTerm, beneficiaries, activeTab]);
+  }, [searchTerm, beneficiaries, activeTab, activeFilters, filterValues]);
 
   const totalPages = useMemo(() => {
     return Math.max(1, Math.ceil(filteredBeneficiaries.length / PAGE_SIZE));
@@ -229,10 +256,10 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
     return filteredBeneficiaries.slice(startIndex, startIndex + PAGE_SIZE);
   }, [filteredBeneficiaries, currentPage, PAGE_SIZE]);
 
-  // Reset pagination when switching tab or searching
+  // Reset pagination when switching tab, searching, or filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, activeTab]);
+  }, [searchTerm, activeTab, activeFilters, filterValues]);
 
   // Clamp current page if results shrink (e.g. after search)
   useEffect(() => {
@@ -241,16 +268,19 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
 
   const handleAdd = async (beneficiaryData) => {
     try {
-      await addBeneficiary(beneficiaryData, user.access_token);
+      const newBeneficiary = await addBeneficiary(beneficiaryData, user.access_token);
       toast({ title: 'Success', description: 'Beneficiary added successfully.' });
 
       // Make sure the latest-added record is visible immediately
       setShowAddDialog(false);
       setSearchTerm('');
+      setActiveFilters([]);
+      setFilterValues({ name: '', email: '', phone: '', pan: '' });
       if (beneficiaryData?.beneficiary_type) setActiveTab(beneficiaryData.beneficiary_type);
       setCurrentPage(1);
 
-      fetchBeneficiaries();
+      // Fetch updated list - the new beneficiary will appear first due to sorting
+      await fetchBeneficiaries();
     } catch (error) {
       toast({
         title: 'Error',
@@ -378,6 +408,81 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
             </TabsList>
             <TabsContent value="individual">
               <Card className="glass-card">
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-4 flex-wrap">
+                      <Select
+                        value=""
+                        onValueChange={filter => {
+                          if (!activeFilters.includes(filter)) {
+                            setActiveFilters([...activeFilters, filter]);
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="w-[180px]">
+                          <SelectValue placeholder="Add Filter" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {!activeFilters.includes('name') && <SelectItem value="name">Name</SelectItem>}
+                          {!activeFilters.includes('email') && <SelectItem value="email">Email</SelectItem>}
+                          {!activeFilters.includes('phone') && <SelectItem value="phone">Phone</SelectItem>}
+                          {!activeFilters.includes('pan') && <SelectItem value="pan">PAN</SelectItem>}
+                        </SelectContent>
+                      </Select>
+                      {activeFilters.map(filter => (
+                        <div key={filter} className="flex items-center gap-2">
+                          {filter === 'name' && (
+                            <Input
+                              placeholder="Search by name..."
+                              value={filterValues.name || ''}
+                              onChange={e => setFilterValues(fv => ({ ...fv, name: e.target.value }))}
+                              className="max-w-xs"
+                            />
+                          )}
+                          {filter === 'email' && (
+                            <Input
+                              placeholder="Search by email..."
+                              value={filterValues.email || ''}
+                              onChange={e => setFilterValues(fv => ({ ...fv, email: e.target.value }))}
+                              className="max-w-xs"
+                            />
+                          )}
+                          {filter === 'phone' && (
+                            <Input
+                              placeholder="Search by phone..."
+                              value={filterValues.phone || ''}
+                              onChange={e => setFilterValues(fv => ({ ...fv, phone: e.target.value }))}
+                              className="max-w-xs"
+                            />
+                          )}
+                          {filter === 'pan' && (
+                            <Input
+                              placeholder="Search by PAN..."
+                              value={filterValues.pan || ''}
+                              onChange={e => setFilterValues(fv => ({ ...fv, pan: e.target.value }))}
+                              className="max-w-xs"
+                            />
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setActiveFilters(activeFilters.filter(f => f !== filter));
+                              setFilterValues(fv => {
+                                const newFv = { ...fv };
+                                delete newFv[filter];
+                                return newFv;
+                              });
+                            }}
+                            title="Remove filter"
+                          >
+                            ×
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </CardHeader>
                 <CardContent>
                   <Table>
                     <TableHeader>
@@ -421,6 +526,81 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
             </TabsContent>
             <TabsContent value="company">
               <Card className="glass-card">
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-4 flex-wrap">
+                      <Select
+                        value=""
+                        onValueChange={filter => {
+                          if (!activeFilters.includes(filter)) {
+                            setActiveFilters([...activeFilters, filter]);
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="w-[180px]">
+                          <SelectValue placeholder="Add Filter" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {!activeFilters.includes('name') && <SelectItem value="name">Company Name</SelectItem>}
+                          {!activeFilters.includes('email') && <SelectItem value="email">Email</SelectItem>}
+                          {!activeFilters.includes('phone') && <SelectItem value="phone">Phone</SelectItem>}
+                          {!activeFilters.includes('pan') && <SelectItem value="pan">PAN</SelectItem>}
+                        </SelectContent>
+                      </Select>
+                      {activeFilters.map(filter => (
+                        <div key={filter} className="flex items-center gap-2">
+                          {filter === 'name' && (
+                            <Input
+                              placeholder="Search by company name..."
+                              value={filterValues.name || ''}
+                              onChange={e => setFilterValues(fv => ({ ...fv, name: e.target.value }))}
+                              className="max-w-xs"
+                            />
+                          )}
+                          {filter === 'email' && (
+                            <Input
+                              placeholder="Search by email..."
+                              value={filterValues.email || ''}
+                              onChange={e => setFilterValues(fv => ({ ...fv, email: e.target.value }))}
+                              className="max-w-xs"
+                            />
+                          )}
+                          {filter === 'phone' && (
+                            <Input
+                              placeholder="Search by phone..."
+                              value={filterValues.phone || ''}
+                              onChange={e => setFilterValues(fv => ({ ...fv, phone: e.target.value }))}
+                              className="max-w-xs"
+                            />
+                          )}
+                          {filter === 'pan' && (
+                            <Input
+                              placeholder="Search by PAN..."
+                              value={filterValues.pan || ''}
+                              onChange={e => setFilterValues(fv => ({ ...fv, pan: e.target.value }))}
+                              className="max-w-xs"
+                            />
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setActiveFilters(activeFilters.filter(f => f !== filter));
+                              setFilterValues(fv => {
+                                const newFv = { ...fv };
+                                delete newFv[filter];
+                                return newFv;
+                              });
+                            }}
+                            title="Remove filter"
+                          >
+                            ×
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </CardHeader>
                 <CardContent>
                   <Table>
                     <TableHeader>

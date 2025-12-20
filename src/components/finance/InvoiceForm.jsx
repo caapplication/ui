@@ -18,6 +18,7 @@ const InvoiceForm = ({ entityId, beneficiaries, isLoading, onSave, onCancel, inv
     const [cgst, setCgst] = useState(invoice?.cgst || 0);
     const [sgst, setSgst] = useState(invoice?.sgst || 0);
     const [igst, setIgst] = useState(invoice?.igst || 0);
+    const [roundoff, setRoundoff] = useState(invoice?.roundoff || 0);
     const [total, setTotal] = useState(0);
 
     const handleSubmit = async (e) => {
@@ -53,8 +54,9 @@ const InvoiceForm = ({ entityId, beneficiaries, isLoading, onSave, onCancel, inv
         const cgstAmount = parseFloat(cgst) || 0;
         const sgstAmount = parseFloat(sgst) || 0;
         const igstAmount = parseFloat(igst) || 0;
-        setTotal(preTaxAmount + cgstAmount + sgstAmount + igstAmount);
-    }, [amount, cgst, sgst, igst]);
+        const roundoffAmount = parseFloat(roundoff) || 0;
+        setTotal(preTaxAmount + cgstAmount + sgstAmount + igstAmount + roundoffAmount);
+    }, [amount, cgst, sgst, igst, roundoff]);
 
     return (
         <DialogContent className="max-w-3xl" closeDisabled={isLoading}>
@@ -93,7 +95,7 @@ const InvoiceForm = ({ entityId, beneficiaries, isLoading, onSave, onCancel, inv
                         <Input name="bill_number" id="bill_number" required defaultValue={invoice?.bill_number} disabled={isLoading} />
                     </div>
                     <div>
-                        <Label htmlFor="date">Date</Label>
+                        <Label htmlFor="date">Bill Date</Label>
                         <Input name="date" id="date" type="date" required defaultValue={invoice ? new Date(invoice.date).toISOString().split('T')[0] : today} disabled={isLoading} />
                     </div>
                     <div>
@@ -131,6 +133,11 @@ const InvoiceForm = ({ entityId, beneficiaries, isLoading, onSave, onCancel, inv
                        <div><Label htmlFor="igst" className="text-xs">IGST</Label><Input name="igst" id="igst" type="number" step="0.01" value={igst} onChange={(e) => setIgst(e.target.value)} disabled={isLoading} /></div>
                     </div>
                 </div>
+
+                <div>
+                    <Label htmlFor="roundoff">Roundoff</Label>
+                    <Input name="roundoff" id="roundoff" type="number" step="0.01" value={roundoff} onChange={(e) => setRoundoff(e.target.value)} disabled={isLoading} />
+                </div>
                 
                 <div className="flex justify-between items-center bg-white/5 p-4 rounded-xl">
                     <div>
@@ -138,7 +145,7 @@ const InvoiceForm = ({ entityId, beneficiaries, isLoading, onSave, onCancel, inv
                         <p className="text-lg font-semibold text-white">₹{parseFloat(amount || 0).toFixed(2)}</p>
                     </div>
                      <div>
-                        <p className="text-sm text-gray-400">Total (inc. GST)</p>
+                        <p className="text-sm text-gray-400">Total (inc. GST & Roundoff)</p>
                         <p className="text-lg font-bold text-white">₹{total.toFixed(2)}</p>
                     </div>
                 </div>

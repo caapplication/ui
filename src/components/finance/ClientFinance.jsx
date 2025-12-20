@@ -233,7 +233,22 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
   };
 
   const handleViewVoucher = (voucher) => {
-    navigate(`/finance/vouchers/${voucher.id}`, { state: { voucher } });
+    // Get entity name from user entities if available
+    let entityName = 'N/A';
+    if (user?.role === 'CLIENT_USER' && user.entities && entityId) {
+      const entity = user.entities.find(e => e.id === entityId);
+      if (entity) entityName = entity.name;
+    }
+    
+    navigate(`/finance/vouchers/${voucher.id}`, { 
+      state: { 
+        voucher,
+        vouchers: vouchers || [],
+        organisationId: user?.organization_id,
+        entityName: entityName,
+        organizationName: user?.organization_name || 'N/A'
+      } 
+    });
   };
 
   const handleExportToTally = async (format) => {

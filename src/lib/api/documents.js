@@ -1,6 +1,6 @@
 import { getAuthHeaders, handleResponse } from './utils';
 
-const FINANCE_API_BASE_URL = 'http://127.0.0.1:8004/';
+const FINANCE_API_BASE_URL = 'http://127.0.0.1:8004';
 
 export const getDocuments = async (entityId, token) => {
     let url = `${FINANCE_API_BASE_URL}/api/documents/folders/?exclude_shared=true`;

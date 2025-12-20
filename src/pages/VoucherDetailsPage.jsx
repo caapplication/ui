@@ -183,6 +183,16 @@ const VoucherDetailsPage = () => {
         }
     }, [startInEditMode]);
 
+    // Update currentIndex when voucherId changes
+    useEffect(() => {
+        if (vouchers && Array.isArray(vouchers) && voucherId) {
+            const index = vouchers.findIndex(v => String(v.id) === String(voucherId));
+            if (index !== currentIndex) {
+                setCurrentIndex(index >= 0 ? index : -1);
+            }
+        }
+    }, [voucherId, vouchers]);
+
     useEffect(() => {
         if (authLoading || !user?.access_token) return;
 
@@ -209,6 +219,11 @@ const VoucherDetailsPage = () => {
                 if (isMounted) {
                     setVoucher(currentVoucher);
                     setEditedVoucher(currentVoucher);
+                    // Update currentIndex when voucher changes
+                    if (vouchers && Array.isArray(vouchers)) {
+                        const index = vouchers.findIndex(v => String(v.id) === String(voucherId));
+                        setCurrentIndex(index >= 0 ? index : -1);
+                    }
                     setIsLoading(false);
                     
                     // Load attachment and finance headers in parallel (non-blocking)
@@ -330,11 +345,28 @@ const VoucherDetailsPage = () => {
     // Attachment and finance headers are now loaded in parallel in the main fetchData effect
 
     const handleNavigate = (direction) => {
-        if (!vouchers || vouchers.length === 0) return;
+        if (!vouchers || vouchers.length === 0) {
+            console.warn("No vouchers available for navigation");
+            return;
+        }
         const newIndex = currentIndex + direction;
+        console.log("Navigating:", { currentIndex, newIndex, direction, vouchersLength: vouchers.length });
         if (newIndex >= 0 && newIndex < vouchers.length) {
             const nextVoucher = vouchers[newIndex];
-            navigate(`/finance/vouchers/${nextVoucher.id}`, { state: { voucher: nextVoucher, vouchers, organisationId, entityName, organizationName } });
+            console.log("Navigating to voucher:", nextVoucher.id);
+            // Update currentIndex immediately
+            setCurrentIndex(newIndex);
+            navigate(`/finance/vouchers/${nextVoucher.id}`, { 
+                state: { 
+                    voucher: nextVoucher, 
+                    vouchers, 
+                    organisationId, 
+                    entityName, 
+                    organizationName 
+                } 
+            });
+        } else {
+            console.warn("Navigation out of bounds:", { newIndex, vouchersLength: vouchers.length });
         }
     };
     
@@ -514,7 +546,7 @@ const VoucherDetailsPage = () => {
     
 
     return (
-        <div className="h-screen w-full flex flex-col text-white bg-transparent p-4 md:p-6">
+        <div className="h-screen w-full flex flex-col text-white bg-transparent p-4 md:p-6" style={{ paddingBottom: hasVouchers ? '5rem' : '1.5rem' }}>
             <header className="flex items-center justify-between pb-4 border-b border-white/10 mb-4">
                 <div className="flex items-center gap-4">
                     <Button variant="ghost" size="icon" onClick={() => user.role === 'CLIENT_USER' ? navigate('/finance') : navigate('/finance/ca')}>
@@ -551,9 +583,9 @@ const VoucherDetailsPage = () => {
                                 </Button>
                             </div>
                         )}
-                        <div className="flex h-full w-full items-center justify-center overflow-auto">
-                            {/* Show skeleton if loading OR if we have attachment_id but no URL yet */}
-                            {(isImageLoading || (voucher?.attachment_id && !attachmentUrl)) ? (
+                        <div className="flex h-full w-full items-center justify-center overflow-auto relative" style={{ zIndex: 1 }}>
+                            {/* Show skeleton only if we have attachment_id but no URL yet (while fetching URL) */}
+                            {voucher?.attachment_id && !attachmentUrl ? (
                                 <Skeleton className="h-full w-full rounded-md" />
                             ) : attachmentUrl ? (
                                 attachmentUrl.toLowerCase().endsWith('.pdf') ? (
@@ -591,7 +623,7 @@ const VoucherDetailsPage = () => {
                 <ResizableHandle withHandle />
                 <ResizablePanel defaultSize={40} minSize={30}>
                     <div className="relative flex h-full flex-col">
-                        <div className="flex-1 overflow-y-auto p-6" style={{ paddingBottom: hasVouchers ? '5rem' : '1.5rem' }}>
+                        <div className="flex-1 overflow-y-auto p-6" style={{ paddingBottom: hasVouchers ? '6rem' : '1.5rem' }}>
                             <Tabs defaultValue={defaultTab} className="w-full">
                             <TabsList className={`grid w-full ${cols}`}>
                                 {!isClientUser && (
@@ -725,12 +757,12 @@ const VoucherDetailsPage = () => {
                                 </div>
                             </form>
                         ) : (
-                            <Card className="w-full glass-pane border-none shadow-none bg-gray-800 text-white">
+                            <Card className="w-full glass-pane border-none shadow-none bg-gray-800 text-white relative z-20">
                                 <CardHeader>
                                     <CardTitle>Voucheries to {beneficiaryName}</CardTitle>
                                     <CardDescription>Created on {new Date(voucherDetails.created_date).toLocaleDateString()}</CardDescription>
                                 </CardHeader>
-                                <CardContent className="space-y-2">
+                                <CardContent className="space-y-2 relative z-20">
                                     <DetailItem label="Invoice ID" value={voucherDetails.invoice_id || 'N/A'} />
                                     <DetailItem label="Voucher ID" value={voucherDetails.voucher_id || 'N/A'} />
                                     <DetailItem label="Amount" value={`₹${parseFloat(voucherDetails.amount).toFixed(2)}`} />
@@ -788,24 +820,57 @@ const VoucherDetailsPage = () => {
                                         <p className="text-sm text-gray-400 mb-1">Remarks</p>
                                         <p className="text-sm text-white p-3 bg-white/5 rounded-md">{voucherDetails.remarks || 'N/A'}</p>
                                     </div>
-                                    <div className="flex items-center gap-2 mt-4 justify-end">
-                                        <TooltipProvider>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button
-                                                        variant="destructive"
-                                                        size="icon"
-                                                        onClick={() => setShowDeleteDialog(true)}
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>Delete</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
+                                    <div className="flex items-center gap-2 mt-4 justify-between relative z-20">
+                                        {/* Navigation buttons at bottom left */}
+                                        {hasVouchers && (
+                                            <div className="flex gap-2 relative z-20">
+                                                <Button 
+                                                    variant="outline" 
+                                                    size="icon" 
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        handleNavigate(-1);
+                                                    }} 
+                                                    disabled={currentIndex === 0 || currentIndex === -1}
+                                                    className="bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 relative z-20"
+                                                >
+                                                    <ChevronLeft className="h-4 w-4" />
+                                                </Button>
+                                                <Button 
+                                                    variant="outline" 
+                                                    size="icon" 
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        handleNavigate(1);
+                                                    }} 
+                                                    disabled={currentIndex === vouchers.length - 1}
+                                                    className="bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 relative z-20"
+                                                >
+                                                    <ChevronRight className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        )}
+                                        {/* Action buttons at bottom right */}
+                                        <div className="flex items-center gap-2 relative z-20">
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            variant="destructive"
+                                                            size="icon"
+                                                            onClick={() => setShowDeleteDialog(true)}
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Delete</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
                         <Button
                             variant="outline"
                             size="icon"
@@ -817,26 +882,27 @@ const VoucherDetailsPage = () => {
                         >
                             <FileText className="h-4 w-4" />
                         </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>Export</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="icon"
-                                                        onClick={() => setIsEditing(!isEditing)}
-                                                    >
-                                                        <Edit className="h-4 w-4" />
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>Edit</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Export</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="icon"
+                                                            onClick={() => setIsEditing(!isEditing)}
+                                                        >
+                                                            <Edit className="h-4 w-4" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Edit</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        </div>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -892,35 +958,41 @@ const VoucherDetailsPage = () => {
                     )}
                 </Tabs>
                         </div>
-                        {/* Navigation arrows at bottom right */}
-                        {hasVouchers && (
-                            <div 
-                                className="absolute bottom-4 right-4 z-50 flex gap-2 bg-gray-900/95 backdrop-blur-sm rounded-lg p-1.5 border border-white/30 shadow-xl"
-                                style={{ position: 'absolute', bottom: '1rem', right: '1rem' }}
-                            >
-                                <Button 
-                                    variant="outline" 
-                                    size="icon" 
-                                    onClick={() => handleNavigate(-1)} 
-                                    disabled={currentIndex === 0 || currentIndex === -1}
-                                    className="bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30"
-                                >
-                                    <ChevronLeft className="h-4 w-4" />
-                                </Button>
-                                <Button 
-                                    variant="outline" 
-                                    size="icon" 
-                                    onClick={() => handleNavigate(1)} 
-                                    disabled={currentIndex === vouchers.length - 1}
-                                    className="bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30"
-                                >
-                                    <ChevronRight className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        )}
                     </div>
                 </ResizablePanel>
             </ResizablePanelGroup>
+
+            {/* Fixed circular navigation buttons on right side */}
+            {hasVouchers && (
+                <div className="fixed right-4 top-1/2 transform -translate-y-1/2 z-50 flex flex-col gap-3">
+                    <Button 
+                        variant="outline" 
+                        size="icon"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleNavigate(-1);
+                        }} 
+                        disabled={currentIndex === 0 || currentIndex === -1}
+                        className="h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg"
+                    >
+                        <ChevronLeft className="h-5 w-5" />
+                    </Button>
+                    <Button 
+                        variant="outline" 
+                        size="icon"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleNavigate(1);
+                        }} 
+                        disabled={currentIndex === vouchers.length - 1}
+                        className="h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg"
+                    >
+                        <ChevronRight className="h-5 w-5" />
+                    </Button>
+                </div>
+            )}
 
             <Dialog open={showDeleteDialog} onOpenChange={isDeleting ? undefined : setShowDeleteDialog}>
                 <DialogContent>

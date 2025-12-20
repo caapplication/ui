@@ -31,7 +31,7 @@ import { Check } from 'lucide-react';
 
 const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVoucher, isAccountantView, onRefresh }) => {
   const [activeFilters, setActiveFilters] = useState([]);
-  const [filterValues, setFilterValues] = useState({ dateFrom: '', dateTo: '' });
+  const [filterValues, setFilterValues] = useState({ dateFrom: '', dateTo: '', beneficiary: '', voucher_id: '', type: '', remarks: '' });
   const [voucherToDelete, setVoucherToDelete] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [financeHeaders, setFinanceHeaders] = useState([]);
@@ -68,10 +68,13 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
       let match = true;
       for (const filter of activeFilters) {
         if (filter === 'beneficiary') {
-          match = match && v.beneficiaryName && v.beneficiaryName.toLowerCase().includes((filterValues.beneficiary || '').toLowerCase());
+          const searchTerm = (filterValues.beneficiary || '').toLowerCase().trim();
+          match = match && (!searchTerm || (v.beneficiaryName && v.beneficiaryName.toLowerCase().includes(searchTerm)));
         }
         if (filter === 'voucher_id') {
-          match = match && (v.voucher_id || v.id || '').toLowerCase().includes((filterValues.voucher_id || '').toLowerCase());
+          const searchTerm = (filterValues.voucher_id || '').toLowerCase().trim();
+          const voucherId = (v.voucher_id || v.id || '').toString().toLowerCase();
+          match = match && (!searchTerm || voucherId.includes(searchTerm));
         }
         if (filter === 'type') {
           if (filterValues.type && filterValues.type !== 'all') {
@@ -90,6 +93,11 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
             match = match && vDate <= to;
           }
         }
+        if (filter === 'remarks') {
+          const searchTerm = (filterValues.remarks || '').toLowerCase().trim();
+          const remarks = (v.remarks || 'N/A').toLowerCase();
+          match = match && (!searchTerm || remarks.includes(searchTerm));
+        }
       }
       return match;
     });
@@ -100,6 +108,11 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   );
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeFilters, filterValues]);
 
   const handleViewAttachment = async (voucher) => {
     if (!voucher.attachment_id) {
@@ -135,6 +148,7 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                             {!activeFilters.includes('voucher_id') && <SelectItem value="voucher_id">Voucher ID</SelectItem>}
                             {!activeFilters.includes('type') && <SelectItem value="type">Type</SelectItem>}
                             {!activeFilters.includes('date') && <SelectItem value="date">Date</SelectItem>}
+                            {!activeFilters.includes('remarks') && <SelectItem value="remarks">Remarks</SelectItem>}
                         </SelectContent>
                     </Select>
                     {activeFilters.map(filter => (
@@ -189,6 +203,14 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                                     />
                                 </div>
                             )}
+                            {filter === 'remarks' && (
+                                <Input
+                                    placeholder="Search by remarks..."
+                                    value={filterValues.remarks || ''}
+                                    onChange={e => setFilterValues(fv => ({ ...fv, remarks: e.target.value }))}
+                                    className="max-w-xs"
+                                />
+                            )}
                             <Button
                                 variant="ghost"
                                 size="icon"
@@ -196,7 +218,12 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                                     setActiveFilters(activeFilters.filter(f => f !== filter));
                                     setFilterValues(fv => {
                                         const newFv = { ...fv };
-                                        delete newFv[filter];
+                                        if (filter === 'date') {
+                                            delete newFv.dateFrom;
+                                            delete newFv.dateTo;
+                                        } else {
+                                            delete newFv[filter];
+                                        }
                                         return newFv;
                                     });
                                 }}
