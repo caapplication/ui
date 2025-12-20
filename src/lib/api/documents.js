@@ -1,11 +1,16 @@
 import { getAuthHeaders, handleResponse } from './utils';
 
-const FINANCE_API_BASE_URL = 'http://127.0.0.1:8004/';
+const FINANCE_API_BASE_URL = 'http://127.0.0.1:8003';
 
 export const getDocuments = async (entityId, token) => {
-    let url = `${FINANCE_API_BASE_URL}/api/documents/folders/?exclude_shared=true`;
+    let url = `${FINANCE_API_BASE_URL}/api/documents/folders/`;
+    const params = new URLSearchParams();
     if (entityId) {
-        url += `&entity_id=${entityId}`;
+        params.append('entity_id', entityId);
+    }
+    params.append('exclude_shared', 'true');
+    if (params.toString()) {
+        url += `?${params.toString()}`;
     }
     const response = await fetch(url, {
         headers: getAuthHeaders(token),
