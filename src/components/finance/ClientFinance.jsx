@@ -148,11 +148,14 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
     setIsMutating(true);
     try {
       if (invoiceId) {
-        await updateInvoice(invoiceId, invoiceData, token);
+        await updateInvoice(invoiceId, entityId, invoiceData, token);
         toast({ title: 'Success', description: 'Invoice updated successfully.' });
       } else {
         if (invoiceData instanceof FormData) {
-          invoiceData.append('entity_id', entityId);
+          // Ensure entity_id is set (might already be set in InvoiceForm)
+          if (!invoiceData.has('entity_id')) {
+            invoiceData.append('entity_id', entityId);
+          }
         }
         await addInvoice(invoiceData, token);
         toast({ title: 'Success', description: 'Invoice added successfully.' });

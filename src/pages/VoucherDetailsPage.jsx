@@ -147,6 +147,8 @@ const VoucherDetailsPage = () => {
     const [voucher, setVoucher] = useState(initialVoucher);
     const [currentIndex, setCurrentIndex] = useState(vouchers ? vouchers.findIndex(v => v.id === initialVoucher.id) : -1);
     const voucherDetailsRef = useRef(null);
+    const attachmentRef = useRef(null);
+    const activityLogRef = useRef(null);
     const [attachmentUrl, setAttachmentUrl] = useState(null);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
@@ -383,7 +385,7 @@ const VoucherDetailsPage = () => {
         remarks: 'No remarks available.',
     };
 
-    const handleExportToPDF = () => {
+    const handleExportToPDF = async () => {
         // For bank transfers, ensure bank account details are loaded
         if (
             voucher?.payment_type === 'bank_transfer' &&
@@ -399,30 +401,82 @@ const VoucherDetailsPage = () => {
             });
             return;
         }
-        const input = voucherDetailsRef.current;
-        html2canvas(input, { 
-            useCORS: true,
-            scale: 2,
-        }).then(canvas => {
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF({
-                orientation: 'portrait',
-                unit: 'mm',
-                format: 'a4'
-            });
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = pdf.internal.pageSize.getHeight();
-            const canvasWidth = canvas.width;
-            const canvasHeight = canvas.height;
-            const ratio = canvasWidth / canvasHeight;
-            const width = pdfWidth;
-            const height = width / ratio;
-            pdf.addImage(imgData, 'PNG', 0, 0, width, height);
-            pdf.save(`voucher-${voucher.voucher_id || voucherId}.pdf`);
-            toast({ title: 'Export Successful', description: 'Voucher details exported to PDF.' });
-        }).catch(error => {
-            toast({ title: 'Export Error', description: `An error occurred: ${error.message}`, variant: 'destructive' });
+
+        const pdf = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: 'a4'
         });
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const margin = 10;
+        const contentWidth = pdfWidth - (margin * 2);
+        const contentHeight = pdfHeight - (margin * 2);
+
+        try {
+            // Helper function to add image to PDF with proper scaling
+            const addImageToPDF = (imgData, imgWidth, imgHeight) => {
+                const ratio = imgWidth / imgHeight;
+                let displayWidth = contentWidth;
+                let displayHeight = displayWidth / ratio;
+                
+                // If content is taller than page, scale it down to fit
+                if (displayHeight > contentHeight) {
+                    displayHeight = contentHeight;
+                    displayWidth = displayHeight * ratio;
+                }
+                
+                // Center the image on the page
+                const xPos = margin + (contentWidth - displayWidth) / 2;
+                const yPos = margin + (contentHeight - displayHeight) / 2;
+                
+                pdf.addImage(imgData, 'PNG', xPos, yPos, displayWidth, displayHeight);
+            };
+
+            // Page 1: Voucher Details
+            if (voucherDetailsRef.current) {
+                const detailsCanvas = await html2canvas(voucherDetailsRef.current, { 
+                    useCORS: true,
+                    scale: 2,
+                    backgroundColor: '#1e293b',
+                    logging: false
+                });
+                const detailsImgData = detailsCanvas.toDataURL('image/png');
+                addImageToPDF(detailsImgData, detailsCanvas.width, detailsCanvas.height);
+            }
+
+            // Page 2: Attachment (if it's an image, not PDF)
+            if (attachmentRef.current && attachmentUrl && !attachmentUrl.toLowerCase().endsWith('.pdf')) {
+                pdf.addPage();
+                const attachmentCanvas = await html2canvas(attachmentRef.current, { 
+                    useCORS: true,
+                    scale: 2,
+                    backgroundColor: '#1e293b',
+                    logging: false
+                });
+                const attachmentImgData = attachmentCanvas.toDataURL('image/png');
+                addImageToPDF(attachmentImgData, attachmentCanvas.width, attachmentCanvas.height);
+            }
+
+            // Last Page: Activity Log
+            if (activityLogRef.current) {
+                pdf.addPage();
+                const activityCanvas = await html2canvas(activityLogRef.current, { 
+                    useCORS: true,
+                    scale: 2,
+                    backgroundColor: '#1e293b',
+                    logging: false
+                });
+                const activityImgData = activityCanvas.toDataURL('image/png');
+                addImageToPDF(activityImgData, activityCanvas.width, activityCanvas.height);
+            }
+
+            pdf.save(`voucher-${voucher.voucher_id || voucherId}.pdf`);
+            toast({ title: 'Export Successful', description: 'Voucher exported to PDF with details, attachment, and activity log.' });
+        } catch (error) {
+            console.error('PDF Export Error:', error);
+            toast({ title: 'Export Error', description: `An error occurred: ${error.message}`, variant: 'destructive' });
+        }
     };
     
     const beneficiaryName = voucherDetails.beneficiary 
@@ -559,7 +613,7 @@ const VoucherDetailsPage = () => {
                 </div>
                 {/* Entity name in top right */}
                 <div className="flex items-center">
-                    <p className="text-sm font-semibold text-white">{getEntityName()}</p>
+                    <p className="text-2xl font-bold text-white">{getEntityName()}</p>
                 </div>
             </header>
 
@@ -583,7 +637,7 @@ const VoucherDetailsPage = () => {
                                 </Button>
                             </div>
                         )}
-                        <div className="flex h-full w-full items-center justify-center overflow-auto relative" style={{ zIndex: 1 }}>
+                        <div className="flex h-full w-full items-center justify-center overflow-auto relative" style={{ zIndex: 1 }} ref={attachmentRef}>
                             {/* Show skeleton only if we have attachment_id but no URL yet (while fetching URL) */}
                             {voucher?.attachment_id && !attachmentUrl ? (
                                 <Skeleton className="h-full w-full rounded-md" />
@@ -820,39 +874,8 @@ const VoucherDetailsPage = () => {
                                         <p className="text-sm text-gray-400 mb-1">Remarks</p>
                                         <p className="text-sm text-white p-3 bg-white/5 rounded-md">{voucherDetails.remarks || 'N/A'}</p>
                                     </div>
-                                    <div className="flex items-center gap-2 mt-4 justify-between relative z-20">
-                                        {/* Navigation buttons at bottom left */}
-                                        {hasVouchers && (
-                                            <div className="flex gap-2 relative z-20">
-                                                <Button 
-                                                    variant="outline" 
-                                                    size="icon" 
-                                                    onClick={(e) => {
-                                                        e.preventDefault();
-                                                        e.stopPropagation();
-                                                        handleNavigate(-1);
-                                                    }} 
-                                                    disabled={currentIndex === 0 || currentIndex === -1}
-                                                    className="bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 relative z-20"
-                                                >
-                                                    <ChevronLeft className="h-4 w-4" />
-                                                </Button>
-                                                <Button 
-                                                    variant="outline" 
-                                                    size="icon" 
-                                                    onClick={(e) => {
-                                                        e.preventDefault();
-                                                        e.stopPropagation();
-                                                        handleNavigate(1);
-                                                    }} 
-                                                    disabled={currentIndex === vouchers.length - 1}
-                                                    className="bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 relative z-20"
-                                                >
-                                                    <ChevronRight className="h-4 w-4" />
-                                                </Button>
-                                            </div>
-                                        )}
-                                        {/* Action buttons at bottom right */}
+                                    <div className="flex items-center gap-2 mt-4 justify-center relative z-20">
+                                        {/* Action buttons in center */}
                                         <div className="flex items-center gap-2 relative z-20">
                                             <TooltipProvider>
                                                 <Tooltip>
@@ -903,13 +926,15 @@ const VoucherDetailsPage = () => {
                                                 </Tooltip>
                                             </TooltipProvider>
                                         </div>
+                                        {/* Spacer for next button (which is fixed on right) */}
+                                        {hasVouchers && <div className="w-12"></div>}
                                     </div>
                                 </CardContent>
                             </Card>
                         )}
                     </TabsContent>
                     <TabsContent value="activity" className="mt-4">
-                        <div className="p-4">
+                        <div className="p-4" ref={activityLogRef}>
                             <ActivityLog itemId={voucherDetails.voucher_id || voucherId} itemType="voucher" />
                         </div>
                     </TabsContent>
@@ -962,9 +987,10 @@ const VoucherDetailsPage = () => {
                 </ResizablePanel>
             </ResizablePanelGroup>
 
-            {/* Fixed circular navigation buttons on right side */}
+            {/* Fixed navigation buttons at bottom corners - aligned on same line */}
             {hasVouchers && (
-                <div className="fixed right-4 top-1/2 transform -translate-y-1/2 z-50 flex flex-col gap-3">
+                <>
+                    {/* Previous button at bottom left (after sidebar) */}
                     <Button 
                         variant="outline" 
                         size="icon"
@@ -974,10 +1000,11 @@ const VoucherDetailsPage = () => {
                             handleNavigate(-1);
                         }} 
                         disabled={currentIndex === 0 || currentIndex === -1}
-                        className="h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg"
+                        className="fixed bottom-4 left-80 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg z-50"
                     >
                         <ChevronLeft className="h-5 w-5" />
                     </Button>
+                    {/* Next button at bottom right corner */}
                     <Button 
                         variant="outline" 
                         size="icon"
@@ -987,11 +1014,11 @@ const VoucherDetailsPage = () => {
                             handleNavigate(1);
                         }} 
                         disabled={currentIndex === vouchers.length - 1}
-                        className="h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg"
+                        className="fixed bottom-4 right-4 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg z-50"
                     >
                         <ChevronRight className="h-5 w-5" />
                     </Button>
-                </div>
+                </>
             )}
 
             <Dialog open={showDeleteDialog} onOpenChange={isDeleting ? undefined : setShowDeleteDialog}>

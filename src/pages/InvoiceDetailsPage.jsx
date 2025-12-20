@@ -1,18 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useOrganisation } from '@/hooks/useOrganisation';
-import { deleteInvoice, updateInvoice, getBeneficiaries, getInvoiceAttachment, getFinanceHeaders } from '@/lib/api';
+import { deleteInvoice, updateInvoice, getBeneficiaries, getInvoiceAttachment, getFinanceHeaders, getInvoices } from '@/lib/api';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ArrowLeft, Edit, Trash2, FileText, ZoomIn, ZoomOut, RefreshCcw } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, FileText, Loader2, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RefreshCcw } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -32,14 +34,16 @@ const InvoiceDetailsPage = () => {
     const { invoiceId } = useParams();
     const location = useLocation();
     const navigate = useNavigate();
-    const { user } = useAuth();
+    const { user, loading: authLoading } = useAuth();
     const { selectedEntity } = useOrganisation();
     const { toast } = useToast();
-    const { attachmentUrl, invoice: initialInvoice, beneficiaryName, organisationId, invoices: invoicesFromState, currentIndex: currentIndexFromState } = location.state || {};
+    const { attachmentUrl, invoice: initialInvoice, beneficiaryName, organisationId, invoices: invoicesFromState, currentIndex: currentIndexFromState, entityName, organizationName } = location.state || {};
     const [invoice, setInvoice] = useState(initialInvoice);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
-    const invoiceDetailsRef = React.useRef(null);
+    const invoiceDetailsRef = useRef(null);
+    const attachmentRef = useRef(null);
+    const activityLogRef = useRef(null);
     const [beneficiaries, setBeneficiaries] = useState([]);
     const [editedInvoice, setEditedInvoice] = useState(initialInvoice);
     const [attachmentToDisplay, setAttachmentToDisplay] = useState(attachmentUrl);
@@ -49,50 +53,150 @@ const InvoiceDetailsPage = () => {
     const [currentIndex, setCurrentIndex] = useState(currentIndexFromState ?? -1);
     const [loadingInvoice, setLoadingInvoice] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isImageLoading, setIsImageLoading] = useState(false);
 
-
-    useEffect(() => {
-        const fetchBeneficiaries = async () => {
-            const orgIdToFetch = organisationId || user.organization_id;
-            if (user?.access_token && orgIdToFetch) {
-                const data = await getBeneficiaries(orgIdToFetch, user.access_token);
-                setBeneficiaries(data);
-            }
-        };
-        fetchBeneficiaries();
-    }, [user, organisationId, invoice]);
-
-    useEffect(() => {
-        const fetchHeaders = async () => {
-            if (user && (user.role === 'CA_ACCOUNTANT' || user.role === 'CA_TEAM')) {
-                try {
-                    const headers = await getFinanceHeaders(user.agency_id, user.access_token);
-                    setFinanceHeaders(headers);
-                } catch (error) {
-                    toast({
-                        title: 'Error',
-                        description: `Failed to fetch finance headers: ${error.message}`,
-                        variant: 'destructive',
-                    });
-                }
-            }
-        };
-        fetchHeaders();
-    }, [user, toast]);
-
-    useEffect(() => {
-        if (invoice?.attachment_id && user?.access_token) {
-            const fetchAttachment = async () => {
-                try {
-                    const url = await getInvoiceAttachment(invoice.attachment_id, user.access_token);
-                    setAttachmentToDisplay(url);
-                } catch (error) {
-                    console.error("Failed to fetch attachment:", error);
-                }
-            };
-            fetchAttachment();
+    // Get entity name from user entities
+    const getEntityName = () => {
+        if (!user) return 'N/A';
+        const entityId = localStorage.getItem('entityId') || invoice?.entity_id;
+        if (!entityId) return 'N/A';
+        
+        // For CLIENT_USER, check user.entities
+        if (user.role === 'CLIENT_USER' && user.entities) {
+            const entity = user.entities.find(e => e.id === entityId);
+            if (entity) return entity.name;
         }
-    }, [user?.access_token, invoice?.attachment_id]);
+        
+        // Fallback to entityName from location state
+        return entityName || 'N/A';
+    };
+
+
+    // Update currentIndex when invoiceId changes
+    useEffect(() => {
+        if (invoices && Array.isArray(invoices) && invoiceId) {
+            const index = invoices.findIndex(i => String(i.id) === String(invoiceId));
+            if (index !== currentIndex) {
+                setCurrentIndex(index >= 0 ? index : -1);
+            }
+        }
+    }, [invoiceId, invoices]);
+
+    useEffect(() => {
+        if (authLoading || !user?.access_token) return;
+
+        let isMounted = true;
+        const fetchData = async () => {
+            try {
+                const entityId = localStorage.getItem('entityId');
+                
+                // Use initialInvoice if available, otherwise fetch from list
+                let currentInvoice = initialInvoice;
+                
+                // Fetch invoices if not passed in state (needed for navigation)
+                let invoicesToUse = invoices && Array.isArray(invoices) && invoices.length > 0 ? invoices : null;
+                if (!invoicesToUse) {
+                    invoicesToUse = await getInvoices(entityId, user.access_token);
+                    setInvoices(invoicesToUse || []);
+                }
+                
+                // Only fetch if we don't have initial invoice or if invoiceId changed
+                if (!currentInvoice || currentInvoice.id !== invoiceId) {
+                    // Try to get from invoices list first
+                    currentInvoice = invoicesToUse.find(i => String(i.id) === String(invoiceId));
+                    
+                    // If still not found, it means invoice doesn't exist
+                    if (!currentInvoice && invoicesToUse.length > 0) {
+                        // Invoice not in list, might be filtered out or deleted
+                        // Try fetching single invoice
+                        try {
+                            const singleInvoice = await getInvoices(entityId, user.access_token);
+                            currentInvoice = singleInvoice.find(i => String(i.id) === String(invoiceId));
+                        } catch (err) {
+                            console.error("Failed to fetch single invoice:", err);
+                        }
+                    }
+                }
+
+                if (!currentInvoice) {
+                    toast({ title: 'Error', description: 'Invoice not found.', variant: 'destructive' });
+                    setIsLoading(false);
+                    return;
+                }
+
+                if (isMounted) {
+                    setInvoice(currentInvoice);
+                    setEditedInvoice(currentInvoice);
+                    // Update currentIndex when invoice changes
+                    if (invoicesToUse && invoicesToUse.length > 0) {
+                        const index = invoicesToUse.findIndex(i => String(i.id) === String(invoiceId));
+                        setCurrentIndex(index >= 0 ? index : -1);
+                    }
+                    setIsLoading(false);
+                    
+                    // Load attachment and finance headers in parallel (non-blocking)
+                    const promises = [];
+                    
+                    // Always reset attachment state when invoice changes
+                    const attachmentId = currentInvoice.attachment_id || (currentInvoice.attachment && currentInvoice.attachment.id);
+                    
+                    if (attachmentId) {
+                        setIsImageLoading(true);
+                        setAttachmentToDisplay(null);
+                        promises.push(
+                            getInvoiceAttachment(attachmentId, user.access_token)
+                                .then(url => {
+                                    if (url) {
+                                        setAttachmentToDisplay(url);
+                                        if (url.toLowerCase().endsWith('.pdf')) {
+                                            setIsImageLoading(false);
+                                        }
+                                    } else {
+                                        setIsImageLoading(false);
+                                    }
+                                })
+                                .catch(err => {
+                                    console.error("Failed to fetch attachment:", err);
+                                    setIsImageLoading(false);
+                                    setAttachmentToDisplay(null);
+                                })
+                        );
+                    } else {
+                        setAttachmentToDisplay(null);
+                        setIsImageLoading(false);
+                    }
+                    
+                    if (user && (user.role === 'CA_ACCOUNTANT' || user.role === 'CA_TEAM')) {
+                        promises.push(
+                            getFinanceHeaders(user.agency_id, user.access_token)
+                                .then(headers => setFinanceHeaders(headers))
+                                .catch(err => console.error("Failed to fetch finance headers:", err))
+                        );
+                    }
+                    
+                    // Fetch beneficiaries
+                    const orgIdToFetch = organisationId || user.organization_id;
+                    if (orgIdToFetch) {
+                        promises.push(
+                            getBeneficiaries(orgIdToFetch, user.access_token)
+                                .then(data => setBeneficiaries(data || []))
+                                .catch(err => console.error("Failed to fetch beneficiaries:", err))
+                        );
+                    }
+                    
+                    // Don't wait for these - they load in background
+                    Promise.all(promises).catch(err => console.error("Background fetch error:", err));
+                }
+            } catch (error) {
+                toast({ title: 'Error', description: `Failed to fetch data: ${error.message}`, variant: 'destructive' });
+                setIsLoading(false);
+            }
+        };
+
+        fetchData();
+        return () => { isMounted = false; };
+    }, [invoiceId, authLoading, user?.access_token]);
     
     const invoiceDetails = invoice || {
         id: invoiceId,
@@ -164,55 +268,113 @@ const InvoiceDetailsPage = () => {
         }
     };
 
-    const handleExportToPDF = () => {
-        const input = invoiceDetailsRef.current;
-        if (!input) return;
-        html2canvas(input, { backgroundColor: "#1e293b" }).then(canvas => {
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF({
-                orientation: 'portrait',
-            });
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = pdf.internal.pageSize.getHeight();
-            const canvasWidth = canvas.width;
-            const canvasHeight = canvas.height;
-            const ratio = canvasWidth / canvasHeight;
-            const width = pdfWidth;
-            const height = width / ratio;
-            pdf.addImage(imgData, 'PNG', 0, 0, width, height);
-            pdf.save(`invoice-${invoiceId}.pdf`);
-            toast({ title: 'Export Successful', description: 'Invoice details exported to PDF.' });
-        }).catch(error => {
-            toast({ title: 'Export Failed', description: error.message, variant: 'destructive' });
+    const handleExportToPDF = async () => {
+        const pdf = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: 'a4'
         });
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const margin = 10;
+        const contentWidth = pdfWidth - (margin * 2);
+        const contentHeight = pdfHeight - (margin * 2);
+
+        try {
+            // Helper function to add image to PDF with proper scaling
+            const addImageToPDF = (imgData, imgWidth, imgHeight) => {
+                const ratio = imgWidth / imgHeight;
+                let displayWidth = contentWidth;
+                let displayHeight = displayWidth / ratio;
+                
+                // If content is taller than page, scale it down to fit
+                if (displayHeight > contentHeight) {
+                    displayHeight = contentHeight;
+                    displayWidth = displayHeight * ratio;
+                }
+                
+                // Center the image on the page
+                const xPos = margin + (contentWidth - displayWidth) / 2;
+                const yPos = margin + (contentHeight - displayHeight) / 2;
+                
+                pdf.addImage(imgData, 'PNG', xPos, yPos, displayWidth, displayHeight);
+            };
+
+            // Page 1: Invoice Details
+            if (invoiceDetailsRef.current) {
+                const detailsCanvas = await html2canvas(invoiceDetailsRef.current, { 
+                    useCORS: true,
+                    scale: 2,
+                    backgroundColor: '#1e293b',
+                    logging: false
+                });
+                const detailsImgData = detailsCanvas.toDataURL('image/png');
+                addImageToPDF(detailsImgData, detailsCanvas.width, detailsCanvas.height);
+            }
+
+            // Page 2: Attachment (if it's an image, not PDF)
+            if (attachmentRef.current && attachmentToDisplay && !attachmentToDisplay.toLowerCase().endsWith('.pdf')) {
+                pdf.addPage();
+                const attachmentCanvas = await html2canvas(attachmentRef.current, { 
+                    useCORS: true,
+                    scale: 2,
+                    backgroundColor: '#1e293b',
+                    logging: false
+                });
+                const attachmentImgData = attachmentCanvas.toDataURL('image/png');
+                addImageToPDF(attachmentImgData, attachmentCanvas.width, attachmentCanvas.height);
+            }
+
+            // Last Page: Activity Log
+            if (activityLogRef.current) {
+                pdf.addPage();
+                const activityCanvas = await html2canvas(activityLogRef.current, { 
+                    useCORS: true,
+                    scale: 2,
+                    backgroundColor: '#1e293b',
+                    logging: false
+                });
+                const activityImgData = activityCanvas.toDataURL('image/png');
+                addImageToPDF(activityImgData, activityCanvas.width, activityCanvas.height);
+            }
+
+            pdf.save(`invoice-${invoiceDetails.bill_number || invoiceId}.pdf`);
+            toast({ title: 'Export Successful', description: 'Invoice exported to PDF with details, attachment, and activity log.' });
+        } catch (error) {
+            console.error('PDF Export Error:', error);
+            toast({ title: 'Export Error', description: `An error occurred: ${error.message}`, variant: 'destructive' });
+        }
     };
 
-    const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.1, 3));
-    const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.1, 0.5));
-    const handleZoomReset = () => setZoom(1);
 
     // Navigation logic
     const handleNavigate = (direction) => {
-        if (!invoices || invoices.length === 0) return;
+        if (!invoices || invoices.length === 0) {
+            console.warn("No invoices available for navigation");
+            return;
+        }
         const newIndex = currentIndex + direction;
+        console.log("Navigating:", { currentIndex, newIndex, direction, invoicesLength: invoices.length });
         if (newIndex >= 0 && newIndex < invoices.length) {
-            setLoadingInvoice(true);
-            setAttachmentToDisplay(null);
-            setTimeout(() => {
-                const nextInvoice = invoices[newIndex];
-                navigate(`/invoices/${nextInvoice.id}`, {
-                    state: {
-                        invoice: nextInvoice,
-                        invoices,
-                        currentIndex: newIndex
-                    },
-                    replace: true
-                });
-                setEditedInvoice(nextInvoice);
-                setLoadingInvoice(false);
-            }, 1000);
+            const nextInvoice = invoices[newIndex];
+            console.log("Navigating to invoice:", nextInvoice.id);
+            setCurrentIndex(newIndex);
+            navigate(`/invoices/${nextInvoice.id}`, { 
+                state: { 
+                    invoice: nextInvoice, 
+                    invoices, 
+                    organisationId, 
+                    entityName, 
+                    organizationName 
+                } 
+            });
+        } else {
+            console.warn("Navigation out of bounds:", { newIndex, invoicesLength: invoices.length });
         }
     };
+    
+    // Check if we have invoices to navigate - show arrows if we have multiple invoices
+    const hasInvoices = invoices && Array.isArray(invoices) && invoices.length > 1;
 
     // Tag logic
     const handleTag = async () => {
@@ -230,33 +392,73 @@ const InvoiceDetailsPage = () => {
         }
     };
 
-    if (loadingInvoice) {
-        return (
-            <div className="flex justify-center items-center h-screen">
-                <Loader2 className="w-8 h-8 animate-spin text-white" />
-            </div>
-        );
-    }
-
-    return (
+    // Skeleton loading component
+    const InvoiceDetailsSkeleton = () => (
         <div className="h-screen w-full flex flex-col text-white bg-transparent p-4 md:p-6">
             <header className="flex items-center justify-between pb-4 border-b border-white/10 mb-4">
                 <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="icon" onClick={() => navigate('/finance?tab=invoices')}>
+                    <Skeleton className="h-10 w-10 rounded-md" />
+                    <div>
+                        <Skeleton className="h-8 w-48 mb-2" />
+                        <Skeleton className="h-4 w-64" />
+                    </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Skeleton className="h-10 w-10 rounded-md" />
+                    <Skeleton className="h-10 w-10 rounded-md" />
+                </div>
+            </header>
+            <ResizablePanelGroup direction="horizontal" className="flex-1 rounded-lg border border-white/10">
+                <ResizablePanel defaultSize={60} minSize={30}>
+                    <div className="relative flex h-full w-full flex-col items-center justify-center p-2">
+                        <Skeleton className="h-full w-full rounded-md" />
+                    </div>
+                </ResizablePanel>
+                <ResizableHandle withHandle />
+                <ResizablePanel defaultSize={40} minSize={30}>
+                    <div className="flex h-full items-start justify-center p-6 overflow-y-auto">
+                        <div className="w-full space-y-4">
+                            <div className="space-y-2">
+                                <Skeleton className="h-10 w-full" />
+                                <Skeleton className="h-10 w-full" />
+                                <Skeleton className="h-10 w-full" />
+                            </div>
+                            <Skeleton className="h-64 w-full rounded-lg" />
+                            <div className="space-y-2">
+                                <Skeleton className="h-6 w-32" />
+                                <Skeleton className="h-20 w-full rounded-md" />
+                            </div>
+                        </div>
+                    </div>
+                </ResizablePanel>
+            </ResizablePanelGroup>
+        </div>
+    );
+
+    if (isLoading) {
+        return <InvoiceDetailsSkeleton />;
+    }
+
+    const isClientUser = user?.role === 'CLIENT_USER';
+    const defaultTab = isClientUser ? 'details' : 'details';
+    const cols = isClientUser ? 'grid-cols-3' : 'grid-cols-3';
+
+    return (
+        <div className="h-screen w-full flex flex-col text-white bg-transparent p-4 md:p-6" style={{ paddingBottom: hasInvoices ? '5rem' : '1.5rem' }}>
+            <header className="flex items-center justify-between pb-4 border-b border-white/10 mb-4">
+                <div className="flex items-center gap-4">
+                    <Button variant="ghost" size="icon" onClick={() => user.role === 'CLIENT_USER' ? navigate('/finance?tab=invoices') : navigate('/finance/ca?tab=invoices')}>
                         <ArrowLeft className="h-6 w-6" />
                     </Button>
-                    <h1 className="text-2xl font-bold">Invoice Details</h1>
-                </div>
-                {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && invoices && invoices.length > 0 && (
-                    <div className="flex items-center gap-2">
-                        <Button variant="outline" size="icon" onClick={() => handleNavigate(-1)} disabled={currentIndex <= 0}>
-                            <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                        </Button>
-                        <Button variant="outline" size="icon" onClick={() => handleNavigate(1)} disabled={currentIndex >= invoices.length - 1}>
-                            <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                        </Button>
+                    <div>
+                        <h1 className="text-2xl font-bold">Invoice Details</h1>
+                        <p className="text-sm text-gray-400">Review all invoice transactions.</p>
                     </div>
-                )}
+                </div>
+                {/* Entity name in top right */}
+                <div className="flex items-center">
+                    <p className="text-2xl font-bold text-white">{getEntityName()}</p>
+                </div>
             </header>
 
             <ResizablePanelGroup
@@ -265,21 +467,25 @@ const InvoiceDetailsPage = () => {
             >
                 <ResizablePanel defaultSize={60} minSize={30}>
                     <div className="relative flex h-full w-full flex-col items-center justify-center p-2">
+                        {/* Zoom controls in bottom right corner */}
                         {attachmentToDisplay && !attachmentToDisplay.toLowerCase().endsWith('.pdf') && (
-                            <div className="absolute top-4 right-4 z-10 flex gap-2">
-                                <Button variant="outline" size="icon" onClick={handleZoomIn}>
+                            <div className="absolute bottom-4 right-4 z-10 flex gap-2">
+                                <Button variant="outline" size="icon" onClick={() => setZoom(z => z + 0.1)}>
                                     <ZoomIn className="h-4 w-4" />
                                 </Button>
-                                <Button variant="outline" size="icon" onClick={handleZoomOut}>
+                                <Button variant="outline" size="icon" onClick={() => setZoom(z => Math.max(0.1, z - 0.1))}>
                                     <ZoomOut className="h-4 w-4" />
                                 </Button>
-                                <Button variant="outline" size="icon" onClick={handleZoomReset}>
+                                <Button variant="outline" size="icon" onClick={() => setZoom(1)}>
                                     <RefreshCcw className="h-4 w-4" />
                                 </Button>
                             </div>
                         )}
-                        <div className="flex h-full w-full items-center justify-center overflow-auto">
-                            {attachmentToDisplay ? (
+                        <div className="flex h-full w-full items-center justify-center overflow-auto relative" style={{ zIndex: 1 }} ref={attachmentRef}>
+                            {/* Show skeleton only if we have attachment_id but no URL yet (while fetching URL) */}
+                            {invoice?.attachment_id && !attachmentToDisplay ? (
+                                <Skeleton className="h-full w-full rounded-md" />
+                            ) : attachmentToDisplay ? (
                                 attachmentToDisplay.toLowerCase().endsWith('.pdf') ? (
                                     <iframe
                                         src={attachmentToDisplay}
@@ -288,10 +494,20 @@ const InvoiceDetailsPage = () => {
                                     />
                                 ) : (
                                     <img
+                                        key={`${attachmentToDisplay}-${invoice?.id}`}
                                         src={attachmentToDisplay}
                                         alt="Invoice Attachment"
                                         className="max-w-full max-h-full transition-transform duration-200"
                                         style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }}
+                                        onLoad={() => {
+                                            console.log("Image loaded successfully");
+                                            setIsImageLoading(false);
+                                        }}
+                                        onError={(e) => {
+                                            console.error("Image failed to load:", e, "URL:", attachmentToDisplay);
+                                            setIsImageLoading(false);
+                                        }}
+                                        loading="eager"
                                     />
                                 )
                             ) : (
@@ -304,24 +520,29 @@ const InvoiceDetailsPage = () => {
                 </ResizablePanel>
                 <ResizableHandle withHandle />
                 <ResizablePanel defaultSize={40} minSize={30}>
-                    <div className="flex h-full items-start justify-center p-6 overflow-y-auto">
-                        <Tabs defaultValue="details" className="w-full">
-                            <TabsList className="grid w-full grid-cols-2">
+                    <div className="relative flex h-full flex-col">
+                        <div className="flex-1 overflow-y-auto p-6" style={{ paddingBottom: hasInvoices ? '6rem' : '1.5rem' }}>
+                            <Tabs defaultValue={defaultTab} className="w-full">
+                            <TabsList className={`grid w-full ${cols}`}>
                                 <TabsTrigger value="details">Details</TabsTrigger>
                                 <TabsTrigger value="activity">Activity Log</TabsTrigger>
+                                <TabsTrigger value="beneficiary">Beneficiary</TabsTrigger>
                             </TabsList>
                             <TabsContent value="details" className="mt-4">
                                 {isEditing ? (
                                     <form onSubmit={handleUpdate} className="space-y-4">
                                         <div>
                                             <Label htmlFor="beneficiary_id">Beneficiary</Label>
-                                            <Select name="beneficiary_id" defaultValue={editedInvoice.beneficiary_id} onValueChange={(value) => setEditedInvoice({ ...editedInvoice, beneficiary_id: value })}>
+                                            <Select 
+                                                value={editedInvoice?.beneficiary_id ? String(editedInvoice.beneficiary_id) : ''}
+                                                onValueChange={(val) => setEditedInvoice(p => ({ ...p, beneficiary_id: val }))}
+                                            >
                                                 <SelectTrigger>
                                                     <SelectValue placeholder="Select a beneficiary" />
                                                 </SelectTrigger>
                                                 <SelectContent>
                                                     {beneficiaries.map((b) => (
-                                                        <SelectItem key={b.id} value={b.id}>
+                                                        <SelectItem key={b.id} value={String(b.id)}>
                                                             {b.beneficiary_type === 'individual' ? b.name : b.company_name}
                                                         </SelectItem>
                                                     ))}
@@ -342,11 +563,11 @@ const InvoiceDetailsPage = () => {
                                         </div>
                                         <div>
                                             <Label htmlFor="cgst">CGST</Label>
-                                            <Input name="cgst" type="number" step="0.01" defaultValue={editedInvoice.cgst} onChange={(e) => setEditedInvoice({ ...editedInvoice, cgst: e.target.value, sgst: e.target.value })} />
+                                            <Input name="cgst" type="number" step="0.01" defaultValue={editedInvoice.cgst} onChange={(e) => setEditedInvoice(p => ({ ...p, cgst: e.target.value, sgst: e.target.value }))} />
                                         </div>
                                         <div>
                                             <Label htmlFor="sgst">SGST</Label>
-                                            <Input name="sgst" type="number" step="0.01" value={editedInvoice.sgst} onChange={(e) => { setEditedInvoice({ ...editedInvoice, sgst: e.target.value, cgst: e.target.value }); }} />
+                                            <Input name="sgst" type="number" step="0.01" value={editedInvoice.sgst} onChange={(e) => setEditedInvoice(p => ({ ...p, sgst: e.target.value, cgst: e.target.value }))} />
                                         </div>
                                         <div>
                                             <Label htmlFor="igst">IGST</Label>
@@ -374,44 +595,31 @@ const InvoiceDetailsPage = () => {
                                             </div>
                                         )}
                                         <div className="flex justify-end gap-2">
-                                            <Button variant="ghost" onClick={() => setIsEditing(false)}>Cancel</Button>
-                                            <Button type="submit">Save Changes</Button>
+                                            <Button variant="ghost" onClick={() => setIsEditing(false)} disabled={isDeleting}>Cancel</Button>
+                                            <Button type="submit" disabled={isDeleting}>
+                                                {isDeleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                                                Save Changes
+                                            </Button>
                                         </div>
                                     </form>
                                 ) : (
-                                    <Card ref={invoiceDetailsRef} className="w-full glass-pane border-none shadow-none">
+                                    <Card ref={invoiceDetailsRef} className="w-full glass-pane border-none shadow-none bg-gray-800 text-white relative z-20">
                                         <CardHeader>
-                                            <CardTitle>{invoiceDetails.bill_number}</CardTitle>
-                                            <CardDescription>
-                                                Issued to {
-                                                    (() => {
-                                                        // Try to resolve beneficiary name from beneficiaries list
-                                                        const beneficiary = beneficiaries.find(
-                                                            b => String(b.id) === String(invoice?.beneficiary_id)
-                                                        );
-                                                        if (beneficiary) {
-                                                            return beneficiary.beneficiary_type === 'individual'
-                                                                ? beneficiary.name
-                                                                : beneficiary.company_name;
-                                                        }
-                                                        // Fallback to beneficiary_name from state or N/A
-                                                        return invoiceDetails.beneficiary_name || 'N/A';
-                                                    })()
-                                                }
-                                            </CardDescription>
+                                            <CardTitle>{invoiceDetails.bill_number || 'N/A'}</CardTitle>
+                                            <CardDescription>Created on {invoiceDetails.created_date || invoiceDetails.created_at ? new Date(invoiceDetails.created_date || invoiceDetails.created_at).toLocaleDateString() : 'N/A'}</CardDescription>
                                         </CardHeader>
-                                        <CardContent className="space-y-2">
+                                        <CardContent className="space-y-2 relative z-20">
                                             <DetailItem label="Date" value={new Date(invoiceDetails.date).toLocaleDateString()} />
-                                            <DetailItem label="Base Amount" value={`₹${parseFloat(invoiceDetails.amount).toFixed(2)}`} />
-                                            <DetailItem label="CGST" value={`₹${parseFloat(invoiceDetails.cgst).toFixed(2)}`} />
-                                            <DetailItem label="SGST" value={`₹${parseFloat(invoiceDetails.sgst).toFixed(2)}`} />
-                                            <DetailItem label="IGST" value={`₹${parseFloat(invoiceDetails.igst).toFixed(2)}`} />
+                                            <DetailItem label="Base Amount" value={`₹${parseFloat(invoiceDetails.amount || 0).toFixed(2)}`} />
+                                            <DetailItem label="CGST" value={`₹${parseFloat(invoiceDetails.cgst || 0).toFixed(2)}`} />
+                                            <DetailItem label="SGST" value={`₹${parseFloat(invoiceDetails.sgst || 0).toFixed(2)}`} />
+                                            <DetailItem label="IGST" value={`₹${parseFloat(invoiceDetails.igst || 0).toFixed(2)}`} />
                                             <div className="pt-4">
-                                                 <DetailItem label="Total Amount" value={`₹${totalAmount}`} />
+                                                <DetailItem label="Total Amount" value={`₹${totalAmount}`} />
                                             </div>
                                             <div className="pt-4">
                                                 <p className="text-sm text-gray-400 mb-1">Remarks</p>
-                                                <p className="text-sm text-white p-3 bg-white/5 rounded-md">{invoiceDetails.remarks}</p>
+                                                <p className="text-sm text-white p-3 bg-white/5 rounded-md">{invoiceDetails.remarks || 'N/A'}</p>
                                             </div>
                                             {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
                                                 <div className="pt-4">
@@ -434,35 +642,149 @@ const InvoiceDetailsPage = () => {
                                                     </Select>
                                                 </div>
                                             )}
-                                            <div className="flex items-center gap-2 mt-4 justify-end">
-                                                <Button variant="destructive" size="icon" onClick={() => setShowDeleteDialog(true)}>
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
-                                                <Button variant="outline" size="icon" onClick={handleExportToPDF}>
-                                                    <FileText className="h-4 w-4" />
-                                                </Button>
-                                                <Button variant="outline" size="icon" onClick={() => setIsEditing(!isEditing)}>
-                                                    <Edit className="h-4 w-4" />
-                                                </Button>
-                                                {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
-                                                    <Button onClick={handleTag} className="bg-blue-600 text-white hover:bg-blue-700">
-                                                        Tag
-                                                    </Button>
-                                                )}
+                                            <div className="flex items-center gap-2 mt-4 justify-center relative z-20">
+                                                {/* Action buttons in center */}
+                                                <div className="flex items-center gap-2 relative z-20">
+                                                    <TooltipProvider>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <Button
+                                                                    variant="destructive"
+                                                                    size="icon"
+                                                                    onClick={() => setShowDeleteDialog(true)}
+                                                                >
+                                                                    <Trash2 className="h-4 w-4" />
+                                                                </Button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                <p>Delete</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="icon"
+                                                                    onClick={handleExportToPDF}
+                                                                >
+                                                                    <FileText className="h-4 w-4" />
+                                                                </Button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                <p>Export</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="icon"
+                                                                    onClick={() => setIsEditing(!isEditing)}
+                                                                >
+                                                                    <Edit className="h-4 w-4" />
+                                                                </Button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                <p>Edit</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                        {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Button onClick={handleTag} className="bg-blue-600 text-white hover:bg-blue-700">
+                                                                        Tag
+                                                                    </Button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    <p>Tag Invoice</p>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        )}
+                                                    </TooltipProvider>
+                                                </div>
+                                                {/* Spacer for next button (which is fixed on right) */}
+                                                {hasInvoices && <div className="w-12"></div>}
                                             </div>
                                         </CardContent>
                                     </Card>
                                 )}
                             </TabsContent>
                             <TabsContent value="activity" className="mt-4">
-                                <div className="p-4">
-                                    <ActivityLog itemId={invoiceId} itemType="invoice" />
+                                <div className="p-4" ref={activityLogRef}>
+                                    <ActivityLog itemId={invoice?.id || invoiceId} itemType="invoice" />
                                 </div>
                             </TabsContent>
+                            <TabsContent value="beneficiary" className="mt-4">
+                                {(() => {
+                                    // Try to resolve the full beneficiary object
+                                    let beneficiaryObj = invoiceDetails.beneficiary;
+                                    if (
+                                        (!beneficiaryObj || !beneficiaryObj.phone) &&
+                                        beneficiaries &&
+                                        invoiceDetails.beneficiary_id
+                                    ) {
+                                        const found = beneficiaries.find(
+                                            b => String(b.id) === String(invoiceDetails.beneficiary_id)
+                                        );
+                                        if (found) beneficiaryObj = found;
+                                    }
+                                    const beneficiaryName = beneficiaryObj
+                                        ? (beneficiaryObj.beneficiary_type === 'individual' ? beneficiaryObj.name : beneficiaryObj.company_name)
+                                        : invoiceDetails.beneficiary_name || 'N/A';
+                                    return (
+                                        <Card className="w-full glass-pane border-none shadow-none bg-gray-800 text-white">
+                                            <CardHeader>
+                                                <CardTitle>Beneficiary Details</CardTitle>
+                                            </CardHeader>
+                                            <CardContent className="space-y-2">
+                                                <DetailItem label="Name" value={beneficiaryName} />
+                                                <DetailItem label="PAN" value={beneficiaryObj?.pan || 'N/A'} />
+                                                <DetailItem label="Email" value={beneficiaryObj?.email || 'N/A'} />
+                                                <DetailItem label="Phone" value={beneficiaryObj?.phone || 'N/A'} />
+                                            </CardContent>
+                                        </Card>
+                                    );
+                                })()}
+                            </TabsContent>
                         </Tabs>
+                        </div>
                     </div>
                 </ResizablePanel>
             </ResizablePanelGroup>
+
+            {/* Fixed navigation buttons at bottom corners - aligned on same line */}
+            {hasInvoices && (
+                <>
+                    {/* Previous button at bottom left (after sidebar) */}
+                    <Button 
+                        variant="outline" 
+                        size="icon"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleNavigate(-1);
+                        }} 
+                        disabled={currentIndex === 0 || currentIndex === -1}
+                        className="fixed bottom-4 left-80 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg z-50"
+                    >
+                        <ChevronLeft className="h-5 w-5" />
+                    </Button>
+                    {/* Next button at bottom right corner */}
+                    <Button 
+                        variant="outline" 
+                        size="icon"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleNavigate(1);
+                        }} 
+                        disabled={currentIndex === invoices.length - 1}
+                        className="fixed bottom-4 right-4 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg z-50"
+                    >
+                        <ChevronRight className="h-5 w-5" />
+                    </Button>
+                </>
+            )}
             <Dialog open={showDeleteDialog} onOpenChange={isDeleting ? undefined : setShowDeleteDialog}>
                 <DialogContent>
                     <DialogHeader>

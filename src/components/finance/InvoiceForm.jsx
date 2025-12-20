@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Plus, Loader2 } from 'lucide-react';
 import { DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Combobox } from '@/components/ui/combobox';
 import { useAuth } from '@/hooks/useAuth';
 import { compressImageIfNeeded } from '@/lib/imageCompression';
 
@@ -14,6 +15,8 @@ const InvoiceForm = ({ entityId, beneficiaries, isLoading, onSave, onCancel, inv
     const isEditing = !!invoice;
     const today = new Date().toISOString().split('T')[0];
 
+    const [selectedBeneficiaryId, setSelectedBeneficiaryId] = useState(invoice?.beneficiary_id ? String(invoice.beneficiary_id) : '');
+    const [selectedFinanceHeaderId, setSelectedFinanceHeaderId] = useState(invoice?.finance_header_id ? String(invoice.finance_header_id) : '');
     const [amount, setAmount] = useState(invoice?.amount || 0);
     const [cgst, setCgst] = useState(invoice?.cgst || 0);
     const [sgst, setSgst] = useState(invoice?.sgst || 0);
@@ -23,6 +26,10 @@ const InvoiceForm = ({ entityId, beneficiaries, isLoading, onSave, onCancel, inv
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (!selectedBeneficiaryId) {
+            alert('Please select a beneficiary.');
+            return;
+        }
         if (cgst !== sgst) {
             alert('CGST and SGST must be equal.');
             return;
@@ -30,6 +37,15 @@ const InvoiceForm = ({ entityId, beneficiaries, isLoading, onSave, onCancel, inv
         const formData = new FormData(e.target);
         if (!isEditing) {
             formData.append('entity_id', entityId);
+        }
+        
+        // Update form data with state values for combobox fields
+        // Ensure beneficiary_id is always set (required field)
+        formData.set('beneficiary_id', selectedBeneficiaryId);
+        
+        // Finance header is optional, only set if selected
+        if (selectedFinanceHeaderId) {
+            formData.set('finance_header_id', selectedFinanceHeaderId);
         }
         
         // Compress image attachment if it's an image
@@ -48,6 +64,13 @@ const InvoiceForm = ({ entityId, beneficiaries, isLoading, onSave, onCancel, inv
         
         onSave(formData, invoice?.id);
     };
+
+    useEffect(() => {
+        if (invoice) {
+            setSelectedBeneficiaryId(invoice.beneficiary_id ? String(invoice.beneficiary_id) : '');
+            setSelectedFinanceHeaderId(invoice.finance_header_id ? String(invoice.finance_header_id) : '');
+        }
+    }, [invoice]);
 
     useEffect(() => {
         const preTaxAmount = parseFloat(amount) || 0;
@@ -70,24 +93,24 @@ const InvoiceForm = ({ entityId, beneficiaries, isLoading, onSave, onCancel, inv
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="md:col-span-2">
                       <Label htmlFor="beneficiary_id">Beneficiary</Label>
-                      <Select name="beneficiary_id" required defaultValue={invoice?.beneficiary_id} disabled={isLoading}>
-                        <SelectTrigger>
-                          <SelectValue placeholder={isLoading ? "Loading beneficiaries..." : "Select beneficiary"} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {isLoading ? (
-                            <div className="flex items-center justify-center p-2">
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            </div>
-                          ) : (
-                            (beneficiaries || []).map(b => (
-                              <SelectItem key={b.id} value={b.id}>
-                                {b.beneficiary_type === 'individual' ? b.name : b.company_name}
-                              </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
+                      {isLoading ? (
+                        <div className="flex items-center justify-center p-2 border border-white/20 bg-white/10 rounded-lg h-11">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        </div>
+                      ) : (
+                        <Combobox
+                          options={(beneficiaries || []).map(b => ({
+                            value: String(b.id),
+                            label: b.beneficiary_type === 'individual' ? b.name : b.company_name
+                          }))}
+                          value={selectedBeneficiaryId}
+                          onValueChange={(value) => setSelectedBeneficiaryId(value)}
+                          placeholder="Select beneficiary..."
+                          searchPlaceholder="Search beneficiaries..."
+                          emptyText="No beneficiaries found."
+                          disabled={isLoading}
+                        />
+                      )}
                     </div>
 
                     <div>
@@ -112,31 +135,31 @@ const InvoiceForm = ({ entityId, beneficiaries, isLoading, onSave, onCancel, inv
                 {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
                   <div>
                       <Label htmlFor="finance_header_id">Finance Header</Label>
-                      <Select name="finance_header_id" defaultValue={invoice?.finance_header_id} disabled={isLoading}>
-                          <SelectTrigger><SelectValue placeholder="Select a header" /></SelectTrigger>
-                          <SelectContent>
-                              {(financeHeaders || []).map(header => (
-                                  <SelectItem key={header.id} value={String(header.id)}>
-                                      {header.name}
-                                  </SelectItem>
-                              ))}
-                          </SelectContent>
-                      </Select>
+                      <Combobox
+                          options={(financeHeaders || []).map(header => ({
+                              value: String(header.id),
+                              label: header.name
+                          }))}
+                          value={selectedFinanceHeaderId}
+                          onValueChange={(value) => setSelectedFinanceHeaderId(value)}
+                          placeholder="Select a header..."
+                          searchPlaceholder="Search headers..."
+                          emptyText="No headers found."
+                          disabled={isLoading}
+                      />
                   </div>
                 )}
 
                 <div className="space-y-2">
                     <Label>Taxes</Label>
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-2 gap-4">
                        <div><Label htmlFor="cgst" className="text-xs">CGST</Label><Input name="cgst" id="cgst" type="number" step="0.01" value={cgst} onChange={(e) => { setCgst(e.target.value); setSgst(e.target.value); }} disabled={isLoading} /></div>
                        <div><Label htmlFor="sgst" className="text-xs">SGST</Label><Input name="sgst" id="sgst" type="number" step="0.01" value={sgst} onChange={(e) => { setSgst(e.target.value); setCgst(e.target.value); }} disabled={isLoading} /></div>
-                       <div><Label htmlFor="igst" className="text-xs">IGST</Label><Input name="igst" id="igst" type="number" step="0.01" value={igst} onChange={(e) => setIgst(e.target.value)} disabled={isLoading} /></div>
                     </div>
-                </div>
-
-                <div>
-                    <Label htmlFor="roundoff">Roundoff</Label>
-                    <Input name="roundoff" id="roundoff" type="number" step="0.01" value={roundoff} onChange={(e) => setRoundoff(e.target.value)} disabled={isLoading} />
+                    <div className="grid grid-cols-2 gap-4">
+                       <div><Label htmlFor="igst" className="text-xs">IGST</Label><Input name="igst" id="igst" type="number" step="0.01" value={igst} onChange={(e) => setIgst(e.target.value)} disabled={isLoading} /></div>
+                       <div><Label htmlFor="roundoff" className="text-xs">Roundoff</Label><Input name="roundoff" id="roundoff" type="number" step="0.01" value={roundoff} onChange={(e) => setRoundoff(e.target.value)} disabled={isLoading} /></div>
+                    </div>
                 </div>
                 
                 <div className="flex justify-between items-center bg-white/5 p-4 rounded-xl">

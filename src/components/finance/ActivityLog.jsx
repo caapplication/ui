@@ -17,9 +17,10 @@ const ActivityLog = ({ itemId, itemType }) => {
             const data = await getActivityLog(itemId, itemType, user.access_token);
             setLogs(data);
         } catch (error) {
+            const errorMessage = error?.message || (typeof error === 'string' ? error : 'An unexpected error occurred');
             toast({
                 title: 'Error fetching activity log',
-                description: error.message,
+                description: errorMessage,
                 variant: 'destructive',
             });
         } finally {

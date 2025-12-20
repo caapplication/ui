@@ -19,8 +19,16 @@ import { Check } from 'lucide-react';
 
 const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onRefresh, isAccountantView }) => {
   const [activeFilters, setActiveFilters] = useState([]);
-  const [filterValues, setFilterValues] = useState({ dateFrom: '', dateTo: '', createdFrom: '', createdTo: '' });
-  // No type filter for invoices
+  const [filterValues, setFilterValues] = useState({ 
+    dateFrom: '', 
+    dateTo: '', 
+    createdFrom: '', 
+    createdTo: '', 
+    beneficiary: '', 
+    bill_number: '', 
+    amount: '', 
+    remarks: '' 
+  });
   const [invoiceToDelete, setInvoiceToDelete] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [financeHeaders, setFinanceHeaders] = useState([]);
@@ -69,7 +77,13 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onRefresh, i
       let match = true;
       for (const filter of activeFilters) {
         if (filter === 'beneficiary') {
-          match = match && (filterValues.beneficiary === '' || inv.bill_number.toLowerCase().includes((filterValues.beneficiary || '').toLowerCase()) || beneficiaryName.includes((filterValues.beneficiary || '').toLowerCase()));
+          const searchTerm = (filterValues.beneficiary || '').toLowerCase().trim();
+          match = match && (!searchTerm || beneficiaryName.includes(searchTerm));
+        }
+        if (filter === 'bill_number') {
+          const searchTerm = (filterValues.bill_number || '').toLowerCase().trim();
+          const billNumber = (inv.bill_number || '').toString().toLowerCase();
+          match = match && (!searchTerm || billNumber.includes(searchTerm));
         }
         if (filter === 'date') {
           const from = filterValues.dateFrom ? new Date(filterValues.dateFrom) : null;
@@ -97,10 +111,30 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onRefresh, i
             }
           }
         }
+        if (filter === 'amount') {
+          const searchTerm = (filterValues.amount || '').trim();
+          if (searchTerm) {
+            const searchAmount = parseFloat(searchTerm);
+            if (!isNaN(searchAmount)) {
+              const totalAmount = parseFloat(inv.amount) + parseFloat(inv.cgst || 0) + parseFloat(inv.sgst || 0) + parseFloat(inv.igst || 0);
+              match = match && Math.abs(totalAmount - searchAmount) < 0.01; // Allow for floating point precision
+            }
+          }
+        }
+        if (filter === 'remarks') {
+          const searchTerm = (filterValues.remarks || '').toLowerCase().trim();
+          const remarks = (inv.remarks || 'N/A').toLowerCase();
+          match = match && (!searchTerm || remarks.includes(searchTerm));
+        }
       }
       return match;
     });
   }, [invoices, activeFilters, filterValues]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeFilters, filterValues]);
 
   const totalPages = Math.ceil(filteredInvoices.length / ITEMS_PER_PAGE);
   const paginatedInvoices = filteredInvoices.slice(
@@ -110,7 +144,16 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onRefresh, i
 
   const handleViewAttachment = (invoice) => {
     const beneficiaryName = getBeneficiaryName(invoice);
-    navigate(`/invoices/${invoice.id}`, { state: { invoice, beneficiaryName } });
+    // Find the index of the clicked invoice in the filtered invoices list
+    const invoiceIndex = filteredInvoices.findIndex(inv => inv.id === invoice.id);
+    navigate(`/invoices/${invoice.id}`, { 
+      state: { 
+        invoice, 
+        beneficiaryName,
+        invoices: filteredInvoices,
+        currentIndex: invoiceIndex >= 0 ? invoiceIndex : -1
+      } 
+    });
   };
 
   return (
@@ -130,13 +173,24 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onRefresh, i
                             <SelectValue placeholder="Add Filter" />
                         </SelectTrigger>
                         <SelectContent>
+                            {!activeFilters.includes('bill_number') && <SelectItem value="bill_number">Bill Number</SelectItem>}
                             {!activeFilters.includes('beneficiary') && <SelectItem value="beneficiary">Beneficiary Name</SelectItem>}
                             {!activeFilters.includes('date') && <SelectItem value="date">Invoice Date</SelectItem>}
                             {!activeFilters.includes('created') && <SelectItem value="created">Created Date</SelectItem>}
+                            {!activeFilters.includes('amount') && <SelectItem value="amount">Amount</SelectItem>}
+                            {!activeFilters.includes('remarks') && <SelectItem value="remarks">Remarks</SelectItem>}
                         </SelectContent>
                     </Select>
                     {activeFilters.map(filter => (
                         <div key={filter} className="flex items-center gap-2">
+                            {filter === 'bill_number' && (
+                                <Input
+                                    placeholder="Search by bill number..."
+                                    value={filterValues.bill_number || ''}
+                                    onChange={e => setFilterValues(fv => ({ ...fv, bill_number: e.target.value }))}
+                                    className="max-w-xs"
+                                />
+                            )}
                             {filter === 'beneficiary' && (
                                 <Input
                                     placeholder="Search by beneficiary..."
@@ -145,7 +199,6 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onRefresh, i
                                     className="max-w-xs"
                                 />
                             )}
-                            {/* No type filter for invoices */}
                             {filter === 'date' && (
                                 <div className="flex items-center gap-2">
                                     <Input
@@ -184,6 +237,24 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onRefresh, i
                                     />
                                 </div>
                             )}
+                            {filter === 'amount' && (
+                                <Input
+                                    type="number"
+                                    placeholder="Search by amount..."
+                                    value={filterValues.amount || ''}
+                                    onChange={e => setFilterValues(fv => ({ ...fv, amount: e.target.value }))}
+                                    className="max-w-xs"
+                                    step="0.01"
+                                />
+                            )}
+                            {filter === 'remarks' && (
+                                <Input
+                                    placeholder="Search by remarks..."
+                                    value={filterValues.remarks || ''}
+                                    onChange={e => setFilterValues(fv => ({ ...fv, remarks: e.target.value }))}
+                                    className="max-w-xs"
+                                />
+                            )}
                             <Button
                                 variant="ghost"
                                 size="icon"
@@ -191,9 +262,18 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onRefresh, i
                                     setActiveFilters(activeFilters.filter(f => f !== filter));
                                     setFilterValues(fv => {
                                         const newFv = { ...fv };
-                                        delete newFv[filter];
+                                        if (filter === 'date') {
+                                            delete newFv.dateFrom;
+                                            delete newFv.dateTo;
+                                        } else if (filter === 'created') {
+                                            delete newFv.createdFrom;
+                                            delete newFv.createdTo;
+                                        } else {
+                                            delete newFv[filter];
+                                        }
                                         return newFv;
                                     });
+                                    setCurrentPage(1); // Reset to page 1 when filter is removed
                                 }}
                                 title="Remove filter"
                             >
@@ -221,21 +301,27 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onRefresh, i
     {paginatedInvoices.map(invoice => (
         <TableRow key={invoice.id} onClick={() => handleViewAttachment(invoice)} className="cursor-pointer">
             <TableCell>
-                {invoice.created_at
+                {invoice.date
                     ? (
                         <>
-                            {new Date(invoice.created_at).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}
-                            <br />
-                            <span className="text-xs text-gray-400">
-                                {new Date(invoice.created_at).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })}
-                            </span>
+                            {new Date(invoice.date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}
                         </>
                     )
                     : '-'}
             </TableCell>
             <TableCell>
                 <div className="font-semibold">No.: {invoice.bill_number}</div>
-                <div className="text-xs text-gray-400">Date: {new Date(invoice.date).toLocaleDateString()}</div>
+                <div className="text-xs text-gray-400">
+                    Created: {invoice.created_at
+                        ? (
+                            <>
+                                {new Date(invoice.created_at).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}
+                                {' '}
+                                {new Date(invoice.created_at).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })}
+                            </>
+                        )
+                        : '-'}
+                </div>
             </TableCell>
                             <TableCell>{getBeneficiaryName(invoice)}</TableCell>
                             <TableCell>₹{(parseFloat(invoice.amount) + parseFloat(invoice.cgst) + parseFloat(invoice.sgst) + parseFloat(invoice.igst)).toFixed(2)}</TableCell>

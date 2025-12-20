@@ -7,7 +7,9 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { FileText, Upload, Trash2, Plus, Share2, Folder, FolderPlus, ArrowLeft, Search, Loader2, RefreshCw, Inbox, CalendarIcon, Download, Copy, X, User, Link2, Grid, Phone, Mail, MessageCircle, Facebook, Twitter } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { FileText, Upload, Trash2, Plus, Share2, Folder, FolderPlus, ArrowLeft, Search, Loader2, RefreshCw, Inbox, CalendarIcon, Download, Copy, X, User, Link2, Grid, Phone, Mail, MessageCircle, Facebook, Twitter, MoreVertical } from 'lucide-react';
 
 // Helper function to check if folder has expired documents (recursively checks subfolders)
 const hasExpiredDocuments = (folder) => {
@@ -102,7 +104,7 @@ const FolderIcon = ({ className = "w-20 h-20", hasExpired = false }) => {
 };
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth.jsx';
-import { getDocuments, createFolder, uploadFile, deleteDocument, shareDocument, viewFile, getSharedDocuments, listOrganisations, listAllEntities, createCAFolder, uploadCAFile, shareFolder, FINANCE_API_BASE_URL } from '@/lib/api';
+import { getDocuments, createFolder, uploadFile, deleteDocument, shareDocument, viewFile, getSharedDocuments, listOrganisations, listEntities, createCAFolder, uploadCAFile, shareFolder, FINANCE_API_BASE_URL } from '@/lib/api';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
@@ -636,53 +638,194 @@ if (activeTab === 'myFiles') {
       }
   };
   
-  const renderMyFiles = () => (
-    <>
-      <div className="flex items-center space-x-2 text-gray-400 mb-8">
-        {currentFolderId !== 'root' && currentPath.length > 1 && (
-          <Button variant="ghost" size="sm" onClick={() => setCurrentFolderId(currentPath[currentPath.length - 2].id)}>
-            <ArrowLeft className="w-4 h-4 mr-2" /> Back
-          </Button>
-        )}
-        {currentPath.map((folder, index) => (
-          <React.Fragment key={folder.id}>
-            <span onClick={() => setCurrentFolderId(folder.id)} className="cursor-pointer hover:text-white transition-colors">{folder.name}</span>
-            {index < currentPath.length - 1 && <span className="text-gray-600">/</span>}
-          </React.Fragment>
-        ))}
-      </div>
-       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8">
-        {filteredChildren.map((item, index) => (
-            <motion.div 
-              key={item.id} 
-              initial={{ opacity: 0, y: 20 }} 
-              animate={{ opacity: 1, y: 0 }} 
-              transition={{ duration: 0.5, delay: index * 0.05 }}
-              className="flex flex-col items-center cursor-pointer group relative"
-              onDoubleClick={item.is_folder ? () => setCurrentFolderId(item.id) : () => handleView(item)}
-            >
-              <div className="relative mb-2">
-                {item.is_folder ? (
+  const renderMyFiles = () => {
+    const isSubFolder = currentPath.length > 2;
+    const folders = filteredChildren.filter(item => item.is_folder);
+    const documents = filteredChildren.filter(item => !item.is_folder);
+
+    const formatDate = (dateString) => {
+      if (!dateString) return '-';
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    };
+
+    return (
+      <>
+        <div className="flex items-center space-x-2 text-gray-400 mb-8">
+          {currentFolderId !== 'root' && currentPath.length > 1 && (
+            <Button variant="ghost" size="sm" onClick={() => setCurrentFolderId(currentPath[currentPath.length - 2].id)}>
+              <ArrowLeft className="w-4 h-4 mr-2" /> Back
+            </Button>
+          )}
+          {currentPath.map((folder, index) => (
+            <React.Fragment key={folder.id}>
+              <span onClick={() => setCurrentFolderId(folder.id)} className="cursor-pointer hover:text-white transition-colors">{folder.name}</span>
+              {index < currentPath.length - 1 && <span className="text-gray-600">/</span>}
+            </React.Fragment>
+          ))}
+        </div>
+
+        {/* Folders - Always in grid format with reduced gap and larger icons */}
+        {folders.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-0 mb-8">
+            {folders.map((item, index) => (
+              <motion.div 
+                key={item.id} 
+                initial={{ opacity: 0, y: 20 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                transition={{ duration: 0.5, delay: index * 0.05 }}
+                className="flex flex-col items-center cursor-pointer group relative"
+                onDoubleClick={() => setCurrentFolderId(item.id)}
+              >
+                <div className="relative mb-2">
                   <FolderIcon 
-                    className="w-24 h-24 transition-transform group-hover:scale-110" 
+                    className="w-56 h-56 transition-transform group-hover:scale-110" 
                     hasExpired={hasExpiredDocuments(item)}
                   />
-                ) : (
-                  <div className="w-24 h-24 rounded-xl flex items-center justify-center bg-gradient-to-br from-sky-500 to-indigo-500 transition-transform group-hover:scale-110">
-                    <FileText className="w-12 h-12 text-white" />
+                  {/* Action buttons on hover */}
+                  <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                    <Button 
+                      size="icon" 
+                      variant="secondary" 
+                      className="h-7 w-7 bg-gray-800/90 hover:bg-gray-700"
+                      onClick={(e) => {e.stopPropagation(); handleShareClick(item)}}
+                    >
+                      <Share2 className="w-3.5 h-3.5" />
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button 
+                          size="icon" 
+                          variant="secondary" 
+                          className="h-7 w-7 bg-red-600/90 hover:bg-red-700"
+                          onClick={(e) => {e.stopPropagation(); setItemToDelete({id: item.id, type: 'folder'})}}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete the item.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel onClick={(e) => {e.stopPropagation(); setItemToDelete(null)}} disabled={isMutating}>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={(e) => {e.stopPropagation(); handleDelete()}} disabled={isMutating}>
+                            {isMutating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
-                )}
-                {/* Action buttons on hover */}
-                <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                  <Button 
-                    size="icon" 
-                    variant="secondary" 
-                    className="h-7 w-7 bg-gray-800/90 hover:bg-gray-700"
-                    onClick={(e) => {e.stopPropagation(); handleShareClick(item)}}
-                  >
-                    <Share2 className="w-3.5 h-3.5" />
-                  </Button>
-                  {!item.is_folder && (
+                </div>
+                <div className="w-full text-center px-1">
+                  <p className="text-sm text-white truncate group-hover:text-blue-300 transition-colors">{item.name}</p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
+
+        {/* Documents - Table format in subfolders, grid format in main folders */}
+        {isSubFolder && documents.length > 0 && (
+          <div className="mt-8">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-gray-400">FILE NAME</TableHead>
+                  <TableHead className="text-gray-400">EXPIRY DATE</TableHead>
+                  <TableHead className="text-gray-400 text-right">ACTION</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {documents.map((item) => (
+                  <TableRow key={item.id} className="hover:bg-white/5">
+                    <TableCell className="text-white font-medium">{item.name}</TableCell>
+                    <TableCell className="text-gray-300">{formatDate(item.expiry_date)}</TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreVertical className="w-4 h-4 text-gray-400" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleView(item)}>
+                            <FileText className="w-4 h-4 mr-2" />
+                            View
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleShareClick(item)}>
+                            <Share2 className="w-4 h-4 mr-2" />
+                            Share
+                          </DropdownMenuItem>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <DropdownMenuItem 
+                                className="text-red-400 focus:text-red-400 focus:bg-red-500/10"
+                                onSelect={(e) => {
+                                  e.preventDefault();
+                                  setItemToDelete({id: item.id, type: 'document'});
+                                }}
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This action cannot be undone. This will permanently delete the document.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel onClick={() => setItemToDelete(null)} disabled={isMutating}>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleDelete} disabled={isMutating}>
+                                  {isMutating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+
+        {/* Documents - Grid format in main folders (when not in subfolder) */}
+        {!isSubFolder && documents.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-0">
+            {documents.map((item, index) => (
+              <motion.div 
+                key={item.id} 
+                initial={{ opacity: 0, y: 20 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                transition={{ duration: 0.5, delay: index * 0.05 }}
+                className="flex flex-col items-center cursor-pointer group relative"
+                onDoubleClick={() => handleView(item)}
+              >
+                <div className="relative mb-2">
+                  <div className="w-40 h-40 rounded-xl flex items-center justify-center bg-gradient-to-br from-sky-500 to-indigo-500 transition-transform group-hover:scale-110">
+                    <FileText className="w-20 h-20 text-white" />
+                  </div>
+                  {/* Action buttons on hover */}
+                  <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                    <Button 
+                      size="icon" 
+                      variant="secondary" 
+                      className="h-7 w-7 bg-gray-800/90 hover:bg-gray-700"
+                      onClick={(e) => {e.stopPropagation(); handleShareClick(item)}}
+                    >
+                      <Share2 className="w-3.5 h-3.5" />
+                    </Button>
                     <Button 
                       size="icon" 
                       variant="secondary" 
@@ -691,55 +834,56 @@ if (activeTab === 'myFiles') {
                     >
                       <FileText className="w-3.5 h-3.5" />
                     </Button>
-                  )}
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button 
-                        size="icon" 
-                        variant="secondary" 
-                        className="h-7 w-7 bg-red-600/90 hover:bg-red-700"
-                        onClick={(e) => {e.stopPropagation(); setItemToDelete({id: item.id, type: item.is_folder ? 'folder' : 'document'})}}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This action cannot be undone. This will permanently delete the item.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel onClick={(e) => {e.stopPropagation(); setItemToDelete(null)}} disabled={isMutating}>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={(e) => {e.stopPropagation(); handleDelete()}} disabled={isMutating}>
-                          {isMutating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                          Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button 
+                          size="icon" 
+                          variant="secondary" 
+                          className="h-7 w-7 bg-red-600/90 hover:bg-red-700"
+                          onClick={(e) => {e.stopPropagation(); setItemToDelete({id: item.id, type: 'document'})}}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete the item.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel onClick={(e) => {e.stopPropagation(); setItemToDelete(null)}} disabled={isMutating}>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={(e) => {e.stopPropagation(); handleDelete()}} disabled={isMutating}>
+                            {isMutating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
                 </div>
-              </div>
-              <div className="w-full text-center px-1">
-                <p className="text-sm text-white truncate group-hover:text-blue-300 transition-colors">{item.name}</p>
-                {!item.is_folder && (
+                <div className="w-full text-center px-1">
+                  <p className="text-sm text-white truncate group-hover:text-blue-300 transition-colors">{item.name}</p>
                   <p className="text-xs text-gray-400 mt-1 truncate">{item.file_type} • {item.size ? `${(item.size / 1024 / 1024).toFixed(2)} MB` : ''}</p>
-                )}
-              </div>
-            </motion.div>
-        ))}
-        {filteredChildren.length === 0 && (
-            <div className="text-center py-12 col-span-full">
-            <p className="text-gray-400">{searchTerm ? 'No items found matching your search.' : 'This folder is empty.'}</p>
-            </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
         )}
-        </div>
-    </>
-  );
+
+        {/* Empty state */}
+        {filteredChildren.length === 0 && (
+          <div className="text-center py-12">
+            <p className="text-gray-400">{searchTerm ? 'No items found matching your search.' : 'This folder is empty.'}</p>
+          </div>
+        )}
+      </>
+    );
+  };
 
   const renderSharedWithMe = () => (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4">
       {sharedDocuments.map((item, index) => (
         <motion.div 
           key={item.id} 
@@ -752,13 +896,13 @@ if (activeTab === 'myFiles') {
           <div className="relative mb-2">
             {item.is_folder ? (
               <FolderIcon 
-                className="w-24 h-24 transition-transform group-hover:scale-110" 
+                className="w-40 h-40 transition-transform group-hover:scale-110" 
                 hasExpired={hasExpiredDocuments(item)}
               />
             ) : (
-              <div className="w-24 h-24 rounded-xl flex items-center justify-center bg-gradient-to-br from-purple-500 to-pink-500 transition-transform group-hover:scale-110">
-                <FileText className="w-12 h-12 text-white" />
-              </div>
+              <div className="w-40 h-40 rounded-xl flex items-center justify-center bg-gradient-to-br from-purple-500 to-pink-500 transition-transform group-hover:scale-110">
+                    <FileText className="w-20 h-20 text-white" />
+                  </div>
             )}
             {/* Action buttons on hover */}
             <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
@@ -813,7 +957,7 @@ if (activeTab === 'myFiles') {
                 <Button onClick={() => setShowCreateFolder(true)} variant="outline">
                   <FolderPlus className="w-5 h-5 mr-2" /> Folder
                 </Button>
-                {currentFolderId !== 'root' && (
+                {currentFolderId !== 'root' && currentPath.length > 2 && (
                   <Button onClick={() => setShowUpload(true)}>
                     <Plus className="w-5 h-5 mr-2" /> Upload
                   </Button>
