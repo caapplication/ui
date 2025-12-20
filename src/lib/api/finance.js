@@ -1,6 +1,6 @@
 import { getAuthHeaders, handleResponse } from './utils';
 
-const FINANCE_API_BASE_URL = 'http://127.0.0.1:8004';
+const FINANCE_API_BASE_URL = 'http://127.0.0.1:8003';
 
 export const getEntities = async (token) => {
     const response = await fetch(`${FINANCE_API_BASE_URL}/api/entities/`, {
@@ -81,6 +81,14 @@ export const getBankAccountsForBeneficiary = async (beneficiaryId, token) => {
     return handleResponse(response);
 };
 
+// Optimized version for voucher form dropdowns - faster, returns only essential fields
+export const getBankAccountsForBeneficiaryDropdown = async (beneficiaryId, token) => {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/beneficiaries/${beneficiaryId}/bank_accounts/dropdown`, {
+        headers: getAuthHeaders(token),
+    });
+    return handleResponse(response);
+};
+
 export const addBankAccount = async (beneficiaryId, bankAccountData, token) => {
     const response = await fetch(`${FINANCE_API_BASE_URL}/api/beneficiaries/${beneficiaryId}/bank_accounts`, {
         method: 'POST',
@@ -119,6 +127,14 @@ export const deleteBankAccount = async (beneficiaryId, bankAccountId, token) => 
 
 export const getOrganisationBankAccounts = async (entityId, token) => {
     const response = await fetch(`${FINANCE_API_BASE_URL}/api/bank_accounts/?entity_id=${entityId}&masked=false`, {
+        headers: getAuthHeaders(token),
+    });
+    return handleResponse(response);
+};
+
+// Optimized version for voucher form dropdowns - faster, returns only essential fields
+export const getOrganisationBankAccountsDropdown = async (entityId, token) => {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/bank_accounts/dropdown?entity_id=${entityId}`, {
         headers: getAuthHeaders(token),
     });
     return handleResponse(response);
@@ -218,7 +234,7 @@ export const getVouchers = async (entityId, token) => {
 export const addVoucher = async (voucherFormData, token) => {
     const headers = getAuthHeaders(token);
     delete headers['Content-Type'];
-    const response = await fetch(`${FINANCE_API_BASE_URL}/api/vouchers/`, {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/vouchers`, {
         method: 'POST',
         headers,
         body: voucherFormData,

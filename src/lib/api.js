@@ -10,7 +10,7 @@ import * as team from './api/team';
 import * as tasks from './api/tasks';
 
 const API_BASE_URL = 'https://login-api.fynivo.in';
-export const FINANCE_API_BASE_URL = 'http://127.0.0.1:8004/';
+export const FINANCE_API_BASE_URL = 'http://127.0.0.1:8003/';
 
 export const { 
     refreshToken, 
@@ -21,7 +21,8 @@ export const {
     updatePassword, 
     toggle2FA, 
     verify2FA,
-    uploadProfilePicture
+    uploadProfilePicture,
+    deleteProfilePicture
 } = auth;
 
 export const {
@@ -34,11 +35,13 @@ export const {
     getBeneficiary,
     updateBeneficiary,
     getBankAccountsForBeneficiary,
+    getBankAccountsForBeneficiaryDropdown,
     addBankAccount,
     deactivateBankAccount,
     reactivateBankAccount,
     deleteBankAccount,
     getOrganisationBankAccounts,
+    getOrganisationBankAccountsDropdown,
     getOrganisationBankAccountsForCA,
     addOrganisationBankAccount,
     updateOrganisationBankAccount,

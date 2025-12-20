@@ -1,6 +1,6 @@
 import { getAuthHeaders, handleResponse } from './utils';
 
-const API_BASE_URL = 'https://login-api.fynivo.in';
+const API_BASE_URL = 'http://127.0.0.1:8001';
 
 export const refreshToken = async (refreshToken) => {
     const response = await fetch(`${API_BASE_URL}/auth/refresh-token`, {
@@ -82,6 +82,14 @@ export const uploadProfilePicture = async (file, token) => {
         method: 'POST',
         headers: getAuthHeaders(token, null),
         body: formData
+    });
+    return handleResponse(response);
+};
+
+export const deleteProfilePicture = async (token) => {
+    const response = await fetch(`${API_BASE_URL}/profile/photo`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(token)
     });
     return handleResponse(response);
 };

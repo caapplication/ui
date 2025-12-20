@@ -7,9 +7,9 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/components/ui/use-toast';
-import { User, Lock, Shield, Camera, Mail, Eye, EyeOff } from 'lucide-react';
+import { User, Lock, Shield, Camera, Mail, Eye, EyeOff, Trash2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { getProfile, updateName, updatePassword, toggle2FA, verify2FA, uploadProfilePicture } from '@/lib/api';
+import { getProfile, updateName, updatePassword, toggle2FA, verify2FA, uploadProfilePicture, deleteProfilePicture } from '@/lib/api';
 
 const PasswordInput = ({ id, value, onChange, ...props }) => {
     const [showPassword, setShowPassword] = useState(false);
@@ -165,6 +165,21 @@ const Profile = () => {
         }
     };
 
+    const handleRemovePicture = async () => {
+        if (!user?.photo_url) return;
+
+        setIsSubmitting(true);
+        try {
+            await deleteProfilePicture(user.access_token);
+            updateUser({ ...user, photo_url: null });
+            toast({ title: "Success", description: "Profile picture removed successfully." });
+        } catch (error) {
+            toast({ title: "Error", description: error.message, variant: "destructive" });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     if (isLoadingProfile || authLoading) {
         return <div className="p-8 flex justify-center items-center h-full"><div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white"></div></div>;
     }
@@ -192,13 +207,26 @@ const Profile = () => {
                                             {user?.name?.charAt(0).toUpperCase() || user?.sub?.charAt(0).toUpperCase()}
                                         </AvatarFallback>
                                     </Avatar>
-                                    <Button
-                                        size="icon"
-                                        className="absolute bottom-1 right-1 rounded-full w-10 h-10 bg-white/20 text-white hover:bg-white/30 backdrop-blur-sm border border-white/30"
-                                        onClick={() => fileInputRef.current.click()}
-                                    >
-                                        <Camera className="w-5 h-5" />
-                                    </Button>
+                                    <div className="absolute bottom-1 right-1 flex gap-2">
+                                        <Button
+                                            size="icon"
+                                            className="rounded-full w-10 h-10 bg-white/20 text-white hover:bg-white/30 backdrop-blur-sm border border-white/30"
+                                            onClick={() => fileInputRef.current.click()}
+                                            disabled={isSubmitting}
+                                        >
+                                            <Camera className="w-5 h-5" />
+                                        </Button>
+                                        {user?.photo_url && (
+                                            <Button
+                                                size="icon"
+                                                className="rounded-full w-10 h-10 bg-red-500/20 text-white hover:bg-red-500/30 backdrop-blur-sm border border-red-500/30"
+                                                onClick={handleRemovePicture}
+                                                disabled={isSubmitting}
+                                            >
+                                                <Trash2 className="w-5 h-5" />
+                                            </Button>
+                                        )}
+                                    </div>
                                     <Input
                                         type="file"
                                         ref={fileInputRef}

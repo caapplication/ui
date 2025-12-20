@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Plus, Loader2 } from 'lucide-react';
 import { DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { getBankAccountsForBeneficiary } from '@/lib/api';
+import { Combobox } from '@/components/ui/combobox';
+import { getBankAccountsForBeneficiaryDropdown, getOrganisationBankAccountsDropdown } from '@/lib/api';
 
 const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSave, onCancel, entityId, voucher, financeHeaders }) => {
     const isEditing = !!voucher;
@@ -18,12 +19,16 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
     const [voucherType, setVoucherType] = useState(voucher?.voucher_type || 'debit');
     const [paymentType, setPaymentType] = useState(voucher?.payment_type || '');
     const [selectedBeneficiaryId, setSelectedBeneficiaryId] = useState(voucher?.beneficiary_id || '');
+    const [fromBankAccountId, setFromBankAccountId] = useState(voucher?.from_bank_account_id || '');
+    const [toBankAccountId, setToBankAccountId] = useState(voucher?.to_bank_account_id || '');
 
     useEffect(() => {
         if(voucher){
             setVoucherType(voucher.voucher_type);
             setPaymentType(voucher.payment_type);
             setSelectedBeneficiaryId(voucher.beneficiary_id);
+            setFromBankAccountId(voucher.from_bank_account_id || '');
+            setToBankAccountId(voucher.to_bank_account_id || '');
         }
     }, [voucher])
 
@@ -35,20 +40,30 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
         }
     }, [voucherType, isEditing]);
 
-    // Fetch organisation bank accounts when entityId changes (add flow)
+    // Cache for beneficiary bank accounts to avoid refetching
+    const [beneficiaryBankAccountsCache, setBeneficiaryBankAccountsCache] = useState({});
+    const [isLoadingOrgAccounts, setIsLoadingOrgAccounts] = useState(false);
+    const [isLoadingBeneficiaryAccounts, setIsLoadingBeneficiaryAccounts] = useState(false);
+
+    // Lazy load organisation bank accounts only when payment type is bank_transfer (using optimized endpoint)
     useEffect(() => {
         const fetchOrgAccounts = async () => {
-            if (!isEditing && entityId && user?.access_token) {
+            // Only fetch if: not editing, entityId exists, payment type is bank_transfer, and we don't have accounts yet
+            if (!isEditing && entityId && user?.access_token && paymentType === 'bank_transfer' && orgBankAccounts.length === 0) {
+                setIsLoadingOrgAccounts(true);
                 try {
-                    const accounts = await import('@/lib/api').then(api => api.getOrganisationBankAccounts(entityId, user.access_token));
+                    // Use optimized dropdown endpoint - much faster
+                    const accounts = await getOrganisationBankAccountsDropdown(entityId, user.access_token);
                     setOrgBankAccounts(accounts || []);
                 } catch (error) {
                     setOrgBankAccounts([]);
+                } finally {
+                    setIsLoadingOrgAccounts(false);
                 }
             }
         };
         fetchOrgAccounts();
-    }, [entityId, isEditing, user?.access_token]);
+    }, [entityId, isEditing, user?.access_token, paymentType, orgBankAccounts.length]);
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -58,15 +73,21 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
             formData.append('entity_id', entityId);
         }
 
+        // Update form data with state values for combobox fields
+        formData.set('beneficiary_id', selectedBeneficiaryId);
+        if (voucherType === 'debit' && paymentType === 'bank_transfer') {
+            formData.set('from_bank_account_id', fromBankAccountId || '');
+            formData.set('to_bank_account_id', toBankAccountId || '');
+        } else {
+            formData.set('from_bank_account_id', '0');
+            formData.set('to_bank_account_id', '0');
+        }
+
         const attachment = formData.get('attachment');
         if (isEditing && (!attachment || attachment.size === 0)) {
             formData.delete('attachment');
         }
 
-        if (formData.get('voucher_type') === 'cash' || formData.get('payment_type') !== 'bank_transfer') {
-            formData.set('from_bank_account_id', '0');
-            formData.set('to_bank_account_id', '0');
-        }
         if (formData.get('voucher_type') === 'cash') {
             formData.set('payment_type', 'cash');
         }
@@ -79,23 +100,41 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
         onSave(formData, voucher?.id);
     };
 
-    // Local state for beneficiary bank accounts (for add flow)
-    const [beneficiaryBankAccounts, setBeneficiaryBankAccounts] = useState([]);
-
+    // Fetch beneficiary bank accounts with caching (only when beneficiary is selected and payment type is bank_transfer)
+    // Using optimized dropdown endpoint for faster loading
     useEffect(() => {
-        // Fetch beneficiary bank accounts when a beneficiary is selected (add flow)
         const fetchAccounts = async () => {
-            if (selectedBeneficiaryId && !isEditing && user?.access_token) {
+            // Only fetch if: not editing, beneficiary selected, payment type is bank_transfer, and not already cached
+            if (selectedBeneficiaryId && !isEditing && user?.access_token && paymentType === 'bank_transfer') {
+                // Check cache first
+                if (beneficiaryBankAccountsCache[selectedBeneficiaryId]) {
+                    return; // Already cached, no need to fetch
+                }
+                
+                setIsLoadingBeneficiaryAccounts(true);
                 try {
-                    const accounts = await getBankAccountsForBeneficiary(selectedBeneficiaryId, user.access_token);
-                    setBeneficiaryBankAccounts(accounts || []);
+                    // Use optimized dropdown endpoint - much faster, returns only essential fields
+                    const accounts = await getBankAccountsForBeneficiaryDropdown(selectedBeneficiaryId, user.access_token);
+                    const accountsList = accounts || [];
+                    // Cache the accounts
+                    setBeneficiaryBankAccountsCache(prev => ({
+                        ...prev,
+                        [selectedBeneficiaryId]: accountsList
+                    }));
                 } catch (error) {
-                    setBeneficiaryBankAccounts([]);
+                    // Cache empty array on error
+                    setBeneficiaryBankAccountsCache(prev => ({
+                        ...prev,
+                        [selectedBeneficiaryId]: []
+                    }));
+                } finally {
+                    setIsLoadingBeneficiaryAccounts(false);
                 }
             }
         };
         fetchAccounts();
-    }, [selectedBeneficiaryId, isEditing, user?.access_token]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedBeneficiaryId, isEditing, user?.access_token, paymentType]);
 
     const selectedBeneficiaryBankAccounts = useMemo(() => {
         const accounts = isEditing
@@ -104,11 +143,11 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
                 const beneficiary = beneficiaries.find(b => String(b.id) === String(selectedBeneficiaryId));
                 return beneficiary?.bank_accounts || [];
               })()
-            : beneficiaryBankAccounts;
+            : (beneficiaryBankAccountsCache[selectedBeneficiaryId] || []);
 
         // Only show active accounts in voucher bank transfer dropdown
         return (accounts || []).filter((acc) => acc?.is_active !== false);
-    }, [selectedBeneficiaryId, beneficiaries, isEditing, beneficiaryBankAccounts]);
+    }, [selectedBeneficiaryId, beneficiaries, isEditing, beneficiaryBankAccountsCache]);
 
     return (
         <DialogContent className="max-w-3xl" closeDisabled={isLoading}>
@@ -141,24 +180,24 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
 
                 <div>
                     <Label htmlFor="beneficiary_id">Beneficiary</Label>
-                    <Select name="beneficiary_id" required onValueChange={setSelectedBeneficiaryId} value={String(selectedBeneficiaryId)} disabled={isLoading}>
-                        <SelectTrigger>
-                            <SelectValue placeholder={isLoading ? "Loading..." : "Select beneficiary"} />
-                        </SelectTrigger>
-                        <SelectContent>
-                           {isLoading ? (
-                            <div className="flex items-center justify-center p-2">
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                            </div>
-                           ) : (
-                            (beneficiaries || []).map(b => (
-                                <SelectItem key={b.id} value={String(b.id)}>
-                                    {b.beneficiary_type === 'individual' ? b.name : b.company_name}
-                                </SelectItem>
-                            ))
-                           )}
-                        </SelectContent>
-                    </Select>
+                    {isLoading ? (
+                        <div className="flex items-center justify-center p-2 border border-white/20 bg-white/10 rounded-lg h-11">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                        </div>
+                    ) : (
+                        <Combobox
+                            options={(beneficiaries || []).map(b => ({
+                                value: String(b.id),
+                                label: b.beneficiary_type === 'individual' ? b.name : b.company_name
+                            }))}
+                            value={selectedBeneficiaryId ? String(selectedBeneficiaryId) : ''}
+                            onValueChange={(value) => setSelectedBeneficiaryId(value)}
+                            placeholder="Select beneficiary..."
+                            searchPlaceholder="Search beneficiaries..."
+                            emptyText="No beneficiaries found."
+                            disabled={isLoading}
+                        />
+                    )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -184,37 +223,53 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
                         <>
                             <div>
                                 <Label htmlFor="from_bank_account_id">From (Organisation Bank)</Label>
-                                <Select name="from_bank_account_id" required defaultValue={voucher?.from_bank_account_id} disabled={isLoading}>
-                                    <SelectTrigger><SelectValue placeholder="Select your bank account" /></SelectTrigger>
-                                    <SelectContent>
-                                        {(isEditing ? (organisationBankAccounts || []) : orgBankAccounts).map(acc => (
-                                            <SelectItem key={acc.id} value={String(acc.id)}>
-                                               {acc.bank_name} - ...{String(acc.account_number).slice(-4)}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                {isLoadingOrgAccounts ? (
+                                    <div className="flex items-center justify-center p-2 border border-white/20 bg-white/10 rounded-lg h-11">
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                    </div>
+                                ) : (
+                                    <Combobox
+                                        options={(isEditing ? (organisationBankAccounts || []) : orgBankAccounts).map(acc => ({
+                                            value: String(acc.id),
+                                            label: `${acc.bank_name} - ...${String(acc.account_number).slice(-4)}`
+                                        }))}
+                                        value={fromBankAccountId ? String(fromBankAccountId) : ''}
+                                        onValueChange={(value) => setFromBankAccountId(value)}
+                                        placeholder="Select your bank account..."
+                                        searchPlaceholder="Search bank accounts..."
+                                        emptyText="No bank accounts found."
+                                        disabled={isLoading || isLoadingOrgAccounts}
+                                    />
+                                )}
                             </div>
                             <div className="md:col-span-2">
                                 <Label htmlFor="to_bank_account_id">To (Beneficiary Bank)</Label>
-                                <Select name="to_bank_account_id" required disabled={isLoading || !selectedBeneficiaryId || selectedBeneficiaryBankAccounts.length === 0} defaultValue={voucher?.to_bank_account_id}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder={
-                                            !selectedBeneficiaryId 
-                                            ? "First select a beneficiary" 
-                                            : selectedBeneficiaryBankAccounts.length === 0 
-                                            ? "No bank accounts for this beneficiary" 
-                                            : "Select beneficiary's account"
-                                        } />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {selectedBeneficiaryBankAccounts.map(acc => (
-                                            <SelectItem key={acc.id} value={String(acc.id)}>
-                                                {acc.bank_name} - {acc.account_number}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                {isLoadingBeneficiaryAccounts ? (
+                                    <div className="flex items-center justify-center p-2 border border-white/20 bg-white/10 rounded-lg h-11">
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                    </div>
+                                ) : !selectedBeneficiaryId ? (
+                                    <div className="flex items-center justify-center p-2 border border-white/20 bg-white/10 rounded-lg h-11 text-gray-400">
+                                        First select a beneficiary
+                                    </div>
+                                ) : selectedBeneficiaryBankAccounts.length === 0 ? (
+                                    <div className="flex items-center justify-center p-2 border border-white/20 bg-white/10 rounded-lg h-11 text-gray-400">
+                                        No bank accounts for this beneficiary
+                                    </div>
+                                ) : (
+                                    <Combobox
+                                        options={selectedBeneficiaryBankAccounts.map(acc => ({
+                                            value: String(acc.id),
+                                            label: `${acc.bank_name} - ${acc.account_number}`
+                                        }))}
+                                        value={toBankAccountId ? String(toBankAccountId) : ''}
+                                        onValueChange={(value) => setToBankAccountId(value)}
+                                        placeholder="Select beneficiary's account..."
+                                        searchPlaceholder="Search beneficiary accounts..."
+                                        emptyText="No bank accounts found."
+                                        disabled={isLoading || isLoadingBeneficiaryAccounts}
+                                    />
+                                )}
                             </div>
                         </>
                     )}
