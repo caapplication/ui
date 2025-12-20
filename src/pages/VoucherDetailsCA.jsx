@@ -328,19 +328,31 @@ const VoucherDetailsCA = () => {
             amount: Number(data.amount),
             voucher_type: editedVoucher.voucher_type,
             payment_type: editedVoucher.payment_type,
-            remarks: data.remarks,
+            remarks: data.remarks || null,
             ...(editedVoucher.payment_type === 'bank_transfer' ? {
                 from_bank_account_id: editedVoucher.from_bank_account_id,
                 to_bank_account_id: editedVoucher.to_bank_account_id,
             } : {}),
-            finance_header_id: data.finance_header_id,
+            ...(data.finance_header_id && data.finance_header_id !== '' ? {
+                finance_header_id: Number(data.finance_header_id)
+            } : { finance_header_id: null }),
         };
 
         try {
-            await updateVoucher(voucherId, payload, user.access_token);
+            const updatedVoucher = await updateVoucher(voucherId, payload, user.access_token);
+            // Update local state with the returned voucher data
+            if (updatedVoucher) {
+                setVoucher(updatedVoucher);
+                setEditedVoucher(updatedVoucher);
+            }
             toast({ title: 'Success', description: 'Voucher updated successfully.' });
             setIsEditing(false);
-            navigate('/finance/ca');
+            // Refresh the voucher data
+            const refreshedVoucher = await getVoucher(null, voucherId, user.access_token);
+            if (refreshedVoucher) {
+                setVoucher(refreshedVoucher);
+                setEditedVoucher(refreshedVoucher);
+            }
         } catch (error) {
             toast({ title: 'Error', description: `Failed to update voucher: ${error.message}`, variant: 'destructive' });
         }
@@ -629,7 +641,7 @@ const VoucherDetailsCA = () => {
                     </TabsContent>
                     <TabsContent value="activity" className="mt-4">
                         <div className="p-4">
-                            <ActivityLog itemId={voucherId} itemType="voucher" />
+                            <ActivityLog itemId={voucher?.voucher_id || voucherId} itemType="voucher" />
                         </div>
                     </TabsContent>
                     <TabsContent value="beneficiary" className="mt-4">

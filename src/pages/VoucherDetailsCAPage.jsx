@@ -278,22 +278,34 @@ const VoucherDetailsCAPage = () => {
         const data = Object.fromEntries(formData.entries());
         const payload = {
             beneficiary_id: editedVoucher.beneficiary_id,
-            amount: Number(editedVoucher.amount),
+            amount: Number(data.amount) || Number(editedVoucher.amount),
             voucher_type: editedVoucher.voucher_type,
             payment_type: editedVoucher.payment_type,
-            remarks: editedVoucher.remarks,
+            remarks: data.remarks || editedVoucher.remarks || null,
             ...(editedVoucher.payment_type === 'bank_transfer' ? {
                 from_bank_account_id: editedVoucher.from_bank_account_id,
                 to_bank_account_id: editedVoucher.to_bank_account_id,
             } : {}),
-            finance_header_id: data.finance_header_id,
+            ...(data.finance_header_id && data.finance_header_id !== '' ? {
+                finance_header_id: Number(data.finance_header_id)
+            } : { finance_header_id: null }),
         };
 
         try {
-            await updateVoucher(voucherId, payload, user.access_token);
+            const updatedVoucher = await updateVoucher(voucherId, payload, user.access_token);
+            // Update local state with the returned voucher data
+            if (updatedVoucher) {
+                setVoucher(updatedVoucher);
+                setEditedVoucher(updatedVoucher);
+            }
             toast({ title: 'Success', description: 'Voucher updated successfully.' });
             setIsEditing(false);
-            navigate('/finance/ca');
+            // Refresh the voucher data
+            const refreshedVoucher = await getVoucher(null, voucherId, user.access_token);
+            if (refreshedVoucher) {
+                setVoucher(refreshedVoucher);
+                setEditedVoucher(refreshedVoucher);
+            }
         } catch (error) {
             toast({ title: 'Error', description: `Failed to update voucher: ${error.message}`, variant: 'destructive' });
         }
@@ -405,7 +417,13 @@ const VoucherDetailsCAPage = () => {
                                 </div>
                                 <div>
                                     <Label htmlFor="amount">Amount</Label>
-                                    <Input name="amount" type="number" defaultValue={editedVoucher.amount} />
+                                    <Input 
+                                        name="amount" 
+                                        type="number" 
+                                        step="0.01"
+                                        defaultValue={editedVoucher.amount} 
+                                        onChange={(e) => setEditedVoucher(p => ({ ...p, amount: parseFloat(e.target.value) || 0 }))}
+                                    />
                                 </div>
                                 <div>
                                     <Label htmlFor="voucher_type">Voucher Type</Label>
@@ -555,7 +573,7 @@ const VoucherDetailsCAPage = () => {
                     </TabsContent>
                     <TabsContent value="activity" className="mt-4">
                         <div className="p-4">
-                            <ActivityLog itemId={voucherId} itemType="voucher" />
+                            <ActivityLog itemId={voucher?.voucher_id || voucherId} itemType="voucher" />
                         </div>
                     </TabsContent>
                     <TabsContent value="beneficiary" className="mt-4">

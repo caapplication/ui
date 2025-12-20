@@ -35,12 +35,13 @@ const InvoiceDetailsPage = () => {
     const { user } = useAuth();
     const { selectedEntity } = useOrganisation();
     const { toast } = useToast();
-    const { attachmentUrl, invoice, beneficiaryName, organisationId, invoices: invoicesFromState, currentIndex: currentIndexFromState } = location.state || {};
+    const { attachmentUrl, invoice: initialInvoice, beneficiaryName, organisationId, invoices: invoicesFromState, currentIndex: currentIndexFromState } = location.state || {};
+    const [invoice, setInvoice] = useState(initialInvoice);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const invoiceDetailsRef = React.useRef(null);
     const [beneficiaries, setBeneficiaries] = useState([]);
-    const [editedInvoice, setEditedInvoice] = useState(invoice);
+    const [editedInvoice, setEditedInvoice] = useState(initialInvoice);
     const [attachmentToDisplay, setAttachmentToDisplay] = useState(attachmentUrl);
     const [zoom, setZoom] = useState(1);
     const [financeHeaders, setFinanceHeaders] = useState([]);
@@ -146,10 +147,14 @@ const InvoiceDetailsPage = () => {
         delete data.date;
         try {
             const entityId = selectedEntity || localStorage.getItem('entityId');
-            await updateInvoice(invoiceId, entityId, data, user.access_token);
+            const updatedInvoice = await updateInvoice(invoiceId, entityId, data, user.access_token);
+            // Update local state with the returned invoice data
+            if (updatedInvoice) {
+                setInvoice(updatedInvoice);
+                setEditedInvoice(updatedInvoice);
+            }
             toast({ title: 'Success', description: 'Invoice updated successfully.' });
             setIsEditing(false);
-            navigate(-1);
         } catch (error) {
             toast({
                 title: 'Error',

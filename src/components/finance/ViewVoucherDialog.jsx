@@ -240,7 +240,7 @@ const ViewVoucherDialog = ({ voucher, fromAccount, toAccount, beneficiary, isOpe
                         </div>
                     </TabsContent>
                     <TabsContent value="activity" className="mt-4">
-                        <ActivityLog itemId={voucher.id} itemType="voucher" />
+                        <ActivityLog itemId={voucher.voucher_id || voucher.id} itemType="voucher" />
                     </TabsContent>
                 </Tabs>
 

@@ -107,17 +107,26 @@ const ActivityLog = ({ itemId, itemType }) => {
                 }
 
                 return (
-                    <div key={log.id} className="flex items-start space-x-3">
+                    <div key={log.id} className="flex items-start space-x-3 p-3 rounded-lg bg-gray-800/50 border border-gray-700/50">
                         <div className="flex-shrink-0">
                             <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center">
                                 <History className="w-4 h-4 text-gray-300" />
                             </div>
                         </div>
-                        <div>
+                        <div className="flex-1 min-w-0">
                             <p className="text-sm text-white">
                                 <span className="font-semibold">{userDisplay}</span> {actionDisplay} {itemTypeDisplay}.
                             </p>
-                            <p className="text-xs text-gray-400">
+                            {log.details && 
+                             log.details !== "Voucher created" && 
+                             log.details !== "Voucher updated" &&
+                             log.details !== "Invoice created" &&
+                             log.details !== "Invoice updated" && (
+                                <p className="text-xs text-gray-300 mt-1 ml-4 pl-2 border-l-2 border-gray-600">
+                                    {log.details}
+                                </p>
+                            )}
+                            <p className="text-xs text-gray-400 mt-1">
                                 {new Date(log.timestamp).toLocaleString()}
                             </p>
                         </div>
