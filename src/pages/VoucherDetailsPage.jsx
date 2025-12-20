@@ -4,6 +4,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { deleteVoucher, updateVoucher, getBeneficiaries, getVoucherAttachment, getVoucher, getBankAccountsForBeneficiary, getOrganisationBankAccounts, getFinanceHeaders } from '@/lib/api.js';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -157,6 +158,23 @@ const VoucherDetailsPage = () => {
     const [financeHeaders, setFinanceHeaders] = useState([]);
     const [isDeleting, setIsDeleting] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const [isImageLoading, setIsImageLoading] = useState(false);
+    
+    // Get entity name from user entities
+    const getEntityName = () => {
+        if (!user) return 'N/A';
+        const entityId = localStorage.getItem('entityId') || voucher?.entity_id;
+        if (!entityId) return 'N/A';
+        
+        // For CLIENT_USER, check user.entities
+        if (user.role === 'CLIENT_USER' && user.entities) {
+            const entity = user.entities.find(e => e.id === entityId);
+            if (entity) return entity.name;
+        }
+        
+        // Fallback to entityName from location state
+        return entityName || 'N/A';
+    };
 
 
     useEffect(() => {
@@ -172,51 +190,101 @@ const VoucherDetailsPage = () => {
         const fetchData = async () => {
             try {
                 const entityId = localStorage.getItem('entityId');
+                
+                // Use initialVoucher if available, otherwise fetch
                 let currentVoucher = initialVoucher;
-
-                // Retry logic for fetching voucher details
-                let attempts = 0;
-                let maxAttempts = 5;
-                let delay = 800;
-                while ((!currentVoucher || !currentVoucher.from_bank_account_id || !currentVoucher.to_bank_account_id) && attempts < maxAttempts) {
+                
+                // Only fetch if we don't have initial voucher or if voucherId changed
+                if (!currentVoucher || currentVoucher.id !== voucherId) {
+                    // Use full endpoint to get complete voucher data including attachment info
                     currentVoucher = await getVoucher(entityId, voucherId, user.access_token);
-                    if (currentVoucher && currentVoucher.from_bank_account_id && currentVoucher.to_bank_account_id) break;
-                    await new Promise(res => setTimeout(res, delay));
-                    attempts++;
                 }
 
                 if (!currentVoucher) {
                     toast({ title: 'Error', description: 'Voucher not found.', variant: 'destructive' });
+                    setIsLoading(false);
                     return;
                 }
 
                 if (isMounted) {
                     setVoucher(currentVoucher);
                     setEditedVoucher(currentVoucher);
+                    setIsLoading(false);
+                    
+                    // Load attachment and finance headers in parallel (non-blocking)
+                    const promises = [];
+                    
+                    // Always reset attachment state when voucher changes
+                    // Check for attachment_id in both currentVoucher and attachment object
+                    const attachmentId = currentVoucher.attachment_id || (currentVoucher.attachment && currentVoucher.attachment.id);
+                    
+                    if (attachmentId) {
+                        setIsImageLoading(true);
+                        setAttachmentUrl(null); // Reset attachment URL
+                        console.log("Fetching attachment for voucher:", currentVoucher.id, "attachment_id:", attachmentId);
+                        promises.push(
+                            getVoucherAttachment(attachmentId, user.access_token)
+                                .then(url => {
+                                    console.log("Attachment URL received:", url ? "Yes" : "No", url);
+                                    if (url) {
+                                        setAttachmentUrl(url);
+                                        // For PDFs, set loading to false immediately since iframes don't have onLoad
+                                        if (url.toLowerCase().endsWith('.pdf')) {
+                                            setIsImageLoading(false);
+                                        }
+                                        // For images, keep loading state true - onLoad handler will set it to false
+                                    } else {
+                                        console.warn("Attachment URL is null or empty");
+                                        setIsImageLoading(false);
+                                    }
+                                })
+                                .catch(err => {
+                                    console.error("Failed to fetch attachment:", err);
+                                    setIsImageLoading(false);
+                                    setAttachmentUrl(null);
+                                })
+                        );
+                    } else {
+                        console.log("No attachment_id for voucher:", currentVoucher.id);
+                        setAttachmentUrl(null);
+                        setIsImageLoading(false);
+                    }
+                    
+                    if (user && (user.role === 'CA_ACCOUNTANT' || user.role === 'CA_TEAM')) {
+                        promises.push(
+                            getFinanceHeaders(user.agency_id, user.access_token)
+                                .then(headers => setFinanceHeaders(headers))
+                                .catch(err => console.error("Failed to fetch finance headers:", err))
+                        );
+                    }
+                    
+                    // Don't wait for these - they load in background
+                    Promise.all(promises).catch(err => console.error("Background fetch error:", err));
                 }
             } catch (error) {
                 toast({ title: 'Error', description: `Failed to fetch data: ${error.message}`, variant: 'destructive' });
-            } finally {
                 setIsLoading(false);
             }
         };
 
         fetchData();
         return () => { isMounted = false; };
-    }, [voucherId, authLoading, user?.access_token, initialVoucher]);
+    }, [voucherId, authLoading, user?.access_token]);
 
-    // Always fetch org bank accounts for details view, not just when editing
+    // No need for separate preload - the img tag handles loading
+
+    // Fetch edit data only when editing or when voucher is loaded (for bank account display)
     useEffect(() => {
         const fetchEditData = async () => {
+            if (!user?.access_token || !voucher) return;
+            
             try {
                 const entityId = localStorage.getItem('entityId');
                 const orgId = voucher?.organisation_id || organisationId || user?.organization_id;
 
-                if (!orgId) {
-                    toast({ title: 'Error', description: 'Could not determine organization ID.', variant: 'destructive' });
-                    return;
-                }
+                if (!orgId) return;
 
+                // Use optimized endpoints and fetch in parallel
                 const [beneficiariesData, fromAccountsData] = await Promise.all([
                     getBeneficiaries(orgId, user.access_token),
                     getOrganisationBankAccounts(entityId, user.access_token),
@@ -225,25 +293,33 @@ const VoucherDetailsPage = () => {
                 setBeneficiaries(beneficiariesData || []);
                 setFromBankAccounts(fromAccountsData || []);
             } catch (error) {
-                toast({ title: 'Error', description: `Failed to fetch edit data: ${error.message}`, variant: 'destructive' });
+                console.error('Failed to fetch edit data:', error);
+                // Don't show toast for non-critical errors
             }
         };
-        if (user?.access_token && (voucher || isEditing)) {
+        
+        // Only fetch if editing or if we need bank accounts for display
+        if (isEditing || (voucher?.payment_type === 'bank_transfer' && voucher?.from_bank_account_id)) {
             fetchEditData();
         }
-    }, [isEditing, user, voucher, organisationId, toast]);
+    }, [isEditing, user?.access_token, voucher?.id, voucher?.payment_type, organisationId]);
 
     useEffect(() => {
         if (!user?.access_token || !editedVoucher?.beneficiary_id) return;
+        
+        // Only fetch if editing or if payment type requires bank accounts
+        if (!isEditing && editedVoucher?.payment_type !== 'bank_transfer') return;
+        
         (async () => {
             try {
                 const toAccounts = await getBankAccountsForBeneficiary(editedVoucher.beneficiary_id, user.access_token);
                 setToBankAccounts(toAccounts || []);
             } catch {
-                toast({ title: 'Error', description: 'Failed to fetch beneficiary bank accounts.', variant: 'destructive' });
+                console.error('Failed to fetch beneficiary bank accounts');
+                // Don't show toast for non-critical errors
             }
         })();
-    }, [user?.access_token, editedVoucher?.beneficiary_id]);
+    }, [user?.access_token, editedVoucher?.beneficiary_id, editedVoucher?.payment_type, isEditing]);
 
     useEffect(() => {
         if (editedVoucher?.voucher_type === 'cash') {
@@ -251,47 +327,19 @@ const VoucherDetailsPage = () => {
         }
     }, [editedVoucher?.voucher_type]);
 
-    useEffect(() => {
-        setAttachmentUrl(null);
-        if (voucher?.attachment_id && user?.access_token) {
-            const fetchAttachment = async () => {
-                try {
-                    const url = await getVoucherAttachment(voucher.attachment_id, user.access_token);
-                    setAttachmentUrl(url);
-                } catch (error) {
-                    console.error("Failed to fetch attachment:", error);
-                }
-            };
-            fetchAttachment();
-        }
-    }, [user?.access_token, voucher?.attachment_id, voucher?.id]);
-
-    useEffect(() => {
-        const fetchHeaders = async () => {
-            if (user && (user.role === 'CA_ACCOUNTANT' || user.role === 'CA_TEAM')) {
-                try {
-                    const headers = await getFinanceHeaders(user.agency_id, user.access_token);
-                    setFinanceHeaders(headers);
-                } catch (error) {
-                    toast({
-                        title: 'Error',
-                        description: `Failed to fetch finance headers: ${error.message}`,
-                        variant: 'destructive',
-                    });
-                }
-            }
-        };
-        fetchHeaders();
-    }, [user, toast]);
+    // Attachment and finance headers are now loaded in parallel in the main fetchData effect
 
     const handleNavigate = (direction) => {
         if (!vouchers || vouchers.length === 0) return;
         const newIndex = currentIndex + direction;
         if (newIndex >= 0 && newIndex < vouchers.length) {
             const nextVoucher = vouchers[newIndex];
-            navigate(`/finance/vouchers/${nextVoucher.id}`, { state: { voucher: nextVoucher, vouchers, organisationId } });
+            navigate(`/finance/vouchers/${nextVoucher.id}`, { state: { voucher: nextVoucher, vouchers, organisationId, entityName, organizationName } });
         }
     };
+    
+    // Check if we have vouchers to navigate - show arrows if we have multiple vouchers
+    const hasVouchers = vouchers && Array.isArray(vouchers) && vouchers.length > 1;
     
     const voucherDetails = voucher || {
         id: voucherId,
@@ -404,17 +452,57 @@ const VoucherDetailsPage = () => {
         }
     };
 
+    // Skeleton loading component
+    const VoucherDetailsSkeleton = () => (
+        <div className="h-screen w-full flex flex-col text-white bg-transparent p-4 md:p-6">
+            <header className="flex items-center justify-between pb-4 border-b border-white/10 mb-4">
+                <div className="flex items-center gap-4">
+                    <Skeleton className="h-10 w-10 rounded-md" />
+                    <div>
+                        <Skeleton className="h-8 w-48 mb-2" />
+                        <Skeleton className="h-4 w-64" />
+                    </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Skeleton className="h-10 w-10 rounded-md" />
+                    <Skeleton className="h-10 w-10 rounded-md" />
+                </div>
+            </header>
+            <ResizablePanelGroup direction="horizontal" className="flex-1 rounded-lg border border-white/10">
+                <ResizablePanel defaultSize={60} minSize={30}>
+                    <div className="relative flex h-full w-full flex-col items-center justify-center p-2">
+                        <Skeleton className="h-full w-full rounded-md" />
+                    </div>
+                </ResizablePanel>
+                <ResizableHandle withHandle />
+                <ResizablePanel defaultSize={40} minSize={30}>
+                    <div className="flex h-full items-start justify-center p-6 overflow-y-auto">
+                        <div className="w-full space-y-4">
+                            <div className="space-y-2">
+                                <Skeleton className="h-10 w-full" />
+                                <Skeleton className="h-10 w-full" />
+                                <Skeleton className="h-10 w-full" />
+                            </div>
+                            <Skeleton className="h-64 w-full rounded-lg" />
+                            <div className="space-y-2">
+                                <Skeleton className="h-6 w-32" />
+                                <Skeleton className="h-20 w-full rounded-md" />
+                            </div>
+                        </div>
+                    </div>
+                </ResizablePanel>
+            </ResizablePanelGroup>
+        </div>
+    );
+
     if (isLoading) {
-        return (
-            <div className="flex justify-center items-center h-screen">
-                <Loader2 className="w-8 h-8 animate-spin text-white" />
-            </div>
-        );
+        return <VoucherDetailsSkeleton />;
     }
 
     const isClientUser = user?.role === 'CLIENT_USER';
     const defaultTab = isClientUser ? 'details' : 'preview';
     const cols = isClientUser ? 'grid-cols-3' : 'grid-cols-4';
+    
 
     return (
         <div className="h-screen w-full flex flex-col text-white bg-transparent p-4 md:p-6">
@@ -428,14 +516,9 @@ const VoucherDetailsPage = () => {
                         <p className="text-sm text-gray-400">Review all cash and debit transactions.</p>
                     </div>
                 </div>
-                {/* Navigation arrows and image reload logic apply to all roles, including CA_ACCOUNTANT */}
-                <div className="flex items-center gap-2">
-                    <Button variant="outline" size="icon" onClick={() => handleNavigate(-1)} disabled={!vouchers || currentIndex === 0}>
-                        <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <Button variant="outline" size="icon" onClick={() => handleNavigate(1)} disabled={!vouchers || currentIndex === vouchers.length - 1}>
-                        <ChevronRight className="h-4 w-4" />
-                    </Button>
+                {/* Entity name in top right */}
+                <div className="flex items-center">
+                    <p className="text-sm font-semibold text-white">{getEntityName()}</p>
                 </div>
             </header>
 
@@ -445,8 +528,9 @@ const VoucherDetailsPage = () => {
             >
                 <ResizablePanel defaultSize={60} minSize={30}>
                     <div className="relative flex h-full w-full flex-col items-center justify-center p-2">
+                        {/* Zoom controls in bottom right corner */}
                         {attachmentUrl && !attachmentUrl.toLowerCase().endsWith('.pdf') && (
-                            <div className="absolute top-4 right-4 z-10 flex gap-2">
+                            <div className="absolute bottom-4 right-4 z-10 flex gap-2">
                                 <Button variant="outline" size="icon" onClick={() => setZoom(z => z + 0.1)}>
                                     <ZoomIn className="h-4 w-4" />
                                 </Button>
@@ -455,12 +539,14 @@ const VoucherDetailsPage = () => {
                                 </Button>
                                 <Button variant="outline" size="icon" onClick={() => setZoom(1)}>
                                     <RefreshCcw className="h-4 w-4" />
-.
                                 </Button>
                             </div>
                         )}
                         <div className="flex h-full w-full items-center justify-center overflow-auto">
-                            {attachmentUrl ? (
+                            {/* Show skeleton if loading OR if we have attachment_id but no URL yet */}
+                            {(isImageLoading || (voucher?.attachment_id && !attachmentUrl)) ? (
+                                <Skeleton className="h-full w-full rounded-md" />
+                            ) : attachmentUrl ? (
                                 attachmentUrl.toLowerCase().endsWith('.pdf') ? (
                                     <iframe
                                         src={attachmentUrl}
@@ -468,13 +554,22 @@ const VoucherDetailsPage = () => {
                                         className="h-full w-full rounded-md border-none"
                                     />
                                 ) : (
-<img
-    key={attachmentUrl || voucher?.id}
-    src={attachmentUrl}
-    alt="Voucher Attachment"
-    className="max-w-full max-h-full transition-transform duration-200"
-    style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }}
-/>
+                                    <img
+                                        key={`${attachmentUrl}-${voucher?.id}`}
+                                        src={attachmentUrl}
+                                        alt="Voucher Attachment"
+                                        className="max-w-full max-h-full transition-transform duration-200"
+                                        style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }}
+                                        onLoad={() => {
+                                            console.log("Image loaded successfully");
+                                            setIsImageLoading(false);
+                                        }}
+                                        onError={(e) => {
+                                            console.error("Image failed to load:", e, "URL:", attachmentUrl);
+                                            setIsImageLoading(false);
+                                        }}
+                                        loading="eager"
+                                    />
                                 )
                             ) : (
                                 <div className="text-center text-gray-400">
@@ -486,8 +581,9 @@ const VoucherDetailsPage = () => {
                 </ResizablePanel>
                 <ResizableHandle withHandle />
                 <ResizablePanel defaultSize={40} minSize={30}>
-                    <div className="flex h-full items-start justify-center p-6 overflow-y-auto">
-                        <Tabs defaultValue={defaultTab} className="w-full">
+                    <div className="relative flex h-full flex-col">
+                        <div className="flex-1 overflow-y-auto p-6" style={{ paddingBottom: hasVouchers ? '5rem' : '1.5rem' }}>
+                            <Tabs defaultValue={defaultTab} className="w-full">
                             <TabsList className={`grid w-full ${cols}`}>
                                 {!isClientUser && (
                                     <TabsTrigger value="preview">Preview</TabsTrigger>
@@ -780,7 +876,34 @@ const VoucherDetailsPage = () => {
                         </TabsContent>
                     )}
                 </Tabs>
-            </div>
+                        </div>
+                        {/* Navigation arrows at bottom right */}
+                        {hasVouchers && (
+                            <div 
+                                className="absolute bottom-4 right-4 z-50 flex gap-2 bg-gray-900/95 backdrop-blur-sm rounded-lg p-1.5 border border-white/30 shadow-xl"
+                                style={{ position: 'absolute', bottom: '1rem', right: '1rem' }}
+                            >
+                                <Button 
+                                    variant="outline" 
+                                    size="icon" 
+                                    onClick={() => handleNavigate(-1)} 
+                                    disabled={currentIndex === 0 || currentIndex === -1}
+                                    className="bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30"
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                </Button>
+                                <Button 
+                                    variant="outline" 
+                                    size="icon" 
+                                    onClick={() => handleNavigate(1)} 
+                                    disabled={currentIndex === vouchers.length - 1}
+                                    className="bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30"
+                                >
+                                    <ChevronRight className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        )}
+                    </div>
                 </ResizablePanel>
             </ResizablePanelGroup>
 

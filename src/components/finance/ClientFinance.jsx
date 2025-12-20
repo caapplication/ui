@@ -30,12 +30,14 @@ import { useToast } from '@/components/ui/use-toast';
 import {
   getBeneficiaries,
   getInvoices,
+  getInvoicesList,
   addInvoice,
   updateInvoice,
   deleteInvoice,
   addVoucher,
   updateVoucher,
   getVouchers,
+  getVouchersList,
   deleteVoucher,
   exportVouchersToTallyXML,
 } from '@/lib/api';
@@ -53,6 +55,8 @@ import InvoiceForm from '@/components/finance/InvoiceForm';
 import VoucherForm from '@/components/finance/VoucherForm';
 import InvoiceHistory from '@/components/finance/InvoiceHistory';
 import VoucherHistory from '@/components/finance/VoucherHistory';
+import { InvoiceHistorySkeleton } from '@/components/finance/InvoiceHistorySkeleton';
+import { VoucherHistorySkeleton } from '@/components/finance/VoucherHistorySkeleton';
 import VoucherDetailsPage from '@/pages/VoucherDetailsPage';
 
 const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
@@ -89,8 +93,8 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
       try {
         const promises = [
           getBeneficiaries(user.organization_id, token),
-          getInvoices(entityId, token),
-          getVouchers(entityId, token),
+          getInvoicesList(entityId, token),
+          getVouchersList(entityId, token),
         ];
         const [beneficiariesData, invoicesData, vouchersData] =
           await Promise.all(promises);
@@ -122,11 +126,16 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
 
   const enrichedVouchers = useMemo(() => {
     return (vouchers || []).map((v) => {
-      const beneficiary = v.beneficiary || {};
-      const beneficiaryName =
-        beneficiary.beneficiary_type === 'individual'
+      // Handle both full beneficiary object and list item format
+      let beneficiaryName = 'Unknown Beneficiary';
+      if (v.beneficiary_name) {
+        beneficiaryName = v.beneficiary_name;
+      } else if (v.beneficiary) {
+        const beneficiary = v.beneficiary;
+        beneficiaryName = beneficiary.beneficiary_type === 'individual'
           ? beneficiary.name
           : beneficiary.company_name;
+      }
       return {
         ...v,
         beneficiaryName: beneficiaryName || 'Unknown Beneficiary',
@@ -330,9 +339,7 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
                 path="vouchers"
                 element={
                   isLoading ? (
-                    <div className="flex justify-center items-center h-64">
-                      <Loader2 className="w-8 h-8 animate-spin text-white" />
-                    </div>
+                    <VoucherHistorySkeleton />
                   ) : (
                     <VoucherHistory
                       vouchers={enrichedVouchers}
@@ -347,9 +354,7 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
                 path="invoices"
                 element={
                   isLoading ? (
-                    <div className="flex justify-center items-center h-64">
-                      <Loader2 className="w-8 h-8 animate-spin text-white" />
-                    </div>
+                    <InvoiceHistorySkeleton />
                   ) : (
                     <InvoiceHistory
                       invoices={invoices}

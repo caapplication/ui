@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Plus, Loader2 } from 'lucide-react';
 import { DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { useAuth } from '@/hooks/useAuth';
+import { compressImageIfNeeded } from '@/lib/imageCompression';
 
 const InvoiceForm = ({ entityId, beneficiaries, isLoading, onSave, onCancel, invoice, financeHeaders }) => {
     const { user } = useAuth();
@@ -19,7 +20,7 @@ const InvoiceForm = ({ entityId, beneficiaries, isLoading, onSave, onCancel, inv
     const [igst, setIgst] = useState(invoice?.igst || 0);
     const [total, setTotal] = useState(0);
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         if (cgst !== sgst) {
             alert('CGST and SGST must be equal.');
@@ -29,8 +30,18 @@ const InvoiceForm = ({ entityId, beneficiaries, isLoading, onSave, onCancel, inv
         if (!isEditing) {
             formData.append('entity_id', entityId);
         }
+        
+        // Compress image attachment if it's an image
         const attachment = formData.get('attachment');
-        if (isEditing && (!attachment || attachment.size === 0)) {
+        if (attachment && attachment.size > 0) {
+            try {
+                const compressedFile = await compressImageIfNeeded(attachment, 1); // Compress if > 1MB
+                formData.set('attachment', compressedFile);
+            } catch (error) {
+                console.error('Failed to compress image:', error);
+                // Continue with original file if compression fails
+            }
+        } else if (isEditing && (!attachment || attachment.size === 0)) {
             formData.delete('attachment');
         }
         

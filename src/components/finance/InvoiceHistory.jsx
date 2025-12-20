@@ -49,10 +49,16 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onRefresh, i
   const [readyLoadingId, setReadyLoadingId] = useState(null);
 
   const getBeneficiaryName = (invoice) => {
-    if (!invoice.beneficiary) return 'Unknown';
-    return invoice.beneficiary.beneficiary_type === 'individual' 
-      ? invoice.beneficiary.name 
-      : invoice.beneficiary.company_name;
+    // Handle both list format (beneficiary_name) and full format (beneficiary object)
+    if (invoice.beneficiary_name) {
+      return invoice.beneficiary_name;
+    }
+    if (invoice.beneficiary) {
+      return invoice.beneficiary.beneficiary_type === 'individual' 
+        ? invoice.beneficiary.name 
+        : invoice.beneficiary.company_name;
+    }
+    return 'Unknown';
   };
 
   const filteredInvoices = useMemo(() => {

@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useToast } from '@/components/ui/use-toast';
 import { getCATeamInvoices, listEntities } from '@/lib/api';
 import InvoiceHistory from '@/components/finance/InvoiceHistory';
+import { InvoiceHistorySkeleton } from '@/components/finance/InvoiceHistorySkeleton';
 import { useNavigate } from 'react-router-dom';
 
 const Invoices = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefresh }) => {
@@ -77,9 +77,7 @@ const Invoices = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
       {isLoading ? (
-        <div className="flex justify-center items-center h-64">
-          <Loader2 className="w-8 h-8 animate-spin text-white" />
-        </div>
+        <InvoiceHistorySkeleton />
       ) : (
         <InvoiceHistory 
           invoices={invoices}

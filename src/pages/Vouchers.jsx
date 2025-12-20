@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useToast } from '@/components/ui/use-toast';
 import { getCATeamVouchers, listEntities } from '@/lib/api';
 import VoucherHistory from '@/components/finance/VoucherHistory';
+import { VoucherHistorySkeleton } from '@/components/finance/VoucherHistorySkeleton';
 import { useNavigate } from 'react-router-dom';
 
 const Vouchers = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefresh }) => {
@@ -81,18 +81,16 @@ const Vouchers = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
   const enrichedVouchers = useMemo(() => {
     return (vouchers || []).map(v => ({
       ...v,
-      beneficiaryName: v.beneficiary 
+      beneficiaryName: v.beneficiary_name || (v.beneficiary 
         ? (v.beneficiary.beneficiary_type === 'individual' ? v.beneficiary.name : v.beneficiary.company_name) 
-        : 'Unknown Beneficiary',
+        : 'Unknown Beneficiary'),
     }));
   }, [vouchers]);
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
       {isLoading ? (
-        <div className="flex justify-center items-center h-64">
-          <Loader2 className="w-8 h-8 animate-spin text-white" />
-        </div>
+        <VoucherHistorySkeleton />
       ) : (
         <VoucherHistory 
           vouchers={enrichedVouchers}

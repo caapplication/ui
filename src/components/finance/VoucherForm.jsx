@@ -10,6 +10,7 @@ import { Plus, Loader2 } from 'lucide-react';
 import { DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Combobox } from '@/components/ui/combobox';
 import { getBankAccountsForBeneficiaryDropdown, getOrganisationBankAccountsDropdown } from '@/lib/api';
+import { compressImageIfNeeded } from '@/lib/imageCompression';
 
 const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSave, onCancel, entityId, voucher, financeHeaders }) => {
     const isEditing = !!voucher;
@@ -45,11 +46,11 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
     const [isLoadingOrgAccounts, setIsLoadingOrgAccounts] = useState(false);
     const [isLoadingBeneficiaryAccounts, setIsLoadingBeneficiaryAccounts] = useState(false);
 
-    // Lazy load organisation bank accounts only when payment type is bank_transfer (using optimized endpoint)
+    // Lazy load organisation bank accounts when payment type is selected (for all payment types)
     useEffect(() => {
         const fetchOrgAccounts = async () => {
-            // Only fetch if: not editing, entityId exists, payment type is bank_transfer, and we don't have accounts yet
-            if (!isEditing && entityId && user?.access_token && paymentType === 'bank_transfer' && orgBankAccounts.length === 0) {
+            // Fetch if: not editing, entityId exists, payment type is selected (not empty), and we don't have accounts yet
+            if (!isEditing && entityId && user?.access_token && paymentType && paymentType !== '' && orgBankAccounts.length === 0) {
                 setIsLoadingOrgAccounts(true);
                 try {
                     // Use optimized dropdown endpoint - much faster
@@ -65,7 +66,7 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
         fetchOrgAccounts();
     }, [entityId, isEditing, user?.access_token, paymentType, orgBankAccounts.length]);
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         const formData = new FormData(e.target);
 
@@ -75,7 +76,8 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
 
         // Update form data with state values for combobox fields
         formData.set('beneficiary_id', selectedBeneficiaryId);
-        if (voucherType === 'debit' && paymentType === 'bank_transfer') {
+        if (voucherType === 'debit' && paymentType && paymentType !== '') {
+            // For all payment types (not just bank_transfer), allow bank account selection
             formData.set('from_bank_account_id', fromBankAccountId || '');
             formData.set('to_bank_account_id', toBankAccountId || '');
         } else {
@@ -83,8 +85,17 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
             formData.set('to_bank_account_id', '0');
         }
 
+        // Compress image attachment if it's an image
         const attachment = formData.get('attachment');
-        if (isEditing && (!attachment || attachment.size === 0)) {
+        if (attachment && attachment.size > 0) {
+            try {
+                const compressedFile = await compressImageIfNeeded(attachment, 1); // Compress if > 1MB
+                formData.set('attachment', compressedFile);
+            } catch (error) {
+                console.error('Failed to compress image:', error);
+                // Continue with original file if compression fails
+            }
+        } else if (isEditing && (!attachment || attachment.size === 0)) {
             formData.delete('attachment');
         }
 
@@ -100,12 +111,12 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
         onSave(formData, voucher?.id);
     };
 
-    // Fetch beneficiary bank accounts with caching (only when beneficiary is selected and payment type is bank_transfer)
+    // Fetch beneficiary bank accounts with caching (when beneficiary is selected and payment type is selected)
     // Using optimized dropdown endpoint for faster loading
     useEffect(() => {
         const fetchAccounts = async () => {
-            // Only fetch if: not editing, beneficiary selected, payment type is bank_transfer, and not already cached
-            if (selectedBeneficiaryId && !isEditing && user?.access_token && paymentType === 'bank_transfer') {
+            // Fetch if: not editing, beneficiary selected, payment type is selected (not empty), and not already cached
+            if (selectedBeneficiaryId && !isEditing && user?.access_token && paymentType && paymentType !== '') {
                 // Check cache first
                 if (beneficiaryBankAccountsCache[selectedBeneficiaryId]) {
                     return; // Already cached, no need to fetch
@@ -219,7 +230,7 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
                         )}
                     </div>
 
-                    {voucherType === 'debit' && paymentType === 'bank_transfer' && (
+                    {voucherType === 'debit' && paymentType && paymentType !== '' && (
                         <>
                             <div>
                                 <Label htmlFor="from_bank_account_id">From (Organisation Bank)</Label>

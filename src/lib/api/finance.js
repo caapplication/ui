@@ -173,6 +173,14 @@ export const updateOrganisationBankAccount = async (bankAccountId, data, token) 
     return handleResponse(response);
 };
 
+export const getInvoicesList = async (entityId, token) => {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/invoices/list?entity_id=${entityId}`, {
+        headers: getAuthHeaders(token),
+    });
+    const invoices = await handleResponse(response);
+    return Array.isArray(invoices) ? invoices : [];
+};
+
 export const getInvoices = async (entityId, token) => {
     const response = await fetch(`${FINANCE_API_BASE_URL}/api/invoices/?entity_id=${entityId}`, {
         headers: getAuthHeaders(token),
@@ -223,6 +231,14 @@ export const getInvoiceAttachment = async (attachmentId, token) => {
 };
 
 
+export const getVouchersList = async (entityId, token) => {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/vouchers/list?entity_id=${entityId}`, {
+        headers: getAuthHeaders(token),
+    });
+    const vouchers = await handleResponse(response);
+    return Array.isArray(vouchers) ? vouchers : [];
+};
+
 export const getVouchers = async (entityId, token) => {
     const response = await fetch(`${FINANCE_API_BASE_URL}/api/vouchers/?entity_id=${entityId}`, {
         headers: getAuthHeaders(token),
@@ -260,6 +276,18 @@ export const deleteVoucher = async (entityId, voucherId, token) => {
     return handleResponse(response);
 };
 
+export const getVoucherQuick = async (entityId, voucherId, token) => {
+    const userRole = JSON.parse(atob(token.split('.')[1])).role;
+    let url = `${FINANCE_API_BASE_URL}/api/vouchers/${voucherId}/quick`;
+    if (entityId) {
+        url += `?entity_id=${entityId}`;
+    }
+    const response = await fetch(url, {
+        headers: getAuthHeaders(token),
+    });
+    return handleResponse(response);
+};
+
 export const getVoucher = async (entityId, voucherId, token) => {
     const userRole = JSON.parse(atob(token.split('.')[1])).role;
     let url = `${FINANCE_API_BASE_URL}/api/vouchers/${voucherId}`;
@@ -275,14 +303,35 @@ export const getVoucher = async (entityId, voucherId, token) => {
 };
 
 export const getVoucherAttachment = async (attachmentId, token) => {
-    const response = await fetch(`${FINANCE_API_BASE_URL}/api/attachments/${attachmentId}`, {
-        headers: getAuthHeaders(token),
-    });
-    if (!response.ok) {
-        throw new Error('Failed to fetch attachment');
+    try {
+        const response = await fetch(`${FINANCE_API_BASE_URL}/api/attachments/${attachmentId}`, {
+            headers: getAuthHeaders(token),
+        });
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Attachment fetch failed:', response.status, errorText);
+            throw new Error(`Failed to fetch attachment: ${response.status} ${errorText}`);
+        }
+        
+        // Check if response has content
+        const contentType = response.headers.get('content-type');
+        const contentLength = response.headers.get('content-length');
+        console.log('Attachment response:', { contentType, contentLength, status: response.status });
+        
+        const blob = await response.blob();
+        
+        if (blob.size === 0) {
+            console.error('Received empty blob for attachment:', attachmentId);
+            throw new Error('Received empty attachment');
+        }
+        
+        console.log('Blob created successfully:', blob.size, 'bytes, type:', blob.type);
+        return URL.createObjectURL(blob);
+    } catch (error) {
+        console.error('Error in getVoucherAttachment:', error);
+        throw error;
     }
-    const blob = await response.blob();
-    return URL.createObjectURL(blob);
 };
 
 export const getVoucherPdf = async (voucherId, token) => {
