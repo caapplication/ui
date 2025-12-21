@@ -2,7 +2,7 @@ import { getAuthHeaders, handleResponse } from './utils';
     
     const TASK_API_BASE_URL = 'https://task-api.fynivo.in'; // Use local service for development
     const CLIENTS_API_BASE_URL = 'https://client-api.fynivo.in'; // Use local service for development
-    const SERVICES_API_BASE_URL = 'https://service-api.fynivo.in'; // Use local service for development
+    const SERVICES_API_BASE_URL = 'https://services-api.fynivo.in'; // Use local service for development
     const LOGIN_API_BASE_URL = 'https://login-api.fynivo.in'; // Use local service for development
     
 export const listClients = async (agencyId, token) => {
