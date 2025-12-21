@@ -101,20 +101,41 @@ const InvoiceDetailsPage = () => {
                     setInvoices(invoicesToUse || []);
                 }
                 
-                // Only fetch if we don't have initial invoice or if invoiceId changed
-                if (!currentInvoice || currentInvoice.id !== invoiceId) {
+                // Always fetch full invoice object to ensure we have attachment data
+                // The list might return InvoiceListItem which doesn't include attachment_id
+                let fullInvoice = null;
+                try {
+                    // Fetch full invoice by ID to get attachment relationship
+                    const response = await fetch(`http://localhost:8003/api/invoices/${invoiceId}?entity_id=${entityId}`, {
+                        headers: {
+                            'Authorization': `Bearer ${user.access_token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    if (response.ok) {
+                        fullInvoice = await response.json();
+                        console.log("Fetched full invoice:", fullInvoice);
+                    } else {
+                        console.warn("Failed to fetch full invoice, status:", response.status);
+                    }
+                } catch (err) {
+                    console.error("Error fetching full invoice:", err);
+                }
+                
+                // Use full invoice if available, otherwise fall back to list item
+                if (fullInvoice) {
+                    currentInvoice = fullInvoice;
+                } else if (!currentInvoice || currentInvoice.id !== invoiceId) {
                     // Try to get from invoices list first
                     currentInvoice = invoicesToUse.find(i => String(i.id) === String(invoiceId));
                     
-                    // If still not found, it means invoice doesn't exist
+                    // If still not found, try fetching all invoices
                     if (!currentInvoice && invoicesToUse.length > 0) {
-                        // Invoice not in list, might be filtered out or deleted
-                        // Try fetching single invoice
                         try {
-                            const singleInvoice = await getInvoices(entityId, user.access_token);
-                            currentInvoice = singleInvoice.find(i => String(i.id) === String(invoiceId));
+                            const allInvoices = await getInvoices(entityId, user.access_token);
+                            currentInvoice = allInvoices.find(i => String(i.id) === String(invoiceId));
                         } catch (err) {
-                            console.error("Failed to fetch single invoice:", err);
+                            console.error("Failed to fetch invoices:", err);
                         }
                     }
                 }
@@ -139,20 +160,30 @@ const InvoiceDetailsPage = () => {
                     const promises = [];
                     
                     // Always reset attachment state when invoice changes
-                    const attachmentId = currentInvoice.attachment_id || (currentInvoice.attachment && currentInvoice.attachment.id);
+                    // Check multiple possible fields for attachment_id
+                    const attachmentId = currentInvoice.attachment_id 
+                        || (currentInvoice.attachment && currentInvoice.attachment.id)
+                        || (currentInvoice.attachment && currentInvoice.attachment.attachment_id)
+                        || currentInvoice.attachment;
+                    
+                    console.log("Invoice object:", currentInvoice);
+                    console.log("Looking for attachment_id. Found:", attachmentId);
                     
                     if (attachmentId) {
                         setIsImageLoading(true);
                         setAttachmentToDisplay(null);
+                        console.log("Fetching attachment with ID:", attachmentId);
                         promises.push(
                             getInvoiceAttachment(attachmentId, user.access_token)
                                 .then(url => {
+                                    console.log("Attachment URL received:", url);
                                     if (url) {
                                         setAttachmentToDisplay(url);
                                         if (url.toLowerCase().endsWith('.pdf')) {
                                             setIsImageLoading(false);
                                         }
                                     } else {
+                                        console.log("No URL returned from getInvoiceAttachment");
                                         setIsImageLoading(false);
                                     }
                                 })
@@ -163,6 +194,7 @@ const InvoiceDetailsPage = () => {
                                 })
                         );
                     } else {
+                        console.log("No attachment_id found in invoice object");
                         setAttachmentToDisplay(null);
                         setIsImageLoading(false);
                     }
@@ -483,7 +515,7 @@ const InvoiceDetailsPage = () => {
                         )}
                         <div className="flex h-full w-full items-center justify-center overflow-auto relative" style={{ zIndex: 1 }} ref={attachmentRef}>
                             {/* Show skeleton only if we have attachment_id but no URL yet (while fetching URL) */}
-                            {invoice?.attachment_id && !attachmentToDisplay ? (
+                            {(invoice?.attachment_id || (invoice?.attachment && invoice.attachment.id)) && !attachmentToDisplay && isImageLoading ? (
                                 <Skeleton className="h-full w-full rounded-md" />
                             ) : attachmentToDisplay ? (
                                 attachmentToDisplay.toLowerCase().endsWith('.pdf') ? (

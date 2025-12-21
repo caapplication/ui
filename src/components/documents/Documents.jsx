@@ -9,6 +9,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Checkbox } from '@/components/ui/checkbox';
 import { FileText, Upload, Trash2, Plus, Share2, Folder, FolderPlus, ArrowLeft, Search, Loader2, RefreshCw, Inbox, CalendarIcon, Download, Copy, X, User, Link2, Grid, Phone, Mail, MessageCircle, Facebook, Twitter, MoreVertical, Users, UserPlus, Check } from 'lucide-react';
 
 // Helper function to check if folder has expired documents (recursively checks subfolders)
@@ -166,6 +167,26 @@ const findPath = (root, id) => {
   return path;
 };
 
+// Helper function to find a folder by ID in the tree
+const findFolder = (root, id) => {
+  if (root.id === id) {
+    return root;
+  }
+  if (root.is_folder && root.children) {
+    for (const child of root.children) {
+      const found = findFolder(child, id);
+      if (found) return found;
+    }
+  }
+  return null;
+};
+
+// Helper function to check if a folder is empty (has no children)
+const isFolderEmpty = (folder) => {
+  if (!folder || !folder.is_folder) return false;
+  return !folder.children || folder.children.length === 0;
+};
+
 const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   const { user } = useAuth();
   
@@ -187,6 +208,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   const [shareDoc, setShareDoc] = useState(null);
   const [shareEmails, setShareEmails] = useState('');
   const [shareExpiryDate, setShareExpiryDate] = useState(null);
+  const [withoutExpiryDate, setWithoutExpiryDate] = useState(false);
   const [shareLink, setShareLink] = useState('');
   const [linkCopied, setLinkCopied] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
@@ -197,12 +219,14 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   const [availableUsers, setAvailableUsers] = useState([]);
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [userSearchTerm, setUserSearchTerm] = useState('');
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('myFiles'); // 'myFiles' or 'sharedWithMe'
   const [currentClientId, setCurrentClientId] = useState(getInitialEntityId());
   const [organisations, setOrganisations] = useState([]);
   const [entitiesForFilter, setEntitiesForFilter] = useState([]);
   const [selectedEntityId, setSelectedEntityId] = useState('all');
+  const [selectedFolder, setSelectedFolder] = useState(null);
 
   useEffect(() => {
     if (quickAction === 'upload-document') {
@@ -318,6 +342,13 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
 
   const currentPath = useMemo(() => findPath(documentsState, currentFolderId), [documentsState, currentFolderId]);
   const currentFolder = currentPath[currentPath.length - 1];
+  
+  // Check if selected folder is empty (for delete button state)
+  const isSelectedFolderEmpty = useMemo(() => {
+    if (!selectedFolder) return true;
+    const folder = findFolder(documentsState, selectedFolder.id);
+    return folder ? isFolderEmpty(folder) : true;
+  }, [selectedFolder, documentsState]);
 
   const filteredChildren = useMemo(() => {
     if (activeTab === 'sharedWithMe') {
@@ -363,6 +394,13 @@ if (activeTab === 'myFiles') {
       return;
     }
 
+    // Validate that at least one option is selected (either checkbox OR expiry date)
+    if (!withoutExpiryDate && !shareExpiryDate) {
+      toast({ title: "Expiry date required", description: "Please select an expiry date or check 'Without expiry date'.", variant: "destructive" });
+      setIsMutating(false);
+      return;
+    }
+
     // Optimistic update - add file immediately to UI
     const tempDocId = `temp-${Date.now()}`;
     const newDocument = {
@@ -371,7 +409,7 @@ if (activeTab === 'myFiles') {
       is_folder: false,
       file_type: file.type || 'Unknown',
       size: file.size,
-      expiry_date: shareExpiryDate ? shareExpiryDate.toISOString().split('T')[0] : null,
+      expiry_date: withoutExpiryDate ? null : (shareExpiryDate ? shareExpiryDate.toISOString().split('T')[0] : null),
       folder_id: currentFolderId === 'root' ? null : currentFolderId
     };
     
@@ -391,10 +429,11 @@ if (activeTab === 'myFiles') {
 
     try {
         let createdDocument;
+        const expiryDateToSend = withoutExpiryDate ? null : shareExpiryDate;
         if (user?.role === 'CA_ACCOUNTANT') {
-            createdDocument = await uploadCAFile(currentFolderId, file, shareExpiryDate, user.access_token);
+            createdDocument = await uploadCAFile(currentFolderId, file, expiryDateToSend, user.access_token);
         } else {
-            createdDocument = await uploadFile(currentFolderId, entityId, file, shareExpiryDate, user.access_token);
+            createdDocument = await uploadFile(currentFolderId, entityId, file, expiryDateToSend, user.access_token);
         }
         
         // Replace temp document with real document from server
@@ -420,6 +459,7 @@ if (activeTab === 'myFiles') {
         setShowUpload(false);
         e.target.reset();
         setShareExpiryDate(null);
+        setWithoutExpiryDate(false);
         // Refresh in background to sync with server
         fetchDocuments(true);
     } catch (error) {
@@ -527,10 +567,29 @@ if (activeTab === 'myFiles') {
 
   const handleDelete = async () => {
     if (!itemToDelete) return;
+    
+    // Check if trying to delete a folder that is not empty
+    if (itemToDelete.type === 'folder') {
+      const folder = findFolder(documentsState, itemToDelete.id);
+      if (folder && !isFolderEmpty(folder)) {
+        toast({ 
+          title: "Cannot delete folder", 
+          description: "This folder contains documents or subfolders. Please delete all items inside the folder first.", 
+          variant: "destructive" 
+        });
+        setItemToDelete(null);
+        return;
+      }
+    }
+    
     setIsMutating(true);
     try {
         await deleteDocument(itemToDelete.id, itemToDelete.type, user.access_token);
         toast({ title: "Item Deleted", description: "The selected item has been removed." });
+        // Clear selected folder if it was deleted
+        if (selectedFolder && selectedFolder.id === itemToDelete.id) {
+          setSelectedFolder(null);
+        }
         if (activeTab === 'myFiles') {
           fetchDocuments(true);
         } else {
@@ -559,6 +618,7 @@ if (activeTab === 'myFiles') {
     setCollaborateDoc(doc);
     setSelectedUsers([]);
     setAvailableUsers([]);
+    setUserSearchTerm('');
     setLoadingUsers(true);
     setCollaborateDialogOpen(true);
     
@@ -695,6 +755,7 @@ if (activeTab === 'myFiles') {
       setCollaborateDialogOpen(false);
       setSelectedUsers([]);
       setCollaborateDoc(null);
+      setUserSearchTerm('');
       
       // Refresh shared documents to show the updated list
       if (activeTab === 'sharedWithMe') {
@@ -814,13 +875,19 @@ if (activeTab === 'myFiles') {
       <>
         <div className="flex items-center space-x-2 text-gray-400 mb-8">
           {currentFolderId !== 'root' && currentPath.length > 1 && (
-            <Button variant="ghost" size="sm" onClick={() => setCurrentFolderId(currentPath[currentPath.length - 2].id)}>
+            <Button variant="ghost" size="sm" onClick={() => {
+              setSelectedFolder(null);
+              setCurrentFolderId(currentPath[currentPath.length - 2].id);
+            }}>
               <ArrowLeft className="w-4 h-4 mr-2" /> Back
             </Button>
           )}
           {currentPath.map((folder, index) => (
             <React.Fragment key={folder.id}>
-              <span onClick={() => setCurrentFolderId(folder.id)} className="cursor-pointer hover:text-white transition-colors">{folder.name}</span>
+              <span onClick={() => {
+                setSelectedFolder(null);
+                setCurrentFolderId(folder.id);
+              }} className="cursor-pointer hover:text-white transition-colors">{folder.name}</span>
               {index < currentPath.length - 1 && <span className="text-gray-600">/</span>}
             </React.Fragment>
           ))}
@@ -829,72 +896,52 @@ if (activeTab === 'myFiles') {
         {/* Folders - Always in grid format with reduced gap and larger icons */}
         {folders.length > 0 && (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-0 mb-8">
-            {folders.map((item, index) => (
-              <motion.div 
-                key={item.id} 
-                initial={{ opacity: 0, y: 20 }} 
-                animate={{ opacity: 1, y: 0 }} 
-                transition={{ duration: 0.5, delay: index * 0.05 }}
-                className="flex flex-col items-center cursor-pointer group relative"
-                onDoubleClick={() => setCurrentFolderId(item.id)}
-              >
-                <div className="relative mb-2">
-                  <FolderIcon 
-                    className="w-56 h-56 transition-transform group-hover:scale-110" 
-                    hasExpired={hasExpiredDocuments(item)}
-                  />
-                  {/* Action buttons on hover */}
-                  <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                    <Button 
-                      size="icon" 
-                      variant="secondary" 
-                      className="h-7 w-7 bg-gray-800/90 hover:bg-gray-700"
-                      onClick={(e) => {e.stopPropagation(); handleShareClick(item)}}
+            {folders.map((item, index) => {
+              const isSelected = selectedFolder?.id === item.id;
+              return (
+                <motion.div 
+                  key={item.id} 
+                  initial={{ opacity: 0, y: 20 }} 
+                  animate={{ opacity: 1, y: 0 }} 
+                  transition={{ duration: 0.5, delay: index * 0.05 }}
+                  className={`flex flex-col items-center cursor-pointer group relative p-2 rounded-lg transition-all ${
+                    isSelected ? 'bg-blue-500/20 border-2 border-blue-500' : 'hover:bg-gray-800/30'
+                  }`}
+                  onClick={() => {
+                    // Single click opens folder
+                    setCurrentFolderId(item.id);
+                  }}
+                >
+                  <div className="relative mb-2">
+                    <FolderIcon 
+                      className={`w-56 h-56 transition-transform ${isSelected ? 'scale-105' : 'group-hover:scale-110'}`}
+                      hasExpired={hasExpiredDocuments(item)}
+                    />
+                    {/* Checkbox on hover - top left corner */}
+                    <div 
+                      className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedFolder(isSelected ? null : item);
+                      }}
                     >
-                      <Share2 className="w-3.5 h-3.5" />
-                    </Button>
-                    <Button 
-                      size="icon" 
-                      variant="secondary" 
-                      className="h-7 w-7 bg-blue-600/90 hover:bg-blue-700"
-                      onClick={(e) => {e.stopPropagation(); handleCollaborateClick(item)}}
-                    >
-                      <UserPlus className="w-3.5 h-3.5" />
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button 
-                          size="icon" 
-                          variant="secondary" 
-                          className="h-7 w-7 bg-red-600/90 hover:bg-red-700"
-                          onClick={(e) => {e.stopPropagation(); setItemToDelete({id: item.id, type: 'folder'})}}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete the item.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel onClick={(e) => {e.stopPropagation(); setItemToDelete(null)}} disabled={isMutating}>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={(e) => {e.stopPropagation(); handleDelete()}} disabled={isMutating}>
-                            {isMutating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={(checked) => {
+                          setSelectedFolder(checked ? item : null);
+                        }}
+                        className="w-5 h-5 bg-gray-800 border-gray-600 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                      />
+                    </div>
                   </div>
-                </div>
-                <div className="w-full text-center px-1">
-                  <p className="text-sm text-white truncate group-hover:text-blue-300 transition-colors">{item.name}</p>
-                </div>
-              </motion.div>
-            ))}
+                  <div className="w-full text-center px-1">
+                    <p className={`text-sm truncate transition-colors ${
+                      isSelected ? 'text-blue-300 font-semibold' : 'text-white group-hover:text-blue-300'
+                    }`}>{item.name}</p>
+                  </div>
+                </motion.div>
+              );
+            })}
           </div>
         )}
 
@@ -913,7 +960,9 @@ if (activeTab === 'myFiles') {
                 {documents.map((item) => (
                   <TableRow key={item.id} className="hover:bg-white/5">
                     <TableCell className="text-white font-medium">{item.name}</TableCell>
-                    <TableCell className="text-gray-300">{formatDate(item.expiry_date)}</TableCell>
+                    <TableCell className="text-gray-300">
+                      {item.expiry_date ? formatDate(item.expiry_date) : <span className="text-gray-500 italic">Document not expire</span>}
+                    </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -1113,8 +1162,8 @@ if (activeTab === 'myFiles') {
   );
 
   return (
-    <div className="p-8">
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+    <div className="p-8" onClick={() => setSelectedFolder(null)}>
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} onClick={(e) => e.stopPropagation()}>
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
           <h1 className="text-5xl font-bold text-white">Documents</h1>
           <div className="flex items-center space-x-2 w-full md:w-auto">
@@ -1152,40 +1201,111 @@ if (activeTab === 'myFiles') {
                 </Button>
             </div>
             
-            {user?.role === 'CA_ACCOUNTANT' && (
-                <div className="flex items-center space-x-2">
-                    <div className="w-64">
-                        <Select value={currentClientId} onValueChange={setCurrentClientId}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select Client" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All Clients</SelectItem>
-                                {organisations.map(org => (
-                                    <SelectItem key={org.id} value={org.id}>
-                                        {org.name}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    {currentClientId !== 'all' && entitiesForFilter.length > 0 && (
+            <div className="flex items-center gap-2">
+                {/* Action buttons - Always visible, enabled when folder is selected */}
+                <div className="flex items-center gap-2 p-2 bg-gray-800/50 rounded-lg border border-gray-700" onClick={(e) => e.stopPropagation()}>
+                  <Button 
+                    size="sm" 
+                    variant="secondary" 
+                    className="bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={() => selectedFolder && handleShareClick(selectedFolder)}
+                    disabled={!selectedFolder}
+                  >
+                    <Share2 className="w-4 h-4 mr-2" />
+                    Share
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="secondary" 
+                    className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={() => selectedFolder && handleCollaborateClick(selectedFolder)}
+                    disabled={!selectedFolder}
+                  >
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    Collaborate
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button 
+                        size="sm" 
+                        variant="secondary" 
+                        className="bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={!selectedFolder || !isSelectedFolderEmpty}
+                        title={selectedFolder && !isSelectedFolderEmpty ? "Cannot delete folder with contents" : ""}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This action cannot be undone. This will permanently delete the folder "{selectedFolder?.name || ''}".
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setItemToDelete(null)} disabled={isMutating}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => {
+                          if (selectedFolder) {
+                            setItemToDelete({id: selectedFolder.id, type: 'folder'});
+                            handleDelete();
+                            setSelectedFolder(null);
+                          }
+                        }} disabled={isMutating || !selectedFolder}>
+                          {isMutating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                  {selectedFolder && (
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      className="ml-1"
+                      onClick={() => setSelectedFolder(null)}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
+                
+                {user?.role === 'CA_ACCOUNTANT' && (
+                    <div className="flex items-center space-x-2">
                         <div className="w-64">
-                            <Select value={selectedEntityId} onValueChange={setSelectedEntityId}>
+                            <Select value={currentClientId} onValueChange={setCurrentClientId}>
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Select Entity" />
+                                    <SelectValue placeholder="Select Client" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="all">All Entities</SelectItem>
-                                    {entitiesForFilter.map(entity => (
-                                        <SelectItem key={entity.id} value={entity.id}>
-                                            {entity.name}</SelectItem>
+                                    <SelectItem value="all">All Clients</SelectItem>
+                                    {organisations.map(org => (
+                                        <SelectItem key={org.id} value={org.id}>
+                                            {org.name}</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
                         </div>
-                    )}
-                </div>
-            )}
+                        {currentClientId !== 'all' && entitiesForFilter.length > 0 && (
+                            <div className="w-64">
+                                <Select value={selectedEntityId} onValueChange={setSelectedEntityId}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select Entity" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Entities</SelectItem>
+                                        {entitiesForFilter.map(entity => (
+                                            <SelectItem key={entity.id} value={entity.id}>
+                                                {entity.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
         </div>
 
 
@@ -1206,7 +1326,13 @@ if (activeTab === 'myFiles') {
             </DialogContent>
         </Dialog>
 
-        <Dialog open={showUpload} onOpenChange={setShowUpload}>
+        <Dialog open={showUpload} onOpenChange={(open) => {
+          setShowUpload(open);
+          if (!open) {
+            setShareExpiryDate(null);
+            setWithoutExpiryDate(false);
+          }
+        }}>
             <DialogContent>
                 <DialogHeader><DialogTitle>Upload Document to {currentFolder?.name}</DialogTitle></DialogHeader>
                 <form onSubmit={handleUpload} className="space-y-4 py-4">
@@ -1214,32 +1340,59 @@ if (activeTab === 'myFiles') {
                         <Label htmlFor="file">Select File</Label>
                         <Input id="file" name="file" type="file" required />
                     </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="expiry-date" className="text-right">
-                        Expiry Date
-                      </Label>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant={"outline"}
-                            className="col-span-3 justify-start text-left font-normal"
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {shareExpiryDate ? format(shareExpiryDate, "PPP") : <span>Pick a date</span>}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
-                          <Calendar
-                            mode="single"
-                            selected={shareExpiryDate}
-                            onSelect={setShareExpiryDate}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
+                    <div className="space-y-3">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="without-expiry"
+                          checked={withoutExpiryDate}
+                          onCheckedChange={(checked) => {
+                            setWithoutExpiryDate(checked);
+                            if (checked) {
+                              setShareExpiryDate(null);
+                            }
+                          }}
+                        />
+                        <Label htmlFor="without-expiry" className="text-sm font-normal cursor-pointer">
+                          Without expiry date
+                        </Label>
+                      </div>
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="expiry-date" className="text-right">
+                          Expiry Date <span className="text-red-500">*</span>
+                        </Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant={"outline"}
+                              className="col-span-3 justify-start text-left font-normal"
+                              disabled={withoutExpiryDate}
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {shareExpiryDate ? format(shareExpiryDate, "PPP") : <span>Pick a date</span>}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0">
+                            <Calendar
+                              mode="single"
+                              selected={shareExpiryDate}
+                              onSelect={(date) => {
+                                setShareExpiryDate(date);
+                                if (date) {
+                                  setWithoutExpiryDate(false);
+                                }
+                              }}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
                     </div>
                     <DialogFooter>
-                       <Button variant="ghost" type="button" onClick={() => setShowUpload(false)} disabled={isMutating}>Cancel</Button>
+                       <Button variant="ghost" type="button" onClick={() => {
+                         setShowUpload(false);
+                         setShareExpiryDate(null);
+                         setWithoutExpiryDate(false);
+                       }} disabled={isMutating}>Cancel</Button>
                        <Button type="submit" disabled={isMutating}>
                          {isMutating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
                          Upload
@@ -1446,7 +1599,10 @@ if (activeTab === 'myFiles') {
               <Users className="w-5 h-5 text-white" />
               <DialogTitle className="text-white text-lg font-semibold">Collaborate</DialogTitle>
             </div>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCollaborateDialogOpen(false)}>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
+              setCollaborateDialogOpen(false);
+              setUserSearchTerm('');
+            }}>
               <X className="w-4 h-4 text-gray-400" />
             </Button>
           </div>
@@ -1475,6 +1631,19 @@ if (activeTab === 'myFiles') {
                 Select users from your organization to collaborate with
               </Label>
               
+              {/* Search Input */}
+              {!loadingUsers && availableUsers.length > 0 && (
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input
+                    placeholder="Search users by name or email..."
+                    value={userSearchTerm}
+                    onChange={(e) => setUserSearchTerm(e.target.value)}
+                    className="pl-10 bg-gray-800/50 border-gray-700 text-white"
+                  />
+                </div>
+              )}
+              
               {loadingUsers ? (
                 <div className="flex justify-center items-center py-8">
                   <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
@@ -1484,9 +1653,28 @@ if (activeTab === 'myFiles') {
                   <Users className="w-12 h-12 mx-auto mb-2 opacity-50" />
                   <p>No users found in your organization.</p>
                 </div>
-              ) : (
-                <div className="max-h-64 overflow-y-auto space-y-2 border border-gray-700 rounded-lg p-2">
-                  {availableUsers.map((userItem) => {
+              ) : (() => {
+                // Filter users based on search term
+                const filteredUsers = availableUsers.filter(userItem => {
+                  if (!userSearchTerm) return true;
+                  const searchLower = userSearchTerm.toLowerCase();
+                  const name = (userItem.name || userItem.first_name || '').toLowerCase();
+                  const email = (userItem.email || '').toLowerCase();
+                  return name.includes(searchLower) || email.includes(searchLower);
+                });
+
+                if (filteredUsers.length === 0) {
+                  return (
+                    <div className="text-center py-8 text-gray-400">
+                      <Users className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                      <p>No users found matching "{userSearchTerm}".</p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="max-h-64 overflow-y-auto space-y-2 border border-gray-700 rounded-lg p-2">
+                    {filteredUsers.map((userItem) => {
                     const isSelected = selectedUsers.some(u => u.id === userItem.id || u.email === userItem.email);
                     return (
                       <div
@@ -1516,8 +1704,9 @@ if (activeTab === 'myFiles') {
                       </div>
                     );
                   })}
-                </div>
-              )}
+                  </div>
+                );
+              })()}
 
               {selectedUsers.length > 0 && (
                 <div className="pt-2 border-t border-gray-700">
@@ -1554,6 +1743,7 @@ if (activeTab === 'myFiles') {
                   setCollaborateDialogOpen(false);
                   setSelectedUsers([]);
                   setCollaborateDoc(null);
+                  setUserSearchTerm('');
                 }}
                 disabled={isMutating}
               >
