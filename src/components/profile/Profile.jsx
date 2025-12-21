@@ -203,9 +203,7 @@ const Profile = () => {
                                 <div className="relative mb-4">
                                     <Avatar className="w-32 h-32 text-4xl border-4 border-white/20">
                                         <AvatarImage 
-                                            src={user?.photo_url && user.photo_url.includes('.s3.amazonaws.com/') 
-                                                ? `http://127.0.0.1:8001/profile/photo`
-                                                : user?.photo_url} 
+                                            src={user?.photo_url} 
                                             alt={user?.name} 
                                             key={user?.photo_url} 
                                         />

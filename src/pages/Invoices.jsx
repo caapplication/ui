@@ -9,17 +9,28 @@ import { useNavigate } from 'react-router-dom';
 
 const Invoices = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefresh }) => {
   const [invoices, setInvoices] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
   const fetchDataForClient = useCallback(async () => {
+    // If we don't have required dependencies, keep loading state true
+    // This prevents showing "No invoices found" before we've attempted to load
     if (!selectedEntity || !user?.access_token) {
-      setInvoices([]);
+      // Only set loading to false if we've attempted to load before and dependencies are missing
+      if (hasAttemptedLoad) {
+        setInvoices([]);
+        setIsLoading(false);
+      } else {
+        // Keep loading true until we have dependencies
+        setIsLoading(true);
+      }
       return;
     }
     setIsLoading(true);
+    setHasAttemptedLoad(true);
     
     let entityIdsToFetch = [];
     if (selectedEntity === 'all') {
@@ -63,7 +74,7 @@ const Invoices = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
     } finally {
       setIsLoading(false);
     }
-  }, [selectedOrganisation, selectedEntity, user?.access_token, toast]);
+  }, [selectedOrganisation, selectedEntity, user?.access_token, toast, hasAttemptedLoad]);
 
   useEffect(() => {
     fetchDataForClient();

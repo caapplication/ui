@@ -1,7 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { ArrowLeft, Edit, Trash2, Loader2, Camera } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Loader2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import ClientDashboardDetails from './ClientDashboardDetails';
 import ClientServicesTab from './ClientServicesTab';
@@ -12,7 +11,7 @@ import ClientTeamMembersTab from './ClientTeamMembersTab';
 import ActivityLog from '@/components/finance/ActivityLog';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { deleteClient, uploadClientPhoto, deleteClientPhoto } from '@/lib/api';
+import { deleteClient } from '@/lib/api';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -44,22 +43,19 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
     const [editEntityName, setEditEntityName] = useState('');
     const [deleteEntityDialogOpen, setDeleteEntityDialogOpen] = useState(false);
     const [entityToDelete, setEntityToDelete] = useState(null);
-    const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
-    const fileInputRef = useRef(null);
     const { toast } = useToast();
     const { user } = useAuth();
     
-    // Helper function to get the correct photo URL (convert S3 URLs to proxy endpoint)
+    // Helper function to get the correct photo URL
     const getClientPhotoUrl = (client) => {
         if (!client || !client.id) return null;
         const photoUrl = client.photo_url || client.photo;
         if (!photoUrl) return null;
-        // Always use proxy endpoint if we have a photo URL and client ID
-        // This ensures we always go through authenticated endpoint
-        if (photoUrl.includes('.s3.amazonaws.com/') || photoUrl.includes('http://127.0.0.1:8002')) {
+        // If it's an S3 URL, use proxy endpoint for authenticated access
+        if (photoUrl.includes('.s3.amazonaws.com/')) {
             return `http://127.0.0.1:8002/clients/${client.id}/photo`;
         }
-        // Fallback to direct URL only if it's not an S3 URL and not already a proxy URL
+        // Otherwise use the URL directly (could be proxy URL or other URL)
         return photoUrl;
     };
 
@@ -68,9 +64,9 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
         'Services',
         'Passwords',
         `Users (${(client.orgUsers?.invited_users?.length || 0) + (client.orgUsers?.joined_users?.length || 0)})`,
+        `Team Members (${teamMembers?.length || 0})`,
         `Entities (${client.entities?.length || 0})`,
-        'Activity Log',
-        'Team Members'
+        'Activity Log'
     ];
 
     const handleTabClick = (tab) => {
@@ -154,49 +150,6 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
         }
     };
 
-    const handlePictureUpload = async (event) => {
-        const file = event.target.files[0];
-        if (!file) return;
-
-        setIsUploadingPhoto(true);
-        try {
-            if (!user?.agency_id || !user?.access_token) {
-                throw new Error("User information is not available.");
-            }
-            const response = await uploadClientPhoto(client.id, file, user.agency_id, user.access_token);
-            // Always use proxy endpoint URL for display (even if response has S3 URL)
-            // The S3 URL is stored in photo_url for backend reference, but we use proxy for display
-            const proxyPhotoUrl = `http://127.0.0.1:8002/clients/${client.id}/photo`;
-            onUpdateClient({ 
-                ...client, 
-                photo: proxyPhotoUrl, // Use proxy URL for display
-                photo_url: response.photo_url // Keep S3 URL for backend reference
-            });
-            toast({ title: "Success", description: "Client photo updated successfully." });
-        } catch (error) {
-            toast({ title: "Error", description: error.message, variant: "destructive" });
-        } finally {
-            setIsUploadingPhoto(false);
-        }
-    };
-
-    const handleRemovePicture = async () => {
-        if (!getClientPhotoUrl(client)) return;
-
-        setIsUploadingPhoto(true);
-        try {
-            if (!user?.agency_id || !user?.access_token) {
-                throw new Error("User information is not available.");
-            }
-            await deleteClientPhoto(client.id, user.agency_id, user.access_token);
-            onUpdateClient({ ...client, photo: null, photo_url: null });
-            toast({ title: "Success", description: "Client photo removed successfully." });
-        } catch (error) {
-            toast({ title: "Error", description: error.message, variant: "destructive" });
-        } finally {
-            setIsUploadingPhoto(false);
-        }
-    };
 
     const renderTabContent = () => {
         switch (activeSubTab) {
@@ -214,11 +167,12 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
                         <ActivityLog itemId={client.id} itemType="client" />
                     </div>
                 );
-            case 'Team Members':
-                return <ClientTeamMembersTab client={client} teamMembers={teamMembers} />;
             default:
                 if (activeSubTab.startsWith('Users')) {
                     return <ClientUsersTab client={client} />;
+                }
+                if (activeSubTab.startsWith('Team Members')) {
+                    return <ClientTeamMembersTab client={client} teamMembers={teamMembers} />;
                 }
                 if (activeSubTab.startsWith('Entities')) {
                     return (
@@ -372,33 +326,6 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
                                         {client.name.charAt(0).toUpperCase()}
                                     </AvatarFallback>
                                 </Avatar>
-                                <div className="absolute bottom-1 right-1 flex gap-2">
-                                    <Button
-                                        size="icon"
-                                        className="rounded-full w-10 h-10 bg-white/20 text-white hover:bg-white/30 backdrop-blur-sm border border-white/30"
-                                        onClick={() => fileInputRef.current?.click()}
-                                        disabled={isUploadingPhoto}
-                                    >
-                                        <Camera className="w-5 h-5" />
-                                    </Button>
-                                    {getClientPhotoUrl(client) && (
-                                        <Button
-                                            size="icon"
-                                            className="rounded-full w-10 h-10 bg-red-500/20 text-white hover:bg-red-500/30 backdrop-blur-sm border border-red-500/30"
-                                            onClick={handleRemovePicture}
-                                            disabled={isUploadingPhoto}
-                                        >
-                                            <Trash2 className="w-5 h-5" />
-                                        </Button>
-                                    )}
-                                </div>
-                                <Input
-                                    type="file"
-                                    ref={fileInputRef}
-                                    className="hidden"
-                                    accept="image/*"
-                                    onChange={handlePictureUpload}
-                                />
                             </div>
                             <h2 className="text-xl font-semibold text-white">{client.name}</h2>
                             <p className="text-gray-400">File No.: {client.file_no || 'N/A'}</p>
