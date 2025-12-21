@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth.jsx';
-import { getTaskDetails, startTaskTimer, stopTaskTimer, getTaskHistory, addTaskSubtask, updateTaskSubtask, deleteTaskSubtask } from '@/lib/api';
+import { getTaskDetails, startTaskTimer, stopTaskTimer, getTaskHistory, addTaskSubtask, updateTaskSubtask, deleteTaskSubtask, listClients, listServices, listTeamMembers } from '@/lib/api';
 import { useToast } from '@/components/ui/use-toast';
 import { Loader2, ArrowLeft, Paperclip, Clock, Calendar, User, Tag, Flag, CheckCircle, FileText, List, MessageSquare, Briefcase, Users, Play, Square, History, Plus, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -69,17 +69,25 @@ const TaskDashboardPage = () => {
     const { toast } = useToast();
     const [task, setTask] = useState(null);
     const [history, setHistory] = useState([]);
+    const [clients, setClients] = useState([]);
+    const [services, setServices] = useState([]);
+    const [teamMembers, setTeamMembers] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isTimerLoading, setIsTimerLoading] = useState(false);
     const [isHistoryLoading, setIsHistoryLoading] = useState(false);
     const [newSubtask, setNewSubtask] = useState('');
+    const [activeTab, setActiveTab] = useState('dashboard');
+    const [timerStartTime, setTimerStartTime] = useState(null); // Store when timer started for real-time updates
+    const [displayTime, setDisplayTime] = useState(0); // Current displayed time in seconds
+    const [baseTime, setBaseTime] = useState(0); // Base time when timer started (before active timer)
 
     const fetchTask = useCallback(async () => {
         if (!user?.agency_id || !user?.access_token || !taskId) return;
         setIsLoading(true);
         try {
-            const data = await getTaskDetails(taskId, user.agency_id, user.access_token);
-            setTask(data);
+            // Only fetch task details first - load other data lazily when needed
+            const taskData = await getTaskDetails(taskId, user.agency_id, user.access_token);
+            setTask(taskData);
         } catch (error) {
             toast({
                 title: 'Error fetching task details',
@@ -91,6 +99,39 @@ const TaskDashboardPage = () => {
             setIsLoading(false);
         }
     }, [taskId, user?.agency_id, user?.access_token, toast, navigate]);
+
+    // Lazy load clients, services, and team members only when task is loaded and we need them
+    useEffect(() => {
+        if (!task || clients.length > 0 || services.length > 0 || teamMembers.length > 0) return;
+        
+        const loadRelatedData = async () => {
+            try {
+                const [clientsData, servicesData, teamData] = await Promise.allSettled([
+                    listClients(user.agency_id, user.access_token),
+                    listServices(user.agency_id, user.access_token),
+                    listTeamMembers(user.access_token),
+                ]);
+
+                if (clientsData.status === 'fulfilled') {
+                    const clientsList = Array.isArray(clientsData.value) ? clientsData.value : (clientsData.value?.items || []);
+                    setClients(clientsList);
+                }
+                if (servicesData.status === 'fulfilled') {
+                    const servicesList = Array.isArray(servicesData.value) ? servicesData.value : (servicesData.value?.items || []);
+                    setServices(servicesList);
+                }
+                if (teamData.status === 'fulfilled') {
+                    const teamList = Array.isArray(teamData.value) ? teamData.value : (teamData.value?.items || []);
+                    setTeamMembers(teamList);
+                }
+            } catch (error) {
+                console.error('Error loading related data:', error);
+                // Don't show toast for related data failures - they're not critical
+            }
+        };
+        
+        loadRelatedData();
+    }, [task, user?.agency_id, user?.access_token, clients.length, services.length, teamMembers.length]);
 
     const fetchHistory = useCallback(async () => {
         if (!user?.agency_id || !user?.access_token || !taskId) return;
@@ -113,17 +154,119 @@ const TaskDashboardPage = () => {
         fetchTask();
     }, [fetchTask]);
 
+    // Real-time timer update when timer is running
+    useEffect(() => {
+        if (!task?.is_timer_running_for_me) {
+            setTimerStartTime(null);
+            setBaseTime(0);
+            setDisplayTime(task?.total_logged_seconds || 0);
+            return;
+        }
+
+        // If timer is running but we don't have start time, initialize it
+        if (!timerStartTime && task.is_timer_running_for_me) {
+            // Use current time as approximation - will be updated with actual start_time from API
+            const now = new Date();
+            setTimerStartTime(now);
+            // Calculate base time: total_logged_seconds includes active timer, so we subtract elapsed
+            // For now, use total_logged_seconds as base (will be corrected when we get actual start_time)
+            setBaseTime(task.total_logged_seconds || 0);
+            setDisplayTime(task.total_logged_seconds || 0);
+        }
+
+        // Update display time every second
+        const interval = setInterval(() => {
+            if (timerStartTime && task.is_timer_running_for_me) {
+                const now = new Date();
+                const elapsed = Math.floor((now - timerStartTime) / 1000);
+                // Display = base_time + elapsed time since timer started
+                setDisplayTime(baseTime + elapsed);
+            } else if (task?.total_logged_seconds !== undefined) {
+                setDisplayTime(task.total_logged_seconds || 0);
+            }
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [task?.is_timer_running_for_me, task?.total_logged_seconds, timerStartTime, baseTime]);
+
     const handleTimerAction = async (action) => {
         setIsTimerLoading(true);
+        
+        // Store previous state for rollback
+        const previousTimerState = task?.is_timer_running_for_me || false;
+        
+        // Optimistically update the UI first
+        if (task) {
+            const isStarting = action === 'start';
+            if (isStarting) {
+                // When starting, set the start time for real-time updates
+                const now = new Date();
+                setTimerStartTime(now);
+                // Store base time (total_logged_seconds before timer starts)
+                setBaseTime(task.total_logged_seconds || 0);
+                setDisplayTime(task.total_logged_seconds || 0);
+            } else {
+                // When stopping, clear the start time
+                setTimerStartTime(null);
+                setBaseTime(0);
+            }
+            setTask({
+                ...task,
+                is_timer_running_for_me: isStarting,
+            });
+        }
+        
         try {
             const actionFn = action === 'start' ? startTaskTimer : stopTaskTimer;
-            await actionFn(taskId, user.agency_id, user.access_token);
+            const timerResponse = await actionFn(taskId, user.agency_id, user.access_token);
+            
+            // If starting, use the actual start_time from the API response
+            if (action === 'start' && timerResponse?.start_time) {
+                const actualStartTime = new Date(timerResponse.start_time);
+                setTimerStartTime(actualStartTime);
+                // Calculate base time: total_logged_seconds from backend includes active timer
+                // So we need to subtract the elapsed time that's already included
+                const now = new Date();
+                const elapsed = Math.floor((now - actualStartTime) / 1000);
+                // The backend's total_logged_seconds includes this elapsed time
+                // So base_time = total_logged_seconds - elapsed
+                // But we'll get the updated task data next, so we'll recalculate
+            }
+            
             toast({
                 title: `Timer ${action === 'start' ? 'Started' : 'Stopped'}`,
                 description: `The timer for this task has been successfully ${action === 'start' ? 'started' : 'stopped'}.`,
             });
-            fetchTask(); 
+            // Silently refresh task data in background without showing loading state
+            const updatedTask = await getTaskDetails(taskId, user.agency_id, user.access_token);
+            setTask(updatedTask);
+            
+            // Update display time and base time based on refreshed data
+            if (action === 'stop') {
+                setDisplayTime(updatedTask.total_logged_seconds || 0);
+                setTimerStartTime(null);
+                setBaseTime(0);
+            } else if (action === 'start' && timerResponse?.start_time) {
+                // Calculate base time: backend's total_logged_seconds includes active timer
+                const actualStartTime = new Date(timerResponse.start_time);
+                const now = new Date();
+                const elapsed = Math.floor((now - actualStartTime) / 1000);
+                // Base time is what total_logged_seconds was before the active timer started
+                const calculatedBaseTime = (updatedTask.total_logged_seconds || 0) - elapsed;
+                setBaseTime(Math.max(0, calculatedBaseTime));
+                setDisplayTime(updatedTask.total_logged_seconds || 0);
+            }
         } catch (error) {
+            // Revert optimistic update on error
+            if (task) {
+                setTask({
+                    ...task,
+                    is_timer_running_for_me: previousTimerState, // Revert to previous state
+                });
+            }
+            if (action === 'start') {
+                setTimerStartTime(null);
+            }
             toast({
                 title: `Error ${action}ing timer`,
                 description: error.message,
@@ -136,32 +279,73 @@ const TaskDashboardPage = () => {
 
     const handleAddSubtask = async () => {
         if (!newSubtask.trim()) return;
+        const subtaskTitle = newSubtask.trim();
+        setNewSubtask(''); // Clear input immediately for better UX
+        
         try {
-            await addTaskSubtask(taskId, { name: newSubtask.trim() }, user.agency_id, user.access_token);
+            const newSubtaskData = await addTaskSubtask(taskId, { title: subtaskTitle }, user.agency_id, user.access_token);
+            // Optimistically add to UI
+            if (task) {
+                const updatedSubtasks = [...(task.subtasks || []), newSubtaskData];
+                setTask({ ...task, subtasks: updatedSubtasks });
+            }
             toast({ title: "Subtask Added", description: "The new subtask has been added." });
-            setNewSubtask('');
-            fetchTask();
+            // Silently refresh in background to ensure consistency
+            const updatedTask = await getTaskDetails(taskId, user.agency_id, user.access_token);
+            setTask(updatedTask);
         } catch (error) {
+            setNewSubtask(subtaskTitle); // Restore input on error
             toast({ title: "Error adding subtask", description: error.message, variant: "destructive" });
         }
     };
 
     const handleToggleSubtask = async (subtaskId, completed) => {
+        // Optimistically update the UI first
+        if (task && task.subtasks) {
+            const updatedSubtasks = task.subtasks.map(sub => 
+                sub.id === subtaskId ? { ...sub, is_completed: completed } : sub
+            );
+            setTask({ ...task, subtasks: updatedSubtasks });
+        }
+        
         try {
             await updateTaskSubtask(taskId, subtaskId, { is_completed: completed }, user.agency_id, user.access_token);
-            toast({ title: "Subtask Updated", description: "The subtask status has been updated." });
-            fetchTask();
+            // Silently refresh task data in background without showing loading state
+            const updatedTask = await getTaskDetails(taskId, user.agency_id, user.access_token);
+            setTask(updatedTask);
         } catch (error) {
+            // Revert optimistic update on error
+            if (task && task.subtasks) {
+                const revertedSubtasks = task.subtasks.map(sub => 
+                    sub.id === subtaskId ? { ...sub, is_completed: !completed } : sub
+                );
+                setTask({ ...task, subtasks: revertedSubtasks });
+            }
             toast({ title: "Error updating subtask", description: error.message, variant: "destructive" });
         }
     };
 
     const handleDeleteSubtask = async (subtaskId) => {
+        // Optimistically remove from UI
+        let deletedSubtask = null;
+        if (task && task.subtasks) {
+            deletedSubtask = task.subtasks.find(sub => sub.id === subtaskId);
+            const updatedSubtasks = task.subtasks.filter(sub => sub.id !== subtaskId);
+            setTask({ ...task, subtasks: updatedSubtasks });
+        }
+        
         try {
             await deleteTaskSubtask(taskId, subtaskId, user.agency_id, user.access_token);
             toast({ title: "Subtask Deleted", description: "The subtask has been removed." });
-            fetchTask();
+            // Silently refresh in background
+            const updatedTask = await getTaskDetails(taskId, user.agency_id, user.access_token);
+            setTask(updatedTask);
         } catch (error) {
+            // Revert optimistic update on error
+            if (task && deletedSubtask) {
+                const revertedSubtasks = [...(task.subtasks || []), deletedSubtask];
+                setTask({ ...task, subtasks: revertedSubtasks });
+            }
             toast({ title: "Error deleting subtask", description: error.message, variant: "destructive" });
         }
     };
@@ -202,6 +386,30 @@ const TaskDashboardPage = () => {
         );
     }
 
+    // Helper functions to get names from IDs
+    const getClientName = (clientId) => {
+        if (!clientId || !Array.isArray(clients)) return 'N/A';
+        const client = clients.find(c => c.id === clientId || String(c.id) === String(clientId));
+        return client?.name || 'N/A';
+    };
+
+    const getServiceName = (serviceId) => {
+        if (!serviceId || !Array.isArray(services)) return 'N/A';
+        const service = services.find(s => s.id === serviceId || String(s.id) === String(serviceId));
+        return service?.name || 'N/A';
+    };
+
+    const getAssigneeName = (userId) => {
+        if (!userId || !Array.isArray(teamMembers)) return 'Unassigned';
+        const member = teamMembers.find(m => 
+            m.user_id === userId || 
+            String(m.user_id) === String(userId) ||
+            m.id === userId ||
+            String(m.id) === String(userId)
+        );
+        return member?.name || member?.email || 'Unassigned';
+    };
+
     return (
         <div className="p-4 md:p-8 text-white min-h-screen">
             <header className="flex items-center justify-between pb-4 border-b border-white/10 mb-6">
@@ -213,7 +421,7 @@ const TaskDashboardPage = () => {
                 </div>
             </header>
 
-            <Tabs defaultValue="dashboard" className="flex-grow flex flex-col">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-grow flex flex-col">
                 <TabsList className="mb-6 glass-tab-list self-start">
                     <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
                     <TabsTrigger value="subtasks">Subtasks</TabsTrigger>
@@ -221,23 +429,23 @@ const TaskDashboardPage = () => {
                     <TabsTrigger value="history" onClick={fetchHistory}>History</TabsTrigger>
                 </TabsList>
                 <TabsContent value="dashboard" className="flex-grow overflow-y-auto pr-2 space-y-6">
-                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <div className="lg:col-span-2">
-                            <Card className="glass-pane">
+                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 overflow-hidden">
+                        <div className="lg:col-span-2 overflow-hidden">
+                            <Card className="glass-pane overflow-hidden">
                                 <CardHeader><CardTitle>Task Overview</CardTitle></CardHeader>
                                 <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                     <OverviewCard Icon={Briefcase} label="Client" value={task.client?.name || 'N/A'} colorClass="bg-gradient-to-br from-blue-500/30 to-blue-800/30" />
-                                     <OverviewCard Icon={Users} label="Service" value={task.service?.name || 'N/A'} colorClass="bg-gradient-to-br from-purple-500/30 to-purple-800/30" />
-                                     <OverviewCard Icon={User} label="Assignee" value={task.assignee?.name || 'Unassigned'} colorClass="bg-gradient-to-br from-green-500/30 to-green-800/30" />
+                                     <OverviewCard Icon={Briefcase} label="Client" value={getClientName(task.client_id)} colorClass="bg-gradient-to-br from-blue-500/30 to-blue-800/30" />
+                                     <OverviewCard Icon={Users} label="Service" value={getServiceName(task.service_id)} colorClass="bg-gradient-to-br from-purple-500/30 to-purple-800/30" />
+                                     <OverviewCard Icon={User} label="Assignee" value={getAssigneeName(task.assigned_to)} colorClass="bg-gradient-to-br from-green-500/30 to-green-800/30" />
                                      <OverviewCard Icon={Flag} label="Priority" value={<Badge variant={getPriorityVariant(task.priority)}>{task.priority}</Badge>} colorClass="bg-gradient-to-br from-yellow-500/30 to-yellow-800/30" />
                                      <OverviewCard Icon={CheckCircle} label="Status" value={<Badge variant={getStatusVariant(task.status)}>{task.status}</Badge>} colorClass="bg-gradient-to-br from-teal-500/30 to-teal-800/30" />
                                      <OverviewCard Icon={Calendar} label="Due Date" value={task.due_date ? format(new Date(task.due_date), 'dd MMM yyyy') : 'N/A'} colorClass="bg-gradient-to-br from-red-500/30 to-red-800/30" />
                                  </CardContent>
                             </Card>
                         </div>
-                        <div className="space-y-6">
+                        <div className="space-y-6 overflow-hidden">
                             {task.description && (
-                                 <Card className="glass-pane card-hover">
+                                 <Card className="glass-pane card-hover overflow-hidden">
                                     <CardHeader><CardTitle>Description</CardTitle></CardHeader>
                                     <CardContent>
                                         <p className="text-gray-300">{task.description}</p>
@@ -245,7 +453,7 @@ const TaskDashboardPage = () => {
                                 </Card>
                             )}
                              {task.tags?.length > 0 && (
-                                <Card className="glass-pane card-hover">
+                                <Card className="glass-pane card-hover overflow-hidden">
                                     <CardHeader><CardTitle>Tags</CardTitle></CardHeader>
                                     <CardContent className="flex flex-wrap gap-2">
                                         {task.tags.map(tag => (
@@ -257,7 +465,7 @@ const TaskDashboardPage = () => {
                          </div>
                     </div>
                      {task.requested_documents?.length > 0 && (
-                        <Card className="glass-pane card-hover mt-6">
+                        <Card className="glass-pane card-hover overflow-hidden mt-6">
                             <CardHeader><CardTitle>Requested Documents</CardTitle></CardHeader>
                             <CardContent>
                                 <ul className="space-y-2">
@@ -272,8 +480,8 @@ const TaskDashboardPage = () => {
                         </Card>
                     )}
                 </TabsContent>
-                <TabsContent value="subtasks" className="flex-grow overflow-y-auto pr-2">
-                    <Card className="glass-pane card-hover">
+                <TabsContent value="subtasks" className="flex-grow overflow-y-auto no-scrollbar pr-2">
+                    <Card className="glass-pane card-hover overflow-hidden">
                         <CardHeader><CardTitle>Subtasks</CardTitle></CardHeader>
                         <CardContent>
                             <div className="flex gap-2 mb-4">
@@ -295,7 +503,7 @@ const TaskDashboardPage = () => {
                                             onCheckedChange={(checked) => handleToggleSubtask(sub.id, checked)}
                                         />
                                         <label htmlFor={`subtask-${sub.id}`} className={`flex-grow text-sm ${sub.is_completed ? 'line-through text-gray-500' : ''}`}>
-                                            {sub.name}
+                                            {sub.title || sub.name}
                                         </label>
                                         <AlertDialog>
                                             <AlertDialogTrigger asChild>
@@ -323,12 +531,12 @@ const TaskDashboardPage = () => {
                     </Card>
                 </TabsContent>
                 <TabsContent value="timelog" className="flex-grow overflow-y-auto pr-2">
-                    <Card className="glass-pane card-hover">
+                    <Card className="glass-pane card-hover overflow-hidden">
                         <CardHeader><CardTitle>Time Tracking</CardTitle></CardHeader>
                         <CardContent className="flex flex-col items-center justify-center space-y-6 p-8">
                             <div className="text-center">
                                 <p className="text-lg text-gray-400">Total Time Logged</p>
-                                <p className="text-6xl font-extrabold tracking-tighter text-primary">{formatSeconds(task.total_logged_seconds)}</p>
+                                <p className="text-6xl font-extrabold tracking-tighter text-primary">{formatSeconds(displayTime || task?.total_logged_seconds || 0)}</p>
                             </div>
                             <div className="text-center">
                                 <p className="text-lg text-gray-400">Timer Status</p>
@@ -360,7 +568,7 @@ const TaskDashboardPage = () => {
                     </Card>
                 </TabsContent>
                 <TabsContent value="history" className="flex-grow overflow-y-auto pr-2">
-                     <Card className="glass-pane card-hover">
+                     <Card className="glass-pane card-hover overflow-hidden">
                         <CardHeader><CardTitle>Task History</CardTitle></CardHeader>
                         <CardContent>
                             {isHistoryLoading ? (

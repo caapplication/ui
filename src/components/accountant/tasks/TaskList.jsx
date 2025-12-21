@@ -43,17 +43,39 @@ import React, { useState, useMemo } from 'react';
             }
         };
     
-        const getClientName = (clientId) => clients.find(c => c.id === clientId)?.name || 'N/A';
-        const getServiceName = (serviceId) => services.find(s => s.id === serviceId)?.name || 'N/A';
-        const getAssigneeName = (userId) => teamMembers.find(m => m.user_id === userId)?.name || 'N/A';
+        const getClientName = (clientId) => {
+            if (!clientId || !Array.isArray(clients)) return 'N/A';
+            const client = clients.find(c => c.id === clientId || String(c.id) === String(clientId));
+            return client?.name || 'N/A';
+        };
+        const getServiceName = (serviceId) => {
+            if (!serviceId || !Array.isArray(services)) return 'N/A';
+            const service = services.find(s => s.id === serviceId || String(s.id) === String(serviceId));
+            return service?.name || 'N/A';
+        };
+        const getAssigneeName = (userId) => {
+            if (!userId || !Array.isArray(teamMembers)) return 'N/A';
+            const member = teamMembers.find(m => 
+                m.user_id === userId || 
+                String(m.user_id) === String(userId) ||
+                m.id === userId ||
+                String(m.id) === String(userId)
+            );
+            return member?.name || member?.email || 'N/A';
+        };
     
         const filteredTasks = useMemo(() => {
             if (!Array.isArray(tasks)) return [];
             return tasks.filter(task => {
-                const statusMatch = statusFilter === 'all' || task.status?.toLowerCase() === statusFilter;
+                // Handle status filter with case-insensitive matching
+                const taskStatus = task.status?.toLowerCase() || '';
+                const statusMatch = statusFilter === 'all' || taskStatus === statusFilter.toLowerCase();
+                
+                // Handle search with case-insensitive matching
                 const clientName = getClientName(task.client_id) || '';
                 const taskTitle = task.title || '';
-                const searchMatch = clientName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                const searchMatch = !searchTerm || 
+                                    clientName.toLowerCase().includes(searchTerm.toLowerCase()) || 
                                     taskTitle.toLowerCase().includes(searchTerm.toLowerCase());
                 return statusMatch && searchMatch;
             })
@@ -111,57 +133,64 @@ import React, { useState, useMemo } from 'react';
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {filteredTasks.map(task => (
-                                    <TableRow key={task.id} className="hover:bg-white/5 cursor-pointer" onClick={() => onViewTask(task.id)}>
-                                        <TableCell className="font-medium">{task.title}</TableCell>
-                                        <TableCell>{getClientName(task.client_id)}</TableCell>
-                                        <TableCell>{task.due_date ? format(new Date(task.due_date), 'dd MMM yyyy') : 'N/A'}</TableCell>
-                                        <TableCell>{getAssigneeName(task.assignee_id)}</TableCell>
-                                        <TableCell>
-                                            {task.priority && <Badge variant={getPriorityVariant(task.priority)}>{task.priority}</Badge>}
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="flex flex-wrap gap-1">
-                                                {task.tags && task.tags.map(tag => (
-                                                    <Badge key={tag.id} style={{ backgroundColor: tag.color, color: 'hsl(var(--foreground))' }}>
-                                                        {tag.name}
-                                                    </Badge>
-                                                ))}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant={getStatusVariant(task.status)}>{task.status || 'N/A'}</Badge>
-                                        </TableCell>
-                                        <TableCell className="text-right" onClick={e => e.stopPropagation()}>
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="icon"><MoreVertical className="w-4 h-4" /></Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent>
-                                                    <DropdownMenuItem onClick={() => onEditTask(task)}><Edit className="w-4 h-4 mr-2" />Edit</DropdownMenuItem>
-                                                    <AlertDialog>
-                                                        <AlertDialogTrigger asChild>
-                                                            <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-red-500"><Trash2 className="w-4 h-4 mr-2" />Delete</DropdownMenuItem>
-                                                        </AlertDialogTrigger>
-                                                        <AlertDialogContent>
-                                                            <AlertDialogHeader>
-                                                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                                <AlertDialogDescription>This will permanently delete the task.</AlertDialogDescription>
-                                                            </AlertDialogHeader>
-                                                            <AlertDialogFooter>
-                                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                                <AlertDialogAction onClick={() => onDeleteTask(task.id)} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
-                                                            </AlertDialogFooter>
-                                                        </AlertDialogContent>
-                                                    </AlertDialog>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
+                                {filteredTasks.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell colSpan={8} className="text-center py-8">
+                                            <p className="text-gray-400">No tasks found. {tasks.length === 0 ? 'Create your first task to get started!' : 'Try adjusting your filters.'}</p>
                                         </TableCell>
                                     </TableRow>
-                                ))}
+                                ) : (
+                                    filteredTasks.map(task => (
+                                        <TableRow key={task.id} className="hover:bg-white/5 cursor-pointer" onClick={() => onViewTask && onViewTask(task.id)}>
+                                            <TableCell className="font-medium">{task.title || 'Untitled Task'}</TableCell>
+                                            <TableCell>{getClientName(task.client_id)}</TableCell>
+                                            <TableCell>{task.due_date ? format(new Date(task.due_date), 'dd MMM yyyy') : 'N/A'}</TableCell>
+                                            <TableCell>{getAssigneeName(task.assignee_id || task.assigned_to)}</TableCell>
+                                            <TableCell>
+                                                {task.priority && <Badge variant={getPriorityVariant(task.priority)}>{task.priority}</Badge>}
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="flex flex-wrap gap-1">
+                                                    {task.tags && Array.isArray(task.tags) && task.tags.map(tag => (
+                                                        <Badge key={tag.id || tag} style={{ backgroundColor: tag.color, color: 'hsl(var(--foreground))' }}>
+                                                            {tag.name || tag}
+                                                        </Badge>
+                                                    ))}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge variant={getStatusVariant(task.status)}>{task.status || 'Pending'}</Badge>
+                                            </TableCell>
+                                            <TableCell className="text-right" onClick={e => e.stopPropagation()}>
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button variant="ghost" size="icon"><MoreVertical className="w-4 h-4" /></Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent>
+                                                        <DropdownMenuItem onClick={() => onEditTask && onEditTask(task)}><Edit className="w-4 h-4 mr-2" />Edit</DropdownMenuItem>
+                                                        <AlertDialog>
+                                                            <AlertDialogTrigger asChild>
+                                                                <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-red-500"><Trash2 className="w-4 h-4 mr-2" />Delete</DropdownMenuItem>
+                                                            </AlertDialogTrigger>
+                                                            <AlertDialogContent>
+                                                                <AlertDialogHeader>
+                                                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                                    <AlertDialogDescription>This will permanently delete the task.</AlertDialogDescription>
+                                                                </AlertDialogHeader>
+                                                                <AlertDialogFooter>
+                                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                                    <AlertDialogAction onClick={() => onDeleteTask && onDeleteTask(task.id)} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
+                                                                </AlertDialogFooter>
+                                                            </AlertDialogContent>
+                                                        </AlertDialog>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                )}
                             </TableBody>
                         </Table>
-                         {filteredTasks.length === 0 && <p className="text-center text-gray-400 py-8">No tasks found.</p>}
                     </div>
                 </div>
             </div>

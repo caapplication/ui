@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-    import { useNavigate } from 'react-router-dom';
+    import { useNavigate, Link } from 'react-router-dom';
     import { useAuth } from '@/hooks/useAuth.jsx';
     import { useToast } from '@/components/ui/use-toast';
-    import { Loader2 } from 'lucide-react';
+    import { Loader2, Repeat } from 'lucide-react';
     import TaskList from '@/components/accountant/tasks/TaskList.jsx';
     import NewTaskForm from '@/components/accountant/tasks/NewTaskForm.jsx';
     import { listTasks, createTask, updateTask, deleteTask as apiDeleteTask, listClients, listServices, listTeamMembers, getTags } from '@/lib/api';
     import { AnimatePresence, motion } from 'framer-motion';
+    import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+    import { Button } from '@/components/ui/button';
     
     const TaskManagementPage = () => {
         const { user } = useAuth();
@@ -27,26 +29,49 @@ import React, { useState, useEffect, useCallback } from 'react';
                 if (!user?.agency_id || !user?.access_token) {
                     throw new Error("User information not available.");
                 }
-                const [tasksData, clientsData, servicesData, teamData, tagsData] = await Promise.all([
-                    listTasks(user.agency_id, user.access_token),
+                // Use Promise.allSettled to handle individual failures gracefully
+                const results = await Promise.allSettled([
+                    listTasks(user.agency_id, user.access_token).catch(err => {
+                        console.warn('Failed to fetch tasks:', err);
+                        return { items: [] };
+                    }),
                     listClients(user.agency_id, user.access_token),
                     listServices(user.agency_id, user.access_token),
                     listTeamMembers(user.access_token),
                     getTags(user.agency_id, user.access_token),
                 ]);
     
-                setTasks(tasksData || []);
-                setClients(clientsData || []);
-                setServices(servicesData || []);
-                setTeamMembers(teamData || []);
-                setTags(tagsData || []);
+                // Extract data from settled promises, handling both fulfilled and rejected states
+                const tasksData = results[0].status === 'fulfilled' ? results[0].value : { items: [] };
+                const clientsData = results[1].status === 'fulfilled' ? results[1].value : [];
+                const servicesData = results[2].status === 'fulfilled' ? results[2].value : [];
+                const teamData = results[3].status === 'fulfilled' ? results[3].value : [];
+                const tagsData = results[4].status === 'fulfilled' ? results[4].value : [];
+    
+                // Handle different response formats (direct array or { items: [...] })
+                setTasks(Array.isArray(tasksData) ? tasksData : (tasksData?.items || []));
+                setClients(Array.isArray(clientsData) ? clientsData : (clientsData?.items || []));
+                setServices(Array.isArray(servicesData) ? servicesData : (servicesData?.items || []));
+                setTeamMembers(Array.isArray(teamData) ? teamData : (teamData?.items || []));
+                setTags(Array.isArray(tagsData) ? tagsData : (tagsData?.items || []));
     
             } catch (error) {
-                toast({
-                    title: 'Error fetching data',
-                    description: error.message,
-                    variant: 'destructive',
-                });
+                console.error('Error fetching task data:', error);
+                // Set empty arrays to allow UI to render even if API fails
+                setTasks([]);
+                setClients([]);
+                setServices([]);
+                setTeamMembers([]);
+                setTags([]);
+                
+                // Only show error toast if it's not a network error (backend might not be running)
+                if (error.message && !error.message.includes('Failed to fetch') && !error.message.includes('NetworkError')) {
+                    toast({
+                        title: 'Error fetching data',
+                        description: error.message,
+                        variant: 'destructive',
+                    });
+                }
             } finally {
                 setIsLoading(false);
             }
@@ -178,6 +203,20 @@ import React, { useState, useEffect, useCallback } from 'react';
     
         return (
             <div className="p-4 md:p-8 text-white relative overflow-hidden h-full">
+                {view === 'list' && (
+                    <div className="flex items-center justify-between mb-4">
+                        <h1 className="text-3xl font-bold">Tasks</h1>
+                        <Link to="/recurring-tasks">
+                            <Button
+                                variant="outline"
+                                className="text-white border-white/20 hover:bg-white/10"
+                            >
+                                <Repeat className="w-4 h-4 mr-2" />
+                                Recurring Tasks
+                            </Button>
+                        </Link>
+                    </div>
+                )}
                 <AnimatePresence mode="wait">
                     {renderContent()}
                 </AnimatePresence>

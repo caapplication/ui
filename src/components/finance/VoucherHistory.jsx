@@ -63,8 +63,10 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
     let sortableVouchers = [...(vouchers || [])];
     sortableVouchers.sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
     const unexportedVouchers = sortableVouchers.filter(v => !v.is_exported);
+    // Filter out vouchers that have tags (finance_header_id is set)
+    const untaggedVouchers = unexportedVouchers.filter(v => !v.finance_header_id);
 
-    return unexportedVouchers.filter(v => {
+    return untaggedVouchers.filter(v => {
       let match = true;
       for (const filter of activeFilters) {
         if (filter === 'beneficiary') {
@@ -245,6 +247,7 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                         <TableHead>Type</TableHead>
                         <TableHead>Beneficiaries</TableHead>
                         <TableHead>Amount</TableHead>
+                        <TableHead>Status</TableHead>
                         <TableHead>Remarks</TableHead>
                         <TableHead>Actions</TableHead>
                     </TableRow>
@@ -266,6 +269,17 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                                 </TableCell>
                                 <TableCell>{voucher.beneficiaryName}</TableCell>
                                 <TableCell>₹{parseFloat(voucher.amount).toFixed(2)}</TableCell>
+                                <TableCell>
+                                    <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${
+                                        voucher.status === 'approved' 
+                                            ? 'bg-green-500/20 text-green-300' 
+                                            : voucher.status === 'rejected'
+                                            ? 'bg-red-500/20 text-red-300'
+                                            : 'bg-blue-500/20 text-blue-300'
+                                    }`}>
+                                        {voucher.status || 'created'}
+                                    </span>
+                                </TableCell>
                                 <TableCell>{voucher.remarks || 'N/A'}</TableCell>
                                 <TableCell>
                                     <div className="flex items-center gap-2">

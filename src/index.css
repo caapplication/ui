@@ -125,9 +125,11 @@ body {
 
 .card-hover {
   @apply transition-all duration-300 ease-in-out;
+  will-change: transform;
+  transform-origin: center;
 }
 .card-hover:hover {
-  transform: translateY(-8px) scale(1.03);
+  transform: translateY(-4px) scale(1.01);
   @apply bg-black/40 border-white/30 shadow-2xl shadow-blue-500/20;
 }
 

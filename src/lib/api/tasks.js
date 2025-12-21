@@ -3,11 +3,20 @@ import { getAuthHeaders, handleResponse } from './utils';
     const TASKS_API_BASE_URL = 'http://127.0.0.1:8005'; // Use local service for development
 
     export const listTasks = async (agencyId, token) => {
-        const response = await fetch(`${TASKS_API_BASE_URL}/tasks/`, {
-            method: 'GET',
-            headers: getAuthHeaders(token, 'application/json', agencyId),
-        });
-        return handleResponse(response);
+        try {
+            const response = await fetch(`${TASKS_API_BASE_URL}/tasks/`, {
+                method: 'GET',
+                headers: getAuthHeaders(token, 'application/json', agencyId),
+            });
+            return handleResponse(response);
+        } catch (error) {
+            // Handle network errors (service not running, CORS, etc.)
+            if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError') || error.name === 'TypeError') {
+                console.warn('Task service not available at', TASKS_API_BASE_URL, '- returning empty array');
+                return { items: [] }; // Return empty array format to match expected structure
+            }
+            throw error;
+        }
     };
 
     export const createTask = async (taskData, agencyId, token) => {
@@ -81,11 +90,20 @@ import { getAuthHeaders, handleResponse } from './utils';
     };
 
     export const listTodos = async (agencyId, token) => {
-        const response = await fetch(`${TASKS_API_BASE_URL}/todos`, {
-            method: 'GET',
-            headers: getAuthHeaders(token, 'application/json', agencyId),
-        });
-        return handleResponse(response);
+        try {
+            const response = await fetch(`${TASKS_API_BASE_URL}/todos`, {
+                method: 'GET',
+                headers: getAuthHeaders(token, 'application/json', agencyId),
+            });
+            return handleResponse(response);
+        } catch (error) {
+            // Handle network errors (service not running, CORS, etc.)
+            if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError') || error.name === 'TypeError') {
+                console.warn('Task service not available at', TASKS_API_BASE_URL, '- returning empty array');
+                return { items: [] }; // Return empty array format to match expected structure
+            }
+            throw error;
+        }
     };
 
     export const createTodo = async (todoData, agencyId, token) => {

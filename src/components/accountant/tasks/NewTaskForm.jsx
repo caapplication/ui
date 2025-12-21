@@ -51,7 +51,7 @@ import React, { useState, useEffect } from 'react';
             description: task.description || '',
             document_request_enabled: task.document_request?.enabled || false,
             document_request_items: task.document_request?.items || [],
-            assigned_user_id: task.assigned_user_id || '',
+            assigned_user_id: task.assigned_to || task.assigned_user_id || '',
             priority: task.priority || '',
             tag_id: task.tag_id || ''
           });
@@ -266,9 +266,12 @@ import React, { useState, useEffect } from 'react';
                     <SelectTrigger><SelectValue placeholder="Select a team member" /></SelectTrigger>
                     <SelectContent>
                        {teamMembers && teamMembers.length > 0 ? (
-                          teamMembers.map(member => (
-                              <SelectItem key={member.user_id} value={member.user_id}>{member.name || member.email}</SelectItem>
-                          ))
+                          teamMembers.map(member => {
+                              const memberId = member.user_id || member.id;
+                              return (
+                                  <SelectItem key={memberId} value={memberId}>{member.name || member.email}</SelectItem>
+                              );
+                          })
                       ) : (
                           <SelectItem value="no-members" disabled>No team members found</SelectItem>
                       )}

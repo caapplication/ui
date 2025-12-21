@@ -8,6 +8,7 @@ import { handleResponse, getAuthHeaders } from './utils';
     import * as settings from './settings';
     import * as team from './team';
     import * as tasks from './tasks';
+    import * as recurringTasks from './recurringTasks';
 
     const API_BASE_URL = 'http://127.0.0.1:8001';
     const FINANCE_API_BASE_URL = 'http://127.0.0.1:8003/';
@@ -161,3 +162,12 @@ import { handleResponse, getAuthHeaders } from './utils';
       updateTaskSubtask,
       deleteTaskSubtask
     } = tasks;
+
+    export const {
+      listRecurringTasks,
+      getRecurringTask,
+      createRecurringTask,
+      updateRecurringTask,
+      deleteRecurringTask,
+      triggerRecurringTaskScheduler
+    } = recurringTasks;

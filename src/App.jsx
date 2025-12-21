@@ -25,6 +25,7 @@ import Organisation from '@/components/accountant/organisation/Organisation.jsx'
 import TeamMembers from '@/components/accountant/team/TeamMembers.jsx';
 import Settings from '@/components/accountant/settings/Settings.jsx';
 import TaskManagementPage from '@/components/accountant/tasks/TaskManagementPage.jsx';
+import RecurringTaskManagementPage from '@/components/accountant/tasks/RecurringTaskManagementPage.jsx';
 import TodoPage from '@/components/accountant/tasks/TodoPage.jsx';
 import TeamSidebar from '@/components/layout/TeamSidebar.jsx';
 import { Menu } from 'lucide-react';
@@ -170,6 +171,7 @@ const ProtectedContent = () => {
             <Route path="/profile" element={<Profile />} />
             <Route path="/clients" element={<Clients setActiveTab={() => { }} />} />
             <Route path="/tasks" element={<TaskManagementPage />} />
+            <Route path="/recurring-tasks" element={<RecurringTaskManagementPage />} />
             <Route path="/todos" element={<TodoPage />} />
             <Route path="/services" element={<Services />} />
             <Route path="/organisation" element={<Organisation />} />

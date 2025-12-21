@@ -34,13 +34,13 @@ const TeamSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) => {
     { id: 'dashboard', path: '/', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'clients', path: '/clients', label: 'Clients', icon: Users },
     { id: 'finance', path: '/finance', label: 'Finance', icon: Landmark },
+    { id: 'tasks', path: '/tasks', label: 'Tasks', icon: ListTodo },
     { id: 'settings', path: '/settings', label: 'Settings', icon: Settings },
   ];
 
   // Upcoming section items
   const upcomingItems = [
     { id: 'documents', path: '/documents', label: 'Documents', icon: FileText },
-    { id: 'task', path: '/tasks', label: 'Task', icon: ListTodo },
     { id: 'services', path: '/services', label: 'Services', icon: Briefcase },
   ];
 
@@ -71,7 +71,6 @@ const TeamSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) => {
   // Info for each upcoming item
   const upcomingInfo = {
     documents: "Access and manage your important documents here.",
-    task: "View and manage your tasks and to-dos.",
     services: "Browse and manage available services."
   };
 
@@ -176,8 +175,6 @@ const TeamSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) => {
                               e.preventDefault();
                               if (item.id === "documents") {
                                 navigate('/upcoming/documents');
-                              } else if (item.id === "task") {
-                                navigate('/upcoming/task');
                               } else if (item.id === "services") {
                                 navigate('/upcoming/services');
                               }

@@ -8,6 +8,7 @@ import * as clients from './api/clients';
 import * as settings from './api/settings';
 import * as team from './api/team';
 import * as tasks from './api/tasks';
+import * as recurringTasks from './api/recurringTasks';
 
 const API_BASE_URL = 'http://127.0.0.1:8001';
 export const FINANCE_API_BASE_URL = 'http://127.0.0.1:8003/';
@@ -179,6 +180,15 @@ export const {
     updateTaskSubtask,
     deleteTaskSubtask
 } = tasks;
+
+export const {
+    listRecurringTasks,
+    getRecurringTask,
+    createRecurringTask,
+    updateRecurringTask,
+    deleteRecurringTask,
+    triggerRecurringTaskScheduler
+} = recurringTasks;
 
 // Idle timeout and token refresh logic
 let lastApiCallTimestamp = Date.now();
