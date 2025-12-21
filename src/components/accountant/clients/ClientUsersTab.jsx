@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Filter, UserPlus } from 'lucide-react';
+import { Filter, UserPlus, Search } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { resendToken, deleteOrgUser, inviteOrganizationUser, deleteInvitedOrgUser } from '@/lib/api/organisation';
 import { useToast } from '@/components/ui/use-toast';
@@ -18,19 +18,34 @@ const ClientUsersTab = ({ client }) => {
     const [loadingUserId, setLoadingUserId] = useState(null);
     const [showInviteDialog, setShowInviteDialog] = useState(false);
     const [inviteEmail, setInviteEmail] = useState('');
+    const [searchTerm, setSearchTerm] = useState('');
+    const [userFilter, setUserFilter] = useState('all'); // all, joined, invited
 
     const invitedUsers = (client.orgUsers?.invited_users || []).map(user => ({ ...user, status: 'Invited', role: 'CLIENT user' }));
     const joinedUsers = (client.orgUsers?.joined_users || []).map(user => ({ ...user, status: 'Joined', role: 'ENTITY USER' }));
     const allUsers = [...invitedUsers, ...joinedUsers];
 
-    const [userFilter, setUserFilter] = useState('all'); // all, joined, invited
+    const filteredUsers = useMemo(() => {
+        let filtered = allUsers.filter(user => {
+            if (userFilter === 'all') return true;
+            if (userFilter === 'joined') return user.status === 'Joined';
+            if (userFilter === 'invited') return user.status === 'Invited';
+            return true;
+        });
 
-    const filteredUsers = allUsers.filter(user => {
-        if (userFilter === 'all') return true;
-        if (userFilter === 'joined') return user.status === 'Joined';
-        if (userFilter === 'invited') return user.status === 'Invited';
-        return true;
-    });
+        // Apply search filter
+        if (searchTerm.trim()) {
+            const term = searchTerm.toLowerCase();
+            filtered = filtered.filter(user => {
+                const email = (user.email || '').toLowerCase();
+                const role = (user.role || '').toLowerCase();
+                const status = (user.status || '').toLowerCase();
+                return email.includes(term) || role.includes(term) || status.includes(term);
+            });
+        }
+
+        return filtered;
+    }, [allUsers, userFilter, searchTerm]);
 
     // Handler for Resend Invite
     const handleResendInvite = async (userObj) => {
@@ -82,48 +97,59 @@ const ClientUsersTab = ({ client }) => {
 
     return (
         <div className="glass-pane p-4 rounded-lg">
-            <div className="flex justify-end mb-2 gap-2">
-                <Button onClick={() => setShowInviteDialog(true)}><UserPlus className="w-4 h-4 mr-2" /> Invite User</Button>
-                <Popover>
-                    <PopoverTrigger asChild>
-                        <Button variant="secondary" className="flex items-center gap-2">
-                            <Filter className="w-4 h-4" />
-                            Filter
-                        </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-48 p-0 bg-[#181C2A] text-white rounded-lg shadow-lg border border-[#2A2E3A]">
-                        <div className="px-4 py-3 border-b border-[#23263A] font-semibold text-sm">Filter by Status</div>
-                        <div className="flex flex-col gap-1 py-2">
-                            <button
-                                className={`flex items-center gap-2 px-4 py-2 text-left hover:bg-[#23263A] transition-colors w-full ${userFilter === 'all' ? 'font-bold' : ''}`}
-                                onClick={() => setUserFilter('all')}
-                            >
-                                <span className="inline-block w-3 h-3 rounded-full border border-white flex items-center justify-center">
-                                    {userFilter === 'all' && <span className="w-2 h-2 bg-white rounded-full block"></span>}
-                                </span>
-                                All
-                            </button>
-                            <button
-                                className={`flex items-center gap-2 px-4 py-2 text-left hover:bg-[#23263A] transition-colors w-full ${userFilter === 'invited' ? 'font-bold' : ''}`}
-                                onClick={() => setUserFilter('invited')}
-                            >
-                                <span className="inline-block w-3 h-3 rounded-full border border-white flex items-center justify-center">
-                                    {userFilter === 'invited' && <span className="w-2 h-2 bg-white rounded-full block"></span>}
-                                </span>
-                                Invited
-                            </button>
-                            <button
-                                className={`flex items-center gap-2 px-4 py-2 text-left hover:bg-[#23263A] transition-colors w-full ${userFilter === 'joined' ? 'font-bold' : ''}`}
-                                onClick={() => setUserFilter('joined')}
-                            >
-                                <span className="inline-block w-3 h-3 rounded-full border border-white flex items-center justify-center">
-                                    {userFilter === 'joined' && <span className="w-2 h-2 bg-white rounded-full block"></span>}
-                                </span>
-                                Joined
-                            </button>
-                        </div>
-                    </PopoverContent>
-                </Popover>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
+                <div className="relative w-full sm:w-auto sm:min-w-[300px]">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Input 
+                        placeholder="Search users..."
+                        className="glass-input pl-10 bg-gray-700/50 border-gray-600 text-white"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                </div>
+                <div className="flex gap-2">
+                    <Button onClick={() => setShowInviteDialog(true)}><UserPlus className="w-4 h-4 mr-2" /> Invite User</Button>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button variant="secondary" className="flex items-center gap-2">
+                                <Filter className="w-4 h-4" />
+                                Filter
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-48 p-0 bg-[#181C2A] text-white rounded-lg shadow-lg border border-[#2A2E3A]">
+                            <div className="px-4 py-3 border-b border-[#23263A] font-semibold text-sm">Filter by Status</div>
+                            <div className="flex flex-col gap-1 py-2">
+                                <button
+                                    className={`flex items-center gap-2 px-4 py-2 text-left hover:bg-[#23263A] transition-colors w-full ${userFilter === 'all' ? 'font-bold' : ''}`}
+                                    onClick={() => setUserFilter('all')}
+                                >
+                                    <span className="inline-block w-3 h-3 rounded-full border border-white flex items-center justify-center">
+                                        {userFilter === 'all' && <span className="w-2 h-2 bg-white rounded-full block"></span>}
+                                    </span>
+                                    All
+                                </button>
+                                <button
+                                    className={`flex items-center gap-2 px-4 py-2 text-left hover:bg-[#23263A] transition-colors w-full ${userFilter === 'invited' ? 'font-bold' : ''}`}
+                                    onClick={() => setUserFilter('invited')}
+                                >
+                                    <span className="inline-block w-3 h-3 rounded-full border border-white flex items-center justify-center">
+                                        {userFilter === 'invited' && <span className="w-2 h-2 bg-white rounded-full block"></span>}
+                                    </span>
+                                    Invited
+                                </button>
+                                <button
+                                    className={`flex items-center gap-2 px-4 py-2 text-left hover:bg-[#23263A] transition-colors w-full ${userFilter === 'joined' ? 'font-bold' : ''}`}
+                                    onClick={() => setUserFilter('joined')}
+                                >
+                                    <span className="inline-block w-3 h-3 rounded-full border border-white flex items-center justify-center">
+                                        {userFilter === 'joined' && <span className="w-2 h-2 bg-white rounded-full block"></span>}
+                                    </span>
+                                    Joined
+                                </button>
+                            </div>
+                        </PopoverContent>
+                    </Popover>
+                </div>
             </div>
             <Table>
                 <TableHeader>
@@ -203,8 +229,12 @@ const ClientUsersTab = ({ client }) => {
                         ))
                     ) : (
                         <TableRow>
-                            <TableCell colSpan="4" className="text-center">
-                                No users found.
+                            <TableCell colSpan="4" className="text-center py-8">
+                                {searchTerm.trim() ? (
+                                    <span className="text-gray-400">No users found matching "{searchTerm}"</span>
+                                ) : (
+                                    <span className="text-gray-400">No users found.</span>
+                                )}
                             </TableCell>
                         </TableRow>
                     )}

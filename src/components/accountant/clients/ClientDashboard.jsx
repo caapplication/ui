@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Edit, Trash2, Loader2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -34,7 +34,7 @@ import {
     DialogFooter
 } from '@/components/ui/dialog';
 
-const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, onUpdateClient, onClientDeleted, teamMembers }) => {
+const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, onUpdateClient, onClientDeleted, teamMembers, onTeamMemberInvited }) => {
     const [activeSubTab, setActiveSubTab] = useState('Details');
     const [isDeleting, setIsDeleting] = useState(false);
     const [isEntityMutating, setIsEntityMutating] = useState(false);
@@ -46,6 +46,8 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
     const { toast } = useToast();
     const { user } = useAuth();
     
+    const [photoBlobUrl, setPhotoBlobUrl] = useState(null);
+
     // Helper function to get the correct photo URL
     const getClientPhotoUrl = (client) => {
         if (!client || !client.id) return null;
@@ -53,11 +55,100 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
         if (!photoUrl) return null;
         // If it's an S3 URL, use proxy endpoint for authenticated access
         if (photoUrl.includes('.s3.amazonaws.com/')) {
-            return `http://127.0.0.1:8002/clients/${client.id}/photo`;
+            return `http://127.0.0.1:8002/clients/${client.id}/photo?t=${Date.now()}`;
+        }
+        // If it's already the proxy URL, add cache-busting if not present
+        if (photoUrl.includes(`/clients/${client.id}/photo`)) {
+            return photoUrl.includes('?') ? photoUrl : `${photoUrl}?t=${Date.now()}`;
         }
         // Otherwise use the URL directly (could be proxy URL or other URL)
         return photoUrl;
     };
+
+    // Fetch photo as blob with authentication
+    useEffect(() => {
+        // Cleanup previous blob URL
+        if (photoBlobUrl && photoBlobUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(photoBlobUrl);
+        }
+
+        if (client?.id && user?.access_token) {
+            const photoUrl = getClientPhotoUrl(client);
+            // Always try to fetch from the photo endpoint if we have a client ID
+            const photoEndpoint = `http://127.0.0.1:8002/clients/${client.id}/photo?t=${Date.now()}`;
+            
+            if (photoUrl && photoUrl.includes(`/clients/${client.id}/photo`)) {
+                // Fetch with authentication
+                fetch(photoUrl, {
+                    headers: {
+                        'Authorization': `Bearer ${user.access_token}`,
+                        'x-agency-id': user.agency_id || ''
+                    }
+                })
+                .then(response => {
+                    if (response.ok) {
+                        return response.blob();
+                    }
+                    throw new Error('Failed to fetch photo');
+                })
+                .then(blob => {
+                    const url = URL.createObjectURL(blob);
+                    setPhotoBlobUrl(url);
+                })
+                .catch(err => {
+                    console.error('Error loading client photo:', err);
+                    // Try the endpoint directly even if photo_url is not set
+                    fetch(photoEndpoint, {
+                        headers: {
+                            'Authorization': `Bearer ${user.access_token}`,
+                            'x-agency-id': user.agency_id || ''
+                        }
+                    })
+                    .then(response => {
+                        if (response.ok) {
+                            return response.blob();
+                        }
+                        throw new Error('Photo not found');
+                    })
+                    .then(blob => {
+                        const url = URL.createObjectURL(blob);
+                        setPhotoBlobUrl(url);
+                    })
+                    .catch(() => {
+                        setPhotoBlobUrl(null);
+                    });
+                });
+            } else if (!photoUrl && client?.id) {
+                // If no photo_url is set, try to fetch from the endpoint anyway
+                fetch(photoEndpoint, {
+                    headers: {
+                        'Authorization': `Bearer ${user.access_token}`,
+                        'x-agency-id': user.agency_id || ''
+                    }
+                })
+                .then(response => {
+                    if (response.ok) {
+                        return response.blob();
+                    }
+                    throw new Error('Photo not found');
+                })
+                .then(blob => {
+                    const url = URL.createObjectURL(blob);
+                    setPhotoBlobUrl(url);
+                })
+                .catch(() => {
+                    setPhotoBlobUrl(null);
+                });
+            } else if (photoUrl) {
+                // If it's not the proxy URL, use it directly
+                setPhotoBlobUrl(photoUrl);
+            } else {
+                setPhotoBlobUrl(null);
+            }
+        } else {
+            setPhotoBlobUrl(null);
+        }
+    }, [client?.id, client?.photo_url, client?.photo, user?.access_token, user?.agency_id]);
 
     const tabs = [
         'Details',
@@ -154,7 +245,7 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
     const renderTabContent = () => {
         switch (activeSubTab) {
             case 'Details':
-                return <ClientDashboardDetails client={client} teamMembers={teamMembers} />;
+                return <ClientDashboardDetails client={client} teamMembers={teamMembers} onUpdateClient={onUpdateClient} onTeamMemberInvited={onTeamMemberInvited} />;
             case 'Services':
                 return <ClientServicesTab client={client} allServices={allServices} onUpdateClient={onUpdateClient} />;
             case 'Passwords':
@@ -317,10 +408,14 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
                             <div className="relative mb-4 inline-block">
                                     <Avatar className="w-24 h-24 mx-auto border-4 border-white/20">
                                     <AvatarImage 
-                                        src={getClientPhotoUrl(client)} 
+                                        src={photoBlobUrl || getClientPhotoUrl(client)} 
                                         alt={client.name} 
-                                        key={`client-photo-${client.id}-${client.photo_url || 'no-photo'}`}
+                                        key={`client-photo-${client.id}-${client.photo_url || 'no-photo'}-${Date.now()}`}
                                         loading="eager"
+                                        onError={(e) => {
+                                            console.error('Failed to load client photo:', e);
+                                            setPhotoBlobUrl(null);
+                                        }}
                                     />
                                     <AvatarFallback className="text-3xl bg-gradient-to-br from-sky-500 to-indigo-600 text-white">
                                         {client.name.charAt(0).toUpperCase()}

@@ -191,14 +191,19 @@ import React, { useState, useEffect, useCallback } from 'react';
                     let finalClient = updatedClient;
                 if (photoFile) {
                     const photoRes = await uploadClientPhoto(editingClient.id, photoFile, user.agency_id, user.access_token);
-                    // Convert S3 URL to proxy endpoint URL
-                    const photoUrl = photoRes.photo_url && photoRes.photo_url.includes('.s3.amazonaws.com/')
-                        ? `http://127.0.0.1:8002/clients/${editingClient.id}/photo`
-                        : photoRes.photo_url;
+                    // Use the photo_url from response, or construct the proxy URL with cache-busting
+                    const photoUrl = photoRes.photo_url || `http://127.0.0.1:8002/clients/${editingClient.id}/photo?t=${Date.now()}`;
                     finalClient = { ...updatedClient, photo: photoUrl, photo_url: photoUrl };
+                } else {
+                    finalClient = updatedClient;
                 }
                     toast({ title: "✅ Client Updated", description: `Client ${updatedClient.name} has been updated.` });
-                    setClients(clients.map(c => c.id === editingClient.id ? finalClient : c));
+                    const updatedClients = clients.map(c => c.id === editingClient.id ? finalClient : c);
+                    setClients(updatedClients);
+                    // Update selectedClient if it's the same client
+                    if (selectedClient && selectedClient.id === editingClient.id) {
+                        setSelectedClient(finalClient);
+                    }
                 } else {
                     const newClient = await createClient(clientData, user.agency_id, user.access_token);
                     let finalClient = newClient;
@@ -228,6 +233,18 @@ import React, { useState, useEffect, useCallback } from 'react';
             const updatedClient = { ...selectedClient, ...updatedClientData };
             setSelectedClient(updatedClient);
             setClients(prevClients => prevClients.map(c => c.id === updatedClient.id ? updatedClient : c));
+        };
+
+        const handleTeamMemberInvited = async () => {
+            // Refresh team members list after inviting
+            if (user?.access_token) {
+                try {
+                    const members = await listTeamMembers(user.access_token, 'joined');
+                    setTeamMembers(members || []);
+                } catch (error) {
+                    console.error('Failed to refresh team members:', error);
+                }
+            }
         };
     
         const renderContent = () => {
@@ -307,6 +324,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                                 onUpdateClient={handleUpdateClient}
                                 onClientDeleted={handleDeleteClient}
                                 teamMembers={teamMembers}
+                                onTeamMemberInvited={handleTeamMemberInvited}
                             />
                         </motion.div>
                     );
