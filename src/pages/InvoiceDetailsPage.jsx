@@ -106,7 +106,7 @@ const InvoiceDetailsPage = () => {
                 let fullInvoice = null;
                 try {
                     // Fetch full invoice by ID to get attachment relationship
-                    const response = await fetch(`http://localhost:8003/api/invoices/${invoiceId}?entity_id=${entityId}`, {
+                    const response = await fetch(`https://finance-api.fynivo.in/api/invoices/${invoiceId}?entity_id=${entityId}`, {
                         headers: {
                             'Authorization': `Bearer ${user.access_token}`,
                             'Content-Type': 'application/json'
