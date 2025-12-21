@@ -9,7 +9,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { FileText, Upload, Trash2, Plus, Share2, Folder, FolderPlus, ArrowLeft, Search, Loader2, RefreshCw, Inbox, CalendarIcon, Download, Copy, X, User, Link2, Grid, Phone, Mail, MessageCircle, Facebook, Twitter, MoreVertical } from 'lucide-react';
+import { FileText, Upload, Trash2, Plus, Share2, Folder, FolderPlus, ArrowLeft, Search, Loader2, RefreshCw, Inbox, CalendarIcon, Download, Copy, X, User, Link2, Grid, Phone, Mail, MessageCircle, Facebook, Twitter, MoreVertical, Users, UserPlus, Check } from 'lucide-react';
 
 // Helper function to check if folder has expired documents (recursively checks subfolders)
 const hasExpiredDocuments = (folder) => {
@@ -104,7 +104,7 @@ const FolderIcon = ({ className = "w-20 h-20", hasExpired = false }) => {
 };
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth.jsx';
-import { getDocuments, createFolder, uploadFile, deleteDocument, shareDocument, viewFile, getSharedDocuments, listOrganisations, listEntities, createCAFolder, uploadCAFile, shareFolder, FINANCE_API_BASE_URL } from '@/lib/api';
+import { getDocuments, createFolder, uploadFile, deleteDocument, shareDocument, viewFile, getSharedDocuments, listOrganisations, listEntities, createCAFolder, uploadCAFile, shareFolder, listOrgUsers, listTeamMembers, FINANCE_API_BASE_URL } from '@/lib/api';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
@@ -192,6 +192,11 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   const [itemToDelete, setItemToDelete] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [previewFile, setPreviewFile] = useState(null);
+  const [collaborateDialogOpen, setCollaborateDialogOpen] = useState(false);
+  const [collaborateDoc, setCollaborateDoc] = useState(null);
+  const [availableUsers, setAvailableUsers] = useState([]);
+  const [selectedUsers, setSelectedUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('myFiles'); // 'myFiles' or 'sharedWithMe'
   const [currentClientId, setCurrentClientId] = useState(getInitialEntityId());
@@ -550,6 +555,162 @@ if (activeTab === 'myFiles') {
     setShareDialogOpen(true);
   };
 
+  const handleCollaborateClick = async (doc) => {
+    setCollaborateDoc(doc);
+    setSelectedUsers([]);
+    setAvailableUsers([]);
+    setLoadingUsers(true);
+    setCollaborateDialogOpen(true);
+    
+    try {
+      // Get organization ID based on user role
+      let orgId = null;
+      if (user?.role === 'CA_ACCOUNTANT') {
+        // For CA accountants, use the selected organization
+        orgId = currentClientId !== 'all' ? currentClientId : (organisations[0]?.id || null);
+      } else if (user?.organization_id) {
+        orgId = user.organization_id;
+      } else if (user?.entities && user.entities.length > 0) {
+        orgId = user.entities[0].organisation_id;
+      }
+      
+      let users = [];
+      
+      // Try to fetch users from organization
+      if (orgId) {
+        try {
+          const orgUsers = await listOrgUsers(orgId, user.access_token);
+          // Backend returns { invited_users: [...], joined_users: [...] }
+          if (orgUsers && typeof orgUsers === 'object') {
+            const invited = Array.isArray(orgUsers.invited_users) ? orgUsers.invited_users : [];
+            const joined = Array.isArray(orgUsers.joined_users) ? orgUsers.joined_users : [];
+            users = [...invited, ...joined];
+          } else if (Array.isArray(orgUsers)) {
+            users = orgUsers;
+          }
+        } catch (orgError) {
+          console.warn('Failed to fetch org users, trying team members:', orgError);
+          // Fallback to team members if org users fails
+          try {
+            const teamMembers = await listTeamMembers(user.access_token);
+            if (Array.isArray(teamMembers)) {
+              users = teamMembers;
+            } else if (teamMembers && Array.isArray(teamMembers.members)) {
+              users = teamMembers.members;
+            } else if (teamMembers && teamMembers.data && Array.isArray(teamMembers.data)) {
+              users = teamMembers.data;
+            }
+          } catch (teamError) {
+            console.error('Failed to fetch team members:', teamError);
+            throw new Error('Unable to fetch users. Please try again later.');
+          }
+        }
+      } else {
+        // If no org ID, try team members directly
+        try {
+          const teamMembers = await listTeamMembers(user.access_token);
+          if (Array.isArray(teamMembers)) {
+            users = teamMembers;
+          } else if (teamMembers && Array.isArray(teamMembers.members)) {
+            users = teamMembers.members;
+          } else if (teamMembers && teamMembers.data && Array.isArray(teamMembers.data)) {
+            users = teamMembers.data;
+          }
+        } catch (teamError) {
+          console.error('Failed to fetch team members:', teamError);
+          throw new Error('Unable to fetch users. Please try again later.');
+        }
+      }
+      
+      // Normalize user objects and filter out current user
+      const normalizedUsers = users.map(u => ({
+        id: u.id || u.user_id || u.email,
+        email: u.email || u.user_email,
+        name: u.name || u.full_name || `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email,
+        first_name: u.first_name,
+        last_name: u.last_name
+      })).filter(u => u.email && u.email !== user.email);
+      
+      setAvailableUsers(normalizedUsers);
+      
+      if (normalizedUsers.length === 0) {
+        toast({
+          title: 'No users found',
+          description: 'No other users found in your organization to collaborate with.',
+          variant: 'default'
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      toast({
+        title: 'Error fetching users',
+        description: error.message || 'Failed to fetch users. Please try again.',
+        variant: 'destructive'
+      });
+      setAvailableUsers([]);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const handleUserToggle = (user) => {
+    setSelectedUsers(prev => {
+      if (prev.some(u => u.id === user.id || u.email === user.email)) {
+        return prev.filter(u => u.id !== user.id && u.email !== user.email);
+      } else {
+        return [...prev, user];
+      }
+    });
+  };
+
+  const handleConfirmCollaborate = async () => {
+    if (selectedUsers.length === 0) {
+      toast({
+        title: 'No users selected',
+        description: 'Please select at least one user to collaborate with.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    try {
+      setIsMutating(true);
+      const emails = selectedUsers.map(u => u.email);
+      
+      if (collaborateDoc.is_folder) {
+        // Share folder with each user (one at a time as per backend)
+        for (const email of emails) {
+          await shareFolder(collaborateDoc.id, email, user.access_token);
+        }
+      } else {
+        // Share document with all users at once
+        await shareDocument(collaborateDoc.id, emails, user.access_token);
+      }
+      
+      toast({
+        title: 'Collaboration successful',
+        description: `Successfully shared ${collaborateDoc.name} with ${selectedUsers.length} user(s).`
+      });
+      
+      setCollaborateDialogOpen(false);
+      setSelectedUsers([]);
+      setCollaborateDoc(null);
+      
+      // Refresh shared documents to show the updated list
+      if (activeTab === 'sharedWithMe') {
+        fetchSharedDocuments();
+      }
+    } catch (error) {
+      toast({
+        title: 'Collaboration failed',
+        description: error.message,
+        variant: 'destructive'
+      });
+    } finally {
+      setIsMutating(false);
+    }
+  };
+
   const handleCopyLink = () => {
     navigator.clipboard.writeText(shareLink);
     setLinkCopied(true);
@@ -692,6 +853,14 @@ if (activeTab === 'myFiles') {
                     >
                       <Share2 className="w-3.5 h-3.5" />
                     </Button>
+                    <Button 
+                      size="icon" 
+                      variant="secondary" 
+                      className="h-7 w-7 bg-blue-600/90 hover:bg-blue-700"
+                      onClick={(e) => {e.stopPropagation(); handleCollaborateClick(item)}}
+                    >
+                      <UserPlus className="w-3.5 h-3.5" />
+                    </Button>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button 
@@ -760,6 +929,10 @@ if (activeTab === 'myFiles') {
                           <DropdownMenuItem onClick={() => handleShareClick(item)}>
                             <Share2 className="w-4 h-4 mr-2" />
                             Share
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleCollaborateClick(item)}>
+                            <UserPlus className="w-4 h-4 mr-2" />
+                            Collaborate
                           </DropdownMenuItem>
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
@@ -1260,6 +1433,149 @@ if (activeTab === 'myFiles') {
                 Share via Email
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Collaborate Dialog */}
+      <Dialog open={collaborateDialogOpen} onOpenChange={setCollaborateDialogOpen}>
+        <DialogContent className="sm:max-w-[600px] p-0 bg-gray-900 border-gray-700">
+          {/* Windows-style Header */}
+          <div className="flex items-center justify-between p-4 border-b border-gray-700">
+            <div className="flex items-center space-x-3">
+              <Users className="w-5 h-5 text-white" />
+              <DialogTitle className="text-white text-lg font-semibold">Collaborate</DialogTitle>
+            </div>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCollaborateDialogOpen(false)}>
+              <X className="w-4 h-4 text-gray-400" />
+            </Button>
+          </div>
+
+          <div className="p-6 space-y-6">
+            {/* File/Folder Details */}
+            {collaborateDoc && (
+              <div className="flex items-center space-x-4">
+                <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center flex-shrink-0">
+                  {collaborateDoc.is_folder ? (
+                    <Folder className="w-8 h-8 text-white" />
+                  ) : (
+                    <FileText className="w-8 h-8 text-white" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-medium truncate">{collaborateDoc.name}</p>
+                  <p className="text-gray-400 text-sm truncate">{collaborateDoc.is_folder ? 'Folder' : collaborateDoc.file_type || 'File'}</p>
+                </div>
+              </div>
+            )}
+
+            {/* User Selection */}
+            <div className="space-y-3">
+              <Label className="text-gray-300">
+                Select users from your organization to collaborate with
+              </Label>
+              
+              {loadingUsers ? (
+                <div className="flex justify-center items-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                </div>
+              ) : availableUsers.length === 0 ? (
+                <div className="text-center py-8 text-gray-400">
+                  <Users className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                  <p>No users found in your organization.</p>
+                </div>
+              ) : (
+                <div className="max-h-64 overflow-y-auto space-y-2 border border-gray-700 rounded-lg p-2">
+                  {availableUsers.map((userItem) => {
+                    const isSelected = selectedUsers.some(u => u.id === userItem.id || u.email === userItem.email);
+                    return (
+                      <div
+                        key={userItem.id || userItem.email}
+                        onClick={() => handleUserToggle(userItem)}
+                        className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors ${
+                          isSelected 
+                            ? 'bg-blue-500/20 border border-blue-500/50' 
+                            : 'bg-gray-800/50 hover:bg-gray-700/50 border border-gray-700'
+                        }`}
+                      >
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                          isSelected ? 'bg-blue-500' : 'bg-gray-600'
+                        }`}>
+                          {isSelected ? (
+                            <Check className="w-5 h-5 text-white" />
+                          ) : (
+                            <User className="w-5 h-5 text-gray-300" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white font-medium truncate">
+                            {userItem.name || userItem.first_name || 'User'}
+                          </p>
+                          <p className="text-gray-400 text-sm truncate">{userItem.email}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {selectedUsers.length > 0 && (
+                <div className="pt-2 border-t border-gray-700">
+                  <p className="text-sm text-gray-400 mb-2">
+                    {selectedUsers.length} user{selectedUsers.length !== 1 ? 's' : ''} selected
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedUsers.map((userItem) => (
+                      <div
+                        key={userItem.id || userItem.email}
+                        className="flex items-center space-x-2 px-3 py-1 bg-blue-500/20 border border-blue-500/50 rounded-full"
+                      >
+                        <span className="text-sm text-white">
+                          {userItem.name || userItem.first_name || userItem.email}
+                        </span>
+                        <button
+                          onClick={() => handleUserToggle(userItem)}
+                          className="text-blue-400 hover:text-blue-300"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <DialogFooter className="flex-row justify-end space-x-2 pt-4 border-t border-gray-700">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setCollaborateDialogOpen(false);
+                  setSelectedUsers([]);
+                  setCollaborateDoc(null);
+                }}
+                disabled={isMutating}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleConfirmCollaborate}
+                disabled={isMutating || selectedUsers.length === 0 || loadingUsers}
+              >
+                {isMutating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Sharing...
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    Share with {selectedUsers.length > 0 ? `${selectedUsers.length} ` : ''}User{selectedUsers.length !== 1 ? 's' : ''}
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
           </div>
         </DialogContent>
       </Dialog>

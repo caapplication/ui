@@ -9,8 +9,8 @@ import * as settings from './api/settings';
 import * as team from './api/team';
 import * as tasks from './api/tasks';
 
-const API_BASE_URL = 'https://login-api.fynivo.in';
-export const FINANCE_API_BASE_URL = 'http://127.0.0.1:8003/';
+const API_BASE_URL = 'http://localhost:8001';
+export const FINANCE_API_BASE_URL = 'http://localhost:8003/';
 
 export const { 
     refreshToken, 

@@ -1,6 +1,6 @@
 import { getAuthHeaders, handleResponse } from './utils';
 
-    const TASKS_API_BASE_URL = 'https://task-api.fynivo.in';
+    const TASKS_API_BASE_URL = 'http://localhost:8004';
 
     export const listTasks = async (agencyId, token) => {
         const response = await fetch(`${TASKS_API_BASE_URL}/tasks/`, {

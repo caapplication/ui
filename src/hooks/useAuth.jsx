@@ -1,5 +1,5 @@
 import React, { useState, useEffect, createContext, useContext, useCallback, useRef } from 'react';
-import { getProfile as apiGetProfile, getEntities as apiGetEntities, refreshToken as apiRefreshToken } from '@/lib/api';
+import { getProfile as apiGetProfile, getEntities as apiGetEntities, refreshToken as apiRefreshToken, verify2FA as apiVerify2FA } from '@/lib/api';
 import { useNavigate } from 'react-router-dom';
 
 const AuthContext = createContext();
@@ -147,7 +147,7 @@ export const AuthProvider = ({ children }) => {
   };
   
   const login = async (email, password) => {
-    const response = await fetch('/login/', {
+    const response = await fetch('http://localhost:8001/login/', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',

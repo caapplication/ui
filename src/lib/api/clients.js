@@ -1,9 +1,9 @@
 import { getAuthHeaders, handleResponse } from './utils';
     
-    const TASK_API_BASE_URL = 'https://task-api.fynivo.in';
-    const CLIENTS_API_BASE_URL = 'https://client-api.fynivo.in';
-    const SERVICES_API_BASE_URL = 'https://services-api.fynivo.in';
-    const LOGIN_API_BASE_URL = 'https://login-api.fynivo.in';
+    const TASK_API_BASE_URL = 'http://localhost:8004';
+    const CLIENTS_API_BASE_URL = 'http://localhost:8002';
+    const SERVICES_API_BASE_URL = 'http://localhost:8004';
+    const LOGIN_API_BASE_URL = 'http://localhost:8001';
     
 export const listClients = async (agencyId, token) => {
     const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/`, {
