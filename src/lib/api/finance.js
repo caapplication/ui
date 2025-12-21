@@ -1,6 +1,6 @@
 import { getAuthHeaders, handleResponse } from './utils';
 
-const FINANCE_API_BASE_URL = 'http://127.0.0.1:8003';
+const FINANCE_API_BASE_URL = 'https://finance-api.fynivo.in';
 
 export const getEntities = async (token) => {
     const response = await fetch(`${FINANCE_API_BASE_URL}/api/entities/`, {

@@ -1,6 +1,6 @@
 import { getAuthHeaders, handleResponse } from './utils';
 
-const TASKS_API_BASE_URL = 'http://127.0.0.1:8005'; // Task service base URL
+const TASKS_API_BASE_URL = 'https://task-api.fynivo.in'; // Task service base URL
 
 export const listRecurringTasks = async (agencyId, token, isActive = null) => {
     try {

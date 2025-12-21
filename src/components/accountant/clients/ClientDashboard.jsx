@@ -55,7 +55,7 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
         if (!photoUrl) return null;
         // If it's an S3 URL, use proxy endpoint for authenticated access
         if (photoUrl.includes('.s3.amazonaws.com/')) {
-            return `http://127.0.0.1:8002/clients/${client.id}/photo?t=${Date.now()}`;
+            return `https://client-api.fynivo.in/clients/${client.id}/photo?t=${Date.now()}`;
         }
         // If it's already the proxy URL, add cache-busting if not present
         if (photoUrl.includes(`/clients/${client.id}/photo`)) {
@@ -75,7 +75,7 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
         if (client?.id && user?.access_token) {
             const photoUrl = getClientPhotoUrl(client);
             // Always try to fetch from the photo endpoint if we have a client ID
-            const photoEndpoint = `http://127.0.0.1:8002/clients/${client.id}/photo?t=${Date.now()}`;
+            const photoEndpoint = `https://client-api.fynivo.in/clients/${client.id}/photo?t=${Date.now()}`;
             
             if (photoUrl && photoUrl.includes(`/clients/${client.id}/photo`)) {
                 // Fetch with authentication

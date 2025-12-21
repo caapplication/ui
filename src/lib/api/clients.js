@@ -1,9 +1,9 @@
 import { getAuthHeaders, handleResponse } from './utils';
     
-    const TASK_API_BASE_URL = 'http://127.0.0.1:8005'; // Use local service for development
-    const CLIENTS_API_BASE_URL = 'http://127.0.0.1:8002'; // Use local service for development
-    const SERVICES_API_BASE_URL = 'http://127.0.0.1:8004'; // Use local service for development
-    const LOGIN_API_BASE_URL = 'http://127.0.0.1:8001'; // Use local service for development
+    const TASK_API_BASE_URL = 'https://task-api.fynivo.in'; // Use local service for development
+    const CLIENTS_API_BASE_URL = 'https://client-api.fynivo.in'; // Use local service for development
+    const SERVICES_API_BASE_URL = 'https://service-api.fynivo.in'; // Use local service for development
+    const LOGIN_API_BASE_URL = 'https://login-api.fynivo.in'; // Use local service for development
     
 export const listClients = async (agencyId, token) => {
     const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/`, {
