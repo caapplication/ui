@@ -1,7 +1,7 @@
 import { handleResponse, getAuthHeaders } from './utils';
 
-const API_BASE_URL = 'http://localhost:8001';
-const TASKS_API_BASE_URL = 'http://localhost:8004';
+const API_BASE_URL = 'http://127.0.0.1:8001'; // Use local service for development
+const TASKS_API_BASE_URL = 'http://127.0.0.1:8005'; // Use local service for development
 
 export const inviteTeamMember = async (email, caId, token) => {
     const response = await fetch(`${API_BASE_URL}/invites/ca-team-member`, {

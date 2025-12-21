@@ -202,7 +202,13 @@ const Profile = () => {
                             <CardContent className="pt-6 flex flex-col items-center text-center">
                                 <div className="relative mb-4">
                                     <Avatar className="w-32 h-32 text-4xl border-4 border-white/20">
-                                        <AvatarImage src={user?.photo_url} alt={user?.name} key={user?.photo_url} />
+                                        <AvatarImage 
+                                            src={user?.photo_url && user.photo_url.includes('.s3.amazonaws.com/') 
+                                                ? `http://127.0.0.1:8001/profile/photo`
+                                                : user?.photo_url} 
+                                            alt={user?.name} 
+                                            key={user?.photo_url} 
+                                        />
                                         <AvatarFallback className="bg-gradient-to-br from-sky-500 to-indigo-600 text-white">
                                             {user?.name?.charAt(0).toUpperCase() || user?.sub?.charAt(0).toUpperCase()}
                                         </AvatarFallback>

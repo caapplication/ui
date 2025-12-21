@@ -5,6 +5,7 @@ import html2canvas from 'html2canvas';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useOrganisation } from '@/hooks/useOrganisation';
 import { deleteVoucher, updateVoucher, getBeneficiariesForCA, getVoucherAttachment, getVoucher, getBankAccountsForBeneficiary, getOrganisationBankAccountsForCA, getFinanceHeaders, getCATeamVouchers } from '@/lib/api.js';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -108,6 +109,20 @@ const VoucherDetailsCA = () => {
     const [zoom, setZoom] = useState(1);
     const [financeHeaders, setFinanceHeaders] = useState([]);
     const [loadingVoucher, setLoadingVoucher] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isImageLoading, setIsImageLoading] = useState(false);
+    
+    // Get entity name from user entities
+    const getEntityName = () => {
+        if (!user) return 'N/A';
+        if (selectedEntity && selectedEntity !== "all" && entities.length > 0) {
+            const entity = entities.find(e => String(e.id) === String(selectedEntity));
+            if (entity) return entity.name;
+        }
+        // Fallback to entityName from location state
+        return entityName || 'N/A';
+    };
 
     useEffect(() => {
         if (startInEditMode) {
@@ -116,24 +131,66 @@ const VoucherDetailsCA = () => {
     }, [startInEditMode]);
 
     useEffect(() => {
-        if (authLoading || !user?.access_token || voucher) return;
+        if (authLoading || !user?.access_token) return;
 
-        const fetchVoucherDetails = async () => {
+        let isMounted = true;
+        const fetchData = async () => {
             try {
-                const fetchedVoucher = await getVoucher(null, voucherId, user.access_token);
-                if (!fetchedVoucher) {
+                // Use initialVoucher if available, otherwise fetch
+                let currentVoucher = initialVoucher;
+                
+                // Only fetch if we don't have initial voucher or if voucherId changed
+                if (!currentVoucher || currentVoucher.id !== voucherId) {
+                    currentVoucher = await getVoucher(null, voucherId, user.access_token);
+                }
+
+                if (!currentVoucher) {
                     toast({ title: 'Error', description: 'Voucher not found.', variant: 'destructive' });
+                    setIsLoading(false);
                     return;
                 }
-                setVoucher(fetchedVoucher);
-                setEditedVoucher(fetchedVoucher);
+
+                if (isMounted) {
+                    setVoucher(currentVoucher);
+                    setEditedVoucher(currentVoucher);
+                    setIsLoading(false);
+                    
+                    // Load attachment in background
+                    const attachmentId = currentVoucher.attachment_id || (currentVoucher.attachment && currentVoucher.attachment.id);
+                    
+                    if (attachmentId) {
+                        setIsImageLoading(true);
+                        setAttachmentUrl(null);
+                        getVoucherAttachment(attachmentId, user.access_token)
+                            .then(url => {
+                                if (url) {
+                                    setAttachmentUrl(url);
+                                    if (url.toLowerCase().endsWith('.pdf')) {
+                                        setIsImageLoading(false);
+                                    }
+                                } else {
+                                    setIsImageLoading(false);
+                                }
+                            })
+                            .catch(err => {
+                                console.error("Failed to fetch attachment:", err);
+                                setIsImageLoading(false);
+                                setAttachmentUrl(null);
+                            });
+                    } else {
+                        setAttachmentUrl(null);
+                        setIsImageLoading(false);
+                    }
+                }
             } catch (error) {
-                toast({ title: 'Error', description: `Failed to fetch voucher details: ${error.message}`, variant: 'destructive' });
+                toast({ title: 'Error', description: `Failed to fetch data: ${error.message}`, variant: 'destructive' });
+                setIsLoading(false);
             }
         };
 
-        fetchVoucherDetails();
-    }, [voucherId, authLoading, user?.access_token, voucher]);
+        fetchData();
+        return () => { isMounted = false; };
+    }, [voucherId, authLoading, user?.access_token]);
 
     useEffect(() => {
         if (orgLoading || !organisationId || !selectedEntity || !user?.access_token) return;
@@ -173,19 +230,6 @@ const VoucherDetailsCA = () => {
         }
     }, [editedVoucher?.voucher_type]);
 
-    useEffect(() => {
-        if (voucher?.attachment_id && user?.access_token) {
-            const fetchAttachment = async () => {
-                try {
-                    const url = await getVoucherAttachment(voucher.attachment_id, user.access_token);
-                    setAttachmentUrl(url);
-                } catch (error) {
-                    console.error("Failed to fetch attachment:", error);
-                }
-            };
-            fetchAttachment();
-        }
-    }, [user?.access_token, voucher?.attachment_id]);
 
     useEffect(() => {
         const fetchHeaders = async () => {
@@ -234,33 +278,41 @@ const VoucherDetailsCA = () => {
 
     useEffect(() => {
         if (voucherList.length > 0) {
-            const newIndex = voucherList.findIndex(v => v.id === voucherId);
-            setCurrentIndex(newIndex);
+            const newIndex = voucherList.findIndex(v => String(v.id) === String(voucherId));
+            setCurrentIndex(newIndex >= 0 ? newIndex : -1);
         }
     }, [voucherList, voucherId]);
 
     const handleNavigate = (direction) => {
-        if (!voucherList || voucherList.length === 0) return;
+        if (!voucherList || voucherList.length === 0) {
+            console.warn("No vouchers available for navigation");
+            return;
+        }
         const newIndex = currentIndex + direction;
+        console.log("Navigating:", { currentIndex, newIndex, direction, vouchersLength: voucherList.length });
         if (newIndex >= 0 && newIndex < voucherList.length) {
             setLoadingVoucher(true);
             setAttachmentUrl(null);
-            setTimeout(() => {
-                const nextVoucher = voucherList[newIndex];
-                navigate(`/vouchers/ca/${nextVoucher.id}`, {
-                    state: {
-                        voucher: nextVoucher,
-                        vouchers: voucherList,
-                        organizationName,
-                        entityName
-                    },
-                    replace: true
-                });
-                setVoucher(nextVoucher);
-                setLoadingVoucher(false);
-            }, 1000);
+            const nextVoucher = voucherList[newIndex];
+            console.log("Navigating to voucher:", nextVoucher.id);
+            // Update currentIndex immediately
+            setCurrentIndex(newIndex);
+            navigate(`/vouchers/ca/${nextVoucher.id}`, {
+                state: {
+                    voucher: nextVoucher,
+                    vouchers: voucherList,
+                    organizationName,
+                    entityName
+                },
+                replace: true
+            });
+        } else {
+            console.warn("Navigation out of bounds:", { newIndex, vouchersLength: voucherList.length });
         }
     };
+    
+    // Check if we have vouchers to navigate - show arrows if we have multiple vouchers
+    const hasVouchers = voucherList && Array.isArray(voucherList) && voucherList.length > 1;
     
     const voucherDetails = voucher || {
         id: voucherId,
@@ -304,6 +356,7 @@ const VoucherDetailsCA = () => {
         : voucherDetails.beneficiaryName || 'N/A';
 
     const handleDelete = async () => {
+        setIsDeleting(true);
         try {
             await deleteVoucher(voucherDetails.entity_id, voucherId, user.access_token);
             toast({ title: 'Success', description: 'Voucher deleted successfully.' });
@@ -316,6 +369,8 @@ const VoucherDetailsCA = () => {
                 variant: 'destructive',
             });
             setShowDeleteDialog(false);
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -358,16 +413,55 @@ const VoucherDetailsCA = () => {
         }
     };
 
-    if (authLoading || orgLoading || !voucher || loadingVoucher) {
-        return (
-            <div className="flex justify-center items-center h-screen">
-                <Loader2 className="w-8 h-8 animate-spin text-white" />
-            </div>
-        );
+    // Skeleton loading component
+    const VoucherDetailsSkeleton = () => (
+        <div className="h-screen w-full flex flex-col text-white bg-transparent p-4 md:p-6">
+            <header className="flex items-center justify-between pb-4 border-b border-white/10 mb-4">
+                <div className="flex items-center gap-4">
+                    <Skeleton className="h-10 w-10 rounded-md" />
+                    <div>
+                        <Skeleton className="h-8 w-48 mb-2" />
+                        <Skeleton className="h-4 w-64" />
+                    </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Skeleton className="h-10 w-10 rounded-md" />
+                    <Skeleton className="h-10 w-10 rounded-md" />
+                </div>
+            </header>
+            <ResizablePanelGroup direction="horizontal" className="flex-1 rounded-lg border border-white/10">
+                <ResizablePanel defaultSize={60} minSize={30}>
+                    <div className="relative flex h-full w-full flex-col items-center justify-center p-2">
+                        <Skeleton className="h-full w-full rounded-md" />
+                    </div>
+                </ResizablePanel>
+                <ResizableHandle withHandle />
+                <ResizablePanel defaultSize={40} minSize={30}>
+                    <div className="flex h-full items-start justify-center p-6 overflow-y-auto">
+                        <div className="w-full space-y-4">
+                            <div className="space-y-2">
+                                <Skeleton className="h-10 w-full" />
+                                <Skeleton className="h-10 w-full" />
+                                <Skeleton className="h-10 w-full" />
+                            </div>
+                            <Skeleton className="h-64 w-full rounded-lg" />
+                            <div className="space-y-2">
+                                <Skeleton className="h-6 w-32" />
+                                <Skeleton className="h-20 w-full rounded-md" />
+                            </div>
+                        </div>
+                    </div>
+                </ResizablePanel>
+            </ResizablePanelGroup>
+        </div>
+    );
+
+    if (isLoading || authLoading || orgLoading || loadingVoucher) {
+        return <VoucherDetailsSkeleton />;
     }
 
     return (
-        <div className="h-screen w-full flex flex-col text-white bg-transparent p-4 md:p-6">
+        <div className="h-screen w-full flex flex-col text-white bg-transparent p-4 md:p-6" style={{ paddingBottom: hasVouchers ? '5rem' : '1.5rem' }}>
             <VoucherPDF ref={voucherDetailsRef} voucher={voucher} organizationName={organizationName} entityName={entityName} />
             <header className="flex items-center justify-between pb-4 border-b border-white/10 mb-4">
                 <div className="flex items-center gap-4">
@@ -379,13 +473,9 @@ const VoucherDetailsCA = () => {
                         <p className="text-sm text-gray-400">Review all cash and debit transactions.</p>
                     </div>
                 </div>
-                <div className="flex items-center gap-2">
-                    <Button variant="outline" size="icon" onClick={() => handleNavigate(-1)} disabled={!voucherList || currentIndex <= 0}>
-                        <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <Button variant="outline" size="icon" onClick={() => handleNavigate(1)} disabled={!voucherList || currentIndex >= voucherList.length - 1}>
-                        <ChevronRight className="h-4 w-4" />
-                    </Button>
+                {/* Entity name in top right */}
+                <div className="flex items-center">
+                    <p className="text-sm font-semibold text-white">{getEntityName()}</p>
                 </div>
             </header>
 
@@ -395,8 +485,9 @@ const VoucherDetailsCA = () => {
             >
                 <ResizablePanel defaultSize={60} minSize={30}>
                     <div className="relative flex h-full w-full flex-col items-center justify-center p-2">
+                        {/* Zoom controls in bottom right corner */}
                         {attachmentUrl && !attachmentUrl.toLowerCase().endsWith('.pdf') && (
-                            <div className="absolute top-4 right-4 z-10 flex gap-2">
+                            <div className="absolute bottom-4 right-4 z-10 flex gap-2">
                                 <Button variant="outline" size="icon" onClick={() => setZoom(z => z + 0.1)}>
                                     <ZoomIn className="h-4 w-4" />
                                 </Button>
@@ -408,8 +499,11 @@ const VoucherDetailsCA = () => {
                                 </Button>
                             </div>
                         )}
-                        <div className="flex h-full w-full items-center justify-center overflow-auto">
-                            {attachmentUrl ? (
+                        <div className="flex h-full w-full items-center justify-center overflow-auto relative" style={{ zIndex: 1 }}>
+                            {/* Show skeleton only if we have attachment_id but no URL yet (while fetching URL) */}
+                            {voucher?.attachment_id && !attachmentUrl ? (
+                                <Skeleton className="h-full w-full rounded-md" />
+                            ) : attachmentUrl ? (
                                 attachmentUrl.toLowerCase().endsWith('.pdf') ? (
                                     <iframe
                                         src={attachmentUrl}
@@ -418,10 +512,20 @@ const VoucherDetailsCA = () => {
                                     />
                                 ) : (
                                     <img
+                                        key={`${attachmentUrl}-${voucher?.id}`}
                                         src={attachmentUrl}
                                         alt="Voucher Attachment"
                                         className="max-w-full max-h-full transition-transform duration-200"
                                         style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }}
+                                        onLoad={() => {
+                                            console.log("Image loaded successfully");
+                                            setIsImageLoading(false);
+                                        }}
+                                        onError={(e) => {
+                                            console.error("Image failed to load:", e, "URL:", attachmentUrl);
+                                            setIsImageLoading(false);
+                                        }}
+                                        loading="eager"
                                     />
                                 )
                             ) : (
@@ -434,8 +538,9 @@ const VoucherDetailsCA = () => {
                 </ResizablePanel>
                 <ResizableHandle withHandle />
                 <ResizablePanel defaultSize={40} minSize={30}>
-                    <div className="flex h-full items-start justify-center p-6 overflow-y-auto">
-                <Tabs defaultValue="details" className="w-full">
+                    <div className="relative flex h-full flex-col">
+                        <div className="flex-1 overflow-y-auto p-6" style={{ paddingBottom: hasVouchers ? '6rem' : '1.5rem' }}>
+                            <Tabs defaultValue="details" className="w-full">
                     <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger value="details">Details</TabsTrigger>
                         <TabsTrigger value="activity">Activity Log</TabsTrigger>
@@ -589,51 +694,58 @@ const VoucherDetailsCA = () => {
                                             </Select>
                                         </div>
                                     )}
-                                    <div className="flex items-center gap-2 mt-4 justify-end">
-                                        <TooltipProvider>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button variant="destructive" size="icon" onClick={() => setShowDeleteDialog(true)}>
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>Delete</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button variant="outline" size="icon" onClick={handleExportToPDF}>
-                                                        <FileText className="h-4 w-4" />
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>Export</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button variant="outline" size="icon" onClick={() => setIsEditing(!isEditing)}>
-                                                        <Edit className="h-4 w-4" />
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>Edit</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
-                                        {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
-                                            <Button onClick={() => {
-                                                updateVoucher(voucherId, { is_ready: true, finance_header_id: editedVoucher.finance_header_id }, user.access_token)
-                                                    .then(() => {
-                                                        toast({ title: 'Success', description: 'Voucher tagged successfully.' });
-                                                        navigate('/finance/ca');
-                                                    })
-                                                    .catch(err => {
-                                                        toast({ title: 'Error', description: `Failed to tag voucher: ${err.message}`, variant: 'destructive' });
-                                                    });
-                                            }}>Tag</Button>
-                                        )}
+                                    <div className="flex items-center gap-2 mt-4 justify-between relative z-20">
+                                        {/* Action buttons at bottom right */}
+                                        <div className="flex items-center gap-2 relative z-20">
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            variant="destructive"
+                                                            size="icon"
+                                                            onClick={() => setShowDeleteDialog(true)}
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Delete</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button variant="outline" size="icon" onClick={handleExportToPDF}>
+                                                            <FileText className="h-4 w-4" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Export</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button variant="outline" size="icon" onClick={() => setIsEditing(!isEditing)}>
+                                                            <Edit className="h-4 w-4" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Edit</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                            {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
+                                                <Button onClick={() => {
+                                                    updateVoucher(voucherId, { is_ready: true, finance_header_id: editedVoucher.finance_header_id }, user.access_token)
+                                                        .then(() => {
+                                                            toast({ title: 'Success', description: 'Voucher tagged successfully.' });
+                                                            navigate('/finance/ca');
+                                                        })
+                                                        .catch(err => {
+                                                            toast({ title: 'Error', description: `Failed to tag voucher: ${err.message}`, variant: 'destructive' });
+                                                        });
+                                                }}>Tag</Button>
+                                            )}
+                                        </div>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -672,13 +784,47 @@ const VoucherDetailsCA = () => {
                                 </Card>
                             );
                         })()}
-                    </TabsContent>
-                </Tabs>
-            </div>
+                            </TabsContent>
+                        </Tabs>
+                        </div>
+                    </div>
                 </ResizablePanel>
             </ResizablePanelGroup>
 
-            <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+         
+            {/* Fixed circular navigation buttons on right side */}
+            {hasVouchers && (
+                <div className="fixed right-4 top-1/2 transform -translate-y-1/2 z-50 flex flex-col gap-3">
+                    <Button 
+                        variant="outline" 
+                        size="icon"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleNavigate(-1);
+                        }} 
+                        disabled={currentIndex === 0 || currentIndex === -1}
+                        className="h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg"
+                    >
+                        <ChevronLeft className="h-5 w-5" />
+                    </Button>
+                    <Button 
+                        variant="outline" 
+                        size="icon"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleNavigate(1);
+                        }} 
+                        disabled={currentIndex === vouchers.length - 1}
+                        className="h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg"
+                    >
+                        <ChevronRight className="h-5 w-5" />
+                    </Button>
+                </div>
+            )}
+
+            <Dialog open={showDeleteDialog} onOpenChange={isDeleting ? undefined : setShowDeleteDialog}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Are you sure?</DialogTitle>
@@ -687,11 +833,16 @@ const VoucherDetailsCA = () => {
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
-                        <Button variant="ghost" onClick={() => setShowDeleteDialog(false)}>
+                        <Button variant="ghost" onClick={() => setShowDeleteDialog(false)} disabled={isDeleting}>
                             Cancel
                         </Button>
-                        <Button variant="destructive" onClick={handleDelete}>
-                            Delete
+                        <Button
+                            variant="destructive"
+                            onClick={handleDelete}
+                            disabled={isDeleting}
+                            style={isDeleting ? { opacity: 0.5, pointerEvents: 'none' } : {}}
+                        >
+                            {isDeleting ? 'Deleting...' : 'Delete'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

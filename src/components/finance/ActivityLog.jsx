@@ -1,12 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Loader2, History } from 'lucide-react';
+import { Loader2, History, Download } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { getActivityLog } from '@/lib/api';
 import { useToast } from '@/components/ui/use-toast';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 const ActivityLog = ({ itemId, itemType }) => {
     const [logs, setLogs] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
     const { user } = useAuth();
     const { toast } = useToast();
 
@@ -14,7 +19,10 @@ const ActivityLog = ({ itemId, itemType }) => {
         if (!itemId || !itemType || !user?.access_token) return;
         setIsLoading(true);
         try {
-            const data = await getActivityLog(itemId, itemType, user.access_token);
+            // Convert date strings to ISO format for API
+            const startDateISO = startDate ? new Date(startDate).toISOString() : null;
+            const endDateISO = endDate ? new Date(endDate + 'T23:59:59').toISOString() : null; // Include time to cover entire day
+            const data = await getActivityLog(itemId, itemType, user.access_token, startDateISO, endDateISO);
             setLogs(data);
         } catch (error) {
             const errorMessage = error?.message || (typeof error === 'string' ? error : 'An unexpected error occurred');
@@ -26,7 +34,7 @@ const ActivityLog = ({ itemId, itemType }) => {
         } finally {
             setIsLoading(false);
         }
-    }, [itemId, itemType, user?.access_token, toast]);
+    }, [itemId, itemType, user?.access_token, toast, startDate, endDate]);
 
     useEffect(() => {
         fetchLogs();
@@ -56,8 +64,100 @@ const ActivityLog = ({ itemId, itemType }) => {
         console.log('Sample activity log entry:', logs[0]);
     }
 
+    const handleDownloadCSV = () => {
+        if (logs.length === 0) {
+            toast({
+                title: 'No data to export',
+                description: 'There are no activity logs to download.',
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        // Create CSV content
+        const headers = ['Timestamp', 'User', 'Action', 'Details'];
+        const csvRows = [
+            headers.join(','),
+            ...logs.map(log => {
+                const userDisplay = log.name && log.email 
+                    ? `${log.name} (${log.email})`
+                    : log.name || log.email || 'Unknown User';
+                const timestamp = new Date(log.timestamp).toLocaleString();
+                const action = log.action || '';
+                const details = (log.details || '').replace(/"/g, '""'); // Escape quotes
+                return `"${timestamp}","${userDisplay}","${action}","${details}"`;
+            })
+        ];
+
+        const csvContent = csvRows.join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `activity_log_${itemType}_${itemId}_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        toast({
+            title: 'Success',
+            description: 'Activity log exported to CSV successfully.',
+        });
+    };
+
     return (
         <div className="space-y-4">
+            {/* Filters and Download */}
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
+                <div className="flex flex-col sm:flex-row gap-4 flex-1">
+                    <div className="flex items-center gap-2">
+                        <Label htmlFor="start-date" className="text-sm text-gray-400 whitespace-nowrap">From:</Label>
+                        <Input
+                            id="start-date"
+                            type="date"
+                            value={startDate}
+                            onChange={(e) => setStartDate(e.target.value)}
+                            className="w-auto"
+                        />
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Label htmlFor="end-date" className="text-sm text-gray-400 whitespace-nowrap">To:</Label>
+                        <Input
+                            id="end-date"
+                            type="date"
+                            value={endDate}
+                            onChange={(e) => setEndDate(e.target.value)}
+                            className="w-auto"
+                        />
+                    </div>
+                    {(startDate || endDate) && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                                setStartDate('');
+                                setEndDate('');
+                            }}
+                            className="text-gray-400 hover:text-white"
+                        >
+                            Clear Filters
+                        </Button>
+                    )}
+                </div>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDownloadCSV}
+                    disabled={logs.length === 0}
+                    className="flex items-center gap-2"
+                >
+                    <Download className="w-4 h-4" />
+                    Download CSV
+                </Button>
+            </div>
+
             {logs.map(log => {
                 // Prefer top-level name/email if present (API returns these at top level)
                 let userDisplay = '';
@@ -103,6 +203,8 @@ const ActivityLog = ({ itemId, itemType }) => {
                     itemTypeDisplay = 'invoice';
                 } else if (itemType === 'voucher') {
                     itemTypeDisplay = 'voucher';
+                } else if (itemType === 'client') {
+                    itemTypeDisplay = 'client';
                 } else {
                     itemTypeDisplay = 'item';
                 }

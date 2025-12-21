@@ -1,15 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Edit, Trash2, Loader2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { ArrowLeft, Edit, Trash2, Loader2, Camera } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import ClientDashboardDetails from './ClientDashboardDetails';
 import ClientServicesTab from './ClientServicesTab';
 import ClientPasswordsTab from './ClientPasswordsTab';
 import ClientUsersTab from './ClientUsersTab';
 import ClientEntitiesTab from './ClientEntitiesTab';
+import ClientTeamMembersTab from './ClientTeamMembersTab';
+import ActivityLog from '@/components/finance/ActivityLog';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { deleteClient } from '@/lib/api';
+import { deleteClient, uploadClientPhoto, deleteClientPhoto } from '@/lib/api';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,15 +44,33 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
     const [editEntityName, setEditEntityName] = useState('');
     const [deleteEntityDialogOpen, setDeleteEntityDialogOpen] = useState(false);
     const [entityToDelete, setEntityToDelete] = useState(null);
+    const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+    const fileInputRef = useRef(null);
     const { toast } = useToast();
     const { user } = useAuth();
+    
+    // Helper function to get the correct photo URL (convert S3 URLs to proxy endpoint)
+    const getClientPhotoUrl = (client) => {
+        if (!client || !client.id) return null;
+        const photoUrl = client.photo_url || client.photo;
+        if (!photoUrl) return null;
+        // Always use proxy endpoint if we have a photo URL and client ID
+        // This ensures we always go through authenticated endpoint
+        if (photoUrl.includes('.s3.amazonaws.com/') || photoUrl.includes('http://127.0.0.1:8002')) {
+            return `http://127.0.0.1:8002/clients/${client.id}/photo`;
+        }
+        // Fallback to direct URL only if it's not an S3 URL and not already a proxy URL
+        return photoUrl;
+    };
 
     const tabs = [
         'Details',
         'Services',
         'Passwords',
         `Users (${(client.orgUsers?.invited_users?.length || 0) + (client.orgUsers?.joined_users?.length || 0)})`,
-        `Entities (${client.entities?.length || 0})`
+        `Entities (${client.entities?.length || 0})`,
+        'Activity Log',
+        'Team Members'
     ];
 
     const handleTabClick = (tab) => {
@@ -133,6 +154,50 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
         }
     };
 
+    const handlePictureUpload = async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        setIsUploadingPhoto(true);
+        try {
+            if (!user?.agency_id || !user?.access_token) {
+                throw new Error("User information is not available.");
+            }
+            const response = await uploadClientPhoto(client.id, file, user.agency_id, user.access_token);
+            // Always use proxy endpoint URL for display (even if response has S3 URL)
+            // The S3 URL is stored in photo_url for backend reference, but we use proxy for display
+            const proxyPhotoUrl = `http://127.0.0.1:8002/clients/${client.id}/photo`;
+            onUpdateClient({ 
+                ...client, 
+                photo: proxyPhotoUrl, // Use proxy URL for display
+                photo_url: response.photo_url // Keep S3 URL for backend reference
+            });
+            toast({ title: "Success", description: "Client photo updated successfully." });
+        } catch (error) {
+            toast({ title: "Error", description: error.message, variant: "destructive" });
+        } finally {
+            setIsUploadingPhoto(false);
+        }
+    };
+
+    const handleRemovePicture = async () => {
+        if (!getClientPhotoUrl(client)) return;
+
+        setIsUploadingPhoto(true);
+        try {
+            if (!user?.agency_id || !user?.access_token) {
+                throw new Error("User information is not available.");
+            }
+            await deleteClientPhoto(client.id, user.agency_id, user.access_token);
+            onUpdateClient({ ...client, photo: null, photo_url: null });
+            toast({ title: "Success", description: "Client photo removed successfully." });
+        } catch (error) {
+            toast({ title: "Error", description: error.message, variant: "destructive" });
+        } finally {
+            setIsUploadingPhoto(false);
+        }
+    };
+
     const renderTabContent = () => {
         switch (activeSubTab) {
             case 'Details':
@@ -141,6 +206,16 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
                 return <ClientServicesTab client={client} allServices={allServices} onUpdateClient={onUpdateClient} />;
             case 'Passwords':
                 return <ClientPasswordsTab client={client} />;
+            case 'Activity Log':
+                // Note: Activity logs for clients may need backend support
+                // For now, we'll try to fetch them - if the backend doesn't support it, it will show an error
+                return (
+                    <div className="glass-pane p-6 rounded-lg">
+                        <ActivityLog itemId={client.id} itemType="client" />
+                    </div>
+                );
+            case 'Team Members':
+                return <ClientTeamMembersTab client={client} teamMembers={teamMembers} />;
             default:
                 if (activeSubTab.startsWith('Users')) {
                     return <ClientUsersTab client={client} />;
@@ -285,10 +360,46 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
                     {/* Left Panel */}
                     <div className="lg:col-span-1">
                         <div className="glass-pane p-6 rounded-lg text-center">
-                            <Avatar className="w-24 h-24 mx-auto mb-4 border-4 border-white/20">
-                                <AvatarImage src={client.photo} />
-                                <AvatarFallback className="text-3xl">{client.name.charAt(0)}</AvatarFallback>
-                            </Avatar>
+                            <div className="relative mb-4 inline-block">
+                                    <Avatar className="w-24 h-24 mx-auto border-4 border-white/20">
+                                    <AvatarImage 
+                                        src={getClientPhotoUrl(client)} 
+                                        alt={client.name} 
+                                        key={`client-photo-${client.id}-${client.photo_url || 'no-photo'}`}
+                                        loading="eager"
+                                    />
+                                    <AvatarFallback className="text-3xl bg-gradient-to-br from-sky-500 to-indigo-600 text-white">
+                                        {client.name.charAt(0).toUpperCase()}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <div className="absolute bottom-1 right-1 flex gap-2">
+                                    <Button
+                                        size="icon"
+                                        className="rounded-full w-10 h-10 bg-white/20 text-white hover:bg-white/30 backdrop-blur-sm border border-white/30"
+                                        onClick={() => fileInputRef.current?.click()}
+                                        disabled={isUploadingPhoto}
+                                    >
+                                        <Camera className="w-5 h-5" />
+                                    </Button>
+                                    {getClientPhotoUrl(client) && (
+                                        <Button
+                                            size="icon"
+                                            className="rounded-full w-10 h-10 bg-red-500/20 text-white hover:bg-red-500/30 backdrop-blur-sm border border-red-500/30"
+                                            onClick={handleRemovePicture}
+                                            disabled={isUploadingPhoto}
+                                        >
+                                            <Trash2 className="w-5 h-5" />
+                                        </Button>
+                                    )}
+                                </div>
+                                <Input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    className="hidden"
+                                    accept="image/*"
+                                    onChange={handlePictureUpload}
+                                />
+                            </div>
                             <h2 className="text-xl font-semibold text-white">{client.name}</h2>
                             <p className="text-gray-400">File No.: {client.file_no || 'N/A'}</p>
 

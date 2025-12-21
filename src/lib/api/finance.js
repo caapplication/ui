@@ -390,9 +390,15 @@ export const exportVouchersToTallyXML = async (entityId, token) => {
     window.URL.revokeObjectURL(url);
 };
 
-export const getActivityLog = async (itemId, itemType, token) => {
+export const getActivityLog = async (itemId, itemType, token, startDate = null, endDate = null) => {
     // Call the real backend API for activity logs (plural endpoint)
-    const response = await fetch(`${FINANCE_API_BASE_URL}/api/activity_logs/${itemType}/${itemId}`, {
+    let url = `${FINANCE_API_BASE_URL}/api/activity_logs/${itemType}/${itemId}`;
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    if (params.toString()) url += `?${params.toString()}`;
+    
+    const response = await fetch(url, {
         headers: getAuthHeaders(token),
     });
     return handleResponse(response);

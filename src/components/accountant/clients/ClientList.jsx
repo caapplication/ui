@@ -274,7 +274,11 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
                             >
                                 <TableCell>
                                     <Avatar>
-                                        <AvatarImage src={client.photo} />
+                                        <AvatarImage 
+                                            src={client.photo_url && client.photo_url.includes('.s3.amazonaws.com/') 
+                                                ? `http://127.0.0.1:8002/clients/${client.id}/photo`
+                                                : (client.photo_url || client.photo)} 
+                                        />
                                         <AvatarFallback>{client.name.charAt(0)}</AvatarFallback>
                                     </Avatar>
                                 </TableCell>

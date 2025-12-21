@@ -1,6 +1,6 @@
 import { useAuth } from '@/hooks/useAuth';
 
-export const BASE_URL = 'http://localhost:8001';
+export const BASE_URL = 'http://127.0.0.1:8001'; // Use local service for development
 
 export const getAuthHeaders = (token, contentType = 'application/json', agencyId = null) => {
     const headers = {

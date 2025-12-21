@@ -30,7 +30,8 @@ import React, { useState, useEffect, useCallback } from 'react';
                 if (!user?.agency_id || !user?.access_token) {
                      throw new Error("User information is not available.");
                 }
-                const [clientsData, servicesData, orgsData, businessTypesData, teamMembersData, tagsData] = await Promise.all([
+                // Use Promise.allSettled to handle partial failures gracefully
+                const results = await Promise.allSettled([
                     listClients(user.agency_id, user.access_token),
                     fetchAllServices(user.agency_id, user.access_token),
                     listOrganisations(user.access_token),
@@ -39,15 +40,40 @@ import React, { useState, useEffect, useCallback } from 'react';
                     getTags(user.agency_id, user.access_token)
                 ]);
                 
+                // Extract results, using empty arrays/objects for failed requests
+                const clientsData = results[0].status === 'fulfilled' ? results[0].value : [];
+                const servicesData = results[1].status === 'fulfilled' ? results[1].value : [];
+                const orgsData = results[2].status === 'fulfilled' ? results[2].value : [];
+                const businessTypesData = results[3].status === 'fulfilled' ? results[3].value : [];
+                const teamMembersData = results[4].status === 'fulfilled' ? results[4].value : [];
+                const tagsData = results[5].status === 'fulfilled' ? results[5].value : [];
+                
+                // Log any failures
+                results.forEach((result, index) => {
+                    if (result.status === 'rejected') {
+                        const names = ['clients', 'services', 'organisations', 'businessTypes', 'teamMembers', 'tags'];
+                        console.error(`Failed to fetch ${names[index]}:`, result.reason);
+                    }
+                });
+                
                 const orgsMap = (orgsData || []).reduce((acc, org) => {
                     acc[org.id] = org.name;
                     return acc;
                 }, {});
     
-                const clientsWithData = (clientsData || []).map(client => ({
-                    ...client,
-                    organization_name: orgsMap[client.organization_id] || null,
-                }));
+                const clientsWithData = (clientsData || []).map(client => {
+                    // Convert S3 photo URLs to proxy endpoint URLs
+                    const photoUrl = client.photo_url && client.photo_url.includes('.s3.amazonaws.com/')
+                        ? `http://127.0.0.1:8002/clients/${client.id}/photo`
+                        : (client.photo_url || client.photo);
+                    
+                    return {
+                        ...client,
+                        organization_name: orgsMap[client.organization_id] || null,
+                        photo_url: photoUrl,
+                        photo: photoUrl, // Also set photo for backward compatibility
+                    };
+                });
     
                 const clientsWithServices = await Promise.all(
                     clientsWithData.map(async (client) => {
@@ -163,19 +189,27 @@ import React, { useState, useEffect, useCallback } from 'react';
                 if (editingClient) {
                     const updatedClient = await updateClient(editingClient.id, clientData, user.agency_id, user.access_token);
                     let finalClient = updatedClient;
-                    if (photoFile) {
-                        const photoRes = await uploadClientPhoto(editingClient.id, photoFile, user.agency_id, user.access_token);
-                        finalClient = { ...updatedClient, photo: photoRes.photo_url };
-                    }
+                if (photoFile) {
+                    const photoRes = await uploadClientPhoto(editingClient.id, photoFile, user.agency_id, user.access_token);
+                    // Convert S3 URL to proxy endpoint URL
+                    const photoUrl = photoRes.photo_url && photoRes.photo_url.includes('.s3.amazonaws.com/')
+                        ? `http://127.0.0.1:8002/clients/${editingClient.id}/photo`
+                        : photoRes.photo_url;
+                    finalClient = { ...updatedClient, photo: photoUrl, photo_url: photoUrl };
+                }
                     toast({ title: "✅ Client Updated", description: `Client ${updatedClient.name} has been updated.` });
                     setClients(clients.map(c => c.id === editingClient.id ? finalClient : c));
                 } else {
                     const newClient = await createClient(clientData, user.agency_id, user.access_token);
                     let finalClient = newClient;
-                    if (photoFile) {
-                        const photoRes = await uploadClientPhoto(newClient.id, photoFile, user.agency_id, user.access_token);
-                        finalClient = { ...newClient, photo: photoRes.photo_url };
-                    }
+                if (photoFile) {
+                    const photoRes = await uploadClientPhoto(newClient.id, photoFile, user.agency_id, user.access_token);
+                    // Convert S3 URL to proxy endpoint URL
+                    const photoUrl = photoRes.photo_url && photoRes.photo_url.includes('.s3.amazonaws.com/')
+                        ? `http://127.0.0.1:8002/clients/${newClient.id}/photo`
+                        : photoRes.photo_url;
+                    finalClient = { ...newClient, photo: photoUrl, photo_url: photoUrl };
+                }
                     toast({ title: "✅ Client Created", description: `Client ${newClient.name} has been added.` });
                     setClients(prev => [{ ...finalClient, availedServices: [] }, ...prev]);
                 }

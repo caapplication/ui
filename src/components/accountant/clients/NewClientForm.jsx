@@ -7,7 +7,7 @@ import React, { useState, useEffect, useRef } from 'react';
     import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
     import { Calendar } from '@/components/ui/calendar';
     import { DatePicker } from '@/components/ui/date-picker';
-    import { ArrowLeft, CalendarPlus as CalendarIcon, Loader2, UploadCloud, User, X, Check } from 'lucide-react';
+    import { ArrowLeft, CalendarPlus as CalendarIcon, Loader2, UploadCloud, User, X, Check, Camera, Trash2 } from 'lucide-react';
     import { format } from 'date-fns';
     import { cn } from '@/lib/utils';
     import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -20,6 +20,33 @@ import React, { useState, useEffect, useRef } from 'react';
     import { useAuth } from '@/hooks/useAuth';
     
     
+    // Mapping between business type display names and enum values
+    const businessTypeToEnum = {
+        'Individual': 'individual',
+        'Sole Proprietorship': 'sole_proprietorship',
+        'Partnership': 'partnership',
+        'LLP': 'llp',
+        'HUF': 'huf',
+        'Private Limited Company': 'private_limited',
+        'Public Limited Company': 'limited_company',
+        'Joint Venture': 'joint_venture',
+        'One Person Company': 'one_person_company',
+        'NGO\'s': 'ngo',
+        'NGO': 'ngo',
+        'Trust': 'trust',
+        'Section 8 Company': 'section_8_company',
+        'Government Entity': 'government_entity',
+        'Cooperative Society': 'cooperative_society',
+        'Branch Office': 'branch_office',
+        'AOP': 'aop',
+        'Society': 'society',
+    };
+    
+    // Reverse mapping: enum value to display name
+    const enumToBusinessType = Object.fromEntries(
+        Object.entries(businessTypeToEnum).map(([key, value]) => [value, key])
+    );
+
     const NewClientForm = ({ onBack, onSave, client, allServices, organisations, businessTypes, teamMembers, tags }) => {
         const { toast } = useToast();
         const { user } = useAuth();
@@ -48,6 +75,10 @@ import React, { useState, useEffect, useRef } from 'react';
         });
     
     const [isSaving, setIsSaving] = useState(false);
+    const [photoFile, setPhotoFile] = useState(null);
+    const [photoPreview, setPhotoPreview] = useState(null);
+    const fileInputRef = useRef(null);
+    const photoFileInputRef = useRef(null);
 
     // State for Add Organisation dialog
     const [showAddOrgDialog, setShowAddOrgDialog] = useState(false);
@@ -73,7 +104,7 @@ import React, { useState, useEffect, useRef } from 'react';
                 setFormData({
                     is_active: client.is_active ?? true,
                     name: client.name || '',
-                    client_type: client.client_type || '',
+                    client_type: enumToBusinessType[client.client_type] || client.client_type || '', // Convert enum to display name
                     organization_id: client.organization_id || '',
                     pan: client.pan || '',
                     gstin: client.gstin || '',
@@ -156,11 +187,14 @@ import React, { useState, useEffect, useRef } from 'react';
 
             setIsSaving(true);
 
+            // Convert business type display name to enum value
+            const clientTypeEnum = businessTypeToEnum[formData.client_type] || formData.client_type;
+            
             // Flatten contact and opening_balance fields to match backend expectations
             const dataToSave = {
                 is_active: formData.is_active,
                 name: formData.name,
-                client_type: formData.client_type,
+                client_type: clientTypeEnum, // Use mapped enum value
                 organization_id: formData.organization_id,
                 pan: formData.pan,
                 gstin: formData.gstin,
@@ -180,8 +214,11 @@ import React, { useState, useEffect, useRef } from 'react';
                 opening_balance_amount: formData.opening_balance_amount ? parseFloat(formData.opening_balance_amount) : 0,
             };
 
-            await onSave(dataToSave);
+            await onSave(dataToSave, photoFile);
             setIsSaving(false);
+            // Reset photo after save
+            setPhotoFile(null);
+            setPhotoPreview(null);
         };
     
         const states = ["Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal", "Andaman and Nicobar Islands", "Chandigarh", "Dadra and Nagar Haveli and Daman and Diu", "Delhi", "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry"];
@@ -212,7 +249,64 @@ import React, { useState, useEffect, useRef } from 'react';
                         
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                             <div className="lg:col-span-1 glass-pane p-6 rounded-lg flex flex-col items-center">
-                                <h2 className="text-xl font-semibold mb-4 w-full">Client Status</h2>
+                                <h2 className="text-xl font-semibold mb-4 w-full">Client Photo</h2>
+                                <div className="relative mb-4">
+                                    <Avatar className="w-32 h-32 text-4xl border-4 border-white/20">
+                                        <AvatarImage 
+                                            src={photoPreview || (client?.photo_url && client.photo_url.includes('.s3.amazonaws.com/') && client?.id
+                                                ? `http://127.0.0.1:8002/clients/${client.id}/photo`
+                                                : (client?.photo_url || client?.photo))} 
+                                            alt={formData.name || 'Client'} 
+                                            key={client?.photo_url || client?.photo || 'no-photo'}
+                                        />
+                                        <AvatarFallback className="bg-gradient-to-br from-sky-500 to-indigo-600 text-white">
+                                            {formData.name?.charAt(0).toUpperCase() || 'C'}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    <div className="absolute bottom-1 right-1 flex gap-2">
+                                        <Button
+                                            type="button"
+                                            size="icon"
+                                            className="rounded-full w-10 h-10 bg-white/20 text-white hover:bg-white/30 backdrop-blur-sm border border-white/30"
+                                            onClick={() => photoFileInputRef.current?.click()}
+                                            disabled={isSaving}
+                                        >
+                                            <Camera className="w-5 h-5" />
+                                        </Button>
+                                        {(photoPreview || client?.photo_url || client?.photo) && (
+                                            <Button
+                                                type="button"
+                                                size="icon"
+                                                className="rounded-full w-10 h-10 bg-red-500/20 text-white hover:bg-red-500/30 backdrop-blur-sm border border-red-500/30"
+                                                onClick={() => {
+                                                    setPhotoFile(null);
+                                                    setPhotoPreview(null);
+                                                }}
+                                                disabled={isSaving}
+                                            >
+                                                <Trash2 className="w-5 h-5" />
+                                            </Button>
+                                        )}
+                                    </div>
+                                    <Input
+                                        type="file"
+                                        ref={photoFileInputRef}
+                                        className="hidden"
+                                        accept="image/*"
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) {
+                                                setPhotoFile(file);
+                                                const reader = new FileReader();
+                                                reader.onloadend = () => {
+                                                    setPhotoPreview(reader.result);
+                                                };
+                                                reader.readAsDataURL(file);
+                                            }
+                                        }}
+                                    />
+                                </div>
+                                <h2 className="text-xl font-semibold mb-4 w-full mt-4">Client Status</h2>
                                  <div className="flex items-center space-x-2 pt-6 w-full justify-center">
 <Switch id="is_active" name="is_active" checked={formData.is_active} onCheckedChange={(c) => handleSwitchChange('is_active', c)} disabled={isSaving} />
                                     <Label htmlFor="is_active">Client is Active</Label>
@@ -231,7 +325,11 @@ import React, { useState, useEffect, useRef } from 'react';
 <Select name="client_type" onValueChange={(v) => handleSelectChange('client_type', v)} value={formData.client_type} required disabled={isSaving}>
                                             <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
                                             <SelectContent>
-                                                {businessTypes.map(type => <SelectItem key={type.id} value={type.name}>{type.name}</SelectItem>)}
+                                                {businessTypes && businessTypes.length > 0 ? (
+                                                    businessTypes.map(type => <SelectItem key={type.id} value={type.name}>{type.name}</SelectItem>)
+                                                ) : (
+                                                    <SelectItem value="no-types" disabled>No business types available. Please add one in Settings.</SelectItem>
+                                                )}
                                             </SelectContent>
                                         </Select>
                                     </div>

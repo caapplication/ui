@@ -813,7 +813,7 @@ const VoucherDetailsPage = () => {
                         ) : (
                             <Card className="w-full glass-pane border-none shadow-none bg-gray-800 text-white relative z-20">
                                 <CardHeader>
-                                    <CardTitle>Voucheries to {beneficiaryName}</CardTitle>
+                                    <CardTitle>Voucher to {beneficiaryName}</CardTitle>
                                     <CardDescription>Created on {new Date(voucherDetails.created_date).toLocaleDateString()}</CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-2 relative z-20">

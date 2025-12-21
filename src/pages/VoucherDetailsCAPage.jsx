@@ -4,6 +4,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { deleteVoucher, updateVoucher, getBeneficiariesForCA, getVoucherAttachment, getVoucher, getBankAccountsForBeneficiary, getOrganisationBankAccountsForCA, getFinanceHeaders } from '@/lib/api.js';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -11,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Edit, Trash2, FileText, Loader2, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RefreshCcw } from 'lucide-react';
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import {
   ResizablePanelGroup,
@@ -103,6 +105,19 @@ const VoucherDetailsCAPage = () => {
     const [toBankAccounts, setToBankAccounts] = useState([]);
     const [zoom, setZoom] = useState(1);
     const [financeHeaders, setFinanceHeaders] = useState([]);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isImageLoading, setIsImageLoading] = useState(false);
+    
+    // Get entity name from user entities
+    const getEntityName = () => {
+        if (!user) return 'N/A';
+        const entityId = localStorage.getItem('entityId') || voucher?.entity_id;
+        if (!entityId) return 'N/A';
+        
+        // Fallback to entityName from location state
+        return entityName || 'N/A';
+    };
 
     useEffect(() => {
         if (startInEditMode) {
@@ -111,24 +126,71 @@ const VoucherDetailsCAPage = () => {
     }, [startInEditMode]);
 
     useEffect(() => {
-        if (authLoading || !user?.access_token || voucher) return;
+        if (authLoading || !user?.access_token) return;
 
-        const fetchVoucherDetails = async () => {
+        let isMounted = true;
+        const fetchData = async () => {
             try {
-                const fetchedVoucher = await getVoucher(null, voucherId, user.access_token);
-                if (!fetchedVoucher) {
+                // Use initialVoucher if available, otherwise fetch
+                let currentVoucher = initialVoucher;
+                
+                // Only fetch if we don't have initial voucher or if voucherId changed
+                if (!currentVoucher || currentVoucher.id !== voucherId) {
+                    currentVoucher = await getVoucher(null, voucherId, user.access_token);
+                }
+
+                if (!currentVoucher) {
                     toast({ title: 'Error', description: 'Voucher not found.', variant: 'destructive' });
+                    setIsLoading(false);
                     return;
                 }
-                setVoucher(fetchedVoucher);
-                setEditedVoucher(fetchedVoucher);
+
+                if (isMounted) {
+                    setVoucher(currentVoucher);
+                    setEditedVoucher(currentVoucher);
+                    // Update currentIndex when voucher changes
+                    if (vouchers && Array.isArray(vouchers)) {
+                        const index = vouchers.findIndex(v => String(v.id) === String(voucherId));
+                        setCurrentIndex(index >= 0 ? index : -1);
+                    }
+                    setIsLoading(false);
+                    
+                    // Load attachment in background
+                    const attachmentId = currentVoucher.attachment_id || (currentVoucher.attachment && currentVoucher.attachment.id);
+                    
+                    if (attachmentId) {
+                        setIsImageLoading(true);
+                        setAttachmentUrl(null);
+                        getVoucherAttachment(attachmentId, user.access_token)
+                            .then(url => {
+                                if (url) {
+                                    setAttachmentUrl(url);
+                                    if (url.toLowerCase().endsWith('.pdf')) {
+                                        setIsImageLoading(false);
+                                    }
+                                } else {
+                                    setIsImageLoading(false);
+                                }
+                            })
+                            .catch(err => {
+                                console.error("Failed to fetch attachment:", err);
+                                setIsImageLoading(false);
+                                setAttachmentUrl(null);
+                            });
+                    } else {
+                        setAttachmentUrl(null);
+                        setIsImageLoading(false);
+                    }
+                }
             } catch (error) {
-                toast({ title: 'Error', description: `Failed to fetch voucher details: ${error.message}`, variant: 'destructive' });
+                toast({ title: 'Error', description: `Failed to fetch data: ${error.message}`, variant: 'destructive' });
+                setIsLoading(false);
             }
         };
 
-        fetchVoucherDetails();
-    }, [voucherId, authLoading, user?.access_token, voucher]);
+        fetchData();
+        return () => { isMounted = false; };
+    }, [voucherId, authLoading, user?.access_token]);
 
     useEffect(() => {
         if (!voucher || !user?.access_token) return;
@@ -174,19 +236,6 @@ const VoucherDetailsCAPage = () => {
         }
     }, [editedVoucher?.voucher_type]);
 
-    useEffect(() => {
-        if (voucher?.attachment_id && user?.access_token) {
-            const fetchAttachment = async () => {
-                try {
-                    const url = await getVoucherAttachment(voucher.attachment_id, user.access_token);
-                    setAttachmentUrl(url);
-                } catch (error) {
-                    console.error("Failed to fetch attachment:", error);
-                }
-            };
-            fetchAttachment();
-        }
-    }, [user?.access_token, voucher?.attachment_id]);
 
     useEffect(() => {
         const fetchHeaders = async () => {
@@ -257,6 +306,7 @@ const VoucherDetailsCAPage = () => {
         : voucherDetails.beneficiaryName || 'N/A';
 
     const handleDelete = async () => {
+        setIsDeleting(true);
         try {
             await deleteVoucher(voucherDetails.entity_id, voucherId, user.access_token);
             toast({ title: 'Success', description: 'Voucher deleted successfully.' });
@@ -269,6 +319,8 @@ const VoucherDetailsCAPage = () => {
                 variant: 'destructive',
             });
             setShowDeleteDialog(false);
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -311,16 +363,58 @@ const VoucherDetailsCAPage = () => {
         }
     };
 
-    if (authLoading || !voucher) {
-        return (
-            <div className="flex justify-center items-center h-screen">
-                <Loader2 className="w-8 h-8 animate-spin text-white" />
-            </div>
-        );
+    // Skeleton loading component
+    const VoucherDetailsSkeleton = () => (
+        <div className="h-screen w-full flex flex-col text-white bg-transparent p-4 md:p-6">
+            <header className="flex items-center justify-between pb-4 border-b border-white/10 mb-4">
+                <div className="flex items-center gap-4">
+                    <Skeleton className="h-10 w-10 rounded-md" />
+                    <div>
+                        <Skeleton className="h-8 w-48 mb-2" />
+                        <Skeleton className="h-4 w-64" />
+                    </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Skeleton className="h-10 w-10 rounded-md" />
+                    <Skeleton className="h-10 w-10 rounded-md" />
+                </div>
+            </header>
+            <ResizablePanelGroup direction="horizontal" className="flex-1 rounded-lg border border-white/10">
+                <ResizablePanel defaultSize={60} minSize={30}>
+                    <div className="relative flex h-full w-full flex-col items-center justify-center p-2">
+                        <Skeleton className="h-full w-full rounded-md" />
+                    </div>
+                </ResizablePanel>
+                <ResizableHandle withHandle />
+                <ResizablePanel defaultSize={40} minSize={30}>
+                    <div className="flex h-full items-start justify-center p-6 overflow-y-auto">
+                        <div className="w-full space-y-4">
+                            <div className="space-y-2">
+                                <Skeleton className="h-10 w-full" />
+                                <Skeleton className="h-10 w-full" />
+                                <Skeleton className="h-10 w-full" />
+                            </div>
+                            <Skeleton className="h-64 w-full rounded-lg" />
+                            <div className="space-y-2">
+                                <Skeleton className="h-6 w-32" />
+                                <Skeleton className="h-20 w-full rounded-md" />
+                            </div>
+                        </div>
+                    </div>
+                </ResizablePanel>
+            </ResizablePanelGroup>
+        </div>
+    );
+
+    if (isLoading) {
+        return <VoucherDetailsSkeleton />;
     }
+    
+    // Check if we have vouchers to navigate - show arrows if we have multiple vouchers
+    const hasVouchers = vouchers && Array.isArray(vouchers) && vouchers.length > 1;
 
     return (
-        <div className="h-screen w-full flex flex-col text-white bg-transparent p-4 md:p-6">
+        <div className="h-screen w-full flex flex-col text-white bg-transparent p-4 md:p-6" style={{ paddingBottom: hasVouchers ? '5rem' : '1.5rem' }}>
             <VoucherPDF ref={voucherDetailsRef} voucher={voucher} organizationName={organizationName} entityName={entityName} />
             <header className="flex items-center justify-between pb-4 border-b border-white/10 mb-4">
                 <div className="flex items-center gap-4">
@@ -332,13 +426,9 @@ const VoucherDetailsCAPage = () => {
                         <p className="text-sm text-gray-400">Review all cash and debit transactions.</p>
                     </div>
                 </div>
-                <div className="flex items-center gap-2">
-                    <Button variant="outline" size="icon" onClick={() => handleNavigate(-1)} disabled={!vouchers || currentIndex === 0}>
-                        <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <Button variant="outline" size="icon" onClick={() => handleNavigate(1)} disabled={!vouchers || currentIndex === vouchers.length - 1}>
-                        <ChevronRight className="h-4 w-4" />
-                    </Button>
+                {/* Entity name in top right */}
+                <div className="flex items-center">
+                    <p className="text-sm font-semibold text-white">{getEntityName()}</p>
                 </div>
             </header>
 
@@ -348,8 +438,9 @@ const VoucherDetailsCAPage = () => {
             >
                 <ResizablePanel defaultSize={60} minSize={30}>
                     <div className="relative flex h-full w-full flex-col items-center justify-center p-2">
+                        {/* Zoom controls in bottom right corner */}
                         {attachmentUrl && !attachmentUrl.toLowerCase().endsWith('.pdf') && (
-                            <div className="absolute top-4 right-4 z-10 flex gap-2">
+                            <div className="absolute bottom-4 right-4 z-10 flex gap-2">
                                 <Button variant="outline" size="icon" onClick={() => setZoom(z => z + 0.1)}>
                                     <ZoomIn className="h-4 w-4" />
                                 </Button>
@@ -361,8 +452,11 @@ const VoucherDetailsCAPage = () => {
                                 </Button>
                             </div>
                         )}
-                        <div className="flex h-full w-full items-center justify-center overflow-auto">
-                            {attachmentUrl ? (
+                        <div className="flex h-full w-full items-center justify-center overflow-auto relative" style={{ zIndex: 1 }}>
+                            {/* Show skeleton only if we have attachment_id but no URL yet (while fetching URL) */}
+                            {voucher?.attachment_id && !attachmentUrl ? (
+                                <Skeleton className="h-full w-full rounded-md" />
+                            ) : attachmentUrl ? (
                                 attachmentUrl.toLowerCase().endsWith('.pdf') ? (
                                     <iframe
                                         src={attachmentUrl}
@@ -371,10 +465,20 @@ const VoucherDetailsCAPage = () => {
                                     />
                                 ) : (
                                     <img
+                                        key={`${attachmentUrl}-${voucher?.id}`}
                                         src={attachmentUrl}
                                         alt="Voucher Attachment"
                                         className="max-w-full max-h-full transition-transform duration-200"
                                         style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }}
+                                        onLoad={() => {
+                                            console.log("Image loaded successfully");
+                                            setIsImageLoading(false);
+                                        }}
+                                        onError={(e) => {
+                                            console.error("Image failed to load:", e, "URL:", attachmentUrl);
+                                            setIsImageLoading(false);
+                                        }}
+                                        loading="eager"
                                     />
                                 )
                             ) : (
@@ -387,8 +491,9 @@ const VoucherDetailsCAPage = () => {
                 </ResizablePanel>
                 <ResizableHandle withHandle />
                 <ResizablePanel defaultSize={40} minSize={30}>
-                    <div className="flex h-full items-start justify-center p-6 overflow-y-auto">
-                <Tabs defaultValue="details" className="w-full">
+                    <div className="relative flex h-full flex-col">
+                        <div className="flex-1 overflow-y-auto p-6" style={{ paddingBottom: hasVouchers ? '6rem' : '1.5rem' }}>
+                            <Tabs defaultValue="details" className="w-full">
                     <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger value="details">Details</TabsTrigger>
                         <TabsTrigger value="activity">Activity Log</TabsTrigger>
@@ -520,7 +625,7 @@ const VoucherDetailsCAPage = () => {
                         ) : (
                             <Card className="w-full glass-pane border-none shadow-none bg-gray-800 text-white">
                                 <CardHeader>
-                                    <CardTitle>Voucheres to {beneficiaryName}</CardTitle>
+                                    <CardTitle>Voucher to {beneficiaryName}</CardTitle>
                                     <CardDescription>Created on {new Date(voucherDetails.created_date).toLocaleDateString()}</CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-2">
@@ -546,26 +651,58 @@ const VoucherDetailsCAPage = () => {
                                             </SelectContent>
                                         </Select>
                                     </div>
-                                    <div className="flex items-center gap-2 mt-4 justify-end">
-                                        <Button variant="destructive" size="icon" onClick={() => setShowDeleteDialog(true)}>
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                        <Button variant="outline" size="icon" onClick={handleExportToPDF}>
-                                            <FileText className="h-4 w-4" />
-                                        </Button>
-                                        <Button variant="outline" size="icon" onClick={() => setIsEditing(!isEditing)}>
-                                            <Edit className="h-4 w-4" />
-                                        </Button>
-                                        <Button onClick={() => {
-                                            updateVoucher(voucherId, { is_ready: true, finance_header_id: editedVoucher.finance_header_id }, user.access_token)
-                                                .then(() => {
-                                                    toast({ title: 'Success', description: 'Voucher marked as ready.' });
-                                                    navigate('/finance/ca');
-                                                })
-                                                .catch(err => {
-                                                    toast({ title: 'Error', description: `Failed to mark voucher as ready: ${err.message}`, variant: 'destructive' });
-                                                });
-                                        }}>Mark as Ready</Button>
+                                    <div className="flex items-center gap-2 mt-4 justify-between relative z-20">
+                                        {/* Action buttons at bottom right */}
+                                        <div className="flex items-center gap-2 relative z-20">
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            variant="destructive"
+                                                            size="icon"
+                                                            onClick={() => setShowDeleteDialog(true)}
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Delete</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button variant="outline" size="icon" onClick={handleExportToPDF}>
+                                                            <FileText className="h-4 w-4" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Export</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button variant="outline" size="icon" onClick={() => setIsEditing(!isEditing)}>
+                                                            <Edit className="h-4 w-4" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Edit</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                            {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
+                                                <Button onClick={() => {
+                                                    updateVoucher(voucherId, { is_ready: true, finance_header_id: editedVoucher.finance_header_id }, user.access_token)
+                                                        .then(() => {
+                                                            toast({ title: 'Success', description: 'Voucher marked as ready.' });
+                                                            navigate('/finance/ca');
+                                                        })
+                                                        .catch(err => {
+                                                            toast({ title: 'Error', description: `Failed to mark voucher as ready: ${err.message}`, variant: 'destructive' });
+                                                        });
+                                                }}>Tag</Button>
+                                            )}
+                                        </div>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -590,11 +727,44 @@ const VoucherDetailsCAPage = () => {
                         </Card>
                     </TabsContent>
                 </Tabs>
-            </div>
+                        </div>
+                    </div>
                 </ResizablePanel>
-            </ResizablePanelGroup>
+            </ResizablePanelGroup>  
 
-            <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+            {/* Fixed circular navigation buttons on right side */}
+            {hasVouchers && (
+                <div className="fixed right-4 top-1/2 transform -translate-y-1/2 z-50 flex flex-col gap-3">
+                    <Button 
+                        variant="outline" 
+                        size="icon"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleNavigate(-1);
+                        }} 
+                        disabled={currentIndex === 0 || currentIndex === -1}
+                        className="h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg"
+                    >
+                        <ChevronLeft className="h-5 w-5" />
+                    </Button>
+                    <Button 
+                        variant="outline" 
+                        size="icon"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleNavigate(1);
+                        }} 
+                        disabled={currentIndex === vouchers.length - 1}
+                        className="h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg"
+                    >
+                        <ChevronRight className="h-5 w-5" />
+                    </Button>
+                </div>
+            )}
+
+            <Dialog open={showDeleteDialog} onOpenChange={isDeleting ? undefined : setShowDeleteDialog}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Are you sure?</DialogTitle>
@@ -603,11 +773,16 @@ const VoucherDetailsCAPage = () => {
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
-                        <Button variant="ghost" onClick={() => setShowDeleteDialog(false)}>
+                        <Button variant="ghost" onClick={() => setShowDeleteDialog(false)} disabled={isDeleting}>
                             Cancel
                         </Button>
-                        <Button variant="destructive" onClick={handleDelete}>
-                            Delete
+                        <Button
+                            variant="destructive"
+                            onClick={handleDelete}
+                            disabled={isDeleting}
+                            style={isDeleting ? { opacity: 0.5, pointerEvents: 'none' } : {}}
+                        >
+                            {isDeleting ? 'Deleting...' : 'Delete'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

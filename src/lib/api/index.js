@@ -9,8 +9,8 @@ import { handleResponse, getAuthHeaders } from './utils';
     import * as team from './team';
     import * as tasks from './tasks';
 
-    const API_BASE_URL = 'http://localhost:8001';
-    const FINANCE_API_BASE_URL = 'http://localhost:8003/';
+    const API_BASE_URL = 'http://127.0.0.1:8001';
+    const FINANCE_API_BASE_URL = 'http://127.0.0.1:8003/';
 
     export const {
       refreshToken,
@@ -102,6 +102,7 @@ import { handleResponse, getAuthHeaders } from './utils';
       createClient,
       updateClient,
       uploadClientPhoto,
+      deleteClientPhoto,
       deleteClient,
       listClientPortals,
       createClientPortal,
