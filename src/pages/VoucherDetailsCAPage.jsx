@@ -125,6 +125,16 @@ const VoucherDetailsCAPage = () => {
         }
     }, [startInEditMode]);
 
+    // Update currentIndex when voucherId changes
+    useEffect(() => {
+        if (vouchers && Array.isArray(vouchers) && voucherId) {
+            const index = vouchers.findIndex(v => String(v.id) === String(voucherId));
+            if (index !== currentIndex) {
+                setCurrentIndex(index >= 0 ? index : -1);
+            }
+        }
+    }, [voucherId, vouchers, currentIndex]);
+
     useEffect(() => {
         if (authLoading || !user?.access_token) return;
 
@@ -256,11 +266,28 @@ const VoucherDetailsCAPage = () => {
     }, [user, toast]);
 
     const handleNavigate = (direction) => {
-        if (!vouchers || vouchers.length === 0) return;
+        if (!vouchers || vouchers.length === 0) {
+            console.warn("No vouchers available for navigation");
+            return;
+        }
         const newIndex = currentIndex + direction;
+        console.log("Navigating:", { currentIndex, newIndex, direction, vouchersLength: vouchers.length });
         if (newIndex >= 0 && newIndex < vouchers.length) {
             const nextVoucher = vouchers[newIndex];
-            navigate(`/vouchers/ca/${nextVoucher.id}`, { state: { voucher: nextVoucher, vouchers, organisationId } });
+            console.log("Navigating to voucher:", nextVoucher.id);
+            // Update currentIndex immediately
+            setCurrentIndex(newIndex);
+            navigate(`/vouchers/ca/${nextVoucher.id}`, { 
+                state: { 
+                    voucher: nextVoucher, 
+                    vouchers, 
+                    organisationId, 
+                    entityName, 
+                    organizationName 
+                } 
+            });
+        } else {
+            console.warn("Navigation out of bounds:", { newIndex, vouchersLength: vouchers.length });
         }
     };
     
@@ -710,7 +737,7 @@ const VoucherDetailsCAPage = () => {
                     </TabsContent>
                     <TabsContent value="activity" className="mt-4">
                         <div className="p-4">
-                            <ActivityLog itemId={voucher?.voucher_id || voucherId} itemType="voucher" />
+                            <ActivityLog itemId={voucher?.voucher_id || voucherId} itemType="voucher" showFilter={false} />
                         </div>
                     </TabsContent>
                     <TabsContent value="beneficiary" className="mt-4">
@@ -732,9 +759,10 @@ const VoucherDetailsCAPage = () => {
                 </ResizablePanel>
             </ResizablePanelGroup>  
 
-            {/* Fixed circular navigation buttons on right side */}
+            {/* Fixed navigation buttons at bottom corners - aligned on same line */}
             {hasVouchers && (
-                <div className="fixed right-4 top-1/2 transform -translate-y-1/2 z-50 flex flex-col gap-3">
+                <>
+                    {/* Previous button at bottom left (after sidebar) */}
                     <Button 
                         variant="outline" 
                         size="icon"
@@ -744,10 +772,11 @@ const VoucherDetailsCAPage = () => {
                             handleNavigate(-1);
                         }} 
                         disabled={currentIndex === 0 || currentIndex === -1}
-                        className="h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg"
+                        className="fixed bottom-4 left-80 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg z-50"
                     >
                         <ChevronLeft className="h-5 w-5" />
                     </Button>
+                    {/* Next button at bottom right corner */}
                     <Button 
                         variant="outline" 
                         size="icon"
@@ -757,11 +786,11 @@ const VoucherDetailsCAPage = () => {
                             handleNavigate(1);
                         }} 
                         disabled={currentIndex === vouchers.length - 1}
-                        className="h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg"
+                        className="fixed bottom-4 right-4 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg z-50"
                     >
                         <ChevronRight className="h-5 w-5" />
                     </Button>
-                </div>
+                </>
             )}
 
             <Dialog open={showDeleteDialog} onOpenChange={isDeleting ? undefined : setShowDeleteDialog}>
