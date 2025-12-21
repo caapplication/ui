@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-const ActivityLog = ({ itemId, itemType }) => {
+const ActivityLog = ({ itemId, itemType, showFilter = true }) => {
     const [logs, setLogs] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [startDate, setStartDate] = useState('');
@@ -109,54 +109,56 @@ const ActivityLog = ({ itemId, itemType }) => {
 
     return (
         <div className="space-y-4">
-            {/* Filters and Download */}
-            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
-                <div className="flex flex-col sm:flex-row gap-4 flex-1">
-                    <div className="flex items-center gap-2">
-                        <Label htmlFor="start-date" className="text-sm text-gray-400 whitespace-nowrap">From:</Label>
-                        <Input
-                            id="start-date"
-                            type="date"
-                            value={startDate}
-                            onChange={(e) => setStartDate(e.target.value)}
-                            className="w-auto"
-                        />
+            {/* Filters and Download - Only show if showFilter is true */}
+            {showFilter && (
+                <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
+                    <div className="flex flex-col sm:flex-row gap-4 flex-1">
+                        <div className="flex items-center gap-2">
+                            <Label htmlFor="start-date" className="text-sm text-gray-400 whitespace-nowrap">From:</Label>
+                            <Input
+                                id="start-date"
+                                type="date"
+                                value={startDate}
+                                onChange={(e) => setStartDate(e.target.value)}
+                                className="w-auto"
+                            />
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Label htmlFor="end-date" className="text-sm text-gray-400 whitespace-nowrap">To:</Label>
+                            <Input
+                                id="end-date"
+                                type="date"
+                                value={endDate}
+                                onChange={(e) => setEndDate(e.target.value)}
+                                className="w-auto"
+                            />
+                        </div>
+                        {(startDate || endDate) && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                    setStartDate('');
+                                    setEndDate('');
+                                }}
+                                className="text-gray-400 hover:text-white"
+                            >
+                                Clear Filters
+                            </Button>
+                        )}
                     </div>
-                    <div className="flex items-center gap-2">
-                        <Label htmlFor="end-date" className="text-sm text-gray-400 whitespace-nowrap">To:</Label>
-                        <Input
-                            id="end-date"
-                            type="date"
-                            value={endDate}
-                            onChange={(e) => setEndDate(e.target.value)}
-                            className="w-auto"
-                        />
-                    </div>
-                    {(startDate || endDate) && (
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                                setStartDate('');
-                                setEndDate('');
-                            }}
-                            className="text-gray-400 hover:text-white"
-                        >
-                            Clear Filters
-                        </Button>
-                    )}
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleDownloadCSV}
+                        disabled={logs.length === 0}
+                        className="flex items-center gap-2"
+                    >
+                        <Download className="w-4 h-4" />
+                        Download CSV
+                    </Button>
                 </div>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleDownloadCSV}
-                    disabled={logs.length === 0}
-                    className="flex items-center gap-2"
-                >
-                    <Download className="w-4 h-4" />
-                    Download CSV
-                </Button>
-            </div>
+            )}
 
             {logs.map(log => {
                 // Prefer top-level name/email if present (API returns these at top level)

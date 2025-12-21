@@ -475,7 +475,7 @@ const VoucherDetailsCA = () => {
                 </div>
                 {/* Entity name in top right */}
                 <div className="flex items-center">
-                    <p className="text-sm font-semibold text-white">{getEntityName()}</p>
+                    <p className="text-2xl font-bold text-white">{getEntityName()}</p>
                 </div>
             </header>
 
@@ -753,7 +753,7 @@ const VoucherDetailsCA = () => {
                     </TabsContent>
                     <TabsContent value="activity" className="mt-4">
                         <div className="p-4">
-                            <ActivityLog itemId={voucher?.voucher_id || voucherId} itemType="voucher" />
+                            <ActivityLog itemId={voucher?.voucher_id || voucherId} itemType="voucher" showFilter={false} />
                         </div>
                     </TabsContent>
                     <TabsContent value="beneficiary" className="mt-4">
@@ -791,10 +791,10 @@ const VoucherDetailsCA = () => {
                 </ResizablePanel>
             </ResizablePanelGroup>
 
-         
-            {/* Fixed circular navigation buttons on right side */}
+            {/* Fixed navigation buttons at bottom corners - aligned on same line */}
             {hasVouchers && (
-                <div className="fixed right-4 top-1/2 transform -translate-y-1/2 z-50 flex flex-col gap-3">
+                <>
+                    {/* Previous button at bottom left (after sidebar) */}
                     <Button 
                         variant="outline" 
                         size="icon"
@@ -804,10 +804,11 @@ const VoucherDetailsCA = () => {
                             handleNavigate(-1);
                         }} 
                         disabled={currentIndex === 0 || currentIndex === -1}
-                        className="h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg"
+                        className="fixed bottom-4 left-80 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg z-50"
                     >
                         <ChevronLeft className="h-5 w-5" />
                     </Button>
+                    {/* Next button at bottom right corner */}
                     <Button 
                         variant="outline" 
                         size="icon"
@@ -816,12 +817,12 @@ const VoucherDetailsCA = () => {
                             e.stopPropagation();
                             handleNavigate(1);
                         }} 
-                        disabled={currentIndex === vouchers.length - 1}
-                        className="h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg"
+                        disabled={currentIndex === voucherList.length - 1}
+                        className="fixed bottom-4 right-4 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg z-50"
                     >
                         <ChevronRight className="h-5 w-5" />
                     </Button>
-                </div>
+                </>
             )}
 
             <Dialog open={showDeleteDialog} onOpenChange={isDeleting ? undefined : setShowDeleteDialog}>
