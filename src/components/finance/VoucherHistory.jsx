@@ -251,7 +251,6 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                         <TableHead className="text-xs sm:text-sm">Amount</TableHead>
                         <TableHead className="text-xs sm:text-sm">Status</TableHead>
                         <TableHead className="text-xs sm:text-sm">Remarks</TableHead>
-                        <TableHead className="text-xs sm:text-sm">Actions</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -283,49 +282,6 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                                     </span>
                                 </TableCell>
                                 <TableCell className="text-xs sm:text-sm truncate max-w-[100px] sm:max-w-none">{voucher.remarks || 'N/A'}</TableCell>
-                                <TableCell className="text-xs sm:text-sm">
-                                    <div className="flex items-center gap-1 sm:gap-2">
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            onClick={(e) => { e.stopPropagation(); onViewVoucher(voucher); }}
-                                            className="text-gray-400 hover:text-gray-300 h-8 w-8 sm:h-10 sm:w-10"
-                                            tooltip="View: See voucher details"
-                                        >
-                                            <Eye className="w-4 h-4 sm:w-5 sm:h-5" />
-                                        </Button>
-                                        {!voucher.is_ready && voucher.finance_header_id && (user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
-                                            <Button
-                                                variant="outline"
-                                                size="icon"
-                                                className="text-green-400 hover:text-green-300 h-8 w-8 sm:h-10 sm:w-10"
-                                                disabled={readyLoadingId === voucher.id}
-                                                style={readyLoadingId === voucher.id ? { opacity: 0.5, pointerEvents: 'none' } : {}}
-                                                onClick={async () => {
-                                                    setReadyLoadingId(voucher.id);
-                                                    try {
-                                                        await updateVoucher(voucher.id, { is_ready: true }, user.access_token);
-                                                        toast({ title: 'Success', description: 'Voucher marked as ready.' });
-                                                        if (onRefresh) onRefresh();
-                                                    } catch (err) {
-                                                        toast({ title: 'Error', description: `Failed to mark voucher as ready: ${err.message}`, variant: 'destructive' });
-                                                    } finally {
-                                                        setReadyLoadingId(null);
-                                                    }
-                                                }}
-                                            >
-                                                {readyLoadingId === voucher.id ? (
-                                                    <svg className="animate-spin w-3 h-3 sm:w-4 sm:h-4" viewBox="0 0 24 24">
-                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
-                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-                                                    </svg>
-                                                ) : (
-                                                    <Check className="w-3 h-3 sm:w-4 sm:h-4" />
-                                                )}
-                                            </Button>
-                                        )}
-                                    </div>
-                                </TableCell>
                             </TableRow>
                         );
                     })}

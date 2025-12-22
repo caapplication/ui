@@ -680,8 +680,8 @@ const InvoiceDetailsPage = () => {
                                                     </Select>
                                                 </div>
                                             )}
-                                            <div className="flex items-center gap-2 mt-4 mb-20 sm:mb-16 md:mb-4 justify-center relative z-[100] flex-wrap">
-                                                {/* Action buttons in center */}
+                                            <div className="flex items-center gap-2 mt-6 mb-20 sm:mb-16 md:mb-4 justify-end relative z-[100] flex-wrap -mr-4 sm:-mr-4">
+                                                {/* Action buttons on right */}
                                                 <div className="flex items-center gap-2 relative z-[100]">
                                                     <TooltipProvider>
                                                         <Tooltip>
@@ -743,8 +743,6 @@ const InvoiceDetailsPage = () => {
                                                         )}
                                                     </TooltipProvider>
                                                 </div>
-                                                {/* Spacer for next button (which is fixed on right) */}
-                                                {hasInvoices && <div className="w-12"></div>}
                                             </div>
                                         </CardContent>
                                     </Card>
@@ -983,7 +981,8 @@ const InvoiceDetailsPage = () => {
                                                 </Select>
                                             </div>
                                         )}
-                                        <div className="flex items-center gap-2 mt-4 mb-20 sm:mb-16 md:mb-4 justify-center relative z-[100] flex-wrap">
+                                        <div className="flex items-center gap-2 mt-4 mb-20 sm:mb-16 md:mb-4 justify-end relative z-[100] flex-wrap -mr-4 sm:-mr-6">
+                                            {/* Action buttons on right */}
                                             <div className="flex items-center gap-2 relative z-[100]">
                                                 <TooltipProvider>
                                                     <Tooltip>
@@ -1045,7 +1044,6 @@ const InvoiceDetailsPage = () => {
                                                     )}
                                                 </TooltipProvider>
                                             </div>
-                                            {hasInvoices && <div className="w-12"></div>}
                                         </div>
                                     </CardContent>
                                 </Card>

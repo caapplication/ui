@@ -161,6 +161,8 @@ const VoucherDetailsPage = () => {
     const [isDeleting, setIsDeleting] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isImageLoading, setIsImageLoading] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [sidebarWidth, setSidebarWidth] = useState(320); // Default to expanded width (300px + padding)
     
     // Get entity name from user entities
     const getEntityName = () => {
@@ -184,6 +186,35 @@ const VoucherDetailsPage = () => {
             setIsEditing(true);
         }
     }, [startInEditMode]);
+
+    // Detect sidebar width to adjust left arrow position
+    useEffect(() => {
+        const detectSidebarWidth = () => {
+            const sidebar = document.querySelector('aside');
+            if (sidebar) {
+                const width = sidebar.offsetWidth;
+                setSidebarWidth(width);
+            }
+        };
+
+        // Initial detection
+        detectSidebarWidth();
+
+        // Use ResizeObserver to watch for sidebar width changes
+        const sidebar = document.querySelector('aside');
+        if (sidebar) {
+            const resizeObserver = new ResizeObserver((entries) => {
+                for (const entry of entries) {
+                    setSidebarWidth(entry.contentRect.width);
+                }
+            });
+            resizeObserver.observe(sidebar);
+
+            return () => {
+                resizeObserver.disconnect();
+            };
+        }
+    }, []);
 
     // Update currentIndex when voucherId changes
     useEffect(() => {
@@ -414,9 +445,21 @@ const VoucherDetailsPage = () => {
         const contentHeight = pdfHeight - (margin * 2);
 
         try {
-            // Helper function to add image to PDF with proper scaling
+            // Helper function to add image to PDF with proper scaling and validation
             const addImageToPDF = (imgData, imgWidth, imgHeight) => {
+                // Validate input dimensions
+                if (!imgData || !imgWidth || !imgHeight || imgWidth <= 0 || imgHeight <= 0) {
+                    console.warn('Invalid image dimensions:', { imgWidth, imgHeight });
+                    return false;
+                }
+
+                // Calculate ratio with validation
                 const ratio = imgWidth / imgHeight;
+                if (!isFinite(ratio) || ratio <= 0) {
+                    console.warn('Invalid image ratio:', ratio);
+                    return false;
+                }
+
                 let displayWidth = contentWidth;
                 let displayHeight = displayWidth / ratio;
                 
@@ -425,50 +468,169 @@ const VoucherDetailsPage = () => {
                     displayHeight = contentHeight;
                     displayWidth = displayHeight * ratio;
                 }
+
+                // Validate calculated dimensions
+                if (!isFinite(displayWidth) || !isFinite(displayHeight) || displayWidth <= 0 || displayHeight <= 0) {
+                    console.warn('Invalid display dimensions:', { displayWidth, displayHeight });
+                    return false;
+                }
                 
                 // Center the image on the page
                 const xPos = margin + (contentWidth - displayWidth) / 2;
                 const yPos = margin + (contentHeight - displayHeight) / 2;
+
+                // Validate coordinates
+                if (!isFinite(xPos) || !isFinite(yPos) || xPos < 0 || yPos < 0) {
+                    console.warn('Invalid coordinates:', { xPos, yPos });
+                    return false;
+                }
                 
-                pdf.addImage(imgData, 'PNG', xPos, yPos, displayWidth, displayHeight);
+                try {
+                    pdf.addImage(imgData, 'PNG', xPos, yPos, displayWidth, displayHeight);
+                    return true;
+                } catch (imgError) {
+                    console.error('Error adding image to PDF:', imgError);
+                    return false;
+                }
             };
 
-            // Page 1: Voucher Details
-            if (voucherDetailsRef.current) {
-                const detailsCanvas = await html2canvas(voucherDetailsRef.current, { 
-                    useCORS: true,
-                    scale: 2,
-                    backgroundColor: '#1e293b',
-                    logging: false
-                });
-                const detailsImgData = detailsCanvas.toDataURL('image/png');
-                addImageToPDF(detailsImgData, detailsCanvas.width, detailsCanvas.height);
+            let hasContent = false;
+
+            // Page 1: Voucher Details - Use text-based PDF directly for reliability
+            if (voucher) {
+                try {
+                    pdf.setFontSize(16);
+                    pdf.text('Voucher Details', margin, margin + 10);
+                    pdf.setFontSize(12);
+                    let yPos = margin + 20;
+                    
+                    const beneficiaryName = voucher.beneficiary
+                        ? (voucher.beneficiary.beneficiary_type === 'individual' ? voucher.beneficiary.name : voucher.beneficiary.company_name)
+                        : voucher.beneficiaryName || 'N/A';
+                    
+                    pdf.text(`Voucher ID: ${voucher.voucher_id || voucherId}`, margin, yPos);
+                    yPos += 10;
+                    pdf.text(`Amount: ₹${parseFloat(voucher.amount || 0).toFixed(2)}`, margin, yPos);
+                    yPos += 10;
+                    pdf.text(`Voucher Type: ${voucher.voucher_type ? voucher.voucher_type.charAt(0).toUpperCase() + voucher.voucher_type.slice(1) : 'N/A'}`, margin, yPos);
+                    yPos += 10;
+                    pdf.text(`Payment Method: ${formatPaymentMethod(voucher.payment_type || '')}`, margin, yPos);
+                    yPos += 10;
+                    pdf.text(`Beneficiary: ${beneficiaryName}`, margin, yPos);
+                    yPos += 10;
+                    pdf.text(`Remarks: ${voucher.remarks || 'N/A'}`, margin, yPos);
+                    
+                    if (voucher.payment_type === 'bank_transfer') {
+                        yPos += 10;
+                        const fromBank = fromBankAccounts.find(acc => String(acc.id) === String(voucher.from_bank_account_id));
+                        const toBank = toBankAccounts.find(acc => String(acc.id) === String(voucher.to_bank_account_id));
+                        if (fromBank) {
+                            pdf.text(`From Bank: ${fromBank.bank_name} - ${fromBank.account_number}`, margin, yPos);
+                            yPos += 10;
+                        }
+                        if (toBank) {
+                            pdf.text(`To Bank: ${toBank.bank_name} - ${toBank.account_number}`, margin, yPos);
+                        }
+                    }
+                    
+                    hasContent = true;
+                } catch (textError) {
+                    console.error('Error creating PDF:', textError);
+                }
             }
 
             // Page 2: Attachment (if it's an image, not PDF)
-            if (attachmentRef.current && attachmentUrl && !attachmentUrl.toLowerCase().endsWith('.pdf')) {
-                pdf.addPage();
-                const attachmentCanvas = await html2canvas(attachmentRef.current, { 
-                    useCORS: true,
-                    scale: 2,
-                    backgroundColor: '#1e293b',
-                    logging: false
-                });
-                const attachmentImgData = attachmentCanvas.toDataURL('image/png');
-                addImageToPDF(attachmentImgData, attachmentCanvas.width, attachmentCanvas.height);
+            if (attachmentUrl && !attachmentUrl.toLowerCase().endsWith('.pdf')) {
+                try {
+                    pdf.addPage();
+                    
+                    // Load the image directly from URL
+                    const img = new Image();
+                    img.crossOrigin = 'anonymous';
+                    
+                    await new Promise((resolve, reject) => {
+                        img.onload = () => resolve();
+                        img.onerror = (err) => {
+                            console.error('Error loading image:', err);
+                            reject(err);
+                        };
+                        img.src = attachmentUrl;
+                        
+                        // Timeout after 10 seconds
+                        setTimeout(() => {
+                            if (!img.complete) {
+                                reject(new Error('Image load timeout'));
+                            }
+                        }, 10000);
+                    });
+                    
+                    // Calculate dimensions to fit the page
+                    const imgWidth = img.width;
+                    const imgHeight = img.height;
+                    const ratio = imgWidth / imgHeight;
+                    
+                    let displayWidth = contentWidth;
+                    let displayHeight = displayWidth / ratio;
+                    
+                    // If image is taller than page, scale it down
+                    if (displayHeight > contentHeight) {
+                        displayHeight = contentHeight;
+                        displayWidth = displayHeight * ratio;
+                    }
+                    
+                    // Center the image on the page
+                    const xPos = margin + (contentWidth - displayWidth) / 2;
+                    const yPos = margin + (contentHeight - displayHeight) / 2;
+                    
+                    // Add image to PDF
+                    pdf.addImage(attachmentUrl, 'PNG', xPos, yPos, displayWidth, displayHeight);
+                } catch (error) {
+                    console.error('Error adding attachment image to PDF:', error);
+                    // Fallback: try using html2canvas if direct image load fails
+                    if (attachmentRef.current) {
+                        try {
+                            const attachmentCanvas = await html2canvas(attachmentRef.current, { 
+                                useCORS: true,
+                                scale: 2,
+                                backgroundColor: '#ffffff',
+                                logging: false,
+                                allowTaint: true
+                            });
+                            
+                            if (attachmentCanvas && attachmentCanvas.width > 0 && attachmentCanvas.height > 0) {
+                                const attachmentImgData = attachmentCanvas.toDataURL('image/png');
+                                addImageToPDF(attachmentImgData, attachmentCanvas.width, attachmentCanvas.height);
+                            }
+                        } catch (canvasError) {
+                            console.error('Error capturing attachment with html2canvas:', canvasError);
+                        }
+                    }
+                }
             }
 
             // Last Page: Activity Log
             if (activityLogRef.current) {
-                pdf.addPage();
-                const activityCanvas = await html2canvas(activityLogRef.current, { 
-                    useCORS: true,
-                    scale: 2,
-                    backgroundColor: '#1e293b',
-                    logging: false
-                });
-                const activityImgData = activityCanvas.toDataURL('image/png');
-                addImageToPDF(activityImgData, activityCanvas.width, activityCanvas.height);
+                try {
+                    pdf.addPage();
+                    const activityCanvas = await html2canvas(activityLogRef.current, { 
+                        useCORS: true,
+                        scale: 2,
+                        backgroundColor: '#1e293b',
+                        logging: false,
+                        allowTaint: true
+                    });
+                    
+                    if (activityCanvas && activityCanvas.width > 0 && activityCanvas.height > 0) {
+                        const activityImgData = activityCanvas.toDataURL('image/png');
+                        addImageToPDF(activityImgData, activityCanvas.width, activityCanvas.height);
+                    }
+                } catch (error) {
+                    console.error('Error capturing activity log:', error);
+                }
+            }
+
+            if (!hasContent) {
+                throw new Error('No valid content to export. Please ensure the voucher details are visible.');
             }
 
             pdf.save(`voucher-${voucher.voucher_id || voucherId}.pdf`);
@@ -509,6 +671,7 @@ const VoucherDetailsPage = () => {
 
     const handleUpdate = async (e) => {
         e.preventDefault();
+        setIsSaving(true);
         const formData = new FormData(e.target);
         const data = Object.fromEntries(formData.entries());
         const payload = {
@@ -544,6 +707,8 @@ const VoucherDetailsPage = () => {
             }
         } catch (error) {
             toast({ title: 'Error', description: `Failed to update voucher: ${error.message}`, variant: 'destructive' });
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -691,12 +856,29 @@ const VoucherDetailsPage = () => {
                         {isEditing ? (
                             <form onSubmit={handleUpdate} className="space-y-4">
                                 <div>
+                                    <Label htmlFor="voucher_type" className="text-sm">Voucher Type</Label>
+                                    <Select
+                                        value={editedVoucher?.voucher_type || ''}
+                                        onValueChange={(val) => setEditedVoucher(p => ({ ...p, voucher_type: val }))}
+                                        disabled={true}
+                                    >
+                                        <SelectTrigger disabled={true}>
+                                            <SelectValue placeholder="Select a voucher type" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="debit">Debit</SelectItem>
+                                            <SelectItem value="cash">Cash</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div>
                                     <Label htmlFor="beneficiary_id" className="text-sm">Beneficiary</Label>
                                     <Select
                                         value={editedVoucher?.beneficiary_id ? String(editedVoucher.beneficiary_id) : ''}
                                         onValueChange={(val) => setEditedVoucher(p => ({ ...p, beneficiary_id: val }))}
+                                        disabled={true}
                                     >
-                                        <SelectTrigger>
+                                        <SelectTrigger disabled={true}>
                                             <SelectValue placeholder="Select a beneficiary" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -717,21 +899,6 @@ const VoucherDetailsPage = () => {
                                         defaultValue={editedVoucher.amount} 
                                         onChange={(e) => setEditedVoucher(p => ({ ...p, amount: parseFloat(e.target.value) || 0 }))}
                                     />
-                                </div>
-                                <div>
-                                    <Label htmlFor="voucher_type">Voucher Type</Label>
-                                    <Select
-                                        value={editedVoucher?.voucher_type}
-                                        onValueChange={(val) => setEditedVoucher(p => ({ ...p, voucher_type: val }))}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select a voucher type" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="debit">Debit</SelectItem>
-                                            <SelectItem value="cash">Cash</SelectItem>
-                                        </SelectContent>
-                                    </Select>
                                 </div>
                                 <div>
                                     <Label htmlFor="payment_type">Payment Method</Label>
@@ -806,12 +973,21 @@ const VoucherDetailsPage = () => {
                                     </div>
                                 )}
                                 <div className="flex justify-end gap-2">
-                                    <Button variant="ghost" onClick={() => setIsEditing(false)}>Cancel</Button>
-                                    <Button type="submit">Save Changes</Button>
+                                    <Button variant="ghost" onClick={() => setIsEditing(false)} disabled={isSaving}>Cancel</Button>
+                                    <Button type="submit" disabled={isSaving}>
+                                        {isSaving ? (
+                                            <>
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                Saving...
+                                            </>
+                                        ) : (
+                                            'Save Changes'
+                                        )}
+                                    </Button>
                                 </div>
                             </form>
                         ) : (
-                            <Card className="w-full glass-pane border-none shadow-none bg-gray-800 text-white relative z-20">
+                            <Card ref={voucherDetailsRef} className="w-full glass-pane border-none shadow-none bg-gray-800 text-white relative z-20">
                                 <CardHeader className="p-4 sm:p-6">
                                     <CardTitle className="text-lg sm:text-xl">Voucher to {beneficiaryName}</CardTitle>
                                     <CardDescription className="text-xs sm:text-sm">Created on {new Date(voucherDetails.created_date).toLocaleDateString()}</CardDescription>
@@ -874,8 +1050,8 @@ const VoucherDetailsPage = () => {
                                         <p className="text-sm text-gray-400 mb-1">Remarks</p>
                                         <p className="text-sm text-white p-3 bg-white/5 rounded-md">{voucherDetails.remarks || 'N/A'}</p>
                                     </div>
-                                    <div className="flex items-center gap-2 mt-4 mb-20 sm:mb-16 md:mb-4 justify-center relative z-[100] flex-wrap">
-                                        {/* Action buttons in center */}
+                                    <div className="flex items-center gap-2 mt-4 mb-20 sm:mb-16 md:mb-4 justify-end relative z-[100] flex-wrap -mr-4 sm:-mr-4">
+                                        {/* Action buttons on right */}
                                         <div className="flex items-center gap-2 relative z-[100]">
                                             <TooltipProvider>
                                                 <Tooltip>
@@ -929,8 +1105,6 @@ const VoucherDetailsPage = () => {
                                                 </Tooltip>
                                             </TooltipProvider>
                                         </div>
-                                        {/* Spacer for next button (which is fixed on right) */}
-                                        {hasVouchers && <div className="w-12"></div>}
                                     </div>
                                 </CardContent>
                             </Card>
@@ -974,7 +1148,6 @@ const VoucherDetailsPage = () => {
                         <TabsContent value="preview" className="mt-4">
                             <div className="overflow-auto" style={{ maxHeight: '80vh' }}>
                                 <VoucherPDF
-                                    ref={voucherDetailsRef}
                                     voucher={voucher}
                                     organizationName={organizationName}
                                     entityName={entityName}
@@ -1059,12 +1232,29 @@ const VoucherDetailsPage = () => {
                             {isEditing ? (
                                 <form onSubmit={handleUpdate} className="space-y-4">
                                     <div>
+                                        <Label htmlFor="voucher_type" className="text-sm">Voucher Type</Label>
+                                        <Select
+                                            value={editedVoucher?.voucher_type || ''}
+                                            onValueChange={(val) => setEditedVoucher(p => ({ ...p, voucher_type: val }))}
+                                            disabled={true}
+                                        >
+                                            <SelectTrigger className="text-sm" disabled={true}>
+                                                <SelectValue placeholder="Select a voucher type" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="debit">Debit</SelectItem>
+                                                <SelectItem value="cash">Cash</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div>
                                         <Label htmlFor="beneficiary_id" className="text-sm">Beneficiary</Label>
                                         <Select
                                             value={editedVoucher?.beneficiary_id ? String(editedVoucher.beneficiary_id) : ''}
                                             onValueChange={(val) => setEditedVoucher(p => ({ ...p, beneficiary_id: val }))}
+                                            disabled={true}
                                         >
-                                            <SelectTrigger className="text-sm">
+                                            <SelectTrigger className="text-sm" disabled={true}>
                                                 <SelectValue placeholder="Select a beneficiary" />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -1086,21 +1276,6 @@ const VoucherDetailsPage = () => {
                                             onChange={(e) => setEditedVoucher(p => ({ ...p, amount: parseFloat(e.target.value) || 0 }))}
                                             className="text-sm"
                                         />
-                                    </div>
-                                    <div>
-                                        <Label htmlFor="voucher_type" className="text-sm">Voucher Type</Label>
-                                        <Select
-                                            value={editedVoucher?.voucher_type}
-                                            onValueChange={(val) => setEditedVoucher(p => ({ ...p, voucher_type: val }))}
-                                        >
-                                            <SelectTrigger className="text-sm">
-                                                <SelectValue placeholder="Select a voucher type" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="debit">Debit</SelectItem>
-                                                <SelectItem value="cash">Cash</SelectItem>
-                                            </SelectContent>
-                                        </Select>
                                     </div>
                                     <div>
                                         <Label htmlFor="payment_type" className="text-sm">Payment Method</Label>
@@ -1175,12 +1350,21 @@ const VoucherDetailsPage = () => {
                                         </div>
                                     )}
                                     <div className="flex justify-end gap-2">
-                                        <Button variant="ghost" onClick={() => setIsEditing(false)} className="text-sm">Cancel</Button>
-                                        <Button type="submit" className="text-sm">Save Changes</Button>
+                                        <Button variant="ghost" onClick={() => setIsEditing(false)} className="text-sm" disabled={isSaving}>Cancel</Button>
+                                        <Button type="submit" className="text-sm" disabled={isSaving}>
+                                            {isSaving ? (
+                                                <>
+                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                    Saving...
+                                                </>
+                                            ) : (
+                                                'Save Changes'
+                                            )}
+                                        </Button>
                                     </div>
                                 </form>
                             ) : (
-                                <Card className="w-full glass-pane border-none shadow-none bg-gray-800 text-white relative z-20">
+                                <Card ref={voucherDetailsRef} className="w-full glass-pane border-none shadow-none bg-gray-800 text-white relative z-20">
                                     <CardHeader className="p-4">
                                         <CardTitle className="text-lg sm:text-xl">Voucher to {beneficiaryName}</CardTitle>
                                         <CardDescription className="text-xs sm:text-sm">Created on {new Date(voucherDetails.created_date).toLocaleDateString()}</CardDescription>
@@ -1243,58 +1427,61 @@ const VoucherDetailsPage = () => {
                                             <p className="text-xs sm:text-sm text-gray-400 mb-1">Remarks</p>
                                             <p className="text-xs sm:text-sm text-white p-3 bg-white/5 rounded-md">{voucherDetails.remarks || 'N/A'}</p>
                                         </div>
-                                        <div className="flex items-center gap-2 mt-4 mb-20 sm:mb-16 md:mb-4 justify-center relative z-[100] flex-wrap">
-                                            <TooltipProvider>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button
-                                                            variant="destructive"
-                                                            size="icon"
-                                                            onClick={() => setShowDeleteDialog(true)}
-                                                            className="h-9 w-9 sm:h-10 sm:w-10"
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>
-                                                        <p>Delete</p>
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button
-                                                            variant="outline"
-                                                            size="icon"
-                                                            onClick={handleExportToPDF}
-                                                            disabled={
-                                                                voucher?.payment_type === 'bank_transfer' &&
-                                                                (!fromBankAccounts.length || !toBankAccounts.length)
-                                                            }
-                                                            className="h-9 w-9 sm:h-10 sm:w-10"
-                                                        >
-                                                            <FileText className="h-4 w-4" />
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>
-                                                        <p>Export</p>
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button
-                                                            variant="outline"
-                                                            size="icon"
-                                                            onClick={() => setIsEditing(!isEditing)}
-                                                            className="h-9 w-9 sm:h-10 sm:w-10"
-                                                        >
-                                                            <Edit className="h-4 w-4" />
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>
-                                                        <p>Edit</p>
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                            </TooltipProvider>
+                                        <div className="flex items-center gap-2 mt-4 mb-20 sm:mb-16 md:mb-4 justify-end relative z-[100] flex-wrap -mr-4 sm:-mr-6">
+                                            {/* Action buttons on right */}
+                                            <div className="flex items-center gap-2 relative z-[100]">
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button
+                                                                variant="destructive"
+                                                                size="icon"
+                                                                onClick={() => setShowDeleteDialog(true)}
+                                                                className="h-9 w-9 sm:h-10 sm:w-10"
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p>Delete</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="icon"
+                                                                onClick={handleExportToPDF}
+                                                                disabled={
+                                                                    voucher?.payment_type === 'bank_transfer' &&
+                                                                    (!fromBankAccounts.length || !toBankAccounts.length)
+                                                                }
+                                                                className="h-9 w-9 sm:h-10 sm:w-10"
+                                                            >
+                                                                <FileText className="h-4 w-4" />
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p>Export</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="icon"
+                                                                onClick={() => setIsEditing(!isEditing)}
+                                                                className="h-9 w-9 sm:h-10 sm:w-10"
+                                                            >
+                                                                <Edit className="h-4 w-4" />
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p>Edit</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                            </div>
                                         </div>
                                     </CardContent>
                                 </Card>
@@ -1337,7 +1524,6 @@ const VoucherDetailsPage = () => {
                             <TabsContent value="preview" className="mt-4">
                                 <div className="overflow-auto" style={{ maxHeight: '60vh' }}>
                                     <VoucherPDF
-                                        ref={voucherDetailsRef}
                                         voucher={voucher}
                                         organizationName={organizationName}
                                         entityName={entityName}
@@ -1364,7 +1550,10 @@ const VoucherDetailsPage = () => {
                             handleNavigate(-1);
                         }} 
                         disabled={currentIndex === 0 || currentIndex === -1}
-                        className="hidden md:flex fixed bottom-4 left-80 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg z-[50]"
+                        className="hidden md:flex fixed bottom-4 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg z-[50]"
+                        style={{ 
+                            left: sidebarWidth <= 150 ? `${sidebarWidth + 16}px` : '20rem' // Dynamic positioning when collapsed (sidebar width + 16px margin), left-80 (20rem) when expanded
+                        }}
                     >
                         <ChevronLeft className="h-5 w-5" />
                     </Button>

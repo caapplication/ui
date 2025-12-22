@@ -296,7 +296,6 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onRefresh, i
         <TableHead className="text-xs sm:text-sm">Amount</TableHead>
         <TableHead className="text-xs sm:text-sm">Remarks</TableHead>
         {isAccountantView && <TableHead className="text-xs sm:text-sm">Ready for Export</TableHead>}
-        <TableHead className="text-xs sm:text-sm">Actions</TableHead>
     </TableRow>
 </TableHeader>
 <TableBody>
@@ -335,92 +334,6 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onRefresh, i
                                     </span>
                                 </TableCell>
                             )}
-                                <TableCell className="text-xs sm:text-sm">
-                                    <div className="flex items-center gap-1 sm:gap-2">
-                                        {user?.role === 'CLIENT_USER' ? (
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={e => { e.stopPropagation(); handleViewAttachment(invoice); }}
-                                                className="text-gray-400 hover:text-gray-300 h-8 w-8 sm:h-10 sm:w-10"
-                                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                                title="View Invoice"
-                                            >
-                                                <Eye className="w-4 h-4 sm:w-6 sm:h-6" />
-                                            </Button>
-                                        ) : (
-                                            <>
-                                                {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') ? (
-                                                    <Button 
-                                                        variant="ghost" 
-                                                        size="icon"
-                                                        onClick={(e) => { e.stopPropagation(); handleViewAttachment(invoice); }} 
-                                                        className="text-gray-400 hover:text-gray-300 h-8 w-8 sm:h-10 sm:w-10"
-                                                        title="View Invoice"
-                                                    >
-                                                        <Eye className="w-4 h-4 sm:w-5 sm:h-5" />
-                                                    </Button>
-                                                ) : (
-                                                    invoice.attachment_id && (
-                                                        <Button 
-                                                            variant="ghost" 
-                                                            size="icon"
-                                                            onClick={(e) => { e.stopPropagation(); handleViewAttachment(invoice); }} 
-                                                            className="text-gray-400 hover:text-gray-300 h-8 w-8 sm:h-10 sm:w-10"
-                                                            title="View Attachment"
-                                                        >
-                                                            <Eye className="w-4 h-4 sm:w-5 sm:h-5" />
-                                                        </Button>
-                                                    )
-                                                )}
-                                                {!invoice.is_ready && invoice.finance_header_id && (user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
-                                                    <Button
-                                                        variant="outline"
-                                                        size="icon"
-                                                        className="text-green-400 hover:text-green-300 h-8 w-8 sm:h-10 sm:w-10"
-                                                        disabled={readyLoadingId === invoice.id}
-                                                        style={readyLoadingId === invoice.id ? { opacity: 0.5, pointerEvents: 'none' } : {}}
-                                                        onClick={async () => {
-                                                            setReadyLoadingId(invoice.id);
-                                                            try {
-                                                                await updateInvoice(invoice.id, { is_ready: true }, user.access_token);
-                                                                toast({ title: 'Success', description: 'Invoice marked as ready.' });
-                                                                if (onRefresh) onRefresh();
-                                                            } catch (err) {
-                                                                toast({ title: 'Error', description: `Failed to mark invoice as ready: ${err.message}`, variant: 'destructive' });
-                                                            } finally {
-                                                                setReadyLoadingId(null);
-                                                            }
-                                                        }}
-                                                    >
-                                                        {readyLoadingId === invoice.id ? (
-                                                            <svg className="animate-spin w-3 h-3 sm:w-4 sm:h-4" viewBox="0 0 24 24">
-                                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
-                                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-                                                            </svg>
-                                                        ) : (
-                                                            <Check className="w-3 h-3 sm:w-4 sm:h-4" />
-                                                        )}
-                                                    </Button>
-                                                )}
-                                                {(user?.role !== 'CA_ACCOUNTANT' && user?.role !== 'CA_TEAM') && user?.role !== 'CLIENT_USER' && (
-                                                    <TooltipProvider>
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <Button variant="destructive" size="icon" onClick={(e) => { e.stopPropagation(); setInvoiceToDelete(invoice); }} className="h-8 w-8 sm:h-10 sm:w-10">
-                                                                    <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
-                                                                </Button>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>
-                                                                <p>Delete</p>
-                                                            </TooltipContent>
-                                                        </Tooltip>
-                                                    </TooltipProvider>
-                                                )}
-                                            </>
-                                        )}
-                                    </div>
-                                </TableCell>
                         </TableRow>
                     ))}
                 </TableBody>
