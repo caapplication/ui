@@ -1,20 +1,37 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from './useAuth';
 import { listOrganisations, listEntities } from '@/lib/api';
+import { useApiCache } from '@/contexts/ApiCacheContext.jsx';
 
 export const useOrganisation = () => {
   const { user } = useAuth();
+  const cache = useApiCache();
   const [organisations, setOrganisations] = useState([]);
   const [selectedOrg, setSelectedOrg] = useState(null);
   const [entities, setEntities] = useState([]);
   const [selectedEntity, setSelectedEntity] = useState(null);
   const [loading, setLoading] = useState(true);
+  const userRef = useRef(null);
+  const orgRef = useRef(null);
 
   useEffect(() => {
+    // Only fetch if user actually changed
+    if (userRef.current?.access_token === user?.access_token && userRef.current?.role === user?.role) {
+      return;
+    }
+    userRef.current = user;
+
     const fetchOrganisations = async () => {
       if (user?.access_token && user.role !== 'CLIENT_USER') {
         try {
-          const orgs = await listOrganisations(user.access_token);
+          // Check cache first
+          let orgs = cache.get('listOrganisations', { token: user.access_token });
+          
+          if (!orgs) {
+            orgs = await listOrganisations(user.access_token);
+            cache.set('listOrganisations', { token: user.access_token }, orgs);
+          }
+          
           setOrganisations(orgs || []);
           const storedOrgId = localStorage.getItem('organisationId');
           if (storedOrgId && orgs?.some(o => o.id === storedOrgId)) {
@@ -31,21 +48,36 @@ export const useOrganisation = () => {
       setLoading(false);
     };
     fetchOrganisations();
-  }, [user]);
+  }, [user?.access_token, user?.role, cache]);
 
   useEffect(() => {
+    // Only fetch if selectedOrg actually changed
+    if (orgRef.current === selectedOrg) {
+      return;
+    }
+    orgRef.current = selectedOrg;
+
     const fetchEntities = async () => {
       if (selectedOrg && user?.access_token) {
         try {
-          const ent = await listEntities(selectedOrg, user.access_token);
+          // Check cache first
+          let ent = cache.get('listEntities', { orgId: selectedOrg, token: user.access_token });
+          
+          if (!ent) {
+            ent = await listEntities(selectedOrg, user.access_token);
+            cache.set('listEntities', { orgId: selectedOrg, token: user.access_token }, ent);
+          }
+          
           setEntities(ent || []);
         } catch (error) {
           console.error('Failed to fetch entities:', error);
         }
+      } else {
+        setEntities([]);
       }
     };
     fetchEntities();
-  }, [selectedOrg, user]);
+  }, [selectedOrg, user?.access_token, cache]);
 
   useEffect(() => {
     const storedEntityId = localStorage.getItem('entityId');

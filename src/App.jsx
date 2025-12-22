@@ -3,6 +3,7 @@ import { Helmet, HelmetProvider } from 'react-helmet-async';
 import { Routes, Route, Navigate, useSearchParams, BrowserRouter, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/hooks/useAuth.jsx';
 import { Toaster } from '@/components/ui/toaster';
+import { ApiCacheProvider } from '@/contexts/ApiCacheContext.jsx';
 import LoginForm from '@/components/auth/LoginForm';
 import ForgotPassword from '@/components/auth/ForgotPassword';
 import ResetPassword from '@/components/auth/ResetPassword';
@@ -38,9 +39,7 @@ import VoucherDetailsPage from '@/pages/VoucherDetailsPage.jsx';
 import VoucherDetailsCAPage from '@/pages/VoucherDetailsCA.jsx';
 import BeneficiaryDetailsPage from '@/pages/BeneficiaryDetailsPage.jsx';
 import ComingSoon from './pages/ComingSoon.jsx';
-import UpcomingDocuments from './pages/UpcomingDocuments.jsx';
 import UpcomingTask from './pages/UpcomingTask.jsx';
-import UpcomingServices from './pages/UpcomingServices.jsx';
 
 const ProtectedContent = () => {
   const { user } = useAuth();
@@ -183,9 +182,7 @@ const ProtectedContent = () => {
             <Route path="/vouchers/ca/:voucherId" element={<VoucherDetailsCAPage />} />
             <Route path="/beneficiaries/:beneficiaryId" element={<BeneficiaryDetailsPage />} />
             <Route path="/coming-soon" element={<ComingSoon />} />
-            <Route path="/upcoming/documents" element={<UpcomingDocuments />} />
             <Route path="/upcoming/task" element={<UpcomingTask />} />
-            <Route path="/upcoming/services" element={<UpcomingServices />} />
           </Routes>
         </div>
       </main>
@@ -229,6 +226,7 @@ function App() {
   return (
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <AuthProvider>
+        <ApiCacheProvider>
         <HelmetProvider>
           <Helmet>
             <title>Fynivo: Simplify Your Finances</title>
@@ -241,6 +239,7 @@ function App() {
           <AppContent />
           <Toaster />
         </HelmetProvider>
+        </ApiCacheProvider>
       </AuthProvider>
     </BrowserRouter>
   );

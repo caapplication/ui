@@ -89,14 +89,17 @@ const InvoiceDetailsPage = () => {
         let isMounted = true;
         const fetchData = async () => {
             try {
-                const entityId = localStorage.getItem('entityId');
+                // Get entityId from multiple sources with priority
+                const entityIdFromStorage = localStorage.getItem('entityId');
+                const entityIdFromInvoice = initialInvoice?.entity_id || invoice?.entity_id;
+                const entityId = selectedEntity || entityIdFromInvoice || entityIdFromStorage;
                 
                 // Use initialInvoice if available, otherwise fetch from list
                 let currentInvoice = initialInvoice;
                 
                 // Fetch invoices if not passed in state (needed for navigation)
                 let invoicesToUse = invoices && Array.isArray(invoices) && invoices.length > 0 ? invoices : null;
-                if (!invoicesToUse) {
+                if (!invoicesToUse && entityId) {
                     invoicesToUse = await getInvoices(entityId, user.access_token);
                     setInvoices(invoicesToUse || []);
                 }
@@ -106,7 +109,10 @@ const InvoiceDetailsPage = () => {
                 let fullInvoice = null;
                 try {
                     // Fetch full invoice by ID to get attachment relationship
-                    const response = await fetch(`http://localhost:8003/api/invoices/${invoiceId}?entity_id=${entityId}`, {
+                    // Only include entity_id if it's not null or undefined
+                    // For CA users, entity_id might be optional, but for others it's required
+                    const entityIdParam = entityId ? `?entity_id=${entityId}` : '';
+                    const response = await fetch(`http://localhost:8003/api/invoices/${invoiceId}${entityIdParam}`, {
                         headers: {
                             'Authorization': `Bearer ${user.access_token}`,
                             'Content-Type': 'application/json'
@@ -749,30 +755,44 @@ const InvoiceDetailsPage = () => {
                             <TabsContent value="beneficiary" className="mt-4">
                                 {(() => {
                                     // Try to resolve the full beneficiary object
-                                    let beneficiaryObj = invoiceDetails.beneficiary;
-                                    if (
-                                        (!beneficiaryObj || !beneficiaryObj.phone) &&
-                                        beneficiaries &&
-                                        invoiceDetails.beneficiary_id
-                                    ) {
-                                        const found = beneficiaries.find(
-                                            b => String(b.id) === String(invoiceDetails.beneficiary_id)
-                                        );
-                                        if (found) beneficiaryObj = found;
+                                    let beneficiaryObj = invoiceDetails.beneficiary || invoice?.beneficiary;
+                                    
+                                    // If we have beneficiary_id but not a complete beneficiary object, try to find it in the beneficiaries list
+                                    if (invoiceDetails.beneficiary_id && (!beneficiaryObj || !beneficiaryObj.name && !beneficiaryObj.company_name)) {
+                                        if (beneficiaries && beneficiaries.length > 0) {
+                                            const found = beneficiaries.find(
+                                                b => String(b.id) === String(invoiceDetails.beneficiary_id)
+                                            );
+                                            if (found) beneficiaryObj = found;
+                                        }
                                     }
-                                    const beneficiaryName = beneficiaryObj
-                                        ? (beneficiaryObj.beneficiary_type === 'individual' ? beneficiaryObj.name : beneficiaryObj.company_name)
-                                        : invoiceDetails.beneficiary_name || 'N/A';
+                                    
+                                    // Resolve beneficiary name with multiple fallbacks
+                                    let resolvedBeneficiaryName = 'N/A';
+                                    if (beneficiaryObj) {
+                                        if (beneficiaryObj.beneficiary_type === 'individual') {
+                                            resolvedBeneficiaryName = beneficiaryObj.name || 'N/A';
+                                        } else {
+                                            resolvedBeneficiaryName = beneficiaryObj.company_name || beneficiaryObj.name || 'N/A';
+                                        }
+                                    } else if (invoiceDetails.beneficiary_name) {
+                                        resolvedBeneficiaryName = invoiceDetails.beneficiary_name;
+                                    } else if (invoice?.beneficiary_name) {
+                                        resolvedBeneficiaryName = invoice.beneficiary_name;
+                                    } else if (beneficiaryName) {
+                                        resolvedBeneficiaryName = beneficiaryName; // from location state
+                                    }
+                                    
                                     return (
                                         <Card className="w-full glass-pane border-none shadow-none bg-gray-800 text-white">
                                             <CardHeader>
                                                 <CardTitle>Beneficiary Details</CardTitle>
                                             </CardHeader>
                                             <CardContent className="space-y-2">
-                                                <DetailItem label="Name" value={beneficiaryName} />
+                                                <DetailItem label="Name" value={resolvedBeneficiaryName} />
                                                 <DetailItem label="PAN" value={beneficiaryObj?.pan || 'N/A'} />
                                                 <DetailItem label="Email" value={beneficiaryObj?.email || 'N/A'} />
-                                                <DetailItem label="Phone" value={beneficiaryObj?.phone || 'N/A'} />
+                                                <DetailItem label="Phone" value={beneficiaryObj?.phone || beneficiaryObj?.phone_number || 'N/A'} />
                                             </CardContent>
                                         </Card>
                                     );

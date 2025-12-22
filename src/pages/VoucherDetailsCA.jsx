@@ -5,6 +5,7 @@ import html2canvas from 'html2canvas';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useOrganisation } from '@/hooks/useOrganisation';
 import { deleteVoucher, updateVoucher, getBeneficiariesForCA, getVoucherAttachment, getVoucher, getBankAccountsForBeneficiary, getOrganisationBankAccountsForCA, getFinanceHeaders, getCATeamVouchers } from '@/lib/api.js';
+import { useApiCache } from '@/contexts/ApiCacheContext.jsx';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -94,10 +95,12 @@ const VoucherDetailsCA = () => {
     const { user, loading: authLoading } = useAuth();
     const { organisationId, selectedEntity, entities, loading: orgLoading } = useOrganisation();
     const { toast } = useToast();
+    const cache = useApiCache();
     const { voucher: initialVoucher, vouchers, startInEditMode, organizationName, entityName } = location.state || {};
     const [voucher, setVoucher] = useState(initialVoucher);
     const [voucherList, setVoucherList] = useState(vouchers || []);
     const [currentIndex, setCurrentIndex] = useState(-1);
+    const hasFetchedVouchers = useRef(false);
     const voucherDetailsRef = useRef(null);
     const [attachmentUrl, setAttachmentUrl] = useState(null);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -140,8 +143,15 @@ const VoucherDetailsCA = () => {
                 let currentVoucher = initialVoucher;
                 
                 // Only fetch if we don't have initial voucher or if voucherId changed
-                if (!currentVoucher || currentVoucher.id !== voucherId) {
-                    currentVoucher = await getVoucher(null, voucherId, user.access_token);
+                if (!currentVoucher || String(currentVoucher.id) !== String(voucherId)) {
+                    // Check cache first
+                    const cacheKey = { voucherId, token: user.access_token };
+                    currentVoucher = cache.get('getVoucher', cacheKey);
+                    
+                    if (!currentVoucher) {
+                        currentVoucher = await getVoucher(null, voucherId, user.access_token);
+                        cache.set('getVoucher', cacheKey, currentVoucher);
+                    }
                 }
 
                 if (!currentVoucher) {
@@ -190,17 +200,29 @@ const VoucherDetailsCA = () => {
 
         fetchData();
         return () => { isMounted = false; };
-    }, [voucherId, authLoading, user?.access_token]);
+    }, [voucherId, authLoading, user?.access_token, initialVoucher, cache, toast]);
 
     useEffect(() => {
         if (orgLoading || !organisationId || !selectedEntity || !user?.access_token) return;
 
         const fetchRelatedData = async () => {
             try {
-                const [beneficiariesData, fromAccountsData] = await Promise.all([
-                    getBeneficiariesForCA(organisationId, user.access_token),
-                    getOrganisationBankAccountsForCA(selectedEntity, user.access_token),
-                ]);
+                // Check cache first
+                const beneficiariesKey = { orgId: organisationId, token: user.access_token };
+                const accountsKey = { entityId: selectedEntity, token: user.access_token };
+                
+                let beneficiariesData = cache.get('getBeneficiariesForCA', beneficiariesKey);
+                let fromAccountsData = cache.get('getOrganisationBankAccountsForCA', accountsKey);
+                
+                if (!beneficiariesData) {
+                    beneficiariesData = await getBeneficiariesForCA(organisationId, user.access_token);
+                    cache.set('getBeneficiariesForCA', beneficiariesKey, beneficiariesData);
+                }
+                
+                if (!fromAccountsData) {
+                    fromAccountsData = await getOrganisationBankAccountsForCA(selectedEntity, user.access_token);
+                    cache.set('getOrganisationBankAccountsForCA', accountsKey, fromAccountsData);
+                }
 
                 setBeneficiaries(beneficiariesData || []);
                 setFromBankAccounts(fromAccountsData || []);
@@ -210,7 +232,7 @@ const VoucherDetailsCA = () => {
         };
 
         fetchRelatedData();
-    }, [organisationId, selectedEntity, user?.access_token, orgLoading]);
+    }, [organisationId, selectedEntity, user?.access_token, orgLoading, cache, toast]);
 
     useEffect(() => {
         if (!user?.access_token || !editedVoucher?.beneficiary_id) return;
@@ -235,7 +257,12 @@ const VoucherDetailsCA = () => {
         const fetchHeaders = async () => {
             if (user && (user.role === 'CA_ACCOUNTANT' || user.role === 'CA_TEAM')) {
                 try {
-                    const headers = await getFinanceHeaders(user.agency_id, user.access_token);
+                    const cacheKey = { agencyId: user.agency_id, token: user.access_token };
+                    let headers = cache.get('getFinanceHeaders', cacheKey);
+                    if (!headers) {
+                        headers = await getFinanceHeaders(user.agency_id, user.access_token);
+                        cache.set('getFinanceHeaders', cacheKey, headers);
+                    }
                     setFinanceHeaders(headers);
                 } catch (error) {
                     toast({
@@ -247,12 +274,22 @@ const VoucherDetailsCA = () => {
             }
         };
         fetchHeaders();
-    }, [user, toast]);
+    }, [user, toast, cache]);
 
     useEffect(() => {
-        const fetchAllVouchers = async () => {
-            if (orgLoading || !selectedEntity || !user?.access_token || entities.length === 0) return;
+        // Only fetch if we don't have vouchers from location.state and haven't fetched yet
+        if (vouchers && vouchers.length > 0) {
+            setVoucherList(vouchers);
+            return;
+        }
 
+        if (hasFetchedVouchers.current || orgLoading || !selectedEntity || !user?.access_token || entities.length === 0) {
+            return;
+        }
+
+        const fetchAllVouchers = async () => {
+            hasFetchedVouchers.current = true;
+            
             let entityIdsToFetch = [];
             if (selectedEntity === "all") {
                 entityIdsToFetch = entities.map((e) => e.id);
@@ -261,9 +298,19 @@ const VoucherDetailsCA = () => {
             }
 
             try {
-                const results = await Promise.all(
-                    entityIdsToFetch.map(id => getCATeamVouchers(id, user.access_token))
-                );
+                // Check cache for each entity's vouchers
+                const fetchPromises = entityIdsToFetch.map(async (id) => {
+                    const cacheKey = { entityId: id, token: user.access_token };
+                    let cached = cache.get('getCATeamVouchers', cacheKey);
+                    if (cached) {
+                        return cached;
+                    }
+                    const data = await getCATeamVouchers(id, user.access_token);
+                    cache.set('getCATeamVouchers', cacheKey, data);
+                    return data;
+                });
+                
+                const results = await Promise.all(fetchPromises);
                 const allVouchers = results.flat().sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
                 setVoucherList(allVouchers);
             } catch (error) {
@@ -271,10 +318,8 @@ const VoucherDetailsCA = () => {
             }
         };
 
-        if (!vouchers || vouchers.length === 0) {
-            fetchAllVouchers();
-        }
-    }, [selectedEntity, user?.access_token, orgLoading, entities, vouchers, toast]);
+        fetchAllVouchers();
+    }, [selectedEntity, user?.access_token, orgLoading, entities, vouchers, toast, cache]);
 
     useEffect(() => {
         if (voucherList.length > 0) {
@@ -359,6 +404,9 @@ const VoucherDetailsCA = () => {
         setIsDeleting(true);
         try {
             await deleteVoucher(voucherDetails.entity_id, voucherId, user.access_token);
+            // Invalidate cache for vouchers
+            cache.invalidate('getCATeamVouchers');
+            cache.invalidate('getVoucher', { voucherId, token: user.access_token });
             toast({ title: 'Success', description: 'Voucher deleted successfully.' });
             setShowDeleteDialog(false);
             navigate('/finance/ca');
@@ -395,10 +443,17 @@ const VoucherDetailsCA = () => {
 
         try {
             const updatedVoucher = await updateVoucher(voucherId, payload, user.access_token);
+            // Invalidate cache for vouchers
+            cache.invalidate('getCATeamVouchers');
+            const cacheKey = { voucherId, token: user.access_token };
+            cache.invalidate('getVoucher', cacheKey);
+            
             // Update local state with the returned voucher data
             if (updatedVoucher) {
                 setVoucher(updatedVoucher);
                 setEditedVoucher(updatedVoucher);
+                // Update cache with fresh data
+                cache.set('getVoucher', cacheKey, updatedVoucher);
             }
             toast({ title: 'Success', description: 'Voucher updated successfully.' });
             setIsEditing(false);
@@ -407,6 +462,7 @@ const VoucherDetailsCA = () => {
             if (refreshedVoucher) {
                 setVoucher(refreshedVoucher);
                 setEditedVoucher(refreshedVoucher);
+                cache.set('getVoucher', cacheKey, refreshedVoucher);
             }
         } catch (error) {
             toast({ title: 'Error', description: `Failed to update voucher: ${error.message}`, variant: 'destructive' });
