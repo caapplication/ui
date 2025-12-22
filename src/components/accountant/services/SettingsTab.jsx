@@ -63,22 +63,46 @@ const SettingsTab = ({ service, onUpdate }) => {
         const formData = new FormData(e.target);
         const data = Object.fromEntries(formData.entries());
         
-        const payload = {
-            name: data.serviceName,
-            is_enabled: data.isEnabled === 'on',
-            is_checklist_completion_required: data.isChecklistRequired === 'on',
-            is_recurring: data.isRecurring === 'on',
-            auto_task_creation_frequency: data.isRecurring === 'on' ? parseInt(data.frequency, 10) : null,
-            target_date_creation_date: targetDate ? parseInt(targetDate.getDate(), 10) : null,
-            assign_auto_tasks_to_users_of_respective_clients: data.assignToClients === 'on',
-            // assign_auto_tasks_to_users: data.assignToClients !== 'on' ? data.assignToUsers : [],
-            create_document_collection_request_automatically: data.createDocRequest === 'on',
-            document_request_default_message: data.createDocRequest === 'on' ? data.docRequestMessage : null,
-            billing_sac_code: data.sacCode,
-            billing_gst_percent: parseFloat(data.gst),
-            billing_default_rate: parseFloat(data.billingRate),
-            billing_default_billable: data.markBillable === 'on',
-        };
+        // Build payload, only including fields that have values
+        // Use state values for controlled components, form data for inputs
+        const payload = {};
+        
+        if (data.serviceName) payload.name = data.serviceName;
+        
+        // Use form data for switches (they submit 'on' when checked, undefined when unchecked)
+        payload.is_enabled = data.isEnabled === 'on' ? 'true' : 'false';
+        payload.is_checklist_completion_required = data.isChecklistRequired === 'on' ? 'true' : 'false';
+        payload.is_recurring = isRecurring ? 'true' : 'false';
+        
+        // auto_task_creation_frequency should be a string enum value
+        if (isRecurring && data.frequency) {
+            payload.auto_task_creation_frequency = data.frequency;
+        }
+        
+        // target_date_creation_date should be the day of month (1-31)
+        if (targetDate) {
+            payload.target_date_creation_date = targetDate.getDate().toString();
+        }
+        
+        payload.assign_auto_tasks_to_users_of_respective_clients = data.assignToClients === 'on' ? 'true' : 'false';
+        payload.create_document_collection_request_automatically = createDocRequest ? 'true' : 'false';
+        
+        if (createDocRequest && data.docRequestMessage) {
+            payload.document_request_default_message = data.docRequestMessage;
+        }
+        
+        if (data.sacCode) payload.billing_sac_code = data.sacCode;
+        
+        // Only include numeric fields if they have valid values
+        if (data.gst && data.gst.trim() !== '' && !isNaN(parseFloat(data.gst))) {
+            payload.billing_gst_percent = parseFloat(data.gst).toString();
+        }
+        
+        if (data.billingRate && data.billingRate.trim() !== '' && !isNaN(parseFloat(data.billingRate))) {
+            payload.billing_default_rate = parseFloat(data.billingRate).toString();
+        }
+        
+        payload.billing_default_billable = data.markBillable === 'on' ? 'true' : 'false';
 
         try {
             await updateServiceSettings(service.id, payload, user.agency_id, user.access_token);
@@ -172,8 +196,8 @@ const SettingsTab = ({ service, onUpdate }) => {
                                             <SelectContent>
                                                 <SelectItem value="monthly">Monthly</SelectItem>
                                                 <SelectItem value="quarterly">Quarterly</SelectItem>
-                                                <SelectItem value="half-yearly">Half-Yearly</SelectItem>
-                                                <SelectItem value="yearly">Yearly</SelectItem>
+                                                <SelectItem value="half_yearly">Half-Yearly</SelectItem>
+                                                <SelectItem value="annually">Annually</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>

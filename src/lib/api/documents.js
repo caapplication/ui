@@ -1,6 +1,6 @@
 import { getAuthHeaders, handleResponse } from './utils';
 
-const FINANCE_API_BASE_URL = import.meta.env.VITE_FINANCE_API_URL || 'https://finance-api.fynivo.in';
+const FINANCE_API_BASE_URL = import.meta.env.VITE_FINANCE_API_URL || 'http://127.0.0.1:8003';
 
 export const getDocuments = async (entityId, token) => {
     let url = `${FINANCE_API_BASE_URL}/api/documents/folders/`;

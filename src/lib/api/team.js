@@ -1,7 +1,7 @@
 import { handleResponse, getAuthHeaders } from './utils';
 
-const API_BASE_URL = import.meta.env.VITE_LOGIN_API_URL || 'https://login-api.fynivo.in';
-const TASKS_API_BASE_URL = import.meta.env.VITE_TASK_API_URL || 'https://task-api.fynivo.in';
+const API_BASE_URL = import.meta.env.VITE_LOGIN_API_URL || 'http://127.0.0.1:8001';
+const TASKS_API_BASE_URL = import.meta.env.VITE_TASK_API_URL || 'http://127.0.0.1:8005';
 
 export const inviteTeamMember = async (email, caId, token) => {
     const response = await fetch(`${API_BASE_URL}/invites/ca-team-member`, {

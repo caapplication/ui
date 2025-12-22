@@ -1,6 +1,6 @@
 import { useAuth } from '@/hooks/useAuth';
 
-export const BASE_URL = import.meta.env.VITE_LOGIN_API_URL || 'https://login-api.fynivo.in';
+export const BASE_URL = import.meta.env.VITE_LOGIN_API_URL || 'http://127.0.0.1:8001';
 
 // Debug: Log API URLs in development
 if (import.meta.env.DEV) {

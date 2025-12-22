@@ -1,7 +1,7 @@
 import { getAuthHeaders, handleResponse, BASE_URL } from './utils';
 
 const API_BASE_URL = BASE_URL;
-const CLIENT_API_BASE_URL = import.meta.env.VITE_CLIENT_API_URL || 'https://client-api.fynivo.in';
+const CLIENT_API_BASE_URL = import.meta.env.VITE_CLIENT_API_URL || 'http://127.0.0.1:8002';
 
 export const listOrganisations = async (token) => {
     const response = await fetch(`${API_BASE_URL}/organizations/`, {

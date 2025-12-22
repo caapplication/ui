@@ -1,8 +1,8 @@
 import { getAuthHeaders, handleResponse } from './utils';
 
-const TASK_API_BASE_URL = import.meta.env.VITE_TASK_API_URL || 'https://task-api.fynivo.in';
-const API_BASE_URL = import.meta.env.VITE_LOGIN_API_URL || 'https://login-api.fynivo.in';
-const SERVICES_API_URL = import.meta.env.VITE_SERVICES_API_URL || 'https://services-api.fynivo.in';
+const TASK_API_BASE_URL = import.meta.env.VITE_TASK_API_URL || 'http://127.0.0.1:8005';
+const API_BASE_URL = import.meta.env.VITE_LOGIN_API_URL || 'http://127.0.0.1:8001';
+const SERVICES_API_URL = import.meta.env.VITE_SERVICES_API_URL || 'http://127.0.0.1:8004';
 
 export const createService = async (serviceData, agencyId, token) => {
     const response = await fetch(`${SERVICES_API_URL}/services/`, {

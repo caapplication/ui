@@ -54,7 +54,7 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
         const photoUrl = client.photo_url || client.photo;
         if (!photoUrl) return null;
         // If it's an S3 URL, use proxy endpoint for authenticated access
-        const clientApiUrl = import.meta.env.VITE_CLIENT_API_URL || 'https://client-api.fynivo.in';
+        const clientApiUrl = import.meta.env.VITE_CLIENT_API_URL || 'http://127.0.0.1:8002';
         if (photoUrl.includes('.s3.amazonaws.com/')) {
             return `${clientApiUrl}/clients/${client.id}/photo?t=${Date.now()}`;
         }
@@ -76,7 +76,7 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
         if (client?.id && user?.access_token) {
             const photoUrl = getClientPhotoUrl(client);
             // Always try to fetch from the photo endpoint if we have a client ID
-            const clientApiUrl = import.meta.env.VITE_CLIENT_API_URL || 'https://client-api.fynivo.in';
+            const clientApiUrl = import.meta.env.VITE_CLIENT_API_URL || 'http://127.0.0.1:8002';
             const photoEndpoint = `${clientApiUrl}/clients/${client.id}/photo?t=${Date.now()}`;
             
             if (photoUrl && photoUrl.includes(`/clients/${client.id}/photo`)) {

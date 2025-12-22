@@ -10,8 +10,8 @@ import * as team from './api/team';
 import * as tasks from './api/tasks';
 import * as recurringTasks from './api/recurringTasks';
 
-const API_BASE_URL = import.meta.env.VITE_LOGIN_API_URL || 'https://login-api.fynivo.in';
-export const FINANCE_API_BASE_URL = import.meta.env.VITE_FINANCE_API_URL || 'https://finance-api.fynivo.in/';
+const API_BASE_URL = import.meta.env.VITE_LOGIN_API_URL || 'http://127.0.0.1:8001';
+export const FINANCE_API_BASE_URL = import.meta.env.VITE_FINANCE_API_URL || 'http://127.0.0.1:8003';
 
 export const { 
     refreshToken, 

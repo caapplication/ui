@@ -31,8 +31,8 @@ export const AuthProvider = ({ children }) => {
         refreshIntervalRef.current = null;
     }
     window.dispatchEvent(new Event('logout'));
-    const loginApiUrl = import.meta.env.VITE_LOGIN_API_URL || 'https://login-api.fynivo.in';
-    navigate(`${loginApiUrl}/login`);
+    const loginApiUrl = import.meta.env.VITE_LOGIN_API_URL || 'http://127.0.0.1:8001';
+    navigate('/login');
   }, [navigate]);
 
   const updateUser = useCallback((updatedData) => {
@@ -148,7 +148,7 @@ export const AuthProvider = ({ children }) => {
   };
   
   const login = async (email, password) => {
-    const loginApiUrl = import.meta.env.VITE_LOGIN_API_URL || 'https://login-api.fynivo.in';
+    const loginApiUrl = import.meta.env.VITE_LOGIN_API_URL || 'http://127.0.0.1:8001';
     const response = await fetch(`${loginApiUrl}/login/`, {
       method: 'POST',
       headers: {

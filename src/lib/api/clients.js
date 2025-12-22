@@ -1,16 +1,16 @@
 import { getAuthHeaders, handleResponse } from './utils';
     
-    const TASK_API_BASE_URL = import.meta.env.VITE_TASK_API_URL || 'https://task-api.fynivo.in';
-    const CLIENTS_API_BASE_URL = import.meta.env.VITE_CLIENT_API_URL || 'https://client-api.fynivo.in';
-    const SERVICES_API_BASE_URL = import.meta.env.VITE_SERVICES_API_URL || 'https://services-api.fynivo.in';
-    const LOGIN_API_BASE_URL = import.meta.env.VITE_LOGIN_API_URL || 'https://login-api.fynivo.in';
+    const TASK_API_BASE_URL = import.meta.env.VITE_TASK_API_URL || 'http://127.0.0.1:8005';
+    const CLIENTS_API_BASE_URL = import.meta.env.VITE_CLIENT_API_URL || 'http://127.0.0.1:8002';
+    const SERVICES_API_BASE_URL = import.meta.env.VITE_SERVICES_API_URL || 'http://127.0.0.1:8004';
+    const LOGIN_API_BASE_URL = import.meta.env.VITE_LOGIN_API_URL || 'http://127.0.0.1:8001';
     
     // Debug: Log API URLs (remove in production)
     if (import.meta.env.DEV) {
         console.log('🔧 API URLs:', {
             CLIENT_API: CLIENTS_API_BASE_URL,
             LOGIN_API: LOGIN_API_BASE_URL,
-            FINANCE_API: import.meta.env.VITE_FINANCE_API_URL || 'https://finance-api.fynivo.in',
+            FINANCE_API: import.meta.env.VITE_FINANCE_API_URL || 'http://127.0.0.1:8003',
             SERVICES_API: SERVICES_API_BASE_URL,
             TASK_API: TASK_API_BASE_URL
         });
