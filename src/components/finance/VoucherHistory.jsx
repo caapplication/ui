@@ -281,7 +281,7 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                                         {voucher.status || 'created'}
                                     </span>
                                 </TableCell>
-                                <TableCell className="text-xs sm:text-sm truncate max-w-[100px] sm:max-w-none">{voucher.remarks || 'N/A'}</TableCell>
+                                <TableCell className="text-xs sm:text-sm truncate max-w-[100px] sm:max-w-none">{voucher.remarks && voucher.remarks.trim() ? voucher.remarks : 'N/A'}</TableCell>
                             </TableRow>
                         );
                     })}

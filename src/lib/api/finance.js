@@ -220,14 +220,35 @@ export const deleteInvoice = async (entityId, invoiceId, token) => {
 };
 
 export const getInvoiceAttachment = async (attachmentId, token) => {
-    const response = await fetch(`${FINANCE_API_BASE_URL}/api/attachments/${attachmentId}`, {
-        headers: getAuthHeaders(token),
-    });
-    if (!response.ok) {
-        throw new Error('Failed to fetch attachment');
+    try {
+        const response = await fetch(`${FINANCE_API_BASE_URL}/api/attachments/${attachmentId}`, {
+            headers: getAuthHeaders(token),
+        });
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Invoice attachment fetch failed:', response.status, errorText);
+            throw new Error(`Failed to fetch attachment: ${response.status} ${errorText}`);
+        }
+        
+        // Check if response has content
+        const contentType = response.headers.get('content-type');
+        const contentLength = response.headers.get('content-length');
+        console.log('Invoice attachment response:', { contentType, contentLength, status: response.status, attachmentId });
+        
+        const blob = await response.blob();
+        
+        if (blob.size === 0) {
+            console.error('Received empty blob for invoice attachment:', attachmentId);
+            throw new Error('Received empty attachment');
+        }
+        
+        console.log('Invoice attachment blob created successfully:', blob.size, 'bytes, type:', blob.type);
+        return URL.createObjectURL(blob);
+    } catch (error) {
+        console.error('Error in getInvoiceAttachment:', error);
+        throw error;
     }
-    const blob = await response.blob();
-    return URL.createObjectURL(blob);
 };
 
 

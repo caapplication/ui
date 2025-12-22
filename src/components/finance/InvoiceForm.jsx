@@ -48,18 +48,29 @@ const InvoiceForm = ({ entityId, beneficiaries, isLoading, onSave, onCancel, inv
             formData.set('finance_header_id', selectedFinanceHeaderId);
         }
         
-        // Compress image attachment if it's an image
-        const attachment = formData.get('attachment');
-        if (attachment && attachment.size > 0) {
-            try {
-                const compressedFile = await compressImageIfNeeded(attachment, 1); // Compress if > 1MB
-                formData.set('attachment', compressedFile);
-            } catch (error) {
-                console.error('Failed to compress image:', error);
-                // Continue with original file if compression fails
+        // Handle multiple attachments - compress images if needed
+        const attachmentInput = e.target.querySelector('input[name="attachment"]');
+        const files = attachmentInput?.files;
+        
+        // Remove any existing attachment entries
+        formData.delete('attachment');
+        
+        if (files && files.length > 0) {
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                if (file && file.size > 0) {
+                    try {
+                        const compressedFile = await compressImageIfNeeded(file, 1); // Compress if > 1MB
+                        formData.append('attachment', compressedFile);
+                    } catch (error) {
+                        console.error('Failed to compress image:', error);
+                        // Continue with original file if compression fails
+                        formData.append('attachment', file);
+                    }
+                }
             }
-        } else if (isEditing && (!attachment || attachment.size === 0)) {
-            formData.delete('attachment');
+        } else if (isEditing) {
+            // Keep existing attachments when editing and no new files selected
         }
         
         onSave(formData, invoice?.id);
@@ -126,9 +137,9 @@ const InvoiceForm = ({ entityId, beneficiaries, isLoading, onSave, onCancel, inv
                         <Input name="amount" id="amount" type="number" step="0.01" required value={amount} onChange={(e) => setAmount(e.target.value)} disabled={isLoading} />
                     </div>
                      <div>
-                        <Label htmlFor="attachment">Attachment</Label>
-                        <Input id="attachment" name="attachment" type="file" disabled={isLoading} />
-                        {isEditing && invoice?.attachment_id && <p className="text-xs text-gray-400 mt-1">Leave empty to keep existing attachment.</p>}
+                        <Label htmlFor="attachment">Attachments (Multiple files allowed)</Label>
+                        <Input id="attachment" name="attachment" type="file" multiple disabled={isLoading} />
+                        {isEditing && invoice?.attachment_id && <p className="text-xs text-gray-400 mt-1">Leave empty to keep existing attachments.</p>}
                      </div>
                 </div>
 

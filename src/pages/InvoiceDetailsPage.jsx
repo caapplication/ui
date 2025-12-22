@@ -47,6 +47,8 @@ const InvoiceDetailsPage = () => {
     const [beneficiaries, setBeneficiaries] = useState([]);
     const [editedInvoice, setEditedInvoice] = useState(initialInvoice);
     const [attachmentToDisplay, setAttachmentToDisplay] = useState(attachmentUrl);
+    const [allAttachmentIds, setAllAttachmentIds] = useState([]);
+    const [currentAttachmentIndex, setCurrentAttachmentIndex] = useState(0);
     const [zoom, setZoom] = useState(1);
     const [financeHeaders, setFinanceHeaders] = useState([]);
     const [invoices, setInvoices] = useState(invoicesFromState || []);
@@ -55,6 +57,7 @@ const InvoiceDetailsPage = () => {
     const [isDeleting, setIsDeleting] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isImageLoading, setIsImageLoading] = useState(false);
+    const [sidebarWidth, setSidebarWidth] = useState(320); // Default to expanded width (300px + padding)
 
     // Get entity name from user entities
     const getEntityName = () => {
@@ -82,6 +85,35 @@ const InvoiceDetailsPage = () => {
             }
         }
     }, [invoiceId, invoices]);
+
+    // Detect sidebar width to adjust left arrow position
+    useEffect(() => {
+        const detectSidebarWidth = () => {
+            const sidebar = document.querySelector('aside');
+            if (sidebar) {
+                const width = sidebar.offsetWidth;
+                setSidebarWidth(width);
+            }
+        };
+
+        // Initial detection
+        detectSidebarWidth();
+
+        // Use ResizeObserver to watch for sidebar width changes
+        const sidebar = document.querySelector('aside');
+        if (sidebar) {
+            const resizeObserver = new ResizeObserver((entries) => {
+                for (const entry of entries) {
+                    setSidebarWidth(entry.contentRect.width);
+                }
+            });
+            resizeObserver.observe(sidebar);
+
+            return () => {
+                resizeObserver.disconnect();
+            };
+        }
+    }, []);
 
     useEffect(() => {
         if (authLoading || !user?.access_token) return;
@@ -162,27 +194,59 @@ const InvoiceDetailsPage = () => {
                     }
                     setIsLoading(false);
                     
+                    // Collect all attachment IDs (primary + additional)
+                    // Log the invoice object to debug attachment structure
+                    console.log("Invoice object for attachment detection:", {
+                        attachment_id: currentInvoice.attachment_id,
+                        attachment: currentInvoice.attachment,
+                        additional_attachment_ids: currentInvoice.additional_attachment_ids,
+                        fullInvoice: currentInvoice
+                    });
+                    
+                    // Try multiple ways to get the primary attachment ID
+                    let primaryAttachmentId = null;
+                    
+                    // First, try direct attachment_id field
+                    if (currentInvoice.attachment_id) {
+                        primaryAttachmentId = currentInvoice.attachment_id;
+                    }
+                    // Then try attachment object with id field
+                    else if (currentInvoice.attachment) {
+                        if (typeof currentInvoice.attachment === 'object') {
+                            primaryAttachmentId = currentInvoice.attachment.id || currentInvoice.attachment.attachment_id;
+                        } else if (typeof currentInvoice.attachment === 'number') {
+                            primaryAttachmentId = currentInvoice.attachment;
+                        }
+                    }
+                    
+                    const additionalIds = currentInvoice.additional_attachment_ids || [];
+                    const allIds = [];
+                    if (primaryAttachmentId) {
+                        allIds.push(primaryAttachmentId);
+                    }
+                    // Add additional attachments (excluding the primary if it's also in additional)
+                    additionalIds.forEach(id => {
+                        if (id && id !== primaryAttachmentId && !allIds.includes(id)) {
+                            allIds.push(id);
+                        }
+                    });
+                    console.log("Collected attachment IDs:", { primaryAttachmentId, additionalIds, allIds });
+                    setAllAttachmentIds(allIds);
+                    setCurrentAttachmentIndex(0); // Reset to first attachment
+                    
                     // Load attachment and finance headers in parallel (non-blocking)
                     const promises = [];
                     
                     // Always reset attachment state when invoice changes
-                    // Check multiple possible fields for attachment_id
-                    const attachmentId = currentInvoice.attachment_id 
-                        || (currentInvoice.attachment && currentInvoice.attachment.id)
-                        || (currentInvoice.attachment && currentInvoice.attachment.attachment_id)
-                        || currentInvoice.attachment;
-                    
-                    console.log("Invoice object:", currentInvoice);
-                    console.log("Looking for attachment_id. Found:", attachmentId);
-                    
-                    if (attachmentId) {
+                    // Load first attachment
+                    if (allIds.length > 0) {
                         setIsImageLoading(true);
                         setAttachmentToDisplay(null);
-                        console.log("Fetching attachment with ID:", attachmentId);
+                        console.log("Fetching invoice attachment with ID:", allIds[0]);
                         promises.push(
-                            getInvoiceAttachment(attachmentId, user.access_token)
+                            getInvoiceAttachment(allIds[0], user.access_token)
                                 .then(url => {
-                                    console.log("Attachment URL received:", url);
+                                    console.log("Invoice attachment URL received:", url ? "Yes" : "No", url);
                                     if (url) {
                                         setAttachmentToDisplay(url);
                                         if (url.toLowerCase().endsWith('.pdf')) {
@@ -194,13 +258,13 @@ const InvoiceDetailsPage = () => {
                                     }
                                 })
                                 .catch(err => {
-                                    console.error("Failed to fetch attachment:", err);
+                                    console.error("Failed to fetch invoice attachment:", err);
                                     setIsImageLoading(false);
                                     setAttachmentToDisplay(null);
                                 })
                         );
                     } else {
-                        console.log("No attachment_id found in invoice object");
+                        console.log("No attachment_id found in invoice object. Invoice structure:", currentInvoice);
                         setAttachmentToDisplay(null);
                         setIsImageLoading(false);
                     }
@@ -386,6 +450,35 @@ const InvoiceDetailsPage = () => {
 
 
     // Navigation logic
+    // Handle attachment navigation
+    const handleAttachmentNavigate = async (direction) => {
+        if (allAttachmentIds.length <= 1 || !user?.access_token) return; // No navigation if only one or no attachments, or no auth token
+        
+        const newIndex = currentAttachmentIndex + direction;
+        if (newIndex >= 0 && newIndex < allAttachmentIds.length) {
+            setIsImageLoading(true);
+            setAttachmentToDisplay(null);
+            setCurrentAttachmentIndex(newIndex);
+            
+            try {
+                const attachmentId = allAttachmentIds[newIndex];
+                const url = await getInvoiceAttachment(attachmentId, user.access_token);
+                if (url) {
+                    setAttachmentToDisplay(url);
+                    if (url.toLowerCase().endsWith('.pdf')) {
+                        setIsImageLoading(false);
+                    }
+                } else {
+                    setIsImageLoading(false);
+                }
+            } catch (error) {
+                console.error("Failed to fetch attachment:", error);
+                setIsImageLoading(false);
+                setAttachmentToDisplay(null);
+            }
+        }
+    };
+
     const handleNavigate = (direction) => {
         if (!invoices || invoices.length === 0) {
             console.warn("No invoices available for navigation");
@@ -505,6 +598,29 @@ const InvoiceDetailsPage = () => {
             >
                 <ResizablePanel defaultSize={60} minSize={30}>
                     <div className="relative flex h-full w-full flex-col items-center justify-center p-2">
+                        {/* Navigation buttons for attachments */}
+                        {allAttachmentIds.length > 1 && attachmentToDisplay && (
+                            <>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => handleAttachmentNavigate(-1)}
+                                    disabled={currentAttachmentIndex === 0}
+                                    className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-20 h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg"
+                                >
+                                    <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6" />
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => handleAttachmentNavigate(1)}
+                                    disabled={currentAttachmentIndex === allAttachmentIds.length - 1}
+                                    className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-20 h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg"
+                                >
+                                    <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6" />
+                                </Button>
+                            </>
+                        )}
                         {/* Zoom controls in bottom right corner */}
                         {attachmentToDisplay && !attachmentToDisplay.toLowerCase().endsWith('.pdf') && (
                             <div className="absolute bottom-2 right-2 sm:bottom-4 sm:right-4 z-10 flex gap-1 sm:gap-2">
@@ -520,8 +636,8 @@ const InvoiceDetailsPage = () => {
                             </div>
                         )}
                         <div className="flex h-full w-full items-center justify-center overflow-auto relative" style={{ zIndex: 1 }} ref={attachmentRef}>
-                            {/* Show skeleton only if we have attachment_id but no URL yet (while fetching URL) */}
-                            {(invoice?.attachment_id || (invoice?.attachment && invoice.attachment.id)) && !attachmentToDisplay && isImageLoading ? (
+                            {/* Show skeleton only if we have attachments but no URL yet (while fetching URL) */}
+                            {allAttachmentIds.length > 0 && !attachmentToDisplay && isImageLoading ? (
                                 <Skeleton className="h-full w-full rounded-md" />
                             ) : attachmentToDisplay ? (
                                 attachmentToDisplay.toLowerCase().endsWith('.pdf') ? (
@@ -809,6 +925,29 @@ const InvoiceDetailsPage = () => {
             <div className="flex flex-col md:hidden flex-1 gap-4">
                 {/* Attachment/Preview Section */}
                 <div className="relative flex h-64 sm:h-80 w-full flex-col items-center justify-center p-2 border border-white/10 rounded-lg">
+                    {/* Navigation buttons for attachments */}
+                    {allAttachmentIds.length > 1 && attachmentToDisplay && (
+                        <>
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => handleAttachmentNavigate(-1)}
+                                disabled={currentAttachmentIndex === 0}
+                                className="absolute left-2 top-1/2 -translate-y-1/2 z-20 h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg"
+                            >
+                                <ChevronLeft className="h-5 w-5" />
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => handleAttachmentNavigate(1)}
+                                disabled={currentAttachmentIndex === allAttachmentIds.length - 1}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 z-20 h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg"
+                            >
+                                <ChevronRight className="h-5 w-5" />
+                            </Button>
+                        </>
+                    )}
                     {/* Zoom controls in bottom right corner */}
                     {attachmentToDisplay && !attachmentToDisplay.toLowerCase().endsWith('.pdf') && (
                         <div className="absolute bottom-2 right-2 z-10 flex gap-1 sm:gap-2">
@@ -824,7 +963,7 @@ const InvoiceDetailsPage = () => {
                         </div>
                     )}
                     <div className="flex h-full w-full items-center justify-center overflow-auto relative" style={{ zIndex: 1 }} ref={attachmentRef}>
-                        {(invoice?.attachment_id || (invoice?.attachment && invoice.attachment.id)) && !attachmentToDisplay && isImageLoading ? (
+                        {allAttachmentIds.length > 0 && !attachmentToDisplay && isImageLoading ? (
                             <Skeleton className="h-full w-full rounded-md" />
                         ) : attachmentToDisplay ? (
                             attachmentToDisplay.toLowerCase().endsWith('.pdf') ? (
@@ -1114,7 +1253,10 @@ const InvoiceDetailsPage = () => {
                             handleNavigate(-1);
                         }} 
                         disabled={currentIndex === 0 || currentIndex === -1}
-                        className="hidden md:flex fixed bottom-4 left-80 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg z-[50]"
+                        className="hidden md:flex fixed bottom-4 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg z-[50]"
+                        style={{ 
+                            left: sidebarWidth <= 150 ? `${sidebarWidth + 16}px` : '20rem' // Dynamic positioning when collapsed (sidebar width + 16px margin), left-80 (20rem) when expanded
+                        }}
                     >
                         <ChevronLeft className="h-5 w-5" />
                     </Button>

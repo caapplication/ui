@@ -135,11 +135,12 @@ const buildFileTree = (folders, documents) => {
     }
   });
 
-  documents.forEach(doc => {
-    if (!doc.folder_id) {
-      root.children.push({ ...doc, is_folder: false });
-    }
-  });
+  // Don't add documents to root folder - only folders should be in root
+  // documents.forEach(doc => {
+  //   if (!doc.folder_id) {
+  //     root.children.push({ ...doc, is_folder: false });
+  //   }
+  // });
 
   return root;
 };
@@ -370,15 +371,29 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
     if (!currentFolder || !currentFolder.children) return [];
 if (activeTab === 'myFiles') {
     // Exclude shared documents from "My Files" for all roles
-    return currentFolder.children.filter(item => {
+    // In root folder, only show folders, not documents
+    let filtered = currentFolder.children.filter(item => {
         if (user?.role === 'CA_ACCOUNTANT') {
             return !sharedDocuments.some(shared => shared.id === item.id);
         }
         return !sharedDocuments.some(shared => shared.id === item.id);
     });
+    
+    // If in root folder, only return folders
+    if (currentFolderId === 'root') {
+        filtered = filtered.filter(item => item.is_folder);
+    }
+    
+    return filtered;
 }
-    if (!searchTerm) return currentFolder.children;
-    return currentFolder.children.filter(item => 
+    // If in root folder, only show folders
+    let itemsToFilter = currentFolder.children;
+    if (currentFolderId === 'root') {
+        itemsToFilter = itemsToFilter.filter(item => item.is_folder);
+    }
+    
+    if (!searchTerm) return itemsToFilter;
+    return itemsToFilter.filter(item => 
         item.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [currentFolder, searchTerm, activeTab, sharedDocuments, user?.role, currentClientId, selectedEntityId]);

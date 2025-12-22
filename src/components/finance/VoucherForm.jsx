@@ -85,18 +85,29 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
             formData.set('to_bank_account_id', '0');
         }
 
-        // Compress image attachment if it's an image
-        const attachment = formData.get('attachment');
-        if (attachment && attachment.size > 0) {
-            try {
-                const compressedFile = await compressImageIfNeeded(attachment, 1); // Compress if > 1MB
-                formData.set('attachment', compressedFile);
-            } catch (error) {
-                console.error('Failed to compress image:', error);
-                // Continue with original file if compression fails
+        // Handle multiple attachments - compress images if needed
+        const attachmentInput = e.target.querySelector('input[name="attachment"]');
+        const files = attachmentInput?.files;
+        
+        // Remove any existing attachment entries
+        formData.delete('attachment');
+        
+        if (files && files.length > 0) {
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                if (file && file.size > 0) {
+                    try {
+                        const compressedFile = await compressImageIfNeeded(file, 1); // Compress if > 1MB
+                        formData.append('attachment', compressedFile);
+                    } catch (error) {
+                        console.error('Failed to compress image:', error);
+                        // Continue with original file if compression fails
+                        formData.append('attachment', file);
+                    }
+                }
             }
-        } else if (isEditing && (!attachment || attachment.size === 0)) {
-            formData.delete('attachment');
+        } else if (isEditing) {
+            // Keep existing attachments when editing and no new files selected
         }
 
         if (formData.get('voucher_type') === 'cash') {
@@ -287,9 +298,9 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
                 </div>
 
                 <div>
-                    <Label htmlFor="attachment">Attachment</Label>
-                    <Input id="attachment" name="attachment" type="file" disabled={isLoading} />
-                    {isEditing && voucher?.attachment_id && <p className="text-xs text-gray-400 mt-1">Leave empty to keep existing attachment.</p>}
+                    <Label htmlFor="attachment">Attachments (Multiple files allowed)</Label>
+                    <Input id="attachment" name="attachment" type="file" multiple disabled={isLoading} />
+                    {isEditing && voucher?.attachment_id && <p className="text-xs text-gray-400 mt-1">Leave empty to keep existing attachments.</p>}
                 </div>
 
                 {user?.role !== 'CLIENT_USER' && (

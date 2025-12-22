@@ -150,6 +150,8 @@ const VoucherDetailsPage = () => {
     const attachmentRef = useRef(null);
     const activityLogRef = useRef(null);
     const [attachmentUrl, setAttachmentUrl] = useState(null);
+    const [allAttachmentIds, setAllAttachmentIds] = useState([]);
+    const [currentAttachmentIndex, setCurrentAttachmentIndex] = useState(0);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [beneficiaries, setBeneficiaries] = useState([]);
@@ -259,19 +261,28 @@ const VoucherDetailsPage = () => {
                     }
                     setIsLoading(false);
                     
+                    // Collect all attachment IDs (primary + additional)
+                    const primaryAttachmentId = currentVoucher.attachment_id || (currentVoucher.attachment && currentVoucher.attachment.id);
+                    const additionalIds = currentVoucher.additional_attachment_ids || [];
+                    const allIds = [];
+                    if (primaryAttachmentId) {
+                        allIds.push(primaryAttachmentId);
+                    }
+                    allIds.push(...additionalIds);
+                    setAllAttachmentIds(allIds);
+                    setCurrentAttachmentIndex(0); // Reset to first attachment
+                    
                     // Load attachment and finance headers in parallel (non-blocking)
                     const promises = [];
                     
                     // Always reset attachment state when voucher changes
-                    // Check for attachment_id in both currentVoucher and attachment object
-                    const attachmentId = currentVoucher.attachment_id || (currentVoucher.attachment && currentVoucher.attachment.id);
-                    
-                    if (attachmentId) {
+                    // Load first attachment
+                    if (allIds.length > 0) {
                         setIsImageLoading(true);
                         setAttachmentUrl(null); // Reset attachment URL
-                        console.log("Fetching attachment for voucher:", currentVoucher.id, "attachment_id:", attachmentId);
+                        console.log("Fetching attachment for voucher:", currentVoucher.id, "attachment_id:", allIds[0]);
                         promises.push(
-                            getVoucherAttachment(attachmentId, user.access_token)
+                            getVoucherAttachment(allIds[0], user.access_token)
                                 .then(url => {
                                     console.log("Attachment URL received:", url ? "Yes" : "No", url);
                                     if (url) {
@@ -376,6 +387,35 @@ const VoucherDetailsPage = () => {
     }, [editedVoucher?.voucher_type]);
 
     // Attachment and finance headers are now loaded in parallel in the main fetchData effect
+
+    // Handle attachment navigation
+    const handleAttachmentNavigate = async (direction) => {
+        if (allAttachmentIds.length <= 1 || !user?.access_token) return; // No navigation if only one or no attachments, or no auth token
+        
+        const newIndex = currentAttachmentIndex + direction;
+        if (newIndex >= 0 && newIndex < allAttachmentIds.length) {
+            setIsImageLoading(true);
+            setAttachmentUrl(null);
+            setCurrentAttachmentIndex(newIndex);
+            
+            try {
+                const attachmentId = allAttachmentIds[newIndex];
+                const url = await getVoucherAttachment(attachmentId, user.access_token);
+                if (url) {
+                    setAttachmentUrl(url);
+                    if (url.toLowerCase().endsWith('.pdf')) {
+                        setIsImageLoading(false);
+                    }
+                } else {
+                    setIsImageLoading(false);
+                }
+            } catch (error) {
+                console.error("Failed to fetch attachment:", error);
+                setIsImageLoading(false);
+                setAttachmentUrl(null);
+            }
+        }
+    };
 
     const handleNavigate = (direction) => {
         if (!vouchers || vouchers.length === 0) {
@@ -674,12 +714,26 @@ const VoucherDetailsPage = () => {
         setIsSaving(true);
         const formData = new FormData(e.target);
         const data = Object.fromEntries(formData.entries());
+        
+        // Get remarks value - always use form data if available, even if empty string
+        // Convert empty string to null for API
+        let remarksValue = null;
+        if ('remarks' in data) {
+            // Form field exists - use its value (even if empty string)
+            remarksValue = data.remarks && typeof data.remarks === 'string' && data.remarks.trim() 
+                ? data.remarks.trim() 
+                : null;
+        } else {
+            // Form field doesn't exist - keep existing value
+            remarksValue = editedVoucher?.remarks || null;
+        }
+        
         const payload = {
             beneficiary_id: editedVoucher.beneficiary_id,
             amount: Number(data.amount) || Number(editedVoucher.amount),
             voucher_type: editedVoucher.voucher_type,
             payment_type: editedVoucher.payment_type,
-            remarks: data.remarks || editedVoucher.remarks || null,
+            remarks: remarksValue,
             ...(editedVoucher.payment_type === 'bank_transfer' ? {
                 from_bank_account_id: editedVoucher.from_bank_account_id,
                 to_bank_account_id: editedVoucher.to_bank_account_id,
@@ -691,14 +745,14 @@ const VoucherDetailsPage = () => {
 
         try {
             const updatedVoucher = await updateVoucher(voucherId, payload, user.access_token);
-            // Update local state with the returned voucher data
+            // Update local state with the returned voucher data immediately
             if (updatedVoucher) {
                 setVoucher(updatedVoucher);
                 setEditedVoucher(updatedVoucher);
             }
             toast({ title: 'Success', description: 'Voucher updated successfully.' });
             setIsEditing(false);
-            // Refresh the voucher data
+            // Refresh the voucher data to ensure we have the latest from server
             const entityId = voucherDetails.entity_id || localStorage.getItem('entityId');
             const refreshedVoucher = await getVoucher(entityId, voucherId, user.access_token);
             if (refreshedVoucher) {
@@ -788,6 +842,29 @@ const VoucherDetailsPage = () => {
             >
                 <ResizablePanel defaultSize={60} minSize={30}>
                     <div className="relative flex h-full w-full flex-col items-center justify-center p-2">
+                        {/* Navigation buttons for attachments */}
+                        {allAttachmentIds.length > 1 && attachmentUrl && (
+                            <>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => handleAttachmentNavigate(-1)}
+                                    disabled={currentAttachmentIndex === 0}
+                                    className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-20 h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg"
+                                >
+                                    <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6" />
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => handleAttachmentNavigate(1)}
+                                    disabled={currentAttachmentIndex === allAttachmentIds.length - 1}
+                                    className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-20 h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg"
+                                >
+                                    <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6" />
+                                </Button>
+                            </>
+                        )}
                         {/* Zoom controls in bottom right corner */}
                         {attachmentUrl && !attachmentUrl.toLowerCase().endsWith('.pdf') && (
                             <div className="absolute bottom-2 right-2 sm:bottom-4 sm:right-4 z-10 flex gap-1 sm:gap-2">
@@ -803,8 +880,8 @@ const VoucherDetailsPage = () => {
                             </div>
                         )}
                         <div className="flex h-full w-full items-center justify-center overflow-auto relative" style={{ zIndex: 1 }} ref={attachmentRef}>
-                            {/* Show skeleton only if we have attachment_id but no URL yet (while fetching URL) */}
-                            {voucher?.attachment_id && !attachmentUrl ? (
+                            {/* Show skeleton only if we have attachments but no URL yet (while fetching URL) */}
+                            {allAttachmentIds.length > 0 && !attachmentUrl ? (
                                 <Skeleton className="h-full w-full rounded-md" />
                             ) : attachmentUrl ? (
                                 attachmentUrl.toLowerCase().endsWith('.pdf') ? (
@@ -953,7 +1030,7 @@ const VoucherDetailsPage = () => {
                                 )}
                                 <div>
                                     <Label htmlFor="remarks">Remarks</Label>
-                                    <Input name="remarks" defaultValue={editedVoucher.remarks} />
+                                    <Input name="remarks" defaultValue={editedVoucher.remarks || ''} />
                                 </div>
                                 {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
                                     <div>
@@ -1048,7 +1125,7 @@ const VoucherDetailsPage = () => {
                                     )}
                                     <div className="pt-4">
                                         <p className="text-sm text-gray-400 mb-1">Remarks</p>
-                                        <p className="text-sm text-white p-3 bg-white/5 rounded-md">{voucherDetails.remarks || 'N/A'}</p>
+                                        <p className="text-sm text-white p-3 bg-white/5 rounded-md">{voucherDetails.remarks && voucherDetails.remarks.trim() ? voucherDetails.remarks : 'N/A'}</p>
                                     </div>
                                     <div className="flex items-center gap-2 mt-4 mb-20 sm:mb-16 md:mb-4 justify-end relative z-[100] flex-wrap -mr-4 sm:-mr-4">
                                         {/* Action buttons on right */}
@@ -1167,6 +1244,29 @@ const VoucherDetailsPage = () => {
             <div className="flex flex-col md:hidden flex-1 gap-4">
                 {/* Attachment/Preview Section */}
                 <div className="relative flex h-64 sm:h-80 w-full flex-col items-center justify-center p-2 border border-white/10 rounded-lg">
+                    {/* Navigation buttons for attachments */}
+                    {allAttachmentIds.length > 1 && attachmentUrl && (
+                        <>
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => handleAttachmentNavigate(-1)}
+                                disabled={currentAttachmentIndex === 0}
+                                className="absolute left-2 top-1/2 -translate-y-1/2 z-20 h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg"
+                            >
+                                <ChevronLeft className="h-5 w-5" />
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => handleAttachmentNavigate(1)}
+                                disabled={currentAttachmentIndex === allAttachmentIds.length - 1}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 z-20 h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg"
+                            >
+                                <ChevronRight className="h-5 w-5" />
+                            </Button>
+                        </>
+                    )}
                     {/* Zoom controls in bottom right corner */}
                     {attachmentUrl && !attachmentUrl.toLowerCase().endsWith('.pdf') && (
                         <div className="absolute bottom-2 right-2 z-10 flex gap-1 sm:gap-2">
@@ -1182,7 +1282,7 @@ const VoucherDetailsPage = () => {
                         </div>
                     )}
                     <div className="flex h-full w-full items-center justify-center overflow-auto relative" style={{ zIndex: 1 }} ref={attachmentRef}>
-                        {voucher?.attachment_id && !attachmentUrl ? (
+                        {allAttachmentIds.length > 0 && !attachmentUrl ? (
                             <Skeleton className="h-full w-full rounded-md" />
                         ) : attachmentUrl ? (
                             attachmentUrl.toLowerCase().endsWith('.pdf') ? (
@@ -1330,7 +1430,7 @@ const VoucherDetailsPage = () => {
                                     )}
                                     <div>
                                         <Label htmlFor="remarks" className="text-sm">Remarks</Label>
-                                        <Input name="remarks" defaultValue={editedVoucher.remarks} className="text-sm" />
+                                        <Input name="remarks" defaultValue={editedVoucher.remarks || ''} className="text-sm" />
                                     </div>
                                     {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
                                         <div>
@@ -1425,7 +1525,7 @@ const VoucherDetailsPage = () => {
                                         )}
                                         <div className="pt-4">
                                             <p className="text-xs sm:text-sm text-gray-400 mb-1">Remarks</p>
-                                            <p className="text-xs sm:text-sm text-white p-3 bg-white/5 rounded-md">{voucherDetails.remarks || 'N/A'}</p>
+                                            <p className="text-xs sm:text-sm text-white p-3 bg-white/5 rounded-md">{voucherDetails.remarks && voucherDetails.remarks.trim() ? voucherDetails.remarks : 'N/A'}</p>
                                         </div>
                                         <div className="flex items-center gap-2 mt-4 mb-20 sm:mb-16 md:mb-4 justify-end relative z-[100] flex-wrap -mr-4 sm:-mr-6">
                                             {/* Action buttons on right */}
