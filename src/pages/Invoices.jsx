@@ -55,8 +55,9 @@ const Invoices = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
       }
     }
     
-    // Prevent concurrent fetches
-    if (lastFetchKey.current === fetchKey && !isDataLoading) {
+    // Prevent concurrent fetches - if we already have data for this exact fetch key, skip
+    if (lastFetchKey.current === fetchKey && invoices.length > 0) {
+      setIsLoading(false);
       return;
     }
     
@@ -145,12 +146,13 @@ const Invoices = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
       setIsLoading(false);
       isFetchingRef.current = false;
     }
-  }, [selectedOrganisation, selectedEntity, user?.access_token, toast, hasAttemptedLoad, cache, isDataLoading]);
+  }, [selectedOrganisation, selectedEntity, user?.access_token, toast, hasAttemptedLoad, cache, invoices.length]);
 
   useEffect(() => {
+    // Only fetch if entity or organization changes, not when switching tabs
     fetchDataForClient();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedOrganisation, selectedEntity, user?.access_token, isDataLoading]); // Only re-fetch when these change
+  }, [selectedOrganisation, selectedEntity, user?.access_token]); // Removed isDataLoading to prevent refetch on tab switch
 
   const handleViewInvoice = (invoice) => {
     const currentIndex = invoices.findIndex(inv => inv.id === invoice.id);

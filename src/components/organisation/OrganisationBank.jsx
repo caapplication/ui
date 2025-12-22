@@ -135,88 +135,107 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction,
 
   const renderTable = (accounts, title, description) => (
     <Card className="glass-card">
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
+      <CardHeader className="p-4 sm:p-6">
+        <CardTitle className="text-lg sm:text-xl md:text-2xl">{title}</CardTitle>
+        <CardDescription className="text-sm sm:text-base">{description}</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-0 sm:p-6">
         {isLoading ? (
           <div className="flex justify-center items-center h-64">
             <Loader2 className="w-8 h-8 animate-spin text-white" />
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead>Bank Name</TableHead>
-                <TableHead>Account Number</TableHead>
-                <TableHead>IFSC Code</TableHead>
-                <TableHead>Branch Name</TableHead>
-                <TableHead>Account Type</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {accounts.length > 0 ? (
-                accounts.map((account) => (
-                  <TableRow key={account.id}>
-                    <TableCell>{account.bank_name}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <span>
-                          {visibleAccounts[account.id] ? account.account_number : `************${String(account.account_number).slice(-4)}`}
-                        </span>
-                        <Button variant="ghost" size="icon" onClick={() => toggleMask(account.id)}>
-                          {visibleAccounts[account.id] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        </Button>
-                      </div>
-                    </TableCell>
-                    <TableCell>{account.ifsc_code}</TableCell>
-                    <TableCell>{account.branch_name}</TableCell>
-                    <TableCell>{account.account_type}</TableCell>
-                    <TableCell className="text-right">
-                      <Button size="icon" variant="ghost" onClick={() => {
-                        setSelectedAccount(account);
-                        setShowToggleActiveDialog(true);
-                      }}>
-                        {account.is_active ? <ToggleRight className="w-6 h-6 text-green-400" /> : <ToggleLeft className="w-6 h-6 text-gray-400" />}
-                      </Button>
-                      {!account.is_active && (
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => {
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="text-xs sm:text-sm">Bank Name</TableHead>
+                  <TableHead className="text-xs sm:text-sm hidden sm:table-cell">Account Number</TableHead>
+                  <TableHead className="text-xs sm:text-sm">IFSC Code</TableHead>
+                  <TableHead className="text-xs sm:text-sm hidden md:table-cell">Branch Name</TableHead>
+                  <TableHead className="text-xs sm:text-sm hidden lg:table-cell">Account Type</TableHead>
+                  <TableHead className="text-right text-xs sm:text-sm">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {accounts.length > 0 ? (
+                  accounts.map((account) => (
+                    <TableRow key={account.id}>
+                      <TableCell className="text-xs sm:text-sm">
+                        <div className="flex flex-col sm:block">
+                          <span className="font-medium">{account.bank_name}</span>
+                          <div className="flex items-center gap-2 sm:hidden mt-1">
+                            <span className="text-gray-400 text-xs">
+                              {visibleAccounts[account.id] ? account.account_number : `************${String(account.account_number).slice(-4)}`}
+                            </span>
+                            <Button variant="ghost" size="icon" onClick={() => toggleMask(account.id)} className="h-6 w-6">
+                              {visibleAccounts[account.id] ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                            </Button>
+                          </div>
+                          <span className="text-gray-400 text-xs sm:hidden mt-1">Branch: {account.branch_name}</span>
+                          <span className="text-gray-400 text-xs sm:hidden mt-1">Type: {account.account_type}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-xs sm:text-sm hidden sm:table-cell">
+                        <div className="flex items-center gap-2">
+                          <span>
+                            {visibleAccounts[account.id] ? account.account_number : `************${String(account.account_number).slice(-4)}`}
+                          </span>
+                          <Button variant="ghost" size="icon" onClick={() => toggleMask(account.id)} className="h-7 w-7 sm:h-8 sm:w-8">
+                            {visibleAccounts[account.id] ? <EyeOff className="w-3 h-3 sm:w-4 sm:h-4" /> : <Eye className="w-3 h-3 sm:w-4 sm:h-4" />}
+                          </Button>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-xs sm:text-sm">{account.ifsc_code}</TableCell>
+                      <TableCell className="text-xs sm:text-sm hidden md:table-cell">{account.branch_name}</TableCell>
+                      <TableCell className="text-xs sm:text-sm hidden lg:table-cell">{account.account_type}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1 sm:gap-2">
+                          <Button size="icon" variant="ghost" onClick={() => {
                             setSelectedAccount(account);
-                            setShowDeleteDialog(true);
-                          }}
-                        >
-                          <Trash2 className="w-4 h-4 text-red-400" />
-                        </Button>
-                      )}
+                            setShowToggleActiveDialog(true);
+                          }} className="h-7 w-7 sm:h-8 sm:w-8">
+                            {account.is_active ? <ToggleRight className="w-4 h-4 sm:w-6 sm:h-6 text-green-400" /> : <ToggleLeft className="w-4 h-4 sm:w-6 sm:h-6 text-gray-400" />}
+                          </Button>
+                          {!account.is_active && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => {
+                                setSelectedAccount(account);
+                                setShowDeleteDialog(true);
+                              }}
+                              className="h-7 w-7 sm:h-8 sm:w-8"
+                            >
+                              <Trash2 className="w-3 h-3 sm:w-4 sm:h-4 text-red-400" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan="6" className="text-center text-gray-400 py-8 text-sm">
+                      No {activeTab} bank accounts found.
                     </TableCell>
                   </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan="6" className="text-center text-gray-400 py-8">
-                    No {activeTab} bank accounts found.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                )}
+              </TableBody>
+            </Table>
+          </div>
         )}
       </CardContent>
-      <CardFooter className="flex justify-between items-center">
+      <CardFooter className="flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-0 p-4 sm:p-6">
         <div>
-          <p className="text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
+          <p className="text-xs sm:text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
-            <ChevronLeft className="w-4 h-4" />
+          <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="h-8 w-8 sm:h-9 sm:w-9">
+            <ChevronLeft className="w-3 h-3 sm:w-4 sm:h-4" />
           </Button>
-          <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
-            <ChevronRight className="w-4 h-4" />
+          <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="h-8 w-8 sm:h-9 sm:w-9">
+            <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4" />
           </Button>
         </div>
       </CardFooter>
@@ -224,24 +243,26 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction,
   );
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-          <h1 className="text-5xl font-bold text-white">Organisation Bank Accounts</h1>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" onClick={fetchBankAccounts} disabled={isLoading}>
-              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+        <div className="flex flex-col gap-4 mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white">Organisation Bank Accounts</h1>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <Button variant="outline" size="icon" onClick={fetchBankAccounts} disabled={isLoading} className="h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0">
+              <RefreshCw className={`w-4 h-4 sm:w-5 sm:h-5 ${isLoading ? 'animate-spin' : ''}`} />
             </Button>
-            <Button onClick={() => setShowAddDialog(true)}>
-              <Plus className="w-5 h-5 mr-2" /> Add Bank Account
+            <Button onClick={() => setShowAddDialog(true)} className="h-9 sm:h-10 text-sm sm:text-base flex-1 sm:flex-initial">
+              <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" /> 
+              <span className="hidden sm:inline">Add Bank Account</span>
+              <span className="sm:hidden">Add Account</span>
             </Button>
           </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList>
-            <TabsTrigger value="active">Active Bank Details</TabsTrigger>
-            <TabsTrigger value="inactive">Inactive Bank Details</TabsTrigger>
+          <TabsList className="text-xs sm:text-sm">
+            <TabsTrigger value="active" className="text-xs sm:text-sm">Active Bank Details</TabsTrigger>
+            <TabsTrigger value="inactive" className="text-xs sm:text-sm">Inactive Bank Details</TabsTrigger>
           </TabsList>
           <TabsContent value="active">
             {renderTable(paginatedAccounts, `Active Bank Accounts for ${entityName}`, "Manage active bank accounts associated with this entity.")}
@@ -253,32 +274,32 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction,
       </motion.div>
 
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Add New Bank Account</DialogTitle>
-            <DialogDescription>Entity: <span className="font-semibold text-sky-400">{entityName}</span></DialogDescription>
+            <DialogTitle className="text-lg sm:text-xl">Add New Bank Account</DialogTitle>
+            <DialogDescription className="text-sm">Entity: <span className="font-semibold text-sky-400">{entityName}</span></DialogDescription>
           </DialogHeader>
           <form onSubmit={handleAddAccount} className="space-y-4 pt-4">
             <div>
-              <Label htmlFor="bank_name">Bank Name</Label>
-              <Input id="bank_name" name="bank_name" required />
+              <Label htmlFor="bank_name" className="text-sm sm:text-base">Bank Name</Label>
+              <Input id="bank_name" name="bank_name" required className="h-9 sm:h-10 text-sm" />
             </div>
             <div>
-              <Label htmlFor="account_number">Account Number</Label>
-              <Input id="account_number" name="account_number" required />
+              <Label htmlFor="account_number" className="text-sm sm:text-base">Account Number</Label>
+              <Input id="account_number" name="account_number" required className="h-9 sm:h-10 text-sm" />
             </div>
             <div>
-              <Label htmlFor="ifsc_code">IFSC Code</Label>
-              <Input id="ifsc_code" name="ifsc_code" required />
+              <Label htmlFor="ifsc_code" className="text-sm sm:text-base">IFSC Code</Label>
+              <Input id="ifsc_code" name="ifsc_code" required className="h-9 sm:h-10 text-sm" />
             </div>
             <div>
-              <Label htmlFor="branch_name">Branch Name</Label>
-              <Input id="branch_name" name="branch_name" required />
+              <Label htmlFor="branch_name" className="text-sm sm:text-base">Branch Name</Label>
+              <Input id="branch_name" name="branch_name" required className="h-9 sm:h-10 text-sm" />
             </div>
             <div>
-              <Label htmlFor="account_type">Account Type</Label>
+              <Label htmlFor="account_type" className="text-sm sm:text-base">Account Type</Label>
               <Select onValueChange={setNewAccountType} value={newAccountType} required>
-                <SelectTrigger>
+                <SelectTrigger className="h-9 sm:h-10 text-sm">
                   <SelectValue placeholder="Select an account type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -288,33 +309,33 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction,
                   <SelectItem value="Fixed Deposit Account">Fixed Deposit Account</SelectItem>
                   <SelectItem value="NRI Account">NRI Account</SelectItem>
                   <SelectItem value="DEMAT Account">DEMAT Account</SelectItem>
-                  <SelectItem value="Senior Citizens’ Account">Senior Citizens’ Account</SelectItem>
+                  <SelectItem value="Senior Citizens' Account">Senior Citizens' Account</SelectItem>
                   <SelectItem value="Salary Account">Salary Account</SelectItem>
                   <SelectItem value="Credit Cash">Credit Cash</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <DialogFooter>
-              <DialogClose asChild><Button variant="ghost">Cancel</Button></DialogClose>
-              <Button type="submit"><Plus className="w-4 h-4 mr-2" />Add Account</Button>
+              <DialogClose asChild><Button variant="ghost" className="h-9 sm:h-10 text-sm sm:text-base">Cancel</Button></DialogClose>
+              <Button type="submit" className="h-9 sm:h-10 text-sm sm:text-base"><Plus className="w-4 h-4 mr-2" />Add Account</Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent>
+        <DialogContent className="w-[95vw] sm:w-full">
           <DialogHeader>
-            <DialogTitle>Are you sure?</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-lg sm:text-xl">Are you sure?</DialogTitle>
+            <DialogDescription className="text-sm">
               This action cannot be undone. This will permanently delete the bank account.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setShowDeleteDialog(false)}>
+            <Button variant="ghost" onClick={() => setShowDeleteDialog(false)} className="h-9 sm:h-10 text-sm sm:text-base">
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDeleteAccount}>
+            <Button variant="destructive" onClick={handleDeleteAccount} className="h-9 sm:h-10 text-sm sm:text-base">
               Delete
             </Button>
           </DialogFooter>
@@ -322,18 +343,18 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction,
       </Dialog>
 
       <Dialog open={showToggleActiveDialog} onOpenChange={setShowToggleActiveDialog}>
-        <DialogContent>
+        <DialogContent className="w-[95vw] sm:w-full">
           <DialogHeader>
-            <DialogTitle>Are you sure?</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-lg sm:text-xl">Are you sure?</DialogTitle>
+            <DialogDescription className="text-sm">
               You are about to {selectedAccount?.is_active ? 'deactivate' : 'activate'} this bank account.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setShowToggleActiveDialog(false)}>
+            <Button variant="ghost" onClick={() => setShowToggleActiveDialog(false)} className="h-9 sm:h-10 text-sm sm:text-base">
               Cancel
             </Button>
-            <Button onClick={handleToggleActive}>
+            <Button onClick={handleToggleActive} className="h-9 sm:h-10 text-sm sm:text-base">
               Confirm
             </Button>
           </DialogFooter>

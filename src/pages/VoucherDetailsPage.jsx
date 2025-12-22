@@ -600,40 +600,40 @@ const VoucherDetailsPage = () => {
     
 
     return (
-        <div className="h-screen w-full flex flex-col text-white bg-transparent p-4 md:p-6" style={{ paddingBottom: hasVouchers ? '5rem' : '1.5rem' }}>
-            <header className="flex items-center justify-between pb-4 border-b border-white/10 mb-4">
-                <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="icon" onClick={() => user.role === 'CLIENT_USER' ? navigate('/finance') : navigate('/finance/ca')}>
-                        <ArrowLeft className="h-6 w-6" />
+        <div className="h-screen w-full flex flex-col text-white bg-transparent p-3 sm:p-4 md:p-6" style={{ paddingBottom: hasVouchers ? '6rem' : '1.5rem' }}>
+            <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 pb-3 sm:pb-4 border-b border-white/10 mb-3 sm:mb-4">
+                <div className="flex items-center gap-3 sm:gap-4">
+                    <Button variant="ghost" size="icon" onClick={() => user.role === 'CLIENT_USER' ? navigate('/finance') : navigate('/finance/ca')} className="h-9 w-9 sm:h-10 sm:w-10">
+                        <ArrowLeft className="h-5 w-5 sm:h-6 sm:w-6" />
                     </Button>
                     <div>
-                        <h1 className="text-2xl font-bold">Voucher Details</h1>
-                        <p className="text-sm text-gray-400">Review all cash and debit transactions.</p>
+                        <h1 className="text-xl sm:text-2xl font-bold">Voucher Details</h1>
+                        <p className="text-xs sm:text-sm text-gray-400">Review all cash and debit transactions.</p>
                     </div>
                 </div>
                 {/* Entity name in top right */}
                 <div className="flex items-center">
-                    <p className="text-2xl font-bold text-white">{getEntityName()}</p>
+                    <p className="text-lg sm:text-xl md:text-2xl font-bold text-white truncate">{getEntityName()}</p>
                 </div>
             </header>
 
             <ResizablePanelGroup
                 direction="horizontal"
-                className="flex-1 rounded-lg border border-white/10"
+                className="flex-1 rounded-lg border border-white/10 hidden md:flex"
             >
                 <ResizablePanel defaultSize={60} minSize={30}>
                     <div className="relative flex h-full w-full flex-col items-center justify-center p-2">
                         {/* Zoom controls in bottom right corner */}
                         {attachmentUrl && !attachmentUrl.toLowerCase().endsWith('.pdf') && (
-                            <div className="absolute bottom-4 right-4 z-10 flex gap-2">
-                                <Button variant="outline" size="icon" onClick={() => setZoom(z => z + 0.1)}>
-                                    <ZoomIn className="h-4 w-4" />
+                            <div className="absolute bottom-2 right-2 sm:bottom-4 sm:right-4 z-10 flex gap-1 sm:gap-2">
+                                <Button variant="outline" size="icon" onClick={() => setZoom(z => z + 0.1)} className="h-8 w-8 sm:h-9 sm:w-9">
+                                    <ZoomIn className="h-3 w-3 sm:h-4 sm:w-4" />
                                 </Button>
-                                <Button variant="outline" size="icon" onClick={() => setZoom(z => Math.max(0.1, z - 0.1))}>
-                                    <ZoomOut className="h-4 w-4" />
+                                <Button variant="outline" size="icon" onClick={() => setZoom(z => Math.max(0.1, z - 0.1))} className="h-8 w-8 sm:h-9 sm:w-9">
+                                    <ZoomOut className="h-3 w-3 sm:h-4 sm:w-4" />
                                 </Button>
-                                <Button variant="outline" size="icon" onClick={() => setZoom(1)}>
-                                    <RefreshCcw className="h-4 w-4" />
+                                <Button variant="outline" size="icon" onClick={() => setZoom(1)} className="h-8 w-8 sm:h-9 sm:w-9">
+                                    <RefreshCcw className="h-3 w-3 sm:h-4 sm:w-4" />
                                 </Button>
                             </div>
                         )}
@@ -677,21 +677,21 @@ const VoucherDetailsPage = () => {
                 <ResizableHandle withHandle />
                 <ResizablePanel defaultSize={40} minSize={30}>
                     <div className="relative flex h-full flex-col">
-                        <div className="flex-1 overflow-y-auto p-6" style={{ paddingBottom: hasVouchers ? '6rem' : '1.5rem' }}>
+                        <div className="flex-1 overflow-y-auto p-4 sm:p-6" style={{ paddingBottom: hasVouchers ? '8rem' : '2rem' }}>
                             <Tabs defaultValue={defaultTab} className="w-full">
-                            <TabsList className={`grid w-full ${cols}`}>
+                            <TabsList className={`grid w-full ${cols} text-xs sm:text-sm`}>
                                 {!isClientUser && (
-                                    <TabsTrigger value="preview">Preview</TabsTrigger>
+                                    <TabsTrigger value="preview" className="text-xs sm:text-sm">Preview</TabsTrigger>
                                 )}
-                                <TabsTrigger value="details">Details</TabsTrigger>
-                                <TabsTrigger value="activity">Activity Log</TabsTrigger>
-                                <TabsTrigger value="beneficiary">Beneficiary</TabsTrigger>
+                                <TabsTrigger value="details" className="text-xs sm:text-sm">Details</TabsTrigger>
+                                <TabsTrigger value="activity" className="text-xs sm:text-sm">Activity Log</TabsTrigger>
+                                <TabsTrigger value="beneficiary" className="text-xs sm:text-sm">Beneficiary</TabsTrigger>
                             </TabsList>
                     <TabsContent value="details" className="mt-4">
                         {isEditing ? (
                             <form onSubmit={handleUpdate} className="space-y-4">
                                 <div>
-                                    <Label htmlFor="beneficiary_id">Beneficiary</Label>
+                                    <Label htmlFor="beneficiary_id" className="text-sm">Beneficiary</Label>
                                     <Select
                                         value={editedVoucher?.beneficiary_id ? String(editedVoucher.beneficiary_id) : ''}
                                         onValueChange={(val) => setEditedVoucher(p => ({ ...p, beneficiary_id: val }))}
@@ -812,11 +812,11 @@ const VoucherDetailsPage = () => {
                             </form>
                         ) : (
                             <Card className="w-full glass-pane border-none shadow-none bg-gray-800 text-white relative z-20">
-                                <CardHeader>
-                                    <CardTitle>Voucher to {beneficiaryName}</CardTitle>
-                                    <CardDescription>Created on {new Date(voucherDetails.created_date).toLocaleDateString()}</CardDescription>
+                                <CardHeader className="p-4 sm:p-6">
+                                    <CardTitle className="text-lg sm:text-xl">Voucher to {beneficiaryName}</CardTitle>
+                                    <CardDescription className="text-xs sm:text-sm">Created on {new Date(voucherDetails.created_date).toLocaleDateString()}</CardDescription>
                                 </CardHeader>
-                                <CardContent className="space-y-2 relative z-20">
+                                <CardContent className="space-y-2 relative z-20 p-4 sm:p-6 pt-0">
                                     <DetailItem label="Invoice ID" value={voucherDetails.invoice_id || 'N/A'} />
                                     <DetailItem label="Voucher ID" value={voucherDetails.voucher_id || 'N/A'} />
                                     <DetailItem label="Amount" value={`₹${parseFloat(voucherDetails.amount).toFixed(2)}`} />
@@ -874,9 +874,9 @@ const VoucherDetailsPage = () => {
                                         <p className="text-sm text-gray-400 mb-1">Remarks</p>
                                         <p className="text-sm text-white p-3 bg-white/5 rounded-md">{voucherDetails.remarks || 'N/A'}</p>
                                     </div>
-                                    <div className="flex items-center gap-2 mt-4 justify-center relative z-20">
+                                    <div className="flex items-center gap-2 mt-4 mb-20 sm:mb-16 md:mb-4 justify-center relative z-[100] flex-wrap">
                                         {/* Action buttons in center */}
-                                        <div className="flex items-center gap-2 relative z-20">
+                                        <div className="flex items-center gap-2 relative z-[100]">
                                             <TooltipProvider>
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
@@ -884,6 +884,7 @@ const VoucherDetailsPage = () => {
                                                             variant="destructive"
                                                             size="icon"
                                                             onClick={() => setShowDeleteDialog(true)}
+                                                            className="h-9 w-9 sm:h-10 sm:w-10"
                                                         >
                                                             <Trash2 className="h-4 w-4" />
                                                         </Button>
@@ -902,6 +903,7 @@ const VoucherDetailsPage = () => {
                                 voucher?.payment_type === 'bank_transfer' &&
                                 (!fromBankAccounts.length || !toBankAccounts.length)
                             }
+                            className="h-9 w-9 sm:h-10 sm:w-10"
                         >
                             <FileText className="h-4 w-4" />
                         </Button>
@@ -916,6 +918,7 @@ const VoucherDetailsPage = () => {
                                                             variant="outline"
                                                             size="icon"
                                                             onClick={() => setIsEditing(!isEditing)}
+                                                            className="h-9 w-9 sm:h-10 sm:w-10"
                                                         >
                                                             <Edit className="h-4 w-4" />
                                                         </Button>
@@ -934,8 +937,8 @@ const VoucherDetailsPage = () => {
                         )}
                     </TabsContent>
                     <TabsContent value="activity" className="mt-4">
-                        <div className="p-4" ref={activityLogRef}>
-                            <ActivityLog itemId={voucherDetails.voucher_id || voucherId} itemType="voucher" />
+                        <div className="p-2 sm:p-4" ref={activityLogRef}>
+                            <ActivityLog itemId={voucherDetails.voucher_id || voucherId} itemType="voucher" showFilter={false} />
                         </div>
                     </TabsContent>
                     <TabsContent value="beneficiary" className="mt-4">
@@ -954,10 +957,10 @@ const VoucherDetailsPage = () => {
                             }
                             return (
                                 <Card className="w-full glass-pane border-none shadow-none bg-gray-800 text-white">
-                                    <CardHeader>
-                                        <CardTitle>Beneficiary Details</CardTitle>
+                                    <CardHeader className="p-4 sm:p-6">
+                                        <CardTitle className="text-lg sm:text-xl">Beneficiary Details</CardTitle>
                                     </CardHeader>
-                                    <CardContent className="space-y-2">
+                                    <CardContent className="space-y-2 p-4 sm:p-6 pt-0">
                                         <DetailItem label="Name" value={beneficiaryObj?.name || beneficiaryName} />
                                         <DetailItem label="PAN" value={beneficiaryObj?.pan || 'N/A'} />
                                         <DetailItem label="Email" value={beneficiaryObj?.email || 'N/A'} />
@@ -987,6 +990,367 @@ const VoucherDetailsPage = () => {
                 </ResizablePanel>
             </ResizablePanelGroup>
 
+            {/* Mobile Layout - Stacked vertically */}
+            <div className="flex flex-col md:hidden flex-1 gap-4">
+                {/* Attachment/Preview Section */}
+                <div className="relative flex h-64 sm:h-80 w-full flex-col items-center justify-center p-2 border border-white/10 rounded-lg">
+                    {/* Zoom controls in bottom right corner */}
+                    {attachmentUrl && !attachmentUrl.toLowerCase().endsWith('.pdf') && (
+                        <div className="absolute bottom-2 right-2 z-10 flex gap-1 sm:gap-2">
+                            <Button variant="outline" size="icon" onClick={() => setZoom(z => z + 0.1)} className="h-8 w-8 sm:h-9 sm:w-9">
+                                <ZoomIn className="h-3 w-3 sm:h-4 sm:w-4" />
+                            </Button>
+                            <Button variant="outline" size="icon" onClick={() => setZoom(z => Math.max(0.1, z - 0.1))} className="h-8 w-8 sm:h-9 sm:w-9">
+                                <ZoomOut className="h-3 w-3 sm:h-4 sm:w-4" />
+                            </Button>
+                            <Button variant="outline" size="icon" onClick={() => setZoom(1)} className="h-8 w-8 sm:h-9 sm:w-9">
+                                <RefreshCcw className="h-3 w-3 sm:h-4 sm:w-4" />
+                            </Button>
+                        </div>
+                    )}
+                    <div className="flex h-full w-full items-center justify-center overflow-auto relative" style={{ zIndex: 1 }} ref={attachmentRef}>
+                        {voucher?.attachment_id && !attachmentUrl ? (
+                            <Skeleton className="h-full w-full rounded-md" />
+                        ) : attachmentUrl ? (
+                            attachmentUrl.toLowerCase().endsWith('.pdf') ? (
+                                <iframe
+                                    src={attachmentUrl}
+                                    title="Voucher Attachment"
+                                    className="h-full w-full rounded-md border-none"
+                                />
+                            ) : (
+                                <img
+                                    key={`${attachmentUrl}-${voucher?.id}`}
+                                    src={attachmentUrl}
+                                    alt="Voucher Attachment"
+                                    className="max-w-full max-h-full transition-transform duration-200"
+                                    style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }}
+                                    onLoad={() => {
+                                        console.log("Image loaded successfully");
+                                        setIsImageLoading(false);
+                                    }}
+                                    onError={(e) => {
+                                        console.error("Image failed to load:", e, "URL:", attachmentUrl);
+                                        setIsImageLoading(false);
+                                    }}
+                                    loading="eager"
+                                />
+                            )
+                        ) : (
+                            <div className="text-center text-gray-400 text-sm">
+                                <p>No attachment available for this voucher.</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Details Section */}
+                <div className="flex-1 overflow-y-auto border border-white/10 rounded-lg p-4" style={{ paddingBottom: hasVouchers ? '6rem' : '2rem' }}>
+                    <Tabs defaultValue={defaultTab} className="w-full">
+                        <TabsList className={`grid w-full ${cols} text-xs sm:text-sm`}>
+                            {!isClientUser && (
+                                <TabsTrigger value="preview" className="text-xs sm:text-sm">Preview</TabsTrigger>
+                            )}
+                            <TabsTrigger value="details" className="text-xs sm:text-sm">Details</TabsTrigger>
+                            <TabsTrigger value="activity" className="text-xs sm:text-sm">Activity</TabsTrigger>
+                            <TabsTrigger value="beneficiary" className="text-xs sm:text-sm">Beneficiary</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="details" className="mt-4">
+                            {isEditing ? (
+                                <form onSubmit={handleUpdate} className="space-y-4">
+                                    <div>
+                                        <Label htmlFor="beneficiary_id" className="text-sm">Beneficiary</Label>
+                                        <Select
+                                            value={editedVoucher?.beneficiary_id ? String(editedVoucher.beneficiary_id) : ''}
+                                            onValueChange={(val) => setEditedVoucher(p => ({ ...p, beneficiary_id: val }))}
+                                        >
+                                            <SelectTrigger className="text-sm">
+                                                <SelectValue placeholder="Select a beneficiary" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {beneficiaries.map(b => (
+                                                    <SelectItem key={b.id} value={String(b.id)}>
+                                                        {b.beneficiary_type === 'individual' ? b.name : b.company_name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="amount" className="text-sm">Amount</Label>
+                                        <Input 
+                                            name="amount" 
+                                            type="number" 
+                                            step="0.01"
+                                            defaultValue={editedVoucher.amount} 
+                                            onChange={(e) => setEditedVoucher(p => ({ ...p, amount: parseFloat(e.target.value) || 0 }))}
+                                            className="text-sm"
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="voucher_type" className="text-sm">Voucher Type</Label>
+                                        <Select
+                                            value={editedVoucher?.voucher_type}
+                                            onValueChange={(val) => setEditedVoucher(p => ({ ...p, voucher_type: val }))}
+                                        >
+                                            <SelectTrigger className="text-sm">
+                                                <SelectValue placeholder="Select a voucher type" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="debit">Debit</SelectItem>
+                                                <SelectItem value="cash">Cash</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="payment_type" className="text-sm">Payment Method</Label>
+                                        {editedVoucher?.voucher_type === 'cash' ? (
+                                            <Input value="Cash" disabled className="text-sm" />
+                                        ) : (
+                                            <Select
+                                                value={(editedVoucher?.payment_type ?? '').toLowerCase()}
+                                                onValueChange={(val) => setEditedVoucher(p => ({ ...p, payment_type: val }))}
+                                            >
+                                                <SelectTrigger className="text-sm"><SelectValue placeholder="Select a payment method" /></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                                                    <SelectItem value="upi">UPI</SelectItem>
+                                                    <SelectItem value="card">Card</SelectItem>
+                                                    <SelectItem value="cheque">Cheque</SelectItem>
+                                                    <SelectItem value="demand_draft">Demand Draft</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        )}
+                                    </div>
+                                    {editedVoucher?.payment_type === 'bank_transfer' && (
+                                        <>
+                                            <Select
+                                                value={editedVoucher?.from_bank_account_id ? String(editedVoucher.from_bank_account_id) : ''}
+                                                onValueChange={(val) => setEditedVoucher(p => ({ ...p, from_bank_account_id: val }))}
+                                            >
+                                                <SelectTrigger className="text-sm"><SelectValue placeholder="Select your bank account" /></SelectTrigger>
+                                                <SelectContent>
+                                                    {fromBankAccounts.map(acc => (
+                                                        <SelectItem key={acc.id} value={String(acc.id)}>
+                                                            {acc.bank_name} - {acc.account_number}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+
+                                            <Select
+                                                value={editedVoucher?.to_bank_account_id ? String(editedVoucher.to_bank_account_id) : ''}
+                                                onValueChange={(val) => setEditedVoucher(p => ({ ...p, to_bank_account_id: val }))}
+                                            >
+                                                <SelectTrigger className="text-sm"><SelectValue placeholder="Select beneficiary's bank account" /></SelectTrigger>
+                                                <SelectContent>
+                                                    {toBankAccounts.map(acc => (
+                                                        <SelectItem key={acc.id} value={String(acc.id)}>
+                                                            {acc.bank_name} - {acc.account_number}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </>
+                                    )}
+                                    <div>
+                                        <Label htmlFor="remarks" className="text-sm">Remarks</Label>
+                                        <Input name="remarks" defaultValue={editedVoucher.remarks} className="text-sm" />
+                                    </div>
+                                    {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
+                                        <div>
+                                            <Label htmlFor="finance_header_id" className="text-sm">Header</Label>
+                                            <Select name="finance_header_id" defaultValue={editedVoucher.finance_header_id}>
+                                                <SelectTrigger className="text-sm">
+                                                    <SelectValue placeholder="Select a header" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {financeHeaders.map((h) => (
+                                                        <SelectItem key={h.id} value={h.id}>
+                                                            {h.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    )}
+                                    <div className="flex justify-end gap-2">
+                                        <Button variant="ghost" onClick={() => setIsEditing(false)} className="text-sm">Cancel</Button>
+                                        <Button type="submit" className="text-sm">Save Changes</Button>
+                                    </div>
+                                </form>
+                            ) : (
+                                <Card className="w-full glass-pane border-none shadow-none bg-gray-800 text-white relative z-20">
+                                    <CardHeader className="p-4">
+                                        <CardTitle className="text-lg sm:text-xl">Voucher to {beneficiaryName}</CardTitle>
+                                        <CardDescription className="text-xs sm:text-sm">Created on {new Date(voucherDetails.created_date).toLocaleDateString()}</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="space-y-2 relative z-20 p-4 pt-0">
+                                        <DetailItem label="Invoice ID" value={voucherDetails.invoice_id || 'N/A'} />
+                                        <DetailItem label="Voucher ID" value={voucherDetails.voucher_id || 'N/A'} />
+                                        <DetailItem label="Amount" value={`₹${parseFloat(voucherDetails.amount).toFixed(2)}`} />
+                                        <DetailItem label="Voucher Type" value={voucherDetails.voucher_type} />
+                                        <DetailItem
+                                            label="Payment Method"
+                                            value={
+                                                voucherDetails.voucher_type === 'cash'
+                                                    ? 'Cash'
+                                                    : formatPaymentMethod(
+                                                        (voucherDetails.payment_type || '')
+                                                            .toString()
+                                                            .toLowerCase()
+                                                            .replace(/\s/g, '_')
+                                                    )
+                                            }
+                                        />
+                                        {voucherDetails.payment_type === 'bank_transfer' && (
+                                            <>
+                                                <DetailItem
+                                                    label="From Bank Account"
+                                                    value={
+                                                        (() => {
+                                                            const fromBank = fromBankAccounts.find(
+                                                                acc => String(acc.id) === String(voucherDetails.from_bank_account_id)
+                                                            );
+                                                            if (fromBank) return `${fromBank.bank_name} - ${fromBank.account_number}`;
+
+                                                            const snap = voucherDetails.from_bank_account_name
+                                                                ? `${voucherDetails.from_bank_account_name} - ${voucherDetails.from_bank_account_number || ''}`.trim()
+                                                                : null;
+                                                            return snap || voucherDetails.from_bank_account_id || 'N/A';
+                                                        })()
+                                                    }
+                                                />
+                                                <DetailItem
+                                                    label="To Bank Account"
+                                                    value={
+                                                        (() => {
+                                                            const toBank = toBankAccounts.find(
+                                                                acc => String(acc.id) === String(voucherDetails.to_bank_account_id)
+                                                            );
+                                                            if (toBank) return `${toBank.bank_name} - ${toBank.account_number}`;
+
+                                                            const snap = voucherDetails.to_bank_account_name
+                                                                ? `${voucherDetails.to_bank_account_name} - ${voucherDetails.to_bank_account_number || ''}`.trim()
+                                                                : null;
+                                                            return snap || voucherDetails.to_bank_account_id || 'N/A';
+                                                        })()
+                                                    }
+                                                />
+                                            </>
+                                        )}
+                                        <div className="pt-4">
+                                            <p className="text-xs sm:text-sm text-gray-400 mb-1">Remarks</p>
+                                            <p className="text-xs sm:text-sm text-white p-3 bg-white/5 rounded-md">{voucherDetails.remarks || 'N/A'}</p>
+                                        </div>
+                                        <div className="flex items-center gap-2 mt-4 mb-20 sm:mb-16 md:mb-4 justify-center relative z-[100] flex-wrap">
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            variant="destructive"
+                                                            size="icon"
+                                                            onClick={() => setShowDeleteDialog(true)}
+                                                            className="h-9 w-9 sm:h-10 sm:w-10"
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Delete</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="icon"
+                                                            onClick={handleExportToPDF}
+                                                            disabled={
+                                                                voucher?.payment_type === 'bank_transfer' &&
+                                                                (!fromBankAccounts.length || !toBankAccounts.length)
+                                                            }
+                                                            className="h-9 w-9 sm:h-10 sm:w-10"
+                                                        >
+                                                            <FileText className="h-4 w-4" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Export</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="icon"
+                                                            onClick={() => setIsEditing(!isEditing)}
+                                                            className="h-9 w-9 sm:h-10 sm:w-10"
+                                                        >
+                                                            <Edit className="h-4 w-4" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Edit</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            )}
+                        </TabsContent>
+                        <TabsContent value="activity" className="mt-4">
+                            <div className="p-2 sm:p-4" ref={activityLogRef}>
+                                <ActivityLog itemId={voucherDetails.voucher_id || voucherId} itemType="voucher" showFilter={false} />
+                            </div>
+                        </TabsContent>
+                        <TabsContent value="beneficiary" className="mt-4">
+                            {(() => {
+                                let beneficiaryObj = voucherDetails.beneficiary;
+                                if (
+                                    (!beneficiaryObj || !beneficiaryObj.phone) &&
+                                    beneficiaries &&
+                                    voucherDetails.beneficiary_id
+                                ) {
+                                    const found = beneficiaries.find(
+                                        b => String(b.id) === String(voucherDetails.beneficiary_id)
+                                    );
+                                    if (found) beneficiaryObj = found;
+                                }
+                                return (
+                                    <Card className="w-full glass-pane border-none shadow-none bg-gray-800 text-white">
+                                        <CardHeader className="p-4">
+                                            <CardTitle className="text-lg sm:text-xl">Beneficiary Details</CardTitle>
+                                        </CardHeader>
+                                        <CardContent className="space-y-2 p-4 pt-0">
+                                            <DetailItem label="Name" value={beneficiaryObj?.name || beneficiaryName} />
+                                            <DetailItem label="PAN" value={beneficiaryObj?.pan || 'N/A'} />
+                                            <DetailItem label="Email" value={beneficiaryObj?.email || 'N/A'} />
+                                            <DetailItem label="Phone" value={beneficiaryObj?.phone || 'N/A'} />
+                                        </CardContent>
+                                    </Card>
+                                );
+                            })()}
+                        </TabsContent>
+                        {!isClientUser && (
+                            <TabsContent value="preview" className="mt-4">
+                                <div className="overflow-auto" style={{ maxHeight: '60vh' }}>
+                                    <VoucherPDF
+                                        ref={voucherDetailsRef}
+                                        voucher={voucher}
+                                        organizationName={organizationName}
+                                        entityName={entityName}
+                                        fromBankAccounts={fromBankAccounts}
+                                        toBankAccounts={toBankAccounts}
+                                    />
+                                </div>
+                            </TabsContent>
+                        )}
+                    </Tabs>
+                </div>
+            </div>
+
             {/* Fixed navigation buttons at bottom corners - aligned on same line */}
             {hasVouchers && (
                 <>
@@ -1000,7 +1364,7 @@ const VoucherDetailsPage = () => {
                             handleNavigate(-1);
                         }} 
                         disabled={currentIndex === 0 || currentIndex === -1}
-                        className="fixed bottom-4 left-80 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg z-50"
+                        className="hidden md:flex fixed bottom-4 left-80 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg z-[50]"
                     >
                         <ChevronLeft className="h-5 w-5" />
                     </Button>
@@ -1014,10 +1378,39 @@ const VoucherDetailsPage = () => {
                             handleNavigate(1);
                         }} 
                         disabled={currentIndex === vouchers.length - 1}
-                        className="fixed bottom-4 right-4 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg z-50"
+                        className="hidden md:flex fixed bottom-4 right-4 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg z-[50]"
                     >
                         <ChevronRight className="h-5 w-5" />
                     </Button>
+                    {/* Mobile navigation buttons */}
+                    <div className="flex md:hidden fixed bottom-4 left-4 right-4 justify-between z-[50] gap-2 pointer-events-none">
+                        <Button 
+                            variant="outline" 
+                            size="icon"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleNavigate(-1);
+                            }} 
+                            disabled={currentIndex === 0 || currentIndex === -1}
+                            className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg flex-1 pointer-events-auto"
+                        >
+                            <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
+                        </Button>
+                        <Button 
+                            variant="outline" 
+                            size="icon"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleNavigate(1);
+                            }} 
+                            disabled={currentIndex === vouchers.length - 1}
+                            className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg flex-1 pointer-events-auto"
+                        >
+                            <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
+                        </Button>
+                    </div>
                 </>
             )}
 

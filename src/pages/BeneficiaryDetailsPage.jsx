@@ -252,49 +252,51 @@ const BeneficiaryDetailsPage = () => {
   const inactiveBankAccounts = bankAccounts.filter((acc) => acc?.is_active === false);
 
   return (
-    <div className="p-8 h-full overflow-y-auto">
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/beneficiaries')}>
-            <ArrowLeft className="h-6 w-6" />
+    <div className="p-4 sm:p-6 lg:p-8 h-full overflow-y-auto">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 sm:mb-8">
+        <div className="flex items-center gap-2 sm:gap-4">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/beneficiaries')} className="h-9 w-9 sm:h-10 sm:w-10">
+            <ArrowLeft className="h-5 w-5 sm:h-6 sm:w-6" />
           </Button>
-          <h1 className="text-3xl font-bold text-white">Beneficiary Details</h1>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">Beneficiary Details</h1>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button variant="destructive" onClick={() => setShowDeleteDialog(true)}>
-            <Trash2 className="w-4 h-4 mr-2" />
-            Delete Beneficiary
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Button variant="destructive" onClick={() => setShowDeleteDialog(true)} className="h-9 sm:h-10 text-sm sm:text-base flex-1 sm:flex-initial">
+            <Trash2 className="w-4 h-4 mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">Delete Beneficiary</span>
+            <span className="sm:hidden">Delete</span>
           </Button>
-          <Button onClick={() => setIsEditing(true)}>
-            <Edit className="w-4 h-4 mr-2" />
-            Edit Beneficiary
+          <Button onClick={() => setIsEditing(true)} className="h-9 sm:h-10 text-sm sm:text-base flex-1 sm:flex-initial">
+            <Edit className="w-4 h-4 mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">Edit Beneficiary</span>
+            <span className="sm:hidden">Edit</span>
           </Button>
         </div>
       </div>
 
-      <Card className="glass-card mb-8">
-        <CardHeader className="flex flex-row items-center justify-between">
+      <Card className="glass-card mb-6 sm:mb-8">
+        <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 sm:p-6">
             <div>
-                <CardTitle>{beneficiaryName}</CardTitle>
-                <CardDescription>{beneficiary.beneficiary_type === 'individual' ? 'Individual' : 'Company'}</CardDescription>
+                <CardTitle className="text-lg sm:text-xl md:text-2xl">{beneficiaryName}</CardTitle>
+                <CardDescription className="text-sm sm:text-base">{beneficiary.beneficiary_type === 'individual' ? 'Individual' : 'Company'}</CardDescription>
             </div>
-            <div className="flex items-center space-x-2">
-                <Label htmlFor="show-details" className="text-white">Show Details</Label>
+            <div className="flex items-center space-x-2 w-full sm:w-auto">
+                <Label htmlFor="show-details" className="text-white text-sm sm:text-base">Show Details</Label>
                 <Switch id="show-details" checked={showDetails} onCheckedChange={setShowDetails} />
             </div>
         </CardHeader>
         {showDetails && (
-            <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-sm">
-                    <div className="space-y-1"><p className="text-gray-400">Email</p><p>{beneficiary.email || 'No email'}</p></div>
-                    <div className="space-y-1"><p className="text-gray-400">Phone</p><p>{beneficiary.phone}</p></div>
-                    <div className="space-y-1"><p className="text-gray-400">PAN</p><p>{beneficiary.pan || 'N/A'}</p></div>
-                    <div className="space-y-1"><p className="text-gray-400">Aadhar</p><p>{beneficiary.aadhar || 'N/A'}</p></div>
+            <CardContent className="p-4 sm:p-6 pt-0">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 text-sm">
+                    <div className="space-y-1"><p className="text-gray-400 text-xs sm:text-sm">Email</p><p className="text-sm sm:text-base">{beneficiary.email || 'No email'}</p></div>
+                    <div className="space-y-1"><p className="text-gray-400 text-xs sm:text-sm">Phone</p><p className="text-sm sm:text-base">{beneficiary.phone}</p></div>
+                    <div className="space-y-1"><p className="text-gray-400 text-xs sm:text-sm">PAN</p><p className="text-sm sm:text-base">{beneficiary.pan || 'N/A'}</p></div>
+                    <div className="space-y-1"><p className="text-gray-400 text-xs sm:text-sm">Aadhar</p><p className="text-sm sm:text-base">{beneficiary.aadhar || 'N/A'}</p></div>
                     {beneficiary.beneficiary_type === 'company' && (
                         <>
-                            <div className="space-y-1"><p className="text-gray-400">GSTIN</p><p>{beneficiary.gstin || 'N/A'}</p></div>
-                            <div className="space-y-1"><p className="text-gray-400">Proprietor Name</p><p>{beneficiary.proprietor_name || 'N/A'}</p></div>
+                            <div className="space-y-1"><p className="text-gray-400 text-xs sm:text-sm">GSTIN</p><p className="text-sm sm:text-base">{beneficiary.gstin || 'N/A'}</p></div>
+                            <div className="space-y-1"><p className="text-gray-400 text-xs sm:text-sm">Proprietor Name</p><p className="text-sm sm:text-base">{beneficiary.proprietor_name || 'N/A'}</p></div>
                         </>
                     )}
                 </div>
@@ -304,123 +306,143 @@ const BeneficiaryDetailsPage = () => {
 
       {/* Active bank accounts */}
       <Card className="glass-card">
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 sm:p-6">
           <div>
-            <CardTitle className="text-2xl font-bold text-white">Bank Accounts</CardTitle>
-            <CardDescription>Manage beneficiary's active bank accounts.</CardDescription>
+            <CardTitle className="text-xl sm:text-2xl font-bold text-white">Bank Accounts</CardTitle>
+            <CardDescription className="text-sm sm:text-base">Manage beneficiary's active bank accounts.</CardDescription>
           </div>
-          <Button onClick={() => setShowAddAccountDialog(true)}>
-            <Plus className="w-4 h-4 mr-2" /> Add Bank Account
+          <Button onClick={() => setShowAddAccountDialog(true)} className="h-9 sm:h-10 text-sm sm:text-base w-full sm:w-auto">
+            <Plus className="w-4 h-4 mr-1 sm:mr-2" /> 
+            <span className="hidden sm:inline">Add Bank Account</span>
+            <span className="sm:hidden">Add Account</span>
           </Button>
         </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Bank Name</TableHead>
-                <TableHead>Account Number</TableHead>
-                <TableHead>Account Type</TableHead>
-                <TableHead>IFSC Code</TableHead>
-                <TableHead>Branch Name</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {activeBankAccounts.length === 0 ? (
+        <CardContent className="p-0 sm:p-6">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-gray-400 py-6">
-                    No active bank accounts found.
-                  </TableCell>
+                  <TableHead className="text-xs sm:text-sm">Bank Name</TableHead>
+                  <TableHead className="text-xs sm:text-sm hidden sm:table-cell">Account Number</TableHead>
+                  <TableHead className="text-xs sm:text-sm">Account Type</TableHead>
+                  <TableHead className="text-xs sm:text-sm hidden md:table-cell">IFSC Code</TableHead>
+                  <TableHead className="text-xs sm:text-sm hidden lg:table-cell">Branch Name</TableHead>
+                  <TableHead className="text-xs sm:text-sm">Actions</TableHead>
                 </TableRow>
-              ) : (
-                activeBankAccounts.map((account) => (
-                  <TableRow key={account.id}>
-                    <TableCell>{account.bank_name}</TableCell>
-                    <TableCell>{account.account_number}</TableCell>
-                    <TableCell>{account.account_type}</TableCell>
-                    <TableCell>{account.ifsc_code}</TableCell>
-                    <TableCell>{account.branch_name}</TableCell>
-                    <TableCell>
-                      <Switch
-                        checked={account?.is_active !== false}
-                        onCheckedChange={(checked) => handleToggleBankAccountStatus(account, checked)}
-                        disabled={togglingBankAccountId === account.id}
-                      />
+              </TableHeader>
+              <TableBody>
+                {activeBankAccounts.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center text-gray-400 py-6 text-sm">
+                      No active bank accounts found.
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      {/* Inactive bank accounts */}
-      <Card className="glass-card mt-6">
-        <CardHeader>
-          <CardTitle className="text-2xl font-bold text-white">Inactive Bank Accounts</CardTitle>
-          <CardDescription>
-            Deactivated bank accounts appear here. You can permanently delete them.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Bank Name</TableHead>
-                <TableHead>Account Number</TableHead>
-                <TableHead>Account Type</TableHead>
-                <TableHead>IFSC Code</TableHead>
-                <TableHead>Branch Name</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {inactiveBankAccounts.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center text-gray-400 py-6">
-                    No inactive bank accounts found.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                inactiveBankAccounts.map((account) => (
-                  <TableRow key={account.id}>
-                    <TableCell>{account.bank_name}</TableCell>
-                    <TableCell>{account.account_number}</TableCell>
-                    <TableCell>{account.account_type}</TableCell>
-                    <TableCell>{account.ifsc_code}</TableCell>
-                    <TableCell>{account.branch_name}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
+                ) : (
+                  activeBankAccounts.map((account) => (
+                    <TableRow key={account.id}>
+                      <TableCell className="text-xs sm:text-sm">
+                        <div className="flex flex-col sm:block">
+                          <span className="font-medium">{account.bank_name}</span>
+                          <span className="text-gray-400 text-xs sm:hidden mt-1">Acc: {account.account_number}</span>
+                          <span className="text-gray-400 text-xs sm:hidden mt-1">IFSC: {account.ifsc_code}</span>
+                          <span className="text-gray-400 text-xs sm:hidden mt-1">Branch: {account.branch_name}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-xs sm:text-sm hidden sm:table-cell">{account.account_number}</TableCell>
+                      <TableCell className="text-xs sm:text-sm">{account.account_type}</TableCell>
+                      <TableCell className="text-xs sm:text-sm hidden md:table-cell">{account.ifsc_code}</TableCell>
+                      <TableCell className="text-xs sm:text-sm hidden lg:table-cell">{account.branch_name}</TableCell>
+                      <TableCell>
                         <Switch
                           checked={account?.is_active !== false}
                           onCheckedChange={(checked) => handleToggleBankAccountStatus(account, checked)}
                           disabled={togglingBankAccountId === account.id}
                         />
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="text-red-400"
-                          onClick={() => handleDeleteAccountClick(account)}
-                          title="Delete permanently"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Inactive bank accounts */}
+      <Card className="glass-card mt-4 sm:mt-6">
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-xl sm:text-2xl font-bold text-white">Inactive Bank Accounts</CardTitle>
+          <CardDescription className="text-sm sm:text-base">
+            Deactivated bank accounts appear here. You can permanently delete them.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-0 sm:p-6">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-xs sm:text-sm">Bank Name</TableHead>
+                  <TableHead className="text-xs sm:text-sm hidden sm:table-cell">Account Number</TableHead>
+                  <TableHead className="text-xs sm:text-sm">Account Type</TableHead>
+                  <TableHead className="text-xs sm:text-sm hidden md:table-cell">IFSC Code</TableHead>
+                  <TableHead className="text-xs sm:text-sm hidden lg:table-cell">Branch Name</TableHead>
+                  <TableHead className="text-xs sm:text-sm">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {inactiveBankAccounts.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center text-gray-400 py-6 text-sm">
+                      No inactive bank accounts found.
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : (
+                  inactiveBankAccounts.map((account) => (
+                    <TableRow key={account.id}>
+                      <TableCell className="text-xs sm:text-sm">
+                        <div className="flex flex-col sm:block">
+                          <span className="font-medium">{account.bank_name}</span>
+                          <span className="text-gray-400 text-xs sm:hidden mt-1">Acc: {account.account_number}</span>
+                          <span className="text-gray-400 text-xs sm:hidden mt-1">IFSC: {account.ifsc_code}</span>
+                          <span className="text-gray-400 text-xs sm:hidden mt-1">Branch: {account.branch_name}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-xs sm:text-sm hidden sm:table-cell">{account.account_number}</TableCell>
+                      <TableCell className="text-xs sm:text-sm">{account.account_type}</TableCell>
+                      <TableCell className="text-xs sm:text-sm hidden md:table-cell">{account.ifsc_code}</TableCell>
+                      <TableCell className="text-xs sm:text-sm hidden lg:table-cell">{account.branch_name}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2 sm:gap-3">
+                          <Switch
+                            checked={account?.is_active !== false}
+                            onCheckedChange={(checked) => handleToggleBankAccountStatus(account, checked)}
+                            disabled={togglingBankAccountId === account.id}
+                          />
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="text-red-400 h-8 w-8 sm:h-9 sm:w-9"
+                            onClick={() => handleDeleteAccountClick(account)}
+                            title="Delete permanently"
+                          >
+                            <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
       <Dialog open={isEditing} onOpenChange={setIsEditing}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-                <DialogTitle>Edit Beneficiary</DialogTitle>
-                <DialogDescription>Make changes to the beneficiary details below.</DialogDescription>
+                <DialogTitle className="text-lg sm:text-xl">Edit Beneficiary</DialogTitle>
+                <DialogDescription className="text-sm">Make changes to the beneficiary details below.</DialogDescription>
             </DialogHeader>
             {editableBeneficiary && (
                 <form onSubmit={handleUpdate} className="space-y-4 pt-4">
@@ -466,10 +488,10 @@ const BeneficiaryDetailsPage = () => {
       </Dialog>
 
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent>
+        <DialogContent className="w-[95vw] sm:w-full">
           <DialogHeader>
-            <DialogTitle>Delete Beneficiary</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-lg sm:text-xl">Delete Beneficiary</DialogTitle>
+            <DialogDescription className="text-sm">
               This will permanently delete the entire beneficiary <span className="font-semibold">{beneficiaryName}</span>. This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
@@ -501,12 +523,12 @@ const BeneficiaryDetailsPage = () => {
       </Dialog>
 
       <Dialog open={showDeleteBankDialog} onOpenChange={setShowDeleteBankDialog}>
-        <DialogContent>
+        <DialogContent className="w-[95vw] sm:w-full">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="text-lg sm:text-xl">
               {selectedBankAccount?.is_active === false ? 'Delete Bank Account (Permanent)' : 'Move Bank Account to Inactive'}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-sm">
               {selectedBankAccount?.is_active === false
                 ? 'This will permanently delete the bank account. This action cannot be undone.'
                 : <>Are you sure you want to move this bank account to <span className="font-semibold">Inactive Bank Accounts</span>?</>}
@@ -545,9 +567,9 @@ const BeneficiaryDetailsPage = () => {
       </Dialog>
 
       <Dialog open={showAddAccountDialog} onOpenChange={setShowAddAccountDialog}>
-        <DialogContent>
+        <DialogContent className="w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Add Bank Account</DialogTitle>
+            <DialogTitle className="text-lg sm:text-xl">Add Bank Account</DialogTitle>
           </DialogHeader>
           <div className="py-4">
             {beneficiary && (

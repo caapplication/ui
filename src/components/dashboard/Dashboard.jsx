@@ -11,14 +11,14 @@ const StatCard = ({ title, value, description, icon, color, delay }) => {
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay }}>
       <Card className="glass-card card-hover overflow-hidden h-full">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-gray-300">{title}</CardTitle>
-          <div className={`w-10 h-10 bg-gradient-to-r ${color} rounded-lg flex items-center justify-center shadow-lg shadow-black/20`}>
-            <Icon className="w-5 h-5 text-white" />
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 sm:p-6">
+          <CardTitle className="text-xs sm:text-sm font-medium text-gray-300">{title}</CardTitle>
+          <div className={`w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r ${color} rounded-lg flex items-center justify-center shadow-lg shadow-black/20 flex-shrink-0`}>
+            <Icon className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
           </div>
         </CardHeader>
-        <CardContent>
-          <div className="text-4xl font-bold text-white">{value}</div>
+        <CardContent className="p-4 sm:p-6 pt-0">
+          <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white">{value}</div>
           <p className="text-xs text-gray-400 mt-1">{description}</p>
         </CardContent>
       </Card>
@@ -29,12 +29,12 @@ const StatCard = ({ title, value, description, icon, color, delay }) => {
 const TransactionItem = ({ transaction }) => {
     const amount = parseFloat(transaction.amount).toFixed(2);
     return (
-        <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg hover:bg-white/10 transition-colors duration-300">
-            <div>
-                <p className="text-white font-medium capitalize">{transaction.remarks || `${transaction.voucher_type} voucher`}</p>
-                <p className="text-gray-400 text-sm">{new Date(transaction.created_date).toLocaleDateString()}</p>
+        <div className="flex items-center justify-between p-3 sm:p-4 bg-white/5 rounded-lg hover:bg-white/10 transition-colors duration-300 gap-3">
+            <div className="flex-1 min-w-0">
+                <p className="text-white font-medium capitalize text-sm sm:text-base truncate">{transaction.remarks || `${transaction.voucher_type} voucher`}</p>
+                <p className="text-gray-400 text-xs sm:text-sm">{new Date(transaction.created_date).toLocaleDateString()}</p>
             </div>
-            <div className={`font-semibold text-lg text-red-400`}>
+            <div className={`font-semibold text-base sm:text-lg text-red-400 flex-shrink-0`}>
                 ₹{amount}
             </div>
         </div>
@@ -78,38 +78,38 @@ const Dashboard = ({ entityId, entityName, onQuickAction, organisationBankAccoun
       ] : [];
   
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-        <div className="flex items-center space-x-4 mb-10">
-            <h1 className="text-5xl font-bold text-white">{entityName}</h1>
+        <div className="flex items-center space-x-4 mb-6 sm:mb-8 lg:mb-10">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white break-words">{entityName}</h1>
         </div>
         
         {isLoading ? (
             <div className="flex justify-center items-center h-64">
-                <Loader2 className="w-12 h-12 animate-spin text-white" />
+                <Loader2 className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 animate-spin text-white" />
             </div>
         ) : (
         <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-10">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8 mb-6 sm:mb-8 lg:mb-10">
                 {stats.map((stat, index) => (
                     <StatCard key={stat.title} {...stat} delay={index * 0.1} />
                 ))}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
                 <Card className="glass-card lg:col-span-2">
-                    <CardHeader>
-                        <CardTitle>Recent Transactions</CardTitle>
-                        <CardDescription>Your latest financial activities for {entityName}</CardDescription>
+                    <CardHeader className="p-4 sm:p-6">
+                        <CardTitle className="text-lg sm:text-xl">Recent Transactions</CardTitle>
+                        <CardDescription className="text-sm sm:text-base">Your latest financial activities for {entityName}</CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <div className="space-y-4">
+                    <CardContent className="p-4 sm:p-6">
+                        <div className="space-y-3 sm:space-y-4">
                             {dashboardData?.recent_vouchers?.length > 0 ? (
                                 dashboardData.recent_vouchers.map((transaction) => (
                                     <TransactionItem key={transaction.id} transaction={transaction} />
                                 ))
                             ) : (
-                                <div className="text-center py-10 text-gray-400">
+                                <div className="text-center py-8 sm:py-10 text-gray-400 text-sm sm:text-base">
                                     No recent transactions found.
                                 </div>
                             )}
@@ -118,12 +118,12 @@ const Dashboard = ({ entityId, entityName, onQuickAction, organisationBankAccoun
                 </Card>
 
                 <Card className="glass-card">
-                    <CardHeader>
-                    <CardTitle>Quick Actions</CardTitle>
-                    <CardDescription>Frequently used features</CardDescription>
+                    <CardHeader className="p-4 sm:p-6">
+                    <CardTitle className="text-lg sm:text-xl">Quick Actions</CardTitle>
+                    <CardDescription className="text-sm sm:text-base">Frequently used features</CardDescription>
                     </CardHeader>
-                    <CardContent>
-                    <div className="grid grid-cols-2 gap-4">
+                    <CardContent className="p-4 sm:p-6">
+                    <div className="grid grid-cols-2 gap-3 sm:gap-4">
                         {[
                         { label: 'Add Beneficiary', icon: Users, action: 'add-beneficiary' },
                         { label: 'Add Invoice', icon: FileText, action: 'add-invoice' },
@@ -136,11 +136,11 @@ const Dashboard = ({ entityId, entityName, onQuickAction, organisationBankAccoun
                             key={action.label}
                             whileHover={{ scale: 1.05, backgroundColor: 'rgba(255, 255, 255, 0.15)' }}
                             whileTap={{ scale: 0.95 }}
-                            className="p-4 bg-white/10 rounded-lg border border-white/20 transition-all duration-300 text-center flex flex-col items-center justify-center space-y-2 h-28"
+                            className="p-3 sm:p-4 bg-white/10 rounded-lg border border-white/20 transition-all duration-300 text-center flex flex-col items-center justify-center space-y-2 h-24 sm:h-28"
                             onClick={() => onQuickAction(action.action)}
                             >
-                            <Icon className="w-7 h-7 text-sky-400" />
-                            <p className="text-white text-sm font-medium text-center">{action.label}</p>
+                            <Icon className="w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7 text-sky-400" />
+                            <p className="text-white text-xs sm:text-sm font-medium text-center leading-tight">{action.label}</p>
                             </motion.button>
                         );
                         })}
