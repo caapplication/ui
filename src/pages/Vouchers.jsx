@@ -2,13 +2,13 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { motion } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useToast } from '@/components/ui/use-toast';
-import { getCATeamVouchers, listEntities } from '@/lib/api';
+import { getCATeamVouchers, getCATeamVouchersBulk, listEntities } from '@/lib/api';
 import VoucherHistory from '@/components/finance/VoucherHistory';
 import { VoucherHistorySkeleton } from '@/components/finance/VoucherHistorySkeleton';
 import { useNavigate } from 'react-router-dom';
 import { useApiCache } from '@/contexts/ApiCacheContext.jsx';
 
-const Vouchers = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefresh }) => {
+const Vouchers = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefresh, isActive = true }) => {
   const [vouchers, setVouchers] = useState([]);
   const [entities, setEntities] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -44,15 +44,18 @@ const Vouchers = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
       return;
     }
     
-    // Check cache first before making any API calls
+    // OPTIMIZATION: Check cache first and show immediately, then refresh in background
     if (selectedEntity !== 'all') {
       const cacheKey = { entityId: selectedEntity, token: user.access_token };
       const cached = cache.get('getCATeamVouchers', cacheKey);
-      if (cached && lastFetchKey.current === fetchKey) {
-        // We have cached data for this exact fetch, use it
+      if (cached) {
+        // Show cached data immediately for instant UI response
         setVouchers(cached);
         setIsLoading(false);
-        return;
+        // If this is the same fetch key, we already have fresh data
+        if (lastFetchKey.current === fetchKey) {
+          return;
+        }
       }
     }
     
@@ -62,7 +65,10 @@ const Vouchers = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
       return;
     }
     
-    setIsLoading(true);
+    // Only show loading if we don't have cached data
+    if (vouchers.length === 0) {
+      setIsLoading(true);
+    }
     setHasAttemptedLoad(true);
     lastFetchKey.current = fetchKey;
     isFetchingRef.current = true;
@@ -100,24 +106,68 @@ const Vouchers = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
     }
 
     try {
-      // Check cache for each entity's vouchers and deduplicate requests
-      const fetchPromises = entityIdsToFetch.map(async (id) => {
+      // ULTRA-FAST OPTIMIZATION: Use bulk endpoint when fetching multiple entities
+      if (entityIdsToFetch.length > 1) {
+        // Use bulk endpoint - single API call instead of N calls
+        const cacheKey = { entityIds: entityIdsToFetch.sort().join(','), token: user.access_token };
+        const requestKey = `getCATeamVouchersBulk-${cacheKey.entityIds}-${user.access_token}`;
+        
+        // Check cache first
+        let cached = cache.get('getCATeamVouchersBulk', cacheKey);
+        if (cached) {
+          setVouchers(cached);
+          setIsLoading(false);
+          return;
+        }
+        
+        // Check if there's already a pending request
+        if (pendingRequestsRef.current.has(requestKey)) {
+          const data = await pendingRequestsRef.current.get(requestKey);
+          setVouchers(data);
+          setIsLoading(false);
+          return;
+        }
+        
+        // Create bulk request
+        const requestPromise = getCATeamVouchersBulk(entityIdsToFetch, user.access_token)
+          .then(data => {
+            // Sort by created_date descending
+            const sorted = data.sort((a, b) => new Date(b.created_date || b.created_at || 0) - new Date(a.created_date || a.created_at || 0));
+            cache.set('getCATeamVouchersBulk', cacheKey, sorted);
+            pendingRequestsRef.current.delete(requestKey);
+            return sorted;
+          })
+          .catch(error => {
+            pendingRequestsRef.current.delete(requestKey);
+            throw error;
+          });
+        
+        pendingRequestsRef.current.set(requestKey, requestPromise);
+        const allVouchers = await requestPromise;
+        setVouchers(allVouchers);
+      } else {
+        // Single entity - use regular endpoint
+        const id = entityIdsToFetch[0];
         const cacheKey = { entityId: id, token: user.access_token };
         const requestKey = `getCATeamVouchers-${id}-${user.access_token}`;
         
         // Check cache first
         let cached = cache.get('getCATeamVouchers', cacheKey);
         if (cached) {
-          return cached;
+          setVouchers(cached);
+          setIsLoading(false);
+          return;
         }
         
-        // Check if there's already a pending request for this entity
+        // Check if there's already a pending request
         if (pendingRequestsRef.current.has(requestKey)) {
-          // Wait for the existing request to complete
-          return await pendingRequestsRef.current.get(requestKey);
+          const data = await pendingRequestsRef.current.get(requestKey);
+          setVouchers(data);
+          setIsLoading(false);
+          return;
         }
         
-        // Create a new request and store it
+        // Create request
         const requestPromise = getCATeamVouchers(id, user.access_token)
           .then(data => {
             cache.set('getCATeamVouchers', cacheKey, data);
@@ -130,16 +180,9 @@ const Vouchers = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
           });
         
         pendingRequestsRef.current.set(requestKey, requestPromise);
-        return await requestPromise;
-      });
-      
-      const results = await Promise.allSettled(fetchPromises);
-      const allVouchers = results
-        .filter(res => res.status === 'fulfilled' && Array.isArray(res.value))
-        .flatMap(res => res.value)
-        .sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
-      
-      setVouchers(allVouchers);
+        const vouchers = await requestPromise;
+        setVouchers(vouchers);
+      }
     } catch (error) {
       toast({
         title: 'Error',
@@ -154,10 +197,12 @@ const Vouchers = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
   }, [selectedOrganisation, selectedEntity, user?.access_token, toast, hasAttemptedLoad, cache, vouchers.length]);
 
   useEffect(() => {
-    // Only fetch if entity or organization changes, not when switching tabs
-    fetchDataForClient();
+    // Only fetch if tab is active and entity or organization changes
+    if (isActive) {
+      fetchDataForClient();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedOrganisation, selectedEntity, user?.access_token]); // Removed isDataLoading to prevent refetch on tab switch
+  }, [selectedOrganisation, selectedEntity, user?.access_token, isActive]); // Only fetch when tab is active
 
   const handleViewVoucher = (voucher) => {
     navigate(`/vouchers/ca/${voucher.id}`, { state: { voucher, vouchers: enrichedVouchers, organisationId: selectedOrganisation } });

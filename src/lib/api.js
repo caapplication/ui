@@ -62,7 +62,9 @@ export const {
     deleteVoucher,
     getVoucherAttachment,
     getCATeamVouchers,
+    getCATeamVouchersBulk,
     getCATeamInvoices,
+    getCATeamInvoicesBulk,
     getCATeamInvoiceAttachment,
     exportVouchersToTallyXML,
     getActivityLog

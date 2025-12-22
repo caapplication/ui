@@ -353,6 +353,16 @@ export const getCATeamVouchers = async (entityId, token) => {
     return Array.isArray(vouchers) ? vouchers : [];
 };
 
+export const getCATeamVouchersBulk = async (entityIds, token) => {
+    // Bulk endpoint - accepts comma-separated entity IDs for MUCH faster performance
+    const entityIdsStr = Array.isArray(entityIds) ? entityIds.join(',') : entityIds;
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/vouchers/bulk?entity_ids=${entityIdsStr}`, {
+        headers: getAuthHeaders(token),
+    });
+    const vouchers = await handleResponse(response);
+    return Array.isArray(vouchers) ? vouchers : [];
+};
+
 export const getCATeamInvoiceAttachment = async (invoiceId, token) => {
     const response = await fetch(`${FINANCE_API_BASE_URL}/api/invoices/${invoiceId}/attachment`, {
         headers: getAuthHeaders(token),
@@ -366,6 +376,16 @@ export const getCATeamInvoiceAttachment = async (invoiceId, token) => {
 
 export const getCATeamInvoices = async (entityId, token) => {
     const response = await fetch(`${FINANCE_API_BASE_URL}/api/invoices/all?entity_id=${entityId}`, {
+        headers: getAuthHeaders(token),
+    });
+    const invoices = await handleResponse(response);
+    return Array.isArray(invoices) ? invoices : [];
+};
+
+export const getCATeamInvoicesBulk = async (entityIds, token) => {
+    // Bulk endpoint - accepts comma-separated entity IDs for MUCH faster performance
+    const entityIdsStr = Array.isArray(entityIds) ? entityIds.join(',') : entityIds;
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/invoices/bulk?entity_ids=${entityIdsStr}`, {
         headers: getAuthHeaders(token),
     });
     const invoices = await handleResponse(response);

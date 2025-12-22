@@ -2,13 +2,13 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useToast } from '@/components/ui/use-toast';
-import { getCATeamInvoices, listEntities } from '@/lib/api';
+import { getCATeamInvoices, getCATeamInvoicesBulk, listEntities } from '@/lib/api';
 import InvoiceHistory from '@/components/finance/InvoiceHistory';
 import { InvoiceHistorySkeleton } from '@/components/finance/InvoiceHistorySkeleton';
 import { useNavigate } from 'react-router-dom';
 import { useApiCache } from '@/contexts/ApiCacheContext.jsx';
 
-const Invoices = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefresh }) => {
+const Invoices = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefresh, isActive = true }) => {
   const [invoices, setInvoices] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
@@ -43,15 +43,18 @@ const Invoices = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
       return;
     }
     
-    // Check cache first before making any API calls
+    // OPTIMIZATION: Check cache first and show immediately, then refresh in background
     if (selectedEntity !== 'all') {
       const cacheKey = { entityId: selectedEntity, token: user.access_token };
       const cached = cache.get('getCATeamInvoices', cacheKey);
-      if (cached && lastFetchKey.current === fetchKey) {
-        // We have cached data for this exact fetch, use it
+      if (cached) {
+        // Show cached data immediately for instant UI response
         setInvoices(cached);
         setIsLoading(false);
-        return;
+        // If this is the same fetch key, we already have fresh data
+        if (lastFetchKey.current === fetchKey) {
+          return;
+        }
       }
     }
     
@@ -61,7 +64,10 @@ const Invoices = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
       return;
     }
     
-    setIsLoading(true);
+    // Only show loading if we don't have cached data
+    if (invoices.length === 0) {
+      setIsLoading(true);
+    }
     setHasAttemptedLoad(true);
     lastFetchKey.current = fetchKey;
     isFetchingRef.current = true;
@@ -96,24 +102,66 @@ const Invoices = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
     }
 
     try {
-      // Check cache for each entity's invoices and deduplicate requests
-      const fetchPromises = entityIdsToFetch.map(async (id) => {
+      // ULTRA-FAST OPTIMIZATION: Use bulk endpoint when fetching multiple entities
+      if (entityIdsToFetch.length > 1) {
+        // Use bulk endpoint - single API call instead of N calls
+        const cacheKey = { entityIds: entityIdsToFetch.sort().join(','), token: user.access_token };
+        const requestKey = `getCATeamInvoicesBulk-${cacheKey.entityIds}-${user.access_token}`;
+        
+        // Check cache first
+        let cached = cache.get('getCATeamInvoicesBulk', cacheKey);
+        if (cached) {
+          setInvoices(cached);
+          setIsLoading(false);
+          return;
+        }
+        
+        // Check if there's already a pending request
+        if (pendingRequestsRef.current.has(requestKey)) {
+          const data = await pendingRequestsRef.current.get(requestKey);
+          setInvoices(data);
+          setIsLoading(false);
+          return;
+        }
+        
+        // Create bulk request
+        const requestPromise = getCATeamInvoicesBulk(entityIdsToFetch, user.access_token)
+          .then(data => {
+            cache.set('getCATeamInvoicesBulk', cacheKey, data);
+            pendingRequestsRef.current.delete(requestKey);
+            return data;
+          })
+          .catch(error => {
+            pendingRequestsRef.current.delete(requestKey);
+            throw error;
+          });
+        
+        pendingRequestsRef.current.set(requestKey, requestPromise);
+        const allInvoices = await requestPromise;
+        setInvoices(allInvoices);
+      } else {
+        // Single entity - use regular endpoint
+        const id = entityIdsToFetch[0];
         const cacheKey = { entityId: id, token: user.access_token };
         const requestKey = `getCATeamInvoices-${id}-${user.access_token}`;
         
         // Check cache first
         let cached = cache.get('getCATeamInvoices', cacheKey);
         if (cached) {
-          return cached;
+          setInvoices(cached);
+          setIsLoading(false);
+          return;
         }
         
-        // Check if there's already a pending request for this entity
+        // Check if there's already a pending request
         if (pendingRequestsRef.current.has(requestKey)) {
-          // Wait for the existing request to complete
-          return await pendingRequestsRef.current.get(requestKey);
+          const data = await pendingRequestsRef.current.get(requestKey);
+          setInvoices(data);
+          setIsLoading(false);
+          return;
         }
         
-        // Create a new request and store it
+        // Create request
         const requestPromise = getCATeamInvoices(id, user.access_token)
           .then(data => {
             cache.set('getCATeamInvoices', cacheKey, data);
@@ -126,15 +174,9 @@ const Invoices = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
           });
         
         pendingRequestsRef.current.set(requestKey, requestPromise);
-        return await requestPromise;
-      });
-      
-      const results = await Promise.allSettled(fetchPromises);
-      const allInvoices = results
-        .filter(res => res.status === 'fulfilled' && Array.isArray(res.value))
-        .flatMap(res => res.value);
-      
-      setInvoices(allInvoices);
+        const invoices = await requestPromise;
+        setInvoices(invoices);
+      }
     } catch (error) {
       toast({
         title: 'Error',
@@ -149,10 +191,12 @@ const Invoices = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
   }, [selectedOrganisation, selectedEntity, user?.access_token, toast, hasAttemptedLoad, cache, invoices.length]);
 
   useEffect(() => {
-    // Only fetch if entity or organization changes, not when switching tabs
-    fetchDataForClient();
+    // Only fetch if tab is active and entity or organization changes
+    if (isActive) {
+      fetchDataForClient();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedOrganisation, selectedEntity, user?.access_token]); // Removed isDataLoading to prevent refetch on tab switch
+  }, [selectedOrganisation, selectedEntity, user?.access_token, isActive]); // Only fetch when tab is active
 
   const handleViewInvoice = (invoice) => {
     const currentIndex = invoices.findIndex(inv => inv.id === invoice.id);

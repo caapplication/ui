@@ -49,6 +49,8 @@ import { handleResponse, getAuthHeaders } from './utils';
       deleteVoucher,
       getCATeamVouchers,
       getCATeamInvoices,
+      getCATeamVouchersBulk,
+      getCATeamInvoicesBulk,
       getCATeamInvoiceAttachment,
       exportVouchersToTallyXML,
       getActivityLog,

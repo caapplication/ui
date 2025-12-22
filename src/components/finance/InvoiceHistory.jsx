@@ -336,7 +336,7 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onRefresh, i
                                 </TableCell>
                             )}
                                 <TableCell className="text-xs sm:text-sm">
-                                    <div className="flex items-center justify-center gap-1 sm:gap-2">
+                                    <div className="flex items-center gap-1 sm:gap-2">
                                         {user?.role === 'CLIENT_USER' ? (
                                             <Button
                                                 variant="ghost"
@@ -351,13 +351,25 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onRefresh, i
                                         ) : (
                                             <>
                                                 {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') ? (
-                                                    <Button variant="link" onClick={(e) => { e.stopPropagation(); handleViewAttachment(invoice); }} className="text-sky-400 h-8 w-8 sm:h-10 sm:w-10" title="View Invoice">
-                                                        <Eye className="w-4 h-4" />
+                                                    <Button 
+                                                        variant="ghost" 
+                                                        size="icon"
+                                                        onClick={(e) => { e.stopPropagation(); handleViewAttachment(invoice); }} 
+                                                        className="text-gray-400 hover:text-gray-300 h-8 w-8 sm:h-10 sm:w-10"
+                                                        title="View Invoice"
+                                                    >
+                                                        <Eye className="w-4 h-4 sm:w-5 sm:h-5" />
                                                     </Button>
                                                 ) : (
                                                     invoice.attachment_id && (
-                                                        <Button variant="link" onClick={(e) => { e.stopPropagation(); handleViewAttachment(invoice); }} className="text-sky-400 h-8 w-8 sm:h-10 sm:w-10" title="View Attachment">
-                                                            <Eye className="w-4 h-4" />
+                                                        <Button 
+                                                            variant="ghost" 
+                                                            size="icon"
+                                                            onClick={(e) => { e.stopPropagation(); handleViewAttachment(invoice); }} 
+                                                            className="text-gray-400 hover:text-gray-300 h-8 w-8 sm:h-10 sm:w-10"
+                                                            title="View Attachment"
+                                                        >
+                                                            <Eye className="w-4 h-4 sm:w-5 sm:h-5" />
                                                         </Button>
                                                     )
                                                 )}
