@@ -131,9 +131,9 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
 
   return (
     <Card className="glass-card mt-4">
-        <CardHeader>
-            <div className="flex justify-between items-center">
-                <div className="flex items-center gap-4">
+        <CardHeader className="p-4 sm:p-6">
+            <div className="flex flex-col gap-4">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-4">
                     <Select
                         value=""
                         onValueChange={filter => {
@@ -142,7 +142,7 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                             }
                         }}
                     >
-                        <SelectTrigger className="w-[180px]">
+                        <SelectTrigger className="w-full sm:w-[180px] text-sm sm:text-base">
                             <SelectValue placeholder="Add Filter" />
                         </SelectTrigger>
                         <SelectContent>
@@ -154,13 +154,13 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                         </SelectContent>
                     </Select>
                     {activeFilters.map(filter => (
-                        <div key={filter} className="flex items-center gap-2">
+                        <div key={filter} className="flex items-center gap-2 flex-wrap">
                             {filter === 'beneficiary' && (
                                 <Input
                                     placeholder="Search by beneficiary..."
                                     value={filterValues.beneficiary || ''}
                                     onChange={e => setFilterValues(fv => ({ ...fv, beneficiary: e.target.value }))}
-                                    className="max-w-xs"
+                                    className="w-full sm:max-w-xs text-sm sm:text-base"
                                 />
                             )}
                             {filter === 'voucher_id' && (
@@ -168,7 +168,7 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                                     placeholder="Search by voucher ID..."
                                     value={filterValues.voucher_id || ''}
                                     onChange={e => setFilterValues(fv => ({ ...fv, voucher_id: e.target.value }))}
-                                    className="max-w-xs"
+                                    className="w-full sm:max-w-xs text-sm sm:text-base"
                                 />
                             )}
                             {filter === 'type' && (
@@ -176,7 +176,7 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                                     value={filterValues.type || 'all'}
                                     onValueChange={val => setFilterValues(fv => ({ ...fv, type: val }))}
                                 >
-                                    <SelectTrigger className="w-[180px]">
+                                    <SelectTrigger className="w-full sm:w-[180px] text-sm sm:text-base">
                                         <SelectValue placeholder="All Types" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -187,20 +187,20 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                                 </Select>
                             )}
                             {filter === 'date' && (
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 flex-wrap">
                                     <Input
                                         type="date"
                                         value={filterValues.dateFrom || ''}
                                         onChange={e => setFilterValues(fv => ({ ...fv, dateFrom: e.target.value }))}
-                                        className="max-w-xs"
+                                        className="w-full sm:max-w-xs text-sm sm:text-base"
                                         placeholder="From"
                                     />
-                                    <span className="text-gray-400">to</span>
+                                    <span className="text-gray-400 text-sm">to</span>
                                     <Input
                                         type="date"
                                         value={filterValues.dateTo || ''}
                                         onChange={e => setFilterValues(fv => ({ ...fv, dateTo: e.target.value }))}
-                                        className="max-w-xs"
+                                        className="w-full sm:max-w-xs text-sm sm:text-base"
                                         placeholder="To"
                                     />
                                 </div>
@@ -210,7 +210,7 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                                     placeholder="Search by remarks..."
                                     value={filterValues.remarks || ''}
                                     onChange={e => setFilterValues(fv => ({ ...fv, remarks: e.target.value }))}
-                                    className="max-w-xs"
+                                    className="w-full sm:max-w-xs text-sm sm:text-base"
                                 />
                             )}
                             <Button
@@ -230,6 +230,7 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                                     });
                                 }}
                                 title="Remove filter"
+                                className="h-8 w-8 sm:h-10 sm:w-10"
                             >
                                 ×
                             </Button>
@@ -238,18 +239,19 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                 </div>
             </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0 sm:p-6">
+            <div className="overflow-x-auto">
              <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Voucher ID</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Beneficiaries</TableHead>
-                        <TableHead>Amount</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Remarks</TableHead>
-                        <TableHead>Actions</TableHead>
+                        <TableHead className="text-xs sm:text-sm">Date</TableHead>
+                        <TableHead className="text-xs sm:text-sm">Voucher ID</TableHead>
+                        <TableHead className="text-xs sm:text-sm">Type</TableHead>
+                        <TableHead className="text-xs sm:text-sm">Beneficiaries</TableHead>
+                        <TableHead className="text-xs sm:text-sm">Amount</TableHead>
+                        <TableHead className="text-xs sm:text-sm">Status</TableHead>
+                        <TableHead className="text-xs sm:text-sm">Remarks</TableHead>
+                        <TableHead className="text-xs sm:text-sm">Actions</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -257,20 +259,20 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                         const { date, time } = formatDate(voucher.created_date);
                         return (
                             <TableRow key={voucher.id} onClick={() => onViewVoucher(voucher)} className={`transition-colors cursor-pointer ${voucher.is_ready ? 'bg-green-500/10' : ''}`}>
-                                <TableCell>
+                                <TableCell className="text-xs sm:text-sm">
                                     <div>{date}</div>
                                     <div className="text-xs text-gray-400">{time}</div>
                                 </TableCell>
-<TableCell>{voucher.voucher_id ? voucher.voucher_id : (voucher.id ? voucher.id : '-')}</TableCell>
-                                <TableCell>
-                                    <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${voucher.voucher_type === 'cash' ? 'bg-green-500/20 text-green-300' : 'bg-pink-500/20 text-pink-300'}`}>
+<TableCell className="text-xs sm:text-sm">{voucher.voucher_id ? voucher.voucher_id : (voucher.id ? voucher.id : '-')}</TableCell>
+                                <TableCell className="text-xs sm:text-sm">
+                                    <span className={`px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-medium capitalize ${voucher.voucher_type === 'cash' ? 'bg-green-500/20 text-green-300' : 'bg-pink-500/20 text-pink-300'}`}>
                                         {voucher.voucher_type}
                                     </span>
                                 </TableCell>
-                                <TableCell>{voucher.beneficiaryName}</TableCell>
-                                <TableCell>₹{parseFloat(voucher.amount).toFixed(2)}</TableCell>
-                                <TableCell>
-                                    <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${
+                                <TableCell className="text-xs sm:text-sm truncate max-w-[120px] sm:max-w-none">{voucher.beneficiaryName}</TableCell>
+                                <TableCell className="text-xs sm:text-sm">₹{parseFloat(voucher.amount).toFixed(2)}</TableCell>
+                                <TableCell className="text-xs sm:text-sm">
+                                    <span className={`px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-medium capitalize ${
                                         voucher.status === 'approved' 
                                             ? 'bg-green-500/20 text-green-300' 
                                             : voucher.status === 'rejected'
@@ -280,23 +282,23 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                                         {voucher.status || 'created'}
                                     </span>
                                 </TableCell>
-                                <TableCell>{voucher.remarks || 'N/A'}</TableCell>
-                                <TableCell>
-                                    <div className="flex items-center gap-2">
+                                <TableCell className="text-xs sm:text-sm truncate max-w-[100px] sm:max-w-none">{voucher.remarks || 'N/A'}</TableCell>
+                                <TableCell className="text-xs sm:text-sm">
+                                    <div className="flex items-center gap-1 sm:gap-2">
                                         <Button
                                             variant="ghost"
                                             size="icon"
                                             onClick={(e) => { e.stopPropagation(); onViewVoucher(voucher); }}
-                                            className="text-gray-400 hover:text-gray-300"
+                                            className="text-gray-400 hover:text-gray-300 h-8 w-8 sm:h-10 sm:w-10"
                                             tooltip="View: See voucher details"
                                         >
-                                            <Eye className="w-5 h-5" />
+                                            <Eye className="w-4 h-4 sm:w-5 sm:h-5" />
                                         </Button>
                                         {!voucher.is_ready && voucher.finance_header_id && (user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
                                             <Button
                                                 variant="outline"
                                                 size="icon"
-                                                className="text-green-400 hover:text-green-300"
+                                                className="text-green-400 hover:text-green-300 h-8 w-8 sm:h-10 sm:w-10"
                                                 disabled={readyLoadingId === voucher.id}
                                                 style={readyLoadingId === voucher.id ? { opacity: 0.5, pointerEvents: 'none' } : {}}
                                                 onClick={async () => {
@@ -313,12 +315,12 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                                                 }}
                                             >
                                                 {readyLoadingId === voucher.id ? (
-                                                    <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24">
+                                                    <svg className="animate-spin w-3 h-3 sm:w-4 sm:h-4" viewBox="0 0 24 24">
                                                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
                                                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
                                                     </svg>
                                                 ) : (
-                                                    <Check className="w-4 h-4" />
+                                                    <Check className="w-3 h-3 sm:w-4 sm:h-4" />
                                                 )}
                                             </Button>
                                         )}
@@ -329,17 +331,18 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                     })}
                 </TableBody>
             </Table>
-            {paginatedVouchers.length === 0 && <p className="text-center text-gray-400 py-8">No vouchers found.</p>}
+            </div>
+            {paginatedVouchers.length === 0 && <p className="text-center text-gray-400 py-8 text-sm sm:text-base">No vouchers found.</p>}
         </CardContent>
-        <CardFooter className="flex justify-between items-center">
+        <CardFooter className="flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-0 p-4 sm:p-6">
             <div>
-                <p className="text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
+                <p className="text-xs sm:text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
             </div>
             <div className="flex items-center gap-2">
-                <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
+                <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="h-8 w-8 sm:h-10 sm:w-10">
                 <ChevronLeft className="w-4 h-4" />
                 </Button>
-                <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
+                <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="h-8 w-8 sm:h-10 sm:w-10">
                 <ChevronRight className="w-4 h-4" />
                 </Button>
             </div>

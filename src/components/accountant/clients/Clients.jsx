@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
     import ClientList from '@/components/accountant/clients/ClientList';
     import NewClientForm from '@/components/accountant/clients/NewClientForm';
     import ClientDashboard from '@/components/accountant/clients/ClientDashboard';
@@ -23,13 +23,24 @@ import React, { useState, useEffect, useCallback } from 'react';
         const [editingClient, setEditingClient] = useState(null);
         const [isLoading, setIsLoading] = useState(true);
         const [organizationUsers, setOrganizationUsers] = useState([]);
+        
+        // Cache for organization data to avoid duplicate API calls
+        const orgDataCache = useRef(new Map());
+        const isFetchingRef = useRef(false);
     
         const fetchClientsAndServices = useCallback(async () => {
+            // Prevent concurrent calls
+            if (isFetchingRef.current) {
+                return;
+            }
+            
+            isFetchingRef.current = true;
             setIsLoading(true);
             try {
                 if (!user?.agency_id || !user?.access_token) {
                      throw new Error("User information is not available.");
                 }
+                
                 // Use Promise.allSettled to handle partial failures gracefully
                 const results = await Promise.allSettled([
                     listClients(user.agency_id, user.access_token),
@@ -76,32 +87,73 @@ import React, { useState, useEffect, useCallback } from 'react';
                     };
                 });
     
-                const clientsWithServices = await Promise.all(
-                    clientsWithData.map(async (client) => {
-                        let orgUsers = [];
-                        let entities = [];
-                        try {
-                            const clientServices = await listClientServices(client.id, user.agency_id, user.access_token);
-                            const users = await listOrgUsers(client.organization_id, user.access_token);
-                            if (users && (users.invited_users || users.joined_users)) {
-                                orgUsers = users;
-                            } else {
-                                orgUsers = { invited_users: [], joined_users: [] };
-                            }
-                            const entityData = await listEntities(client.organization_id, user.access_token);
-                            if (Array.isArray(entityData)) {
-                                entities = entityData;
-                            }
-                            return { ...client, availedServices: Array.isArray(clientServices) ? clientServices : [], orgUsers, entities };
-                        } catch (e) {
-                            if (e.message.includes('404')) {
-                                return { ...client, availedServices: [], orgUsers: [], entities: [] };
-                            }
-                            console.error(`Failed to fetch services, users, or entities for client ${client.id}`, e);
-                            return { ...client, availedServices: [], orgUsers: [], entities: [] };
+                // Get unique organization IDs to batch fetch organization data
+                const uniqueOrgIds = [...new Set(clientsWithData.map(c => c.organization_id).filter(Boolean))];
+                
+                // Batch fetch organization users and entities
+                const orgDataPromises = uniqueOrgIds.map(async (orgId) => {
+                    // Check cache first
+                    const cacheKey = `org-${orgId}`;
+                    if (orgDataCache.current.has(cacheKey)) {
+                        return { orgId, data: orgDataCache.current.get(cacheKey) };
+                    }
+                    
+                    try {
+                        const [users, entities] = await Promise.allSettled([
+                            listOrgUsers(orgId, user.access_token),
+                            listEntities(orgId, user.access_token)
+                        ]);
+                        
+                        const orgUsers = users.status === 'fulfilled' && users.value && (users.value.invited_users || users.value.joined_users)
+                            ? users.value
+                            : { invited_users: [], joined_users: [] };
+                        const orgEntities = entities.status === 'fulfilled' && Array.isArray(entities.value)
+                            ? entities.value
+                            : [];
+                        
+                        const data = { orgUsers, entities: orgEntities };
+                        orgDataCache.current.set(cacheKey, data);
+                        return { orgId, data };
+                    } catch (e) {
+                        console.error(`Failed to fetch org data for ${orgId}:`, e);
+                        const data = { orgUsers: { invited_users: [], joined_users: [] }, entities: [] };
+                        orgDataCache.current.set(cacheKey, data);
+                        return { orgId, data };
+                    }
+                });
+                
+                const orgDataResults = await Promise.all(orgDataPromises);
+                const orgDataMap = new Map(orgDataResults.map(r => [r.orgId, r.data]));
+                
+                // Batch fetch client services
+                const clientServicesPromises = clientsWithData.map(async (client) => {
+                    try {
+                        const clientServices = await listClientServices(client.id, user.agency_id, user.access_token);
+                        return { clientId: client.id, services: Array.isArray(clientServices) ? clientServices : [] };
+                    } catch (e) {
+                        if (e.message.includes('404')) {
+                            return { clientId: client.id, services: [] };
                         }
-                    })
-                );
+                        console.error(`Failed to fetch services for client ${client.id}`, e);
+                        return { clientId: client.id, services: [] };
+                    }
+                });
+                
+                const clientServicesResults = await Promise.all(clientServicesPromises);
+                const clientServicesMap = new Map(clientServicesResults.map(r => [r.clientId, r.services]));
+                
+                // Combine all data
+                const clientsWithServices = clientsWithData.map(client => {
+                    const orgData = orgDataMap.get(client.organization_id) || { orgUsers: { invited_users: [], joined_users: [] }, entities: [] };
+                    const services = clientServicesMap.get(client.id) || [];
+                    
+                    return {
+                        ...client,
+                        availedServices: services,
+                        orgUsers: orgData.orgUsers,
+                        entities: orgData.entities
+                    };
+                });
     
                 setClients(clientsWithServices);
                 setAllServices(servicesData || []);
@@ -117,12 +169,15 @@ import React, { useState, useEffect, useCallback } from 'react';
                 });
             } finally {
                 setIsLoading(false);
+                isFetchingRef.current = false;
             }
-        }, [user?.agency_id, user?.access_token, toast]);
+        }, [user?.agency_id, user?.access_token]);
     
         useEffect(() => {
-            fetchClientsAndServices();
-        }, [fetchClientsAndServices]);
+            if (user?.agency_id && user?.access_token) {
+                fetchClientsAndServices();
+            }
+        }, [user?.agency_id, user?.access_token]);
     
         const handleAddNew = () => {
             setEditingClient(null);
@@ -138,7 +193,7 @@ import React, { useState, useEffect, useCallback } from 'react';
             setView('list');
             setSelectedClient(null);
             setEditingClient(null);
-            fetchClientsAndServices();
+            // Don't refetch - data is already up to date
         };
         
         const handleEditClient = (client) => {
@@ -218,10 +273,10 @@ import React, { useState, useEffect, useCallback } from 'react';
                     finalClient = { ...newClient, photo: photoUrl, photo_url: photoUrl };
                 }
                     toast({ title: "✅ Client Created", description: `Client ${newClient.name} has been added.` });
-                    setClients(prev => [{ ...finalClient, availedServices: [] }, ...prev]);
+                    setClients(prev => [{ ...finalClient, availedServices: [], orgUsers: { invited_users: [], joined_users: [] }, entities: [] }, ...prev]);
                 }
                 setView('list');
-                fetchClientsAndServices();
+                // Don't refetch - we already updated the state
             } catch (error) {
                 toast({
                     title: 'Error saving client',

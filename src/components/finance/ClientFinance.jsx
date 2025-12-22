@@ -286,38 +286,39 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
   };
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
         {/* HEADER SECTION */}
-        <div className="flex flex-col gap-4 mb-8">
+        <div className="flex flex-col gap-4 mb-6 sm:mb-8">
           {/* Top Line: Finance + Filters */}
-          <div className="flex flex-wrap justify-between items-center gap-4">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             {/* Finance Title + Icon */}
-          <div className="flex items-center gap-4">
-            <div className="bg-primary/10 p-3 rounded-xl">
-              <Landmark className="w-8 h-8 text-primary" />
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="bg-primary/10 p-2 sm:p-3 rounded-xl">
+              <Landmark className="w-6 h-6 sm:w-8 sm:h-8 text-primary" />
             </div>
-            <h1 className="text-3xl sm:text-5xl font-bold text-white">Finance</h1>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white">Finance</h1>
             {/* Removed Add Voucher and Add Invoice buttons as per user request */}
           </div>
 
             {/* Refresh Button and Add Dropdown */}
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2">
               <Button
                 variant="outline"
                 size="icon"
                 onClick={() => fetchData(true)}
                 disabled={isRefreshing}
+                className="h-9 w-9 sm:h-10 sm:w-10"
               >
                 <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="default" className="ml-2">
+                  <Button variant="default" className="text-sm sm:text-base h-9 sm:h-10 px-3 sm:px-4">
                     + Add New
                   </Button>
                 </DropdownMenuTrigger>
@@ -334,7 +335,7 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
           </div>
 
           {/* Subtitle */}
-          <p className="text-muted-foreground">
+          <p className="text-sm sm:text-base text-muted-foreground">
             Review client invoices and vouchers.
           </p>
         </div>
@@ -345,12 +346,12 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
           onValueChange={(value) => navigate(`/finance/${value}`)}
           className="w-full"
         >
-          <TabsList>
-            <TabsTrigger value="vouchers">Vouchers</TabsTrigger>
-            <TabsTrigger value="invoices">Invoices</TabsTrigger>
+          <TabsList className="w-full sm:w-auto grid grid-cols-2 sm:inline-flex">
+            <TabsTrigger value="vouchers" className="text-sm sm:text-base">Vouchers</TabsTrigger>
+            <TabsTrigger value="invoices" className="text-sm sm:text-base">Invoices</TabsTrigger>
           </TabsList>
 
-          <div className="mt-6">
+          <div className="mt-4 sm:mt-6">
             <Routes>
               <Route path="/" element={<Navigate to="vouchers" replace />} />
               <Route

@@ -482,40 +482,40 @@ const InvoiceDetailsPage = () => {
     const cols = isClientUser ? 'grid-cols-3' : 'grid-cols-3';
 
     return (
-        <div className="h-screen w-full flex flex-col text-white bg-transparent p-4 md:p-6" style={{ paddingBottom: hasInvoices ? '5rem' : '1.5rem' }}>
-            <header className="flex items-center justify-between pb-4 border-b border-white/10 mb-4">
-                <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="icon" onClick={() => user.role === 'CLIENT_USER' ? navigate('/finance?tab=invoices') : navigate('/finance/ca?tab=invoices')}>
-                        <ArrowLeft className="h-6 w-6" />
+        <div className="h-screen w-full flex flex-col text-white bg-transparent p-3 sm:p-4 md:p-6" style={{ paddingBottom: hasInvoices ? '6rem' : '1.5rem' }}>
+            <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 pb-3 sm:pb-4 border-b border-white/10 mb-3 sm:mb-4">
+                <div className="flex items-center gap-3 sm:gap-4">
+                    <Button variant="ghost" size="icon" onClick={() => user.role === 'CLIENT_USER' ? navigate('/finance?tab=invoices') : navigate('/finance/ca?tab=invoices')} className="h-9 w-9 sm:h-10 sm:w-10">
+                        <ArrowLeft className="h-5 w-5 sm:h-6 sm:w-6" />
                     </Button>
                     <div>
-                        <h1 className="text-2xl font-bold">Invoice Details</h1>
-                        <p className="text-sm text-gray-400">Review all invoice transactions.</p>
+                        <h1 className="text-xl sm:text-2xl font-bold">Invoice Details</h1>
+                        <p className="text-xs sm:text-sm text-gray-400">Review all invoice transactions.</p>
                     </div>
                 </div>
                 {/* Entity name in top right */}
                 <div className="flex items-center">
-                    <p className="text-2xl font-bold text-white">{getEntityName()}</p>
+                    <p className="text-lg sm:text-xl md:text-2xl font-bold text-white truncate">{getEntityName()}</p>
                 </div>
             </header>
 
             <ResizablePanelGroup
                 direction="horizontal"
-                className="flex-1 rounded-lg border border-white/10"
+                className="flex-1 rounded-lg border border-white/10 hidden md:flex"
             >
                 <ResizablePanel defaultSize={60} minSize={30}>
                     <div className="relative flex h-full w-full flex-col items-center justify-center p-2">
                         {/* Zoom controls in bottom right corner */}
                         {attachmentToDisplay && !attachmentToDisplay.toLowerCase().endsWith('.pdf') && (
-                            <div className="absolute bottom-4 right-4 z-10 flex gap-2">
-                                <Button variant="outline" size="icon" onClick={() => setZoom(z => z + 0.1)}>
-                                    <ZoomIn className="h-4 w-4" />
+                            <div className="absolute bottom-2 right-2 sm:bottom-4 sm:right-4 z-10 flex gap-1 sm:gap-2">
+                                <Button variant="outline" size="icon" onClick={() => setZoom(z => z + 0.1)} className="h-8 w-8 sm:h-9 sm:w-9">
+                                    <ZoomIn className="h-3 w-3 sm:h-4 sm:w-4" />
                                 </Button>
-                                <Button variant="outline" size="icon" onClick={() => setZoom(z => Math.max(0.1, z - 0.1))}>
-                                    <ZoomOut className="h-4 w-4" />
+                                <Button variant="outline" size="icon" onClick={() => setZoom(z => Math.max(0.1, z - 0.1))} className="h-8 w-8 sm:h-9 sm:w-9">
+                                    <ZoomOut className="h-3 w-3 sm:h-4 sm:w-4" />
                                 </Button>
-                                <Button variant="outline" size="icon" onClick={() => setZoom(1)}>
-                                    <RefreshCcw className="h-4 w-4" />
+                                <Button variant="outline" size="icon" onClick={() => setZoom(1)} className="h-8 w-8 sm:h-9 sm:w-9">
+                                    <RefreshCcw className="h-3 w-3 sm:h-4 sm:w-4" />
                                 </Button>
                             </div>
                         )}
@@ -559,18 +559,18 @@ const InvoiceDetailsPage = () => {
                 <ResizableHandle withHandle />
                 <ResizablePanel defaultSize={40} minSize={30}>
                     <div className="relative flex h-full flex-col">
-                        <div className="flex-1 overflow-y-auto p-6" style={{ paddingBottom: hasInvoices ? '6rem' : '1.5rem' }}>
+                        <div className="flex-1 overflow-y-auto p-4 sm:p-6" style={{ paddingBottom: hasInvoices ? '8rem' : '2rem' }}>
                             <Tabs defaultValue={defaultTab} className="w-full">
-                            <TabsList className={`grid w-full ${cols}`}>
-                                <TabsTrigger value="details">Details</TabsTrigger>
-                                <TabsTrigger value="activity">Activity Log</TabsTrigger>
-                                <TabsTrigger value="beneficiary">Beneficiary</TabsTrigger>
+                            <TabsList className={`grid w-full ${cols} text-xs sm:text-sm`}>
+                                <TabsTrigger value="details" className="text-xs sm:text-sm">Details</TabsTrigger>
+                                <TabsTrigger value="activity" className="text-xs sm:text-sm">Activity Log</TabsTrigger>
+                                <TabsTrigger value="beneficiary" className="text-xs sm:text-sm">Beneficiary</TabsTrigger>
                             </TabsList>
                             <TabsContent value="details" className="mt-4">
                                 {isEditing ? (
                                     <form onSubmit={handleUpdate} className="space-y-4">
                                         <div>
-                                            <Label htmlFor="beneficiary_id">Beneficiary</Label>
+                                            <Label htmlFor="beneficiary_id" className="text-sm">Beneficiary</Label>
                                             <Select 
                                                 value={editedInvoice?.beneficiary_id ? String(editedInvoice.beneficiary_id) : ''}
                                                 onValueChange={(val) => setEditedInvoice(p => ({ ...p, beneficiary_id: val }))}
@@ -642,11 +642,11 @@ const InvoiceDetailsPage = () => {
                                     </form>
                                 ) : (
                                     <Card ref={invoiceDetailsRef} className="w-full glass-pane border-none shadow-none bg-gray-800 text-white relative z-20">
-                                        <CardHeader>
-                                            <CardTitle>{invoiceDetails.bill_number || 'N/A'}</CardTitle>
-                                            <CardDescription>Created on {invoiceDetails.created_date || invoiceDetails.created_at ? new Date(invoiceDetails.created_date || invoiceDetails.created_at).toLocaleDateString() : 'N/A'}</CardDescription>
+                                        <CardHeader className="p-4 sm:p-6">
+                                            <CardTitle className="text-lg sm:text-xl">{invoiceDetails.bill_number || 'N/A'}</CardTitle>
+                                            <CardDescription className="text-xs sm:text-sm">Created on {invoiceDetails.created_date || invoiceDetails.created_at ? new Date(invoiceDetails.created_date || invoiceDetails.created_at).toLocaleDateString() : 'N/A'}</CardDescription>
                                         </CardHeader>
-                                        <CardContent className="space-y-2 relative z-20">
+                                        <CardContent className="space-y-2 relative z-20 p-4 sm:p-6 pt-0">
                                             <DetailItem label="Date" value={new Date(invoiceDetails.date).toLocaleDateString()} />
                                             <DetailItem label="Base Amount" value={`₹${parseFloat(invoiceDetails.amount || 0).toFixed(2)}`} />
                                             <DetailItem label="CGST" value={`₹${parseFloat(invoiceDetails.cgst || 0).toFixed(2)}`} />
@@ -680,9 +680,9 @@ const InvoiceDetailsPage = () => {
                                                     </Select>
                                                 </div>
                                             )}
-                                            <div className="flex items-center gap-2 mt-4 justify-center relative z-20">
+                                            <div className="flex items-center gap-2 mt-4 mb-20 sm:mb-16 md:mb-4 justify-center relative z-[100] flex-wrap">
                                                 {/* Action buttons in center */}
-                                                <div className="flex items-center gap-2 relative z-20">
+                                                <div className="flex items-center gap-2 relative z-[100]">
                                                     <TooltipProvider>
                                                         <Tooltip>
                                                             <TooltipTrigger asChild>
@@ -690,6 +690,7 @@ const InvoiceDetailsPage = () => {
                                                                     variant="destructive"
                                                                     size="icon"
                                                                     onClick={() => setShowDeleteDialog(true)}
+                                                                    className="h-9 w-9 sm:h-10 sm:w-10"
                                                                 >
                                                                     <Trash2 className="h-4 w-4" />
                                                                 </Button>
@@ -704,6 +705,7 @@ const InvoiceDetailsPage = () => {
                                                                     variant="outline"
                                                                     size="icon"
                                                                     onClick={handleExportToPDF}
+                                                                    className="h-9 w-9 sm:h-10 sm:w-10"
                                                                 >
                                                                     <FileText className="h-4 w-4" />
                                                                 </Button>
@@ -718,6 +720,7 @@ const InvoiceDetailsPage = () => {
                                                                     variant="outline"
                                                                     size="icon"
                                                                     onClick={() => setIsEditing(!isEditing)}
+                                                                    className="h-9 w-9 sm:h-10 sm:w-10"
                                                                 >
                                                                     <Edit className="h-4 w-4" />
                                                                 </Button>
@@ -729,7 +732,7 @@ const InvoiceDetailsPage = () => {
                                                         {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>
-                                                                    <Button onClick={handleTag} className="bg-blue-600 text-white hover:bg-blue-700">
+                                                                    <Button onClick={handleTag} className="bg-blue-600 text-white hover:bg-blue-700 text-sm h-9 sm:h-10">
                                                                         Tag
                                                                     </Button>
                                                                 </TooltipTrigger>
@@ -748,8 +751,8 @@ const InvoiceDetailsPage = () => {
                                 )}
                             </TabsContent>
                             <TabsContent value="activity" className="mt-4">
-                                <div className="p-4" ref={activityLogRef}>
-                                    <ActivityLog itemId={invoice?.id || invoiceId} itemType="invoice" />
+                                <div className="p-2 sm:p-4" ref={activityLogRef}>
+                                    <ActivityLog itemId={invoice?.id || invoiceId} itemType="invoice" showFilter={false} />
                                 </div>
                             </TabsContent>
                             <TabsContent value="beneficiary" className="mt-4">
@@ -785,10 +788,10 @@ const InvoiceDetailsPage = () => {
                                     
                                     return (
                                         <Card className="w-full glass-pane border-none shadow-none bg-gray-800 text-white">
-                                            <CardHeader>
-                                                <CardTitle>Beneficiary Details</CardTitle>
+                                            <CardHeader className="p-4 sm:p-6">
+                                                <CardTitle className="text-lg sm:text-xl">Beneficiary Details</CardTitle>
                                             </CardHeader>
-                                            <CardContent className="space-y-2">
+                                            <CardContent className="space-y-2 p-4 sm:p-6 pt-0">
                                                 <DetailItem label="Name" value={resolvedBeneficiaryName} />
                                                 <DetailItem label="PAN" value={beneficiaryObj?.pan || 'N/A'} />
                                                 <DetailItem label="Email" value={beneficiaryObj?.email || 'N/A'} />
@@ -804,6 +807,302 @@ const InvoiceDetailsPage = () => {
                 </ResizablePanel>
             </ResizablePanelGroup>
 
+            {/* Mobile Layout - Stacked vertically */}
+            <div className="flex flex-col md:hidden flex-1 gap-4">
+                {/* Attachment/Preview Section */}
+                <div className="relative flex h-64 sm:h-80 w-full flex-col items-center justify-center p-2 border border-white/10 rounded-lg">
+                    {/* Zoom controls in bottom right corner */}
+                    {attachmentToDisplay && !attachmentToDisplay.toLowerCase().endsWith('.pdf') && (
+                        <div className="absolute bottom-2 right-2 z-10 flex gap-1 sm:gap-2">
+                            <Button variant="outline" size="icon" onClick={() => setZoom(z => z + 0.1)} className="h-8 w-8 sm:h-9 sm:w-9">
+                                <ZoomIn className="h-3 w-3 sm:h-4 sm:w-4" />
+                            </Button>
+                            <Button variant="outline" size="icon" onClick={() => setZoom(z => Math.max(0.1, z - 0.1))} className="h-8 w-8 sm:h-9 sm:w-9">
+                                <ZoomOut className="h-3 w-3 sm:h-4 sm:w-4" />
+                            </Button>
+                            <Button variant="outline" size="icon" onClick={() => setZoom(1)} className="h-8 w-8 sm:h-9 sm:w-9">
+                                <RefreshCcw className="h-3 w-3 sm:h-4 sm:w-4" />
+                            </Button>
+                        </div>
+                    )}
+                    <div className="flex h-full w-full items-center justify-center overflow-auto relative" style={{ zIndex: 1 }} ref={attachmentRef}>
+                        {(invoice?.attachment_id || (invoice?.attachment && invoice.attachment.id)) && !attachmentToDisplay && isImageLoading ? (
+                            <Skeleton className="h-full w-full rounded-md" />
+                        ) : attachmentToDisplay ? (
+                            attachmentToDisplay.toLowerCase().endsWith('.pdf') ? (
+                                <iframe
+                                    src={attachmentToDisplay}
+                                    title="Invoice Attachment"
+                                    className="h-full w-full rounded-md border-none"
+                                />
+                            ) : (
+                                <img
+                                    key={`${attachmentToDisplay}-${invoice?.id}`}
+                                    src={attachmentToDisplay}
+                                    alt="Invoice Attachment"
+                                    className="max-w-full max-h-full transition-transform duration-200"
+                                    style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }}
+                                    onLoad={() => {
+                                        console.log("Image loaded successfully");
+                                        setIsImageLoading(false);
+                                    }}
+                                    onError={(e) => {
+                                        console.error("Image failed to load:", e, "URL:", attachmentToDisplay);
+                                        setIsImageLoading(false);
+                                    }}
+                                    loading="eager"
+                                />
+                            )
+                        ) : (
+                            <div className="text-center text-gray-400 text-sm">
+                                <p>No attachment available for this invoice.</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Details Section */}
+                <div className="flex-1 overflow-y-auto border border-white/10 rounded-lg p-4" style={{ paddingBottom: hasInvoices ? '6rem' : '2rem' }}>
+                    <Tabs defaultValue={defaultTab} className="w-full">
+                        <TabsList className={`grid w-full ${cols} text-xs sm:text-sm`}>
+                            <TabsTrigger value="details" className="text-xs sm:text-sm">Details</TabsTrigger>
+                            <TabsTrigger value="activity" className="text-xs sm:text-sm">Activity</TabsTrigger>
+                            <TabsTrigger value="beneficiary" className="text-xs sm:text-sm">Beneficiary</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="details" className="mt-4">
+                            {isEditing ? (
+                                <form onSubmit={handleUpdate} className="space-y-4">
+                                    <div>
+                                        <Label htmlFor="beneficiary_id" className="text-sm">Beneficiary</Label>
+                                        <Select 
+                                            value={editedInvoice?.beneficiary_id ? String(editedInvoice.beneficiary_id) : ''}
+                                            onValueChange={(val) => setEditedInvoice(p => ({ ...p, beneficiary_id: val }))}
+                                        >
+                                            <SelectTrigger className="text-sm">
+                                                <SelectValue placeholder="Select a beneficiary" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {beneficiaries.map((b) => (
+                                                    <SelectItem key={b.id} value={String(b.id)}>
+                                                        {b.beneficiary_type === 'individual' ? b.name : b.company_name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="bill_number" className="text-sm">Bill Number</Label>
+                                        <Input name="bill_number" defaultValue={editedInvoice.bill_number} className="text-sm" />
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="date" className="text-sm">Date</Label>
+                                        <Input name="date" type="date" defaultValue={new Date(editedInvoice.date).toISOString().split('T')[0]} className="text-sm" />
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="amount" className="text-sm">Amount</Label>
+                                        <Input name="amount" type="number" step="0.01" defaultValue={editedInvoice.amount} className="text-sm" />
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="cgst" className="text-sm">CGST</Label>
+                                        <Input name="cgst" type="number" step="0.01" defaultValue={editedInvoice.cgst} onChange={(e) => setEditedInvoice(p => ({ ...p, cgst: e.target.value, sgst: e.target.value }))} className="text-sm" />
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="sgst" className="text-sm">SGST</Label>
+                                        <Input name="sgst" type="number" step="0.01" value={editedInvoice.sgst} onChange={(e) => setEditedInvoice(p => ({ ...p, sgst: e.target.value, cgst: e.target.value }))} className="text-sm" />
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="igst" className="text-sm">IGST</Label>
+                                        <Input name="igst" type="number" step="0.01" defaultValue={editedInvoice.igst} className="text-sm" />
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="remarks" className="text-sm">Remarks</Label>
+                                        <Input name="remarks" defaultValue={editedInvoice.remarks} className="text-sm" />
+                                    </div>
+                                    {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
+                                        <div>
+                                            <Label htmlFor="finance_header_id" className="text-sm">Header</Label>
+                                            <Select name="finance_header_id" defaultValue={editedInvoice.finance_header_id}>
+                                                <SelectTrigger className="text-sm">
+                                                    <SelectValue placeholder="Select a header" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {financeHeaders.map((h) => (
+                                                        <SelectItem key={h.id} value={h.id}>
+                                                            {h.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    )}
+                                    <div className="flex justify-end gap-2">
+                                        <Button variant="ghost" onClick={() => setIsEditing(false)} disabled={isDeleting} className="text-sm">Cancel</Button>
+                                        <Button type="submit" disabled={isDeleting} className="text-sm">
+                                            {isDeleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                                            Save Changes
+                                        </Button>
+                                    </div>
+                                </form>
+                            ) : (
+                                <Card ref={invoiceDetailsRef} className="w-full glass-pane border-none shadow-none bg-gray-800 text-white relative z-20">
+                                    <CardHeader className="p-4">
+                                        <CardTitle className="text-lg sm:text-xl">{invoiceDetails.bill_number || 'N/A'}</CardTitle>
+                                        <CardDescription className="text-xs sm:text-sm">Created on {invoiceDetails.created_date || invoiceDetails.created_at ? new Date(invoiceDetails.created_date || invoiceDetails.created_at).toLocaleDateString() : 'N/A'}</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="space-y-2 relative z-20 p-4 pt-0">
+                                        <DetailItem label="Date" value={new Date(invoiceDetails.date).toLocaleDateString()} />
+                                        <DetailItem label="Base Amount" value={`₹${parseFloat(invoiceDetails.amount || 0).toFixed(2)}`} />
+                                        <DetailItem label="CGST" value={`₹${parseFloat(invoiceDetails.cgst || 0).toFixed(2)}`} />
+                                        <DetailItem label="SGST" value={`₹${parseFloat(invoiceDetails.sgst || 0).toFixed(2)}`} />
+                                        <DetailItem label="IGST" value={`₹${parseFloat(invoiceDetails.igst || 0).toFixed(2)}`} />
+                                        <div className="pt-4">
+                                            <DetailItem label="Total Amount" value={`₹${totalAmount}`} />
+                                        </div>
+                                        <div className="pt-4">
+                                            <p className="text-xs sm:text-sm text-gray-400 mb-1">Remarks</p>
+                                            <p className="text-xs sm:text-sm text-white p-3 bg-white/5 rounded-md">{invoiceDetails.remarks || 'N/A'}</p>
+                                        </div>
+                                        {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
+                                            <div className="pt-4">
+                                                <Label htmlFor="finance_header_id" className="text-sm">Header</Label>
+                                                <Select
+                                                    name="finance_header_id"
+                                                    value={editedInvoice.finance_header_id || ""}
+                                                    onValueChange={(value) => setEditedInvoice(p => ({ ...p, finance_header_id: value }))}
+                                                >
+                                                    <SelectTrigger className="text-sm">
+                                                        <SelectValue placeholder="Select a header" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {financeHeaders.map((h) => (
+                                                            <SelectItem key={h.id} value={h.id}>
+                                                                {h.name}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        )}
+                                        <div className="flex items-center gap-2 mt-4 mb-20 sm:mb-16 md:mb-4 justify-center relative z-[100] flex-wrap">
+                                            <div className="flex items-center gap-2 relative z-[100]">
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button
+                                                                variant="destructive"
+                                                                size="icon"
+                                                                onClick={() => setShowDeleteDialog(true)}
+                                                                className="h-9 w-9 sm:h-10 sm:w-10"
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p>Delete</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="icon"
+                                                                onClick={handleExportToPDF}
+                                                                className="h-9 w-9 sm:h-10 sm:w-10"
+                                                            >
+                                                                <FileText className="h-4 w-4" />
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p>Export</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="icon"
+                                                                onClick={() => setIsEditing(!isEditing)}
+                                                                className="h-9 w-9 sm:h-10 sm:w-10"
+                                                            >
+                                                                <Edit className="h-4 w-4" />
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p>Edit</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                    {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <Button onClick={handleTag} className="bg-blue-600 text-white hover:bg-blue-700 text-sm h-9 sm:h-10">
+                                                                    Tag
+                                                                </Button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                <p>Tag Invoice</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    )}
+                                                </TooltipProvider>
+                                            </div>
+                                            {hasInvoices && <div className="w-12"></div>}
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            )}
+                        </TabsContent>
+                        <TabsContent value="activity" className="mt-4">
+                            <div className="p-2 sm:p-4" ref={activityLogRef}>
+                                <ActivityLog itemId={invoice?.id || invoiceId} itemType="invoice" showFilter={false} />
+                            </div>
+                        </TabsContent>
+                        <TabsContent value="beneficiary" className="mt-4">
+                            {(() => {
+                                let beneficiaryObj = invoiceDetails.beneficiary || invoice?.beneficiary;
+                                
+                                if (invoiceDetails.beneficiary_id && (!beneficiaryObj || !beneficiaryObj.name && !beneficiaryObj.company_name)) {
+                                    if (beneficiaries && beneficiaries.length > 0) {
+                                        const found = beneficiaries.find(
+                                            b => String(b.id) === String(invoiceDetails.beneficiary_id)
+                                        );
+                                        if (found) beneficiaryObj = found;
+                                    }
+                                }
+                                
+                                let resolvedBeneficiaryName = 'N/A';
+                                if (beneficiaryObj) {
+                                    if (beneficiaryObj.beneficiary_type === 'individual') {
+                                        resolvedBeneficiaryName = beneficiaryObj.name || 'N/A';
+                                    } else {
+                                        resolvedBeneficiaryName = beneficiaryObj.company_name || beneficiaryObj.name || 'N/A';
+                                    }
+                                } else if (invoiceDetails.beneficiary_name) {
+                                    resolvedBeneficiaryName = invoiceDetails.beneficiary_name;
+                                } else if (invoice?.beneficiary_name) {
+                                    resolvedBeneficiaryName = invoice.beneficiary_name;
+                                } else if (beneficiaryName) {
+                                    resolvedBeneficiaryName = beneficiaryName;
+                                }
+                                
+                                return (
+                                    <Card className="w-full glass-pane border-none shadow-none bg-gray-800 text-white">
+                                        <CardHeader className="p-4">
+                                            <CardTitle className="text-lg sm:text-xl">Beneficiary Details</CardTitle>
+                                        </CardHeader>
+                                        <CardContent className="space-y-2 p-4 pt-0">
+                                            <DetailItem label="Name" value={resolvedBeneficiaryName} />
+                                            <DetailItem label="PAN" value={beneficiaryObj?.pan || 'N/A'} />
+                                            <DetailItem label="Email" value={beneficiaryObj?.email || 'N/A'} />
+                                            <DetailItem label="Phone" value={beneficiaryObj?.phone || beneficiaryObj?.phone_number || 'N/A'} />
+                                        </CardContent>
+                                    </Card>
+                                );
+                            })()}
+                        </TabsContent>
+                    </Tabs>
+                </div>
+            </div>
+
             {/* Fixed navigation buttons at bottom corners - aligned on same line */}
             {hasInvoices && (
                 <>
@@ -817,7 +1116,7 @@ const InvoiceDetailsPage = () => {
                             handleNavigate(-1);
                         }} 
                         disabled={currentIndex === 0 || currentIndex === -1}
-                        className="fixed bottom-4 left-80 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg z-50"
+                        className="hidden md:flex fixed bottom-4 left-80 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg z-[50]"
                     >
                         <ChevronLeft className="h-5 w-5" />
                     </Button>
@@ -831,10 +1130,39 @@ const InvoiceDetailsPage = () => {
                             handleNavigate(1);
                         }} 
                         disabled={currentIndex === invoices.length - 1}
-                        className="fixed bottom-4 right-4 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg z-50"
+                        className="hidden md:flex fixed bottom-4 right-4 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg z-[50]"
                     >
                         <ChevronRight className="h-5 w-5" />
                     </Button>
+                    {/* Mobile navigation buttons */}
+                    <div className="flex md:hidden fixed bottom-4 left-4 right-4 justify-between z-[50] gap-2 pointer-events-none">
+                        <Button 
+                            variant="outline" 
+                            size="icon"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleNavigate(-1);
+                            }} 
+                            disabled={currentIndex === 0 || currentIndex === -1}
+                            className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg flex-1 pointer-events-auto"
+                        >
+                            <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
+                        </Button>
+                        <Button 
+                            variant="outline" 
+                            size="icon"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleNavigate(1);
+                            }} 
+                            disabled={currentIndex === invoices.length - 1}
+                            className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg flex-1 pointer-events-auto"
+                        >
+                            <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
+                        </Button>
+                    </div>
                 </>
             )}
             <Dialog open={showDeleteDialog} onOpenChange={isDeleting ? undefined : setShowDeleteDialog}>

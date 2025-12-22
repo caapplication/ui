@@ -873,13 +873,13 @@ if (activeTab === 'myFiles') {
 
     return (
       <>
-        <div className="flex items-center space-x-2 text-gray-400 mb-8">
+        <div className="flex items-center space-x-1 sm:space-x-2 text-gray-400 mb-4 sm:mb-8 text-sm sm:text-base overflow-x-auto pb-2">
           {currentFolderId !== 'root' && currentPath.length > 1 && (
             <Button variant="ghost" size="sm" onClick={() => {
               setSelectedFolder(null);
               setCurrentFolderId(currentPath[currentPath.length - 2].id);
-            }}>
-              <ArrowLeft className="w-4 h-4 mr-2" /> Back
+            }} className="h-8 sm:h-9 text-xs sm:text-sm flex-shrink-0">
+              <ArrowLeft className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" /> <span className="hidden sm:inline">Back</span>
             </Button>
           )}
           {currentPath.map((folder, index) => (
@@ -887,15 +887,15 @@ if (activeTab === 'myFiles') {
               <span onClick={() => {
                 setSelectedFolder(null);
                 setCurrentFolderId(folder.id);
-              }} className="cursor-pointer hover:text-white transition-colors">{folder.name}</span>
-              {index < currentPath.length - 1 && <span className="text-gray-600">/</span>}
+              }} className="cursor-pointer hover:text-white transition-colors whitespace-nowrap truncate max-w-[100px] sm:max-w-none">{folder.name}</span>
+              {index < currentPath.length - 1 && <span className="text-gray-600 flex-shrink-0">/</span>}
             </React.Fragment>
           ))}
         </div>
 
         {/* Folders - Always in grid format with reduced gap and larger icons */}
         {folders.length > 0 && (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-0 mb-8">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-2 sm:gap-4 mb-6 sm:mb-8">
             {folders.map((item, index) => {
               const isSelected = selectedFolder?.id === item.id;
               return (
@@ -904,7 +904,7 @@ if (activeTab === 'myFiles') {
                   initial={{ opacity: 0, y: 20 }} 
                   animate={{ opacity: 1, y: 0 }} 
                   transition={{ duration: 0.5, delay: index * 0.05 }}
-                  className={`flex flex-col items-center cursor-pointer group relative p-2 rounded-lg transition-all ${
+                  className={`flex flex-col items-center cursor-pointer group relative p-2 sm:p-3 rounded-lg transition-all ${
                     isSelected ? 'bg-blue-500/20 border-2 border-blue-500' : 'hover:bg-gray-800/30'
                   }`}
                   onClick={() => {
@@ -914,12 +914,12 @@ if (activeTab === 'myFiles') {
                 >
                   <div className="relative mb-2">
                     <FolderIcon 
-                      className={`w-56 h-56 transition-transform ${isSelected ? 'scale-105' : 'group-hover:scale-110'}`}
+                      className={`w-40 h-40 sm:w-48 sm:h-48 md:w-56 md:h-56 transition-transform ${isSelected ? 'scale-105' : 'group-hover:scale-110'}`}
                       hasExpired={hasExpiredDocuments(item)}
                     />
                     {/* Checkbox on hover - top left corner */}
                     <div 
-                      className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="absolute top-1 left-1 sm:top-2 sm:left-2 opacity-0 group-hover:opacity-100 transition-opacity"
                       onClick={(e) => {
                         e.stopPropagation();
                         setSelectedFolder(isSelected ? null : item);
@@ -930,12 +930,12 @@ if (activeTab === 'myFiles') {
                         onCheckedChange={(checked) => {
                           setSelectedFolder(checked ? item : null);
                         }}
-                        className="w-5 h-5 bg-gray-800 border-gray-600 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                        className="w-4 h-4 sm:w-5 sm:h-5 bg-gray-800 border-gray-600 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
                       />
                     </div>
                   </div>
                   <div className="w-full text-center px-1">
-                    <p className={`text-sm truncate transition-colors ${
+                    <p className={`text-xs sm:text-sm truncate transition-colors ${
                       isSelected ? 'text-blue-300 font-semibold' : 'text-white group-hover:text-blue-300'
                     }`}>{item.name}</p>
                   </div>
@@ -947,27 +947,34 @@ if (activeTab === 'myFiles') {
 
         {/* Documents - Table format in subfolders, grid format in main folders */}
         {isSubFolder && documents.length > 0 && (
-          <div className="mt-8">
+          <div className="mt-4 sm:mt-8 overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-gray-400">FILE NAME</TableHead>
-                  <TableHead className="text-gray-400">EXPIRY DATE</TableHead>
-                  <TableHead className="text-gray-400 text-right">ACTION</TableHead>
+                  <TableHead className="text-gray-400 text-xs sm:text-sm">FILE NAME</TableHead>
+                  <TableHead className="text-gray-400 text-xs sm:text-sm hidden sm:table-cell">EXPIRY DATE</TableHead>
+                  <TableHead className="text-gray-400 text-right text-xs sm:text-sm">ACTION</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {documents.map((item) => (
                   <TableRow key={item.id} className="hover:bg-white/5">
-                    <TableCell className="text-white font-medium">{item.name}</TableCell>
-                    <TableCell className="text-gray-300">
+                    <TableCell className="text-white font-medium text-xs sm:text-sm">
+                      <div className="flex flex-col sm:block">
+                        <span className="truncate">{item.name}</span>
+                        <span className="text-gray-400 text-xs sm:hidden mt-1">
+                          {item.expiry_date ? formatDate(item.expiry_date) : <span className="text-gray-500 italic">Document not expire</span>}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-gray-300 text-xs sm:text-sm hidden sm:table-cell">
                       {item.expiry_date ? formatDate(item.expiry_date) : <span className="text-gray-500 italic">Document not expire</span>}
                     </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreVertical className="w-4 h-4 text-gray-400" />
+                          <Button variant="ghost" size="icon" className="h-7 w-7 sm:h-8 sm:w-8">
+                            <MoreVertical className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
@@ -1024,7 +1031,7 @@ if (activeTab === 'myFiles') {
 
         {/* Documents - Grid format in main folders (when not in subfolder) */}
         {!isSubFolder && documents.length > 0 && (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-0">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-2 sm:gap-4">
             {documents.map((item, index) => (
               <motion.div 
                 key={item.id} 
@@ -1035,36 +1042,36 @@ if (activeTab === 'myFiles') {
                 onDoubleClick={() => handleView(item)}
               >
                 <div className="relative mb-2">
-                  <div className="w-40 h-40 rounded-xl flex items-center justify-center bg-gradient-to-br from-sky-500 to-indigo-500 transition-transform group-hover:scale-110">
-                    <FileText className="w-20 h-20 text-white" />
+                  <div className="w-40 h-40 sm:w-44 sm:h-44 md:w-48 md:h-48 rounded-xl flex items-center justify-center bg-gradient-to-br from-sky-500 to-indigo-500 transition-transform group-hover:scale-110">
+                    <FileText className="w-20 h-20 sm:w-22 sm:h-22 md:w-24 md:h-24 text-white" />
                   </div>
                   {/* Action buttons on hover */}
-                  <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                  <div className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-0.5 sm:gap-1">
                     <Button 
                       size="icon" 
                       variant="secondary" 
-                      className="h-7 w-7 bg-gray-800/90 hover:bg-gray-700"
+                      className="h-6 w-6 sm:h-7 sm:w-7 bg-gray-800/90 hover:bg-gray-700"
                       onClick={(e) => {e.stopPropagation(); handleShareClick(item)}}
                     >
-                      <Share2 className="w-3.5 h-3.5" />
+                      <Share2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                     </Button>
                     <Button 
                       size="icon" 
                       variant="secondary" 
-                      className="h-7 w-7 bg-gray-800/90 hover:bg-gray-700"
+                      className="h-6 w-6 sm:h-7 sm:w-7 bg-gray-800/90 hover:bg-gray-700"
                       onClick={(e) => {e.stopPropagation(); handleView(item)}}
                     >
-                      <FileText className="w-3.5 h-3.5" />
+                      <FileText className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                     </Button>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button 
                           size="icon" 
                           variant="secondary" 
-                          className="h-7 w-7 bg-red-600/90 hover:bg-red-700"
+                          className="h-6 w-6 sm:h-7 sm:w-7 bg-red-600/90 hover:bg-red-700"
                           onClick={(e) => {e.stopPropagation(); setItemToDelete({id: item.id, type: 'document'})}}
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                         </Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
@@ -1086,8 +1093,8 @@ if (activeTab === 'myFiles') {
                   </div>
                 </div>
                 <div className="w-full text-center px-1">
-                  <p className="text-sm text-white truncate group-hover:text-blue-300 transition-colors">{item.name}</p>
-                  <p className="text-xs text-gray-400 mt-1 truncate">{item.file_type} • {item.size ? `${(item.size / 1024 / 1024).toFixed(2)} MB` : ''}</p>
+                  <p className="text-xs sm:text-sm text-white truncate group-hover:text-blue-300 transition-colors">{item.name}</p>
+                  <p className="text-xs text-gray-400 mt-1 truncate hidden sm:block">{item.file_type} • {item.size ? `${(item.size / 1024 / 1024).toFixed(2)} MB` : ''}</p>
                 </div>
               </motion.div>
             ))}
@@ -1105,7 +1112,7 @@ if (activeTab === 'myFiles') {
   };
 
   const renderSharedWithMe = () => (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4">
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-2 sm:gap-4">
       {sharedDocuments.map((item, index) => (
         <motion.div 
           key={item.id} 
@@ -1118,123 +1125,126 @@ if (activeTab === 'myFiles') {
           <div className="relative mb-2">
             {item.is_folder ? (
               <FolderIcon 
-                className="w-40 h-40 transition-transform group-hover:scale-110" 
+                className="w-40 h-40 sm:w-48 sm:h-48 md:w-56 md:h-56 transition-transform group-hover:scale-110" 
                 hasExpired={hasExpiredDocuments(item)}
               />
             ) : (
-              <div className="w-40 h-40 rounded-xl flex items-center justify-center bg-gradient-to-br from-purple-500 to-pink-500 transition-transform group-hover:scale-110">
-                    <FileText className="w-20 h-20 text-white" />
+              <div className="w-40 h-40 sm:w-44 sm:h-44 md:w-48 md:h-48 rounded-xl flex items-center justify-center bg-gradient-to-br from-purple-500 to-pink-500 transition-transform group-hover:scale-110">
+                    <FileText className="w-20 h-20 sm:w-22 sm:h-22 md:w-24 md:h-24 text-white" />
                   </div>
             )}
             {/* Action buttons on hover */}
-            <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+            <div className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-0.5 sm:gap-1">
               <Button 
                 size="icon" 
                 variant="secondary" 
-                className="h-7 w-7 bg-gray-800/90 hover:bg-gray-700"
+                className="h-6 w-6 sm:h-7 sm:w-7 bg-gray-800/90 hover:bg-gray-700"
                 onClick={(e) => { e.stopPropagation(); handleView(item) }}
               >
-                <FileText className="w-3.5 h-3.5" />
+                <FileText className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
               </Button>
               <a href={`${FINANCE_API_BASE_URL}/api/documents/${item.id}`} download={item.name} onClick={(e) => e.stopPropagation()}>
                 <Button 
                   size="icon" 
                   variant="secondary" 
-                  className="h-7 w-7 bg-gray-800/90 hover:bg-gray-700"
+                  className="h-6 w-6 sm:h-7 sm:w-7 bg-gray-800/90 hover:bg-gray-700"
                 >
-                  <Download className="w-3.5 h-3.5" />
+                  <Download className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                 </Button>
               </a>
             </div>
           </div>
           <div className="w-full text-center px-1">
-            <p className="text-sm text-white truncate group-hover:text-blue-300 transition-colors">{item.name}</p>
-            <p className="text-xs text-gray-400 mt-1 truncate">Shared by: {item.owner_email}</p>
+            <p className="text-xs sm:text-sm text-white truncate group-hover:text-blue-300 transition-colors">{item.name}</p>
+            <p className="text-xs text-gray-400 mt-1 truncate hidden sm:block">Shared by: {item.owner_email}</p>
           </div>
         </motion.div>
       ))}
       {sharedDocuments.length === 0 && (
         <div className="text-center py-12 col-span-full">
-          <p className="text-gray-400">{searchTerm ? 'No shared items found matching your search.' : 'No items have been shared with you.'}</p>
+          <p className="text-gray-400 text-sm sm:text-base">{searchTerm ? 'No shared items found matching your search.' : 'No items have been shared with you.'}</p>
         </div>
       )}
     </div>
   );
 
   return (
-    <div className="p-8" onClick={() => setSelectedFolder(null)}>
+    <div className="p-4 sm:p-6 lg:p-8" onClick={() => setSelectedFolder(null)}>
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} onClick={(e) => e.stopPropagation()}>
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-          <h1 className="text-5xl font-bold text-white">Documents</h1>
-          <div className="flex items-center space-x-2 w-full md:w-auto">
-             <Button variant="outline" size="icon" onClick={handleRefresh} disabled={isRefreshing}>
-                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            </Button>
-             <div className="relative w-full md:w-64">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <Input placeholder="Search..." className="pl-12" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-            </div>
+        <div className="flex flex-col gap-4 mb-4 sm:mb-6">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white">Documents</h1>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2 w-full">
+             <div className="flex items-center gap-2">
+               <Button variant="outline" size="icon" onClick={handleRefresh} disabled={isRefreshing} className="h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0">
+                  <RefreshCw className={`w-4 h-4 sm:w-5 sm:h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+              </Button>
+               <div className="relative flex-1 sm:w-64">
+                  <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+                  <Input placeholder="Search..." className="pl-9 sm:pl-12 h-9 sm:h-10 text-sm" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+              </div>
+             </div>
             {activeTab === 'myFiles' && (
-              <>
-                <Button onClick={() => setShowCreateFolder(true)} variant="outline">
-                  <FolderPlus className="w-5 h-5 mr-2" /> Folder
+              <div className="flex items-center gap-2">
+                <Button onClick={() => setShowCreateFolder(true)} variant="outline" className="h-9 sm:h-10 text-sm sm:text-base flex-1 sm:flex-initial">
+                  <FolderPlus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" /> <span className="hidden sm:inline">Folder</span>
                 </Button>
                 {currentFolderId !== 'root' && currentPath.length > 2 && (
-                  <Button onClick={() => setShowUpload(true)}>
-                    <Plus className="w-5 h-5 mr-2" /> Upload
+                  <Button onClick={() => setShowUpload(true)} className="h-9 sm:h-10 text-sm sm:text-base flex-1 sm:flex-initial">
+                    <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" /> <span className="hidden sm:inline">Upload</span>
                   </Button>
                 )}
-              </>
+              </div>
             )}
           </div>
         </div>
 
-        <div className="flex justify-between items-center mb-8">
-            <div className="flex space-x-1 bg-black/20 p-1 rounded-lg">
-                <Button variant={activeTab === 'myFiles' ? 'secondary' : 'ghost'} onClick={() => setActiveTab('myFiles')} className="flex items-center space-x-2">
-                    <Folder className="w-4 h-4" />
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6 sm:mb-8">
+            <div className="flex space-x-1 bg-black/20 p-1 rounded-lg w-full sm:w-auto">
+                <Button variant={activeTab === 'myFiles' ? 'secondary' : 'ghost'} onClick={() => setActiveTab('myFiles')} className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm flex-1 sm:flex-initial">
+                    <Folder className="w-3 h-3 sm:w-4 sm:h-4" />
                     <span>My Files</span>
                 </Button>
-                <Button variant={activeTab === 'sharedWithMe' ? 'secondary' : 'ghost'} onClick={() => setActiveTab('sharedWithMe')} className="flex items-center space-x-2">
-                    <Inbox className="w-4 h-4" />
-                    <span>Shared with me</span>
+                <Button variant={activeTab === 'sharedWithMe' ? 'secondary' : 'ghost'} onClick={() => setActiveTab('sharedWithMe')} className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm flex-1 sm:flex-initial">
+                    <Inbox className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <span className="hidden xs:inline">Shared with me</span>
+                    <span className="xs:hidden">Shared</span>
                 </Button>
             </div>
             
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2 w-full lg:w-auto">
                 {/* Action buttons - Always visible, enabled when folder is selected */}
-                <div className="flex items-center gap-2 p-2 bg-gray-800/50 rounded-lg border border-gray-700" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center gap-1 sm:gap-2 p-1.5 sm:p-2 bg-gray-800/50 rounded-lg border border-gray-700 flex-wrap" onClick={(e) => e.stopPropagation()}>
                   <Button 
                     size="sm" 
                     variant="secondary" 
-                    className="bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed h-8 sm:h-9 text-xs sm:text-sm flex-1 sm:flex-initial"
                     onClick={() => selectedFolder && handleShareClick(selectedFolder)}
                     disabled={!selectedFolder}
                   >
-                    <Share2 className="w-4 h-4 mr-2" />
-                    Share
+                    <Share2 className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Share</span>
                   </Button>
                   <Button 
                     size="sm" 
                     variant="secondary" 
-                    className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed h-8 sm:h-9 text-xs sm:text-sm flex-1 sm:flex-initial"
                     onClick={() => selectedFolder && handleCollaborateClick(selectedFolder)}
                     disabled={!selectedFolder}
                   >
-                    <UserPlus className="w-4 h-4 mr-2" />
-                    Collaborate
+                    <UserPlus className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Collaborate</span>
                   </Button>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button 
                         size="sm" 
                         variant="secondary" 
-                        className="bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed h-8 sm:h-9 text-xs sm:text-sm flex-1 sm:flex-initial"
                         disabled={!selectedFolder || !isSelectedFolderEmpty}
                         title={selectedFolder && !isSelectedFolderEmpty ? "Cannot delete folder with contents" : ""}
                       >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Delete
+                        <Trash2 className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
+                        <span className="hidden sm:inline">Delete</span>
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
@@ -1263,19 +1273,19 @@ if (activeTab === 'myFiles') {
                     <Button 
                       size="sm" 
                       variant="ghost" 
-                      className="ml-1"
+                      className="ml-1 h-8 w-8 sm:h-9 sm:w-9 p-0"
                       onClick={() => setSelectedFolder(null)}
                     >
-                      <X className="w-4 h-4" />
+                      <X className="w-3 h-3 sm:w-4 sm:h-4" />
                     </Button>
                   )}
                 </div>
                 
                 {user?.role === 'CA_ACCOUNTANT' && (
-                    <div className="flex items-center space-x-2">
-                        <div className="w-64">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+                        <div className="w-full sm:w-48 lg:w-64">
                             <Select value={currentClientId} onValueChange={setCurrentClientId}>
-                                <SelectTrigger>
+                                <SelectTrigger className="h-9 sm:h-10">
                                     <SelectValue placeholder="Select Client" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -1288,9 +1298,9 @@ if (activeTab === 'myFiles') {
                             </Select>
                         </div>
                         {currentClientId !== 'all' && entitiesForFilter.length > 0 && (
-                            <div className="w-64">
+                            <div className="w-full sm:w-48 lg:w-64">
                                 <Select value={selectedEntityId} onValueChange={setSelectedEntityId}>
-                                    <SelectTrigger>
+                                    <SelectTrigger className="h-9 sm:h-10">
                                         <SelectValue placeholder="Select Entity" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -1489,14 +1499,14 @@ if (activeTab === 'myFiles') {
             {/* Direct Sharing Options */}
             <div className="space-y-3">
               <p className="text-gray-400 text-sm font-medium">Share using</p>
-              <div className="grid grid-cols-5 gap-3">
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 sm:gap-3">
                 {/* WhatsApp */}
                 <button
                   onClick={() => handleShareViaApp('whatsapp')}
-                  className="flex flex-col items-center space-y-2 p-3 rounded-lg bg-gray-800/50 hover:bg-gray-700/50 transition-colors border border-gray-700"
+                  className="flex flex-col items-center space-y-1 sm:space-y-2 p-2 sm:p-3 rounded-lg bg-gray-800/50 hover:bg-gray-700/50 transition-colors border border-gray-700"
                 >
-                  <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center">
-                    <MessageCircle className="w-6 h-6 text-white" />
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-green-500 flex items-center justify-center">
+                    <MessageCircle className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
                   </div>
                   <span className="text-xs text-gray-300">WhatsApp</span>
                 </button>
@@ -1504,10 +1514,10 @@ if (activeTab === 'myFiles') {
                 {/* Gmail */}
                 <button
                   onClick={() => handleShareViaApp('gmail')}
-                  className="flex flex-col items-center space-y-2 p-3 rounded-lg bg-gray-800/50 hover:bg-gray-700/50 transition-colors border border-gray-700"
+                  className="flex flex-col items-center space-y-1 sm:space-y-2 p-2 sm:p-3 rounded-lg bg-gray-800/50 hover:bg-gray-700/50 transition-colors border border-gray-700"
                 >
-                  <div className="w-10 h-10 rounded-full bg-red-500 flex items-center justify-center">
-                    <Mail className="w-6 h-6 text-white" />
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-red-500 flex items-center justify-center">
+                    <Mail className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
                   </div>
                   <span className="text-xs text-gray-300">Gmail</span>
                 </button>
@@ -1515,10 +1525,10 @@ if (activeTab === 'myFiles') {
                 {/* Outlook */}
                 <button
                   onClick={() => handleShareViaApp('outlook')}
-                  className="flex flex-col items-center space-y-2 p-3 rounded-lg bg-gray-800/50 hover:bg-gray-700/50 transition-colors border border-gray-700"
+                  className="flex flex-col items-center space-y-1 sm:space-y-2 p-2 sm:p-3 rounded-lg bg-gray-800/50 hover:bg-gray-700/50 transition-colors border border-gray-700"
                 >
-                  <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center">
-                    <Mail className="w-6 h-6 text-white" />
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-blue-500 flex items-center justify-center">
+                    <Mail className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
                   </div>
                   <span className="text-xs text-gray-300">Outlook</span>
                 </button>
@@ -1526,10 +1536,10 @@ if (activeTab === 'myFiles') {
                 {/* Microsoft Teams */}
                 <button
                   onClick={() => handleShareViaApp('teams')}
-                  className="flex flex-col items-center space-y-2 p-3 rounded-lg bg-gray-800/50 hover:bg-gray-700/50 transition-colors border border-gray-700"
+                  className="flex flex-col items-center space-y-1 sm:space-y-2 p-2 sm:p-3 rounded-lg bg-gray-800/50 hover:bg-gray-700/50 transition-colors border border-gray-700"
                 >
-                  <div className="w-10 h-10 rounded-full bg-purple-500 flex items-center justify-center">
-                    <MessageCircle className="w-6 h-6 text-white" />
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-purple-500 flex items-center justify-center">
+                    <MessageCircle className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
                   </div>
                   <span className="text-xs text-gray-300">Teams</span>
                 </button>
@@ -1537,10 +1547,10 @@ if (activeTab === 'myFiles') {
                 {/* Facebook */}
                 <button
                   onClick={() => handleShareViaApp('facebook')}
-                  className="flex flex-col items-center space-y-2 p-3 rounded-lg bg-gray-800/50 hover:bg-gray-700/50 transition-colors border border-gray-700"
+                  className="flex flex-col items-center space-y-1 sm:space-y-2 p-2 sm:p-3 rounded-lg bg-gray-800/50 hover:bg-gray-700/50 transition-colors border border-gray-700"
                 >
-                  <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center">
-                    <Facebook className="w-6 h-6 text-white" />
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-blue-600 flex items-center justify-center">
+                    <Facebook className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
                   </div>
                   <span className="text-xs text-gray-300">Facebook</span>
                 </button>
@@ -1548,10 +1558,10 @@ if (activeTab === 'myFiles') {
                 {/* Twitter */}
                 <button
                   onClick={() => handleShareViaApp('twitter')}
-                  className="flex flex-col items-center space-y-2 p-3 rounded-lg bg-gray-800/50 hover:bg-gray-700/50 transition-colors border border-gray-700"
+                  className="flex flex-col items-center space-y-1 sm:space-y-2 p-2 sm:p-3 rounded-lg bg-gray-800/50 hover:bg-gray-700/50 transition-colors border border-gray-700"
                 >
-                  <div className="w-10 h-10 rounded-full bg-black flex items-center justify-center">
-                    <Twitter className="w-6 h-6 text-white" />
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-black flex items-center justify-center">
+                    <Twitter className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
                   </div>
                   <span className="text-xs text-gray-300">Twitter</span>
                 </button>
@@ -1559,10 +1569,10 @@ if (activeTab === 'myFiles') {
                 {/* LinkedIn */}
                 <button
                   onClick={() => handleShareViaApp('linkedin')}
-                  className="flex flex-col items-center space-y-2 p-3 rounded-lg bg-gray-800/50 hover:bg-gray-700/50 transition-colors border border-gray-700"
+                  className="flex flex-col items-center space-y-1 sm:space-y-2 p-2 sm:p-3 rounded-lg bg-gray-800/50 hover:bg-gray-700/50 transition-colors border border-gray-700"
                 >
-                  <div className="w-10 h-10 rounded-full bg-blue-700 flex items-center justify-center">
-                    <Link2 className="w-6 h-6 text-white" />
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-blue-700 flex items-center justify-center">
+                    <Link2 className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
                   </div>
                   <span className="text-xs text-gray-300">LinkedIn</span>
                 </button>
@@ -1772,12 +1782,12 @@ if (activeTab === 'myFiles') {
 
       {previewFile && (
         <Dialog open={!!previewFile} onOpenChange={() => setPreviewFile(null)}>
-          <DialogContent className="max-w-3xl">
+          <DialogContent className="max-w-3xl w-[95vw] sm:w-full">
             <DialogHeader>
-              <DialogTitle>{previewFile.name}</DialogTitle>
+              <DialogTitle className="text-base sm:text-lg">{previewFile.name}</DialogTitle>
             </DialogHeader>
             <div className="mt-4">
-              <iframe src={previewFile.url} className="w-full h-[600px]" title={previewFile.name} />
+              <iframe src={previewFile.url} className="w-full h-[400px] sm:h-[500px] md:h-[600px]" title={previewFile.name} />
             </div>
           </DialogContent>
         </Dialog>

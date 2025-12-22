@@ -64,11 +64,15 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
   const handleToggleCollapse = () => setIsCollapsed(!isCollapsed);
 
   const sidebarContent = (
-    <div className={`h-full glass-pane flex flex-col p-4`}>
+    <div className={`h-full glass-pane flex flex-col p-3 sm:p-4`}>
       <div className="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar">
-        <div className="mb-8">
-            <div className={`flex items-center mb-4 ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
-                <Link to="/profile" className="flex items-center space-x-4 cursor-pointer min-w-0">
+        <div className="mb-6 sm:mb-8">
+            <div className={`flex items-center mb-3 sm:mb-4 ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
+                <Link 
+                  to="/profile" 
+                  className="flex items-center space-x-4 cursor-pointer min-w-0"
+                  onClick={() => !isDesktop && setIsOpen(false)}
+                >
                     <Avatar className="w-12 h-12 flex-shrink-0 border-2 border-white/20">
                         <AvatarImage src={user?.photo_url} alt={user?.name} />
                         <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
@@ -92,13 +96,13 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
             <motion.div
               variants={textVariants}
               initial="collapsed" animate="expanded" exit="collapsed"
-              className="mb-6"
+              className="mb-4 sm:mb-6"
             >
               {entitiesToDisplay.length > 0 && (
                 <Select onValueChange={handleEntityChange} value={currentEntity || ''}>
-                  <SelectTrigger className="w-full text-base glass-input">
-                    <div className="flex items-center gap-3 truncate">
-                      <Building className="h-5 w-5 text-gray-400" />
+                  <SelectTrigger className="w-full text-sm sm:text-base glass-input">
+                    <div className="flex items-center gap-2 sm:gap-3 truncate">
+                      <Building className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 flex-shrink-0" />
                       <SelectValue placeholder="Select Entity..." />
                     </div>
                   </SelectTrigger>
@@ -122,10 +126,13 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
               const isActive = location.pathname === item.path;
               return (
                 <li key={item.id}>
-                  <Link to={item.path}>
+                  <Link 
+                    to={item.path}
+                    onClick={() => !isDesktop && setIsOpen(false)}
+                  >
                     <Button
                       variant="ghost"
-                      className={`w-full justify-start text-left h-12 relative ${isActive ? 'text-white' : 'text-gray-300'}`}
+                      className={`w-full justify-start text-left h-11 sm:h-12 relative ${isActive ? 'text-white' : 'text-gray-300'} text-sm sm:text-base`}
                       title={isCollapsed ? item.label : ''}
                     >
                       <AnimatePresence>
@@ -139,7 +146,7 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
                         ></motion.div>
                       )}
                       </AnimatePresence>
-                      <Icon className={`w-6 h-6 flex-shrink-0 z-10 ${isCollapsed ? 'mx-auto' : 'mr-4'}`} />
+                      <Icon className={`w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0 z-10 ${isCollapsed ? 'mx-auto' : 'mr-3 sm:mr-4'}`} />
                        <AnimatePresence>
                           {!isCollapsed && (
                             <motion.span variants={textVariants} initial="collapsed" animate="expanded" exit="collapsed" className="flex-1 font-medium z-10">{item.label}</motion.span>
@@ -154,15 +161,15 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
         </nav>
       </div>
 
-      <div className="mt-auto pt-4 border-t border-white/10 space-y-2">
+      <div className="mt-auto pt-3 sm:pt-4 border-t border-white/10 space-y-2">
           {isDesktop && (
             <Button
               variant="ghost"
-              className="w-full justify-start text-gray-300 hover:text-white h-12"
+              className="w-full justify-start text-gray-300 hover:text-white h-11 sm:h-12 text-sm sm:text-base"
               onClick={handleToggleCollapse}
             >
-              <div className={isCollapsed ? "mx-auto" : "mr-4"}>
-                {isCollapsed ? <PanelLeftOpen className="w-6 h-6" /> : <PanelLeftClose className="w-6 h-6"/>}
+              <div className={isCollapsed ? "mx-auto" : "mr-3 sm:mr-4"}>
+                {isCollapsed ? <PanelLeftOpen className="w-5 h-5 sm:w-6 sm:h-6" /> : <PanelLeftClose className="w-5 h-5 sm:w-6 sm:h-6"/>}
               </div>
               <AnimatePresence>
                 {!isCollapsed && (
@@ -173,10 +180,10 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
           )}
           <Button
             variant="ghost"
-            className="w-full justify-start text-gray-300 hover:text-white hover:bg-red-500/20 h-12"
+            className="w-full justify-start text-gray-300 hover:text-white hover:bg-red-500/20 h-11 sm:h-12 text-sm sm:text-base"
             onClick={logout}
           >
-            <LogOut className={`w-6 h-6 flex-shrink-0 ${isCollapsed ? 'mx-auto' : 'mr-4'}`} />
+            <LogOut className={`w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0 ${isCollapsed ? 'mx-auto' : 'mr-3 sm:mr-4'}`} />
             <AnimatePresence>
               {!isCollapsed && (
                 <motion.span variants={textVariants} initial="collapsed" animate="expanded" exit="collapsed" className="font-medium">Sign Out</motion.span>
@@ -200,7 +207,7 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
               onClick={() => setIsOpen(false)}
             />
             <motion.div
-              className="fixed top-0 left-0 bottom-0 z-40 w-72"
+              className="fixed top-0 left-0 bottom-0 z-40 w-72 sm:w-80"
               variants={mobileVariants}
               initial="closed"
               animate="open"

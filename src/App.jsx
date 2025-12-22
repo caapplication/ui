@@ -152,12 +152,12 @@ const ProtectedContent = () => {
       />
       <main className="flex-1 flex flex-col overflow-auto h-full">
         {!isDesktop && (
-          <header className="p-4 flex items-center justify-between lg:hidden sticky top-0 z-10 bg-black/10 backdrop-blur-sm">
-            <Button variant="ghost" size="icon" onClick={() => setIsMobileSidebarOpen(true)}>
-              <Menu className="h-6 w-6 text-white" />
+          <header className="p-3 sm:p-4 flex items-center justify-between lg:hidden sticky top-0 z-10 bg-black/10 backdrop-blur-sm border-b border-white/10">
+            <Button variant="ghost" size="icon" onClick={() => setIsMobileSidebarOpen(true)} className="h-9 w-9 sm:h-10 sm:w-10">
+              <Menu className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
             </Button>
-            <div className="text-white font-bold text-lg">{user?.name || user?.agency_name}</div>
-            <div className="w-10"></div>
+            <div className="text-white font-bold text-base sm:text-lg truncate px-2 flex-1 text-center">{user?.name || user?.agency_name}</div>
+            <div className="w-9 sm:w-10"></div>
           </header>
         )}
         <div className="flex-1 overflow-y-auto">

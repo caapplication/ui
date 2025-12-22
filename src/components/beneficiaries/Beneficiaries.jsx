@@ -354,9 +354,9 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
   }
 
   const PaginationFooter = () => (
-    <CardFooter className="flex justify-between items-center pt-4">
+    <CardFooter className="flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-0 pt-4 px-4 sm:px-6 pb-4 sm:pb-6">
       <div>
-        <p className="text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
+        <p className="text-xs sm:text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
       </div>
       <div className="flex items-center gap-2">
         <Button
@@ -364,34 +364,37 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
           size="icon"
           onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
           disabled={currentPage === 1}
+          className="h-8 w-8 sm:h-9 sm:w-9"
         >
-          <ChevronLeft className="w-4 h-4" />
+          <ChevronLeft className="w-3 h-3 sm:w-4 sm:h-4" />
         </Button>
         <Button
           variant="outline"
           size="icon"
           onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
           disabled={currentPage === totalPages}
+          className="h-8 w-8 sm:h-9 sm:w-9"
         >
-          <ChevronRight className="w-4 h-4" />
+          <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4" />
         </Button>
       </div>
     </CardFooter>
   );
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-          <h1 className="text-5xl font-bold text-white">Beneficiaries</h1>
-           <div className="flex items-center gap-4 w-full md:w-auto">
-            <div className="relative w-full md:w-64">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <Input placeholder="Search..." className="pl-12" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+        <div className="flex flex-col gap-4 mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white">Beneficiaries</h1>
+           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 w-full">
+            <div className="relative flex-1 sm:w-64">
+                <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+                <Input placeholder="Search..." className="pl-9 sm:pl-12 h-9 sm:h-10 text-sm" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
             </div>
-            <Button onClick={() => setShowAddDialog(true)}>
-              <Plus className="w-5 h-5 mr-2" />
-              Add New
+            <Button onClick={() => setShowAddDialog(true)} className="h-9 sm:h-10 text-sm sm:text-base w-full sm:w-auto">
+              <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Add New</span>
+              <span className="sm:hidden">Add</span>
             </Button>
           </div>
         </div>
@@ -402,15 +405,15 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
           </div>
         ) : (
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="individual">Individual</TabsTrigger>
-              <TabsTrigger value="company">Company</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 text-xs sm:text-sm">
+              <TabsTrigger value="individual" className="text-xs sm:text-sm">Individual</TabsTrigger>
+              <TabsTrigger value="company" className="text-xs sm:text-sm">Company</TabsTrigger>
             </TabsList>
             <TabsContent value="individual">
               <Card className="glass-card">
-                <CardHeader>
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-4 flex-wrap">
+                <CardHeader className="p-4 sm:p-6">
+                  <div className="flex flex-col gap-3 sm:gap-4">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 flex-wrap">
                       <Select
                         value=""
                         onValueChange={filter => {
@@ -419,7 +422,7 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
                           }
                         }}
                       >
-                        <SelectTrigger className="w-[180px]">
+                        <SelectTrigger className="w-full sm:w-[180px] h-9 sm:h-10">
                           <SelectValue placeholder="Add Filter" />
                         </SelectTrigger>
                         <SelectContent>
@@ -430,13 +433,13 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
                         </SelectContent>
                       </Select>
                       {activeFilters.map(filter => (
-                        <div key={filter} className="flex items-center gap-2">
+                        <div key={filter} className="flex items-center gap-2 w-full sm:w-auto">
                           {filter === 'name' && (
                             <Input
                               placeholder="Search by name..."
                               value={filterValues.name || ''}
                               onChange={e => setFilterValues(fv => ({ ...fv, name: e.target.value }))}
-                              className="max-w-xs"
+                              className="flex-1 sm:max-w-xs h-9 sm:h-10 text-sm"
                             />
                           )}
                           {filter === 'email' && (
@@ -444,7 +447,7 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
                               placeholder="Search by email..."
                               value={filterValues.email || ''}
                               onChange={e => setFilterValues(fv => ({ ...fv, email: e.target.value }))}
-                              className="max-w-xs"
+                              className="flex-1 sm:max-w-xs h-9 sm:h-10 text-sm"
                             />
                           )}
                           {filter === 'phone' && (
@@ -452,7 +455,7 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
                               placeholder="Search by phone..."
                               value={filterValues.phone || ''}
                               onChange={e => setFilterValues(fv => ({ ...fv, phone: e.target.value }))}
-                              className="max-w-xs"
+                              className="flex-1 sm:max-w-xs h-9 sm:h-10 text-sm"
                             />
                           )}
                           {filter === 'pan' && (
@@ -460,7 +463,7 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
                               placeholder="Search by PAN..."
                               value={filterValues.pan || ''}
                               onChange={e => setFilterValues(fv => ({ ...fv, pan: e.target.value }))}
-                              className="max-w-xs"
+                              className="flex-1 sm:max-w-xs h-9 sm:h-10 text-sm"
                             />
                           )}
                           <Button
@@ -475,6 +478,7 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
                               });
                             }}
                             title="Remove filter"
+                            className="h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0"
                           >
                             ×
                           </Button>
@@ -483,52 +487,60 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Phone</TableHead>
-                        <TableHead>PAN</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {paginatedBeneficiaries.length === 0 ? (
+                <CardContent className="p-0 sm:p-6">
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center text-gray-400">
-                            No beneficiaries found.
-                          </TableCell>
+                          <TableHead className="text-xs sm:text-sm">Name</TableHead>
+                          <TableHead className="text-xs sm:text-sm hidden sm:table-cell">Email</TableHead>
+                          <TableHead className="text-xs sm:text-sm">Phone</TableHead>
+                          <TableHead className="text-xs sm:text-sm hidden md:table-cell">PAN</TableHead>
+                          <TableHead className="text-xs sm:text-sm">Actions</TableHead>
                         </TableRow>
-                      ) : (
-                        paginatedBeneficiaries.map((b) => (
-                          <TableRow key={b.id}>
-                            <TableCell>{b.name}</TableCell>
-                            <TableCell>{b.email || '-'}</TableCell>
-                            <TableCell>{b.phone}</TableCell>
-                            <TableCell>{b.pan || 'N/A'}</TableCell>
-                            <TableCell>
-                              <Link to={`/beneficiaries/${b.id}`}>
-                                <Button size="icon" variant="ghost">
-                                  <Eye className="w-4 h-4" />
-                                </Button>
-                              </Link>
+                      </TableHeader>
+                      <TableBody>
+                        {paginatedBeneficiaries.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={5} className="text-center text-gray-400 text-sm">
+                              No beneficiaries found.
                             </TableCell>
                           </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
+                        ) : (
+                          paginatedBeneficiaries.map((b) => (
+                            <TableRow key={b.id}>
+                              <TableCell className="text-xs sm:text-sm">
+                                <div className="flex flex-col sm:block">
+                                  <span className="font-medium">{b.name}</span>
+                                  <span className="text-gray-400 text-xs sm:hidden mt-1">{b.email || '-'}</span>
+                                  <span className="text-gray-400 text-xs sm:hidden mt-1">PAN: {b.pan || 'N/A'}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-xs sm:text-sm hidden sm:table-cell">{b.email || '-'}</TableCell>
+                              <TableCell className="text-xs sm:text-sm">{b.phone}</TableCell>
+                              <TableCell className="text-xs sm:text-sm hidden md:table-cell">{b.pan || 'N/A'}</TableCell>
+                              <TableCell>
+                                <Link to={`/beneficiaries/${b.id}`}>
+                                  <Button size="icon" variant="ghost" className="h-8 w-8 sm:h-9 sm:w-9">
+                                    <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
+                                  </Button>
+                                </Link>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </CardContent>
                 <PaginationFooter />
               </Card>
             </TabsContent>
             <TabsContent value="company">
               <Card className="glass-card">
-                <CardHeader>
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-4 flex-wrap">
+                <CardHeader className="p-4 sm:p-6">
+                  <div className="flex flex-col gap-3 sm:gap-4">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 flex-wrap">
                       <Select
                         value=""
                         onValueChange={filter => {
@@ -537,7 +549,7 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
                           }
                         }}
                       >
-                        <SelectTrigger className="w-[180px]">
+                        <SelectTrigger className="w-full sm:w-[180px] h-9 sm:h-10">
                           <SelectValue placeholder="Add Filter" />
                         </SelectTrigger>
                         <SelectContent>
@@ -548,13 +560,13 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
                         </SelectContent>
                       </Select>
                       {activeFilters.map(filter => (
-                        <div key={filter} className="flex items-center gap-2">
+                        <div key={filter} className="flex items-center gap-2 w-full sm:w-auto">
                           {filter === 'name' && (
                             <Input
                               placeholder="Search by company name..."
                               value={filterValues.name || ''}
                               onChange={e => setFilterValues(fv => ({ ...fv, name: e.target.value }))}
-                              className="max-w-xs"
+                              className="flex-1 sm:max-w-xs h-9 sm:h-10 text-sm"
                             />
                           )}
                           {filter === 'email' && (
@@ -562,7 +574,7 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
                               placeholder="Search by email..."
                               value={filterValues.email || ''}
                               onChange={e => setFilterValues(fv => ({ ...fv, email: e.target.value }))}
-                              className="max-w-xs"
+                              className="flex-1 sm:max-w-xs h-9 sm:h-10 text-sm"
                             />
                           )}
                           {filter === 'phone' && (
@@ -570,7 +582,7 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
                               placeholder="Search by phone..."
                               value={filterValues.phone || ''}
                               onChange={e => setFilterValues(fv => ({ ...fv, phone: e.target.value }))}
-                              className="max-w-xs"
+                              className="flex-1 sm:max-w-xs h-9 sm:h-10 text-sm"
                             />
                           )}
                           {filter === 'pan' && (
@@ -578,7 +590,7 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
                               placeholder="Search by PAN..."
                               value={filterValues.pan || ''}
                               onChange={e => setFilterValues(fv => ({ ...fv, pan: e.target.value }))}
-                              className="max-w-xs"
+                              className="flex-1 sm:max-w-xs h-9 sm:h-10 text-sm"
                             />
                           )}
                           <Button
@@ -593,6 +605,7 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
                               });
                             }}
                             title="Remove filter"
+                            className="h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0"
                           >
                             ×
                           </Button>
@@ -601,43 +614,51 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Company Name</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Phone</TableHead>
-                        <TableHead>PAN</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {paginatedBeneficiaries.length === 0 ? (
+                <CardContent className="p-0 sm:p-6">
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center text-gray-400">
-                            No beneficiaries found.
-                          </TableCell>
+                          <TableHead className="text-xs sm:text-sm">Company Name</TableHead>
+                          <TableHead className="text-xs sm:text-sm hidden sm:table-cell">Email</TableHead>
+                          <TableHead className="text-xs sm:text-sm">Phone</TableHead>
+                          <TableHead className="text-xs sm:text-sm hidden md:table-cell">PAN</TableHead>
+                          <TableHead className="text-xs sm:text-sm">Actions</TableHead>
                         </TableRow>
-                      ) : (
-                        paginatedBeneficiaries.map((b) => (
-                          <TableRow key={b.id}>
-                            <TableCell>{b.company_name}</TableCell>
-                            <TableCell>{b.email || '-'}</TableCell>
-                            <TableCell>{b.phone}</TableCell>
-                            <TableCell>{b.pan || 'N/A'}</TableCell>
-                            <TableCell>
-                              <Link to={`/beneficiaries/${b.id}`}>
-                                <Button size="icon" variant="ghost">
-                                  <Eye className="w-4 h-4" />
-                                </Button>
-                              </Link>
+                      </TableHeader>
+                      <TableBody>
+                        {paginatedBeneficiaries.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={5} className="text-center text-gray-400 text-sm">
+                              No beneficiaries found.
                             </TableCell>
                           </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
+                        ) : (
+                          paginatedBeneficiaries.map((b) => (
+                            <TableRow key={b.id}>
+                              <TableCell className="text-xs sm:text-sm">
+                                <div className="flex flex-col sm:block">
+                                  <span className="font-medium">{b.company_name}</span>
+                                  <span className="text-gray-400 text-xs sm:hidden mt-1">{b.email || '-'}</span>
+                                  <span className="text-gray-400 text-xs sm:hidden mt-1">PAN: {b.pan || 'N/A'}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-xs sm:text-sm hidden sm:table-cell">{b.email || '-'}</TableCell>
+                              <TableCell className="text-xs sm:text-sm">{b.phone}</TableCell>
+                              <TableCell className="text-xs sm:text-sm hidden md:table-cell">{b.pan || 'N/A'}</TableCell>
+                              <TableCell>
+                                <Link to={`/beneficiaries/${b.id}`}>
+                                  <Button size="icon" variant="ghost" className="h-8 w-8 sm:h-9 sm:w-9">
+                                    <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
+                                  </Button>
+                                </Link>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </CardContent>
                 <PaginationFooter />
               </Card>
@@ -648,20 +669,20 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
       </motion.div>
       
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Add New Beneficiary</DialogTitle>
-            <CardDescription>Enter the details for the new beneficiary.</CardDescription>
+            <DialogTitle className="text-lg sm:text-xl">Add New Beneficiary</DialogTitle>
+            <CardDescription className="text-sm">Enter the details for the new beneficiary.</CardDescription>
           </DialogHeader>
           <BeneficiaryForm onAdd={handleAdd} onCancel={() => setShowAddDialog(false)} />
         </DialogContent>
       </Dialog>
 
       <Dialog open={showAddAccountDialog} onOpenChange={setShowAddAccountDialog}>
-        <DialogContent>
+        <DialogContent className="w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Add Bank Account</DialogTitle>
-            <CardDescription>For: <span className="font-semibold text-sky-400">{selectedBeneficiary?.beneficiary_type === 'individual' ? selectedBeneficiary.name : selectedBeneficiary?.company_name}</span></CardDescription>
+            <DialogTitle className="text-lg sm:text-xl">Add Bank Account</DialogTitle>
+            <CardDescription className="text-sm">For: <span className="font-semibold text-sky-400">{selectedBeneficiary?.beneficiary_type === 'individual' ? selectedBeneficiary.name : selectedBeneficiary?.company_name}</span></CardDescription>
           </DialogHeader>
           <div className="py-4">
             {selectedBeneficiary && <AddBankAccountForm beneficiary={selectedBeneficiary} onAddBankAccount={handleAddAccountSubmit} onCancel={() => setShowAddAccountDialog(false)}/>}
@@ -670,9 +691,9 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
       </Dialog>
 
       <Dialog open={showViewDialog} onOpenChange={setShowViewDialog}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Beneficiary Details</DialogTitle>
+            <DialogTitle className="text-lg sm:text-xl">Beneficiary Details</DialogTitle>
           </DialogHeader>
           {selectedBeneficiary && (
             <div className="space-y-4 pt-4">

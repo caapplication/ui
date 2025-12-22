@@ -151,7 +151,7 @@ const FinancePage = () => {
             <TabsTrigger value="invoices" className="px-4 py-2 transition-all duration-300 ease-in-out">Invoices</TabsTrigger>
           </TabsList>
         </div>
-        <TabsContent value="vouchers">
+        <TabsContent value="vouchers" forceMount>
           <Vouchers
             selectedOrganisation={selectedOrg}
             selectedEntity={selectedEntity}
@@ -159,7 +159,7 @@ const FinancePage = () => {
             onRefresh={handleRefresh}
           />
         </TabsContent>
-        <TabsContent value="invoices">
+        <TabsContent value="invoices" forceMount>
           <Invoices
             selectedOrganisation={selectedOrg}
             selectedEntity={selectedEntity}
