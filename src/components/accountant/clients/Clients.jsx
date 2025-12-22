@@ -64,7 +64,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                 const clientsWithData = (clientsData || []).map(client => {
                     // Convert S3 photo URLs to proxy endpoint URLs
                     const photoUrl = client.photo_url && client.photo_url.includes('.s3.amazonaws.com/')
-                        ? `http://127.0.0.1:8002/clients/${client.id}/photo`
+                        ? `https://client-api.fynivo.in/clients/${client.id}/photo`
                         : (client.photo_url || client.photo);
                     
                     return {
@@ -192,7 +192,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                 if (photoFile) {
                     const photoRes = await uploadClientPhoto(editingClient.id, photoFile, user.agency_id, user.access_token);
                     // Use the photo_url from response, or construct the proxy URL with cache-busting
-                    const photoUrl = photoRes.photo_url || `http://127.0.0.1:8002/clients/${editingClient.id}/photo?t=${Date.now()}`;
+                    const photoUrl = photoRes.photo_url || `https://client-api.fynivo.in/clients/${editingClient.id}/photo?t=${Date.now()}`;
                     finalClient = { ...updatedClient, photo: photoUrl, photo_url: photoUrl };
                 } else {
                     finalClient = updatedClient;
@@ -211,7 +211,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                     const photoRes = await uploadClientPhoto(newClient.id, photoFile, user.agency_id, user.access_token);
                     // Convert S3 URL to proxy endpoint URL
                     const photoUrl = photoRes.photo_url && photoRes.photo_url.includes('.s3.amazonaws.com/')
-                        ? `http://127.0.0.1:8002/clients/${newClient.id}/photo`
+                        ? `https://client-api.fynivo.in/clients/${newClient.id}/photo`
                         : photoRes.photo_url;
                     finalClient = { ...newClient, photo: photoUrl, photo_url: photoUrl };
                 }

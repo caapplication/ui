@@ -138,7 +138,7 @@ import React, { useState, useEffect, useRef } from 'react';
             if (client?.id && user?.access_token && !photoPreview) {
                 const photoUrl = client.photo_url || client.photo;
                 // Always try to fetch from the photo endpoint if we have a client ID
-                const photoEndpoint = `http://127.0.0.1:8002/clients/${client.id}/photo?t=${Date.now()}`;
+                const photoEndpoint = `https://client-api.fynivo.in/clients/${client.id}/photo?t=${Date.now()}`;
                 
                 if (photoUrl && photoUrl.includes(`/clients/${client.id}/photo`)) {
                     // Fetch with authentication
@@ -340,7 +340,7 @@ import React, { useState, useEffect, useRef } from 'react';
                                     <Avatar className="w-32 h-32 text-4xl border-4 border-white/20">
                                         <AvatarImage 
                                             src={photoPreview || photoBlobUrl || (client?.photo_url && client.photo_url.includes('.s3.amazonaws.com/') && client?.id
-                                                ? `http://127.0.0.1:8002/clients/${client.id}/photo`
+                                                ? `https://client-api.fynivo.in/clients/${client.id}/photo`
                                                 : (client?.photo_url || client?.photo))} 
                                             alt={formData.name || 'Client'} 
                                             key={`client-photo-${client?.id}-${client?.photo_url || 'no-photo'}-${Date.now()}`}
