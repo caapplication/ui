@@ -1,11 +1,23 @@
 import { getAuthHeaders, handleResponse } from './utils';
     
-    const TASK_API_BASE_URL = 'https://task-api.fynivo.in'; // Use local service for development
-    const CLIENTS_API_BASE_URL = 'https://client-api.fynivo.in'; // Use local service for development
-    const SERVICES_API_BASE_URL = 'https://services-api.fynivo.in'; // Use local service for development
-    const LOGIN_API_BASE_URL = 'https://login-api.fynivo.in'; // Use local service for development
+    const TASK_API_BASE_URL = import.meta.env.VITE_TASK_API_URL || 'https://task-api.fynivo.in';
+    const CLIENTS_API_BASE_URL = import.meta.env.VITE_CLIENT_API_URL || 'https://client-api.fynivo.in';
+    const SERVICES_API_BASE_URL = import.meta.env.VITE_SERVICES_API_URL || 'https://services-api.fynivo.in';
+    const LOGIN_API_BASE_URL = import.meta.env.VITE_LOGIN_API_URL || 'https://login-api.fynivo.in';
+    
+    // Debug: Log API URLs (remove in production)
+    if (import.meta.env.DEV) {
+        console.log('🔧 API URLs:', {
+            CLIENT_API: CLIENTS_API_BASE_URL,
+            LOGIN_API: LOGIN_API_BASE_URL,
+            FINANCE_API: import.meta.env.VITE_FINANCE_API_URL || 'https://finance-api.fynivo.in',
+            SERVICES_API: SERVICES_API_BASE_URL,
+            TASK_API: TASK_API_BASE_URL
+        });
+    }
     
 export const listClients = async (agencyId, token) => {
+    console.log('📡 Fetching clients from:', `${CLIENTS_API_BASE_URL}/clients/`);
     const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/`, {
         method: 'GET',
         headers: getAuthHeaders(token, 'application/json', agencyId)

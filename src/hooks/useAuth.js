@@ -54,7 +54,8 @@ export const AuthProvider = ({ children }) => {
   };
   
   const login = async (email, password) => {
-    const response = await fetch('https://login-api.fynivo.in/login/', {
+    const loginApiUrl = import.meta.env.VITE_LOGIN_API_URL || 'https://login-api.fynivo.in';
+    const response = await fetch(`${loginApiUrl}/login/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',

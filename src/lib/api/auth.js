@@ -1,6 +1,6 @@
 import { getAuthHeaders, handleResponse } from './utils';
 
-const API_BASE_URL = 'https://login-api.fynivo.in';
+const API_BASE_URL = import.meta.env.VITE_LOGIN_API_URL || 'https://login-api.fynivo.in';
 
 export const refreshToken = async (refreshToken) => {
     const response = await fetch(`${API_BASE_URL}/auth/refresh-token`, {

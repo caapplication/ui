@@ -63,8 +63,9 @@ import React, { useState, useEffect, useCallback } from 'react';
     
                 const clientsWithData = (clientsData || []).map(client => {
                     // Convert S3 photo URLs to proxy endpoint URLs
+                    const clientApiUrl = import.meta.env.VITE_CLIENT_API_URL || 'https://client-api.fynivo.in';
                     const photoUrl = client.photo_url && client.photo_url.includes('.s3.amazonaws.com/')
-                        ? `https://client-api.fynivo.in/clients/${client.id}/photo`
+                        ? `${clientApiUrl}/clients/${client.id}/photo`
                         : (client.photo_url || client.photo);
                     
                     return {
@@ -192,7 +193,8 @@ import React, { useState, useEffect, useCallback } from 'react';
                 if (photoFile) {
                     const photoRes = await uploadClientPhoto(editingClient.id, photoFile, user.agency_id, user.access_token);
                     // Use the photo_url from response, or construct the proxy URL with cache-busting
-                    const photoUrl = photoRes.photo_url || `https://client-api.fynivo.in/clients/${editingClient.id}/photo?t=${Date.now()}`;
+                    const clientApiUrl = import.meta.env.VITE_CLIENT_API_URL || 'https://client-api.fynivo.in';
+                    const photoUrl = photoRes.photo_url || `${clientApiUrl}/clients/${editingClient.id}/photo?t=${Date.now()}`;
                     finalClient = { ...updatedClient, photo: photoUrl, photo_url: photoUrl };
                 } else {
                     finalClient = updatedClient;
@@ -211,7 +213,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                     const photoRes = await uploadClientPhoto(newClient.id, photoFile, user.agency_id, user.access_token);
                     // Convert S3 URL to proxy endpoint URL
                     const photoUrl = photoRes.photo_url && photoRes.photo_url.includes('.s3.amazonaws.com/')
-                        ? `https://client-api.fynivo.in/clients/${newClient.id}/photo`
+                        ? `${import.meta.env.VITE_CLIENT_API_URL || 'https://client-api.fynivo.in'}/clients/${newClient.id}/photo`
                         : photoRes.photo_url;
                     finalClient = { ...newClient, photo: photoUrl, photo_url: photoUrl };
                 }

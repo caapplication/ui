@@ -1,7 +1,7 @@
 import { handleResponse, getAuthHeaders } from './utils';
 
-const API_BASE_URL = 'https://login-api.fynivo.in'; // Use local service for development
-const TASKS_API_BASE_URL = 'https://task-api.fynivo.in'; // Use local service for development
+const API_BASE_URL = import.meta.env.VITE_LOGIN_API_URL || 'https://login-api.fynivo.in';
+const TASKS_API_BASE_URL = import.meta.env.VITE_TASK_API_URL || 'https://task-api.fynivo.in';
 
 export const inviteTeamMember = async (email, caId, token) => {
     const response = await fetch(`${API_BASE_URL}/invites/ca-team-member`, {

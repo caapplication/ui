@@ -1,6 +1,6 @@
 import { getAuthHeaders, handleResponse } from './utils';
 
-    const TASKS_API_BASE_URL = 'https://task-api.fynivo.in'; // Use local service for development
+    const TASKS_API_BASE_URL = import.meta.env.VITE_TASK_API_URL || 'https://task-api.fynivo.in';
 
     export const listTasks = async (agencyId, token) => {
         try {

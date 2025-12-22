@@ -1,6 +1,11 @@
 import { useAuth } from '@/hooks/useAuth';
 
-export const BASE_URL = 'https://login-api.fynivo.in'; // Use local service for development
+export const BASE_URL = import.meta.env.VITE_LOGIN_API_URL || 'https://login-api.fynivo.in';
+
+// Debug: Log API URLs in development
+if (import.meta.env.DEV) {
+    console.log('🔧 Login API URL:', BASE_URL);
+}
 
 export const getAuthHeaders = (token, contentType = 'application/json', agencyId = null) => {
     const headers = {

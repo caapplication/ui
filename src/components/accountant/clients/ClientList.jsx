@@ -276,7 +276,7 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
                                     <Avatar>
                                         <AvatarImage 
                                             src={client.photo_url && client.photo_url.includes('.s3.amazonaws.com/') 
-                                                ? `https://client-api.fynivo.in/clients/${client.id}/photo`
+                                                ? `${import.meta.env.VITE_CLIENT_API_URL || 'https://client-api.fynivo.in'}/clients/${client.id}/photo`
                                                 : (client.photo_url || client.photo)} 
                                         />
                                         <AvatarFallback>{client.name.charAt(0)}</AvatarFallback>

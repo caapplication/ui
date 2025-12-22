@@ -1,6 +1,6 @@
 import { getAuthHeaders, handleResponse } from './utils';
 
-const TASKS_API_BASE_URL = 'https://task-api.fynivo.in'; // Task service base URL
+const TASKS_API_BASE_URL = import.meta.env.VITE_TASK_API_URL || 'https://task-api.fynivo.in';
 
 export const listRecurringTasks = async (agencyId, token, isActive = null) => {
     try {

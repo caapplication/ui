@@ -217,27 +217,27 @@ export default defineConfig({
 		allowedHosts: true,
 		proxy: {
 			'/login/': {
-				target: 'https://login-api.fynivo.in',
+				target: process.env.VITE_LOGIN_API_URL || 'https://login-api.fynivo.in',
 				changeOrigin: true,
 				secure: false,
 			},
 			'/organizations/': {
-				target: 'https://login-api.fynivo.in',
+				target: process.env.VITE_LOGIN_API_URL || 'https://login-api.fynivo.in',
 				changeOrigin: true,
 				secure: false,
 			},
 			'/entities/': {
-				target: 'https://login-api.fynivo.in',
+				target: process.env.VITE_LOGIN_API_URL || 'https://login-api.fynivo.in',
 				changeOrigin: true,
 				secure: false,
 			},
 			'/clients/': {
-				target: 'https://client-api.fynivo.in',
+				target: process.env.VITE_CLIENT_API_URL || 'https://client-api.fynivo.in',
 				changeOrigin: true,
 				secure: false,
 			},
 			'/api/': {
-				target: 'https://services-api.fynivo.in',
+				target: process.env.VITE_SERVICES_API_URL || 'https://services-api.fynivo.in',
 				changeOrigin: true,
 				secure: false,
 			},

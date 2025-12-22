@@ -1,8 +1,8 @@
 
 import { getAuthHeaders, handleResponse } from './utils';
 
-const CLIENTS_API_BASE_URL = 'https://client-api.fynivo.in'; // Use local service for development
-const FINANCE_API_BASE_URL = 'https://finance-api.fynivo.in';
+const CLIENTS_API_BASE_URL = import.meta.env.VITE_CLIENT_API_URL || 'https://client-api.fynivo.in';
+const FINANCE_API_BASE_URL = import.meta.env.VITE_FINANCE_API_URL || 'https://finance-api.fynivo.in';
 
 export const getGeneralSettings = async (agencyId, token) => {
     const response = await fetch(`${CLIENTS_API_BASE_URL}/settings/general`, {
