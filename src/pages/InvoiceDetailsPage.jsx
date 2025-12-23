@@ -42,6 +42,7 @@ const InvoiceDetailsPage = () => {
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const invoiceDetailsRef = useRef(null);
+    const invoiceDetailsPDFRef = useRef(null);
     const attachmentRef = useRef(null);
     const activityLogRef = useRef(null);
     const [beneficiaries, setBeneficiaries] = useState([]);
@@ -58,6 +59,26 @@ const InvoiceDetailsPage = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [isImageLoading, setIsImageLoading] = useState(false);
     const [sidebarWidth, setSidebarWidth] = useState(320); // Default to expanded width (300px + padding)
+    
+    // Hide scrollbars globally for this page
+    useEffect(() => {
+        const style = document.createElement('style');
+        style.textContent = `
+            /* Hide scrollbar for Chrome, Safari and Opera */
+            .hide-scrollbar::-webkit-scrollbar {
+                display: none;
+            }
+            /* Hide scrollbar for IE, Edge and Firefox */
+            .hide-scrollbar {
+                -ms-overflow-style: none;
+                scrollbar-width: none;
+            }
+        `;
+        document.head.appendChild(style);
+        return () => {
+            document.head.removeChild(style);
+        };
+    }, []);
 
     // Get entity name from user entities
     const getEntityName = () => {
@@ -350,10 +371,73 @@ const InvoiceDetailsPage = () => {
         e.preventDefault();
         const formData = new FormData(e.target);
         const data = Object.fromEntries(formData.entries());
-        delete data.date;
+        
+        // Get remarks value - convert empty string to null for API
+        let remarksValue = null;
+        if ('remarks' in data) {
+            remarksValue = data.remarks && typeof data.remarks === 'string' && data.remarks.trim() 
+                ? data.remarks.trim() 
+                : null;
+        } else {
+            remarksValue = editedInvoice?.remarks || null;
+        }
+        
+        // Get beneficiary_id - ensure it's a valid UUID string
+        const beneficiaryId = editedInvoice?.beneficiary_id || invoice?.beneficiary_id || invoice?.beneficiary?.id;
+        if (!beneficiaryId) {
+            toast({
+                title: 'Error',
+                description: 'Beneficiary is required',
+                variant: 'destructive',
+            });
+            return;
+        }
+        
+        // Build payload with proper type conversions - always include essential fields
+        // Ensure all numeric values are valid numbers (not NaN)
+        const amount = data.amount ? parseFloat(data.amount) : (editedInvoice?.amount || 0);
+        const cgst = data.cgst ? parseFloat(data.cgst) : (editedInvoice?.cgst || 0);
+        const sgst = data.sgst ? parseFloat(data.sgst) : (editedInvoice?.sgst || 0);
+        const igst = data.igst ? parseFloat(data.igst) : (editedInvoice?.igst || 0);
+        
+        // Build payload object - ensure no duplicate keys
+        const payload = {};
+        
+        // Add fields in a specific order to avoid duplicates
+        if (beneficiaryId) {
+            payload.beneficiary_id = beneficiaryId;
+        }
+        if (data.bill_number !== undefined || editedInvoice?.bill_number) {
+            payload.bill_number = (data.bill_number || editedInvoice?.bill_number || '').trim();
+        }
+        if (data.amount !== undefined || editedInvoice?.amount !== undefined) {
+            payload.amount = isNaN(amount) ? 0 : amount;
+        }
+        if (data.cgst !== undefined || editedInvoice?.cgst !== undefined) {
+            payload.cgst = isNaN(cgst) ? 0 : cgst;
+        }
+        if (data.sgst !== undefined || editedInvoice?.sgst !== undefined) {
+            payload.sgst = isNaN(sgst) ? 0 : sgst;
+        }
+        if (data.igst !== undefined || editedInvoice?.igst !== undefined) {
+            payload.igst = isNaN(igst) ? 0 : igst;
+        }
+        if ('remarks' in data || editedInvoice?.remarks !== undefined) {
+            payload.remarks = remarksValue;
+        }
+        
+        // Remove undefined and null values (except remarks which can be null)
+        Object.keys(payload).forEach(key => {
+            if (payload[key] === undefined || (payload[key] === null && key !== 'remarks')) {
+                delete payload[key];
+            }
+        });
+        
+        console.log('Updating invoice with payload:', payload);
+        
         try {
             const entityId = selectedEntity || localStorage.getItem('entityId');
-            const updatedInvoice = await updateInvoice(invoiceId, entityId, data, user.access_token);
+            const updatedInvoice = await updateInvoice(invoiceId, entityId, payload, user.access_token);
             // Update local state with the returned invoice data
             if (updatedInvoice) {
                 setInvoice(updatedInvoice);
@@ -362,6 +446,7 @@ const InvoiceDetailsPage = () => {
             toast({ title: 'Success', description: 'Invoice updated successfully.' });
             setIsEditing(false);
         } catch (error) {
+            console.error('Error updating invoice:', error);
             toast({
                 title: 'Error',
                 description: `Failed to update invoice: ${error.message}`,
@@ -383,9 +468,28 @@ const InvoiceDetailsPage = () => {
         const contentHeight = pdfHeight - (margin * 2);
 
         try {
-            // Helper function to add image to PDF with proper scaling
+            // Dark theme colors - defined at top level for use throughout PDF
+            const darkBg = [30, 41, 59]; // #1e293b (slate-800)
+            const darkCard = [51, 65, 85]; // #334155 (slate-700)
+            const lightText = [255, 255, 255];
+            const grayText = [203, 213, 225]; // #cbd5e1 (slate-300)
+            const borderColor = [100, 100, 100]; // Gray border for visibility
+
+            // Helper function to add image to PDF with proper scaling and validation
             const addImageToPDF = (imgData, imgWidth, imgHeight) => {
+                // Validate input dimensions
+                if (!imgData || !imgWidth || !imgHeight || imgWidth <= 0 || imgHeight <= 0) {
+                    console.warn('Invalid image dimensions:', { imgWidth, imgHeight });
+                    return false;
+                }
+
+                // Calculate ratio with validation
                 const ratio = imgWidth / imgHeight;
+                if (!isFinite(ratio) || ratio <= 0) {
+                    console.warn('Invalid image ratio:', ratio);
+                    return false;
+                }
+
                 let displayWidth = contentWidth;
                 let displayHeight = displayWidth / ratio;
                 
@@ -394,50 +498,280 @@ const InvoiceDetailsPage = () => {
                     displayHeight = contentHeight;
                     displayWidth = displayHeight * ratio;
                 }
+
+                // Validate calculated dimensions
+                if (!isFinite(displayWidth) || !isFinite(displayHeight) || displayWidth <= 0 || displayHeight <= 0) {
+                    console.warn('Invalid display dimensions:', { displayWidth, displayHeight });
+                    return false;
+                }
                 
                 // Center the image on the page
                 const xPos = margin + (contentWidth - displayWidth) / 2;
                 const yPos = margin + (contentHeight - displayHeight) / 2;
+
+                // Validate coordinates
+                if (!isFinite(xPos) || !isFinite(yPos) || xPos < 0 || yPos < 0) {
+                    console.warn('Invalid coordinates:', { xPos, yPos });
+                    return false;
+                }
                 
-                pdf.addImage(imgData, 'PNG', xPos, yPos, displayWidth, displayHeight);
+                try {
+                    pdf.addImage(imgData, 'PNG', xPos, yPos, displayWidth, displayHeight);
+                    return true;
+                } catch (imgError) {
+                    console.error('Error adding image to PDF:', imgError);
+                    return false;
+                }
             };
 
-            // Page 1: Invoice Details
-            if (invoiceDetailsRef.current) {
-                const detailsCanvas = await html2canvas(invoiceDetailsRef.current, { 
-                    useCORS: true,
-                    scale: 2,
-                    backgroundColor: '#1e293b',
-                    logging: false
-                });
-                const detailsImgData = detailsCanvas.toDataURL('image/png');
-                addImageToPDF(detailsImgData, detailsCanvas.width, detailsCanvas.height);
+            let hasContent = false;
+
+            // Page 1: Invoice Details - Create formatted table with dark theme
+            if (invoiceDetails) {
+                try {
+                    
+                    // Set background to dark
+                    pdf.setFillColor(...darkBg);
+                    pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
+                    
+                    // Header section
+                    let yPos = margin + 5;
+                    pdf.setTextColor(...lightText);
+                    pdf.setFontSize(20);
+                    pdf.setFont(undefined, 'bold');
+                    pdf.text('Invoice Details', margin + 5, yPos);
+                    
+                    yPos += 8;
+                    pdf.setFontSize(12);
+                    pdf.setFont(undefined, 'normal');
+                    pdf.setTextColor(...grayText);
+                    const beneficiaryName = invoiceDetails.beneficiary
+                        ? (invoiceDetails.beneficiary.beneficiary_type === 'individual' 
+                            ? invoiceDetails.beneficiary.name 
+                            : invoiceDetails.beneficiary.company_name)
+                        : invoiceDetails.beneficiary_name || beneficiaryName || 'N/A';
+                    pdf.text(`Invoice to ${beneficiaryName}`, margin + 5, yPos);
+                    
+                    yPos += 5;
+                    pdf.setFontSize(10);
+                    pdf.text(`Created on ${new Date(invoiceDetails.created_date || invoiceDetails.created_at || invoiceDetails.date).toLocaleDateString()}`, margin + 5, yPos);
+                    
+                    yPos += 10;
+                    
+                    // Create table with dark theme
+                    const tableStartY = yPos;
+                    const rowHeight = 8;
+                    const col1Width = contentWidth * 0.4;
+                    const col2Width = contentWidth * 0.6;
+                    
+                    // Table header
+                    pdf.setFillColor(...darkCard);
+                    pdf.rect(margin, tableStartY, contentWidth, rowHeight, 'F');
+                    pdf.setTextColor(...lightText);
+                    pdf.setFontSize(11);
+                    pdf.setFont(undefined, 'bold');
+                    pdf.text('Field', margin + 3, tableStartY + 5);
+                    pdf.text('Value', margin + col1Width + 3, tableStartY + 5);
+                    
+                    // Draw border
+                    pdf.setDrawColor(...borderColor);
+                    pdf.rect(margin, tableStartY, contentWidth, rowHeight);
+                    
+                    yPos = tableStartY + rowHeight;
+                    
+                    // Table rows
+                    // Use "Rs." instead of rupee symbol since jsPDF default font doesn't support ₹
+                    const rows = [
+                        ['Date', new Date(invoiceDetails.date).toLocaleDateString()],
+                        ['Base Amount', `Rs. ${parseFloat(invoiceDetails.amount || 0).toFixed(2)}`],
+                        ['CGST', `Rs. ${parseFloat(invoiceDetails.cgst || 0).toFixed(2)}`],
+                        ['SGST', `Rs. ${parseFloat(invoiceDetails.sgst || 0).toFixed(2)}`],
+                        ['IGST', `Rs. ${parseFloat(invoiceDetails.igst || 0).toFixed(2)}`],
+                        ['Total Amount', `Rs. ${totalAmount}`]
+                    ];
+                    
+                    // Draw table rows
+                    pdf.setFontSize(10);
+                    pdf.setFont(undefined, 'normal');
+                    
+                    rows.forEach((row, index) => {
+                        // Check if we need a new page
+                        if (yPos + rowHeight > pdfHeight - margin - 10) {
+                            pdf.addPage();
+                            pdf.setFillColor(...darkBg);
+                            pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
+                            yPos = margin + 5;
+                        }
+                        
+                        // Use same background as page for all rows except header
+                        pdf.setFillColor(...darkBg);
+                        pdf.rect(margin, yPos, contentWidth, rowHeight, 'F');
+                        
+                        // Draw row border
+                        pdf.setDrawColor(...borderColor);
+                        pdf.rect(margin, yPos, contentWidth, rowHeight);
+                        
+                        // Draw column separator
+                        pdf.line(margin + col1Width, yPos, margin + col1Width, yPos + rowHeight);
+                        
+                        // Add text
+                        pdf.setTextColor(...grayText);
+                        pdf.text(row[0], margin + 3, yPos + 5);
+                        pdf.setTextColor(...lightText);
+                        pdf.setFont(undefined, 'bold');
+                        // Wrap long text
+                        const valueText = pdf.splitTextToSize(row[1], col2Width - 6);
+                        pdf.text(valueText, margin + col1Width + 3, yPos + 5);
+                        pdf.setFont(undefined, 'normal');
+                        
+                        yPos += rowHeight;
+                    });
+                    
+                    // Remarks section - no gap between title and content
+                    if (yPos + 20 > pdfHeight - margin - 10) {
+                        pdf.addPage();
+                        pdf.setFillColor(...darkBg);
+                        pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
+                        yPos = margin + 5;
+                    }
+                    
+                    // Remarks title row - similar to table rows
+                    const remarksTitleY = yPos;
+                    const remarksTitleHeight = rowHeight;
+                    pdf.setFillColor(...darkBg);
+                    pdf.rect(margin, remarksTitleY, contentWidth, remarksTitleHeight, 'F');
+                    
+                    // Draw border around remarks title row
+                    pdf.setDrawColor(...borderColor);
+                    pdf.rect(margin, remarksTitleY, contentWidth, remarksTitleHeight);
+                    
+                    pdf.setFontSize(11);
+                    pdf.setFont(undefined, 'bold');
+                    pdf.setTextColor(...grayText);
+                    pdf.text('Remarks', margin + 3, remarksTitleY + 5);
+                    
+                    // Remarks content box - directly below title, no gap
+                    yPos = remarksTitleY + remarksTitleHeight;
+                    pdf.setFillColor(...darkBg);
+                    const remarksHeight = 12;
+                    const remarksBoxY = yPos;
+                    pdf.rect(margin, remarksBoxY, contentWidth, remarksHeight, 'F');
+                    
+                    // Draw border around remarks box - use same color as table rows
+                    pdf.setDrawColor(...borderColor);
+                    pdf.rect(margin, remarksBoxY, contentWidth, remarksHeight);
+                    
+                    pdf.setFontSize(10);
+                    pdf.setFont(undefined, 'normal');
+                    pdf.setTextColor(...lightText);
+                    const remarksText = invoiceDetails.remarks && invoiceDetails.remarks.trim() 
+                        ? invoiceDetails.remarks 
+                        : 'N/A';
+                    const wrappedRemarks = pdf.splitTextToSize(remarksText, contentWidth - 6);
+                    pdf.text(wrappedRemarks, margin + 3, remarksBoxY + 5);
+                    
+                    hasContent = true;
+                } catch (error) {
+                    console.error('Error creating invoice details PDF:', error);
+                }
             }
 
             // Page 2: Attachment (if it's an image, not PDF)
-            if (attachmentRef.current && attachmentToDisplay && !attachmentToDisplay.toLowerCase().endsWith('.pdf')) {
-                pdf.addPage();
-                const attachmentCanvas = await html2canvas(attachmentRef.current, { 
-                    useCORS: true,
-                    scale: 2,
-                    backgroundColor: '#1e293b',
-                    logging: false
-                });
-                const attachmentImgData = attachmentCanvas.toDataURL('image/png');
-                addImageToPDF(attachmentImgData, attachmentCanvas.width, attachmentCanvas.height);
+            if (attachmentToDisplay && !attachmentToDisplay.toLowerCase().endsWith('.pdf')) {
+                try {
+                    pdf.addPage();
+                    
+                    // Set background to dark for attachment page
+                    pdf.setFillColor(...darkBg);
+                    pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
+                    
+                    // Load the image directly from URL
+                    const img = new Image();
+                    img.crossOrigin = 'anonymous';
+                    
+                    await new Promise((resolve, reject) => {
+                        img.onload = () => resolve();
+                        img.onerror = (err) => {
+                            console.error('Error loading image:', err);
+                            reject(err);
+                        };
+                        img.src = attachmentToDisplay;
+                        
+                        // Timeout after 10 seconds
+                        setTimeout(() => {
+                            if (!img.complete) {
+                                reject(new Error('Image load timeout'));
+                            }
+                        }, 10000);
+                    });
+                    
+                    // Calculate dimensions to fit the page
+                    const imgWidth = img.width;
+                    const imgHeight = img.height;
+                    const ratio = imgWidth / imgHeight;
+                    
+                    let displayWidth = contentWidth;
+                    let displayHeight = displayWidth / ratio;
+                    
+                    // If image is taller than page, scale it down
+                    if (displayHeight > contentHeight) {
+                        displayHeight = contentHeight;
+                        displayWidth = displayHeight * ratio;
+                    }
+                    
+                    // Center the image on the page
+                    const xPos = margin + (contentWidth - displayWidth) / 2;
+                    const yPos = margin + (contentHeight - displayHeight) / 2;
+                    
+                    // Add image to PDF
+                    pdf.addImage(attachmentToDisplay, 'PNG', xPos, yPos, displayWidth, displayHeight);
+                } catch (error) {
+                    console.error('Error adding attachment image to PDF:', error);
+                    // Fallback: try using html2canvas if direct image load fails
+                    if (attachmentRef.current) {
+                        try {
+                            const attachmentCanvas = await html2canvas(attachmentRef.current, { 
+                                useCORS: true,
+                                scale: 2,
+                                backgroundColor: '#1e293b',
+                                logging: false,
+                                allowTaint: true
+                            });
+                            
+                            if (attachmentCanvas && attachmentCanvas.width > 0 && attachmentCanvas.height > 0) {
+                                const attachmentImgData = attachmentCanvas.toDataURL('image/png');
+                                addImageToPDF(attachmentImgData, attachmentCanvas.width, attachmentCanvas.height);
+                            }
+                        } catch (canvasError) {
+                            console.error('Error capturing attachment with html2canvas:', canvasError);
+                        }
+                    }
+                }
             }
 
             // Last Page: Activity Log
             if (activityLogRef.current) {
-                pdf.addPage();
-                const activityCanvas = await html2canvas(activityLogRef.current, { 
-                    useCORS: true,
-                    scale: 2,
-                    backgroundColor: '#1e293b',
-                    logging: false
-                });
-                const activityImgData = activityCanvas.toDataURL('image/png');
-                addImageToPDF(activityImgData, activityCanvas.width, activityCanvas.height);
+                try {
+                    pdf.addPage();
+                    const activityCanvas = await html2canvas(activityLogRef.current, { 
+                        useCORS: true,
+                        scale: 2,
+                        backgroundColor: '#1e293b',
+                        logging: false,
+                        allowTaint: true
+                    });
+                    
+                    if (activityCanvas && activityCanvas.width > 0 && activityCanvas.height > 0) {
+                        const activityImgData = activityCanvas.toDataURL('image/png');
+                        addImageToPDF(activityImgData, activityCanvas.width, activityCanvas.height);
+                    }
+                } catch (error) {
+                    console.error('Error capturing activity log:', error);
+                }
+            }
+
+            if (!hasContent) {
+                throw new Error('No valid content to export. Please ensure the invoice details are visible.');
             }
 
             pdf.save(`invoice-${invoiceDetails.bill_number || invoiceId}.pdf`);
@@ -547,7 +881,7 @@ const InvoiceDetailsPage = () => {
                 </ResizablePanel>
                 <ResizableHandle withHandle />
                 <ResizablePanel defaultSize={40} minSize={30}>
-                    <div className="flex h-full items-start justify-center p-6 overflow-y-auto">
+                    <div className="flex h-full items-start justify-center p-6 overflow-hidden hide-scrollbar">
                         <div className="w-full space-y-4">
                             <div className="space-y-2">
                                 <Skeleton className="h-10 w-full" />
@@ -604,8 +938,8 @@ const InvoiceDetailsPage = () => {
                                 <Button
                                     variant="outline"
                                     size="icon"
-                                    onClick={() => handleAttachmentNavigate(-1)}
-                                    disabled={currentAttachmentIndex === 0}
+                                    onClick={() => handleAttachmentNavigate(1)}
+                                    disabled={currentAttachmentIndex === allAttachmentIds.length - 1}
                                     className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-20 h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg"
                                 >
                                     <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6" />
@@ -613,8 +947,8 @@ const InvoiceDetailsPage = () => {
                                 <Button
                                     variant="outline"
                                     size="icon"
-                                    onClick={() => handleAttachmentNavigate(1)}
-                                    disabled={currentAttachmentIndex === allAttachmentIds.length - 1}
+                                    onClick={() => handleAttachmentNavigate(-1)}
+                                    disabled={currentAttachmentIndex === 0}
                                     className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-20 h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg"
                                 >
                                     <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6" />
@@ -635,7 +969,7 @@ const InvoiceDetailsPage = () => {
                                 </Button>
                             </div>
                         )}
-                        <div className="flex h-full w-full items-center justify-center overflow-auto relative" style={{ zIndex: 1 }} ref={attachmentRef}>
+                        <div className="flex h-full w-full items-center justify-center overflow-auto relative hide-scrollbar" style={{ zIndex: 1 }} ref={attachmentRef}>
                             {/* Show skeleton only if we have attachments but no URL yet (while fetching URL) */}
                             {allAttachmentIds.length > 0 && !attachmentToDisplay && isImageLoading ? (
                                 <Skeleton className="h-full w-full rounded-md" />
@@ -675,7 +1009,7 @@ const InvoiceDetailsPage = () => {
                 <ResizableHandle withHandle />
                 <ResizablePanel defaultSize={40} minSize={30}>
                     <div className="relative flex h-full flex-col">
-                        <div className="flex-1 overflow-y-auto p-4 sm:p-6" style={{ paddingBottom: hasInvoices ? '8rem' : '2rem' }}>
+                        <div className="flex-1 overflow-y-auto p-4 sm:p-6 hide-scrollbar" style={{ paddingBottom: hasInvoices ? '8rem' : '2rem' }}>
                             <Tabs defaultValue={defaultTab} className="w-full">
                             <TabsList className={`grid w-full ${cols} text-xs sm:text-sm`}>
                                 <TabsTrigger value="details" className="text-xs sm:text-sm">Details</TabsTrigger>
@@ -734,13 +1068,17 @@ const InvoiceDetailsPage = () => {
                                         {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
                                             <div>
                                                 <Label htmlFor="finance_header_id">Header</Label>
-                                                <Select name="finance_header_id" defaultValue={editedInvoice.finance_header_id}>
+                                                <Select 
+                                                    name="finance_header_id" 
+                                                    value={editedInvoice?.finance_header_id ? String(editedInvoice.finance_header_id) : ''}
+                                                    onValueChange={(val) => setEditedInvoice(p => ({ ...p, finance_header_id: val ? Number(val) : null }))}
+                                                >
                                                     <SelectTrigger>
                                                         <SelectValue placeholder="Select a header" />
                                                     </SelectTrigger>
                                                     <SelectContent>
                                                         {financeHeaders.map((h) => (
-                                                            <SelectItem key={h.id} value={h.id}>
+                                                            <SelectItem key={h.id} value={String(h.id)}>
                                                                 {h.name}
                                                             </SelectItem>
                                                         ))}
@@ -748,6 +1086,11 @@ const InvoiceDetailsPage = () => {
                                                 </Select>
                                             </div>
                                         )}
+                                        {/* Hidden inputs to ensure beneficiary_id and finance_header_id are in FormData */}
+                                        <input type="hidden" name="beneficiary_id" value={editedInvoice?.beneficiary_id || ''} />
+                                        {user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM' ? (
+                                            <input type="hidden" name="finance_header_id" value={editedInvoice?.finance_header_id || ''} />
+                                        ) : null}
                                         <div className="flex justify-end gap-2">
                                             <Button variant="ghost" onClick={() => setIsEditing(false)} disabled={isDeleting}>Cancel</Button>
                                             <Button type="submit" disabled={isDeleting}>
@@ -758,109 +1101,111 @@ const InvoiceDetailsPage = () => {
                                     </form>
                                 ) : (
                                     <Card ref={invoiceDetailsRef} className="w-full glass-pane border-none shadow-none bg-gray-800 text-white relative z-20">
-                                        <CardHeader className="p-4 sm:p-6">
-                                            <CardTitle className="text-lg sm:text-xl">{invoiceDetails.bill_number || 'N/A'}</CardTitle>
-                                            <CardDescription className="text-xs sm:text-sm">Created on {invoiceDetails.created_date || invoiceDetails.created_at ? new Date(invoiceDetails.created_date || invoiceDetails.created_at).toLocaleDateString() : 'N/A'}</CardDescription>
-                                        </CardHeader>
-                                        <CardContent className="space-y-2 relative z-20 p-4 sm:p-6 pt-0">
-                                            <DetailItem label="Date" value={new Date(invoiceDetails.date).toLocaleDateString()} />
-                                            <DetailItem label="Base Amount" value={`₹${parseFloat(invoiceDetails.amount || 0).toFixed(2)}`} />
-                                            <DetailItem label="CGST" value={`₹${parseFloat(invoiceDetails.cgst || 0).toFixed(2)}`} />
-                                            <DetailItem label="SGST" value={`₹${parseFloat(invoiceDetails.sgst || 0).toFixed(2)}`} />
-                                            <DetailItem label="IGST" value={`₹${parseFloat(invoiceDetails.igst || 0).toFixed(2)}`} />
-                                            <div className="pt-4">
-                                                <DetailItem label="Total Amount" value={`₹${totalAmount}`} />
-                                            </div>
-                                            <div className="pt-4">
-                                                <p className="text-sm text-gray-400 mb-1">Remarks</p>
-                                                <p className="text-sm text-white p-3 bg-white/5 rounded-md">{invoiceDetails.remarks || 'N/A'}</p>
-                                            </div>
-                                            {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
+                                        <div ref={invoiceDetailsPDFRef} className="w-full">
+                                            <CardHeader className="p-4 sm:p-6">
+                                                <CardTitle className="text-lg sm:text-xl">{invoiceDetails.bill_number || 'N/A'}</CardTitle>
+                                                <CardDescription className="text-xs sm:text-sm">Created on {invoiceDetails.created_date || invoiceDetails.created_at ? new Date(invoiceDetails.created_date || invoiceDetails.created_at).toLocaleDateString() : 'N/A'}</CardDescription>
+                                            </CardHeader>
+                                            <CardContent className="space-y-2 relative z-20 p-4 sm:p-6 pt-0">
+                                                <DetailItem label="Date" value={new Date(invoiceDetails.date).toLocaleDateString()} />
+                                                <DetailItem label="Base Amount" value={`₹${parseFloat(invoiceDetails.amount || 0).toFixed(2)}`} />
+                                                <DetailItem label="CGST" value={`₹${parseFloat(invoiceDetails.cgst || 0).toFixed(2)}`} />
+                                                <DetailItem label="SGST" value={`₹${parseFloat(invoiceDetails.sgst || 0).toFixed(2)}`} />
+                                                <DetailItem label="IGST" value={`₹${parseFloat(invoiceDetails.igst || 0).toFixed(2)}`} />
                                                 <div className="pt-4">
-                                                    <Label htmlFor="finance_header_id">Header</Label>
-                                                    <Select
-                                                        name="finance_header_id"
-                                                        value={editedInvoice.finance_header_id || ""}
-                                                        onValueChange={(value) => setEditedInvoice(p => ({ ...p, finance_header_id: value }))}
-                                                    >
-                                                        <SelectTrigger>
-                                                            <SelectValue placeholder="Select a header" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            {financeHeaders.map((h) => (
-                                                                <SelectItem key={h.id} value={h.id}>
-                                                                    {h.name}
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
+                                                    <DetailItem label="Total Amount" value={`₹${totalAmount}`} />
                                                 </div>
-                                            )}
-                                            <div className="flex items-center gap-2 mt-6 mb-20 sm:mb-16 md:mb-4 justify-end relative z-[100] flex-wrap -mr-4 sm:-mr-4">
-                                                {/* Action buttons on right */}
-                                                <div className="flex items-center gap-2 relative z-[100]">
-                                                    <TooltipProvider>
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <Button
-                                                                    variant="destructive"
-                                                                    size="icon"
-                                                                    onClick={() => setShowDeleteDialog(true)}
-                                                                    className="h-9 w-9 sm:h-10 sm:w-10"
-                                                                >
-                                                                    <Trash2 className="h-4 w-4" />
-                                                                </Button>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>
-                                                                <p>Delete</p>
-                                                            </TooltipContent>
-                                                        </Tooltip>
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <Button
-                                                                    variant="outline"
-                                                                    size="icon"
-                                                                    onClick={handleExportToPDF}
-                                                                    className="h-9 w-9 sm:h-10 sm:w-10"
-                                                                >
-                                                                    <FileText className="h-4 w-4" />
-                                                                </Button>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>
-                                                                <p>Export</p>
-                                                            </TooltipContent>
-                                                        </Tooltip>
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <Button
-                                                                    variant="outline"
-                                                                    size="icon"
-                                                                    onClick={() => setIsEditing(!isEditing)}
-                                                                    className="h-9 w-9 sm:h-10 sm:w-10"
-                                                                >
-                                                                    <Edit className="h-4 w-4" />
-                                                                </Button>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>
-                                                                <p>Edit</p>
-                                                            </TooltipContent>
-                                                        </Tooltip>
-                                                        {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
-                                                            <Tooltip>
-                                                                <TooltipTrigger asChild>
-                                                                    <Button onClick={handleTag} className="bg-blue-600 text-white hover:bg-blue-700 text-sm h-9 sm:h-10">
-                                                                        Tag
-                                                                    </Button>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent>
-                                                                    <p>Tag Invoice</p>
-                                                                </TooltipContent>
-                                                            </Tooltip>
-                                                        )}
-                                                    </TooltipProvider>
+                                                <div className="pt-4">
+                                                    <p className="text-sm text-gray-400 mb-1">Remarks</p>
+                                                    <p className="text-sm text-white p-3 bg-white/5 rounded-md">{invoiceDetails.remarks && invoiceDetails.remarks.trim() ? invoiceDetails.remarks : 'N/A'}</p>
                                                 </div>
+                                                {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
+                                                    <div className="pt-4">
+                                                        <Label htmlFor="finance_header_id">Header</Label>
+                                                        <Select
+                                                            name="finance_header_id"
+                                                            value={editedInvoice.finance_header_id || ""}
+                                                            onValueChange={(value) => setEditedInvoice(p => ({ ...p, finance_header_id: value }))}
+                                                        >
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Select a header" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                {financeHeaders.map((h) => (
+                                                                    <SelectItem key={h.id} value={h.id}>
+                                                                        {h.name}
+                                                                    </SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                )}
+                                            </CardContent>
+                                        </div>
+                                        <div className="flex items-center gap-3 pb-10 mb-20 sm:mb-16 md:mb-4 justify-end relative z-[100] px-4 sm:px-6 action-buttons-container">
+                                            {/* Action buttons on right */}
+                                            <div className="flex items-center gap-3 relative z-[100]">
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button
+                                                                variant="destructive"
+                                                                size="icon"
+                                                                onClick={() => setShowDeleteDialog(true)}
+                                                                className="h-9 w-9 sm:h-10 sm:w-10"
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p>Delete</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="icon"
+                                                                onClick={handleExportToPDF}
+                                                                className="h-9 w-9 sm:h-10 sm:w-10"
+                                                            >
+                                                                <FileText className="h-4 w-4" />
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p>Export</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="icon"
+                                                                onClick={() => setIsEditing(!isEditing)}
+                                                                className="h-9 w-9 sm:h-10 sm:w-10"
+                                                            >
+                                                                <Edit className="h-4 w-4" />
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p>Edit</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                    {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <Button onClick={handleTag} className="bg-blue-600 text-white hover:bg-blue-700 text-sm h-9 sm:h-10">
+                                                                    Tag
+                                                                </Button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                <p>Tag Invoice</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    )}
+                                                </TooltipProvider>
                                             </div>
-                                        </CardContent>
+                                        </div>
                                     </Card>
                                 )}
                             </TabsContent>
@@ -931,8 +1276,8 @@ const InvoiceDetailsPage = () => {
                             <Button
                                 variant="outline"
                                 size="icon"
-                                onClick={() => handleAttachmentNavigate(-1)}
-                                disabled={currentAttachmentIndex === 0}
+                                onClick={() => handleAttachmentNavigate(1)}
+                                disabled={currentAttachmentIndex === allAttachmentIds.length - 1}
                                 className="absolute left-2 top-1/2 -translate-y-1/2 z-20 h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg"
                             >
                                 <ChevronLeft className="h-5 w-5" />
@@ -940,8 +1285,8 @@ const InvoiceDetailsPage = () => {
                             <Button
                                 variant="outline"
                                 size="icon"
-                                onClick={() => handleAttachmentNavigate(1)}
-                                disabled={currentAttachmentIndex === allAttachmentIds.length - 1}
+                                onClick={() => handleAttachmentNavigate(-1)}
+                                disabled={currentAttachmentIndex === 0}
                                 className="absolute right-2 top-1/2 -translate-y-1/2 z-20 h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg"
                             >
                                 <ChevronRight className="h-5 w-5" />
@@ -962,7 +1307,7 @@ const InvoiceDetailsPage = () => {
                             </Button>
                         </div>
                     )}
-                    <div className="flex h-full w-full items-center justify-center overflow-auto relative" style={{ zIndex: 1 }} ref={attachmentRef}>
+                    <div className="flex h-full w-full items-center justify-center overflow-auto relative hide-scrollbar" style={{ zIndex: 1 }} ref={attachmentRef}>
                         {allAttachmentIds.length > 0 && !attachmentToDisplay && isImageLoading ? (
                             <Skeleton className="h-full w-full rounded-md" />
                         ) : attachmentToDisplay ? (
@@ -999,7 +1344,7 @@ const InvoiceDetailsPage = () => {
                 </div>
 
                 {/* Details Section */}
-                <div className="flex-1 overflow-y-auto border border-white/10 rounded-lg p-4" style={{ paddingBottom: hasInvoices ? '6rem' : '2rem' }}>
+                <div className="flex-1 overflow-y-auto border border-white/10 rounded-lg p-4 hide-scrollbar" style={{ paddingBottom: hasInvoices ? '6rem' : '2rem' }}>
                     <Tabs defaultValue={defaultTab} className="w-full">
                         <TabsList className={`grid w-full ${cols} text-xs sm:text-sm`}>
                             <TabsTrigger value="details" className="text-xs sm:text-sm">Details</TabsTrigger>
@@ -1058,13 +1403,17 @@ const InvoiceDetailsPage = () => {
                                     {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
                                         <div>
                                             <Label htmlFor="finance_header_id" className="text-sm">Header</Label>
-                                            <Select name="finance_header_id" defaultValue={editedInvoice.finance_header_id}>
+                                            <Select 
+                                                name="finance_header_id" 
+                                                value={editedInvoice?.finance_header_id ? String(editedInvoice.finance_header_id) : ''}
+                                                onValueChange={(val) => setEditedInvoice(p => ({ ...p, finance_header_id: val ? Number(val) : null }))}
+                                            >
                                                 <SelectTrigger className="text-sm">
                                                     <SelectValue placeholder="Select a header" />
                                                 </SelectTrigger>
                                                 <SelectContent>
                                                     {financeHeaders.map((h) => (
-                                                        <SelectItem key={h.id} value={h.id}>
+                                                        <SelectItem key={h.id} value={String(h.id)}>
                                                             {h.name}
                                                         </SelectItem>
                                                     ))}
@@ -1072,6 +1421,11 @@ const InvoiceDetailsPage = () => {
                                             </Select>
                                         </div>
                                     )}
+                                    {/* Hidden inputs to ensure beneficiary_id and finance_header_id are in FormData */}
+                                    <input type="hidden" name="beneficiary_id" value={editedInvoice?.beneficiary_id || ''} />
+                                    {user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM' ? (
+                                        <input type="hidden" name="finance_header_id" value={editedInvoice?.finance_header_id || ''} />
+                                    ) : null}
                                     <div className="flex justify-end gap-2">
                                         <Button variant="ghost" onClick={() => setIsEditing(false)} disabled={isDeleting} className="text-sm">Cancel</Button>
                                         <Button type="submit" disabled={isDeleting} className="text-sm">
@@ -1082,109 +1436,111 @@ const InvoiceDetailsPage = () => {
                                 </form>
                             ) : (
                                 <Card ref={invoiceDetailsRef} className="w-full glass-pane border-none shadow-none bg-gray-800 text-white relative z-20">
-                                    <CardHeader className="p-4">
-                                        <CardTitle className="text-lg sm:text-xl">{invoiceDetails.bill_number || 'N/A'}</CardTitle>
-                                        <CardDescription className="text-xs sm:text-sm">Created on {invoiceDetails.created_date || invoiceDetails.created_at ? new Date(invoiceDetails.created_date || invoiceDetails.created_at).toLocaleDateString() : 'N/A'}</CardDescription>
-                                    </CardHeader>
-                                    <CardContent className="space-y-2 relative z-20 p-4 pt-0">
-                                        <DetailItem label="Date" value={new Date(invoiceDetails.date).toLocaleDateString()} />
-                                        <DetailItem label="Base Amount" value={`₹${parseFloat(invoiceDetails.amount || 0).toFixed(2)}`} />
-                                        <DetailItem label="CGST" value={`₹${parseFloat(invoiceDetails.cgst || 0).toFixed(2)}`} />
-                                        <DetailItem label="SGST" value={`₹${parseFloat(invoiceDetails.sgst || 0).toFixed(2)}`} />
-                                        <DetailItem label="IGST" value={`₹${parseFloat(invoiceDetails.igst || 0).toFixed(2)}`} />
-                                        <div className="pt-4">
-                                            <DetailItem label="Total Amount" value={`₹${totalAmount}`} />
-                                        </div>
-                                        <div className="pt-4">
-                                            <p className="text-xs sm:text-sm text-gray-400 mb-1">Remarks</p>
-                                            <p className="text-xs sm:text-sm text-white p-3 bg-white/5 rounded-md">{invoiceDetails.remarks || 'N/A'}</p>
-                                        </div>
-                                        {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
+                                    <div ref={invoiceDetailsPDFRef} className="w-full">
+                                        <CardHeader className="p-4">
+                                            <CardTitle className="text-lg sm:text-xl">{invoiceDetails.bill_number || 'N/A'}</CardTitle>
+                                            <CardDescription className="text-xs sm:text-sm">Created on {invoiceDetails.created_date || invoiceDetails.created_at ? new Date(invoiceDetails.created_date || invoiceDetails.created_at).toLocaleDateString() : 'N/A'}</CardDescription>
+                                        </CardHeader>
+                                        <CardContent className="space-y-2 relative z-20 p-4 pt-0">
+                                            <DetailItem label="Date" value={new Date(invoiceDetails.date).toLocaleDateString()} />
+                                            <DetailItem label="Base Amount" value={`₹${parseFloat(invoiceDetails.amount || 0).toFixed(2)}`} />
+                                            <DetailItem label="CGST" value={`₹${parseFloat(invoiceDetails.cgst || 0).toFixed(2)}`} />
+                                            <DetailItem label="SGST" value={`₹${parseFloat(invoiceDetails.sgst || 0).toFixed(2)}`} />
+                                            <DetailItem label="IGST" value={`₹${parseFloat(invoiceDetails.igst || 0).toFixed(2)}`} />
                                             <div className="pt-4">
-                                                <Label htmlFor="finance_header_id" className="text-sm">Header</Label>
-                                                <Select
-                                                    name="finance_header_id"
-                                                    value={editedInvoice.finance_header_id || ""}
-                                                    onValueChange={(value) => setEditedInvoice(p => ({ ...p, finance_header_id: value }))}
-                                                >
-                                                    <SelectTrigger className="text-sm">
-                                                        <SelectValue placeholder="Select a header" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {financeHeaders.map((h) => (
-                                                            <SelectItem key={h.id} value={h.id}>
-                                                                {h.name}
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
+                                                <DetailItem label="Total Amount" value={`₹${totalAmount}`} />
                                             </div>
-                                        )}
-                                        <div className="flex items-center gap-2 mt-4 mb-20 sm:mb-16 md:mb-4 justify-end relative z-[100] flex-wrap -mr-4 sm:-mr-6">
-                                            {/* Action buttons on right */}
-                                            <div className="flex items-center gap-2 relative z-[100]">
-                                                <TooltipProvider>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <Button
-                                                                variant="destructive"
-                                                                size="icon"
-                                                                onClick={() => setShowDeleteDialog(true)}
-                                                                className="h-9 w-9 sm:h-10 sm:w-10"
-                                                            >
-                                                                <Trash2 className="h-4 w-4" />
-                                                            </Button>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>
-                                                            <p>Delete</p>
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <Button
-                                                                variant="outline"
-                                                                size="icon"
-                                                                onClick={handleExportToPDF}
-                                                                className="h-9 w-9 sm:h-10 sm:w-10"
-                                                            >
-                                                                <FileText className="h-4 w-4" />
-                                                            </Button>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>
-                                                            <p>Export</p>
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <Button
-                                                                variant="outline"
-                                                                size="icon"
-                                                                onClick={() => setIsEditing(!isEditing)}
-                                                                className="h-9 w-9 sm:h-10 sm:w-10"
-                                                            >
-                                                                <Edit className="h-4 w-4" />
-                                                            </Button>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>
-                                                            <p>Edit</p>
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                    {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <Button onClick={handleTag} className="bg-blue-600 text-white hover:bg-blue-700 text-sm h-9 sm:h-10">
-                                                                    Tag
-                                                                </Button>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>
-                                                                <p>Tag Invoice</p>
-                                                            </TooltipContent>
-                                                        </Tooltip>
-                                                    )}
-                                                </TooltipProvider>
+                                            <div className="pt-4">
+                                                <p className="text-xs sm:text-sm text-gray-400 mb-1">Remarks</p>
+                                                <p className="text-xs sm:text-sm text-white p-3 bg-white/5 rounded-md">{invoiceDetails.remarks && invoiceDetails.remarks.trim() ? invoiceDetails.remarks : 'N/A'}</p>
                                             </div>
+                                            {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
+                                                <div className="pt-4">
+                                                    <Label htmlFor="finance_header_id" className="text-sm">Header</Label>
+                                                    <Select
+                                                        name="finance_header_id"
+                                                        value={editedInvoice.finance_header_id || ""}
+                                                        onValueChange={(value) => setEditedInvoice(p => ({ ...p, finance_header_id: value }))}
+                                                    >
+                                                        <SelectTrigger className="text-sm">
+                                                            <SelectValue placeholder="Select a header" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {financeHeaders.map((h) => (
+                                                                <SelectItem key={h.id} value={h.id}>
+                                                                    {h.name}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                            )}
+                                        </CardContent>
+                                    </div>
+                                    <div className="flex items-center gap-3 mt-4 mb-20 sm:mb-16 md:mb-4 justify-end relative z-[100] px-4 action-buttons-container">
+                                        {/* Action buttons on right */}
+                                        <div className="flex items-center gap-3 relative z-[100]">
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            variant="destructive"
+                                                            size="icon"
+                                                            onClick={() => setShowDeleteDialog(true)}
+                                                            className="h-9 w-9 sm:h-10 sm:w-10"
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Delete</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="icon"
+                                                            onClick={handleExportToPDF}
+                                                            className="h-9 w-9 sm:h-10 sm:w-10"
+                                                        >
+                                                            <FileText className="h-4 w-4" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Export</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="icon"
+                                                            onClick={() => setIsEditing(!isEditing)}
+                                                            className="h-9 w-9 sm:h-10 sm:w-10"
+                                                        >
+                                                            <Edit className="h-4 w-4" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Edit</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                                {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button onClick={handleTag} className="bg-blue-600 text-white hover:bg-blue-700 text-sm h-9 sm:h-10">
+                                                                Tag
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p>Tag Invoice</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                )}
+                                            </TooltipProvider>
                                         </div>
-                                    </CardContent>
+                                    </div>
                                 </Card>
                             )}
                         </TabsContent>

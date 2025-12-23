@@ -108,23 +108,23 @@ const VoucherPDF = React.forwardRef(({ voucher, organizationName, entityName, fr
                 )}
             </div>
 
-            <table className="w-full mb-8">
+            <table className="w-full mb-8 text-base">
                 <thead>
                     <tr className="bg-blue-600 text-white">
-                        <th className="p-2 text-left">Particulars</th>
-                        <th className="p-2 text-right">Amount (INR)</th>
+                        <th className="p-4 text-left text-base font-semibold">Particulars</th>
+                        <th className="p-4 text-right text-base font-semibold">Amount (INR)</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr>
-                        <td className="p-2 border-b">{voucher.remarks || 'N/A'}</td>
-                        <td className="p-2 border-b text-right">₹{parseFloat(voucher.amount).toFixed(2)}</td>
+                        <td className="p-4 border-b text-base">{voucher.remarks || 'N/A'}</td>
+                        <td className="p-4 border-b text-right text-base">₹{parseFloat(voucher.amount).toFixed(2)}</td>
                     </tr>
                 </tbody>
                 <tfoot>
                     <tr className="bg-blue-600 text-white font-bold">
-                        <td className="p-2 text-left">Total</td>
-                        <td className="p-2 text-right">₹{parseFloat(voucher.amount).toFixed(2)}</td>
+                        <td className="p-4 text-left text-base">Total</td>
+                        <td className="p-4 text-right text-base">₹{parseFloat(voucher.amount).toFixed(2)}</td>
                     </tr>
                 </tfoot>
             </table>
@@ -147,6 +147,7 @@ const VoucherDetailsPage = () => {
     const [voucher, setVoucher] = useState(initialVoucher);
     const [currentIndex, setCurrentIndex] = useState(vouchers ? vouchers.findIndex(v => v.id === initialVoucher.id) : -1);
     const voucherDetailsRef = useRef(null);
+    const voucherDetailsPDFRef = useRef(null);
     const attachmentRef = useRef(null);
     const activityLogRef = useRef(null);
     const [attachmentUrl, setAttachmentUrl] = useState(null);
@@ -165,6 +166,26 @@ const VoucherDetailsPage = () => {
     const [isImageLoading, setIsImageLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [sidebarWidth, setSidebarWidth] = useState(320); // Default to expanded width (300px + padding)
+    
+    // Hide scrollbars globally for this page
+    useEffect(() => {
+        const style = document.createElement('style');
+        style.textContent = `
+            /* Hide scrollbar for Chrome, Safari and Opera */
+            .hide-scrollbar::-webkit-scrollbar {
+                display: none;
+            }
+            /* Hide scrollbar for IE, Edge and Firefox */
+            .hide-scrollbar {
+                -ms-overflow-style: none;
+                scrollbar-width: none;
+            }
+        `;
+        document.head.appendChild(style);
+        return () => {
+            document.head.removeChild(style);
+        };
+    }, []);
     
     // Get entity name from user entities
     const getEntityName = () => {
@@ -536,46 +557,187 @@ const VoucherDetailsPage = () => {
 
             let hasContent = false;
 
-            // Page 1: Voucher Details - Use text-based PDF directly for reliability
-            if (voucher) {
+            // Page 1: Voucher Details - Create formatted table with dark theme
+            if (voucherDetails) {
                 try {
-                    pdf.setFontSize(16);
-                    pdf.text('Voucher Details', margin, margin + 10);
+                    // Dark theme colors
+                    const darkBg = [30, 41, 59]; // #1e293b (slate-800)
+                    const darkCard = [51, 65, 85]; // #334155 (slate-700)
+                    const lightText = [255, 255, 255];
+                    const grayText = [203, 213, 225]; // #cbd5e1 (slate-300)
+                    const borderColor = [100, 100, 100]; // Gray border for visibility
+                    
+                    // Set background to dark
+                    pdf.setFillColor(...darkBg);
+                    pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
+                    
+                    // Header section
+                    let yPos = margin + 5;
+                    pdf.setTextColor(...lightText);
+                    pdf.setFontSize(20);
+                    pdf.setFont(undefined, 'bold');
+                    pdf.text('Voucher Details', margin + 5, yPos);
+                    
+                    yPos += 8;
                     pdf.setFontSize(12);
-                    let yPos = margin + 20;
+                    pdf.setFont(undefined, 'normal');
+                    pdf.setTextColor(...grayText);
+                    const beneficiaryName = voucherDetails.beneficiary
+                        ? (voucherDetails.beneficiary.beneficiary_type === 'individual' 
+                            ? voucherDetails.beneficiary.name 
+                            : voucherDetails.beneficiary.company_name)
+                        : voucherDetails.beneficiaryName || 'N/A';
+                    pdf.text(`Voucher to ${beneficiaryName}`, margin + 5, yPos);
                     
-                    const beneficiaryName = voucher.beneficiary
-                        ? (voucher.beneficiary.beneficiary_type === 'individual' ? voucher.beneficiary.name : voucher.beneficiary.company_name)
-                        : voucher.beneficiaryName || 'N/A';
+                    yPos += 5;
+                    pdf.setFontSize(10);
+                    pdf.text(`Created on ${new Date(voucherDetails.created_date).toLocaleDateString()}`, margin + 5, yPos);
                     
-                    pdf.text(`Voucher ID: ${voucher.voucher_id || voucherId}`, margin, yPos);
                     yPos += 10;
-                    pdf.text(`Amount: ₹${parseFloat(voucher.amount || 0).toFixed(2)}`, margin, yPos);
-                    yPos += 10;
-                    pdf.text(`Voucher Type: ${voucher.voucher_type ? voucher.voucher_type.charAt(0).toUpperCase() + voucher.voucher_type.slice(1) : 'N/A'}`, margin, yPos);
-                    yPos += 10;
-                    pdf.text(`Payment Method: ${formatPaymentMethod(voucher.payment_type || '')}`, margin, yPos);
-                    yPos += 10;
-                    pdf.text(`Beneficiary: ${beneficiaryName}`, margin, yPos);
-                    yPos += 10;
-                    pdf.text(`Remarks: ${voucher.remarks || 'N/A'}`, margin, yPos);
                     
-                    if (voucher.payment_type === 'bank_transfer') {
-                        yPos += 10;
-                        const fromBank = fromBankAccounts.find(acc => String(acc.id) === String(voucher.from_bank_account_id));
-                        const toBank = toBankAccounts.find(acc => String(acc.id) === String(voucher.to_bank_account_id));
-                        if (fromBank) {
-                            pdf.text(`From Bank: ${fromBank.bank_name} - ${fromBank.account_number}`, margin, yPos);
-                            yPos += 10;
-                        }
-                        if (toBank) {
-                            pdf.text(`To Bank: ${toBank.bank_name} - ${toBank.account_number}`, margin, yPos);
-                        }
+                    // Create table with dark theme
+                    const tableStartY = yPos;
+                    const rowHeight = 8;
+                    const col1Width = contentWidth * 0.4;
+                    const col2Width = contentWidth * 0.6;
+                    
+                    // Table header
+                    pdf.setFillColor(...darkCard);
+                    pdf.rect(margin, tableStartY, contentWidth, rowHeight, 'F');
+                    pdf.setTextColor(...lightText);
+                    pdf.setFontSize(11);
+                    pdf.setFont(undefined, 'bold');
+                    pdf.text('Field', margin + 3, tableStartY + 5);
+                    pdf.text('Value', margin + col1Width + 3, tableStartY + 5);
+                    
+                    // Draw border
+                    pdf.setDrawColor(...borderColor);
+                    pdf.rect(margin, tableStartY, contentWidth, rowHeight);
+                    
+                    yPos = tableStartY + rowHeight;
+                    
+                    // Table rows
+                    // Use "Rs." instead of rupee symbol since jsPDF default font doesn't support ₹
+                    const amountText = `Rs. ${parseFloat(voucherDetails.amount).toFixed(2)}`;
+                    const rows = [
+                        ['Invoice ID', voucherDetails.invoice_id || 'N/A'],
+                        ['Voucher ID', voucherDetails.voucher_id || 'N/A'],
+                        ['Amount', amountText],
+                        ['Voucher Type', voucherDetails.voucher_type || 'N/A'],
+                        ['Payment Method', formatPaymentMethod(
+                            (voucherDetails.payment_type || '')
+                                .toString()
+                                .toLowerCase()
+                                .replace(/\s/g, '_')
+                        )]
+                    ];
+                    
+                    // Add bank account details if applicable
+                    if (voucherDetails.payment_type === 'bank_transfer') {
+                        const fromBank = fromBankAccounts.find(
+                            acc => String(acc.id) === String(voucherDetails.from_bank_account_id)
+                        );
+                        const fromBankText = fromBank
+                            ? `${fromBank.bank_name} - ${fromBank.account_number}`
+                            : (voucherDetails.from_bank_account_name
+                                ? `${voucherDetails.from_bank_account_name} - ${voucherDetails.from_bank_account_number || ''}`.trim()
+                                : voucherDetails.from_bank_account_id || 'N/A');
+                        rows.push(['From Bank Account', fromBankText]);
+                        
+                        const toBank = toBankAccounts.find(
+                            acc => String(acc.id) === String(voucherDetails.to_bank_account_id)
+                        );
+                        const toBankText = toBank
+                            ? `${toBank.bank_name} - ${toBank.account_number}`
+                            : (voucherDetails.to_bank_account_name
+                                ? `${voucherDetails.to_bank_account_name} - ${voucherDetails.to_bank_account_number || ''}`.trim()
+                                : voucherDetails.to_bank_account_id || 'N/A');
+                        rows.push(['To Bank Account', toBankText]);
                     }
                     
+                    // Draw table rows
+                    pdf.setFontSize(10);
+                    pdf.setFont(undefined, 'normal');
+                    
+                    rows.forEach((row, index) => {
+                        // Check if we need a new page
+                        if (yPos + rowHeight > pdfHeight - margin - 10) {
+                            pdf.addPage();
+                            pdf.setFillColor(...darkBg);
+                            pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
+                            yPos = margin + 5;
+                        }
+                        
+                        // Use same background as page for all rows except header
+                        pdf.setFillColor(...darkBg);
+                        pdf.rect(margin, yPos, contentWidth, rowHeight, 'F');
+                        
+                        // Draw row border
+                        pdf.setDrawColor(...borderColor);
+                        pdf.rect(margin, yPos, contentWidth, rowHeight);
+                        
+                        // Draw column separator
+                        pdf.line(margin + col1Width, yPos, margin + col1Width, yPos + rowHeight);
+                        
+                        // Add text
+                        pdf.setTextColor(...grayText);
+                        pdf.text(row[0], margin + 3, yPos + 5);
+                        pdf.setTextColor(...lightText);
+                        pdf.setFont(undefined, 'bold');
+                        // Wrap long text
+                        const valueText = pdf.splitTextToSize(row[1], col2Width - 6);
+                        pdf.text(valueText, margin + col1Width + 3, yPos + 5);
+                        pdf.setFont(undefined, 'normal');
+                        
+                        yPos += rowHeight;
+                    });
+                    
+                    // Remarks section - no gap between title and content
+                    if (yPos + 20 > pdfHeight - margin - 10) {
+                        pdf.addPage();
+                        pdf.setFillColor(...darkBg);
+                        pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
+                        yPos = margin + 5;
+                    }
+                    
+                    // Remarks title row - similar to table rows
+                    const remarksTitleY = yPos;
+                    const remarksTitleHeight = rowHeight;
+                    pdf.setFillColor(...darkBg);
+                    pdf.rect(margin, remarksTitleY, contentWidth, remarksTitleHeight, 'F');
+                    
+                    // Draw border around remarks title row
+                    pdf.setDrawColor(...borderColor);
+                    pdf.rect(margin, remarksTitleY, contentWidth, remarksTitleHeight);
+                    
+                    pdf.setFontSize(11);
+                    pdf.setFont(undefined, 'bold');
+                    pdf.setTextColor(...grayText);
+                    pdf.text('Remarks', margin + 3, remarksTitleY + 5);
+                    
+                    // Remarks content box - directly below title, no gap
+                    yPos = remarksTitleY + remarksTitleHeight;
+                    pdf.setFillColor(...darkBg);
+                    const remarksHeight = 12;
+                    const remarksBoxY = yPos;
+                    pdf.rect(margin, remarksBoxY, contentWidth, remarksHeight, 'F');
+                    
+                    // Draw border around remarks box - use same color as table rows
+                    pdf.setDrawColor(...borderColor);
+                    pdf.rect(margin, remarksBoxY, contentWidth, remarksHeight);
+                    
+                    pdf.setFontSize(10);
+                    pdf.setFont(undefined, 'normal');
+                    pdf.setTextColor(...lightText);
+                    const remarksText = voucherDetails.remarks && voucherDetails.remarks.trim() 
+                        ? voucherDetails.remarks 
+                        : 'N/A';
+                    const wrappedRemarks = pdf.splitTextToSize(remarksText, contentWidth - 6);
+                    pdf.text(wrappedRemarks, margin + 3, remarksBoxY + 5);
+                    
                     hasContent = true;
-                } catch (textError) {
-                    console.error('Error creating PDF:', textError);
+                } catch (error) {
+                    console.error('Error creating voucher details PDF:', error);
                 }
             }
 
@@ -790,7 +952,7 @@ const VoucherDetailsPage = () => {
                 </ResizablePanel>
                 <ResizableHandle withHandle />
                 <ResizablePanel defaultSize={40} minSize={30}>
-                    <div className="flex h-full items-start justify-center p-6 overflow-y-auto">
+                    <div className="flex h-full items-start justify-center p-6 overflow-hidden hide-scrollbar">
                         <div className="w-full space-y-4">
                             <div className="space-y-2">
                                 <Skeleton className="h-10 w-full" />
@@ -879,7 +1041,7 @@ const VoucherDetailsPage = () => {
                                 </Button>
                             </div>
                         )}
-                        <div className="flex h-full w-full items-center justify-center overflow-auto relative" style={{ zIndex: 1 }} ref={attachmentRef}>
+                        <div className="flex h-full w-full items-center justify-center overflow-auto relative hide-scrollbar" style={{ zIndex: 1 }} ref={attachmentRef}>
                             {/* Show skeleton only if we have attachments but no URL yet (while fetching URL) */}
                             {allAttachmentIds.length > 0 && !attachmentUrl ? (
                                 <Skeleton className="h-full w-full rounded-md" />
@@ -919,7 +1081,7 @@ const VoucherDetailsPage = () => {
                 <ResizableHandle withHandle />
                 <ResizablePanel defaultSize={40} minSize={30}>
                     <div className="relative flex h-full flex-col">
-                        <div className="flex-1 overflow-y-auto p-4 sm:p-6" style={{ paddingBottom: hasVouchers ? '8rem' : '2rem' }}>
+                        <div className="flex-1 overflow-hidden p-4 sm:p-6 hide-scrollbar" style={{ paddingBottom: hasVouchers ? '8rem' : '2rem' }}>
                             <Tabs defaultValue={defaultTab} className="w-full">
                             <TabsList className={`grid w-full ${cols} text-xs sm:text-sm`}>
                                 {!isClientUser && (
@@ -1065,71 +1227,74 @@ const VoucherDetailsPage = () => {
                             </form>
                         ) : (
                             <Card ref={voucherDetailsRef} className="w-full glass-pane border-none shadow-none bg-gray-800 text-white relative z-20">
-                                <CardHeader className="p-4 sm:p-6">
-                                    <CardTitle className="text-lg sm:text-xl">Voucher to {beneficiaryName}</CardTitle>
-                                    <CardDescription className="text-xs sm:text-sm">Created on {new Date(voucherDetails.created_date).toLocaleDateString()}</CardDescription>
-                                </CardHeader>
-                                <CardContent className="space-y-2 relative z-20 p-4 sm:p-6 pt-0">
-                                    <DetailItem label="Invoice ID" value={voucherDetails.invoice_id || 'N/A'} />
-                                    <DetailItem label="Voucher ID" value={voucherDetails.voucher_id || 'N/A'} />
-                                    <DetailItem label="Amount" value={`₹${parseFloat(voucherDetails.amount).toFixed(2)}`} />
-                                    <DetailItem label="Voucher Type" value={voucherDetails.voucher_type} />
-                                    <DetailItem
-                                        label="Payment Method"
-                                        value={
-                                            voucherDetails.voucher_type === 'cash'
-                                                ? 'Cash'
-                                                : formatPaymentMethod(
-                                                    (voucherDetails.payment_type || '')
-                                                        .toString()
-                                                        .toLowerCase()
-                                                        .replace(/\s/g, '_')
-                                                )
-                                        }
-                                    />
-                                    {voucherDetails.payment_type === 'bank_transfer' && (
-                                        <>
-                                            <DetailItem
-                                                label="From Bank Account"
-                                                value={
-                                                    (() => {
-                                                        const fromBank = fromBankAccounts.find(
-                                                            acc => String(acc.id) === String(voucherDetails.from_bank_account_id)
-                                                        );
-                                                        if (fromBank) return `${fromBank.bank_name} - ${fromBank.account_number}`;
+                                <div ref={voucherDetailsPDFRef} className="w-full">
+                                    <CardHeader className="p-4 sm:p-6">
+                                        <CardTitle className="text-lg sm:text-xl">Voucher to {beneficiaryName}</CardTitle>
+                                        <CardDescription className="text-xs sm:text-sm">Created on {new Date(voucherDetails.created_date).toLocaleDateString()}</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="space-y-2 relative z-20 p-4 sm:p-6 pt-0">
+                                        <DetailItem label="Invoice ID" value={voucherDetails.invoice_id || 'N/A'} />
+                                        <DetailItem label="Voucher ID" value={voucherDetails.voucher_id || 'N/A'} />
+                                        <DetailItem label="Amount" value={`₹${parseFloat(voucherDetails.amount).toFixed(2)}`} />
+                                        <DetailItem label="Voucher Type" value={voucherDetails.voucher_type} />
+                                        <DetailItem
+                                            label="Payment Method"
+                                            value={
+                                                voucherDetails.voucher_type === 'cash'
+                                                    ? 'Cash'
+                                                    : formatPaymentMethod(
+                                                        (voucherDetails.payment_type || '')
+                                                            .toString()
+                                                            .toLowerCase()
+                                                            .replace(/\s/g, '_')
+                                                    )
+                                            }
+                                        />
+                                        {voucherDetails.payment_type === 'bank_transfer' && (
+                                            <>
+                                                <DetailItem
+                                                    label="From Bank Account"
+                                                    value={
+                                                        (() => {
+                                                            const fromBank = fromBankAccounts.find(
+                                                                acc => String(acc.id) === String(voucherDetails.from_bank_account_id)
+                                                            );
+                                                            if (fromBank) return `${fromBank.bank_name} - ${fromBank.account_number}`;
 
-                                                        const snap = voucherDetails.from_bank_account_name
-                                                            ? `${voucherDetails.from_bank_account_name} - ${voucherDetails.from_bank_account_number || ''}`.trim()
-                                                            : null;
-                                                        return snap || voucherDetails.from_bank_account_id || 'N/A';
-                                                    })()
-                                                }
-                                            />
-                                            <DetailItem
-                                                label="To Bank Account"
-                                                value={
-                                                    (() => {
-                                                        const toBank = toBankAccounts.find(
-                                                            acc => String(acc.id) === String(voucherDetails.to_bank_account_id)
-                                                        );
-                                                        if (toBank) return `${toBank.bank_name} - ${toBank.account_number}`;
+                                                            const snap = voucherDetails.from_bank_account_name
+                                                                ? `${voucherDetails.from_bank_account_name} - ${voucherDetails.from_bank_account_number || ''}`.trim()
+                                                                : null;
+                                                            return snap || voucherDetails.from_bank_account_id || 'N/A';
+                                                        })()
+                                                    }
+                                                />
+                                                <DetailItem
+                                                    label="To Bank Account"
+                                                    value={
+                                                        (() => {
+                                                            const toBank = toBankAccounts.find(
+                                                                acc => String(acc.id) === String(voucherDetails.to_bank_account_id)
+                                                            );
+                                                            if (toBank) return `${toBank.bank_name} - ${toBank.account_number}`;
 
-                                                        const snap = voucherDetails.to_bank_account_name
-                                                            ? `${voucherDetails.to_bank_account_name} - ${voucherDetails.to_bank_account_number || ''}`.trim()
-                                                            : null;
-                                                        return snap || voucherDetails.to_bank_account_id || 'N/A';
-                                                    })()
-                                                }
-                                            />
-                                        </>
-                                    )}
-                                    <div className="pt-4">
-                                        <p className="text-sm text-gray-400 mb-1">Remarks</p>
-                                        <p className="text-sm text-white p-3 bg-white/5 rounded-md">{voucherDetails.remarks && voucherDetails.remarks.trim() ? voucherDetails.remarks : 'N/A'}</p>
-                                    </div>
-                                    <div className="flex items-center gap-2 mt-4 mb-20 sm:mb-16 md:mb-4 justify-end relative z-[100] flex-wrap -mr-4 sm:-mr-4">
+                                                            const snap = voucherDetails.to_bank_account_name
+                                                                ? `${voucherDetails.to_bank_account_name} - ${voucherDetails.to_bank_account_number || ''}`.trim()
+                                                                : null;
+                                                            return snap || voucherDetails.to_bank_account_id || 'N/A';
+                                                        })()
+                                                    }
+                                                />
+                                            </>
+                                        )}
+                                        <div className="pt-4">
+                                            <p className="text-sm text-gray-400 mb-1">Remarks</p>
+                                            <p className="text-sm text-white p-3 bg-white/5 rounded-md">{voucherDetails.remarks && voucherDetails.remarks.trim() ? voucherDetails.remarks : 'N/A'}</p>
+                                        </div>
+                                    </CardContent>
+                                </div>
+                                <div className="flex items-center gap-3 pb-4 mb-20 sm:mb-16 md:mb-4 justify-end relative z-[100] px-4 sm:px-6 action-buttons-container">
                                         {/* Action buttons on right */}
-                                        <div className="flex items-center gap-2 relative z-[100]">
+                                        <div className="flex items-center gap-3 relative z-[100]">
                                             <TooltipProvider>
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
@@ -1148,18 +1313,18 @@ const VoucherDetailsPage = () => {
                                                 </Tooltip>
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
-                        <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={handleExportToPDF}
-                            disabled={
-                                voucher?.payment_type === 'bank_transfer' &&
-                                (!fromBankAccounts.length || !toBankAccounts.length)
-                            }
-                            className="h-9 w-9 sm:h-10 sm:w-10"
-                        >
-                            <FileText className="h-4 w-4" />
-                        </Button>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="icon"
+                                                            onClick={handleExportToPDF}
+                                                            disabled={
+                                                                voucher?.payment_type === 'bank_transfer' &&
+                                                                (!fromBankAccounts.length || !toBankAccounts.length)
+                                                            }
+                                                            className="h-9 w-9 sm:h-10 sm:w-10"
+                                                        >
+                                                            <FileText className="h-4 w-4" />
+                                                        </Button>
                                                     </TooltipTrigger>
                                                     <TooltipContent>
                                                         <p>Export</p>
@@ -1183,7 +1348,6 @@ const VoucherDetailsPage = () => {
                                             </TooltipProvider>
                                         </div>
                                     </div>
-                                </CardContent>
                             </Card>
                         )}
                     </TabsContent>
@@ -1223,7 +1387,7 @@ const VoucherDetailsPage = () => {
                     </TabsContent>
                     {!isClientUser && (
                         <TabsContent value="preview" className="mt-4">
-                            <div className="overflow-auto" style={{ maxHeight: '80vh' }}>
+                            <div className="overflow-auto hide-scrollbar" style={{ maxHeight: '80vh' }}>
                                 <VoucherPDF
                                     voucher={voucher}
                                     organizationName={organizationName}
@@ -1281,7 +1445,7 @@ const VoucherDetailsPage = () => {
                             </Button>
                         </div>
                     )}
-                    <div className="flex h-full w-full items-center justify-center overflow-auto relative" style={{ zIndex: 1 }} ref={attachmentRef}>
+                    <div className="flex h-full w-full items-center justify-center overflow-auto relative hide-scrollbar" style={{ zIndex: 1 }} ref={attachmentRef}>
                         {allAttachmentIds.length > 0 && !attachmentUrl ? (
                             <Skeleton className="h-full w-full rounded-md" />
                         ) : attachmentUrl ? (
@@ -1318,7 +1482,7 @@ const VoucherDetailsPage = () => {
                 </div>
 
                 {/* Details Section */}
-                <div className="flex-1 overflow-y-auto border border-white/10 rounded-lg p-4" style={{ paddingBottom: hasVouchers ? '6rem' : '2rem' }}>
+                <div className="flex-1 overflow-hidden border border-white/10 rounded-lg p-4 hide-scrollbar" style={{ paddingBottom: hasVouchers ? '6rem' : '2rem' }}>
                     <Tabs defaultValue={defaultTab} className="w-full">
                         <TabsList className={`grid w-full ${cols} text-xs sm:text-sm`}>
                             {!isClientUser && (
@@ -1465,125 +1629,127 @@ const VoucherDetailsPage = () => {
                                 </form>
                             ) : (
                                 <Card ref={voucherDetailsRef} className="w-full glass-pane border-none shadow-none bg-gray-800 text-white relative z-20">
-                                    <CardHeader className="p-4">
-                                        <CardTitle className="text-lg sm:text-xl">Voucher to {beneficiaryName}</CardTitle>
-                                        <CardDescription className="text-xs sm:text-sm">Created on {new Date(voucherDetails.created_date).toLocaleDateString()}</CardDescription>
-                                    </CardHeader>
-                                    <CardContent className="space-y-2 relative z-20 p-4 pt-0">
-                                        <DetailItem label="Invoice ID" value={voucherDetails.invoice_id || 'N/A'} />
-                                        <DetailItem label="Voucher ID" value={voucherDetails.voucher_id || 'N/A'} />
-                                        <DetailItem label="Amount" value={`₹${parseFloat(voucherDetails.amount).toFixed(2)}`} />
-                                        <DetailItem label="Voucher Type" value={voucherDetails.voucher_type} />
-                                        <DetailItem
-                                            label="Payment Method"
-                                            value={
-                                                voucherDetails.voucher_type === 'cash'
-                                                    ? 'Cash'
-                                                    : formatPaymentMethod(
-                                                        (voucherDetails.payment_type || '')
-                                                            .toString()
-                                                            .toLowerCase()
-                                                            .replace(/\s/g, '_')
-                                                    )
-                                            }
-                                        />
-                                        {voucherDetails.payment_type === 'bank_transfer' && (
-                                            <>
-                                                <DetailItem
-                                                    label="From Bank Account"
-                                                    value={
-                                                        (() => {
-                                                            const fromBank = fromBankAccounts.find(
-                                                                acc => String(acc.id) === String(voucherDetails.from_bank_account_id)
-                                                            );
-                                                            if (fromBank) return `${fromBank.bank_name} - ${fromBank.account_number}`;
+                                    <div ref={voucherDetailsPDFRef} className="w-full">
+                                        <CardHeader className="p-4">
+                                            <CardTitle className="text-lg sm:text-xl">Voucher to {beneficiaryName}</CardTitle>
+                                            <CardDescription className="text-xs sm:text-sm">Created on {new Date(voucherDetails.created_date).toLocaleDateString()}</CardDescription>
+                                        </CardHeader>
+                                        <CardContent className="space-y-2 relative z-20 p-4 pt-0">
+                                            <DetailItem label="Invoice ID" value={voucherDetails.invoice_id || 'N/A'} />
+                                            <DetailItem label="Voucher ID" value={voucherDetails.voucher_id || 'N/A'} />
+                                            <DetailItem label="Amount" value={`₹${parseFloat(voucherDetails.amount).toFixed(2)}`} />
+                                            <DetailItem label="Voucher Type" value={voucherDetails.voucher_type} />
+                                            <DetailItem
+                                                label="Payment Method"
+                                                value={
+                                                    voucherDetails.voucher_type === 'cash'
+                                                        ? 'Cash'
+                                                        : formatPaymentMethod(
+                                                            (voucherDetails.payment_type || '')
+                                                                .toString()
+                                                                .toLowerCase()
+                                                                .replace(/\s/g, '_')
+                                                        )
+                                                }
+                                            />
+                                            {voucherDetails.payment_type === 'bank_transfer' && (
+                                                <>
+                                                    <DetailItem
+                                                        label="From Bank Account"
+                                                        value={
+                                                            (() => {
+                                                                const fromBank = fromBankAccounts.find(
+                                                                    acc => String(acc.id) === String(voucherDetails.from_bank_account_id)
+                                                                );
+                                                                if (fromBank) return `${fromBank.bank_name} - ${fromBank.account_number}`;
 
-                                                            const snap = voucherDetails.from_bank_account_name
-                                                                ? `${voucherDetails.from_bank_account_name} - ${voucherDetails.from_bank_account_number || ''}`.trim()
-                                                                : null;
-                                                            return snap || voucherDetails.from_bank_account_id || 'N/A';
-                                                        })()
-                                                    }
-                                                />
-                                                <DetailItem
-                                                    label="To Bank Account"
-                                                    value={
-                                                        (() => {
-                                                            const toBank = toBankAccounts.find(
-                                                                acc => String(acc.id) === String(voucherDetails.to_bank_account_id)
-                                                            );
-                                                            if (toBank) return `${toBank.bank_name} - ${toBank.account_number}`;
+                                                                const snap = voucherDetails.from_bank_account_name
+                                                                    ? `${voucherDetails.from_bank_account_name} - ${voucherDetails.from_bank_account_number || ''}`.trim()
+                                                                    : null;
+                                                                return snap || voucherDetails.from_bank_account_id || 'N/A';
+                                                            })()
+                                                        }
+                                                    />
+                                                    <DetailItem
+                                                        label="To Bank Account"
+                                                        value={
+                                                            (() => {
+                                                                const toBank = toBankAccounts.find(
+                                                                    acc => String(acc.id) === String(voucherDetails.to_bank_account_id)
+                                                                );
+                                                                if (toBank) return `${toBank.bank_name} - ${toBank.account_number}`;
 
-                                                            const snap = voucherDetails.to_bank_account_name
-                                                                ? `${voucherDetails.to_bank_account_name} - ${voucherDetails.to_bank_account_number || ''}`.trim()
-                                                                : null;
-                                                            return snap || voucherDetails.to_bank_account_id || 'N/A';
-                                                        })()
-                                                    }
-                                                />
-                                            </>
-                                        )}
-                                        <div className="pt-4">
-                                            <p className="text-xs sm:text-sm text-gray-400 mb-1">Remarks</p>
-                                            <p className="text-xs sm:text-sm text-white p-3 bg-white/5 rounded-md">{voucherDetails.remarks && voucherDetails.remarks.trim() ? voucherDetails.remarks : 'N/A'}</p>
-                                        </div>
-                                        <div className="flex items-center gap-2 mt-4 mb-20 sm:mb-16 md:mb-4 justify-end relative z-[100] flex-wrap -mr-4 sm:-mr-6">
-                                            {/* Action buttons on right */}
-                                            <div className="flex items-center gap-2 relative z-[100]">
-                                                <TooltipProvider>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <Button
-                                                                variant="destructive"
-                                                                size="icon"
-                                                                onClick={() => setShowDeleteDialog(true)}
-                                                                className="h-9 w-9 sm:h-10 sm:w-10"
-                                                            >
-                                                                <Trash2 className="h-4 w-4" />
-                                                            </Button>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>
-                                                            <p>Delete</p>
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <Button
-                                                                variant="outline"
-                                                                size="icon"
-                                                                onClick={handleExportToPDF}
-                                                                disabled={
-                                                                    voucher?.payment_type === 'bank_transfer' &&
-                                                                    (!fromBankAccounts.length || !toBankAccounts.length)
-                                                                }
-                                                                className="h-9 w-9 sm:h-10 sm:w-10"
-                                                            >
-                                                                <FileText className="h-4 w-4" />
-                                                            </Button>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>
-                                                            <p>Export</p>
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <Button
-                                                                variant="outline"
-                                                                size="icon"
-                                                                onClick={() => setIsEditing(!isEditing)}
-                                                                className="h-9 w-9 sm:h-10 sm:w-10"
-                                                            >
-                                                                <Edit className="h-4 w-4" />
-                                                            </Button>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>
-                                                            <p>Edit</p>
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                </TooltipProvider>
+                                                                const snap = voucherDetails.to_bank_account_name
+                                                                    ? `${voucherDetails.to_bank_account_name} - ${voucherDetails.to_bank_account_number || ''}`.trim()
+                                                                    : null;
+                                                                return snap || voucherDetails.to_bank_account_id || 'N/A';
+                                                            })()
+                                                        }
+                                                    />
+                                                </>
+                                            )}
+                                            <div className="pt-4">
+                                                <p className="text-xs sm:text-sm text-gray-400 mb-1">Remarks</p>
+                                                <p className="text-xs sm:text-sm text-white p-3 bg-white/5 rounded-md">{voucherDetails.remarks && voucherDetails.remarks.trim() ? voucherDetails.remarks : 'N/A'}</p>
                                             </div>
+                                        </CardContent>
+                                    </div>
+                                    <div className="flex items-center gap-3 mt-4 mb-20 sm:mb-16 md:mb-4 justify-end relative z-[100] px-4 action-buttons-container">
+                                        {/* Action buttons on right */}
+                                        <div className="flex items-center gap-3 relative z-[100]">
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            variant="destructive"
+                                                            size="icon"
+                                                            onClick={() => setShowDeleteDialog(true)}
+                                                            className="h-9 w-9 sm:h-10 sm:w-10"
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Delete</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="icon"
+                                                            onClick={handleExportToPDF}
+                                                            disabled={
+                                                                voucher?.payment_type === 'bank_transfer' &&
+                                                                (!fromBankAccounts.length || !toBankAccounts.length)
+                                                            }
+                                                            className="h-9 w-9 sm:h-10 sm:w-10"
+                                                        >
+                                                            <FileText className="h-4 w-4" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Export</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="icon"
+                                                            onClick={() => setIsEditing(!isEditing)}
+                                                            className="h-9 w-9 sm:h-10 sm:w-10"
+                                                        >
+                                                            <Edit className="h-4 w-4" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Edit</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
                                         </div>
-                                    </CardContent>
+                                    </div>
                                 </Card>
                             )}
                         </TabsContent>
@@ -1622,7 +1788,7 @@ const VoucherDetailsPage = () => {
                         </TabsContent>
                         {!isClientUser && (
                             <TabsContent value="preview" className="mt-4">
-                                <div className="overflow-auto" style={{ maxHeight: '60vh' }}>
+                                <div className="overflow-auto hide-scrollbar" style={{ maxHeight: '60vh' }}>
                                     <VoucherPDF
                                         voucher={voucher}
                                         organizationName={organizationName}
@@ -1647,9 +1813,9 @@ const VoucherDetailsPage = () => {
                         onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            handleNavigate(-1);
+                            handleNavigate(1);
                         }} 
-                        disabled={currentIndex === 0 || currentIndex === -1}
+                        disabled={currentIndex === vouchers.length - 1}
                         className="hidden md:flex fixed bottom-4 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg z-[50]"
                         style={{ 
                             left: sidebarWidth <= 150 ? `${sidebarWidth + 16}px` : '20rem' // Dynamic positioning when collapsed (sidebar width + 16px margin), left-80 (20rem) when expanded
@@ -1664,9 +1830,9 @@ const VoucherDetailsPage = () => {
                         onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            handleNavigate(1);
+                            handleNavigate(-1);
                         }} 
-                        disabled={currentIndex === vouchers.length - 1}
+                        disabled={currentIndex === 0 || currentIndex === -1}
                         className="hidden md:flex fixed bottom-4 right-4 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg z-[50]"
                     >
                         <ChevronRight className="h-5 w-5" />
@@ -1679,9 +1845,9 @@ const VoucherDetailsPage = () => {
                             onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                handleNavigate(-1);
+                                handleNavigate(1);
                             }} 
-                            disabled={currentIndex === 0 || currentIndex === -1}
+                            disabled={currentIndex === vouchers.length - 1}
                             className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg flex-1 pointer-events-auto"
                         >
                             <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -1692,9 +1858,9 @@ const VoucherDetailsPage = () => {
                             onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                handleNavigate(1);
+                                handleNavigate(-1);
                             }} 
-                            disabled={currentIndex === vouchers.length - 1}
+                            disabled={currentIndex === 0 || currentIndex === -1}
                             className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg flex-1 pointer-events-auto"
                         >
                             <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
