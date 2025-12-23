@@ -294,7 +294,10 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   }, [currentClientId, user, toast]);
 
   const fetchDocuments = useCallback(async (isRefresh = false) => {
-    if (!user?.access_token) return;
+    if (!user?.access_token) {
+      setIsLoading(false);
+      return;
+    }
     
     let entityToFetch = null;
     if (user?.role === 'CA_ACCOUNTANT') {
@@ -304,6 +307,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
         if (!entityId) {
             // Don't fetch if entityId is not available yet
             setDocumentsState({ id: 'root', name: 'Root', is_folder: true, children: [] });
+            setIsLoading(false);
             return;
         }
         entityToFetch = entityId;
@@ -363,8 +367,17 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   }, [user?.access_token, user?.role, entityId, toast]);
 
   useEffect(() => {
+    // Wait for user to be available
+    if (!user?.access_token) {
+      setIsLoading(false);
+      return;
+    }
+    
     // Only fetch if entityId is available for non-CA accountants
     if (user?.role !== 'CA_ACCOUNTANT' && !entityId) {
+      // Set loading to false if entityId is not available yet
+      setIsLoading(false);
+      setDocumentsState({ id: 'root', name: 'Root', is_folder: true, children: [] });
       return; // Don't fetch until entityId is available
     }
     
@@ -373,7 +386,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
     } else {
       fetchSharedDocuments();
     }
-  }, [fetchDocuments, fetchSharedDocuments, activeTab, currentClientId, selectedEntityId, user?.role, entityId]);
+  }, [fetchDocuments, fetchSharedDocuments, activeTab, currentClientId, selectedEntityId, user?.role, user?.access_token, entityId]);
 
   const currentPath = useMemo(() => findPath(documentsState, currentFolderId), [documentsState, currentFolderId]);
   const currentFolder = currentPath[currentPath.length - 1];

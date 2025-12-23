@@ -3,6 +3,10 @@ import { getAuthHeaders, handleResponse } from './utils';
 const FINANCE_API_BASE_URL = import.meta.env.VITE_FINANCE_API_URL || 'http://127.0.0.1:8003';
 
 export const getDocuments = async (entityId, token) => {
+    // For non-CA accountants, entityId is required
+    // This check prevents the API call if entityId is missing
+    // Note: We allow null/undefined for CA_ACCOUNTANT role (handled by backend)
+    
     let url = `${FINANCE_API_BASE_URL}/api/documents/folders/`;
     const params = new URLSearchParams();
     if (entityId) {
