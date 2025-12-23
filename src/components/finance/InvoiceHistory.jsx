@@ -294,6 +294,7 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onRefresh, i
         <TableHead className="text-xs sm:text-sm">Invoice Details</TableHead>
         <TableHead className="text-xs sm:text-sm">Beneficiary</TableHead>
         <TableHead className="text-xs sm:text-sm">Amount</TableHead>
+        <TableHead className="text-xs sm:text-sm">Status</TableHead>
         <TableHead className="text-xs sm:text-sm">Remarks</TableHead>
         {isAccountantView && <TableHead className="text-xs sm:text-sm">Ready for Export</TableHead>}
     </TableRow>
@@ -326,6 +327,17 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onRefresh, i
             </TableCell>
                             <TableCell className="text-xs sm:text-sm truncate max-w-[120px] sm:max-w-none">{getBeneficiaryName(invoice)}</TableCell>
                             <TableCell className="text-xs sm:text-sm">₹{(parseFloat(invoice.amount) + parseFloat(invoice.cgst) + parseFloat(invoice.sgst) + parseFloat(invoice.igst)).toFixed(2)}</TableCell>
+                            <TableCell className="text-xs sm:text-sm">
+                                <span className={`px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-medium capitalize ${
+                                    invoice.status === 'approved' 
+                                        ? 'bg-green-500/20 text-green-300' 
+                                        : invoice.status === 'rejected'
+                                        ? 'bg-red-500/20 text-red-300'
+                                        : 'bg-blue-500/20 text-blue-300'
+                                }`}>
+                                    {invoice.status || 'created'}
+                                </span>
+                            </TableCell>
                             <TableCell className="text-xs sm:text-sm truncate max-w-[100px] sm:max-w-none">{invoice.remarks || 'N/A'}</TableCell>
                             {isAccountantView && (
                                 <TableCell className="text-xs sm:text-sm">
