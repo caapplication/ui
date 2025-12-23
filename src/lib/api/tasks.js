@@ -163,3 +163,79 @@ import { getAuthHeaders, handleResponse } from './utils';
         }
         return handleResponse(response);
     };
+
+    // Task Stage Management APIs
+    export const listTaskStages = async (agencyId, token) => {
+        const response = await fetch(`${TASKS_API_BASE_URL}/task-stages/`, {
+            method: 'GET',
+            headers: getAuthHeaders(token, 'application/json', agencyId),
+        });
+        return handleResponse(response);
+    };
+
+    export const createTaskStage = async (stageData, agencyId, token) => {
+        const response = await fetch(`${TASKS_API_BASE_URL}/task-stages/`, {
+            method: 'POST',
+            headers: getAuthHeaders(token, 'application/json', agencyId),
+            body: JSON.stringify(stageData),
+        });
+        return handleResponse(response);
+    };
+
+    export const updateTaskStage = async (stageId, stageData, agencyId, token) => {
+        const response = await fetch(`${TASKS_API_BASE_URL}/task-stages/${stageId}`, {
+            method: 'PATCH',
+            headers: getAuthHeaders(token, 'application/json', agencyId),
+            body: JSON.stringify(stageData),
+        });
+        return handleResponse(response);
+    };
+
+    export const deleteTaskStage = async (stageId, agencyId, token) => {
+        const response = await fetch(`${TASKS_API_BASE_URL}/task-stages/${stageId}`, {
+            method: 'DELETE',
+            headers: getAuthHeaders(token, null, agencyId),
+        });
+        if (response.status === 204) {
+            return { success: true };
+        }
+        return handleResponse(response);
+    };
+
+    // Task Comments APIs
+    export const listTaskComments = async (taskId, agencyId, token) => {
+        const response = await fetch(`${TASKS_API_BASE_URL}/tasks/${taskId}/comments/`, {
+            method: 'GET',
+            headers: getAuthHeaders(token, 'application/json', agencyId),
+        });
+        return handleResponse(response);
+    };
+
+    export const createTaskComment = async (taskId, commentData, agencyId, token) => {
+        const response = await fetch(`${TASKS_API_BASE_URL}/tasks/${taskId}/comments/`, {
+            method: 'POST',
+            headers: getAuthHeaders(token, 'application/json', agencyId),
+            body: JSON.stringify(commentData),
+        });
+        return handleResponse(response);
+    };
+
+    export const updateTaskComment = async (taskId, commentId, commentData, agencyId, token) => {
+        const response = await fetch(`${TASKS_API_BASE_URL}/tasks/${taskId}/comments/${commentId}`, {
+            method: 'PATCH',
+            headers: getAuthHeaders(token, 'application/json', agencyId),
+            body: JSON.stringify(commentData),
+        });
+        return handleResponse(response);
+    };
+
+    export const deleteTaskComment = async (taskId, commentId, agencyId, token) => {
+        const response = await fetch(`${TASKS_API_BASE_URL}/tasks/${taskId}/comments/${commentId}`, {
+            method: 'DELETE',
+            headers: getAuthHeaders(token, null, agencyId),
+        });
+        if (response.status === 204) {
+            return { success: true };
+        }
+        return handleResponse(response);
+    };

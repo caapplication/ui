@@ -162,7 +162,15 @@ import { handleResponse, getAuthHeaders } from './utils';
       deleteTodo,
       addTaskSubtask,
       updateTaskSubtask,
-      deleteTaskSubtask
+      deleteTaskSubtask,
+      listTaskStages,
+      createTaskStage,
+      updateTaskStage,
+      deleteTaskStage,
+      listTaskComments,
+      createTaskComment,
+      updateTaskComment,
+      deleteTaskComment
     } = tasks;
 
     export const {
