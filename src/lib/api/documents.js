@@ -15,6 +15,15 @@ export const getDocuments = async (entityId, token) => {
     const response = await fetch(url, {
         headers: getAuthHeaders(token),
     });
+    
+    // Handle 400 error specifically for missing entity_id
+    if (response.status === 400) {
+        const errorData = await response.json().catch(() => ({}));
+        if (errorData.detail && errorData.detail.includes('Entity ID is required')) {
+            throw new Error('Entity ID is required. Please select an entity first.');
+        }
+    }
+    
     return handleResponse(response);
 };
 

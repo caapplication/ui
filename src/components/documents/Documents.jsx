@@ -114,23 +114,40 @@ const buildFileTree = (folders, documents) => {
   const root = { id: 'root', name: 'Root', is_folder: true, children: [] };
   const allItems = {};
 
-  folders.forEach(folder => {
-    allItems[folder.id] = { ...folder, is_folder: true, children: [] };
+  // Ensure folders and documents are arrays
+  const foldersArray = Array.isArray(folders) ? folders : [];
+  const documentsArray = Array.isArray(documents) ? documents : [];
+
+  foldersArray.forEach(folder => {
+    if (folder && folder.id) {
+      allItems[folder.id] = { ...folder, is_folder: true, children: [] };
+    }
   });
 
-  documents.forEach(doc => {
-    allItems[doc.id] = { ...doc, is_folder: false };
+  documentsArray.forEach(doc => {
+    if (doc && doc.id) {
+      allItems[doc.id] = { ...doc, is_folder: false };
+    }
   });
 
-  folders.forEach(folder => {
-    if (folder.parent_id && allItems[folder.parent_id]) {
+  foldersArray.forEach(folder => {
+    if (!folder || !folder.id) return;
+    
+    if (folder.parent_id && allItems[folder.parent_id] && Array.isArray(allItems[folder.parent_id].children)) {
       allItems[folder.parent_id].children.push(allItems[folder.id]);
     } else {
-      root.children.push(allItems[folder.id]);
+      if (Array.isArray(root.children)) {
+        root.children.push(allItems[folder.id]);
+      }
     }
-    if (folder.documents) {
+    if (folder.documents && Array.isArray(folder.documents)) {
+      if (!allItems[folder.id].children) {
+        allItems[folder.id].children = [];
+      }
       folder.documents.forEach(doc => {
-        allItems[folder.id].children.push({ ...doc, is_folder: false });
+        if (doc && doc.id) {
+          allItems[folder.id].children.push({ ...doc, is_folder: false });
+        }
       });
     }
   });
@@ -277,10 +294,18 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   }, [currentClientId, user, toast]);
 
   const fetchDocuments = useCallback(async (isRefresh = false) => {
+    if (!user?.access_token) return;
+    
     let entityToFetch = null;
     if (user?.role === 'CA_ACCOUNTANT') {
         entityToFetch = selectedEntityId !== 'all' ? selectedEntityId : (currentClientId !== 'all' ? currentClientId : null);
     } else {
+        // For non-CA accountants, entityId is required
+        if (!entityId) {
+            // Don't fetch if entityId is not available yet
+            setDocumentsState({ id: 'root', name: 'Root', is_folder: true, children: [] });
+            return;
+        }
         entityToFetch = entityId;
     }
 
@@ -291,9 +316,13 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
     }
     try {
         const data = await getDocuments(entityToFetch, user.access_token);
-        const fileTree = buildFileTree(data.folders || [], data.documents || []);
+        // Ensure data has folders and documents arrays
+        const folders = Array.isArray(data?.folders) ? data.folders : [];
+        const documents = Array.isArray(data?.documents) ? data.documents : [];
+        const fileTree = buildFileTree(folders, documents);
         setDocumentsState(fileTree);
     } catch (error) {
+        console.error('Error fetching documents:', error);
         toast({
             title: 'Error',
             description: `Failed to fetch documents: ${error.message}`,
@@ -334,12 +363,17 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   }, [user?.access_token, user?.role, entityId, toast]);
 
   useEffect(() => {
+    // Only fetch if entityId is available for non-CA accountants
+    if (user?.role !== 'CA_ACCOUNTANT' && !entityId) {
+      return; // Don't fetch until entityId is available
+    }
+    
     if (activeTab === 'myFiles') {
       fetchDocuments();
     } else {
       fetchSharedDocuments();
     }
-  }, [fetchDocuments, fetchSharedDocuments, activeTab, currentClientId, selectedEntityId]);
+  }, [fetchDocuments, fetchSharedDocuments, activeTab, currentClientId, selectedEntityId, user?.role, entityId]);
 
   const currentPath = useMemo(() => findPath(documentsState, currentFolderId), [documentsState, currentFolderId]);
   const currentFolder = currentPath[currentPath.length - 1];
