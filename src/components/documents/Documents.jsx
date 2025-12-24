@@ -54,11 +54,8 @@ const FolderIcon = ({ className = "w-20 h-20", hasExpired = false }) => {
   const folderStroke = hasExpired ? "#B91C1C" : "#3A7BC8";
   
   return (
-    <div className={className} style={{ position: 'relative', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))' }}>
-      <svg viewBox="0 0 64 64" className="w-full h-full" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.15))' }}>
-        {/* Folder shadow */}
-        <ellipse cx="36" cy="58" rx="28" ry="4" fill="#000000" opacity="0.15" />
-        
+    <div className={className} style={{ position: 'relative' }}>
+      <svg viewBox="0 0 64 64" className="w-full h-full">
         {/* Folder body */}
         <path
           d="M 8 22 L 8 52 L 56 52 L 56 22 L 32 22 L 28 18 L 8 18 Z"
@@ -416,23 +413,30 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
         );
     }
     if (!currentFolder || !currentFolder.children) return [];
-if (activeTab === 'myFiles') {
-    // Exclude shared documents from "My Files" for all roles
-    // In root folder, only show folders, not documents
-    let filtered = currentFolder.children.filter(item => {
-        if (user?.role === 'CA_ACCOUNTANT') {
+    if (activeTab === 'myFiles') {
+        // Exclude shared documents from "My Files" for all roles
+        // In root folder, only show folders, not documents
+        let filtered = currentFolder.children.filter(item => {
+            if (user?.role === 'CA_ACCOUNTANT') {
+                return !sharedDocuments.some(shared => shared.id === item.id);
+            }
             return !sharedDocuments.some(shared => shared.id === item.id);
+        });
+        
+        // If in root folder, only return folders
+        if (currentFolderId === 'root') {
+            filtered = filtered.filter(item => item.is_folder);
         }
-        return !sharedDocuments.some(shared => shared.id === item.id);
-    });
-    
-    // If in root folder, only return folders
-    if (currentFolderId === 'root') {
-        filtered = filtered.filter(item => item.is_folder);
+        
+        // Apply search filter if search term exists
+        if (searchTerm) {
+            filtered = filtered.filter(item => 
+                item.name.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+        }
+        
+        return filtered;
     }
-    
-    return filtered;
-}
     // If in root folder, only show folders
     let itemsToFilter = currentFolder.children;
     if (currentFolderId === 'root') {
@@ -443,7 +447,7 @@ if (activeTab === 'myFiles') {
     return itemsToFilter.filter(item => 
         item.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [currentFolder, searchTerm, activeTab, sharedDocuments, user?.role, currentClientId, selectedEntityId]);
+  }, [currentFolder, searchTerm, activeTab, sharedDocuments, user?.role, currentClientId, selectedEntityId, currentFolderId]);
 
   const handleUpload = async (e) => {
     e.preventDefault();
@@ -522,8 +526,8 @@ if (activeTab === 'myFiles') {
         e.target.reset();
         setShareExpiryDate(null);
         setWithoutExpiryDate(false);
-        // Refresh in background to sync with server
-        fetchDocuments(true);
+        // Refresh in background (non-blocking) to sync with server
+        fetchDocuments(true).catch(err => console.error('Background refresh failed:', err));
     } catch (error) {
         // Rollback optimistic update on error
         setDocumentsState(prev => {
@@ -602,8 +606,8 @@ if (activeTab === 'myFiles') {
         toast({ title: "Folder Created", description: `Folder "${newFolderName}" has been created.` });
         setShowCreateFolder(false);
         setNewFolderName('');
-        // Refresh in background to ensure sync
-        fetchDocuments(true);
+        // Refresh in background (non-blocking) to ensure sync
+        fetchDocuments(true).catch(err => console.error('Background refresh failed:', err));
     } catch (error) {
         // Revert optimistic update on error
         setDocumentsState(prev => {
@@ -645,22 +649,61 @@ if (activeTab === 'myFiles') {
     }
     
     setIsMutating(true);
+    const deletedItem = itemToDelete;
+    
+    // If we're viewing the folder that's being deleted, navigate to parent first
+    if (activeTab === 'myFiles' && currentFolderId === deletedItem.id && deletedItem.type === 'folder') {
+      const parentFolder = currentPath.length > 1 ? currentPath[currentPath.length - 2] : null;
+      setCurrentFolderId(parentFolder ? parentFolder.id : 'root');
+    }
+    
+    // Optimistic deletion - remove from UI immediately
+    if (activeTab === 'myFiles') {
+      setDocumentsState(prev => {
+        const removeItem = (node) => {
+          if (node.is_folder && node.children) {
+            return {
+              ...node,
+              children: node.children.filter(child => child.id !== deletedItem.id).map(removeItem)
+            };
+          }
+          return node;
+        };
+        return removeItem(prev);
+      });
+    } else {
+      setSharedDocuments(prev => prev.filter(item => item.id !== deletedItem.id));
+    }
+    
+    // Clear selected folder if it was deleted
+    if (selectedFolder && selectedFolder.id === deletedItem.id) {
+      setSelectedFolder(null);
+    }
+    
+    // Don't clear itemToDelete yet - keep modal open to show loader
     try {
-        await deleteDocument(itemToDelete.id, itemToDelete.type, user.access_token);
+        await deleteDocument(deletedItem.id, deletedItem.type, user.access_token);
         toast({ title: "Item Deleted", description: "The selected item has been removed." });
-        // Clear selected folder if it was deleted
-        if (selectedFolder && selectedFolder.id === itemToDelete.id) {
-          setSelectedFolder(null);
-        }
+        
+        // Clear the item to delete and close modal after successful deletion
+        setItemToDelete(null);
+        
+        // Refresh in background (non-blocking) to sync with server
         if (activeTab === 'myFiles') {
-          fetchDocuments(true);
+          fetchDocuments(true).catch(err => console.error('Background refresh failed:', err));
         } else {
-          fetchSharedDocuments(true);
+          fetchSharedDocuments(true).catch(err => console.error('Background refresh failed:', err));
         }
     } catch (error) {
+        // Rollback optimistic deletion on error
+        if (activeTab === 'myFiles') {
+          fetchDocuments(true).catch(err => console.error('Rollback refresh failed:', err));
+        } else {
+          fetchSharedDocuments(true).catch(err => console.error('Rollback refresh failed:', err));
+        }
         toast({ title: "Deletion Failed", description: error.message, variant: "destructive" });
+        // Keep modal open on error so user can see the error message
     } finally {
-      setItemToDelete(null);
       setIsMutating(false);
     }
   };
@@ -1052,7 +1095,11 @@ if (activeTab === 'myFiles') {
                             <UserPlus className="w-4 h-4 mr-2" />
                             Collaborate
                           </DropdownMenuItem>
-                          <AlertDialog>
+                          <AlertDialog open={itemToDelete?.id === item.id && itemToDelete?.type === 'document'} onOpenChange={(open) => {
+                            if (!open && !isMutating) {
+                              setItemToDelete(null);
+                            }
+                          }}>
                             <AlertDialogTrigger asChild>
                               <DropdownMenuItem 
                                 className="text-red-400 focus:text-red-400 focus:bg-red-500/10"
@@ -1074,9 +1121,17 @@ if (activeTab === 'myFiles') {
                               </AlertDialogHeader>
                               <AlertDialogFooter>
                                 <AlertDialogCancel onClick={() => setItemToDelete(null)} disabled={isMutating}>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={handleDelete} disabled={isMutating}>
-                                  {isMutating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                                  Delete
+                                <AlertDialogAction onClick={async () => {
+                                  await handleDelete();
+                                }} disabled={isMutating}>
+                                  {isMutating ? (
+                                    <>
+                                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                      Deleting...
+                                    </>
+                                  ) : (
+                                    'Delete'
+                                  )}
                                 </AlertDialogAction>
                               </AlertDialogFooter>
                             </AlertDialogContent>
@@ -1125,7 +1180,11 @@ if (activeTab === 'myFiles') {
                     >
                       <FileText className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                     </Button>
-                    <AlertDialog>
+                    <AlertDialog open={itemToDelete?.id === item.id && itemToDelete?.type === 'document'} onOpenChange={(open) => {
+                      if (!open && !isMutating) {
+                        setItemToDelete(null);
+                      }
+                    }}>
                       <AlertDialogTrigger asChild>
                         <Button 
                           size="icon" 
@@ -1145,9 +1204,18 @@ if (activeTab === 'myFiles') {
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel onClick={(e) => {e.stopPropagation(); setItemToDelete(null)}} disabled={isMutating}>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={(e) => {e.stopPropagation(); handleDelete()}} disabled={isMutating}>
-                            {isMutating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                            Delete
+                          <AlertDialogAction onClick={async (e) => {
+                            e.stopPropagation();
+                            await handleDelete();
+                          }} disabled={isMutating}>
+                            {isMutating ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Deleting...
+                              </>
+                            ) : (
+                              'Delete'
+                            )}
                           </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
@@ -1296,7 +1364,11 @@ if (activeTab === 'myFiles') {
                     <UserPlus className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
                     <span className="hidden sm:inline">Collaborate</span>
                   </Button>
-                  <AlertDialog>
+                  <AlertDialog open={itemToDelete?.id === selectedFolder?.id && itemToDelete?.type === 'folder'} onOpenChange={(open) => {
+                    if (!open && !isMutating) {
+                      setItemToDelete(null);
+                    }
+                  }}>
                     <AlertDialogTrigger asChild>
                       <Button 
                         size="sm" 
@@ -1304,6 +1376,11 @@ if (activeTab === 'myFiles') {
                         className="bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed h-8 sm:h-9 text-xs sm:text-sm flex-1 sm:flex-initial"
                         disabled={!selectedFolder || !isSelectedFolderEmpty}
                         title={selectedFolder && !isSelectedFolderEmpty ? "Cannot delete folder with contents" : ""}
+                        onClick={() => {
+                          if (selectedFolder) {
+                            setItemToDelete({id: selectedFolder.id, type: 'folder'});
+                          }
+                        }}
                       >
                         <Trash2 className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
                         <span className="hidden sm:inline">Delete</span>
@@ -1318,15 +1395,18 @@ if (activeTab === 'myFiles') {
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel onClick={() => setItemToDelete(null)} disabled={isMutating}>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => {
-                          if (selectedFolder) {
-                            setItemToDelete({id: selectedFolder.id, type: 'folder'});
-                            handleDelete();
-                            setSelectedFolder(null);
-                          }
+                        <AlertDialogAction onClick={async () => {
+                          await handleDelete();
+                          setSelectedFolder(null);
                         }} disabled={isMutating || !selectedFolder}>
-                          {isMutating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                          Delete
+                          {isMutating ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Deleting...
+                            </>
+                          ) : (
+                            'Delete'
+                          )}
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
@@ -1479,7 +1559,17 @@ if (activeTab === 'myFiles') {
                 <Loader2 className="w-8 h-8 animate-spin text-white" />
             </div>
         ) : (
-            activeTab === 'myFiles' ? renderMyFiles() : renderSharedWithMe()
+            <div className="relative">
+                {isMutating && (
+                    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center rounded-lg">
+                        <div className="flex flex-col items-center gap-3 bg-gray-900/95 px-6 py-4 rounded-lg border border-gray-700">
+                            <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+                            <p className="text-white text-sm font-medium">Processing...</p>
+                        </div>
+                    </div>
+                )}
+                {activeTab === 'myFiles' ? renderMyFiles() : renderSharedWithMe()}
+            </div>
         )}
       </motion.div>
 

@@ -8,6 +8,12 @@ if (import.meta.env.DEV) {
 }
 
 export const getAuthHeaders = (token, contentType = 'application/json', agencyId = null) => {
+    // Validate token before creating headers
+    if (!token || token === 'null' || token === 'undefined' || token.trim() === '') {
+        console.error('Invalid token provided to getAuthHeaders:', token);
+        throw new Error('Authentication token is missing or invalid. Please log in again.');
+    }
+
     const headers = {
         'accept': 'application/json',
         'Authorization': `Bearer ${token}`
@@ -50,7 +56,18 @@ export const handleResponse = async (response) => {
         const errorMessage = error.detail || `HTTP error! status: ${response.status}`;
         const messageString = typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage);
 
-        if (response.status === 401 || messageString.toLowerCase().includes('invalid token') || messageString.toLowerCase().includes('token has expired')) {
+        // Enhanced logging for 401 errors to help debug production issues
+        if (response.status === 401) {
+            console.error('🔴 401 Unauthorized Error:', {
+                status: response.status,
+                statusText: response.statusText,
+                error: errorMessage,
+                url: response.url,
+                headers: Object.fromEntries(response.headers.entries())
+            });
+        }
+
+        if (response.status === 401 || messageString.toLowerCase().includes('invalid token') || messageString.toLowerCase().includes('token has expired') || messageString.toLowerCase().includes('invalid authentication credentials')) {
              window.dispatchEvent(new CustomEvent('auth-error'));
         }
 
