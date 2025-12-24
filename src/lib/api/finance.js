@@ -271,7 +271,7 @@ export const getVouchers = async (entityId, token) => {
 export const addVoucher = async (voucherFormData, token) => {
     const headers = getAuthHeaders(token);
     delete headers['Content-Type'];
-    const response = await fetch(`${FINANCE_API_BASE_URL}/api/vouchers`, {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/vouchers/`, {
         method: 'POST',
         headers,
         body: voucherFormData,
