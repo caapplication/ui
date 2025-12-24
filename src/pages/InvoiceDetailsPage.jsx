@@ -1000,7 +1000,7 @@ const InvoiceDetailsPage = () => {
                                 )
                             ) : (
                                 <div className="text-center text-gray-400">
-                                    <p>No attachment available for this invoice.</p>
+                                    <p>No attachment available for this invoice. </p>
                                 </div>
                             )}
                         </div>

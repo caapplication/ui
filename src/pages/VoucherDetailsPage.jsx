@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -257,13 +257,13 @@ const VoucherDetailsPage = () => {
             try {
                 const entityId = localStorage.getItem('entityId');
                 
-                // Use initialVoucher if available, otherwise fetch
-                let currentVoucher = initialVoucher;
+                // Always fetch fresh voucher data to ensure we have all fields (especially snapshot fields)
+                // This ensures consistency and that we always have the latest data from the server
+                let currentVoucher = await getVoucher(entityId, voucherId, user.access_token);
                 
-                // Only fetch if we don't have initial voucher or if voucherId changed
-                if (!currentVoucher || currentVoucher.id !== voucherId) {
-                    // Use full endpoint to get complete voucher data including attachment info
-                    currentVoucher = await getVoucher(entityId, voucherId, user.access_token);
+                // If fetch fails or returns null, fall back to initialVoucher
+                if (!currentVoucher && initialVoucher && String(initialVoucher.id) === String(voucherId)) {
+                    currentVoucher = initialVoucher;
                 }
 
                 if (!currentVoucher) {
@@ -273,6 +273,16 @@ const VoucherDetailsPage = () => {
                 }
 
                 if (isMounted) {
+                    // Debug: Log the voucher data to verify snapshot fields are present
+                    console.log('Setting voucher with data:', {
+                        id: currentVoucher.id,
+                        from_bank_account_name: currentVoucher.from_bank_account_name,
+                        from_bank_account_number: currentVoucher.from_bank_account_number,
+                        to_bank_account_name: currentVoucher.to_bank_account_name,
+                        to_bank_account_number: currentVoucher.to_bank_account_number,
+                        payment_type: currentVoucher.payment_type
+                    });
+                    
                     setVoucher(currentVoucher);
                     setEditedVoucher(currentVoucher);
                     // Update currentIndex when voucher changes
@@ -372,34 +382,52 @@ const VoucherDetailsPage = () => {
 
                 setBeneficiaries(beneficiariesData || []);
                 setFromBankAccounts(fromAccountsData || []);
+                
+                // Debug: Log voucher bank account data
+                if (voucher?.payment_type === 'bank_transfer') {
+                    console.log('Voucher bank account data:', {
+                        from_bank_account_id: voucher.from_bank_account_id,
+                        to_bank_account_id: voucher.to_bank_account_id,
+                        from_bank_account_name: voucher.from_bank_account_name,
+                        from_bank_account_number: voucher.from_bank_account_number,
+                        to_bank_account_name: voucher.to_bank_account_name,
+                        to_bank_account_number: voucher.to_bank_account_number,
+                        fromBankAccountsCount: fromAccountsData?.length || 0
+                    });
+                }
             } catch (error) {
                 console.error('Failed to fetch edit data:', error);
                 // Don't show toast for non-critical errors
             }
         };
         
-        // Only fetch if editing or if we need bank accounts for display
-        if (isEditing || (voucher?.payment_type === 'bank_transfer' && voucher?.from_bank_account_id)) {
+        // Fetch if editing or if we need bank accounts for display (always fetch for bank_transfer to show bank account names)
+        if (isEditing || voucher?.payment_type === 'bank_transfer') {
             fetchEditData();
         }
     }, [isEditing, user?.access_token, voucher?.id, voucher?.payment_type, organisationId]);
 
     useEffect(() => {
-        if (!user?.access_token || !editedVoucher?.beneficiary_id) return;
+        if (!user?.access_token) return;
         
-        // Only fetch if editing or if payment type requires bank accounts
-        if (!isEditing && editedVoucher?.payment_type !== 'bank_transfer') return;
+        // Get beneficiary_id from voucher or editedVoucher
+        const beneficiaryId = editedVoucher?.beneficiary_id || voucher?.beneficiary_id;
+        if (!beneficiaryId) return;
+        
+        // Fetch if editing or if payment type requires bank accounts (always fetch for bank_transfer to show bank account names)
+        const paymentType = editedVoucher?.payment_type || voucher?.payment_type;
+        if (!isEditing && paymentType !== 'bank_transfer') return;
         
         (async () => {
             try {
-                const toAccounts = await getBankAccountsForBeneficiary(editedVoucher.beneficiary_id, user.access_token);
+                const toAccounts = await getBankAccountsForBeneficiary(beneficiaryId, user.access_token);
                 setToBankAccounts(toAccounts || []);
             } catch {
                 console.error('Failed to fetch beneficiary bank accounts');
                 // Don't show toast for non-critical errors
             }
         })();
-    }, [user?.access_token, editedVoucher?.beneficiary_id, editedVoucher?.payment_type, isEditing]);
+    }, [user?.access_token, editedVoucher?.beneficiary_id, editedVoucher?.payment_type, isEditing, voucher?.beneficiary_id, voucher?.payment_type]);
 
     useEffect(() => {
         if (editedVoucher?.voucher_type === 'cash') {
@@ -467,15 +495,31 @@ const VoucherDetailsPage = () => {
     // Check if we have vouchers to navigate - show arrows if we have multiple vouchers
     const hasVouchers = vouchers && Array.isArray(vouchers) && vouchers.length > 1;
     
-    const voucherDetails = voucher || {
-        id: voucherId,
-        beneficiaryName: 'N/A',
-        created_date: new Date().toISOString(),
-        amount: 0,
-        voucher_type: 'N/A',
-        payment_type: 'N/A',
-        remarks: 'No remarks available.',
-    };
+    // Use useMemo to ensure voucherDetails updates when voucher changes
+    const voucherDetails = useMemo(() => {
+        if (voucher) {
+            // Debug: Log voucher to verify it has bank account fields
+            console.log('voucherDetails computed from voucher:', {
+                hasVoucher: !!voucher,
+                from_bank_account_id: voucher.from_bank_account_id,
+                from_bank_account_name: voucher.from_bank_account_name,
+                from_bank_account_number: voucher.from_bank_account_number,
+                to_bank_account_id: voucher.to_bank_account_id,
+                to_bank_account_name: voucher.to_bank_account_name,
+                to_bank_account_number: voucher.to_bank_account_number,
+            });
+            return voucher;
+        }
+        return {
+            id: voucherId,
+            beneficiaryName: 'N/A',
+            created_date: new Date().toISOString(),
+            amount: 0,
+            voucher_type: 'N/A',
+            payment_type: 'N/A',
+            remarks: 'No remarks available.',
+        };
+    }, [voucher, voucherId]);
 
     const handleExportToPDF = async () => {
         // For bank transfers, ensure bank account details are loaded
@@ -920,6 +964,23 @@ const VoucherDetailsPage = () => {
             if (refreshedVoucher) {
                 setVoucher(refreshedVoucher);
                 setEditedVoucher(refreshedVoucher);
+                
+                // If bank transfer, ensure bank accounts are fetched for display
+                if (refreshedVoucher.payment_type === 'bank_transfer') {
+                    const orgId = refreshedVoucher?.organisation_id || organisationId || user?.organization_id;
+                    if (orgId) {
+                        // Fetch bank accounts in parallel
+                        Promise.all([
+                            getOrganisationBankAccounts(entityId, user.access_token),
+                            refreshedVoucher.beneficiary_id ? getBankAccountsForBeneficiary(refreshedVoucher.beneficiary_id, user.access_token) : Promise.resolve([])
+                        ]).then(([fromAccounts, toAccounts]) => {
+                            setFromBankAccounts(fromAccounts || []);
+                            setToBankAccounts(toAccounts || []);
+                        }).catch(err => {
+                            console.error('Failed to fetch bank accounts after update:', err);
+                        });
+                    }
+                }
             }
         } catch (error) {
             toast({ title: 'Error', description: `Failed to update voucher: ${error.message}`, variant: 'destructive' });
@@ -1250,21 +1311,39 @@ const VoucherDetailsPage = () => {
                                                     )
                                             }
                                         />
-                                        {voucherDetails.payment_type === 'bank_transfer' && (
+                                        {(voucherDetails.payment_type === 'bank_transfer' || voucher?.payment_type === 'bank_transfer') && (
                                             <>
                                                 <DetailItem
                                                     label="From Bank Account"
                                                     value={
                                                         (() => {
-                                                            const fromBank = fromBankAccounts.find(
-                                                                acc => String(acc.id) === String(voucherDetails.from_bank_account_id)
-                                                            );
-                                                            if (fromBank) return `${fromBank.bank_name} - ${fromBank.account_number}`;
-
-                                                            const snap = voucherDetails.from_bank_account_name
-                                                                ? `${voucherDetails.from_bank_account_name} - ${voucherDetails.from_bank_account_number || ''}`.trim()
-                                                                : null;
-                                                            return snap || voucherDetails.from_bank_account_id || 'N/A';
+                                                            // Use voucher directly if voucherDetails doesn't have the fields
+                                                            const source = voucher || voucherDetails;
+                                                            const fromId = source.from_bank_account_id;
+                                                            const fromName = source.from_bank_account_name;
+                                                            const fromNumber = source.from_bank_account_number;
+                                                            
+                                                            // Priority 1: Use snapshot data first (most reliable, always available after save)
+                                                            if (fromName && fromName.trim()) {
+                                                                return `${fromName}${fromNumber ? ' - ' + fromNumber : ''}`.trim();
+                                                            }
+                                                            
+                                                            // Priority 2: Try to find in fetched bank accounts array (if loaded)
+                                                            if (fromId && fromBankAccounts?.length > 0) {
+                                                                const fromBank = fromBankAccounts.find(
+                                                                    acc => String(acc.id) === String(fromId)
+                                                                );
+                                                                if (fromBank) {
+                                                                    return `${fromBank.bank_name} - ${fromBank.account_number}`;
+                                                                }
+                                                            }
+                                                            
+                                                            // Priority 3: Show ID if available
+                                                            if (fromId) {
+                                                                return String(fromId);
+                                                            }
+                                                            
+                                                            return 'N/A';
                                                         })()
                                                     }
                                                 />
@@ -1272,15 +1351,33 @@ const VoucherDetailsPage = () => {
                                                     label="To Bank Account"
                                                     value={
                                                         (() => {
-                                                            const toBank = toBankAccounts.find(
-                                                                acc => String(acc.id) === String(voucherDetails.to_bank_account_id)
-                                                            );
-                                                            if (toBank) return `${toBank.bank_name} - ${toBank.account_number}`;
-
-                                                            const snap = voucherDetails.to_bank_account_name
-                                                                ? `${voucherDetails.to_bank_account_name} - ${voucherDetails.to_bank_account_number || ''}`.trim()
-                                                                : null;
-                                                            return snap || voucherDetails.to_bank_account_id || 'N/A';
+                                                            // Use voucher directly if voucherDetails doesn't have the fields
+                                                            const source = voucher || voucherDetails;
+                                                            const toId = source.to_bank_account_id;
+                                                            const toName = source.to_bank_account_name;
+                                                            const toNumber = source.to_bank_account_number;
+                                                            
+                                                            // Priority 1: Use snapshot data first (most reliable, always available after save)
+                                                            if (toName && toName.trim()) {
+                                                                return `${toName}${toNumber ? ' - ' + toNumber : ''}`.trim();
+                                                            }
+                                                            
+                                                            // Priority 2: Try to find in fetched bank accounts array (if loaded)
+                                                            if (toId && toBankAccounts?.length > 0) {
+                                                                const toBank = toBankAccounts.find(
+                                                                    acc => String(acc.id) === String(toId)
+                                                                );
+                                                                if (toBank) {
+                                                                    return `${toBank.bank_name} - ${toBank.account_number}`;
+                                                                }
+                                                            }
+                                                            
+                                                            // Priority 3: Show ID if available
+                                                            if (toId) {
+                                                                return String(toId);
+                                                            }
+                                                            
+                                                            return 'N/A';
                                                         })()
                                                     }
                                                 />
@@ -1652,21 +1749,39 @@ const VoucherDetailsPage = () => {
                                                         )
                                                 }
                                             />
-                                            {voucherDetails.payment_type === 'bank_transfer' && (
+                                            {(voucherDetails.payment_type === 'bank_transfer' || voucher?.payment_type === 'bank_transfer') && (
                                                 <>
                                                     <DetailItem
                                                         label="From Bank Account"
                                                         value={
                                                             (() => {
-                                                                const fromBank = fromBankAccounts.find(
-                                                                    acc => String(acc.id) === String(voucherDetails.from_bank_account_id)
-                                                                );
-                                                                if (fromBank) return `${fromBank.bank_name} - ${fromBank.account_number}`;
-
-                                                                const snap = voucherDetails.from_bank_account_name
-                                                                    ? `${voucherDetails.from_bank_account_name} - ${voucherDetails.from_bank_account_number || ''}`.trim()
-                                                                    : null;
-                                                                return snap || voucherDetails.from_bank_account_id || 'N/A';
+                                                                // Use voucher directly if voucherDetails doesn't have the fields
+                                                                const source = voucher || voucherDetails;
+                                                                const fromId = source.from_bank_account_id;
+                                                                const fromName = source.from_bank_account_name;
+                                                                const fromNumber = source.from_bank_account_number;
+                                                                
+                                                                // Priority 1: Use snapshot data first (most reliable, always available after save)
+                                                                if (fromName && fromName.trim()) {
+                                                                    return `${fromName}${fromNumber ? ' - ' + fromNumber : ''}`.trim();
+                                                                }
+                                                                
+                                                                // Priority 2: Try to find in fetched bank accounts array (if loaded)
+                                                                if (fromId && fromBankAccounts?.length > 0) {
+                                                                    const fromBank = fromBankAccounts.find(
+                                                                        acc => String(acc.id) === String(fromId)
+                                                                    );
+                                                                    if (fromBank) {
+                                                                        return `${fromBank.bank_name} - ${fromBank.account_number}`;
+                                                                    }
+                                                                }
+                                                                
+                                                                // Priority 3: Show ID if available
+                                                                if (fromId) {
+                                                                    return String(fromId);
+                                                                }
+                                                                
+                                                                return 'N/A';
                                                             })()
                                                         }
                                                     />
@@ -1674,15 +1789,33 @@ const VoucherDetailsPage = () => {
                                                         label="To Bank Account"
                                                         value={
                                                             (() => {
-                                                                const toBank = toBankAccounts.find(
-                                                                    acc => String(acc.id) === String(voucherDetails.to_bank_account_id)
-                                                                );
-                                                                if (toBank) return `${toBank.bank_name} - ${toBank.account_number}`;
-
-                                                                const snap = voucherDetails.to_bank_account_name
-                                                                    ? `${voucherDetails.to_bank_account_name} - ${voucherDetails.to_bank_account_number || ''}`.trim()
-                                                                    : null;
-                                                                return snap || voucherDetails.to_bank_account_id || 'N/A';
+                                                                // Use voucher directly if voucherDetails doesn't have the fields
+                                                                const source = voucher || voucherDetails;
+                                                                const toId = source.to_bank_account_id;
+                                                                const toName = source.to_bank_account_name;
+                                                                const toNumber = source.to_bank_account_number;
+                                                                
+                                                                // Priority 1: Use snapshot data first (most reliable, always available after save)
+                                                                if (toName && toName.trim()) {
+                                                                    return `${toName}${toNumber ? ' - ' + toNumber : ''}`.trim();
+                                                                }
+                                                                
+                                                                // Priority 2: Try to find in fetched bank accounts array (if loaded)
+                                                                if (toId && toBankAccounts?.length > 0) {
+                                                                    const toBank = toBankAccounts.find(
+                                                                        acc => String(acc.id) === String(toId)
+                                                                    );
+                                                                    if (toBank) {
+                                                                        return `${toBank.bank_name} - ${toBank.account_number}`;
+                                                                    }
+                                                                }
+                                                                
+                                                                // Priority 3: Show ID if available
+                                                                if (toId) {
+                                                                    return String(toId);
+                                                                }
+                                                                
+                                                                return 'N/A';
                                                             })()
                                                         }
                                                     />
