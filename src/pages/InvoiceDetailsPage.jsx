@@ -356,14 +356,16 @@ const InvoiceDetailsPage = () => {
         cgst: 0,
         sgst: 0,
         igst: 0,
+        roundoff: 0,
         remarks: 'No remarks available.',
     };
     
     const totalAmount = (
-        parseFloat(invoiceDetails.amount) + 
-        parseFloat(invoiceDetails.cgst) + 
-        parseFloat(invoiceDetails.sgst) + 
-        parseFloat(invoiceDetails.igst)
+        parseFloat(invoiceDetails.amount || 0) + 
+        parseFloat(invoiceDetails.cgst || 0) + 
+        parseFloat(invoiceDetails.sgst || 0) + 
+        parseFloat(invoiceDetails.igst || 0) + 
+        parseFloat(invoiceDetails.roundoff || 0)
     ).toFixed(2);
 
     useEffect(() => {
@@ -425,6 +427,7 @@ const InvoiceDetailsPage = () => {
         const cgst = data.cgst ? parseFloat(data.cgst) : (editedInvoice?.cgst || 0);
         const sgst = data.sgst ? parseFloat(data.sgst) : (editedInvoice?.sgst || 0);
         const igst = data.igst ? parseFloat(data.igst) : (editedInvoice?.igst || 0);
+        const roundoff = data.roundoff ? parseFloat(data.roundoff) : (editedInvoice?.roundoff || 0);
         
         // Build payload object - ensure no duplicate keys
         const payload = {};
@@ -447,6 +450,9 @@ const InvoiceDetailsPage = () => {
         }
         if (data.igst !== undefined || editedInvoice?.igst !== undefined) {
             payload.igst = isNaN(igst) ? 0 : igst;
+        }
+        if (data.roundoff !== undefined || editedInvoice?.roundoff !== undefined) {
+            payload.roundoff = isNaN(roundoff) ? 0 : roundoff;
         }
         if ('remarks' in data || editedInvoice?.remarks !== undefined) {
             payload.remarks = remarksValue;
@@ -613,6 +619,7 @@ const InvoiceDetailsPage = () => {
                         ['CGST', `Rs. ${parseFloat(invoiceDetails.cgst || 0).toFixed(2)}`],
                         ['SGST', `Rs. ${parseFloat(invoiceDetails.sgst || 0).toFixed(2)}`],
                         ['IGST', `Rs. ${parseFloat(invoiceDetails.igst || 0).toFixed(2)}`],
+                        ['Roundoff', `Rs. ${parseFloat(invoiceDetails.roundoff || 0).toFixed(2)}`],
                         ['Total Amount', `Rs. ${totalAmount}`]
                     ];
                     
@@ -1137,6 +1144,7 @@ const InvoiceDetailsPage = () => {
                                             <Select 
                                                 value={editedInvoice?.beneficiary_id ? String(editedInvoice.beneficiary_id) : ''}
                                                 onValueChange={(val) => setEditedInvoice(p => ({ ...p, beneficiary_id: val }))}
+                                                disabled={true}
                                             >
                                                 <SelectTrigger>
                                                     <SelectValue placeholder="Select a beneficiary" />
@@ -1173,6 +1181,10 @@ const InvoiceDetailsPage = () => {
                                         <div>
                                             <Label htmlFor="igst">IGST</Label>
                                             <Input name="igst" type="number" step="0.01" defaultValue={editedInvoice.igst} />
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="roundoff">Roundoff</Label>
+                                            <Input name="roundoff" type="number" step="0.01" defaultValue={editedInvoice.roundoff || 0} onChange={(e) => setEditedInvoice(p => ({ ...p, roundoff: e.target.value }))} />
                                         </div>
                                         <div>
                                             <Label htmlFor="remarks">Remarks</Label>
@@ -1474,6 +1486,7 @@ const InvoiceDetailsPage = () => {
                                         <Select 
                                             value={editedInvoice?.beneficiary_id ? String(editedInvoice.beneficiary_id) : ''}
                                             onValueChange={(val) => setEditedInvoice(p => ({ ...p, beneficiary_id: val }))}
+                                            disabled={true}
                                         >
                                             <SelectTrigger className="text-sm">
                                                 <SelectValue placeholder="Select a beneficiary" />
@@ -1510,6 +1523,10 @@ const InvoiceDetailsPage = () => {
                                     <div>
                                         <Label htmlFor="igst" className="text-sm">IGST</Label>
                                         <Input name="igst" type="number" step="0.01" defaultValue={editedInvoice.igst} className="text-sm" />
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="roundoff" className="text-sm">Roundoff</Label>
+                                        <Input name="roundoff" type="number" step="0.01" defaultValue={editedInvoice.roundoff || 0} onChange={(e) => setEditedInvoice(p => ({ ...p, roundoff: e.target.value }))} className="text-sm" />
                                     </div>
                                     <div>
                                         <Label htmlFor="remarks" className="text-sm">Remarks</Label>
@@ -1562,6 +1579,7 @@ const InvoiceDetailsPage = () => {
                                             <DetailItem label="CGST" value={`₹${parseFloat(invoiceDetails.cgst || 0).toFixed(2)}`} />
                                             <DetailItem label="SGST" value={`₹${parseFloat(invoiceDetails.sgst || 0).toFixed(2)}`} />
                                             <DetailItem label="IGST" value={`₹${parseFloat(invoiceDetails.igst || 0).toFixed(2)}`} />
+                                            <DetailItem label="Roundoff" value={`₹${parseFloat(invoiceDetails.roundoff || 0).toFixed(2)}`} />
                                             <div className="pt-4">
                                                 <DetailItem label="Total Amount" value={`₹${totalAmount}`} />
                                             </div>
