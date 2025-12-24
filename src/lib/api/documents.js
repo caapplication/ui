@@ -1,6 +1,6 @@
 import { getAuthHeaders, handleResponse } from './utils';
 
-const FINANCE_API_BASE_URL = import.meta.env.VITE_FINANCE_API_URL || 'http://127.0.0.1:8003';
+export const FINANCE_API_BASE_URL = import.meta.env.VITE_FINANCE_API_URL || 'http://127.0.0.1:8003';
 
 export const getDocuments = async (entityId, token) => {
     // For non-CA accountants, entityId is required
@@ -159,4 +159,84 @@ export const uploadCAFile = async (folderId, file, expiryDate, token) => {
         body: formData,
     });
     return handleResponse(response);
+};
+
+export const createPublicShareTokenDocument = async (documentId, expiresInDays = 30, token) => {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/documents/${documentId}/public-share?expires_in_days=${expiresInDays}`, {
+        method: 'POST',
+        headers: getAuthHeaders(token),
+    });
+    return handleResponse(response);
+};
+
+export const createPublicShareTokenFolder = async (folderId, expiresInDays = 30, token) => {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/documents/folders/${folderId}/public-share?expires_in_days=${expiresInDays}`, {
+        method: 'POST',
+        headers: getAuthHeaders(token),
+    });
+    return handleResponse(response);
+};
+
+export const revokePublicShareTokenDocument = async (documentId, token) => {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/documents/${documentId}/public-share`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(token),
+    });
+    return handleResponse(response);
+};
+
+export const revokePublicShareTokenFolder = async (folderId, token) => {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/documents/folders/${folderId}/public-share`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(token),
+    });
+    return handleResponse(response);
+};
+
+export const getPublicFolder = async (token) => {
+    try {
+        const url = `${FINANCE_API_BASE_URL}/api/public/documents/folders/${token}`;
+        console.log('Fetching public folder from:', url);
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'accept': 'application/json'
+            },
+        });
+        console.log('Response status:', response.status, response.statusText);
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Error response:', errorText);
+            throw new Error(`Failed to load folder: ${response.status} ${response.statusText}`);
+        }
+        const data = await response.json();
+        console.log('Folder data:', data);
+        return data;
+    } catch (error) {
+        console.error('Error in getPublicFolder:', error);
+        throw error;
+    }
+};
+
+export const getPublicSubfolder = async (parentToken, subfolderId) => {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/public/documents/folders/${parentToken}/subfolders/${subfolderId}`, {
+        method: 'GET',
+        headers: {
+            'accept': 'application/json'
+        },
+    });
+    return handleResponse(response);
+};
+
+export const viewPublicDocument = async (token) => {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/public/documents/documents/${token}`, {
+        method: 'GET',
+        headers: {
+            'accept': '*/*'
+        },
+    });
+    if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return response.blob();
 };

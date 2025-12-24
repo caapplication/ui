@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
-import { FileText, Upload, Trash2, Plus, Share2, Folder, FolderPlus, ArrowLeft, Search, Loader2, RefreshCw, Inbox, CalendarIcon, Download, Copy, X, User, Link2, Grid, Phone, Mail, MessageCircle, Facebook, Twitter, MoreVertical, Users, UserPlus, Check } from 'lucide-react';
+import { FileText, Upload, Trash2, Plus, Share2, Folder, FolderPlus, ArrowLeft, Search, Loader2, RefreshCw, Inbox, CalendarIcon, Download, Copy, X, User, Link2, Grid, Phone, Mail, MessageCircle, Facebook, Twitter, MoreVertical, Users, UserPlus } from 'lucide-react';
 
 // Helper function to check if folder has expired documents (recursively checks subfolders)
 const hasExpiredDocuments = (folder) => {
@@ -103,6 +103,7 @@ const FolderIcon = ({ className = "w-20 h-20", hasExpired = false }) => {
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { getDocuments, createFolder, uploadFile, deleteDocument, shareDocument, viewFile, getSharedDocuments, listOrganisations, listEntities, createCAFolder, uploadCAFile, shareFolder, listOrgUsers, listTeamMembers, FINANCE_API_BASE_URL } from '@/lib/api';
+import { createPublicShareTokenDocument, createPublicShareTokenFolder } from '@/lib/api/documents';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
@@ -702,21 +703,42 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
           fetchSharedDocuments(true).catch(err => console.error('Rollback refresh failed:', err));
         }
         toast({ title: "Deletion Failed", description: error.message, variant: "destructive" });
-        // Keep modal open on error so user can see the error message
     } finally {
       setIsMutating(false);
     }
   };
 
-  const handleShareClick = (doc) => {
+  const handleShareClick = async (doc) => {
     setShareDoc(doc);
-    // Generate shareable link - using the API endpoint for viewing the document
-    const baseUrl = FINANCE_API_BASE_URL.replace('/api', '');
-    const link = `${baseUrl}/api/documents/${doc.id}`;
-    setShareLink(link);
     setLinkCopied(false);
     setShareEmails(''); // Reset emails when opening dialog
     setShareDialogOpen(true);
+    
+    // Generate public share token and link
+    try {
+      let tokenData;
+      if (doc.is_folder) {
+        tokenData = await createPublicShareTokenFolder(doc.id, 30, user.access_token);
+      } else {
+        tokenData = await createPublicShareTokenDocument(doc.id, 30, user.access_token);
+      }
+      
+      // Generate public shareable link
+      const baseUrl = window.location.origin;
+      if (doc.is_folder) {
+        const link = `${baseUrl}/public/folder/${tokenData.token}`;
+        setShareLink(link);
+      } else {
+        const link = `${baseUrl}/public/document/${tokenData.token}`;
+        setShareLink(link);
+      }
+    } catch (error) {
+      console.error('Failed to generate public share link:', error);
+      // Fallback to old link generation
+      const baseUrl = FINANCE_API_BASE_URL.replace('/api', '');
+      const link = `${baseUrl}/api/documents/${doc.id}`;
+      setShareLink(link);
+    }
   };
 
   const handleCollaborateClick = async (doc) => {
@@ -1300,11 +1322,11 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8" onClick={() => setSelectedFolder(null)}>
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} onClick={(e) => e.stopPropagation()}>
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
         <div className="flex flex-col gap-4 mb-4 sm:mb-6">
           <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white">Documents</h1>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2 w-full">
-             <div className="flex items-center gap-2">
+             <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                <Button variant="outline" size="icon" onClick={handleRefresh} disabled={isRefreshing} className="h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0">
                   <RefreshCw className={`w-4 h-4 sm:w-5 sm:h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
               </Button>
