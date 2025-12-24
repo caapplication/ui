@@ -86,6 +86,12 @@ export const AuthProvider = ({ children }) => {
       if (savedUser && accessToken) {
         try {
           const parsedUser = JSON.parse(savedUser);
+          // Validate token is not null, undefined, or empty string
+          if (!accessToken || accessToken === 'null' || accessToken === 'undefined' || accessToken.trim() === '') {
+            console.warn('Invalid access token found in localStorage, logging out');
+            logout();
+            return;
+          }
           setUser({ ...parsedUser, access_token: accessToken });
           if(parsedUser.refresh_token) {
             startTokenRefresh(parsedUser.refresh_token);
