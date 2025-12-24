@@ -13,7 +13,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { ArrowLeft, Edit, Trash2, FileText, Loader2, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RefreshCcw } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import * as pdfjsLib from 'pdfjs-dist';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+
+// Set up PDF.js worker - use local worker from package
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+    'pdfjs-dist/build/pdf.worker.min.js',
+    import.meta.url
+).toString();
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import {
   ResizablePanelGroup,
@@ -264,6 +271,7 @@ const InvoiceDetailsPage = () => {
                     if (allIds.length > 0) {
                         setIsImageLoading(true);
                         setAttachmentToDisplay(null);
+                        setAttachmentContentType(null);
                         console.log("Fetching invoice attachment with ID:", allIds[0]);
                         promises.push(
                             getInvoiceAttachment(allIds[0], user.access_token)
@@ -294,6 +302,12 @@ const InvoiceDetailsPage = () => {
                                     setIsImageLoading(false);
                                     setAttachmentToDisplay(null);
                                     setAttachmentContentType(null);
+                                    // Show a toast for user feedback
+                                    toast({
+                                        title: 'Attachment Error',
+                                        description: `Failed to load attachment: ${err.message}`,
+                                        variant: 'destructive'
+                                    });
                                 })
                         );
                     } else {
@@ -688,75 +702,80 @@ const InvoiceDetailsPage = () => {
                 }
             }
 
-            // Page 2: Attachment (if it's an image, not PDF)
-            const isPdfAttachment = attachmentContentType?.toLowerCase().includes('pdf') || attachmentToDisplay?.toLowerCase().endsWith('.pdf');
-            if (attachmentToDisplay && !isPdfAttachment) {
-                try {
-                    pdf.addPage();
-                    
-                    // Set background to dark for attachment page
-                    pdf.setFillColor(...darkBg);
-                    pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
-                    
-                    // Load the image directly from URL
-                    const img = new Image();
-                    img.crossOrigin = 'anonymous';
-                    
-                    await new Promise((resolve, reject) => {
-                        img.onload = () => resolve();
-                        img.onerror = (err) => {
-                            console.error('Error loading image:', err);
-                            reject(err);
-                        };
-                        img.src = attachmentToDisplay;
+            // Page 2: Attachment (image only - PDFs will be merged separately)
+            if (attachmentToDisplay) {
+                const isPdfAttachment = attachmentContentType?.toLowerCase().includes('pdf') || attachmentToDisplay?.toLowerCase().endsWith('.pdf');
+                
+                if (!isPdfAttachment) {
+                    // For image attachments only, add them to jsPDF
+                    // For image attachments, use the existing logic
+                    try {
+                        pdf.addPage();
                         
-                        // Timeout after 10 seconds
-                        setTimeout(() => {
-                            if (!img.complete) {
-                                reject(new Error('Image load timeout'));
-                            }
-                        }, 10000);
-                    });
-                    
-                    // Calculate dimensions to fit the page
-                    const imgWidth = img.width;
-                    const imgHeight = img.height;
-                    const ratio = imgWidth / imgHeight;
-                    
-                    let displayWidth = contentWidth;
-                    let displayHeight = displayWidth / ratio;
-                    
-                    // If image is taller than page, scale it down
-                    if (displayHeight > contentHeight) {
-                        displayHeight = contentHeight;
-                        displayWidth = displayHeight * ratio;
-                    }
-                    
-                    // Center the image on the page
-                    const xPos = margin + (contentWidth - displayWidth) / 2;
-                    const yPos = margin + (contentHeight - displayHeight) / 2;
-                    
-                    // Add image to PDF
-                    pdf.addImage(attachmentToDisplay, 'PNG', xPos, yPos, displayWidth, displayHeight);
-                } catch (error) {
-                    console.error('Error adding attachment image to PDF:', error);
-                    // Fallback: try using html2canvas if direct image load fails
-                    if (attachmentRef.current) {
-                        try {
-                            const attachmentCanvas = await html2canvas(attachmentRef.current, { 
-                                useCORS: true,
-                                scale: 2,
-                                backgroundColor: '#1e293b',
-                                logging: false,
-                                allowTaint: true
-                            });
+                        // Set background to dark for attachment page
+                        pdf.setFillColor(...darkBg);
+                        pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
+                        
+                        // Load the image directly from URL
+                        const img = new Image();
+                        img.crossOrigin = 'anonymous';
+                        
+                        await new Promise((resolve, reject) => {
+                            img.onload = () => resolve();
+                            img.onerror = (err) => {
+                                console.error('Error loading image:', err);
+                                reject(err);
+                            };
+                            img.src = attachmentToDisplay;
                             
-                            if (attachmentCanvas && attachmentCanvas.width > 0 && attachmentCanvas.height > 0) {
-                                const attachmentImgData = attachmentCanvas.toDataURL('image/png');
-                                addImageToPDF(attachmentImgData, attachmentCanvas.width, attachmentCanvas.height);
+                            // Timeout after 10 seconds
+                            setTimeout(() => {
+                                if (!img.complete) {
+                                    reject(new Error('Image load timeout'));
+                                }
+                            }, 10000);
+                        });
+                        
+                        // Calculate dimensions to fit the page
+                        const imgWidth = img.width;
+                        const imgHeight = img.height;
+                        const ratio = imgWidth / imgHeight;
+                        
+                        let displayWidth = contentWidth;
+                        let displayHeight = displayWidth / ratio;
+                        
+                        // If image is taller than page, scale it down
+                        if (displayHeight > contentHeight) {
+                            displayHeight = contentHeight;
+                            displayWidth = displayHeight * ratio;
+                        }
+                        
+                        // Center the image on the page
+                        const xPos = margin + (contentWidth - displayWidth) / 2;
+                        const yPos = margin + (contentHeight - displayHeight) / 2;
+                        
+                        // Add image to PDF
+                        pdf.addImage(attachmentToDisplay, 'PNG', xPos, yPos, displayWidth, displayHeight);
+                    } catch (error) {
+                        console.error('Error adding attachment image to PDF:', error);
+                        // Fallback: try using html2canvas if direct image load fails
+                        if (attachmentRef.current) {
+                            try {
+                                const attachmentCanvas = await html2canvas(attachmentRef.current, { 
+                                    useCORS: true,
+                                    scale: 2,
+                                    backgroundColor: '#1e293b',
+                                    logging: false,
+                                    allowTaint: true
+                                });
+                                
+                                if (attachmentCanvas && attachmentCanvas.width > 0 && attachmentCanvas.height > 0) {
+                                    const attachmentImgData = attachmentCanvas.toDataURL('image/png');
+                                    addImageToPDF(attachmentImgData, attachmentCanvas.width, attachmentCanvas.height);
+                                }
+                            } catch (canvasError) {
+                                console.error('Error capturing attachment with html2canvas:', canvasError);
                             }
-                        } catch (canvasError) {
-                            console.error('Error capturing attachment with html2canvas:', canvasError);
                         }
                     }
                 }
@@ -787,8 +806,79 @@ const InvoiceDetailsPage = () => {
                 throw new Error('No valid content to export. Please ensure the invoice details are visible.');
             }
 
-            pdf.save(`invoice-${invoiceDetails.bill_number || invoiceId}.pdf`);
-            toast({ title: 'Export Successful', description: 'Invoice exported to PDF with details, attachment, and activity log.' });
+            // Convert jsPDF to arrayBuffer for merging
+            const detailsPdfBytes = pdf.output('arraybuffer');
+            
+            // Now merge PDFs if there's a PDF attachment
+            const isPdfAttachment = attachmentToDisplay && (attachmentContentType?.toLowerCase().includes('pdf') || attachmentToDisplay?.toLowerCase().endsWith('.pdf'));
+            
+            if (isPdfAttachment) {
+                try {
+                    // Dynamically import pdf-lib only when needed
+                    const { PDFDocument } = await import('pdf-lib');
+                    
+                    // Get attachment ID from invoice or allAttachmentIds
+                    const attachmentId = invoice?.attachment_id || (invoice?.attachment && invoice?.attachment.id) || allAttachmentIds[0];
+                    
+                    if (!attachmentId) {
+                        throw new Error('No attachment ID available');
+                    }
+                    
+                    // Fetch the PDF directly from the API endpoint
+                    const FINANCE_API_BASE_URL = import.meta.env.VITE_FINANCE_API_URL || 'http://127.0.0.1:8003';
+                    const response = await fetch(`${FINANCE_API_BASE_URL}/api/attachments/${attachmentId}`, {
+                        headers: {
+                            'Authorization': `Bearer ${user.access_token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`Failed to fetch attachment: ${response.status}`);
+                    }
+                    
+                    const attachmentBlob = await response.blob();
+                    const attachmentPdfBytes = await attachmentBlob.arrayBuffer();
+                    
+                    // Create a new PDF document to merge
+                    const mergedPdf = await PDFDocument.create();
+                    
+                    // Load the details PDF
+                    const detailsPdf = await PDFDocument.load(detailsPdfBytes);
+                    const detailsPages = await mergedPdf.copyPages(detailsPdf, detailsPdf.getPageIndices());
+                    detailsPages.forEach((page) => mergedPdf.addPage(page));
+                    
+                    // Load and merge the attachment PDF
+                    const attachmentPdf = await PDFDocument.load(attachmentPdfBytes);
+                    const attachmentPages = await mergedPdf.copyPages(attachmentPdf, attachmentPdf.getPageIndices());
+                    attachmentPages.forEach((page) => mergedPdf.addPage(page));
+                    
+                    // Save the merged PDF
+                    const mergedPdfBytes = await mergedPdf.save();
+                    const blob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `invoice-${invoiceDetails.bill_number || invoiceId}.pdf`;
+                    link.click();
+                    URL.revokeObjectURL(url);
+                    
+                    toast({ title: 'Export Successful', description: 'Invoice exported to PDF with details, attachment, and activity log.' });
+                } catch (error) {
+                    console.error('Error merging PDF attachment:', error);
+                    // Fallback to saving jsPDF if merging fails
+                    pdf.save(`invoice-${invoiceDetails.bill_number || invoiceId}.pdf`);
+                    toast({ 
+                        title: 'Export Warning', 
+                        description: 'PDF exported but attachment could not be merged. Details only.', 
+                        variant: 'default' 
+                    });
+                }
+            } else {
+                // No PDF attachment, just save the jsPDF
+                pdf.save(`invoice-${invoiceDetails.bill_number || invoiceId}.pdf`);
+                toast({ title: 'Export Successful', description: 'Invoice exported to PDF with details, attachment, and activity log.' });
+            }
         } catch (error) {
             console.error('PDF Export Error:', error);
             toast({ title: 'Export Error', description: `An error occurred: ${error.message}`, variant: 'destructive' });
@@ -997,7 +1087,7 @@ const InvoiceDetailsPage = () => {
                             ) : attachmentToDisplay ? (
                                 (attachmentContentType?.toLowerCase().includes('pdf') || attachmentToDisplay.toLowerCase().endsWith('.pdf')) ? (
                                     <iframe
-                                        src={attachmentToDisplay}
+                                        src={`${attachmentToDisplay}#toolbar=0`}
                                         title="Invoice Attachment"
                                         className="h-full w-full rounded-md border-none"
                                         type="application/pdf"

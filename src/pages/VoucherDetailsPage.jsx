@@ -2,7 +2,14 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import * as pdfjsLib from 'pdfjs-dist';
 import { useAuth } from '@/hooks/useAuth.jsx';
+
+// Set up PDF.js worker - use local worker from package
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+    'pdfjs-dist/build/pdf.worker.min.js',
+    import.meta.url
+).toString();
 import { deleteVoucher, updateVoucher, getBeneficiaries, getVoucherAttachment, getVoucher, getBankAccountsForBeneficiary, getOrganisationBankAccounts, getFinanceHeaders } from '@/lib/api.js';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/use-toast';
@@ -300,7 +307,13 @@ const VoucherDetailsPage = () => {
                     if (primaryAttachmentId) {
                         allIds.push(primaryAttachmentId);
                     }
-                    allIds.push(...additionalIds);
+                    // Add additional attachments (excluding the primary if it's also in additional)
+                    additionalIds.forEach(id => {
+                        if (id && id !== primaryAttachmentId && !allIds.includes(id)) {
+                            allIds.push(id);
+                        }
+                    });
+                    console.log("Collected attachment IDs:", { primaryAttachmentId, additionalIds, allIds });
                     setAllAttachmentIds(allIds);
                     setCurrentAttachmentIndex(0); // Reset to first attachment
                     
@@ -312,7 +325,8 @@ const VoucherDetailsPage = () => {
                     if (allIds.length > 0) {
                         setIsImageLoading(true);
                         setAttachmentUrl(null); // Reset attachment URL
-                        console.log("Fetching attachment for voucher:", currentVoucher.id, "attachment_id:", allIds[0]);
+                        setAttachmentContentType(null);
+                        console.log("Fetching voucher attachment with ID:", allIds[0]);
                         promises.push(
                             getVoucherAttachment(allIds[0], user.access_token)
                                 .then(result => {
@@ -320,7 +334,7 @@ const VoucherDetailsPage = () => {
                                     const url = typeof result === 'string' ? result : result?.url;
                                     const contentType = typeof result === 'object' ? result?.contentType : null;
                                     
-                                    console.log("Attachment URL received:", url ? "Yes" : "No", url, "Content-Type:", contentType);
+                                    console.log("Voucher attachment URL received:", url ? "Yes" : "No", url, "Content-Type:", contentType);
                                     if (url) {
                                         setAttachmentUrl(url);
                                         setAttachmentContentType(contentType);
@@ -331,21 +345,27 @@ const VoucherDetailsPage = () => {
                                         }
                                         // For images, keep loading state true - onLoad handler will set it to false
                                     } else {
-                                        console.warn("Attachment URL is null or empty");
+                                        console.log("No URL returned from getVoucherAttachment");
                                         setIsImageLoading(false);
                                         setAttachmentUrl(null);
                                         setAttachmentContentType(null);
                                     }
                                 })
                                 .catch(err => {
-                                    console.error("Failed to fetch attachment:", err);
+                                    console.error("Failed to fetch voucher attachment:", err);
                                     setIsImageLoading(false);
                                     setAttachmentUrl(null);
                                     setAttachmentContentType(null);
+                                    // Show a toast for user feedback
+                                    toast({
+                                        title: 'Attachment Error',
+                                        description: `Failed to load attachment: ${err.message}`,
+                                        variant: 'destructive'
+                                    });
                                 })
                         );
                     } else {
-                        console.log("No attachment_id for voucher:", currentVoucher.id);
+                        console.log("No attachment_id found in voucher object. Voucher structure:", currentVoucher);
                         setAttachmentUrl(null);
                         setIsImageLoading(false);
                     }
@@ -803,71 +823,76 @@ const VoucherDetailsPage = () => {
                 }
             }
 
-            // Page 2: Attachment (if it's an image, not PDF)
-            const isPdfAttachment = attachmentContentType?.toLowerCase().includes('pdf') || attachmentUrl?.toLowerCase().endsWith('.pdf');
-            if (attachmentUrl && !isPdfAttachment) {
-                try {
-                    pdf.addPage();
-                    
-                    // Load the image directly from URL
-                    const img = new Image();
-                    img.crossOrigin = 'anonymous';
-                    
-                    await new Promise((resolve, reject) => {
-                        img.onload = () => resolve();
-                        img.onerror = (err) => {
-                            console.error('Error loading image:', err);
-                            reject(err);
-                        };
-                        img.src = attachmentUrl;
+            // Page 2: Attachment (image only - PDFs will be merged separately)
+            if (attachmentUrl) {
+                const isPdfAttachment = attachmentContentType?.toLowerCase().includes('pdf') || attachmentUrl?.toLowerCase().endsWith('.pdf');
+                
+                if (!isPdfAttachment) {
+                    // For image attachments only, add them to jsPDF
+                    // For image attachments, use the existing logic
+                    try {
+                        pdf.addPage();
                         
-                        // Timeout after 10 seconds
-                        setTimeout(() => {
-                            if (!img.complete) {
-                                reject(new Error('Image load timeout'));
-                            }
-                        }, 10000);
-                    });
-                    
-                    // Calculate dimensions to fit the page
-                    const imgWidth = img.width;
-                    const imgHeight = img.height;
-                    const ratio = imgWidth / imgHeight;
-                    
-                    let displayWidth = contentWidth;
-                    let displayHeight = displayWidth / ratio;
-                    
-                    // If image is taller than page, scale it down
-                    if (displayHeight > contentHeight) {
-                        displayHeight = contentHeight;
-                        displayWidth = displayHeight * ratio;
-                    }
-                    
-                    // Center the image on the page
-                    const xPos = margin + (contentWidth - displayWidth) / 2;
-                    const yPos = margin + (contentHeight - displayHeight) / 2;
-                    
-                    // Add image to PDF
-                    pdf.addImage(attachmentUrl, 'PNG', xPos, yPos, displayWidth, displayHeight);
-                } catch (error) {
-                    console.error('Error adding attachment image to PDF:', error);
-                    // Fallback: try using html2canvas if direct image load fails
-                    if (attachmentRef.current) {
-                        try {
-                            const attachmentCanvas = await html2canvas(attachmentRef.current, { 
-                                useCORS: true,
-                                scale: 2,
-                                backgroundColor: '#ffffff',
-                                logging: false,
-                                allowTaint: true
-                            });
+                        // Load the image directly from URL
+                        const img = new Image();
+                        img.crossOrigin = 'anonymous';
+                        
+                        await new Promise((resolve, reject) => {
+                            img.onload = () => resolve();
+                            img.onerror = (err) => {
+                                console.error('Error loading image:', err);
+                                reject(err);
+                            };
+                            img.src = attachmentUrl;
                             
-                            if (attachmentCanvas && attachmentCanvas.width > 0 && attachmentCanvas.height > 0) {
-                                const attachmentImgData = attachmentCanvas.toDataURL('image/png');
-                                addImageToPDF(attachmentImgData, attachmentCanvas.width, attachmentCanvas.height);
+                            // Timeout after 10 seconds
+                            setTimeout(() => {
+                                if (!img.complete) {
+                                    reject(new Error('Image load timeout'));
+                                }
+                            }, 10000);
+                        });
+                        
+                        // Calculate dimensions to fit the page
+                        const imgWidth = img.width;
+                        const imgHeight = img.height;
+                        const ratio = imgWidth / imgHeight;
+                        
+                        let displayWidth = contentWidth;
+                        let displayHeight = displayWidth / ratio;
+                        
+                        // If image is taller than page, scale it down
+                        if (displayHeight > contentHeight) {
+                            displayHeight = contentHeight;
+                            displayWidth = displayHeight * ratio;
+                        }
+                        
+                        // Center the image on the page
+                        const xPos = margin + (contentWidth - displayWidth) / 2;
+                        const yPos = margin + (contentHeight - displayHeight) / 2;
+                        
+                        // Add image to PDF
+                        pdf.addImage(attachmentUrl, 'PNG', xPos, yPos, displayWidth, displayHeight);
+                    } catch (error) {
+                        console.error('Error adding attachment image to PDF:', error);
+                        // Fallback: try using html2canvas if direct image load fails
+                        if (attachmentRef.current) {
+                            try {
+                                const attachmentCanvas = await html2canvas(attachmentRef.current, { 
+                                    useCORS: true,
+                                    scale: 2,
+                                    backgroundColor: '#ffffff',
+                                    logging: false,
+                                    allowTaint: true
+                                });
+                                
+                                if (attachmentCanvas && attachmentCanvas.width > 0 && attachmentCanvas.height > 0) {
+                                    const attachmentImgData = attachmentCanvas.toDataURL('image/png');
+                                    addImageToPDF(attachmentImgData, attachmentCanvas.width, attachmentCanvas.height);
+                                }
+                            } catch (canvasError) {
+                                console.error('Error capturing attachment with html2canvas:', canvasError);
                             }
-                        } catch (canvasError) {
-                            console.error('Error capturing attachment with html2canvas:', canvasError);
                         }
                     }
                 }
@@ -898,8 +923,79 @@ const VoucherDetailsPage = () => {
                 throw new Error('No valid content to export. Please ensure the voucher details are visible.');
             }
 
-            pdf.save(`voucher-${voucher.voucher_id || voucherId}.pdf`);
-            toast({ title: 'Export Successful', description: 'Voucher exported to PDF with details, attachment, and activity log.' });
+            // Convert jsPDF to arrayBuffer for merging
+            const detailsPdfBytes = pdf.output('arraybuffer');
+            
+            // Now merge PDFs if there's a PDF attachment
+            const isPdfAttachment = attachmentUrl && (attachmentContentType?.toLowerCase().includes('pdf') || attachmentUrl?.toLowerCase().endsWith('.pdf'));
+            
+            if (isPdfAttachment) {
+                try {
+                    // Dynamically import pdf-lib only when needed
+                    const { PDFDocument } = await import('pdf-lib');
+                    
+                    // Get attachment ID from voucher or allAttachmentIds
+                    const attachmentId = voucher?.attachment_id || (voucher?.attachment && voucher?.attachment.id) || allAttachmentIds[0];
+                    
+                    if (!attachmentId) {
+                        throw new Error('No attachment ID available');
+                    }
+                    
+                    // Fetch the PDF directly from the API endpoint
+                    const FINANCE_API_BASE_URL = import.meta.env.VITE_FINANCE_API_URL || 'http://127.0.0.1:8003';
+                    const response = await fetch(`${FINANCE_API_BASE_URL}/api/attachments/${attachmentId}`, {
+                        headers: {
+                            'Authorization': `Bearer ${user.access_token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`Failed to fetch attachment: ${response.status}`);
+                    }
+                    
+                    const attachmentBlob = await response.blob();
+                    const attachmentPdfBytes = await attachmentBlob.arrayBuffer();
+                    
+                    // Create a new PDF document to merge
+                    const mergedPdf = await PDFDocument.create();
+                    
+                    // Load the details PDF
+                    const detailsPdf = await PDFDocument.load(detailsPdfBytes);
+                    const detailsPages = await mergedPdf.copyPages(detailsPdf, detailsPdf.getPageIndices());
+                    detailsPages.forEach((page) => mergedPdf.addPage(page));
+                    
+                    // Load and merge the attachment PDF
+                    const attachmentPdf = await PDFDocument.load(attachmentPdfBytes);
+                    const attachmentPages = await mergedPdf.copyPages(attachmentPdf, attachmentPdf.getPageIndices());
+                    attachmentPages.forEach((page) => mergedPdf.addPage(page));
+                    
+                    // Save the merged PDF
+                    const mergedPdfBytes = await mergedPdf.save();
+                    const blob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `voucher-${voucher.voucher_id || voucherId}.pdf`;
+                    link.click();
+                    URL.revokeObjectURL(url);
+                    
+                    toast({ title: 'Export Successful', description: 'Voucher exported to PDF with details, attachment, and activity log.' });
+                } catch (error) {
+                    console.error('Error merging PDF attachment:', error);
+                    // Fallback to saving jsPDF if merging fails
+                    pdf.save(`voucher-${voucher.voucher_id || voucherId}.pdf`);
+                    toast({ 
+                        title: 'Export Warning', 
+                        description: 'PDF exported but attachment could not be merged. Details only.', 
+                        variant: 'default' 
+                    });
+                }
+            } else {
+                // No PDF attachment, just save the jsPDF
+                pdf.save(`voucher-${voucher.voucher_id || voucherId}.pdf`);
+                toast({ title: 'Export Successful', description: 'Voucher exported to PDF with details, attachment, and activity log.' });
+            }
         } catch (error) {
             console.error('PDF Export Error:', error);
             toast({ title: 'Export Error', description: `An error occurred: ${error.message}`, variant: 'destructive' });
@@ -1128,7 +1224,7 @@ const VoucherDetailsPage = () => {
                             ) : attachmentUrl ? (
                                 (attachmentContentType?.toLowerCase().includes('pdf') || attachmentUrl.toLowerCase().endsWith('.pdf')) ? (
                                     <iframe
-                                        src={attachmentUrl}
+                                        src={`${attachmentUrl}#toolbar=0`}
                                         title="Voucher Attachment"
                                         className="h-full w-full rounded-md border-none"
                                         type="application/pdf"

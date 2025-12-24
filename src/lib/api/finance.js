@@ -236,7 +236,7 @@ export const getInvoiceAttachment = async (attachmentId, token) => {
         const contentLength = response.headers.get('content-length');
         console.log('Invoice attachment response:', { contentType, contentLength, status: response.status, attachmentId });
         
-        const blob = await response.blob();
+        let blob = await response.blob();
         
         if (blob.size === 0) {
             console.error('Received empty blob for invoice attachment:', attachmentId);
@@ -244,8 +244,13 @@ export const getInvoiceAttachment = async (attachmentId, token) => {
         }
         
         // Use blob.type if content-type header is not available
-        const finalContentType = contentType || blob.type;
+        const finalContentType = contentType || blob.type || 'application/pdf';
         console.log('Invoice attachment blob created successfully:', blob.size, 'bytes, type:', finalContentType);
+        
+        // Ensure blob has correct MIME type for PDFs (important for iframe rendering)
+        if (finalContentType.toLowerCase().includes('pdf') && blob.type !== finalContentType) {
+            blob = new Blob([blob], { type: finalContentType });
+        }
         
         // Return both URL and content type
         return {
@@ -347,7 +352,7 @@ export const getVoucherAttachment = async (attachmentId, token) => {
         const contentLength = response.headers.get('content-length');
         console.log('Attachment response:', { contentType, contentLength, status: response.status });
         
-        const blob = await response.blob();
+        let blob = await response.blob();
         
         if (blob.size === 0) {
             console.error('Received empty blob for attachment:', attachmentId);
@@ -355,8 +360,13 @@ export const getVoucherAttachment = async (attachmentId, token) => {
         }
         
         // Use blob.type if content-type header is not available
-        const finalContentType = contentType || blob.type;
+        const finalContentType = contentType || blob.type || 'application/pdf';
         console.log('Blob created successfully:', blob.size, 'bytes, type:', finalContentType);
+        
+        // Ensure blob has correct MIME type for PDFs (important for iframe rendering)
+        if (finalContentType.toLowerCase().includes('pdf') && blob.type !== finalContentType) {
+            blob = new Blob([blob], { type: finalContentType });
+        }
         
         // Return both URL and content type
         return {
