@@ -88,11 +88,13 @@ const TaskDashboardPage = () => {
     const [editCommentText, setEditCommentText] = useState('');
 
     const fetchTask = useCallback(async () => {
-        if (!user?.agency_id || !user?.access_token || !taskId) return;
+        if (!user?.access_token || !taskId) return;
         setIsLoading(true);
         try {
             // Only fetch task details first - load other data lazily when needed
-            const taskData = await getTaskDetails(taskId, user.agency_id, user.access_token);
+            // For CLIENT users, agency_id might be null/undefined - API will handle it
+            const agencyId = user?.agency_id || null;
+            const taskData = await getTaskDetails(taskId, agencyId, user.access_token);
             setTask(taskData);
         } catch (error) {
             toast({
@@ -112,10 +114,11 @@ const TaskDashboardPage = () => {
         
         const loadRelatedData = async () => {
             try {
+                const agencyId = user?.agency_id || null;
                 const [clientsData, servicesData, teamData] = await Promise.allSettled([
-                    listClients(user.agency_id, user.access_token),
-                    listServices(user.agency_id, user.access_token),
-                    listTeamMembers(user.access_token),
+                    listClients(agencyId, user.access_token).catch(() => ({ status: 'rejected' })),
+                    listServices(agencyId, user.access_token).catch(() => ({ status: 'rejected' })),
+                    listTeamMembers(user.access_token).catch(() => ({ status: 'rejected' })),
                 ]);
 
                 if (clientsData.status === 'fulfilled') {
@@ -137,13 +140,14 @@ const TaskDashboardPage = () => {
         };
         
         loadRelatedData();
-    }, [task, user?.agency_id, user?.access_token, clients.length, services.length, teamMembers.length]);
+    }, [task, user?.agency_id, user?.access_token, user?.role, clients.length, services.length, teamMembers.length]);
 
     const fetchHistory = useCallback(async () => {
-        if (!user?.agency_id || !user?.access_token || !taskId) return;
+        if (!user?.access_token || !taskId) return;
         setIsHistoryLoading(true);
         try {
-            const historyData = await getTaskHistory(taskId, user.agency_id, user.access_token);
+            const agencyId = user?.agency_id || null;
+            const historyData = await getTaskHistory(taskId, agencyId, user.access_token);
             setHistory(historyData);
         } catch (error) {
             toast({
@@ -157,10 +161,11 @@ const TaskDashboardPage = () => {
     }, [taskId, user?.agency_id, user?.access_token, toast]);
 
     const fetchComments = useCallback(async () => {
-        if (!user?.agency_id || !user?.access_token || !taskId) return;
+        if (!user?.access_token || !taskId) return;
         setIsLoadingComments(true);
         try {
-            const commentsData = await listTaskComments(taskId, user.agency_id, user.access_token);
+            const agencyId = user?.agency_id || null;
+            const commentsData = await listTaskComments(taskId, agencyId, user.access_token);
             setComments(Array.isArray(commentsData) ? commentsData : []);
         } catch (error) {
             toast({
@@ -246,8 +251,9 @@ const TaskDashboardPage = () => {
         }
         
         try {
+            const agencyId = user?.agency_id || null;
             const actionFn = action === 'start' ? startTaskTimer : stopTaskTimer;
-            const timerResponse = await actionFn(taskId, user.agency_id, user.access_token);
+            const timerResponse = await actionFn(taskId, agencyId, user.access_token);
             
             // If starting, use the actual start_time from the API response
             if (action === 'start' && timerResponse?.start_time) {
@@ -267,7 +273,7 @@ const TaskDashboardPage = () => {
                 description: `The timer for this task has been successfully ${action === 'start' ? 'started' : 'stopped'}.`,
             });
             // Silently refresh task data in background without showing loading state
-            const updatedTask = await getTaskDetails(taskId, user.agency_id, user.access_token);
+            const updatedTask = await getTaskDetails(taskId, agencyId, user.access_token);
             setTask(updatedTask);
             
             // Update display time and base time based on refreshed data
@@ -312,7 +318,8 @@ const TaskDashboardPage = () => {
         setNewSubtask(''); // Clear input immediately for better UX
         
         try {
-            const newSubtaskData = await addTaskSubtask(taskId, { title: subtaskTitle }, user.agency_id, user.access_token);
+            const agencyId = user?.agency_id || null;
+            const newSubtaskData = await addTaskSubtask(taskId, { title: subtaskTitle }, agencyId, user.access_token);
             // Optimistically add to UI
             if (task) {
                 const updatedSubtasks = [...(task.subtasks || []), newSubtaskData];
@@ -320,7 +327,7 @@ const TaskDashboardPage = () => {
             }
             toast({ title: "Subtask Added", description: "The new subtask has been added." });
             // Silently refresh in background to ensure consistency
-            const updatedTask = await getTaskDetails(taskId, user.agency_id, user.access_token);
+            const updatedTask = await getTaskDetails(taskId, agencyId, user.access_token);
             setTask(updatedTask);
         } catch (error) {
             setNewSubtask(subtaskTitle); // Restore input on error
@@ -338,9 +345,10 @@ const TaskDashboardPage = () => {
         }
         
         try {
-            await updateTaskSubtask(taskId, subtaskId, { is_completed: completed }, user.agency_id, user.access_token);
+            const agencyId = user?.agency_id || null;
+            await updateTaskSubtask(taskId, subtaskId, { is_completed: completed }, agencyId, user.access_token);
             // Silently refresh task data in background without showing loading state
-            const updatedTask = await getTaskDetails(taskId, user.agency_id, user.access_token);
+            const updatedTask = await getTaskDetails(taskId, agencyId, user.access_token);
             setTask(updatedTask);
         } catch (error) {
             // Revert optimistic update on error
@@ -364,10 +372,11 @@ const TaskDashboardPage = () => {
         }
         
         try {
-            await deleteTaskSubtask(taskId, subtaskId, user.agency_id, user.access_token);
+            const agencyId = user?.agency_id || null;
+            await deleteTaskSubtask(taskId, subtaskId, agencyId, user.access_token);
             toast({ title: "Subtask Deleted", description: "The subtask has been removed." });
             // Silently refresh in background
-            const updatedTask = await getTaskDetails(taskId, user.agency_id, user.access_token);
+            const updatedTask = await getTaskDetails(taskId, agencyId, user.access_token);
             setTask(updatedTask);
         } catch (error) {
             // Revert optimistic update on error
@@ -385,10 +394,11 @@ const TaskDashboardPage = () => {
         setNewComment('');
         
         try {
+            const agencyId = user?.agency_id || null;
             const newCommentData = await createTaskComment(
                 taskId,
                 { message: commentText },
-                user.agency_id,
+                agencyId,
                 user.access_token
             );
             setComments([...comments, newCommentData]);
@@ -413,11 +423,12 @@ const TaskDashboardPage = () => {
         if (!editCommentText.trim()) return;
         
         try {
+            const agencyId = user?.agency_id || null;
             const updatedComment = await updateTaskComment(
                 taskId,
                 commentId,
                 { message: editCommentText.trim() },
-                user.agency_id,
+                agencyId,
                 user.access_token
             );
             setComments(comments.map(c => c.id === commentId ? updatedComment : c));
@@ -431,7 +442,8 @@ const TaskDashboardPage = () => {
 
     const handleDeleteComment = async (commentId) => {
         try {
-            await deleteTaskComment(taskId, commentId, user.agency_id, user.access_token);
+            const agencyId = user?.agency_id || null;
+            await deleteTaskComment(taskId, commentId, agencyId, user.access_token);
             setComments(comments.filter(c => c.id !== commentId));
             toast({ title: "Comment Deleted", description: "The comment has been removed." });
         } catch (error) {

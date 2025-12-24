@@ -9,7 +9,8 @@ import {
   Users,
   Building,
   PanelLeftClose,
-  PanelLeftOpen
+  PanelLeftOpen,
+  ListTodo
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { Button } from '@/components/ui/button';
@@ -35,6 +36,7 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
     { id: 'documents', path: '/documents', label: 'Documents', icon: FileText },
     { id: 'beneficiaries', path: '/beneficiaries', label: 'Beneficiaries', icon: Users },
     { id: 'organisation-bank', path: '/organisation-bank', label: 'Organisation Bank', icon: Banknote },
+    { id: 'tasks', path: '/tasks', label: 'Tasks', icon: ListTodo },
   ];
 
   const entitiesToDisplay = useMemo(() => {

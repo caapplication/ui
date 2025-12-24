@@ -35,20 +35,37 @@
         const fetchData = useCallback(async () => {
             setIsLoading(true);
             try {
-                if (!user?.agency_id || !user?.access_token) {
+                if (!user?.access_token) {
                     throw new Error("User information not available.");
                 }
+                // For CLIENT users, agency_id might be null/undefined - API will handle it
+                const agencyId = user?.agency_id || null;
                 // Use Promise.allSettled to handle individual failures gracefully
                 const results = await Promise.allSettled([
-                    listTasks(user.agency_id, user.access_token).catch(err => {
+                    listTasks(agencyId, user.access_token).catch(err => {
                         console.warn('Failed to fetch tasks:', err);
                         return { items: [] };
                     }),
-                    listClients(user.agency_id, user.access_token),
-                    listServices(user.agency_id, user.access_token),
-                    listTeamMembers(user.access_token),
-                    getTags(user.agency_id, user.access_token),
-                    listTaskStages(user.agency_id, user.access_token),
+                    listClients(agencyId, user.access_token).catch(err => {
+                        console.warn('Failed to fetch clients:', err);
+                        return [];
+                    }),
+                    listServices(agencyId, user.access_token).catch(err => {
+                        console.warn('Failed to fetch services:', err);
+                        return [];
+                    }),
+                    listTeamMembers(user.access_token).catch(err => {
+                        console.warn('Failed to fetch team members:', err);
+                        return [];
+                    }),
+                    getTags(agencyId, user.access_token).catch(err => {
+                        console.warn('Failed to fetch tags:', err);
+                        return [];
+                    }),
+                    listTaskStages(agencyId, user.access_token).catch(err => {
+                        console.warn('Failed to fetch stages:', err);
+                        return [];
+                    }),
                 ]);
     
                 // Extract data from settled promises, handling both fulfilled and rejected states
@@ -60,12 +77,37 @@
                 const stagesData = results[5].status === 'fulfilled' ? results[5].value : [];
     
                 // Handle different response formats (direct array or { items: [...] })
-                setTasks(Array.isArray(tasksData) ? tasksData : (tasksData?.items || []));
-                setClients(Array.isArray(clientsData) ? clientsData : (clientsData?.items || []));
-                setServices(Array.isArray(servicesData) ? servicesData : (servicesData?.items || []));
-                setTeamMembers(Array.isArray(teamData) ? teamData : (teamData?.items || []));
-                setTags(Array.isArray(tagsData) ? tagsData : (tagsData?.items || []));
-                setStages(Array.isArray(stagesData) ? stagesData : (stagesData?.items || []));
+                const tasksArray = Array.isArray(tasksData) ? tasksData : (tasksData?.items || []);
+                const clientsArray = Array.isArray(clientsData) ? clientsData : (clientsData?.items || []);
+                const servicesArray = Array.isArray(servicesData) ? servicesData : (servicesData?.items || []);
+                const teamMembersArray = Array.isArray(teamData) ? teamData : (teamData?.items || []);
+                const tagsArray = Array.isArray(tagsData) ? tagsData : (tagsData?.items || []);
+                const stagesArray = Array.isArray(stagesData) ? stagesData : (stagesData?.items || []);
+                
+                // Debug: Log data for troubleshooting
+                console.debug('TaskManagementPage - Loaded data:', {
+                    tasksCount: tasksArray.length,
+                    clientsCount: clientsArray.length,
+                    servicesCount: servicesArray.length,
+                    teamMembersCount: teamMembersArray.length,
+                    tagsCount: tagsArray.length,
+                    stagesCount: stagesArray.length,
+                    sampleTask: tasksArray[0] ? {
+                        id: tasksArray[0].id,
+                        client_id: tasksArray[0].client_id,
+                        assigned_to: tasksArray[0].assigned_to,
+                        assignee_id: tasksArray[0].assignee_id
+                    } : null,
+                    sampleClients: clientsArray.slice(0, 3).map(c => ({ id: c?.id, name: c?.name })),
+                    sampleTeamMembers: teamMembersArray.slice(0, 3).map(m => ({ id: m?.id, user_id: m?.user_id, name: m?.name, email: m?.email }))
+                });
+                
+                setTasks(tasksArray);
+                setClients(clientsArray);
+                setServices(servicesArray);
+                setTeamMembers(teamMembersArray);
+                setTags(tagsArray);
+                setStages(stagesArray);
     
             } catch (error) {
                 console.error('Error fetching task data:', error);
@@ -87,7 +129,7 @@
             } finally {
                 setIsLoading(false);
             }
-        }, [user?.agency_id, user?.access_token, toast]);
+        }, [user?.agency_id, user?.access_token, user?.role, toast]);
     
         useEffect(() => {
             fetchData();
@@ -122,14 +164,15 @@
     
         const handleSaveTask = async (taskData, isEditing) => {
             try {
-                if (!user?.agency_id || !user?.access_token) {
+                if (!user?.access_token) {
                     throw new Error("User information not available.");
                 }
+                const agencyId = user?.agency_id || null;
                 if (isEditing) {
-                    await updateTask(editingTask.id, taskData, user.agency_id, user.access_token);
+                    await updateTask(editingTask.id, taskData, agencyId, user.access_token);
                     toast({ title: "✅ Task Updated", description: `Task "${taskData.title}" has been updated.` });
                 } else {
-                    await createTask(taskData, user.agency_id, user.access_token);
+                    await createTask(taskData, agencyId, user.access_token);
                     toast({ title: "✅ Task Created", description: `New task "${taskData.title}" has been added.` });
                 }
                 setShowTaskDialog(false);
@@ -146,10 +189,11 @@
         
         const handleDeleteTask = async (taskId) => {
             try {
-                if (!user?.agency_id || !user?.access_token) {
+                if (!user?.access_token) {
                     throw new Error("User information not available.");
                 }
-                await apiDeleteTask(taskId, user.agency_id, user.access_token);
+                const agencyId = user?.agency_id || null;
+                await apiDeleteTask(taskId, agencyId, user.access_token);
                 toast({ title: "✅ Task Deleted", description: "The task has been successfully removed."});
                 setTasks(prev => prev.filter(t => t.id !== taskId));
             } catch (error) {

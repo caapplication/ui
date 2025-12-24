@@ -44,24 +44,59 @@ import React, { useState, useMemo } from 'react';
         };
     
         const getClientName = (clientId) => {
-            if (!clientId || !Array.isArray(clients)) return 'N/A';
-            const client = clients.find(c => c.id === clientId || String(c.id) === String(clientId));
-            return client?.name || 'N/A';
+            if (!clientId) return 'N/A';
+            if (!Array.isArray(clients) || clients.length === 0) {
+                // Debug: Log when clients array is empty
+                if (clients.length === 0) {
+                    console.debug('getClientName: clients array is empty for clientId:', clientId);
+                }
+                return 'N/A';
+            }
+            // Try multiple matching strategies
+            const clientIdStr = String(clientId).toLowerCase();
+            const client = clients.find(c => {
+                if (!c) return false;
+                const cId = c.id ? String(c.id).toLowerCase() : '';
+                return cId === clientIdStr;
+            });
+            if (!client) {
+                console.debug('getClientName: No client found for clientId:', clientId, 'Available clients:', clients.map(c => ({ id: c?.id, name: c?.name })));
+                return 'N/A';
+            }
+            return client.name || 'N/A';
         };
         const getServiceName = (serviceId) => {
             if (!serviceId || !Array.isArray(services)) return 'N/A';
-            const service = services.find(s => s.id === serviceId || String(s.id) === String(serviceId));
+            const serviceIdStr = String(serviceId).toLowerCase();
+            const service = services.find(s => {
+                if (!s) return false;
+                const sId = s.id ? String(s.id).toLowerCase() : '';
+                return sId === serviceIdStr;
+            });
             return service?.name || 'N/A';
         };
         const getAssigneeName = (userId) => {
-            if (!userId || !Array.isArray(teamMembers)) return 'N/A';
-            const member = teamMembers.find(m => 
-                m.user_id === userId || 
-                String(m.user_id) === String(userId) ||
-                m.id === userId ||
-                String(m.id) === String(userId)
-            );
-            return member?.name || member?.email || 'N/A';
+            if (!userId) return 'N/A';
+            if (!Array.isArray(teamMembers) || teamMembers.length === 0) {
+                // Debug: Log when teamMembers array is empty
+                if (teamMembers.length === 0) {
+                    console.debug('getAssigneeName: teamMembers array is empty for userId:', userId);
+                }
+                return 'N/A';
+            }
+            // Try multiple matching strategies
+            const userIdStr = String(userId).toLowerCase();
+            const member = teamMembers.find(m => {
+                if (!m) return false;
+                const mUserId = m.user_id ? String(m.user_id).toLowerCase() : '';
+                const mId = m.id ? String(m.id).toLowerCase() : '';
+                return mUserId === userIdStr || mId === userIdStr;
+            });
+            if (!member) {
+                console.debug('getAssigneeName: No member found for userId:', userId, 'Available members:', teamMembers.map(m => ({ id: m?.id, user_id: m?.user_id, name: m?.name, email: m?.email })));
+                return 'N/A';
+            }
+            return member.name || member.email || 'N/A';
         };
     
         const filteredTasks = useMemo(() => {
