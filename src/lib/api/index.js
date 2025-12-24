@@ -64,7 +64,18 @@ import { handleResponse, getAuthHeaders } from './utils';
       deleteDocument,
       shareDocument,
       viewFile,
-      getSharedDocuments
+      getSharedDocuments,
+      createPublicShareTokenDocument,
+      createPublicShareTokenFolder,
+      revokePublicShareTokenDocument,
+      revokePublicShareTokenFolder,
+      getPublicFolder,
+      getPublicSubfolder,
+      viewPublicDocument,
+      shareFolder,
+      createCAFolder,
+      uploadCAFile,
+      FINANCE_API_BASE_URL
     } = documents;
 
     export const {
@@ -91,6 +102,7 @@ import { handleResponse, getAuthHeaders } from './utils';
       updateOrganisation,
       deleteOrganisation,
       listAllEntities,
+      listEntities,
       createEntity,
       updateEntity,
       deleteEntity,

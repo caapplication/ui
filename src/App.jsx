@@ -40,6 +40,7 @@ import VoucherDetailsCAPage from '@/pages/VoucherDetailsCA.jsx';
 import BeneficiaryDetailsPage from '@/pages/BeneficiaryDetailsPage.jsx';
 import ComingSoon from './pages/ComingSoon.jsx';
 import UpcomingTask from './pages/UpcomingTask.jsx';
+import PublicDocumentView from './pages/PublicDocumentView.jsx';
 
 const ProtectedContent = () => {
   const { user } = useAuth();
@@ -204,6 +205,10 @@ const AppContent = () => {
 
   return (
     <Routes>
+      {/* Public routes - no authentication required */}
+      <Route path="/public/folder/:token" element={<PublicDocumentView />} />
+      <Route path="/public/document/:token" element={<PublicDocumentView />} />
+      
       {user ? (
         <>
           <Route path="/login" element={<Navigate to="/" />} />
