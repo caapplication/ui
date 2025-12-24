@@ -232,7 +232,7 @@ export const getInvoiceAttachment = async (attachmentId, token) => {
         }
         
         // Check if response has content
-        const contentType = response.headers.get('content-type');
+        const contentType = response.headers.get('content-type') || response.headers.get('Content-Type');
         const contentLength = response.headers.get('content-length');
         console.log('Invoice attachment response:', { contentType, contentLength, status: response.status, attachmentId });
         
@@ -243,8 +243,15 @@ export const getInvoiceAttachment = async (attachmentId, token) => {
             throw new Error('Received empty attachment');
         }
         
-        console.log('Invoice attachment blob created successfully:', blob.size, 'bytes, type:', blob.type);
-        return URL.createObjectURL(blob);
+        // Use blob.type if content-type header is not available
+        const finalContentType = contentType || blob.type;
+        console.log('Invoice attachment blob created successfully:', blob.size, 'bytes, type:', finalContentType);
+        
+        // Return both URL and content type
+        return {
+            url: URL.createObjectURL(blob),
+            contentType: finalContentType
+        };
     } catch (error) {
         console.error('Error in getInvoiceAttachment:', error);
         throw error;
@@ -336,7 +343,7 @@ export const getVoucherAttachment = async (attachmentId, token) => {
         }
         
         // Check if response has content
-        const contentType = response.headers.get('content-type');
+        const contentType = response.headers.get('content-type') || response.headers.get('Content-Type');
         const contentLength = response.headers.get('content-length');
         console.log('Attachment response:', { contentType, contentLength, status: response.status });
         
@@ -347,8 +354,15 @@ export const getVoucherAttachment = async (attachmentId, token) => {
             throw new Error('Received empty attachment');
         }
         
-        console.log('Blob created successfully:', blob.size, 'bytes, type:', blob.type);
-        return URL.createObjectURL(blob);
+        // Use blob.type if content-type header is not available
+        const finalContentType = contentType || blob.type;
+        console.log('Blob created successfully:', blob.size, 'bytes, type:', finalContentType);
+        
+        // Return both URL and content type
+        return {
+            url: URL.createObjectURL(blob),
+            contentType: finalContentType
+        };
     } catch (error) {
         console.error('Error in getVoucherAttachment:', error);
         throw error;

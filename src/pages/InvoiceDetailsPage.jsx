@@ -48,6 +48,7 @@ const InvoiceDetailsPage = () => {
     const [beneficiaries, setBeneficiaries] = useState([]);
     const [editedInvoice, setEditedInvoice] = useState(initialInvoice);
     const [attachmentToDisplay, setAttachmentToDisplay] = useState(attachmentUrl);
+    const [attachmentContentType, setAttachmentContentType] = useState(null);
     const [allAttachmentIds, setAllAttachmentIds] = useState([]);
     const [currentAttachmentIndex, setCurrentAttachmentIndex] = useState(0);
     const [zoom, setZoom] = useState(1);
@@ -266,22 +267,33 @@ const InvoiceDetailsPage = () => {
                         console.log("Fetching invoice attachment with ID:", allIds[0]);
                         promises.push(
                             getInvoiceAttachment(allIds[0], user.access_token)
-                                .then(url => {
-                                    console.log("Invoice attachment URL received:", url ? "Yes" : "No", url);
+                                .then(result => {
+                                    // Handle both old format (string URL) and new format (object with url and contentType)
+                                    const url = typeof result === 'string' ? result : result?.url;
+                                    const contentType = typeof result === 'object' ? result?.contentType : null;
+                                    
+                                    console.log("Invoice attachment URL received:", url ? "Yes" : "No", url, "Content-Type:", contentType);
                                     if (url) {
                                         setAttachmentToDisplay(url);
-                                        if (url.toLowerCase().endsWith('.pdf')) {
+                                        setAttachmentContentType(contentType);
+                                        // For PDFs, set loading to false immediately since iframes don't have onLoad
+                                        const isPdf = contentType?.toLowerCase().includes('pdf') || url.toLowerCase().endsWith('.pdf');
+                                        if (isPdf) {
                                             setIsImageLoading(false);
                                         }
+                                        // For images, keep loading state true - onLoad handler will set it to false
                                     } else {
                                         console.log("No URL returned from getInvoiceAttachment");
                                         setIsImageLoading(false);
+                                        setAttachmentToDisplay(null);
+                                        setAttachmentContentType(null);
                                     }
                                 })
                                 .catch(err => {
                                     console.error("Failed to fetch invoice attachment:", err);
                                     setIsImageLoading(false);
                                     setAttachmentToDisplay(null);
+                                    setAttachmentContentType(null);
                                 })
                         );
                     } else {
@@ -677,7 +689,8 @@ const InvoiceDetailsPage = () => {
             }
 
             // Page 2: Attachment (if it's an image, not PDF)
-            if (attachmentToDisplay && !attachmentToDisplay.toLowerCase().endsWith('.pdf')) {
+            const isPdfAttachment = attachmentContentType?.toLowerCase().includes('pdf') || attachmentToDisplay?.toLowerCase().endsWith('.pdf');
+            if (attachmentToDisplay && !isPdfAttachment) {
                 try {
                     pdf.addPage();
                     
@@ -792,14 +805,21 @@ const InvoiceDetailsPage = () => {
         if (newIndex >= 0 && newIndex < allAttachmentIds.length) {
             setIsImageLoading(true);
             setAttachmentToDisplay(null);
+            setAttachmentContentType(null);
             setCurrentAttachmentIndex(newIndex);
             
             try {
                 const attachmentId = allAttachmentIds[newIndex];
-                const url = await getInvoiceAttachment(attachmentId, user.access_token);
+                const result = await getInvoiceAttachment(attachmentId, user.access_token);
+                // Handle both old format (string URL) and new format (object with url and contentType)
+                const url = typeof result === 'string' ? result : result?.url;
+                const contentType = typeof result === 'object' ? result?.contentType : null;
+                
                 if (url) {
                     setAttachmentToDisplay(url);
-                    if (url.toLowerCase().endsWith('.pdf')) {
+                    setAttachmentContentType(contentType);
+                    const isPdf = contentType?.toLowerCase().includes('pdf') || url.toLowerCase().endsWith('.pdf');
+                    if (isPdf) {
                         setIsImageLoading(false);
                     }
                 } else {
@@ -809,6 +829,7 @@ const InvoiceDetailsPage = () => {
                 console.error("Failed to fetch attachment:", error);
                 setIsImageLoading(false);
                 setAttachmentToDisplay(null);
+                setAttachmentContentType(null);
             }
         }
     };
@@ -956,7 +977,7 @@ const InvoiceDetailsPage = () => {
                             </>
                         )}
                         {/* Zoom controls in bottom right corner */}
-                        {attachmentToDisplay && !attachmentToDisplay.toLowerCase().endsWith('.pdf') && (
+                        {attachmentToDisplay && !(attachmentContentType?.toLowerCase().includes('pdf') || attachmentToDisplay.toLowerCase().endsWith('.pdf')) && (
                             <div className="absolute bottom-2 right-2 sm:bottom-4 sm:right-4 z-10 flex gap-1 sm:gap-2">
                                 <Button variant="outline" size="icon" onClick={() => setZoom(z => z + 0.1)} className="h-8 w-8 sm:h-9 sm:w-9">
                                     <ZoomIn className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -974,11 +995,13 @@ const InvoiceDetailsPage = () => {
                             {allAttachmentIds.length > 0 && !attachmentToDisplay && isImageLoading ? (
                                 <Skeleton className="h-full w-full rounded-md" />
                             ) : attachmentToDisplay ? (
-                                attachmentToDisplay.toLowerCase().endsWith('.pdf') ? (
+                                (attachmentContentType?.toLowerCase().includes('pdf') || attachmentToDisplay.toLowerCase().endsWith('.pdf')) ? (
                                     <iframe
                                         src={attachmentToDisplay}
                                         title="Invoice Attachment"
                                         className="h-full w-full rounded-md border-none"
+                                        type="application/pdf"
+                                        style={{ minHeight: '100%' }}
                                     />
                                 ) : (
                                     <img
@@ -1294,7 +1317,7 @@ const InvoiceDetailsPage = () => {
                         </>
                     )}
                     {/* Zoom controls in bottom right corner */}
-                    {attachmentToDisplay && !attachmentToDisplay.toLowerCase().endsWith('.pdf') && (
+                    {attachmentToDisplay && !(attachmentContentType?.toLowerCase().includes('pdf') || attachmentToDisplay.toLowerCase().endsWith('.pdf')) && (
                         <div className="absolute bottom-2 right-2 z-10 flex gap-1 sm:gap-2">
                             <Button variant="outline" size="icon" onClick={() => setZoom(z => z + 0.1)} className="h-8 w-8 sm:h-9 sm:w-9">
                                 <ZoomIn className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -1311,11 +1334,13 @@ const InvoiceDetailsPage = () => {
                         {allAttachmentIds.length > 0 && !attachmentToDisplay && isImageLoading ? (
                             <Skeleton className="h-full w-full rounded-md" />
                         ) : attachmentToDisplay ? (
-                            attachmentToDisplay.toLowerCase().endsWith('.pdf') ? (
+                            (attachmentContentType?.toLowerCase().includes('pdf') || attachmentToDisplay.toLowerCase().endsWith('.pdf')) ? (
                                 <iframe
                                     src={attachmentToDisplay}
                                     title="Invoice Attachment"
                                     className="h-full w-full rounded-md border-none"
+                                    type="application/pdf"
+                                    style={{ minHeight: '100%' }}
                                 />
                             ) : (
                                 <img

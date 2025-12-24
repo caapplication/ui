@@ -151,6 +151,7 @@ const VoucherDetailsPage = () => {
     const attachmentRef = useRef(null);
     const activityLogRef = useRef(null);
     const [attachmentUrl, setAttachmentUrl] = useState(null);
+    const [attachmentContentType, setAttachmentContentType] = useState(null);
     const [allAttachmentIds, setAllAttachmentIds] = useState([]);
     const [currentAttachmentIndex, setCurrentAttachmentIndex] = useState(0);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -314,24 +315,33 @@ const VoucherDetailsPage = () => {
                         console.log("Fetching attachment for voucher:", currentVoucher.id, "attachment_id:", allIds[0]);
                         promises.push(
                             getVoucherAttachment(allIds[0], user.access_token)
-                                .then(url => {
-                                    console.log("Attachment URL received:", url ? "Yes" : "No", url);
+                                .then(result => {
+                                    // Handle both old format (string URL) and new format (object with url and contentType)
+                                    const url = typeof result === 'string' ? result : result?.url;
+                                    const contentType = typeof result === 'object' ? result?.contentType : null;
+                                    
+                                    console.log("Attachment URL received:", url ? "Yes" : "No", url, "Content-Type:", contentType);
                                     if (url) {
                                         setAttachmentUrl(url);
+                                        setAttachmentContentType(contentType);
                                         // For PDFs, set loading to false immediately since iframes don't have onLoad
-                                        if (url.toLowerCase().endsWith('.pdf')) {
+                                        const isPdf = contentType?.toLowerCase().includes('pdf') || url.toLowerCase().endsWith('.pdf');
+                                        if (isPdf) {
                                             setIsImageLoading(false);
                                         }
                                         // For images, keep loading state true - onLoad handler will set it to false
                                     } else {
                                         console.warn("Attachment URL is null or empty");
                                         setIsImageLoading(false);
+                                        setAttachmentUrl(null);
+                                        setAttachmentContentType(null);
                                     }
                                 })
                                 .catch(err => {
                                     console.error("Failed to fetch attachment:", err);
                                     setIsImageLoading(false);
                                     setAttachmentUrl(null);
+                                    setAttachmentContentType(null);
                                 })
                         );
                     } else {
@@ -445,14 +455,21 @@ const VoucherDetailsPage = () => {
         if (newIndex >= 0 && newIndex < allAttachmentIds.length) {
             setIsImageLoading(true);
             setAttachmentUrl(null);
+            setAttachmentContentType(null);
             setCurrentAttachmentIndex(newIndex);
             
             try {
                 const attachmentId = allAttachmentIds[newIndex];
-                const url = await getVoucherAttachment(attachmentId, user.access_token);
+                const result = await getVoucherAttachment(attachmentId, user.access_token);
+                // Handle both old format (string URL) and new format (object with url and contentType)
+                const url = typeof result === 'string' ? result : result?.url;
+                const contentType = typeof result === 'object' ? result?.contentType : null;
+                
                 if (url) {
                     setAttachmentUrl(url);
-                    if (url.toLowerCase().endsWith('.pdf')) {
+                    setAttachmentContentType(contentType);
+                    const isPdf = contentType?.toLowerCase().includes('pdf') || url.toLowerCase().endsWith('.pdf');
+                    if (isPdf) {
                         setIsImageLoading(false);
                     }
                 } else {
@@ -462,6 +479,7 @@ const VoucherDetailsPage = () => {
                 console.error("Failed to fetch attachment:", error);
                 setIsImageLoading(false);
                 setAttachmentUrl(null);
+                setAttachmentContentType(null);
             }
         }
     };
@@ -786,7 +804,8 @@ const VoucherDetailsPage = () => {
             }
 
             // Page 2: Attachment (if it's an image, not PDF)
-            if (attachmentUrl && !attachmentUrl.toLowerCase().endsWith('.pdf')) {
+            const isPdfAttachment = attachmentContentType?.toLowerCase().includes('pdf') || attachmentUrl?.toLowerCase().endsWith('.pdf');
+            if (attachmentUrl && !isPdfAttachment) {
                 try {
                     pdf.addPage();
                     
@@ -1089,7 +1108,7 @@ const VoucherDetailsPage = () => {
                             </>
                         )}
                         {/* Zoom controls in bottom right corner */}
-                        {attachmentUrl && !attachmentUrl.toLowerCase().endsWith('.pdf') && (
+                        {attachmentUrl && !(attachmentContentType?.toLowerCase().includes('pdf') || attachmentUrl.toLowerCase().endsWith('.pdf')) && (
                             <div className="absolute bottom-2 right-2 sm:bottom-4 sm:right-4 z-10 flex gap-1 sm:gap-2">
                                 <Button variant="outline" size="icon" onClick={() => setZoom(z => z + 0.1)} className="h-8 w-8 sm:h-9 sm:w-9">
                                     <ZoomIn className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -1107,11 +1126,13 @@ const VoucherDetailsPage = () => {
                             {allAttachmentIds.length > 0 && !attachmentUrl ? (
                                 <Skeleton className="h-full w-full rounded-md" />
                             ) : attachmentUrl ? (
-                                attachmentUrl.toLowerCase().endsWith('.pdf') ? (
+                                (attachmentContentType?.toLowerCase().includes('pdf') || attachmentUrl.toLowerCase().endsWith('.pdf')) ? (
                                     <iframe
                                         src={attachmentUrl}
                                         title="Voucher Attachment"
                                         className="h-full w-full rounded-md border-none"
+                                        type="application/pdf"
+                                        style={{ minHeight: '100%' }}
                                     />
                                 ) : (
                                     <img
@@ -1529,7 +1550,7 @@ const VoucherDetailsPage = () => {
                         </>
                     )}
                     {/* Zoom controls in bottom right corner */}
-                    {attachmentUrl && !attachmentUrl.toLowerCase().endsWith('.pdf') && (
+                    {attachmentUrl && !(attachmentContentType?.toLowerCase().includes('pdf') || attachmentUrl.toLowerCase().endsWith('.pdf')) && (
                         <div className="absolute bottom-2 right-2 z-10 flex gap-1 sm:gap-2">
                             <Button variant="outline" size="icon" onClick={() => setZoom(z => z + 0.1)} className="h-8 w-8 sm:h-9 sm:w-9">
                                 <ZoomIn className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -1546,11 +1567,13 @@ const VoucherDetailsPage = () => {
                         {allAttachmentIds.length > 0 && !attachmentUrl ? (
                             <Skeleton className="h-full w-full rounded-md" />
                         ) : attachmentUrl ? (
-                            attachmentUrl.toLowerCase().endsWith('.pdf') ? (
+                            (attachmentContentType?.toLowerCase().includes('pdf') || attachmentUrl.toLowerCase().endsWith('.pdf')) ? (
                                 <iframe
                                     src={attachmentUrl}
                                     title="Voucher Attachment"
                                     className="h-full w-full rounded-md border-none"
+                                    type="application/pdf"
+                                    style={{ minHeight: '100%' }}
                                 />
                             ) : (
                                 <img
