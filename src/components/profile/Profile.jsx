@@ -200,7 +200,7 @@ const Profile = () => {
                     <div className="lg:col-span-1">
                         <Card className="glass-card">
                             <CardContent className="pt-6 flex flex-col items-center text-center">
-                                <div className="relative mb-4">
+                                <div className="mb-4">
                                     <Avatar className="w-32 h-32 text-4xl border-4 border-white/20">
                                         <AvatarImage 
                                             src={user?.photo_url} 
@@ -211,34 +211,34 @@ const Profile = () => {
                                             {user?.name?.charAt(0).toUpperCase() || user?.sub?.charAt(0).toUpperCase()}
                                         </AvatarFallback>
                                     </Avatar>
-                                    <div className="absolute bottom-1 right-1 flex gap-2">
+                                </div>
+                                <div className="flex gap-2 mb-4">
+                                    <Button
+                                        size="icon"
+                                        className="rounded-full w-10 h-10 bg-white/20 text-white hover:bg-white/30 backdrop-blur-sm border border-white/30"
+                                        onClick={() => fileInputRef.current.click()}
+                                        disabled={isSubmitting}
+                                    >
+                                        <Camera className="w-5 h-5" />
+                                    </Button>
+                                    {user?.photo_url && (
                                         <Button
                                             size="icon"
-                                            className="rounded-full w-10 h-10 bg-white/20 text-white hover:bg-white/30 backdrop-blur-sm border border-white/30"
-                                            onClick={() => fileInputRef.current.click()}
+                                            className="rounded-full w-10 h-10 bg-red-500/20 text-white hover:bg-red-500/30 backdrop-blur-sm border border-red-500/30"
+                                            onClick={handleRemovePicture}
                                             disabled={isSubmitting}
                                         >
-                                            <Camera className="w-5 h-5" />
+                                            <Trash2 className="w-5 h-5" />
                                         </Button>
-                                        {user?.photo_url && (
-                                            <Button
-                                                size="icon"
-                                                className="rounded-full w-10 h-10 bg-red-500/20 text-white hover:bg-red-500/30 backdrop-blur-sm border border-red-500/30"
-                                                onClick={handleRemovePicture}
-                                                disabled={isSubmitting}
-                                            >
-                                                <Trash2 className="w-5 h-5" />
-                                            </Button>
-                                        )}
-                                    </div>
-                                    <Input
-                                        type="file"
-                                        ref={fileInputRef}
-                                        className="hidden"
-                                        accept="image/*"
-                                        onChange={handlePictureUpload}
-                                    />
+                                    )}
                                 </div>
+                                <Input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    className="hidden"
+                                    accept="image/*"
+                                    onChange={handlePictureUpload}
+                                />
                                 <h2 className="text-2xl font-bold text-white">{user?.name || 'User'}</h2>
                                 <p className="text-sm text-gray-400 mt-2 flex items-center justify-center gap-2"><Mail className="w-4 h-4"/>{user?.sub}</p>
                             </CardContent>

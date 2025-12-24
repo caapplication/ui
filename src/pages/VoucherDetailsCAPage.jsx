@@ -108,6 +108,9 @@ const VoucherDetailsCAPage = () => {
     const [isDeleting, setIsDeleting] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isImageLoading, setIsImageLoading] = useState(false);
+    const [attachmentContentType, setAttachmentContentType] = useState(null);
+    const activityLogRef = useRef(null);
+    const attachmentRef = useRef(null);
     
     // Get entity name from user entities
     const getEntityName = () => {
@@ -171,11 +174,18 @@ const VoucherDetailsCAPage = () => {
                     if (attachmentId) {
                         setIsImageLoading(true);
                         setAttachmentUrl(null);
+                        setAttachmentContentType(null);
                         getVoucherAttachment(attachmentId, user.access_token)
-                            .then(url => {
+                            .then(result => {
+                                // Handle both old format (string URL) and new format (object with url and contentType)
+                                const url = typeof result === 'string' ? result : result?.url;
+                                const contentType = typeof result === 'object' ? result?.contentType : null;
+                                
                                 if (url) {
                                     setAttachmentUrl(url);
-                                    if (url.toLowerCase().endsWith('.pdf')) {
+                                    setAttachmentContentType(contentType);
+                                    const isPdf = contentType?.toLowerCase().includes('pdf') || url.toLowerCase().endsWith('.pdf');
+                                    if (isPdf) {
                                         setIsImageLoading(false);
                                     }
                                 } else {
@@ -186,9 +196,12 @@ const VoucherDetailsCAPage = () => {
                                 console.error("Failed to fetch attachment:", err);
                                 setIsImageLoading(false);
                                 setAttachmentUrl(null);
+                                setAttachmentContentType(null);
+                                toast({ title: 'Error', description: 'Failed to load attachment.', variant: 'destructive' });
                             });
                     } else {
                         setAttachmentUrl(null);
+                        setAttachmentContentType(null);
                         setIsImageLoading(false);
                     }
                 }
@@ -301,13 +314,23 @@ const VoucherDetailsCAPage = () => {
         remarks: 'No remarks available.',
     };
 
-    const handleExportToPDF = () => {
-        const input = voucherDetailsRef.current;
-        html2canvas(input, { 
-            useCORS: true,
-            scale: 2,
-        }).then(canvas => {
-            const imgData = canvas.toDataURL('image/png');
+    const handleExportToPDF = async () => {
+        // For bank transfers, ensure bank account details are loaded
+        if (
+            voucher?.payment_type === 'bank_transfer' &&
+            (
+                !fromBankAccounts.length ||
+                !toBankAccounts.length
+            )
+        ) {
+            toast({
+                title: 'Bank Account Details Not Loaded',
+                description: 'Please wait for bank account details to load before exporting the PDF.',
+                variant: 'destructive'
+            });
+            return;
+        }
+
             const pdf = new jsPDF({
                 orientation: 'portrait',
                 unit: 'mm',
@@ -315,17 +338,354 @@ const VoucherDetailsCAPage = () => {
             });
             const pdfWidth = pdf.internal.pageSize.getWidth();
             const pdfHeight = pdf.internal.pageSize.getHeight();
-            const canvasWidth = canvas.width;
-            const canvasHeight = canvas.height;
-            const ratio = canvasWidth / canvasHeight;
-            const width = pdfWidth;
-            const height = width / ratio;
-            pdf.addImage(imgData, 'PNG', 0, 0, width, height);
-            pdf.save(`voucher-${voucherId}.pdf`);
-            toast({ title: 'Export Successful', description: 'Voucher details exported to PDF.' });
-        }).catch(error => {
+        const margin = 10;
+        const contentWidth = pdfWidth - (margin * 2);
+        const contentHeight = pdfHeight - (margin * 2);
+
+        try {
+            // Helper function to add image to PDF with proper scaling and validation
+            const addImageToPDF = (imgData, imgWidth, imgHeight) => {
+                // Validate input dimensions
+                if (!imgData || !imgWidth || !imgHeight || imgWidth <= 0 || imgHeight <= 0) {
+                    console.warn('Invalid image dimensions:', { imgWidth, imgHeight });
+                    return false;
+                }
+
+                // Calculate ratio with validation
+                const ratio = imgWidth / imgHeight;
+                if (!isFinite(ratio) || ratio <= 0) {
+                    console.warn('Invalid image ratio:', ratio);
+                    return false;
+                }
+
+                let displayWidth = contentWidth;
+                let displayHeight = displayWidth / ratio;
+                
+                // If content is taller than page, scale it down to fit
+                if (displayHeight > contentHeight) {
+                    displayHeight = contentHeight;
+                    displayWidth = displayHeight * ratio;
+                }
+
+                // Validate calculated dimensions
+                if (!isFinite(displayWidth) || !isFinite(displayHeight) || displayWidth <= 0 || displayHeight <= 0) {
+                    console.warn('Invalid display dimensions:', { displayWidth, displayHeight });
+                    return false;
+                }
+                
+                // Center the image on the page
+                const xPos = margin + (contentWidth - displayWidth) / 2;
+                const yPos = margin + (contentHeight - displayHeight) / 2;
+
+                // Validate coordinates
+                if (!isFinite(xPos) || !isFinite(yPos) || xPos < 0 || yPos < 0) {
+                    console.warn('Invalid coordinates:', { xPos, yPos });
+                    return false;
+                }
+                
+                try {
+                    pdf.addImage(imgData, 'PNG', xPos, yPos, displayWidth, displayHeight);
+                    return true;
+                } catch (imgError) {
+                    console.error('Error adding image to PDF:', imgError);
+                    return false;
+                }
+            };
+
+            let hasContent = false;
+
+            // Page 1: Voucher Details - Create formatted table with dark theme
+            if (voucherDetails) {
+                try {
+                    // Dark theme colors
+                    const darkBg = [30, 41, 59]; // #1e293b (slate-800)
+                    const darkCard = [51, 65, 85]; // #334155 (slate-700)
+                    const lightText = [255, 255, 255];
+                    const grayText = [203, 213, 225]; // #cbd5e1 (slate-300)
+                    const borderColor = [100, 100, 100]; // Gray border for visibility
+                    
+                    // Set background to dark
+                    pdf.setFillColor(...darkBg);
+                    pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
+                    
+                    // Header section
+                    let yPos = margin + 5;
+                    pdf.setTextColor(...lightText);
+                    pdf.setFontSize(20);
+                    pdf.setFont(undefined, 'bold');
+                    pdf.text('Voucher Details', margin + 5, yPos);
+                    
+                    yPos += 8;
+                    pdf.setFontSize(12);
+                    pdf.setFont(undefined, 'normal');
+                    pdf.setTextColor(...grayText);
+                    const beneficiaryName = voucherDetails.beneficiary
+                        ? (voucherDetails.beneficiary.beneficiary_type === 'individual' 
+                            ? voucherDetails.beneficiary.name 
+                            : voucherDetails.beneficiary.company_name)
+                        : voucherDetails.beneficiaryName || 'N/A';
+                    pdf.text(`Voucher to ${beneficiaryName}`, margin + 5, yPos);
+                    
+                    yPos += 5;
+                    pdf.setFontSize(10);
+                    pdf.text(`Created on ${new Date(voucherDetails.created_date).toLocaleDateString()}`, margin + 5, yPos);
+                    
+                    yPos += 10;
+                    
+                    // Create table with dark theme
+                    const tableStartY = yPos;
+                    const rowHeight = 8;
+                    const col1Width = contentWidth * 0.4;
+                    const col2Width = contentWidth * 0.6;
+                    
+                    // Table header
+                    pdf.setFillColor(...darkCard);
+                    pdf.rect(margin, tableStartY, contentWidth, rowHeight, 'F');
+                    pdf.setTextColor(...lightText);
+                    pdf.setFontSize(11);
+                    pdf.setFont(undefined, 'bold');
+                    pdf.text('Field', margin + 3, tableStartY + 5);
+                    pdf.text('Value', margin + col1Width + 3, tableStartY + 5);
+                    
+                    // Draw border
+                    pdf.setDrawColor(...borderColor);
+                    pdf.rect(margin, tableStartY, contentWidth, rowHeight);
+                    
+                    yPos = tableStartY + rowHeight;
+                    
+                    // Table rows
+                    const rows = [
+                        ['Amount', `Rs. ${parseFloat(voucherDetails.amount || 0).toFixed(2)}`],
+                        ['Voucher Type', voucherDetails.voucher_type ? voucherDetails.voucher_type.charAt(0).toUpperCase() + voucherDetails.voucher_type.slice(1) : 'N/A'],
+                        ['Payment Method', voucherDetails.voucher_type === 'cash' ? 'Cash' : (voucherDetails.payment_type || 'N/A')],
+                    ];
+                    
+                    // Draw table rows
+                    pdf.setFontSize(10);
+                    pdf.setFont(undefined, 'normal');
+                    rows.forEach(([field, value]) => {
+                        pdf.setFillColor(...darkBg);
+                        pdf.rect(margin, yPos, contentWidth, rowHeight, 'F');
+                        pdf.setDrawColor(...borderColor);
+                        pdf.rect(margin, yPos, contentWidth, rowHeight);
+                        pdf.setTextColor(...lightText);
+                        pdf.text(field, margin + 3, yPos + 5);
+                        pdf.setTextColor(...grayText);
+                        pdf.text(value, margin + col1Width + 3, yPos + 5);
+                        yPos += rowHeight;
+                    });
+                    
+                    // Remarks section
+                    yPos += 5;
+                    const remarksTitleY = yPos;
+                    const remarksTitleHeight = 6;
+                    pdf.setFontSize(12);
+                    pdf.setFont(undefined, 'bold');
+                    pdf.setTextColor(...lightText);
+                    pdf.text('Remarks', margin + 5, remarksTitleY + 4);
+                    
+                    // Remarks content box - directly below title, no gap
+                    yPos = remarksTitleY + remarksTitleHeight;
+                    pdf.setFillColor(...darkBg);
+                    const remarksHeight = 12;
+                    const remarksBoxY = yPos;
+                    pdf.rect(margin, remarksBoxY, contentWidth, remarksHeight, 'F');
+                    
+                    // Draw border around remarks box - use same color as table rows
+                    pdf.setDrawColor(...borderColor);
+                    pdf.rect(margin, remarksBoxY, contentWidth, remarksHeight);
+                    
+                    pdf.setFontSize(10);
+                    pdf.setFont(undefined, 'normal');
+                    pdf.setTextColor(...lightText);
+                    const remarksText = voucherDetails.remarks && voucherDetails.remarks.trim() 
+                        ? voucherDetails.remarks 
+                        : 'N/A';
+                    const wrappedRemarks = pdf.splitTextToSize(remarksText, contentWidth - 6);
+                    pdf.text(wrappedRemarks, margin + 3, remarksBoxY + 5);
+                    
+                    hasContent = true;
+                } catch (error) {
+                    console.error('Error creating voucher details PDF:', error);
+                }
+            }
+
+            // Page 2: Attachment (image only - PDFs will be merged separately)
+            if (attachmentUrl) {
+                const isPdfAttachment = attachmentContentType?.toLowerCase().includes('pdf') || attachmentUrl?.toLowerCase().endsWith('.pdf');
+                
+                if (!isPdfAttachment) {
+                    // For image attachments only, add them to jsPDF
+                    try {
+                        pdf.addPage();
+                        
+                        // Load the image directly from URL
+                        const img = new Image();
+                        img.crossOrigin = 'anonymous';
+                        
+                        await new Promise((resolve, reject) => {
+                            img.onload = () => resolve();
+                            img.onerror = (err) => {
+                                console.error('Error loading image:', err);
+                                reject(err);
+                            };
+                            img.src = attachmentUrl;
+                            
+                            // Timeout after 10 seconds
+                            setTimeout(() => {
+                                if (!img.complete) {
+                                    reject(new Error('Image load timeout'));
+                                }
+                            }, 10000);
+                        });
+                        
+                        // Calculate dimensions to fit the page
+                        const imgWidth = img.width;
+                        const imgHeight = img.height;
+                        const ratio = imgWidth / imgHeight;
+                        
+                        let displayWidth = contentWidth;
+                        let displayHeight = displayWidth / ratio;
+                        
+                        // If image is taller than page, scale it down
+                        if (displayHeight > contentHeight) {
+                            displayHeight = contentHeight;
+                            displayWidth = displayHeight * ratio;
+                        }
+                        
+                        // Center the image on the page
+                        const xPos = margin + (contentWidth - displayWidth) / 2;
+                        const yPos = margin + (contentHeight - displayHeight) / 2;
+                        
+                        // Add image to PDF
+                        pdf.addImage(attachmentUrl, 'PNG', xPos, yPos, displayWidth, displayHeight);
+                    } catch (error) {
+                        console.error('Error adding attachment image to PDF:', error);
+                        // Fallback: try using html2canvas if direct image load fails
+                        if (attachmentRef.current) {
+                            try {
+                                const attachmentCanvas = await html2canvas(attachmentRef.current, { 
+                                    useCORS: true,
+                                    scale: 2,
+                                    backgroundColor: '#ffffff',
+                                    logging: false,
+                                    allowTaint: true
+                                });
+                                
+                                if (attachmentCanvas && attachmentCanvas.width > 0 && attachmentCanvas.height > 0) {
+                                    const attachmentImgData = attachmentCanvas.toDataURL('image/png');
+                                    addImageToPDF(attachmentImgData, attachmentCanvas.width, attachmentCanvas.height);
+                                }
+                            } catch (canvasError) {
+                                console.error('Error capturing attachment with html2canvas:', canvasError);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Last Page: Activity Log
+            if (activityLogRef.current) {
+                try {
+                    pdf.addPage();
+                    const activityCanvas = await html2canvas(activityLogRef.current, { 
+                        useCORS: true,
+                        scale: 2,
+                        backgroundColor: '#1e293b',
+                        logging: false,
+                        allowTaint: true
+                    });
+                    
+                    if (activityCanvas && activityCanvas.width > 0 && activityCanvas.height > 0) {
+                        const activityImgData = activityCanvas.toDataURL('image/png');
+                        addImageToPDF(activityImgData, activityCanvas.width, activityCanvas.height);
+                    }
+                } catch (error) {
+                    console.error('Error capturing activity log:', error);
+                }
+            }
+
+            if (!hasContent) {
+                throw new Error('No valid content to export. Please ensure the voucher details are visible.');
+            }
+
+            // Convert jsPDF to arrayBuffer for merging
+            const detailsPdfBytes = pdf.output('arraybuffer');
+            
+            // Now merge PDFs if there's a PDF attachment
+            const isPdfAttachment = attachmentUrl && (attachmentContentType?.toLowerCase().includes('pdf') || attachmentUrl?.toLowerCase().endsWith('.pdf'));
+            
+            if (isPdfAttachment) {
+                try {
+                    // Dynamically import pdf-lib only when needed
+                    const { PDFDocument } = await import('pdf-lib');
+                    
+                    // Get attachment ID from voucher
+                    const attachmentId = voucher?.attachment_id || (voucher?.attachment && voucher?.attachment.id);
+                    
+                    if (!attachmentId) {
+                        throw new Error('No attachment ID available');
+                    }
+                    
+                    // Fetch the PDF directly from the API endpoint
+                    const FINANCE_API_BASE_URL = import.meta.env.VITE_FINANCE_API_URL || 'http://127.0.0.1:8003';
+                    const response = await fetch(`${FINANCE_API_BASE_URL}/api/attachments/${attachmentId}`, {
+                        headers: {
+                            'Authorization': `Bearer ${user.access_token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`Failed to fetch attachment: ${response.status}`);
+                    }
+                    
+                    const attachmentBlob = await response.blob();
+                    const attachmentPdfBytes = await attachmentBlob.arrayBuffer();
+                    
+                    // Create a new PDF document to merge
+                    const mergedPdf = await PDFDocument.create();
+                    
+                    // Load the details PDF
+                    const detailsPdf = await PDFDocument.load(detailsPdfBytes);
+                    const detailsPages = await mergedPdf.copyPages(detailsPdf, detailsPdf.getPageIndices());
+                    detailsPages.forEach((page) => mergedPdf.addPage(page));
+                    
+                    // Load and merge the attachment PDF
+                    const attachmentPdf = await PDFDocument.load(attachmentPdfBytes);
+                    const attachmentPages = await mergedPdf.copyPages(attachmentPdf, attachmentPdf.getPageIndices());
+                    attachmentPages.forEach((page) => mergedPdf.addPage(page));
+                    
+                    // Save the merged PDF
+                    const mergedPdfBytes = await mergedPdf.save();
+                    const blob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `voucher-${voucher.voucher_id || voucherId}.pdf`;
+                    link.click();
+                    URL.revokeObjectURL(url);
+                    
+                    toast({ title: 'Export Successful', description: 'Voucher exported to PDF with details, attachment, and activity log.' });
+                } catch (error) {
+                    console.error('Error merging PDF attachment:', error);
+                    // Fallback to saving jsPDF if merging fails
+                    pdf.save(`voucher-${voucher.voucher_id || voucherId}.pdf`);
+                    toast({ 
+                        title: 'Export Warning', 
+                        description: 'PDF exported but attachment could not be merged. Details only.', 
+                        variant: 'default' 
+                    });
+                }
+            } else {
+                // No PDF attachment, just save the jsPDF
+                pdf.save(`voucher-${voucher.voucher_id || voucherId}.pdf`);
+                toast({ title: 'Export Successful', description: 'Voucher exported to PDF with details, attachment, and activity log.' });
+            }
+        } catch (error) {
+            console.error('PDF Export Error:', error);
             toast({ title: 'Export Error', description: `An error occurred: ${error.message}`, variant: 'destructive' });
-        });
+        }
     };
     
     const beneficiaryName = voucherDetails.beneficiary 
@@ -479,16 +839,17 @@ const VoucherDetailsCAPage = () => {
                                 </Button>
                             </div>
                         )}
-                        <div className="flex h-full w-full items-center justify-center overflow-auto relative" style={{ zIndex: 1 }}>
-                            {/* Show skeleton only if we have attachment_id but no URL yet (while fetching URL) */}
-                            {voucher?.attachment_id && !attachmentUrl ? (
+                        <div className="flex h-full w-full items-center justify-center overflow-auto relative hide-scrollbar" style={{ zIndex: 1 }} ref={attachmentRef}>
+                            {voucher?.attachment_id && !attachmentUrl && isImageLoading ? (
                                 <Skeleton className="h-full w-full rounded-md" />
                             ) : attachmentUrl ? (
-                                attachmentUrl.toLowerCase().endsWith('.pdf') ? (
+                                (attachmentContentType?.toLowerCase().includes('pdf') || attachmentUrl.toLowerCase().endsWith('.pdf')) ? (
                                     <iframe
-                                        src={attachmentUrl}
+                                        src={`${attachmentUrl}#toolbar=0`}
                                         title="Voucher Attachment"
                                         className="h-full w-full rounded-md border-none"
+                                        type="application/pdf"
+                                        style={{ minHeight: '100%' }}
                                     />
                                 ) : (
                                     <img
@@ -504,12 +865,13 @@ const VoucherDetailsCAPage = () => {
                                         onError={(e) => {
                                             console.error("Image failed to load:", e, "URL:", attachmentUrl);
                                             setIsImageLoading(false);
+                                            toast({ title: 'Error', description: 'Failed to load image attachment.', variant: 'destructive' });
                                         }}
                                         loading="eager"
                                     />
                                 )
                             ) : (
-                                <div className="text-center text-gray-400">
+                                <div className="text-center text-gray-400 text-sm">
                                     <p>No attachment available for this voucher.</p>
                                 </div>
                             )}
@@ -736,7 +1098,7 @@ const VoucherDetailsCAPage = () => {
                         )}
                     </TabsContent>
                     <TabsContent value="activity" className="mt-4">
-                        <div className="p-4">
+                        <div className="p-4" ref={activityLogRef}>
                             <ActivityLog itemId={voucher?.voucher_id || voucherId} itemType="voucher" showFilter={false} />
                         </div>
                     </TabsContent>
@@ -769,9 +1131,9 @@ const VoucherDetailsCAPage = () => {
                         onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            handleNavigate(-1);
+                            handleNavigate(1);
                         }} 
-                        disabled={currentIndex === 0 || currentIndex === -1}
+                        disabled={currentIndex === vouchers.length - 1}
                         className="fixed bottom-4 left-80 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg z-50"
                     >
                         <ChevronLeft className="h-5 w-5" />
@@ -783,9 +1145,9 @@ const VoucherDetailsCAPage = () => {
                         onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            handleNavigate(1);
+                            handleNavigate(-1);
                         }} 
-                        disabled={currentIndex === vouchers.length - 1}
+                        disabled={currentIndex === 0 || currentIndex === -1}
                         className="fixed bottom-4 right-4 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg z-50"
                     >
                         <ChevronRight className="h-5 w-5" />

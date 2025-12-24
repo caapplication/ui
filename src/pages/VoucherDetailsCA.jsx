@@ -115,7 +115,31 @@ const VoucherDetailsCA = () => {
     const [isDeleting, setIsDeleting] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isImageLoading, setIsImageLoading] = useState(false);
+    const [attachmentContentType, setAttachmentContentType] = useState(null);
+    const [sidebarWidth, setSidebarWidth] = useState(320); // Default to expanded width (300px + padding)
+    const activityLogRef = useRef(null);
+    const attachmentRef = useRef(null);
     
+    // Hide scrollbars globally for this page
+    useEffect(() => {
+        const style = document.createElement('style');
+        style.textContent = `
+            /* Hide scrollbar for Chrome, Safari and Opera */
+            .hide-scrollbar::-webkit-scrollbar {
+                display: none;
+            }
+            /* Hide scrollbar for IE, Edge and Firefox */
+            .hide-scrollbar {
+                -ms-overflow-style: none;
+                scrollbar-width: none;
+            }
+        `;
+        document.head.appendChild(style);
+        return () => {
+            document.head.removeChild(style);
+        };
+    }, []);
+
     // Get entity name from user entities
     const getEntityName = () => {
         if (!user) return 'N/A';
@@ -132,6 +156,35 @@ const VoucherDetailsCA = () => {
             setIsEditing(true);
         }
     }, [startInEditMode]);
+
+    // Detect sidebar width to adjust left arrow position
+    useEffect(() => {
+        const detectSidebarWidth = () => {
+            const sidebar = document.querySelector('aside');
+            if (sidebar) {
+                const width = sidebar.offsetWidth;
+                setSidebarWidth(width);
+            }
+        };
+
+        // Initial detection
+        detectSidebarWidth();
+
+        // Use ResizeObserver to watch for sidebar width changes
+        const sidebar = document.querySelector('aside');
+        if (sidebar) {
+            const resizeObserver = new ResizeObserver((entries) => {
+                for (const entry of entries) {
+                    setSidebarWidth(entry.contentRect.width);
+                }
+            });
+            resizeObserver.observe(sidebar);
+
+            return () => {
+                resizeObserver.disconnect();
+            };
+        }
+    }, []);
 
     useEffect(() => {
         if (authLoading || !user?.access_token) return;
@@ -171,11 +224,18 @@ const VoucherDetailsCA = () => {
                     if (attachmentId) {
                         setIsImageLoading(true);
                         setAttachmentUrl(null);
+                        setAttachmentContentType(null);
                         getVoucherAttachment(attachmentId, user.access_token)
-                            .then(url => {
+                            .then(result => {
+                                // Handle both old format (string URL) and new format (object with url and contentType)
+                                const url = typeof result === 'string' ? result : result?.url;
+                                const contentType = typeof result === 'object' ? result?.contentType : null;
+                                
                                 if (url) {
                                     setAttachmentUrl(url);
-                                    if (url.toLowerCase().endsWith('.pdf')) {
+                                    setAttachmentContentType(contentType);
+                                    const isPdf = contentType?.toLowerCase().includes('pdf') || url.toLowerCase().endsWith('.pdf');
+                                    if (isPdf) {
                                         setIsImageLoading(false);
                                     }
                                 } else {
@@ -186,9 +246,12 @@ const VoucherDetailsCA = () => {
                                 console.error("Failed to fetch attachment:", err);
                                 setIsImageLoading(false);
                                 setAttachmentUrl(null);
+                                setAttachmentContentType(null);
+                                toast({ title: 'Error', description: 'Failed to load attachment.', variant: 'destructive' });
                             });
                     } else {
                         setAttachmentUrl(null);
+                        setAttachmentContentType(null);
                         setIsImageLoading(false);
                     }
                 }
@@ -324,9 +387,23 @@ const VoucherDetailsCA = () => {
     useEffect(() => {
         if (voucherList.length > 0) {
             const newIndex = voucherList.findIndex(v => String(v.id) === String(voucherId));
-            setCurrentIndex(newIndex >= 0 ? newIndex : -1);
+            if (newIndex >= 0) {
+                setCurrentIndex(newIndex);
+            } else if (currentIndex === -1 && voucher) {
+                // If voucher not found in list but we have a voucher, try to add it or find by voucher.id
+                const indexById = voucherList.findIndex(v => String(v.id) === String(voucher.id));
+                if (indexById >= 0) {
+                    setCurrentIndex(indexById);
+                }
+            }
+        } else if (vouchers && vouchers.length > 0) {
+            // Fallback to vouchers from location.state if voucherList is empty
+            const newIndex = vouchers.findIndex(v => String(v.id) === String(voucherId));
+            if (newIndex >= 0) {
+                setCurrentIndex(newIndex);
+            }
         }
-    }, [voucherList, voucherId]);
+    }, [voucherList, voucherId, voucher, vouchers, currentIndex]);
 
     const handleNavigate = (direction) => {
         if (!voucherList || voucherList.length === 0) {
@@ -555,16 +632,17 @@ const VoucherDetailsCA = () => {
                                 </Button>
                             </div>
                         )}
-                        <div className="flex h-full w-full items-center justify-center overflow-auto relative" style={{ zIndex: 1 }}>
-                            {/* Show skeleton only if we have attachment_id but no URL yet (while fetching URL) */}
-                            {voucher?.attachment_id && !attachmentUrl ? (
+                        <div className="flex h-full w-full items-center justify-center overflow-auto relative hide-scrollbar" style={{ zIndex: 1 }} ref={attachmentRef}>
+                            {voucher?.attachment_id && !attachmentUrl && isImageLoading ? (
                                 <Skeleton className="h-full w-full rounded-md" />
                             ) : attachmentUrl ? (
-                                attachmentUrl.toLowerCase().endsWith('.pdf') ? (
+                                (attachmentContentType?.toLowerCase().includes('pdf') || attachmentUrl.toLowerCase().endsWith('.pdf')) ? (
                                     <iframe
-                                        src={attachmentUrl}
+                                        src={`${attachmentUrl}#toolbar=0`}
                                         title="Voucher Attachment"
                                         className="h-full w-full rounded-md border-none"
+                                        type="application/pdf"
+                                        style={{ minHeight: '100%' }}
                                     />
                                 ) : (
                                     <img
@@ -580,12 +658,13 @@ const VoucherDetailsCA = () => {
                                         onError={(e) => {
                                             console.error("Image failed to load:", e, "URL:", attachmentUrl);
                                             setIsImageLoading(false);
+                                            toast({ title: 'Error', description: 'Failed to load image attachment.', variant: 'destructive' });
                                         }}
                                         loading="eager"
                                     />
                                 )
                             ) : (
-                                <div className="text-center text-gray-400">
+                                <div className="text-center text-gray-400 text-sm">
                                     <p>No attachment available for this voucher.</p>
                                 </div>
                             )}
@@ -808,7 +887,7 @@ const VoucherDetailsCA = () => {
                         )}
                     </TabsContent>
                     <TabsContent value="activity" className="mt-4">
-                        <div className="p-4">
+                        <div className="p-4" ref={activityLogRef}>
                             <ActivityLog itemId={voucher?.voucher_id || voucherId} itemType="voucher" showFilter={false} />
                         </div>
                     </TabsContent>
@@ -857,10 +936,13 @@ const VoucherDetailsCA = () => {
                         onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            handleNavigate(-1);
+                            handleNavigate(1);
                         }} 
-                        disabled={currentIndex === 0 || currentIndex === -1}
-                        className="fixed bottom-4 left-80 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg z-50"
+                        disabled={currentIndex === voucherList.length - 1}
+                        className="hidden md:flex fixed bottom-4 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg z-[50]"
+                        style={{ 
+                            left: sidebarWidth <= 150 ? `${sidebarWidth + 16}px` : '20rem' // Dynamic positioning when collapsed (sidebar width + 16px margin), left-80 (20rem) when expanded
+                        }}
                     >
                         <ChevronLeft className="h-5 w-5" />
                     </Button>
@@ -871,13 +953,42 @@ const VoucherDetailsCA = () => {
                         onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            handleNavigate(1);
+                            handleNavigate(-1);
                         }} 
-                        disabled={currentIndex === voucherList.length - 1}
-                        className="fixed bottom-4 right-4 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg z-50"
+                        disabled={currentIndex === 0 || currentIndex === -1}
+                        className="hidden md:flex fixed bottom-4 right-4 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg z-[50]"
                     >
                         <ChevronRight className="h-5 w-5" />
                     </Button>
+                    {/* Mobile navigation buttons */}
+                    <div className="flex md:hidden fixed bottom-4 left-4 right-4 justify-between z-[50] gap-2 pointer-events-none">
+                        <Button 
+                            variant="outline" 
+                            size="icon"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleNavigate(1);
+                            }} 
+                            disabled={currentIndex === voucherList.length - 1}
+                            className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg flex-1 pointer-events-auto"
+                        >
+                            <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
+                        </Button>
+                        <Button 
+                            variant="outline" 
+                            size="icon"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleNavigate(-1);
+                            }} 
+                            disabled={currentIndex === 0 || currentIndex === -1}
+                            className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg flex-1 pointer-events-auto"
+                        >
+                            <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
+                        </Button>
+                    </div>
                 </>
             )}
 
