@@ -158,6 +158,7 @@ const FinancePage = () => {
             isDataLoading={isDataLoading || isOrgLoading}
             onRefresh={handleRefresh}
             isActive={activeTab === 'vouchers'}
+            entities={entities}
           />
         </TabsContent>
         <TabsContent value="invoices">

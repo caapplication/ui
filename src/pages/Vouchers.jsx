@@ -8,9 +8,9 @@ import { VoucherHistorySkeleton } from '@/components/finance/VoucherHistorySkele
 import { useNavigate } from 'react-router-dom';
 import { useApiCache } from '@/contexts/ApiCacheContext.jsx';
 
-const Vouchers = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefresh, isActive = true }) => {
+const Vouchers = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefresh, isActive = true, entities: entitiesFromProps }) => {
   const [vouchers, setVouchers] = useState([]);
-  const [entities, setEntities] = useState([]);
+  const [entities, setEntities] = useState(entitiesFromProps || []);
   const [isLoading, setIsLoading] = useState(true);
   const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
   const { user } = useAuth();
@@ -21,10 +21,17 @@ const Vouchers = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
   const isFetchingRef = useRef(false);
   const pendingRequestsRef = useRef(new Map());
 
+  // Update entities when prop changes
+  useEffect(() => {
+    if (entitiesFromProps) {
+      setEntities(entitiesFromProps);
+    }
+  }, [entitiesFromProps]);
+
   const fetchDataForClient = useCallback(async () => {
     // If we don't have required dependencies, keep loading state true
     // This prevents showing "No vouchers found" before we've attempted to load
-    if (!selectedEntity || !user?.access_token) {
+    if (!user?.access_token) {
       // Only set loading to false if we've attempted to load before and dependencies are missing
       if (hasAttemptedLoad) {
         setVouchers([]);
@@ -36,8 +43,34 @@ const Vouchers = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
       return;
     }
 
+    // If no entity is selected but we have an organization, we need to wait for entities or use "all"
+    // For CA panel, if selectedEntity is null but selectedOrganisation exists, we should fetch for all entities
+    let entityToFetch = selectedEntity;
+    if (!entityToFetch && selectedOrganisation) {
+      // If no entity is selected, we'll fetch for all entities (if entities list is available)
+      // Otherwise, we'll wait for entities to load
+      if (entities.length === 0) {
+        // Keep loading until entities are available
+        setIsLoading(true);
+        return;
+      }
+      // Default to "all" if no specific entity is selected
+      entityToFetch = "all";
+    }
+
+    if (!entityToFetch) {
+      // Still no entity to fetch - keep loading
+      if (hasAttemptedLoad) {
+        setVouchers([]);
+        setIsLoading(false);
+      } else {
+        setIsLoading(true);
+      }
+      return;
+    }
+
     // Create a unique key for this fetch
-    const fetchKey = `${selectedEntity}-${selectedOrganisation}`;
+    const fetchKey = `${entityToFetch}-${selectedOrganisation}`;
     
     // Skip if we're already fetching the same data or currently fetching
     if (isFetchingRef.current) {
@@ -45,8 +78,8 @@ const Vouchers = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
     }
     
     // OPTIMIZATION: Check cache first and show immediately, then refresh in background
-    if (selectedEntity !== 'all') {
-      const cacheKey = { entityId: selectedEntity, token: user.access_token };
+    if (entityToFetch !== 'all') {
+      const cacheKey = { entityId: entityToFetch, token: user.access_token };
       const cached = cache.get('getCATeamVouchers', cacheKey);
       if (cached) {
         // Show cached data immediately for instant UI response
@@ -74,7 +107,7 @@ const Vouchers = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
     isFetchingRef.current = true;
     
     let entityIdsToFetch = [];
-    if (selectedEntity === 'all') {
+    if (entityToFetch === 'all') {
       // If 'all' is selected, we need to fetch the full entity list first.
       try {
         // Check cache first
@@ -96,7 +129,7 @@ const Vouchers = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
         return;
       }
     } else {
-      entityIdsToFetch = [selectedEntity];
+      entityIdsToFetch = [entityToFetch];
     }
     
     if (entityIdsToFetch.length === 0) {
@@ -194,7 +227,7 @@ const Vouchers = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
       setIsLoading(false);
       isFetchingRef.current = false;
     }
-  }, [selectedOrganisation, selectedEntity, user?.access_token, toast, hasAttemptedLoad, cache, vouchers.length]);
+  }, [selectedOrganisation, selectedEntity, user?.access_token, toast, hasAttemptedLoad, cache, vouchers.length, entities]);
 
   useEffect(() => {
     // Only fetch if tab is active and entity or organization changes
