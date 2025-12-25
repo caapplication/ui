@@ -212,10 +212,21 @@ import { getAuthHeaders, handleResponse } from './utils';
     };
 
     export const createTaskComment = async (taskId, commentData, agencyId, token) => {
+        // Check if commentData is FormData (for file uploads)
+        const isFormData = commentData instanceof FormData;
+        
+        const headers = isFormData 
+            ? getAuthHeaders(token, null, agencyId) // Don't set Content-Type for FormData, browser will set it with boundary
+            : getAuthHeaders(token, 'application/json', agencyId);
+        
+        const body = isFormData 
+            ? commentData 
+            : JSON.stringify(commentData);
+        
         const response = await fetch(`${TASKS_API_BASE_URL}/tasks/${taskId}/comments/`, {
             method: 'POST',
-            headers: getAuthHeaders(token, 'application/json', agencyId),
-            body: JSON.stringify(commentData),
+            headers: headers,
+            body: body,
         });
         return handleResponse(response);
     };
@@ -237,5 +248,34 @@ import { getAuthHeaders, handleResponse } from './utils';
         if (response.status === 204) {
             return { success: true };
         }
+        return handleResponse(response);
+    };
+
+    // Collaborator functions
+    export const addTaskCollaborator = async (taskId, userId, agencyId, token) => {
+        const response = await fetch(`${TASKS_API_BASE_URL}/tasks/${taskId}/collaborators/`, {
+            method: 'POST',
+            headers: getAuthHeaders(token, 'application/json', agencyId),
+            body: JSON.stringify({ user_id: userId }),
+        });
+        return handleResponse(response);
+    };
+
+    export const removeTaskCollaborator = async (taskId, userId, agencyId, token) => {
+        const response = await fetch(`${TASKS_API_BASE_URL}/tasks/${taskId}/collaborators/${userId}`, {
+            method: 'DELETE',
+            headers: getAuthHeaders(token, null, agencyId),
+        });
+        if (response.status === 204) {
+            return { success: true };
+        }
+        return handleResponse(response);
+    };
+
+    export const getTaskCollaborators = async (taskId, agencyId, token) => {
+        const response = await fetch(`${TASKS_API_BASE_URL}/tasks/${taskId}/collaborators/`, {
+            method: 'GET',
+            headers: getAuthHeaders(token, 'application/json', agencyId),
+        });
         return handleResponse(response);
     };

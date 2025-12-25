@@ -188,7 +188,10 @@ export const {
     listTaskComments,
     createTaskComment,
     updateTaskComment,
-    deleteTaskComment
+    deleteTaskComment,
+    addTaskCollaborator,
+    removeTaskCollaborator,
+    getTaskCollaborators
 } = tasks;
 
 export const {

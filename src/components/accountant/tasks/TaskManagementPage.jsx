@@ -266,6 +266,7 @@
                                 clients={clients}
                                 services={services}
                                 teamMembers={teamMembers}
+                                stages={stages}
                                 tags={tags}
                                 onAddNew={handleAddNew}
                                 onEditTask={handleEditTask}

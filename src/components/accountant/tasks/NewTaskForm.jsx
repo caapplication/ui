@@ -38,6 +38,7 @@ import React, { useState, useEffect } from 'react';
         service_id: '',
         stage_id: '',
         due_date: null,
+        due_time: '12:00',  // Time for due date (HH:mm format)
         target_date: null,
         description: '',
         document_request_enabled: false,
@@ -312,6 +313,7 @@ import React, { useState, useEffect } from 'react';
           service_id: null, // Service field removed
           stage_id: stageId || null,
           due_date: formData.due_date ? format(formData.due_date, 'yyyy-MM-dd') : null,
+          due_time: formData.due_time || '12:00',
           target_date: formData.target_date ? format(formData.target_date, 'yyyy-MM-dd') : null,
           description: formData.description,
           priority: formData.priority || null,
@@ -343,7 +345,6 @@ import React, { useState, useEffect } from 'react';
         <div className="max-w-4xl mx-auto p-4 md:p-8 text-white">
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-3xl font-bold">
-              <span className="text-gray-400 cursor-pointer hover:underline" onClick={onCancel}>Tasks / </span> 
               {task ? 'Edit Task' : 'Create New Task'}
             </h1>
             <div className="flex gap-2">
@@ -365,15 +366,25 @@ import React, { useState, useEffect } from 'react';
                 </div>
                 <div>
                   <Label htmlFor="due_date">Due Date</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formData.due_date && "text-muted-foreground")}>
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {formData.due_date ? format(formData.due_date, "PPP") : <span>Pick a date</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={formData.due_date} onSelect={(d) => handleDateChange('due_date', d)} initialFocus /></PopoverContent>
-                  </Popover>
+                  <div className="flex gap-2">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formData.due_date && "text-muted-foreground")}>
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {formData.due_date ? format(formData.due_date, "PPP") : <span>Pick a date</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={formData.due_date} onSelect={(d) => handleDateChange('due_date', d)} initialFocus /></PopoverContent>
+                    </Popover>
+                    <Input
+                      id="due_time"
+                      name="due_time"
+                      type="time"
+                      value={formData.due_time || '12:00'}
+                      onChange={(e) => handleSelectChange('due_time', e.target.value)}
+                      className="w-32"
+                    />
+                  </div>
                 </div>
                 <div>
                   <Label htmlFor="target_date">Target Date</Label>
