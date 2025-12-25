@@ -2,11 +2,11 @@ import React, { useState, useMemo } from 'react';
     import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
     import { Input } from '@/components/ui/input';
     import { Button } from '@/components/ui/button';
-    import { Search, Plus, MoreVertical, Edit, Trash2 } from 'lucide-react';
+    import { Search, Plus, MoreVertical, Edit, Trash2, Bell, UserPlus } from 'lucide-react';
     import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
     import { Badge } from '@/components/ui/badge';
     import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-    import { format } from 'date-fns';
+    import { format, formatDistanceToNow, formatDistanceStrict } from 'date-fns';
     import {
       AlertDialog,
       AlertDialogAction,
@@ -19,7 +19,7 @@ import React, { useState, useMemo } from 'react';
     } from "@/components/ui/alert-dialog";
     import { AlertDialogTrigger } from '@radix-ui/react-alert-dialog';
     
-    const TaskList = ({ tasks, clients, services, teamMembers, onAddNew, onEditTask, onDeleteTask, onViewTask }) => {
+    const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew, onEditTask, onDeleteTask, onViewTask }) => {
         const [searchTerm, setSearchTerm] = useState('');
         const [statusFilter, setStatusFilter] = useState('all');
     
@@ -75,14 +75,10 @@ import React, { useState, useMemo } from 'react';
             });
             return service?.name || 'N/A';
         };
-        const getAssigneeName = (userId) => {
-            if (!userId) return 'N/A';
+        const getUserInfo = (userId) => {
+            if (!userId) return { name: 'N/A', email: 'N/A', role: 'N/A' };
             if (!Array.isArray(teamMembers) || teamMembers.length === 0) {
-                // Debug: Log when teamMembers array is empty
-                if (teamMembers.length === 0) {
-                    console.debug('getAssigneeName: teamMembers array is empty for userId:', userId);
-                }
-                return 'N/A';
+                return { name: 'N/A', email: 'N/A', role: 'N/A' };
             }
             // Try multiple matching strategies
             const userIdStr = String(userId).toLowerCase();
@@ -93,10 +89,85 @@ import React, { useState, useMemo } from 'react';
                 return mUserId === userIdStr || mId === userIdStr;
             });
             if (!member) {
-                console.debug('getAssigneeName: No member found for userId:', userId, 'Available members:', teamMembers.map(m => ({ id: m?.id, user_id: m?.user_id, name: m?.name, email: m?.email })));
+                return { name: 'N/A', email: 'N/A', role: 'N/A' };
+            }
+            return {
+                name: member.name || member.full_name || member.email || 'N/A',
+                email: member.email || 'N/A',
+                role: member.role || member.department || 'N/A'
+            };
+        };
+
+        const getAssigneeName = (userId) => {
+            return getUserInfo(userId).name;
+        };
+
+        const formatTimeAgo = (dateString) => {
+            if (!dateString) return 'N/A';
+            try {
+                const date = new Date(dateString);
+                // Check if date is valid
+                if (isNaN(date.getTime())) {
+                    console.warn('Invalid date:', dateString);
+                    return 'N/A';
+                }
+                const now = new Date();
+                const diffMs = now - date;
+                
+                // Check if date is in the future (shouldn't happen for created_at/updated_at)
+                if (diffMs < 0) {
+                    return 'Just now';
+                }
+                
+                const diffMins = Math.floor(diffMs / 60000);
+                const diffHours = Math.floor(diffMs / 3600000);
+                const diffDays = Math.floor(diffMs / 86400000);
+                
+                if (diffMins < 1) return 'Just now';
+                if (diffMins < 60) return `${diffMins} ${diffMins === 1 ? 'min' : 'mins'} ago`;
+                if (diffHours < 24) return `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
+                if (diffDays < 30) return `${diffDays} ${diffDays === 1 ? 'day' : 'days'} ago`;
+                return formatDistanceToNow(date, { addSuffix: true });
+            } catch (error) {
+                console.error('Error formatting date:', error, dateString);
                 return 'N/A';
             }
-            return member.name || member.email || 'N/A';
+        };
+
+        const formatTimeUntil = (dateString) => {
+            if (!dateString) return 'N/A';
+            try {
+                const date = new Date(dateString);
+                const now = new Date();
+                const diffMs = date - now;
+                const diffMins = Math.floor(diffMs / 60000);
+                const diffHours = Math.floor(diffMs / 3600000);
+                const diffDays = Math.floor(diffMs / 86400000);
+                
+                if (diffMins < 0) return 'Overdue';
+                if (diffMins < 1) return 'Due now';
+                if (diffMins < 60) return `In ${diffMins} ${diffMins === 1 ? 'min' : 'mins'}`;
+                if (diffHours < 24) return `In ${diffHours} ${diffHours === 1 ? 'hour' : 'hours'}`;
+                if (diffDays < 30) return `In ${diffDays} ${diffDays === 1 ? 'day' : 'days'}`;
+                return formatDistanceStrict(now, date, { addSuffix: false, unit: 'day' });
+            } catch (error) {
+                return 'N/A';
+            }
+        };
+
+        const getTaskId = (task) => {
+            // Use task_number if available, otherwise fallback to extracting from UUID
+            if (task?.task_number) {
+                return `T${task.task_number}`;
+            }
+            if (!task?.id) return 'N/A';
+            // Extract numeric part or use last 4 characters
+            const idStr = String(task.id);
+            const match = idStr.match(/\d+/);
+            if (match) {
+                return `T${match[0]}`;
+            }
+            return `T${idStr.slice(-4).toUpperCase()}`;
         };
     
         const filteredTasks = useMemo(() => {
@@ -120,8 +191,6 @@ import React, { useState, useMemo } from 'react';
             <div className="h-full flex flex-col">
                 <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 flex-shrink-0">
                     <div>
-                        <h1 className="text-4xl font-bold text-white">Task Management</h1>
-                        <p className="text-gray-400 mt-1">Assign, track, and manage all client tasks.</p>
                     </div>
                     <Button onClick={onAddNew}>
                         <Plus className="w-5 h-5 mr-2" />
@@ -157,72 +226,134 @@ import React, { useState, useMemo } from 'react';
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Task</TableHead>
-                                    <TableHead>Client</TableHead>
-                                    <TableHead>Due Date</TableHead>
-                                    <TableHead>Assignee</TableHead>
-                                    <TableHead>Priority</TableHead>
-                                    <TableHead>Tag</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
+                                    <TableHead>T.ID</TableHead>
+                                    <TableHead>STATUS</TableHead>
+                                    <TableHead>TASK DETAILS</TableHead>
+                                    <TableHead>LAST UPDATE BY</TableHead>
+                                    <TableHead>CREATED BY</TableHead>
+                                    <TableHead>ASSIGNED TO</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {filteredTasks.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={8} className="text-center py-8">
+                                        <TableCell colSpan={6} className="text-center py-8">
                                             <p className="text-gray-400">No tasks found. {tasks.length === 0 ? 'Create your first task to get started!' : 'Try adjusting your filters.'}</p>
                                         </TableCell>
                                     </TableRow>
                                 ) : (
-                                    filteredTasks.map(task => (
-                                        <TableRow key={task.id} className="hover:bg-white/5 cursor-pointer" onClick={() => onViewTask && onViewTask(task.id)}>
-                                            <TableCell className="font-medium">{task.title || 'Untitled Task'}</TableCell>
-                                            <TableCell>{getClientName(task.client_id)}</TableCell>
-                                            <TableCell>{task.due_date ? format(new Date(task.due_date), 'dd MMM yyyy') : 'N/A'}</TableCell>
-                                            <TableCell>{getAssigneeName(task.assignee_id || task.assigned_to)}</TableCell>
-                                            <TableCell>
-                                                {task.priority && <Badge variant={getPriorityVariant(task.priority)}>{task.priority}</Badge>}
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="flex flex-wrap gap-1">
-                                                    {task.tags && Array.isArray(task.tags) && task.tags.map(tag => (
-                                                        <Badge key={tag.id || tag} style={{ backgroundColor: tag.color, color: 'hsl(var(--foreground))' }}>
-                                                            {tag.name || tag}
-                                                        </Badge>
-                                                    ))}
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge variant={getStatusVariant(task.status)}>{task.status || 'Pending'}</Badge>
-                                            </TableCell>
-                                            <TableCell className="text-right" onClick={e => e.stopPropagation()}>
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" size="icon"><MoreVertical className="w-4 h-4" /></Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent>
-                                                        <DropdownMenuItem onClick={() => onEditTask && onEditTask(task)}><Edit className="w-4 h-4 mr-2" />Edit</DropdownMenuItem>
-                                                        <AlertDialog>
-                                                            <AlertDialogTrigger asChild>
-                                                                <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-red-500"><Trash2 className="w-4 h-4 mr-2" />Delete</DropdownMenuItem>
-                                                            </AlertDialogTrigger>
-                                                            <AlertDialogContent>
-                                                                <AlertDialogHeader>
-                                                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                                    <AlertDialogDescription>This will permanently delete the task.</AlertDialogDescription>
-                                                                </AlertDialogHeader>
-                                                                <AlertDialogFooter>
-                                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                                    <AlertDialogAction onClick={() => onDeleteTask && onDeleteTask(task.id)} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
-                                                                </AlertDialogFooter>
-                                                            </AlertDialogContent>
-                                                        </AlertDialog>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))
+                                    filteredTasks.map(task => {
+                                        // Use names and roles from API if available, otherwise lookup
+                                        const createdByInfo = task.created_by_name 
+                                            ? { name: task.created_by_name, email: 'N/A', role: task.created_by_role || getUserInfo(task.created_by).role || 'N/A' }
+                                            : getUserInfo(task.created_by);
+                                        const updatedByInfo = task.updated_by_name 
+                                            ? { name: task.updated_by_name, email: 'N/A', role: task.updated_by_role || getUserInfo(task.updated_by || task.created_by).role || 'N/A' }
+                                            : getUserInfo(task.updated_by || task.created_by);
+                                        const assignedToInfo = getUserInfo(task.assigned_to);
+                                        const taskId = getTaskId(task);
+                                        
+                                        // Get stage name from stages array if available
+                                        let statusName = task.status || 'Pending';
+                                        if (task.stage_id && stages.length > 0) {
+                                            const stage = stages.find(s => s.id === task.stage_id || String(s.id) === String(task.stage_id));
+                                            if (stage) {
+                                                statusName = stage.name;
+                                            }
+                                        } else if (task.stage?.name) {
+                                            statusName = task.stage.name;
+                                        }
+                                        
+                                        return (
+                                            <TableRow key={task.id} className="hover:bg-white/5 cursor-pointer" onClick={() => onViewTask && onViewTask(task.id)}>
+                                                {/* T.ID */}
+                                                <TableCell>
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-pink-100 dark:bg-pink-900/30">
+                                                            <Bell className="w-3 h-3 text-red-500" />
+                                                            <span className="text-purple-600 dark:text-purple-400 font-medium text-sm">{taskId}</span>
+                                                        </div>
+                                                    </div>
+                                                </TableCell>
+                                                
+                                                {/* STATUS */}
+                                                <TableCell>
+                                                    <Badge 
+                                                        variant="outline" 
+                                                        className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-medium w-fit ${
+                                                            statusName === 'Assigned' ? 'bg-orange-500/20 text-orange-300 border-orange-500/50' :
+                                                            statusName === 'In Progress' ? 'bg-blue-500/20 text-blue-300 border-blue-500/50' :
+                                                            statusName === 'Completed' ? 'bg-green-500/20 text-green-300 border-green-500/50' :
+                                                            'bg-gray-500/20 text-gray-300 border-gray-500/50'
+                                                        }`}
+                                                    >
+                                                        {statusName}
+                                                    </Badge>
+                                                </TableCell>
+                                                
+                                                {/* TASK DETAILS */}
+                                                <TableCell>
+                                                    <div className="flex flex-col gap-1">
+                                                        <span className="font-medium text-white">{task.title || 'Untitled Task'}</span>
+                                                        {task.due_date && (
+                                                            <span className="text-xs text-gray-400 italic">
+                                                                {format(new Date(task.due_date), 'dd-MM-yyyy')} {task.due_time || (task.target_date ? format(new Date(task.target_date), 'hh:mm a') : (task.updated_at ? format(new Date(task.updated_at), 'hh:mm a') : '12:00 PM'))}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </TableCell>
+                                                
+                                                {/* LAST UPDATE BY */}
+                                                <TableCell>
+                                                    <div className="flex flex-col gap-1">
+                                                        <span className="text-sm text-white">{updatedByInfo.name}</span>
+                                                        <span className="text-xs text-gray-400 italic">{updatedByInfo.role}</span>
+                                                        {task.updated_at && (
+                                                            <>
+                                                                <span className="text-xs text-gray-400 italic">
+                                                                    {format(new Date(task.updated_at), 'dd-MM-yyyy hh:mm a')}
+                                                                </span>
+                                                                <Badge variant="outline" className="bg-red-500/20 text-red-300 border-red-500/50 text-xs w-fit italic">
+                                                                    {formatTimeAgo(task.updated_at)}
+                                                                </Badge>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </TableCell>
+                                                
+                                                {/* CREATED BY */}
+                                                <TableCell>
+                                                    <div className="flex flex-col gap-1">
+                                                        <span className="text-sm text-white">{createdByInfo.name}</span>
+                                                        <span className="text-xs text-gray-400 italic">{createdByInfo.role}</span>
+                                                        {task.created_at && (
+                                                            <>
+                                                                <span className="text-xs text-gray-400 italic">
+                                                                    {format(new Date(task.created_at), 'dd-MM-yyyy hh:mm a')}
+                                                                </span>
+                                                                <Badge variant="outline" className="bg-red-500/20 text-red-300 border-red-500/50 text-xs w-fit italic">
+                                                                    {formatTimeAgo(task.created_at)}
+                                                                </Badge>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </TableCell>
+                                                
+                                                {/* ASSIGNED TO */}
+                                                <TableCell>
+                                                    <div className="flex flex-col gap-1">
+                                                        <span className="text-sm text-white">{assignedToInfo.name}</span>
+                                                        <span className="text-xs text-gray-400 italic">{assignedToInfo.role}</span>
+                                                        {task.due_date && (
+                                                            <Badge variant="outline" className="bg-green-500/20 text-green-300 border-green-500/50 text-xs w-fit italic">
+                                                                {formatTimeUntil(task.due_date)}
+                                                            </Badge>
+                                                        )}
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })
                                 )}
                             </TableBody>
                         </Table>

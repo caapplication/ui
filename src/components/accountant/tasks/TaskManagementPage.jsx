@@ -10,6 +10,7 @@
     import { AnimatePresence, motion } from 'framer-motion';
     import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
     import { Button } from '@/components/ui/button';
+    import { useOrganisation } from '@/hooks/useOrganisation';
     import {
         Dialog,
         DialogContent,
@@ -21,6 +22,7 @@
         const { user } = useAuth();
         const { toast } = useToast();
         const navigate = useNavigate();
+        const { selectedOrg } = useOrganisation();
         const [view, setView] = useState('list'); // 'list', 'kanban', 'new', 'edit'
         const [viewMode, setViewMode] = useState('list'); // 'list' or 'kanban'
         const [tasks, setTasks] = useState([]);
@@ -264,6 +266,7 @@
                                 clients={clients}
                                 services={services}
                                 teamMembers={teamMembers}
+                                stages={stages}
                                 tags={tags}
                                 onAddNew={handleAddNew}
                                 onEditTask={handleEditTask}
@@ -341,6 +344,7 @@
                             tags={tags}
                             stages={stages}
                             task={editingTask}
+                            selectedOrg={selectedOrg}
                         />
                     </DialogContent>
                 </Dialog>
