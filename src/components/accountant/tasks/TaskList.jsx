@@ -164,13 +164,12 @@ import React, { useState, useMemo } from 'react';
                                     <TableHead>Priority</TableHead>
                                     <TableHead>Tag</TableHead>
                                     <TableHead>Status</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {filteredTasks.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={8} className="text-center py-8">
+                                        <TableCell colSpan={7} className="text-center py-8">
                                             <p className="text-gray-400">No tasks found. {tasks.length === 0 ? 'Create your first task to get started!' : 'Try adjusting your filters.'}</p>
                                         </TableCell>
                                     </TableRow>
@@ -195,31 +194,6 @@ import React, { useState, useMemo } from 'react';
                                             </TableCell>
                                             <TableCell>
                                                 <Badge variant={getStatusVariant(task.status)}>{task.status || 'Pending'}</Badge>
-                                            </TableCell>
-                                            <TableCell className="text-right" onClick={e => e.stopPropagation()}>
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" size="icon"><MoreVertical className="w-4 h-4" /></Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent>
-                                                        <DropdownMenuItem onClick={() => onEditTask && onEditTask(task)}><Edit className="w-4 h-4 mr-2" />Edit</DropdownMenuItem>
-                                                        <AlertDialog>
-                                                            <AlertDialogTrigger asChild>
-                                                                <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-red-500"><Trash2 className="w-4 h-4 mr-2" />Delete</DropdownMenuItem>
-                                                            </AlertDialogTrigger>
-                                                            <AlertDialogContent>
-                                                                <AlertDialogHeader>
-                                                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                                    <AlertDialogDescription>This will permanently delete the task.</AlertDialogDescription>
-                                                                </AlertDialogHeader>
-                                                                <AlertDialogFooter>
-                                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                                    <AlertDialogAction onClick={() => onDeleteTask && onDeleteTask(task.id)} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
-                                                                </AlertDialogFooter>
-                                                            </AlertDialogContent>
-                                                        </AlertDialog>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
                                             </TableCell>
                                         </TableRow>
                                     ))

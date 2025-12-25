@@ -63,6 +63,7 @@ const TaskKanbanView = ({
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [stageToDelete, setStageToDelete] = useState(null);
     const [movingTaskId, setMovingTaskId] = useState(null); // Track which task is being moved
+    const [localTasks, setLocalTasks] = useState(tasks || []); // Local copy of tasks for optimistic updates
 
     const fetchStages = useCallback(async () => {
         if (!user?.agency_id || !user?.access_token) return;
@@ -92,6 +93,13 @@ const TaskKanbanView = ({
             fetchStages();
         }
     }, [propStages, fetchStages]);
+
+    // Update local tasks when prop tasks change
+    useEffect(() => {
+        if (tasks && Array.isArray(tasks)) {
+            setLocalTasks(tasks);
+        }
+    }, [tasks]);
 
     const handleDragStart = (e, task) => {
         setIsDragging(true);
@@ -125,6 +133,20 @@ const TaskKanbanView = ({
         // Set loading state for this specific task
         setMovingTaskId(draggedTask.id);
         
+        // Optimistically update the task immediately in local state
+        setLocalTasks(prevTasks => {
+            return prevTasks.map(task => {
+                if (task.id === draggedTask.id) {
+                    return {
+                        ...task,
+                        stage_id: targetStageId,
+                        stage: stages.find(s => s.id === targetStageId) || task.stage
+                    };
+                }
+                return task;
+            });
+        });
+        
         try {
             const updatedTask = await updateTask(
                 draggedTask.id,
@@ -133,10 +155,23 @@ const TaskKanbanView = ({
                 user.access_token
             );
             
-            // Optimistically update the task in the local tasks array
-            // This prevents full page reload - just update the specific task
+            // Update local tasks with the response from server to ensure consistency
+            setLocalTasks(prevTasks => {
+                return prevTasks.map(task => {
+                    if (task.id === draggedTask.id) {
+                        return {
+                            ...task,
+                            ...updatedTask,
+                            stage_id: targetStageId,
+                            stage: stages.find(s => s.id === targetStageId) || task.stage
+                        };
+                    }
+                    return task;
+                });
+            });
+            
+            // Call refresh to sync with parent state (but UI already updated)
             if (onRefresh) {
-                // Call refresh but it should update tasks state, not reload everything
                 onRefresh();
             }
             
@@ -145,6 +180,20 @@ const TaskKanbanView = ({
                 description: 'Task has been moved to the new stage.',
             });
         } catch (error) {
+            // Revert optimistic update on error
+            setLocalTasks(prevTasks => {
+                return prevTasks.map(task => {
+                    if (task.id === draggedTask.id) {
+                        return {
+                            ...task,
+                            stage_id: draggedTask.stage_id,
+                            stage: draggedTask.stage
+                        };
+                    }
+                    return task;
+                });
+            });
+            
             toast({
                 title: 'Error moving task',
                 description: error.message,
@@ -233,11 +282,11 @@ const TaskKanbanView = ({
     };
 
     const getTasksForStage = (stageId) => {
-        if (!Array.isArray(tasks)) {
+        if (!Array.isArray(localTasks)) {
             return [];
         }
         
-        return tasks.filter(task => {
+        return localTasks.filter(task => {
             // Support both stage_id and status for backward compatibility
             const taskStageId = task.stage_id || task.stage?.id;
             

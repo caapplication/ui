@@ -13,6 +13,8 @@ import React, { useState, useEffect } from 'react';
     import { format } from 'date-fns';
     import { cn } from '@/lib/utils';
     import { Combobox } from '@/components/ui/combobox';
+    import { useAuth } from '@/hooks/useAuth';
+    import { listOrgUsers, listTeamMembers } from '@/lib/api';
     import {
       AlertDialog,
       AlertDialogAction,
@@ -25,8 +27,11 @@ import React, { useState, useEffect } from 'react';
       AlertDialogTrigger,
     } from "@/components/ui/alert-dialog";
     
-    const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, task, stages = [] }) => {
+    const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, task, stages = [], selectedOrg }) => {
       const { toast } = useToast();
+      const { user } = useAuth();
+      const [allUsers, setAllUsers] = useState([]);
+      const [loadingUsers, setLoadingUsers] = useState(false);
       const [formData, setFormData] = useState({
         title: '',
         client_id: '',
@@ -51,6 +56,91 @@ import React, { useState, useEffect } from 'react';
         recurrence_start_date: null
       });
       const [isSaving, setIsSaving] = useState(false);
+    
+      // Fetch all users (org users, team members, CA users) for assignment
+      useEffect(() => {
+        const fetchAllUsers = async () => {
+          if (!user?.access_token) return;
+          
+          setLoadingUsers(true);
+          try {
+            const usersList = [];
+            
+            // Fetch team members
+            try {
+              const teamMembersData = await listTeamMembers(user.access_token);
+              const normalizedTeamMembers = Array.isArray(teamMembersData) 
+                ? teamMembersData 
+                : (teamMembersData?.members || teamMembersData?.data || []);
+              
+              normalizedTeamMembers.forEach(member => {
+                const memberId = member.user_id || member.id;
+                if (memberId && !usersList.find(u => (u.user_id || u.id) === memberId)) {
+                  usersList.push({
+                    id: memberId,
+                    user_id: memberId,
+                    name: member.name || member.full_name || `${member.first_name || ''} ${member.last_name || ''}`.trim() || member.email,
+                    email: member.email || member.user_email,
+                    type: 'team_member'
+                  });
+                }
+              });
+            } catch (error) {
+              console.warn('Failed to fetch team members:', error);
+            }
+            
+            // Fetch organization users if org is selected
+            if (selectedOrg && user.role === 'CA_ACCOUNTANT') {
+              try {
+                const orgUsersData = await listOrgUsers(selectedOrg, user.access_token);
+                const normalizedOrgUsers = Array.isArray(orgUsersData?.invited_users) 
+                  ? orgUsersData.invited_users 
+                  : (Array.isArray(orgUsersData?.joined_users) ? orgUsersData.joined_users : []);
+                
+                normalizedOrgUsers.forEach(orgUser => {
+                  const userId = orgUser.id || orgUser.user_id;
+                  if (userId && !usersList.find(u => (u.user_id || u.id) === userId)) {
+                    usersList.push({
+                      id: userId,
+                      user_id: userId,
+                      name: orgUser.name || orgUser.full_name || `${orgUser.first_name || ''} ${orgUser.last_name || ''}`.trim() || orgUser.email,
+                      email: orgUser.email || orgUser.user_email,
+                      type: 'org_user'
+                    });
+                  }
+                });
+              } catch (error) {
+                console.warn('Failed to fetch org users:', error);
+              }
+            }
+            
+            // Add CA users (from teamMembers prop if available)
+            if (teamMembers && Array.isArray(teamMembers)) {
+              teamMembers.forEach(member => {
+                const memberId = member.user_id || member.id;
+                if (memberId && !usersList.find(u => (u.user_id || u.id) === memberId)) {
+                  usersList.push({
+                    id: memberId,
+                    user_id: memberId,
+                    name: member.name || member.email,
+                    email: member.email,
+                    type: 'ca_user'
+                  });
+                }
+              });
+            }
+            
+            setAllUsers(usersList);
+          } catch (error) {
+            console.error('Error fetching users:', error);
+            setAllUsers([]);
+          } finally {
+            setLoadingUsers(false);
+          }
+        };
+        
+        fetchAllUsers();
+      }, [user?.access_token, selectedOrg, teamMembers]);
     
       useEffect(() => {
         if (task) {
@@ -143,13 +233,32 @@ import React, { useState, useEffect } from 'react';
     
       const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!formData.title || !formData.client_id || !formData.service_id) {
+        const isCAUser = user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM';
+        const requiredFields = ['title'];
+        if (isCAUser) {
+          requiredFields.push('client_id');
+        }
+        
+        const missingFields = requiredFields.filter(field => !formData[field]);
+        if (missingFields.length > 0) {
             toast({
                 title: "Validation Error",
-                description: "Please fill in all required fields: Task Title, Client, and Service.",
+                description: `Please fill in all required fields: ${missingFields.map(f => f === 'client_id' ? 'Client' : 'Task Title').join(', ')}.`,
                 variant: "destructive"
             });
             return;
+        }
+        
+        // Set default "To Do" stage if creating new task and no stage is set
+        let stageId = formData.stage_id;
+        if (!task && !stageId && stages.length > 0) {
+          const toDoStage = stages.find(s => s.name?.toLowerCase() === 'to do' || s.name?.toLowerCase() === 'todo');
+          if (toDoStage) {
+            stageId = toDoStage.id;
+          } else if (stages.length > 0) {
+            // Fallback to first stage if "To Do" not found
+            stageId = stages[0].id;
+          }
         }
         
         if (formData.is_recurring) {
@@ -199,9 +308,9 @@ import React, { useState, useEffect } from 'react';
         
         const taskData = {
           title: formData.title,
-          client_id: formData.client_id,
-          service_id: formData.service_id,
-          stage_id: formData.stage_id || null,
+          client_id: isCAUser ? formData.client_id : null,
+          service_id: null, // Service field removed
+          stage_id: stageId || null,
           due_date: formData.due_date ? format(formData.due_date, 'yyyy-MM-dd') : null,
           target_date: formData.target_date ? format(formData.target_date, 'yyyy-MM-dd') : null,
           description: formData.description,
@@ -253,56 +362,6 @@ import React, { useState, useEffect } from 'react';
                 <div>
                   <Label htmlFor="title">Task Title*</Label>
 <Input id="title" name="title" placeholder="e.g., File annual tax returns" value={formData.title} onChange={handleChange} required disabled={isSaving} />
-                </div>
-                <div>
-                  <Label htmlFor="client_id">Client*</Label>
-                  <Combobox
-                    options={(clients || []).map(client => ({
-                      value: String(client.id),
-                      label: client.name || 'Unnamed Client'
-                    }))}
-                    value={formData.client_id ? String(formData.client_id) : ''}
-                    onValueChange={(value) => handleSelectChange('client_id', value)}
-                    placeholder="Select a client"
-                    searchPlaceholder="Search clients..."
-                    emptyText="No clients found."
-                    disabled={isSaving}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="service_id">Service*</Label>
-<Select name="service_id" onValueChange={(v) => handleSelectChange('service_id', v)} value={formData.service_id} required disabled={isSaving}>
-                    <SelectTrigger><SelectValue placeholder="Select a service" /></SelectTrigger>
-                    <SelectContent>
-                      {services && services.length > 0 ? (
-                        services.map(service => (
-                          <SelectItem key={service.id} value={service.id}>{service.name}</SelectItem>
-                        ))
-                      ) : (
-                        <SelectItem value="no-services" disabled>No services found</SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="stage_id">Stage</Label>
-<Select name="stage_id" onValueChange={(v) => handleSelectChange('stage_id', v)} value={formData.stage_id} disabled={isSaving}>
-                    <SelectTrigger><SelectValue placeholder="Select a stage" /></SelectTrigger>
-                    <SelectContent>
-                      {stages && stages.length > 0 ? (
-                        stages.map(stage => (
-                          <SelectItem key={stage.id} value={stage.id}>
-                            <div className="flex items-center gap-2">
-                              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: stage.color || '#3b82f6' }} />
-                              {stage.name}
-                            </div>
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <SelectItem value="no-stages" disabled>No stages found</SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
                 </div>
                 <div>
                   <Label htmlFor="due_date">Due Date</Label>
@@ -488,23 +547,46 @@ import React, { useState, useEffect } from 'react';
             <div className="glass-pane p-6 rounded-lg">
               <h2 className="text-xl font-semibold mb-4 border-b border-white/10 pb-2">Assignment & Status</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
+                  <div>
+                    <Label htmlFor="client_id">Client*</Label>
+                    <Combobox
+                      options={(clients || []).map(client => ({
+                        value: String(client.id),
+                        label: client.name || 'Unnamed Client'
+                      }))}
+                      value={formData.client_id ? String(formData.client_id) : ''}
+                      onValueChange={(value) => handleSelectChange('client_id', value)}
+                      placeholder="Select a client"
+                      searchPlaceholder="Search clients..."
+                      emptyText="No clients found."
+                      disabled={isSaving}
+                    />
+                  </div>
+                )}
                 <div>
                   <Label htmlFor="assigned_user_id">Assign To</Label>
-                  <Combobox
-                    options={(teamMembers || []).map(member => {
-                      const memberId = member.user_id || member.id;
-                      return {
-                        value: String(memberId),
-                        label: member.name || member.email || 'Unnamed Member'
-                      };
-                    })}
-                    value={formData.assigned_user_id ? String(formData.assigned_user_id) : ''}
-                    onValueChange={(value) => handleSelectChange('assigned_user_id', value)}
-                    placeholder="Select a team member"
-                    searchPlaceholder="Search team members..."
-                    emptyText="No team members found."
-                    disabled={isSaving}
-                  />
+                  {loadingUsers ? (
+                    <div className="flex items-center justify-center p-2 border border-white/20 bg-white/10 rounded-lg h-11">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    </div>
+                  ) : (
+                    <Combobox
+                      options={allUsers.map(user => {
+                        const userId = user.user_id || user.id;
+                        return {
+                          value: String(userId),
+                          label: user.name || user.email || 'Unnamed User'
+                        };
+                      })}
+                      value={formData.assigned_user_id ? String(formData.assigned_user_id) : ''}
+                      onValueChange={(value) => handleSelectChange('assigned_user_id', value)}
+                      placeholder="Select a user"
+                      searchPlaceholder="Search users..."
+                      emptyText="No users found."
+                      disabled={isSaving}
+                    />
+                  )}
                 </div>
                 <div>
                   <Label htmlFor="priority">Priority</Label>
