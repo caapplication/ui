@@ -12,6 +12,7 @@ import React, { useState, useEffect } from 'react';
     import { useToast } from '@/components/ui/use-toast';
     import { format } from 'date-fns';
     import { cn } from '@/lib/utils';
+    import { Combobox } from '@/components/ui/combobox';
     import {
       AlertDialog,
       AlertDialogAction,
@@ -42,9 +43,11 @@ import React, { useState, useEffect } from 'react';
         priority: '',
         tag_id: '',
         is_recurring: false,
-        recurrence_frequency: 'weekly', // 'weekly' or 'monthly'
-        recurrence_day_of_week: null, // 0-6 (Monday-Sunday)
-        recurrence_day_of_month: null, // 1-31
+        recurrence_frequency: 'weekly', // 'daily', 'weekly', 'monthly', 'quarterly', 'half_yearly', 'yearly'
+        recurrence_time: '09:00', // Time for daily recurrence (HH:mm format)
+        recurrence_day_of_week: null, // 0-6 (Monday-Sunday) for weekly
+        recurrence_date: null, // Full date for monthly and yearly
+        recurrence_day_of_month: null, // 1-31 for quarterly and half_yearly
         recurrence_start_date: null
       });
       const [isSaving, setIsSaving] = useState(false);
@@ -65,7 +68,14 @@ import React, { useState, useEffect } from 'react';
             checklist_items: task.checklist?.items || [],
             assigned_user_id: task.assigned_to || task.assigned_user_id || '',
             priority: task.priority || '',
-            tag_id: task.tag_id || ''
+            tag_id: task.tag_id || '',
+            is_recurring: task.is_recurring || false,
+            recurrence_frequency: task.recurrence_frequency || 'weekly',
+            recurrence_time: task.recurrence_time || '09:00',
+            recurrence_day_of_week: task.recurrence_day_of_week || null,
+            recurrence_date: task.recurrence_date ? new Date(task.recurrence_date) : null,
+            recurrence_day_of_month: task.recurrence_day_of_month || null,
+            recurrence_start_date: task.recurrence_start_date ? new Date(task.recurrence_start_date) : null
           });
         }
       }, [task]);
@@ -151,6 +161,14 @@ import React, { useState, useEffect } from 'react';
             });
             return;
           }
+          if (formData.recurrence_frequency === 'daily' && !formData.recurrence_time) {
+            toast({
+                title: "Validation Error",
+                description: "Please select a time for daily recurrence.",
+                variant: "destructive"
+            });
+            return;
+          }
           if (formData.recurrence_frequency === 'weekly' && formData.recurrence_day_of_week === null) {
             toast({
                 title: "Validation Error",
@@ -159,10 +177,18 @@ import React, { useState, useEffect } from 'react';
             });
             return;
           }
-          if (formData.recurrence_frequency === 'monthly' && formData.recurrence_day_of_month === null) {
+          if (['monthly', 'yearly'].includes(formData.recurrence_frequency) && !formData.recurrence_date) {
             toast({
                 title: "Validation Error",
-                description: "Please select a day of the month for monthly recurrence.",
+                description: "Please select a date for this recurrence frequency.",
+                variant: "destructive"
+            });
+            return;
+          }
+          if (['quarterly', 'half_yearly'].includes(formData.recurrence_frequency) && formData.recurrence_day_of_month === null) {
+            toast({
+                title: "Validation Error",
+                description: "Please select a day of the month for this recurrence frequency.",
                 variant: "destructive"
             });
             return;
@@ -193,8 +219,10 @@ import React, { useState, useEffect } from 'react';
           // Recurring task data
           is_recurring: formData.is_recurring || false,
           recurrence_frequency: formData.is_recurring ? formData.recurrence_frequency : null,
+          recurrence_time: formData.is_recurring && formData.recurrence_frequency === 'daily' ? formData.recurrence_time : null,
           recurrence_day_of_week: formData.is_recurring && formData.recurrence_frequency === 'weekly' ? formData.recurrence_day_of_week : null,
-          recurrence_day_of_month: formData.is_recurring && formData.recurrence_frequency === 'monthly' ? formData.recurrence_day_of_month : null,
+          recurrence_date: formData.is_recurring && ['monthly', 'yearly'].includes(formData.recurrence_frequency) && formData.recurrence_date ? format(formData.recurrence_date, 'yyyy-MM-dd') : null,
+          recurrence_day_of_month: formData.is_recurring && ['quarterly', 'half_yearly'].includes(formData.recurrence_frequency) ? formData.recurrence_day_of_month : null,
           recurrence_start_date: formData.is_recurring && formData.recurrence_start_date ? format(formData.recurrence_start_date, 'yyyy-MM-dd') : null
         };
     
@@ -228,18 +256,18 @@ import React, { useState, useEffect } from 'react';
                 </div>
                 <div>
                   <Label htmlFor="client_id">Client*</Label>
-<Select name="client_id" onValueChange={(v) => handleSelectChange('client_id', v)} value={formData.client_id} required disabled={isSaving}>
-                    <SelectTrigger><SelectValue placeholder="Select a client" /></SelectTrigger>
-                    <SelectContent>
-                      {clients && clients.length > 0 ? (
-                        clients.map(client => (
-                          <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>
-                        ))
-                      ) : (
-                        <SelectItem value="no-clients" disabled>No clients found</SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
+                  <Combobox
+                    options={(clients || []).map(client => ({
+                      value: String(client.id),
+                      label: client.name || 'Unnamed Client'
+                    }))}
+                    value={formData.client_id ? String(formData.client_id) : ''}
+                    onValueChange={(value) => handleSelectChange('client_id', value)}
+                    placeholder="Select a client"
+                    searchPlaceholder="Search clients..."
+                    emptyText="No clients found."
+                    disabled={isSaving}
+                  />
                 </div>
                 <div>
                   <Label htmlFor="service_id">Service*</Label>
@@ -462,21 +490,21 @@ import React, { useState, useEffect } from 'react';
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div>
                   <Label htmlFor="assigned_user_id">Assign To</Label>
-<Select name="assigned_user_id" onValueChange={(v) => handleSelectChange('assigned_user_id', v)} value={formData.assigned_user_id} disabled={isSaving}>
-                    <SelectTrigger><SelectValue placeholder="Select a team member" /></SelectTrigger>
-                    <SelectContent>
-                       {teamMembers && teamMembers.length > 0 ? (
-                          teamMembers.map(member => {
-                              const memberId = member.user_id || member.id;
-                              return (
-                                  <SelectItem key={memberId} value={memberId}>{member.name || member.email}</SelectItem>
-                              );
-                          })
-                      ) : (
-                          <SelectItem value="no-members" disabled>No team members found</SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
+                  <Combobox
+                    options={(teamMembers || []).map(member => {
+                      const memberId = member.user_id || member.id;
+                      return {
+                        value: String(memberId),
+                        label: member.name || member.email || 'Unnamed Member'
+                      };
+                    })}
+                    value={formData.assigned_user_id ? String(formData.assigned_user_id) : ''}
+                    onValueChange={(value) => handleSelectChange('assigned_user_id', value)}
+                    placeholder="Select a team member"
+                    searchPlaceholder="Search team members..."
+                    emptyText="No team members found."
+                    disabled={isSaving}
+                  />
                 </div>
                 <div>
                   <Label htmlFor="priority">Priority</Label>
@@ -531,14 +559,33 @@ import React, { useState, useEffect } from 'react';
                       <Label htmlFor="recurrence_frequency">Frequency</Label>
                       <Select 
                         name="recurrence_frequency" 
-                        onValueChange={(v) => handleSelectChange('recurrence_frequency', v)} 
+                        onValueChange={(v) => {
+                          handleSelectChange('recurrence_frequency', v);
+                          // Reset selections when frequency changes
+                          if (v !== 'daily') {
+                            handleSelectChange('recurrence_time', '09:00');
+                          }
+                          if (v !== 'weekly') {
+                            handleSelectChange('recurrence_day_of_week', null);
+                          }
+                          if (!['monthly', 'yearly'].includes(v)) {
+                            handleDateChange('recurrence_date', null);
+                          }
+                          if (!['quarterly', 'half_yearly'].includes(v)) {
+                            handleSelectChange('recurrence_day_of_month', null);
+                          }
+                        }} 
                         value={formData.recurrence_frequency} 
                         disabled={isSaving}
                       >
                         <SelectTrigger><SelectValue placeholder="Select frequency" /></SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="daily">Daily</SelectItem>
                           <SelectItem value="weekly">Weekly</SelectItem>
                           <SelectItem value="monthly">Monthly</SelectItem>
+                          <SelectItem value="quarterly">Quarterly</SelectItem>
+                          <SelectItem value="half_yearly">Half Yearly</SelectItem>
+                          <SelectItem value="yearly">Yearly</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -563,6 +610,21 @@ import React, { useState, useEffect } from 'react';
                     </div>
                   </div>
                   
+                  {formData.recurrence_frequency === 'daily' && (
+                    <div>
+                      <Label htmlFor="recurrence_time">Time</Label>
+                      <Input
+                        id="recurrence_time"
+                        name="recurrence_time"
+                        type="time"
+                        value={formData.recurrence_time || '09:00'}
+                        onChange={(e) => handleSelectChange('recurrence_time', e.target.value)}
+                        disabled={isSaving}
+                        className="w-full"
+                      />
+                    </div>
+                  )}
+                  
                   {formData.recurrence_frequency === 'weekly' && (
                     <div>
                       <Label htmlFor="recurrence_day_of_week">Day of Week</Label>
@@ -586,9 +648,35 @@ import React, { useState, useEffect } from 'react';
                     </div>
                   )}
                   
-                  {formData.recurrence_frequency === 'monthly' && (
+                  {['monthly', 'yearly'].includes(formData.recurrence_frequency) && (
                     <div>
-                      <Label htmlFor="recurrence_day_of_month">Day of Month</Label>
+                      <Label htmlFor="recurrence_date">
+                        {formData.recurrence_frequency === 'monthly' ? 'Date (Day of Month)' : 'Date'}
+                      </Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formData.recurrence_date && "text-muted-foreground")}>
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {formData.recurrence_date ? format(formData.recurrence_date, "PPP") : <span>Pick a date</span>}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                          <Calendar 
+                            mode="single" 
+                            selected={formData.recurrence_date} 
+                            onSelect={(d) => handleDateChange('recurrence_date', d)} 
+                            initialFocus 
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  )}
+                  
+                  {['quarterly', 'half_yearly'].includes(formData.recurrence_frequency) && (
+                    <div>
+                      <Label htmlFor="recurrence_day_of_month">
+                        Day of Month (repeats every {formData.recurrence_frequency === 'quarterly' ? '3 months' : '6 months'})
+                      </Label>
                       <Select 
                         name="recurrence_day_of_month" 
                         onValueChange={(v) => handleSelectChange('recurrence_day_of_month', parseInt(v))} 
