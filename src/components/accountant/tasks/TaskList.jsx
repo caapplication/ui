@@ -270,7 +270,9 @@ import React, { useState, useMemo } from 'react';
                                                 <TableCell>
                                                     <div className="flex items-center gap-2">
                                                         <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-pink-100 dark:bg-pink-900/30">
-                                                            <Bell className="w-3 h-3 text-red-500" />
+                                                            {task.has_unread_messages && (
+                                                                <Bell className="w-3 h-3 text-red-500" />
+                                                            )}
                                                             <span className="text-purple-600 dark:text-purple-400 font-medium text-sm">{taskId}</span>
                                                         </div>
                                                     </div>

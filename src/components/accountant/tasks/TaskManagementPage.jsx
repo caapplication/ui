@@ -1,6 +1,7 @@
     import React, { useState, useEffect, useCallback } from 'react';
     import { useNavigate, Link } from 'react-router-dom';
     import { useAuth } from '@/hooks/useAuth.jsx';
+    import { useSocket } from '@/contexts/SocketContext.jsx';
     import { useToast } from '@/components/ui/use-toast';
     import { Loader2, Repeat, LayoutGrid, List } from 'lucide-react';
     import TaskList from '@/components/accountant/tasks/TaskList.jsx';
