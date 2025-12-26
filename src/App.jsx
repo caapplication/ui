@@ -4,6 +4,7 @@ import { Routes, Route, Navigate, useSearchParams, BrowserRouter, useNavigate } 
 import { AuthProvider, useAuth } from '@/hooks/useAuth.jsx';
 import { Toaster } from '@/components/ui/toaster';
 import { ApiCacheProvider } from '@/contexts/ApiCacheContext.jsx';
+import { SocketProvider } from '@/contexts/SocketContext.jsx';
 import LoginForm from '@/components/auth/LoginForm';
 import ForgotPassword from '@/components/auth/ForgotPassword';
 import ResetPassword from '@/components/auth/ResetPassword';
@@ -233,22 +234,24 @@ function App() {
   return (
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <AuthProvider>
-        <ApiCacheProvider>
-          <HelmetProvider>
-            <Helmet>
-              <title>Fynivo: Simplify Your Finances</title>
-              <meta name="description" content="Comprehensive financial management platform for documents, beneficiaries, transactions, and invoice management." />
-              <meta property="og:title" content="Fynivo: Simplify Your Finances" />
-              <meta property="og:description" content="Comprehensive financial management platform for documents, beneficiaries, transactions, and invoice management." />
-              <link rel="icon" type="image/png" href="/logo.png" />
-            </Helmet>
-            <div className="animated-bg"></div>
-            <AppContent />
-            <Toaster />
-          </HelmetProvider>
-        </ApiCacheProvider>
-      </AuthProvider>
-    </BrowserRouter>
+        <SocketProvider>
+          <ApiCacheProvider>
+            <HelmetProvider>
+          <Helmet>
+            <title>Fynivo: Simplify Your Finances</title>
+            <meta name="description" content="Comprehensive financial management platform for documents, beneficiaries, transactions, and invoice management." />
+            <meta property="og:title" content="Fynivo: Simplify Your Finances" />
+            <meta property="og:description" content="Comprehensive financial management platform for documents, beneficiaries, transactions, and invoice management." />
+            <link rel="icon" type="image/png" href="/logo.png" />
+          </Helmet>
+          <div className="animated-bg"></div>
+          <AppContent />
+          <Toaster />
+        </HelmetProvider>
+            </ApiCacheProvider>
+          </SocketProvider>
+        </AuthProvider>
+      </BrowserRouter>
   );
 }
 

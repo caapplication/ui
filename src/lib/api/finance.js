@@ -309,6 +309,32 @@ export const deleteVoucher = async (entityId, voucherId, token) => {
     return handleResponse(response);
 };
 
+// CA-specific voucher endpoints (no entity_id required)
+export const getCAVoucher = async (voucherId, token) => {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/ca_team/vouchers/${voucherId}`, {
+        headers: getAuthHeaders(token),
+    });
+    return handleResponse(response);
+};
+
+export const updateCAVoucher = async (voucherId, voucherData, token) => {
+    const isFormData = voucherData instanceof FormData;
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/ca_team/vouchers/${voucherId}`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(token, isFormData ? null : 'application/json'),
+        body: isFormData ? voucherData : JSON.stringify(voucherData),
+    });
+    return handleResponse(response);
+};
+
+export const deleteCAVoucher = async (voucherId, token) => {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/ca_team/vouchers/${voucherId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(token),
+    });
+    return handleResponse(response);
+};
+
 export const getVoucherQuick = async (entityId, voucherId, token) => {
     const userRole = JSON.parse(atob(token.split('.')[1])).role;
     let url = `${FINANCE_API_BASE_URL}/api/vouchers/${voucherId}/quick`;
@@ -335,15 +361,24 @@ export const getVoucher = async (entityId, voucherId, token) => {
     return handleResponse(response);
 };
 
-export const getVoucherAttachment = async (attachmentId, token) => {
+export const getVoucherAttachment = async (attachmentId, token, entityId = null) => {
     try {
-        const response = await fetch(`${FINANCE_API_BASE_URL}/api/attachments/${attachmentId}`, {
+        // Use the regular attachment endpoint for all users (CA and non-CA)
+        // The backend handles authorization based on the token
+        let url = `${FINANCE_API_BASE_URL}/api/attachments/${attachmentId}`;
+        
+        // Add entity_id as query param if provided (for filtering/authorization)
+        if (entityId) {
+            url += `?entity_id=${entityId}`;
+        }
+        
+        const response = await fetch(url, {
             headers: getAuthHeaders(token),
         });
         
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('Attachment fetch failed:', response.status, errorText);
+            console.error('Attachment fetch failed:', response.status, errorText, 'URL:', url);
             throw new Error(`Failed to fetch attachment: ${response.status} ${errorText}`);
         }
         

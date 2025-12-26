@@ -61,6 +61,9 @@ export const {
     updateVoucher,
     deleteVoucher,
     getVoucherAttachment,
+    getCAVoucher,
+    updateCAVoucher,
+    deleteCAVoucher,
     getCATeamVouchers,
     getCATeamVouchersBulk,
     getCATeamInvoices,
@@ -188,7 +191,10 @@ export const {
     listTaskComments,
     createTaskComment,
     updateTaskComment,
-    deleteTaskComment
+    deleteTaskComment,
+    addTaskCollaborator,
+    removeTaskCollaborator,
+    getTaskCollaborators
 } = tasks;
 
 export const {
