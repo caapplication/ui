@@ -18,6 +18,7 @@ import {
     Layers,
     Lock,
 } from "lucide-react";
+import { FaArrowUp, FaSlack } from "react-icons/fa";
 import { Button } from "@/components/ui/button";
 import dashboardImage from "../../public/dashboard.jpg";
 
@@ -54,12 +55,7 @@ const LandingPage = () => {
 
                 <div className="relative z-10 flex items-center justify-between w-full mx-4">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-500/80 to-cyan-600/80 backdrop-blur-md flex items-center justify-center shadow-lg shadow-blue-500/20 border border-white/10">
-                            <span className="font-bold text-lg text-white">F</span>
-                        </div>
-                        <span className="text-xl font-medium tracking-tight bg-clip-text text-transparent bg-gradient-to-br from-white to-white/70">
-                            Fynivo
-                        </span>
+                        <img src="/logo.png" alt="logo" className="w-11 h-11" />
                     </div>
 
                     {/* Desktop Menu */}
@@ -72,17 +68,10 @@ const LandingPage = () => {
 
                     <div className="hidden md:flex items-center gap-4">
                         <Button
-                            variant="ghost"
-                            className="text-white/70 hover:text-white hover:bg-white/5 rounded-full px-6"
-                            onClick={() => navigate("/login")}
-                        >
-                            Log in
-                        </Button>
-                        <Button
                             className="bg-white text-blue-950 hover:bg-blue-50 rounded-full px-8 shadow-lg shadow-blue-500/20 transition-all hover:scale-105"
                             onClick={() => navigate("/login")}
                         >
-                            Get Started
+                            Log in
                         </Button>
                     </div>
 
@@ -141,7 +130,7 @@ const LandingPage = () => {
                                 className="w-full bg-white text-blue-950 rounded-full h-12"
                                 onClick={() => navigate("/login")}
                             >
-                                Get Started
+                                Log In
                             </Button>
                         </div>
                     </motion.div>
@@ -174,35 +163,34 @@ const LandingPage = () => {
                         variants={itemVariants}
                         className="text-4xl md:text-6xl lg:text-7xl font-semibold tracking-tight leading-[1.1] mb-8"
                     >
+                        {" "}
                         <span className="inline-block bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-blue-200/40">
-                            Simplify Your Accounts.
-                        </span>
-                        <br />
+                            {" "}
+                            Simplify Your Accounts.{" "}
+                        </span>{" "}
+                        <br />{" "}
                         <span className="inline-block bg-clip-text text-transparent bg-gradient-to-r from-blue-300 via-cyan-300 to-sky-300">
-                            Connect Your Business
-                        </span>
-                        <br />
+                            {" "}
+                            Connect Your Business{" "}
+                        </span>{" "}
+                        <br />{" "}
                         <span className="inline-block bg-clip-text text-transparent bg-gradient-to-r from-blue-300 via-cyan-300 to-sky-300">
-                            with Chartered Accountants.
-                        </span>
+                            {" "}
+                            with Chartered Accountants.{" "}
+                        </span>{" "}
                     </motion.h1>
 
                     <motion.p
                         variants={itemVariants}
-                        className="text-md md:text-xl text-blue-200/50 max-w-3xl mx-auto mb-6 font-normal leading-relaxed"
+                        className="text-sm md:text-lg text-blue-200/50 max-w-3xl mx-auto mb-6 font-normal italic text-center  leading-relaxed"
                     >
                         Fynivo is a cloud-based accounting and compliance collaboration
                         platform built to simplify day-to-day accounting operations for
                         businesses while enabling seamless remote working with Chartered
-                        Accountants and accounting firms.
-                    </motion.p>
-                    <motion.p
-                        variants={itemVariants}
-                        className="text-md md:text-xl text-blue-200/50 max-w-3xl mx-auto mb-10 font-normal leading-relaxed"
-                    >
-                        It bridges the long-standing gap between business owners and
-                        accounting professionals by replacing fragmented tools, high capital
-                        costs, and manual coordination with one unified, intelligent system.
+                        Accountants and accounting firms. It bridges the long-standing gap
+                        between business owners and accounting professionals by replacing
+                        fragmented tools, high capital costs, and manual coordination with
+                        one unified, intelligent system.
                     </motion.p>
 
                     <motion.div
@@ -214,15 +202,15 @@ const LandingPage = () => {
                             className="w-full sm:w-auto text-lg h-14 px-8 rounded-full bg-white text-blue-950 hover:bg-blue-50 shadow-[0_0_40px_-10px_rgba(255,255,255,0.3)] transition-all hover:scale-105"
                             onClick={() => navigate("/login")}
                         >
-                            Start Free Trial
+                            Request Demo
                         </Button>
-                        <Button
+                        {/* <Button
                             size="md"
                             variant="ghost"
                             className="w-full sm:w-auto text-lg h-14 px-8 rounded-full border border-blue-200/10 bg-blue-500/5 hover:bg-blue-500/10 text-white backdrop-blur-sm transition-all"
                         >
                             Watch Demo <ArrowRight className="ml-2 h-4 w-4 opacity-70" />
-                        </Button>
+                        </Button> */}
                     </motion.div>
 
                     {/* Glass Bento Card for Preview - Static no scroll animation */}
@@ -231,7 +219,7 @@ const LandingPage = () => {
                         className="mt-20 mx-auto max-w-6xl lg:px-4"
                     >
                         <div className="relative border border-white/10 p-1 lg:p-2 rounded-3xl bg-blue-400/10">
-                            <div className="relative rounded-[22px] bg-[#0B1026]/40 backdrop-blur-xl border border-white/10 overflow-hidden shadow-2xl">
+                            <div className="relative rounded-[15px] bg-[#0B1026]/40 backdrop-blur-xl border border-white/10 overflow-hidden shadow-2xl">
                                 <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-400/20 to-transparent" />
                                 <img
                                     src={dashboardImage}
@@ -258,7 +246,7 @@ const LandingPage = () => {
                                 <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
                                 The Reality Businesses Face Today
                             </div>
-                            <h2 className="text-3xl md:text-5xl font-semibold mb-6 leading-tight">
+                            <h2 className="text-3xl md:text-5xl font-semibold mb-6 !leading-[1.3] bg-clip-text text-transparent bg-gradient-to-r from-blue-300 via-cyan-300 to-sky-300">
                                 Running a finance department is{" "}
                                 <span className="text-white/40">
                                     no longer just about bookkeeping.
@@ -302,7 +290,8 @@ const LandingPage = () => {
                             {/* <div className="absolute inset-0 bg-gradient-to-tr from-red-500/20 to-orange-500/20 rounded-[40px] blur-[100px] -z-10" /> */}
                             <div className="p-6 lg:p-10 rounded-[40px] border border-white/10 bg-[#0B1026]/60 backdrop-blur-xl relative overflow-hidden group">
                                 <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
-                                    <Layers className="w-48 h-48" />
+                                    {/* <Layers className="w-48 h-48" /> */}
+                                    <FaSlack className="w-48 h-48" />
                                 </div>
                                 <h3 className="text-3xl font-semibold mb-6">
                                     The Fynivo Vision
@@ -316,9 +305,16 @@ const LandingPage = () => {
                                     , powered by remote Chartered Accountants, all working inside
                                     one secure digital ecosystem.
                                 </p>
-                                <Button className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 h-12 text-sm lg:text-lg">
-                                    Switch to the Future
+                                <Button asChild className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 h-12 text-sm lg:text-lg">
+                                    <a
+                                        href="https://wa.me/918300803603?text=Hi"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                    >
+                                        Switch to the Future
+                                    </a>
                                 </Button>
+
                             </div>
                         </div>
                     </div>
@@ -335,7 +331,7 @@ const LandingPage = () => {
                         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-sm text-blue-300 mb-6 font-medium">
                             Core Capabilities
                         </div>
-                        <h2 className="text-3xl md:text-5xl font-semibold mb-6">
+                        <h2 className="text-3xl md:text-5xl font-semibold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-blue-300 via-cyan-300 to-sky-300">
                             How Fynivo Works
                         </h2>
                         <p className="text-white/50 text-base lg:text-xl font-light">
@@ -388,10 +384,10 @@ const LandingPage = () => {
                 <div className="absolute top-0 right-[-10%] w-[50%] h-[50%] bg-blue-600/10 rounded-full blur-[120px] pointer-events-none" />
                 <div className="container mx-auto px-4">
                     <div className="mb-16 text-center">
-                        <h2 className="text-3xl md:text-5xl font-semibold mb-6">
+                        <h2 className="text-3xl md:text-5xl font-semibold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-blue-300 via-cyan-300 to-sky-300">
                             Who is Fynivo For?
                         </h2>
-                        <p className="text-white/50 text-base max-w-2xl mx-auto">
+                        <p className="text-white/50 text-base lg:text-xl font-light">
                             Tailored solutions for every stakeholder in the ecosystem.
                         </p>
                     </div>
@@ -434,7 +430,7 @@ const LandingPage = () => {
                     <div className="bg-gradient-to-r from-blue-900/40 to-indigo-900/40 border border-white/10 rounded-[3rem] py-10 px-6 md:p-20 text-center relative overflow-hidden">
                         {/* <div className="absolute top-0 left-0 w-full h-full bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20" /> */}
 
-                        <h2 className="text-3xl md:text-5xl font-bold mb-12 relative z-10">
+                        <h2 className="text-3xl md:text-5xl !leading-[1.3] font-bold mb-12 relative z-10 bg-clip-text text-transparent bg-gradient-to-r from-blue-300 via-cyan-300 to-sky-300">
                             Why Businesses Are Switching
                         </h2>
 
@@ -496,73 +492,89 @@ const LandingPage = () => {
                             “This is not another accounting tool. This is a new way to run
                             finance.”
                         </blockquote>
-                        <p className="text-blue-300 font-semibold tracking-wide uppercase text-sm">
+                        {/* <p className="text-blue-300 font-semibold tracking-wide uppercase text-sm">
                             Fynivo Definition
-                        </p>
+                        </p> */}
                     </div>
                 </div>
             </section>
 
             {/* CTA Section */}
-            <section className="py-16 lg:py-32 relative overflow-hidden">
+            <section className="py-16  relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-900/10 to-transparent pointer-events-none" />
                 <div className="container mx-auto px-4 text-center relative z-10">
                     <h2 className="text-3xl md:text-5xl font-semibold tracking-tight mb-8">
                         Your Finance Department.
                         <br />
-                        <span className="text-white/50">
+                        <span className="inline-block bg-clip-text text-transparent bg-gradient-to-r from-blue-300 via-cyan-300 to-sky-300">
                             Simplified. Centralized. Cloud-Powered.
                         </span>
                     </h2>
                     <p className="text-md md:text-xl text-white/50 mb-12 max-w-2xl mx-auto">
                         Simplify your accounts. Let Fynivo handle the complexity.
                     </p>
-                    <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                        <Button
-                            size="md"
-                            className="w-full sm:w-auto text-lg h-14 px-8 rounded-full bg-white text-blue-950 hover:bg-blue-50 shadow-[0_0_10px_-10px_rgba(255,255,255,0.3)] transition-all hover:scale-105"
-                            onClick={() => navigate("/login")}
+                    <div className="flex items-center justify-center">
+                        <a
+                            href="#overview"
+                            className="
+      inline-flex items-center justify-center
+      h-14 w-14 rounded-full
+      bg-white/10 text-white
+      backdrop-blur-md
+      border border-white/20
+      
+      transition-all
+      hover:bg-white/20 hover:scale-110
+    "
+                            aria-label="Go to overview"
                         >
-                            Create Free Account
-                        </Button>
-                        <Button
-                            size="md"
-                            variant="outline"
-                            className="w-full sm:w-auto text-lg h-14 px-8 rounded-full border-blue-200/20 text-white hover:bg-blue-500/10"
-                        >
-                            Request Demo
-                        </Button>
+                            <FaArrowUp className="text-lg" />
+                        </a>
                     </div>
                 </div>
             </section>
+            <div className="fixed bottom-5 right-5 z-[9999]">
+
+                <a
+                    href="https://wa.me/+918300803603?text=Hi"
+                    target="_blank"
+                    aria-label="Chat on WhatsApp"
+                    className="flex h-14 w-14 items-center justify-center rounded-full bg-green-500 shadow-lg transition hover:scale-110 hover:bg-green-600"
+                >
+                    <img src="whatsapp.png" alt="WhatsApp" className="h-8 w-8" />
+                </a>
+            </div>
 
             {/* Footer */}
             <footer className="py-12 border-t border-white/10 bg-[#0B1026]">
                 <div className="container mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-6">
                     <div className="flex items-center gap-2 opacity-50 hover:opacity-100 transition-opacity">
-                        <div className="w-6 h-6 rounded bg-white flex items-center justify-center">
-                            <span className="font-bold text-xs text-black">F</span>
+                        <div className="flex items-center gap-3">
+                            <img src="/logo.png" alt="logo" className="w-11 h-11" />
                         </div>
-                        <span className="text-lg font-medium">Fynivo</span>
                     </div>
                     <div className="text-white/30 text-sm">
-                        © {new Date().getFullYear()} Fynivo Inc. All rights reserved.
+                        © {new Date().getFullYear()} Snolep Technologies. All rights
+                        reserved.
                     </div>
                     <div className="flex gap-8">
                         <a
-                            href="#"
+                            href="/privacy"
+                            target="_blank"
                             className="text-white/30 hover:text-white transition-colors text-sm"
                         >
                             Privacy
                         </a>
                         <a
-                            href="#"
+                            href="/terms"
+                            target="_blank"
                             className="text-white/30 hover:text-white transition-colors text-sm"
                         >
                             Terms
                         </a>
                         <a
-                            href="#"
+                            href="https://wa.me/918300803603?text=Hi"
+                            target="_blank"
                             className="text-white/30 hover:text-white transition-colors text-sm"
                         >
                             Contact

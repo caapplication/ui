@@ -43,6 +43,8 @@ import ComingSoon from './pages/ComingSoon.jsx';
 import UpcomingTask from './pages/UpcomingTask.jsx';
 import PublicDocumentView from './pages/PublicDocumentView.jsx';
 import LandingPage from '@/pages/LandingPage.jsx';
+import PrivacyPolicy from '@/pages/PrivacyPolicy.jsx';
+import TermsOfService from '@/pages/TermsOfService.jsx';
 
 const ProtectedContent = () => {
   const { user } = useAuth();
@@ -210,6 +212,8 @@ const AppContent = () => {
       {/* Public routes - no authentication required */}
       <Route path="/public/folder/:token" element={<PublicDocumentView />} />
       <Route path="/public/document/:token" element={<PublicDocumentView />} />
+      <Route path="/privacy" element={<PrivacyPolicy />} />
+      <Route path="/terms" element={<TermsOfService />} />
 
       {user ? (
         <>
@@ -237,21 +241,21 @@ function App() {
         <SocketProvider>
           <ApiCacheProvider>
             <HelmetProvider>
-          <Helmet>
-            <title>Fynivo: Simplify Your Finances</title>
-            <meta name="description" content="Comprehensive financial management platform for documents, beneficiaries, transactions, and invoice management." />
-            <meta property="og:title" content="Fynivo: Simplify Your Finances" />
-            <meta property="og:description" content="Comprehensive financial management platform for documents, beneficiaries, transactions, and invoice management." />
-            <link rel="icon" type="image/png" href="/logo.png" />
-          </Helmet>
-          <div className="animated-bg"></div>
-          <AppContent />
-          <Toaster />
-        </HelmetProvider>
-            </ApiCacheProvider>
-          </SocketProvider>
-        </AuthProvider>
-      </BrowserRouter>
+              <Helmet>
+                <title>Fynivo: Simplify Your Finances</title>
+                <meta name="description" content="Comprehensive financial management platform for documents, beneficiaries, transactions, and invoice management." />
+                <meta property="og:title" content="Fynivo: Simplify Your Finances" />
+                <meta property="og:description" content="Comprehensive financial management platform for documents, beneficiaries, transactions, and invoice management." />
+                <link rel="icon" type="image/png" href="/logo.png" />
+              </Helmet>
+              <div className="animated-bg"></div>
+              <AppContent />
+              <Toaster />
+            </HelmetProvider>
+          </ApiCacheProvider>
+        </SocketProvider>
+      </AuthProvider>
+    </BrowserRouter>
   );
 }
 
