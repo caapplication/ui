@@ -301,7 +301,7 @@ import React, { useState, useMemo, useEffect } from 'react';
                                                             <Bell 
                                                                 className="w-4 h-4 text-red-500" 
                                                                 style={{
-                                                                    animation: 'vibrate 0.5s ease-in-out infinite'
+                                                                    animation: 'vibrate 2s ease-in-out infinite'
                                                                 }}
                                                             />
                                                         )}
