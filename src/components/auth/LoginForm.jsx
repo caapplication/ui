@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useToast } from '@/components/ui/use-toast';
-import { Mail, Lock, ShieldCheck, KeyRound, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, ShieldCheck, KeyRound, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 const LoginForm = () => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -18,7 +19,7 @@ const LoginForm = () => {
   const [showOtpDialog, setShowOtpDialog] = useState(false);
   const [otp, setOtp] = useState('');
   const [loginAttemptData, setLoginAttemptData] = useState(null);
-  
+
   const { login, verifyOtpAndFinishLogin } = useAuth();
   const { toast } = useToast();
 
@@ -28,7 +29,7 @@ const LoginForm = () => {
 
     try {
       const result = await login(email, password);
-      
+
       if (result.twoFactorEnabled) {
         setLoginAttemptData(result.loginData);
         setShowOtpDialog(true);
@@ -52,23 +53,23 @@ const LoginForm = () => {
   const handleOtpSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
+
     try {
       await verifyOtpAndFinishLogin(loginAttemptData, otp);
-       toast({
+      toast({
         title: "Welcome back!",
         description: "You've successfully signed in.",
       });
       setShowOtpDialog(false);
     } catch (error) {
-       toast({
+      toast({
         title: "Verification Failed",
         description: error.message || "Invalid OTP. Please try again.",
         variant: "destructive",
       });
     } finally {
-        setLoading(false);
-        setOtp('');
+      setLoading(false);
+      setOtp('');
     }
   };
 
@@ -127,7 +128,7 @@ const LoginForm = () => {
                       className="pl-10 pr-12 h-12 bg-white/5 border-white/20 text-white placeholder:text-gray-400 focus:bg-white/10 focus:ring-blue-500"
                       required
                     />
-                     <Button
+                    <Button
                       type="button"
                       variant="ghost"
                       size="icon"
@@ -148,11 +149,25 @@ const LoginForm = () => {
                   </Button>
                 </motion.div>
               </form>
-               <div className="mt-4 flex justify-end text-sm">
-                 <Button asChild variant="link" className="text-gray-400 hover:text-white px-0">
-                    <Link to="/forgot-password">Forgot Password?</Link>
-                 </Button>
-               </div>
+              <div className="mt-4 flex justify-end text-sm">
+                <Button asChild variant="link" className="text-gray-200 hover:text-white px-0">
+                  <Link to="/forgot-password">Forgot Password?</Link>
+                </Button>
+              </div>
+              <div className="flex items-center justify-center gap-4">
+                <Button asChild variant="outline">
+                  <button onClick={() => navigate("/")}>
+                    <ArrowLeft className="w-5 h-5 mr-2" />
+                    Go Back
+                  </button>
+                </Button>
+
+
+                {/* <Button onClick={() => navigate("/explore")}>
+                  Explore Product
+                </Button> */}
+              </div>
+
             </CardContent>
           </Card>
         </motion.div>
@@ -165,37 +180,37 @@ const LoginForm = () => {
 
       <Dialog open={showOtpDialog} onOpenChange={setShowOtpDialog}>
         <DialogContent className="liquid-glass text-white max-w-md">
-            <DialogHeader>
-                <div className="mx-auto mb-4 w-16 h-16 bg-gradient-to-r from-sky-500 to-indigo-500 rounded-full flex items-center justify-center">
-                    <ShieldCheck className="w-8 h-8 text-white" />
-                </div>
-                <DialogTitle className="text-center text-2xl">Two-Factor Authentication</DialogTitle>
-                <DialogDescription className="text-center text-gray-400">
-                    Enter the 6-digit code from your authenticator app.
-                </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleOtpSubmit} className="space-y-6 pt-4">
-                <div className="relative">
-                    <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                    <Input 
-                        id="otp"
-                        type="text"
-                        placeholder="_ _ _ _ _ _"
-                        maxLength="6"
-                        value={otp}
-                        onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                        className="pl-12 h-14 text-center text-2xl tracking-[0.5em] bg-white/5 border-white/20 text-white placeholder:text-gray-500 focus:bg-white/10"
-                        required
-                    />
-                </div>
-                 <Button
-                    type="submit"
-                    className="w-full bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-600 hover:to-indigo-700 text-white font-semibold py-3 text-base"
-                    disabled={loading}
-                  >
-                    {loading ? "Verifying..." : "Verify Code"}
-                  </Button>
-            </form>
+          <DialogHeader>
+            <div className="mx-auto mb-4 w-16 h-16 bg-gradient-to-r from-sky-500 to-indigo-500 rounded-full flex items-center justify-center">
+              <ShieldCheck className="w-8 h-8 text-white" />
+            </div>
+            <DialogTitle className="text-center text-2xl">Two-Factor Authentication</DialogTitle>
+            <DialogDescription className="text-center text-gray-400">
+              Enter the 6-digit code from your authenticator app.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleOtpSubmit} className="space-y-6 pt-4">
+            <div className="relative">
+              <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <Input
+                id="otp"
+                type="text"
+                placeholder="_ _ _ _ _ _"
+                maxLength="6"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                className="pl-12 h-14 text-center text-2xl tracking-[0.5em] bg-white/5 border-white/20 text-white placeholder:text-gray-500 focus:bg-white/10"
+                required
+              />
+            </div>
+            <Button
+              type="submit"
+              className="w-full bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-600 hover:to-indigo-700 text-white font-semibold py-3 text-base"
+              disabled={loading}
+            >
+              {loading ? "Verifying..." : "Verify Code"}
+            </Button>
+          </form>
         </DialogContent>
       </Dialog>
     </>

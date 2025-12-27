@@ -5,7 +5,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { getCATeamInvoices, getCATeamInvoicesBulk, listEntities } from '@/lib/api';
 import InvoiceHistory from '@/components/finance/InvoiceHistory';
 import { InvoiceHistorySkeleton } from '@/components/finance/InvoiceHistorySkeleton';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useApiCache } from '@/contexts/ApiCacheContext.jsx';
 
 const Invoices = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefresh, isActive = true }) => {
@@ -15,10 +15,12 @@ const Invoices = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
   const cache = useApiCache();
   const lastFetchKey = useRef(null);
   const isFetchingRef = useRef(false);
   const pendingRequestsRef = useRef(new Map());
+  const lastLocationRef = useRef(location.pathname);
 
   const fetchDataForClient = useCallback(async () => {
     // If we don't have required dependencies, keep loading state true
@@ -197,6 +199,40 @@ const Invoices = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedOrganisation, selectedEntity, user?.access_token, isActive]); // Only fetch when tab is active
+
+  // Refresh when navigating back from detail page or when onRefresh is called
+  useEffect(() => {
+    // If we're on the finance page and were previously on a detail page, refresh
+    if (location.pathname.includes('/finance') && !location.pathname.includes('/invoices/')) {
+      const wasOnDetailPage = lastLocationRef.current.includes('/invoices/');
+      if (wasOnDetailPage && isActive) {
+        // Invalidate cache and refetch
+        if (selectedEntity && selectedEntity !== 'all') {
+          cache.invalidate('getCATeamInvoices', { entityId: selectedEntity, token: user?.access_token });
+          cache.invalidate('getCATeamInvoicesBulk', null); // Invalidate all bulk caches
+        }
+        // Reset fetch key to force refresh
+        lastFetchKey.current = null;
+        isFetchingRef.current = false;
+        fetchDataForClient();
+      }
+    }
+    lastLocationRef.current = location.pathname;
+  }, [location.pathname, isActive, selectedEntity, user?.access_token, cache, fetchDataForClient]);
+
+  // Listen for refresh prop changes
+  useEffect(() => {
+    if (onRefresh && isActive) {
+      // Invalidate cache when refresh is triggered
+      if (selectedEntity && selectedEntity !== 'all') {
+        cache.invalidate('getCATeamInvoices', { entityId: selectedEntity, token: user?.access_token });
+        cache.invalidate('getCATeamInvoicesBulk', null);
+      }
+      lastFetchKey.current = null;
+      isFetchingRef.current = false;
+      fetchDataForClient();
+    }
+  }, [onRefresh, isActive, selectedEntity, user?.access_token, cache, fetchDataForClient]);
 
   const handleViewInvoice = (invoice) => {
     const currentIndex = invoices.findIndex(inv => inv.id === invoice.id);

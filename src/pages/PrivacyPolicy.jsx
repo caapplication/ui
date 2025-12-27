@@ -37,7 +37,7 @@ const PrivacyPolicy = () => {
                         <section>
                             <h2 className="text-2xl font-semibold mb-4 text-white">1. Introduction</h2>
                             <p className="mb-4">
-                                Welcome to Fynivo ("we," "our," or "us"). We are committed to protecting your personal information and your right to privacy.
+                                Welcome to Fynivo. We are committed to protecting your personal information and your right to privacy.
                                 This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our cloud-based accounting
                                 and compliance collaboration platform (the "Platform").
                             </p>

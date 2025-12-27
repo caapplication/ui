@@ -30,10 +30,13 @@ const FinancePage = () => {
   const { user } = useAuth();
   const { toast } = useToast();
 
+  const [refreshKey, setRefreshKey] = useState(0);
+  
   const handleRefresh = () => {
     setIsDataLoading(true);
-    // This will trigger a refresh in child components via prop change
-    setTimeout(() => setIsDataLoading(false), 500); // Simulate refresh
+    // Trigger refresh by updating key - this will force child components to refetch
+    setRefreshKey(prev => prev + 1);
+    setTimeout(() => setIsDataLoading(false), 500);
   };
 
   const handleExport = async () => {
@@ -153,6 +156,7 @@ const FinancePage = () => {
         </div>
         <TabsContent value="vouchers">
           <Vouchers
+            key={`vouchers-${refreshKey}`}
             selectedOrganisation={selectedOrg}
             selectedEntity={selectedEntity}
             isDataLoading={isDataLoading || isOrgLoading}
@@ -163,6 +167,7 @@ const FinancePage = () => {
         </TabsContent>
         <TabsContent value="invoices">
           <Invoices
+            key={`invoices-${refreshKey}`}
             selectedOrganisation={selectedOrg}
             selectedEntity={selectedEntity}
             isDataLoading={isDataLoading || isOrgLoading}
