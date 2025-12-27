@@ -22,13 +22,23 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-const BeneficiaryForm = ({ onAdd, onCancel, isEdit, beneficiary }) => {
+const BeneficiaryForm = ({ onAdd, onCancel, isEdit, beneficiary, isSaving }) => {
   const [beneficiaryType, setBeneficiaryType] = useState(beneficiary?.beneficiary_type || 'individual');
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (isSaving) return; // Prevent submission if already saving
+    
     const formData = new FormData(e.target);
     const data = Object.fromEntries(formData.entries());
+    
+    // Convert empty email strings to null/undefined to allow saving without email
+    if (data.email && data.email.trim() === '') {
+      data.email = null;
+    } else if (data.email) {
+      data.email = data.email.trim();
+    }
+    
     if (isEdit) {
       onAdd({ ...beneficiary, ...data, beneficiary_type: beneficiaryType });
     } else {
@@ -53,7 +63,7 @@ const BeneficiaryForm = ({ onAdd, onCancel, isEdit, beneficiary }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div><Label htmlFor="name">Name</Label><Input name="name" id="name" required /></div>
           <div><Label htmlFor="phone">Phone</Label><Input name="phone" id="phone" type="tel" required /></div>
-          <div className="md:col-span-2"><Label htmlFor="email">Email</Label><Input name="email" id="email" type="email" /></div>
+          <div className="md:col-span-2"><Label htmlFor="email">Email <span className="text-gray-400 text-xs">(Optional)</span></Label><Input name="email" id="email" type="email" /></div>
           <div><Label htmlFor="aadhar">Aadhar</Label><Input name="aadhar" id="aadhar" required /></div>
           <div><Label htmlFor="pan">PAN</Label><Input name="pan" id="pan" required /></div>
         </div>
@@ -63,7 +73,7 @@ const BeneficiaryForm = ({ onAdd, onCancel, isEdit, beneficiary }) => {
          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div><Label htmlFor="company_name">Company Name</Label><Input name="company_name" id="company_name" required /></div>
             <div><Label htmlFor="phone">Phone</Label><Input name="phone" id="phone" type="tel" required /></div>
-            <div className="md:col-span-2"><Label htmlFor="email">Email Address</Label><Input name="email" id="email" type="email" /></div>
+            <div className="md:col-span-2"><Label htmlFor="email">Email Address <span className="text-gray-400 text-xs">(Optional)</span></Label><Input name="email" id="email" type="email" /></div>
             <div><Label htmlFor="gstin">GSTIN</Label><Input name="gstin" id="gstin" required /></div>
             <div><Label htmlFor="pan">PAN</Label><Input name="pan" id="pan" required /></div>
             <div><Label htmlFor="aadhar">Aadhar (of Proprietor)</Label><Input name="aadhar" id="aadhar" required /></div>
@@ -72,8 +82,24 @@ const BeneficiaryForm = ({ onAdd, onCancel, isEdit, beneficiary }) => {
       )}
 
       <DialogFooter>
-        <DialogClose asChild><Button variant="ghost" type="button" onClick={onCancel}>Cancel</Button></DialogClose>
-        <Button type="submit"><Plus className="w-4 h-4 mr-2" /> Save Beneficiary</Button>
+        <DialogClose asChild>
+          <Button variant="ghost" type="button" onClick={onCancel} disabled={isSaving}>
+            Cancel
+          </Button>
+        </DialogClose>
+        <Button type="submit" disabled={isSaving}>
+          {isSaving ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            <>
+              <Plus className="w-4 h-4 mr-2" />
+              Save Beneficiary
+            </>
+          )}
+        </Button>
       </DialogFooter>
     </form>
   );
@@ -118,6 +144,7 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
   const [filterValues, setFilterValues] = useState({ name: '', email: '', phone: '', pan: '' });
   const [currentPage, setCurrentPage] = useState(1);
   const [activeTab, setActiveTab] = useState('individual');
+  const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -134,13 +161,23 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
       const data = await getBeneficiaries(organisationId, user.access_token, 0, 1000);
 
       if (Array.isArray(data)) {
-        const beneficiariesWithAccounts = await Promise.all(
-          data.map(async (beneficiary) => {
-            const bankAccounts = await getBankAccountsForBeneficiary(beneficiary.id, user.access_token);
-            return { ...beneficiary, bank_accounts: bankAccounts };
-          })
-        );
-        setBeneficiaries(beneficiariesWithAccounts);
+        // Sort by created_at (newest first) - beneficiaries should already be sorted by backend
+        // but we'll ensure proper sorting here
+        const sortedData = [...data].sort((a, b) => {
+          const dateA = a?.created_at ? new Date(a.created_at).getTime() : 0;
+          const dateB = b?.created_at ? new Date(b.created_at).getTime() : 0;
+          return dateB - dateA; // Newest first
+        });
+
+        // Don't fetch bank accounts for all beneficiaries - only fetch when needed (lazy loading)
+        // This prevents multiple API calls on initial load
+        // Bank accounts will be fetched when viewing beneficiary details
+        const beneficiariesWithEmptyAccounts = sortedData.map(beneficiary => ({
+          ...beneficiary,
+          bank_accounts: [] // Initialize empty, will be fetched when needed
+        }));
+
+        setBeneficiaries(beneficiariesWithEmptyAccounts);
       } else {
         setBeneficiaries([]);
       }
@@ -157,8 +194,12 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
   }, [user?.organization_id, user?.access_token, toast]);
 
   useEffect(() => {
-    fetchBeneficiaries();
-  }, [fetchBeneficiaries]);
+    // Only fetch if user is available
+    if (user?.access_token) {
+      fetchBeneficiaries();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.access_token, user?.organization_id]); // Only depend on user data, not the entire callback
   
   useEffect(() => {
     if (quickAction === 'add-beneficiary') {
@@ -168,43 +209,30 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
   }, [quickAction, clearQuickAction]);
 
   const filteredBeneficiaries = useMemo(() => {
-    const getTimestamp = (b) => {
-      const candidates = [
-        b?.created_at,
-        b?.createdAt,
-        b?.created_on,
-        b?.createdOn,
-        b?.updated_at,
-        b?.updatedAt,
-      ];
-
-      for (const value of candidates) {
-        if (!value) continue;
-        const t = Date.parse(value);
-        if (!Number.isNaN(t)) return t;
-      }
-      return null;
-    };
-
-    // Sort beneficiaries: newest first
+    // Sort beneficiaries: newest first (beneficiaries are already sorted in fetchBeneficiaries)
+    // But we'll ensure proper sorting here as well for consistency
     const sortedBeneficiaries = [...beneficiaries].sort((a, b) => {
-      // First, try to sort by timestamp (newest first)
-      const ta = getTimestamp(a);
-      const tb = getTimestamp(b);
-
-      if (ta !== null && tb !== null) {
-        return tb - ta; // Newest first (descending)
+      // Prioritize created_at timestamp
+      const dateA = a?.created_at ? new Date(a.created_at).getTime() : (a?.createdAt ? new Date(a.createdAt).getTime() : 0);
+      const dateB = b?.created_at ? new Date(b.created_at).getTime() : (b?.createdAt ? new Date(b.createdAt).getTime() : 0);
+      
+      if (dateA !== 0 && dateB !== 0) {
+        return dateB - dateA; // Newest first (descending)
       }
-      if (ta !== null) return -1; // a has timestamp, b doesn't - a comes first
-      if (tb !== null) return 1;  // b has timestamp, a doesn't - b comes first
+      if (dateA !== 0) return -1; // a has date, b doesn't - a comes first
+      if (dateB !== 0) return 1;  // b has date, a doesn't - b comes first
 
-      // Fallback: Sort by UUID string comparison (newer UUIDs typically come later in string sort)
-      // This is not perfect but provides some ordering when timestamps aren't available
+      // Fallback: Sort by updated_at if available
+      const updatedA = a?.updated_at ? new Date(a.updated_at).getTime() : (a?.updatedAt ? new Date(a.updatedAt).getTime() : 0);
+      const updatedB = b?.updated_at ? new Date(b.updated_at).getTime() : (b?.updatedAt ? new Date(b.updatedAt).getTime() : 0);
+      
+      if (updatedA !== 0 && updatedB !== 0) {
+        return updatedB - updatedA;
+      }
+
+      // Final fallback: Sort by ID (newer UUIDs typically come later)
       const idA = a?.id?.toString() || '';
       const idB = b?.id?.toString() || '';
-      
-      // Reverse string comparison to put "newer" UUIDs first
-      // UUIDs are typically generated sequentially, so later UUIDs in string sort are newer
       return idB.localeCompare(idA);
     });
 
@@ -267,6 +295,7 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
   }, [currentPage, totalPages]);
 
   const handleAdd = async (beneficiaryData) => {
+    setIsSaving(true);
     try {
       const newBeneficiary = await addBeneficiary(beneficiaryData, user.access_token);
       toast({ title: 'Success', description: 'Beneficiary added successfully.' });
@@ -287,10 +316,13 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
         description: `Failed to add beneficiary: ${error.message}`,
         variant: 'destructive',
       });
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const handleUpdate = async (beneficiaryData) => {
+    setIsSaving(true);
     try {
       const organizationId = typeof user.organization_id === 'object' && user.organization_id !== null 
         ? user.organization_id.id 
@@ -305,15 +337,29 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
         description: `Failed to update beneficiary: ${error.message}`,
         variant: 'destructive',
       });
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  const handleView = (beneficiary) => {
-    // Ensure the selected beneficiary has the correct organization_id from user context
-    setSelectedBeneficiary({
-      ...beneficiary,
-      organization_id: user?.organization_id
-    });
+  const handleView = async (beneficiary) => {
+    // Fetch bank accounts when viewing beneficiary details (lazy loading)
+    try {
+      const bankAccounts = await getBankAccountsForBeneficiary(beneficiary.id, user.access_token);
+      setSelectedBeneficiary({
+        ...beneficiary,
+        bank_accounts: bankAccounts || [],
+        organization_id: user?.organization_id
+      });
+    } catch (error) {
+      console.warn(`Failed to fetch bank accounts for beneficiary:`, error);
+      // Still show beneficiary even if bank accounts fail to load
+      setSelectedBeneficiary({
+        ...beneficiary,
+        bank_accounts: [],
+        organization_id: user?.organization_id
+      });
+    }
     setShowViewDialog(true);
   };
 
@@ -674,7 +720,7 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
             <DialogTitle className="text-lg sm:text-xl">Add New Beneficiary</DialogTitle>
             <CardDescription className="text-sm">Enter the details for the new beneficiary.</CardDescription>
           </DialogHeader>
-          <BeneficiaryForm onAdd={handleAdd} onCancel={() => setShowAddDialog(false)} />
+          <BeneficiaryForm onAdd={handleAdd} onCancel={() => setShowAddDialog(false)} isSaving={isSaving} />
         </DialogContent>
       </Dialog>
 
@@ -697,7 +743,7 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
           </DialogHeader>
           {selectedBeneficiary && (
             <div className="space-y-4 pt-4">
-              <BeneficiaryForm onAdd={handleUpdate} onCancel={() => setShowViewDialog(false)} isEdit={true} beneficiary={selectedBeneficiary} />
+              <BeneficiaryForm onAdd={handleUpdate} onCancel={() => setShowViewDialog(false)} isEdit={true} beneficiary={selectedBeneficiary} isSaving={isSaving} />
             </div>
           )}
         </DialogContent>
