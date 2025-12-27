@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useToast } from '@/components/ui/use-toast';
-import { Loader2, Plus, RefreshCw } from 'lucide-react';
+import { Loader2, Plus, RefreshCw, ArrowLeft } from 'lucide-react';
 import RecurringTaskList from '@/components/accountant/tasks/RecurringTaskList.jsx';
 import NewRecurringTaskForm from '@/components/accountant/tasks/NewRecurringTaskForm.jsx';
 import { 
@@ -19,7 +20,8 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const RecurringTaskManagementPage = () => {
-    const { user } = useAuth();
+    const navigate = useNavigate();
+    const { user, loading: authLoading } = useAuth();
     const { toast } = useToast();
     const [view, setView] = useState('list'); // 'list', 'new', 'edit'
     const [recurringTasks, setRecurringTasks] = useState([]);
@@ -30,45 +32,113 @@ const RecurringTaskManagementPage = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [editingTask, setEditingTask] = useState(null);
     const [activeFilter, setActiveFilter] = useState('all'); // 'all', 'active', 'inactive'
+    const [hasAttemptedFetch, setHasAttemptedFetch] = useState(false);
 
     const fetchData = useCallback(async () => {
+        // Get agency_id from user or localStorage
+        const agencyId = user?.agency_id || localStorage.getItem('agency_id');
+        const accessToken = user?.access_token || localStorage.getItem('accessToken');
+        
+        // Don't fetch if user is not loaded yet or missing required data
+        if (!user || !agencyId || !accessToken) {
+            console.log('Skipping fetch - missing data:', { hasUser: !!user, agencyId, hasToken: !!accessToken });
+            setIsLoading(false);
+            return;
+        }
+        
+        console.log('Fetching recurring tasks data...');
         setIsLoading(true);
+        setHasAttemptedFetch(true);
         try {
-            if (!user?.agency_id || !user?.access_token) {
-                throw new Error("User information not available.");
-            }
-            
             const isActive = activeFilter === 'all' ? null : activeFilter === 'active';
             
             const results = await Promise.allSettled([
-                listRecurringTasks(user.agency_id, user.access_token, isActive),
-                listClients(user.agency_id, user.access_token),
-                listServices(user.agency_id, user.access_token),
-                listTeamMembers(user.access_token),
-                getTags(user.agency_id, user.access_token),
+                listRecurringTasks(agencyId, accessToken, isActive),
+                listClients(agencyId, accessToken),
+                listServices(agencyId, accessToken),
+                listTeamMembers(accessToken),
+                getTags(agencyId, accessToken),
             ]);
 
-            setRecurringTasks(results[0].status === 'fulfilled' ? (Array.isArray(results[0].value) ? results[0].value : []) : []);
-            setClients(results[1].status === 'fulfilled' ? (Array.isArray(results[1].value) ? results[1].value : (results[1].value?.items || [])) : []);
-            setServices(results[2].status === 'fulfilled' ? (Array.isArray(results[2].value) ? results[2].value : (results[2].value?.items || [])) : []);
-            setTeamMembers(results[3].status === 'fulfilled' ? (Array.isArray(results[3].value) ? results[3].value : (results[3].value?.items || [])) : []);
-            setTags(results[4].status === 'fulfilled' ? (Array.isArray(results[4].value) ? results[4].value : []) : []);
+            console.log('Fetch results:', results.map(r => ({ status: r.status, hasValue: !!r.value })));
+
+            // Handle results with better error handling
+            if (results[0].status === 'fulfilled') {
+                const tasks = Array.isArray(results[0].value) ? results[0].value : (results[0].value?.items || []);
+                console.log('Recurring tasks loaded:', tasks.length);
+                setRecurringTasks(tasks);
+            } else {
+                console.error('Error fetching recurring tasks:', results[0].reason);
+                setRecurringTasks([]);
+            }
+
+            if (results[1].status === 'fulfilled') {
+                const clientsData = Array.isArray(results[1].value) ? results[1].value : (results[1].value?.items || []);
+                setClients(clientsData);
+            } else {
+                console.warn('Error fetching clients:', results[1].reason);
+                setClients([]);
+            }
+
+            if (results[2].status === 'fulfilled') {
+                const servicesData = Array.isArray(results[2].value) ? results[2].value : (results[2].value?.items || []);
+                setServices(servicesData);
+            } else {
+                console.warn('Error fetching services:', results[2].reason);
+                setServices([]);
+            }
+
+            if (results[3].status === 'fulfilled') {
+                const membersData = Array.isArray(results[3].value) ? results[3].value : (results[3].value?.items || []);
+                setTeamMembers(membersData);
+            } else {
+                console.warn('Error fetching team members:', results[3].reason);
+                setTeamMembers([]);
+            }
+
+            if (results[4].status === 'fulfilled') {
+                const tagsData = Array.isArray(results[4].value) ? results[4].value : [];
+                setTags(tagsData);
+            } else {
+                console.warn('Error fetching tags:', results[4].reason);
+                setTags([]);
+            }
 
         } catch (error) {
             console.error('Error fetching recurring task data:', error);
             toast({
                 title: 'Error fetching data',
-                description: error.message,
+                description: error.message || 'Failed to load recurring tasks. Please try again.',
                 variant: 'destructive',
             });
+            setRecurringTasks([]);
         } finally {
             setIsLoading(false);
         }
-    }, [user?.agency_id, user?.access_token, toast, activeFilter]);
+    }, [user, activeFilter, toast]);
 
     useEffect(() => {
-        fetchData();
-    }, [fetchData]);
+        // Only fetch when user is available and auth is not loading
+        if (authLoading) {
+            return; // Wait for auth to finish loading
+        }
+        
+        if (!user) {
+            setIsLoading(false);
+            return;
+        }
+        
+        const agencyId = user?.agency_id || localStorage.getItem('agency_id');
+        const accessToken = user?.access_token || localStorage.getItem('accessToken');
+        
+        if (agencyId && accessToken) {
+            fetchData();
+        } else {
+            console.log('Missing required data for fetch:', { agencyId, hasToken: !!accessToken });
+            setIsLoading(false);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user?.agency_id, user?.access_token, authLoading, activeFilter]); // Only depend on specific values, not the whole user object or fetchData
 
     const handleCreate = async (taskData) => {
         try {
@@ -90,7 +160,9 @@ const RecurringTaskManagementPage = () => {
 
     const handleUpdate = async (taskId, taskData) => {
         try {
-            await updateRecurringTask(taskId, taskData, user.agency_id, user.access_token);
+            const agencyId = user?.agency_id || localStorage.getItem('agency_id');
+            const accessToken = user?.access_token || localStorage.getItem('accessToken');
+            await updateRecurringTask(taskId, taskData, agencyId, accessToken);
             toast({
                 title: 'Recurring Task Updated',
                 description: 'The recurring task has been updated successfully.',
@@ -109,7 +181,9 @@ const RecurringTaskManagementPage = () => {
 
     const handleDelete = async (taskId) => {
         try {
-            await deleteRecurringTask(taskId, user.agency_id, user.access_token);
+            const agencyId = user?.agency_id || localStorage.getItem('agency_id');
+            const accessToken = user?.access_token || localStorage.getItem('accessToken');
+            await deleteRecurringTask(taskId, agencyId, accessToken);
             toast({
                 title: 'Recurring Task Deleted',
                 description: 'The recurring task has been deleted successfully.',
@@ -134,7 +208,30 @@ const RecurringTaskManagementPage = () => {
         setEditingTask(null);
     };
 
-    if (isLoading && recurringTasks.length === 0) {
+    // Show loading state while auth is loading
+    if (authLoading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+        );
+    }
+    
+    // Add a timeout to prevent infinite loading
+    useEffect(() => {
+        if (!authLoading && user && isLoading) {
+            const timer = setTimeout(() => {
+                if (isLoading) {
+                    console.warn('Fetch taking too long, stopping loading state');
+                    setIsLoading(false);
+                }
+            }, 10000); // 10 second timeout
+            
+            return () => clearTimeout(timer);
+        }
+    }, [authLoading, user, isLoading]);
+    
+    if (isLoading && !hasAttemptedFetch && recurringTasks.length === 0) {
         return (
             <div className="flex items-center justify-center h-64">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -143,22 +240,34 @@ const RecurringTaskManagementPage = () => {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 p-6">
             <div className="flex items-center justify-between">
-                <h1 className="text-3xl font-bold text-white">Recurring Tasks</h1>
+                <div className="flex items-center gap-4">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => navigate('/tasks')}
+                        className="text-white hover:bg-white/10"
+                        title="Back to Tasks"
+                    >
+                        <ArrowLeft className="w-5 h-5" />
+                    </Button>
+                    <h1 className="text-3xl font-bold text-white">Recurring Tasks</h1>
+                </div>
                 {view === 'list' && (
                     <div className="flex gap-2">
                         <Button
                             variant="outline"
                             onClick={fetchData}
-                            className="text-white border-white/20 hover:bg-white/10"
+                            disabled={isLoading}
+                            className="text-white border-white/20 hover:bg-white/10 bg-white/5"
                         >
-                            <RefreshCw className="w-4 h-4 mr-2" />
+                            <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
                             Refresh
                         </Button>
                         <Button
                             onClick={() => setView('new')}
-                            className="bg-primary hover:bg-primary/90"
+                            className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white shadow-lg"
                         >
                             <Plus className="w-4 h-4 mr-2" />
                             New Recurring Task
@@ -175,11 +284,26 @@ const RecurringTaskManagementPage = () => {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -20 }}
                     >
-                        <Tabs value={activeFilter} onValueChange={setActiveFilter} className="mb-4">
-                            <TabsList>
-                                <TabsTrigger value="all">All</TabsTrigger>
-                                <TabsTrigger value="active">Active</TabsTrigger>
-                                <TabsTrigger value="inactive">Inactive</TabsTrigger>
+                        <Tabs value={activeFilter} onValueChange={setActiveFilter} className="mb-6">
+                            <TabsList className="bg-white/10 border border-white/20">
+                                <TabsTrigger 
+                                    value="all" 
+                                    className="data-[state=active]:bg-primary data-[state=active]:text-white"
+                                >
+                                    All
+                                </TabsTrigger>
+                                <TabsTrigger 
+                                    value="active"
+                                    className="data-[state=active]:bg-primary data-[state=active]:text-white"
+                                >
+                                    Active
+                                </TabsTrigger>
+                                <TabsTrigger 
+                                    value="inactive"
+                                    className="data-[state=active]:bg-primary data-[state=active]:text-white"
+                                >
+                                    Inactive
+                                </TabsTrigger>
                             </TabsList>
                         </Tabs>
                         <RecurringTaskList

@@ -279,3 +279,39 @@ import { getAuthHeaders, handleResponse } from './utils';
         });
         return handleResponse(response);
     };
+
+    // Get read receipts for a comment
+    export const getCommentReadReceipts = async (taskId, commentId, agencyId, token) => {
+        const response = await fetch(`${TASKS_API_BASE_URL}/tasks/${taskId}/comments/${commentId}/reads`, {
+            method: 'GET',
+            headers: getAuthHeaders(token, 'application/json', agencyId),
+        });
+        return handleResponse(response);
+    };
+
+    // Task Closure Request APIs
+    export const requestTaskClosure = async (taskId, reason, agencyId, token) => {
+        const response = await fetch(`${TASKS_API_BASE_URL}/tasks/${taskId}/closure-request`, {
+            method: 'POST',
+            headers: getAuthHeaders(token, 'application/json', agencyId),
+            body: JSON.stringify({ reason: reason || null }),
+        });
+        return handleResponse(response);
+    };
+
+    export const getClosureRequest = async (taskId, agencyId, token) => {
+        const response = await fetch(`${TASKS_API_BASE_URL}/tasks/${taskId}/closure-request`, {
+            method: 'GET',
+            headers: getAuthHeaders(token, 'application/json', agencyId),
+        });
+        return handleResponse(response);
+    };
+
+    export const reviewClosureRequest = async (taskId, requestId, status, agencyId, token) => {
+        const response = await fetch(`${TASKS_API_BASE_URL}/tasks/${taskId}/closure-request/${requestId}`, {
+            method: 'PATCH',
+            headers: getAuthHeaders(token, 'application/json', agencyId),
+            body: JSON.stringify({ status }),
+        });
+        return handleResponse(response);
+    };

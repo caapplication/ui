@@ -194,7 +194,11 @@ export const {
     deleteTaskComment,
     addTaskCollaborator,
     removeTaskCollaborator,
-    getTaskCollaborators
+    getTaskCollaborators,
+    getCommentReadReceipts,
+    requestTaskClosure,
+    getClosureRequest,
+    reviewClosureRequest
 } = tasks;
 
 export const {

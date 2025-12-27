@@ -156,7 +156,10 @@ import React, { useState, useEffect } from 'react';
             document_request_enabled: task.document_request?.enabled || false,
             document_request_items: task.document_request?.items || [],
             checklist_enabled: task.checklist?.enabled || false,
-            checklist_items: task.checklist?.items || [],
+            checklist_items: (task.checklist?.items || []).map(item => ({
+              name: item.name || '',
+              is_completed: item.is_completed || false
+            })),
             assigned_user_id: task.assigned_to || task.assigned_user_id || '',
             priority: task.priority || '',
             tag_id: task.tag_id || '',
@@ -181,7 +184,51 @@ import React, { useState, useEffect } from 'react';
       };
     
       const handleDateChange = (name, date) => {
-        setFormData(prev => ({ ...prev, [name]: date }));
+        if (name === 'due_date' && date) {
+          // If target date exists and is greater than or equal to due date, adjust it
+          setFormData(prev => {
+            let newTargetDate = prev.target_date;
+            if (prev.target_date) {
+              // Compare dates without time components
+              const targetDateOnly = new Date(prev.target_date);
+              targetDateOnly.setHours(0, 0, 0, 0);
+              const dueDateOnly = new Date(date);
+              dueDateOnly.setHours(0, 0, 0, 0);
+              
+              if (targetDateOnly >= dueDateOnly) {
+                // Set target date to one day before due date
+                const oneDayBefore = new Date(date);
+                oneDayBefore.setDate(oneDayBefore.getDate() - 1);
+                oneDayBefore.setHours(0, 0, 0, 0);
+                newTargetDate = oneDayBefore;
+              }
+            }
+            return { ...prev, [name]: date, target_date: newTargetDate };
+          });
+        } else if (name === 'target_date' && date) {
+          // Validate that target date is less than due date
+          setFormData(prev => {
+            if (prev.due_date) {
+              // Compare dates without time components
+              const targetDateOnly = new Date(date);
+              targetDateOnly.setHours(0, 0, 0, 0);
+              const dueDateOnly = new Date(prev.due_date);
+              dueDateOnly.setHours(0, 0, 0, 0);
+              
+              if (targetDateOnly >= dueDateOnly) {
+                toast({
+                  title: "Validation Error",
+                  description: "Target date must be earlier than due date.",
+                  variant: "destructive"
+                });
+                return prev; // Don't update if validation fails
+              }
+            }
+            return { ...prev, [name]: date };
+          });
+        } else {
+          setFormData(prev => ({ ...prev, [name]: date }));
+        }
       };
     
       const handleSwitchChange = (name, checked) => {
@@ -213,7 +260,7 @@ import React, { useState, useEffect } from 'react';
       const addChecklistItem = () => {
         setFormData(prev => ({
           ...prev,
-          checklist_items: [...prev.checklist_items, { name: '', is_completed: false, assigned_to: null }]
+          checklist_items: [...prev.checklist_items, { name: '', is_completed: false }]
         }));
       };
 
@@ -235,16 +282,21 @@ import React, { useState, useEffect } from 'react';
       const handleSubmit = async (e) => {
         e.preventDefault();
         const isCAUser = user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM';
-        const requiredFields = ['title'];
+        const requiredFields = ['title', 'assigned_user_id'];
         if (isCAUser) {
           requiredFields.push('client_id');
         }
         
         const missingFields = requiredFields.filter(field => !formData[field]);
         if (missingFields.length > 0) {
+            const fieldNames = missingFields.map(f => {
+              if (f === 'client_id') return 'Client';
+              if (f === 'assigned_user_id') return 'Assign To';
+              return 'Task Title';
+            });
             toast({
                 title: "Validation Error",
-                description: `Please fill in all required fields: ${missingFields.map(f => f === 'client_id' ? 'Client' : 'Task Title').join(', ')}.`,
+                description: `Please fill in all required fields: ${fieldNames.join(', ')}.`,
                 variant: "destructive"
             });
             return;
@@ -263,14 +315,6 @@ import React, { useState, useEffect } from 'react';
         }
         
         if (formData.is_recurring) {
-          if (!formData.recurrence_start_date) {
-            toast({
-                title: "Validation Error",
-                description: "Please select a start date for the recurring task.",
-                variant: "destructive"
-            });
-            return;
-          }
           if (formData.recurrence_frequency === 'daily' && !formData.recurrence_time) {
             toast({
                 title: "Validation Error",
@@ -313,7 +357,6 @@ import React, { useState, useEffect } from 'react';
           service_id: null, // Service field removed
           stage_id: stageId || null,
           due_date: formData.due_date ? format(formData.due_date, 'yyyy-MM-dd') : null,
-          due_time: formData.due_time || '12:00',
           target_date: formData.target_date ? format(formData.target_date, 'yyyy-MM-dd') : null,
           description: formData.description,
           priority: formData.priority || null,
@@ -324,7 +367,10 @@ import React, { useState, useEffect } from 'react';
           },
           checklist: {
             enabled: formData.checklist_enabled,
-            items: formData.checklist_items.filter(item => item.name.trim() !== '')
+            items: formData.checklist_items.filter(item => item.name.trim() !== '').map(item => ({
+              name: item.name,
+              is_completed: item.is_completed || false
+            }))
           },
           assigned_to: formData.assigned_user_id || null,
           // Recurring task data
@@ -343,30 +389,17 @@ import React, { useState, useEffect } from 'react';
     
       return (
         <div className="max-w-4xl mx-auto p-4 md:p-8 text-white">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-3xl font-bold">
-              {task ? 'Edit Task' : 'Create New Task'}
-            </h1>
-            <div className="flex gap-2">
-<Button variant="outline" onClick={onCancel} disabled={isSaving}>Cancel</Button>
-<Button onClick={handleSubmit} disabled={isSaving} style={isSaving ? { opacity: 0.5, pointerEvents: 'none' } : {}}>
-    {isSaving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-    {task ? 'Save Changes' : 'Create Task'}
-</Button>
-            </div>
-          </div>
-          
           <form onSubmit={handleSubmit} className="space-y-8">
             <div className="glass-pane p-6 rounded-lg">
               <h2 className="text-xl font-semibold mb-4 border-b border-white/10 pb-2">Task Details</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-6">
                 <div>
                   <Label htmlFor="title">Task Title*</Label>
-<Input id="title" name="title" placeholder="e.g., File annual tax returns" value={formData.title} onChange={handleChange} required disabled={isSaving} />
+                  <Input id="title" name="title" placeholder="e.g., File annual tax returns" value={formData.title} onChange={handleChange} required disabled={isSaving} />
                 </div>
-                <div>
-                  <Label htmlFor="due_date">Due Date</Label>
-                  <div className="flex gap-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <Label htmlFor="due_date">Due Date</Label>
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formData.due_date && "text-muted-foreground")}>
@@ -376,34 +409,41 @@ import React, { useState, useEffect } from 'react';
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={formData.due_date} onSelect={(d) => handleDateChange('due_date', d)} initialFocus /></PopoverContent>
                     </Popover>
-                    <Input
-                      id="due_time"
-                      name="due_time"
-                      type="time"
-                      value={formData.due_time || '12:00'}
-                      onChange={(e) => handleSelectChange('due_time', e.target.value)}
-                      className="w-32"
-                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="target_date">Target Date</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formData.target_date && "text-muted-foreground")}>
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {formData.target_date ? format(formData.target_date, "PPP") : <span>Pick a date</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <Calendar 
+                          mode="single" 
+                          selected={formData.target_date} 
+                          onSelect={(d) => handleDateChange('target_date', d)} 
+                          initialFocus
+                          disabled={(date) => {
+                            if (!formData.due_date) return false;
+                            const dateOnly = new Date(date);
+                            dateOnly.setHours(0, 0, 0, 0);
+                            const dueDateOnly = new Date(formData.due_date);
+                            dueDateOnly.setHours(0, 0, 0, 0);
+                            return dateOnly >= dueDateOnly;
+                          }}
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </div>
                 </div>
                 <div>
-                  <Label htmlFor="target_date">Target Date</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formData.target_date && "text-muted-foreground")}>
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {formData.target_date ? format(formData.target_date, "PPP") : <span>Pick a date</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={formData.target_date} onSelect={(d) => handleDateChange('target_date', d)} initialFocus /></PopoverContent>
-                  </Popover>
-                </div>
-                <div className="md:col-span-2">
                   <Label htmlFor="description">Description</Label>
-<Textarea id="description" name="description" placeholder="Add a detailed description for the task..." value={formData.description} onChange={handleChange} disabled={isSaving} />
+                  <Textarea id="description" name="description" placeholder="Add a detailed description for the task..." value={formData.description} onChange={handleChange} disabled={isSaving} />
                 </div>
-                <div className="md:col-span-2 flex items-center space-x-2">
-<Switch id="document_request_enabled" checked={formData.document_request_enabled} onCheckedChange={(c) => handleSwitchChange('document_request_enabled', c)} disabled={isSaving} />
+                <div className="flex items-center space-x-2">
+                  <Switch id="document_request_enabled" checked={formData.document_request_enabled} onCheckedChange={(c) => handleSwitchChange('document_request_enabled', c)} disabled={isSaving} />
                   <Label htmlFor="document_request_enabled">Enable Document Collection Request</Label>
                 </div>
               </div>
@@ -470,7 +510,7 @@ import React, { useState, useEffect } from 'react';
                           const itemName = e.target.value.trim();
                           setFormData(prev => ({
                             ...prev,
-                            checklist_items: [...prev.checklist_items, { name: itemName, is_completed: false, assigned_to: null }]
+                            checklist_items: [...prev.checklist_items, { name: itemName, is_completed: false }]
                           }));
                           e.target.value = '';
                         }
@@ -488,7 +528,7 @@ import React, { useState, useEffect } from 'react';
                           const itemName = input.value.trim();
                           setFormData(prev => ({
                             ...prev,
-                            checklist_items: [...prev.checklist_items, { name: itemName, is_completed: false, assigned_to: null }]
+                            checklist_items: [...prev.checklist_items, { name: itemName, is_completed: false }]
                           }));
                           input.value = '';
                           setTimeout(() => input.focus(), 0);
@@ -516,26 +556,6 @@ import React, { useState, useEffect } from 'react';
                           disabled={isSaving}
                           style={{ textDecoration: item.is_completed ? 'line-through' : 'none', opacity: item.is_completed ? 0.6 : 1 }}
                         />
-                        <Select
-                          value={item.assigned_to ? String(item.assigned_to) : 'unassigned'}
-                          onValueChange={(v) => updateChecklistItem(index, 'assigned_to', v === 'unassigned' ? null : v)}
-                          disabled={isSaving}
-                        >
-                          <SelectTrigger className="w-32 h-8">
-                            <SelectValue placeholder="Assign" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="unassigned">Unassigned</SelectItem>
-                            {teamMembers && teamMembers.length > 0 && teamMembers.map(member => {
-                              const memberId = String(member.user_id || member.id);
-                              return (
-                                <SelectItem key={memberId} value={memberId}>
-                                  {member.name || member.email}
-                                </SelectItem>
-                              );
-                            })}
-                          </SelectContent>
-                        </Select>
                         <Button 
                           variant="ghost" 
                           size="icon" 
@@ -576,7 +596,7 @@ import React, { useState, useEffect } from 'react';
                   </div>
                 )}
                 <div>
-                  <Label htmlFor="assigned_user_id">Assign To</Label>
+                  <Label htmlFor="assigned_user_id">Assign To*</Label>
                   {loadingUsers ? (
                     <div className="flex items-center justify-center p-2 border border-white/20 bg-white/10 rounded-lg h-11">
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -636,9 +656,6 @@ import React, { useState, useEffect } from 'react';
                   checked={formData.is_recurring} 
                   onCheckedChange={(c) => {
                     handleSwitchChange('is_recurring', c);
-                    if (c && !formData.recurrence_start_date) {
-                      handleDateChange('recurrence_start_date', new Date());
-                    }
                   }} 
                   disabled={isSaving}
                 />
@@ -787,6 +804,13 @@ import React, { useState, useEffect } from 'react';
                   )}
                 </div>
               )}
+            </div>
+            
+            <div className="flex justify-end pt-6 border-t border-white/10">
+              <Button onClick={handleSubmit} disabled={isSaving} style={isSaving ? { opacity: 0.5, pointerEvents: 'none' } : {}}>
+                {isSaving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                {task ? 'Save Changes' : 'Create Task'}
+              </Button>
             </div>
           </form>
         </div>
