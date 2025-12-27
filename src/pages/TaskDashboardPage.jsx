@@ -87,6 +87,7 @@ const TaskDashboardPage = () => {
     const { user } = useAuth();
     const { toast } = useToast();
     const { selectedOrg, organisations } = useOrganisation();
+    const { socket, joinTaskRoom, leaveTaskRoom } = useSocket();
     const [task, setTask] = useState(null);
     const [history, setHistory] = useState([]);
     const [clients, setClients] = useState([]);
@@ -283,6 +284,89 @@ const TaskDashboardPage = () => {
         fetchCollaborators();
         fetchClosureRequest();
     }, [fetchTask, fetchHistory, fetchCollaborators, fetchClosureRequest]);
+
+    // Socket.IO: Join task room and listen for real-time comment updates
+    useEffect(() => {
+        if (!socket || !taskId || !user?.id) return;
+
+        // Join the task room
+        joinTaskRoom(taskId);
+
+        // Listen for new comments
+        const handleNewComment = (data) => {
+            if (data.task_id === taskId && data.comment) {
+                const newComment = data.comment;
+                
+                // Don't add our own messages (shouldn't happen as backend doesn't emit to sender, but safety check)
+                if (newComment.user_id === user?.id || String(newComment.user_id) === String(user?.id)) {
+                    return;
+                }
+                
+                // Check if comment already exists (avoid duplicates) using functional update
+                setComments(prev => {
+                    const commentExists = prev.some(c => c.id === newComment.id);
+                    if (commentExists) {
+                        return prev; // Return previous state if duplicate
+                    }
+                    
+                    // Add the new comment to the list
+                    const updatedComments = [...prev, newComment];
+                    
+                    // Scroll to bottom to show new message
+                    setTimeout(() => {
+                        if (chatContainerRef.current) {
+                            chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+                        } else if (chatMessagesEndRef.current) {
+                            chatMessagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                        }
+                    }, 100);
+                    
+                    return updatedComments;
+                });
+            }
+        };
+
+        socket.on('new_comment', handleNewComment);
+
+        // Listen for read receipt updates
+        const handleReadReceipt = (data) => {
+            if (data.task_id === taskId && data.comment_id && data.receipt) {
+                const { comment_id, receipt } = data;
+                
+                // Update read receipts for this comment
+                setReadReceipts(prev => {
+                    const existingReceipts = prev[comment_id] || [];
+                    
+                    // Check if this receipt already exists
+                    const receiptExists = existingReceipts.some(r => r.id === receipt.id);
+                    if (receiptExists) {
+                        return prev; // Return previous state if duplicate
+                    }
+                    
+                    // Add the new receipt
+                    const updatedReceipt = {
+                        ...receipt,
+                        name: receipt.user_name || receipt.name || 'Unknown',
+                        email: receipt.user_email || receipt.email || 'N/A'
+                    };
+                    
+                    return {
+                        ...prev,
+                        [comment_id]: [...existingReceipts, updatedReceipt]
+                    };
+                });
+            }
+        };
+
+        socket.on('comment_read_receipt', handleReadReceipt);
+
+        // Cleanup: Leave task room and remove listeners
+        return () => {
+            leaveTaskRoom(taskId);
+            socket.off('new_comment', handleNewComment);
+            socket.off('comment_read_receipt', handleReadReceipt);
+        };
+    }, [socket, taskId, user?.id, joinTaskRoom, leaveTaskRoom]);
 
 
     const handleAddSubtask = async () => {
