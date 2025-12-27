@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useToast } from '@/components/ui/use-toast';
-import { Mail, Lock, ShieldCheck, KeyRound, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, ShieldCheck, KeyRound, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 const LoginForm = () => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -149,10 +150,24 @@ const LoginForm = () => {
                 </motion.div>
               </form>
               <div className="mt-4 flex justify-end text-sm">
-                <Button asChild variant="link" className="text-gray-400 hover:text-white px-0">
+                <Button asChild variant="link" className="text-gray-200 hover:text-white px-0">
                   <Link to="/forgot-password">Forgot Password?</Link>
                 </Button>
               </div>
+              <div className="flex items-center justify-center gap-4">
+                <Button asChild variant="outline">
+                  <button onClick={() => navigate("/")}>
+                    <ArrowLeft className="w-5 h-5 mr-2" />
+                    Go Back
+                  </button>
+                </Button>
+
+
+                {/* <Button onClick={() => navigate("/explore")}>
+                  Explore Product
+                </Button> */}
+              </div>
+
             </CardContent>
           </Card>
         </motion.div>
