@@ -5,7 +5,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { getCATeamVouchers, getCATeamVouchersBulk, listEntities } from '@/lib/api';
 import VoucherHistory from '@/components/finance/VoucherHistory';
 import { VoucherHistorySkeleton } from '@/components/finance/VoucherHistorySkeleton';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useApiCache } from '@/contexts/ApiCacheContext.jsx';
 
 const Vouchers = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefresh, isActive = true, entities: entitiesFromProps }) => {
@@ -16,10 +16,12 @@ const Vouchers = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
   const cache = useApiCache();
   const lastFetchKey = useRef(null);
   const isFetchingRef = useRef(false);
   const pendingRequestsRef = useRef(new Map());
+  const lastLocationRef = useRef(location.pathname);
 
   // Update entities when prop changes
   useEffect(() => {
@@ -236,6 +238,24 @@ const Vouchers = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedOrganisation, selectedEntity, user?.access_token, isActive]); // Only fetch when tab is active
+
+  // Refresh when navigating back from detail page
+  useEffect(() => {
+    // If we're on the finance page and were previously on a detail page, refresh
+    if (location.pathname.includes('/finance') && !location.pathname.includes('/vouchers/ca/') && !location.pathname.includes('/vouchers/')) {
+      const wasOnDetailPage = lastLocationRef.current.includes('/vouchers/ca/') || lastLocationRef.current.includes('/vouchers/');
+      if (wasOnDetailPage && isActive) {
+        // Invalidate cache and refetch
+        if (selectedEntity && selectedEntity !== 'all') {
+          cache.invalidate('getCATeamVouchers', { entityId: selectedEntity, token: user?.access_token });
+        }
+        // Reset fetch key to force refresh
+        lastFetchKey.current = null;
+        fetchDataForClient();
+      }
+    }
+    lastLocationRef.current = location.pathname;
+  }, [location.pathname, isActive, selectedEntity, user?.access_token, cache, fetchDataForClient]);
 
   const handleViewVoucher = (voucher) => {
     navigate(`/vouchers/ca/${voucher.id}`, { state: { voucher, vouchers: enrichedVouchers, organisationId: selectedOrganisation } });

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useOrganisation } from '@/hooks/useOrganisation';
+import { useApiCache } from '@/contexts/ApiCacheContext.jsx';
 import { deleteInvoice, updateInvoice, getBeneficiaries, getInvoiceAttachment, getFinanceHeaders, getInvoices } from '@/lib/api';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/use-toast';
@@ -382,6 +383,9 @@ const InvoiceDetailsPage = () => {
         try {
             const entityId = selectedEntity || localStorage.getItem('entityId');
             await deleteInvoice(entityId, invoiceId, user.access_token);
+            // Invalidate cache
+            cache.invalidate('getCATeamInvoices', { entityId, token: user.access_token });
+            cache.invalidate('getCATeamInvoicesBulk', null); // Invalidate all bulk caches
             toast({ title: 'Success', description: 'Invoice deleted successfully.' });
             navigate(-1);
         } catch (error) {
@@ -475,6 +479,9 @@ const InvoiceDetailsPage = () => {
                 setInvoice(updatedInvoice);
                 setEditedInvoice(updatedInvoice);
             }
+            // Invalidate cache
+            cache.invalidate('getCATeamInvoices', { entityId, token: user.access_token });
+            cache.invalidate('getCATeamInvoicesBulk', null); // Invalidate all bulk caches
             toast({ title: 'Success', description: 'Invoice updated successfully.' });
             setIsEditing(false);
         } catch (error) {

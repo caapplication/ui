@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
+import { useApiCache } from '@/contexts/ApiCacheContext.jsx';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import * as pdfjsLib from 'pdfjs-dist';
@@ -1011,6 +1012,9 @@ const VoucherDetailsPage = () => {
         try {
             const entityId = voucherDetails.entity_id || localStorage.getItem('entityId');
             await deleteVoucher(entityId, voucherId, user.access_token);
+            // Invalidate cache
+            cache.invalidate('getCATeamVouchers', { entityId, token: user.access_token });
+            cache.invalidate('getCATeamVouchersBulk', { entityIds: '*', token: user.access_token });
             toast({ title: 'Success', description: 'Voucher deleted successfully.' });
             setShowDeleteDialog(false);
             if (user.role === 'CLIENT_USER') {
@@ -1071,10 +1075,13 @@ const VoucherDetailsPage = () => {
                 setVoucher(updatedVoucher);
                 setEditedVoucher(updatedVoucher);
             }
+            // Invalidate cache
+            const entityId = voucherDetails.entity_id || localStorage.getItem('entityId');
+            cache.invalidate('getCATeamVouchers', { entityId, token: user.access_token });
+            cache.invalidate('getCATeamVouchersBulk', null); // Invalidate all bulk caches
             toast({ title: 'Success', description: 'Voucher updated successfully.' });
             setIsEditing(false);
             // Refresh the voucher data to ensure we have the latest from server
-            const entityId = voucherDetails.entity_id || localStorage.getItem('entityId');
             const refreshedVoucher = await getVoucher(entityId, voucherId, user.access_token);
             if (refreshedVoucher) {
                 setVoucher(refreshedVoucher);
