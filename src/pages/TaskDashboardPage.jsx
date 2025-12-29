@@ -407,9 +407,9 @@ const TaskDashboardPage = () => {
         try {
             const agencyId = user?.agency_id || null;
             const newSubtaskData = await addTaskSubtask(taskId, { title: subtaskTitle }, agencyId, user.access_token);
-            // Optimistically add to UI
+            // Optimistically add to UI at the top
             if (task) {
-                const updatedSubtasks = [...(task.subtasks || []), newSubtaskData];
+                const updatedSubtasks = [newSubtaskData, ...(task.subtasks || [])];
                 setTask({ ...task, subtasks: updatedSubtasks });
             }
             setNewSubtask(''); // Clear input
@@ -626,7 +626,7 @@ const TaskDashboardPage = () => {
 
             const updatedChecklist = {
                 enabled: true,
-                items: [...currentItems, newItem]
+                items: [newItem, ...currentItems] // Add new item at the top
             };
 
             // Update via API
@@ -2004,7 +2004,14 @@ const TaskDashboardPage = () => {
                             </CardHeader>
                             <CardContent className="flex-1 min-h-0 overflow-hidden flex flex-col">
                                 <div className="flex-1 min-h-0 overflow-y-auto space-y-2">
-                                    {task.subtasks?.length > 0 ? task.subtasks.map(sub => {
+                                    {task.subtasks?.length > 0 ? [...(task.subtasks || [])]
+                                        .sort((a, b) => {
+                                            // Sort by created_at descending (newest first), fallback to id if no created_at
+                                            const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+                                            const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+                                            return dateB - dateA; // Newest first
+                                        })
+                                        .map(sub => {
                                         // Find creator from activity logs for this subtask
                                         // Try to match by subtask title in action or details
                                         const subtaskTitle = sub.title || sub.name || '';
@@ -2128,7 +2135,14 @@ const TaskDashboardPage = () => {
                                 )}
                                 {task.checklist?.enabled && task.checklist?.items && task.checklist.items.length > 0 ? (
                                     <div className="space-y-2 h-full overflow-y-auto">
-                                        {task.checklist.items.map((item, index) => {
+                                        {[...(task.checklist.items || [])]
+                                            .sort((a, b) => {
+                                                // Sort by created_at descending (newest first), fallback to index if no created_at
+                                                const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+                                                const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+                                                return dateB - dateA; // Newest first
+                                            })
+                                            .map((item, index) => {
                                             // Use created_by if available, otherwise assigned_to, otherwise task.created_by
                                             const checklistCreatorId = item.created_by || item.assigned_to || task.created_by;
                                             const checklistCreator = getUserInfo(checklistCreatorId);
