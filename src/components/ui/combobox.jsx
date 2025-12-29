@@ -26,6 +26,7 @@ export function Combobox({
   disabled = false,
   className,
   displayValue = null, // Function to customize display value
+  style = null, // Custom style for the button
 }) {
   const [open, setOpen] = React.useState(false)
 
@@ -45,6 +46,7 @@ export function Combobox({
             "w-full justify-between h-11 rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-base text-gray-100 hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50",
             className
           )}
+          style={style}
           disabled={disabled}
         >
           <span className="truncate">{displayText}</span>

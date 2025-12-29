@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useSocket } from '@/contexts/SocketContext.jsx';
 import { useOrganisation } from '@/hooks/useOrganisation';
-import { getTaskDetails, startTaskTimer, stopTaskTimer, getTaskHistory, addTaskSubtask, updateTaskSubtask, deleteTaskSubtask, updateTask, listClients, listServices, listTeamMembers, listTaskComments, createTaskComment, updateTaskComment, deleteTaskComment, addTaskCollaborator, removeTaskCollaborator, getTaskCollaborators, getCommentReadReceipts, requestTaskClosure, getClosureRequest, reviewClosureRequest } from '@/lib/api';
+import { getTaskDetails, startTaskTimer, stopTaskTimer, getTaskHistory, addTaskSubtask, updateTaskSubtask, deleteTaskSubtask, updateTask, listClients, listServices, listTeamMembers, listTaskComments, createTaskComment, updateTaskComment, deleteTaskComment, addTaskCollaborator, removeTaskCollaborator, getTaskCollaborators, getCommentReadReceipts, requestTaskClosure, getClosureRequest, reviewClosureRequest, listTaskStages } from '@/lib/api';
 import { useToast } from '@/components/ui/use-toast';
 import { Loader2, ArrowLeft, Paperclip, Clock, Calendar, User, Tag, Flag, CheckCircle, FileText, List, MessageSquare, Briefcase, Users, Play, Square, History, Plus, Trash2, Send, Edit2, Bell, UserPlus, X, Download, Image as ImageIcon, Eye, Maximize2, Repeat, LayoutGrid, CheckCircle2, XCircle } from 'lucide-react';
 import { Combobox } from '@/components/ui/combobox';
@@ -125,6 +125,9 @@ const TaskDashboardPage = () => {
     const [showClosureReviewDialog, setShowClosureReviewDialog] = useState(false);
     const [closureReason, setClosureReason] = useState('');
     const [previewAttachment, setPreviewAttachment] = useState(null); // { url, name, type }
+    const [stages, setStages] = useState([]);
+    const [isLoadingStages, setIsLoadingStages] = useState(false);
+    const [isUpdatingStage, setIsUpdatingStage] = useState(false);
 
     const fetchCollaborators = useCallback(async () => {
         if (!user?.access_token || !taskId) return;
@@ -289,12 +292,28 @@ const TaskDashboardPage = () => {
         }
     }, [taskId, user?.agency_id, user?.access_token]);
 
+    const fetchStages = useCallback(async () => {
+        if (!user?.access_token) return;
+        setIsLoadingStages(true);
+        try {
+            const agencyId = user?.agency_id || null;
+            const stagesData = await listTaskStages(agencyId, user.access_token);
+            setStages(Array.isArray(stagesData) ? stagesData : []);
+        } catch (error) {
+            console.error('Error fetching stages:', error);
+            setStages([]);
+        } finally {
+            setIsLoadingStages(false);
+        }
+    }, [user?.agency_id, user?.access_token]);
+
     useEffect(() => {
         fetchTask();
         fetchHistory();
         fetchCollaborators();
         fetchClosureRequest();
-    }, [fetchTask, fetchHistory, fetchCollaborators, fetchClosureRequest]);
+        fetchStages();
+    }, [fetchTask, fetchHistory, fetchCollaborators, fetchClosureRequest, fetchStages]);
 
     // Socket.IO: Join task room and listen for real-time comment updates
     useEffect(() => {
@@ -1073,6 +1092,121 @@ const TaskDashboardPage = () => {
         return { className };
     };
 
+    // Get stage color styles for Combobox
+    const getStageColorStyles = () => {
+        if (task.stage?.color) {
+            return {
+                backgroundColor: `${task.stage.color}20`,
+                color: task.stage.color,
+                borderColor: `${task.stage.color}50`,
+            };
+        }
+        const statusColor = getStatusColor(task);
+        if (statusColor.className) {
+            // Extract color classes and convert to inline styles
+            const className = statusColor.className;
+            if (className.includes('orange')) {
+                return {
+                    backgroundColor: 'rgba(249, 115, 22, 0.2)',
+                    color: 'rgb(253, 186, 116)',
+                    borderColor: 'rgba(249, 115, 22, 0.5)',
+                };
+            } else if (className.includes('blue')) {
+                return {
+                    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                    color: 'rgb(147, 197, 253)',
+                    borderColor: 'rgba(59, 130, 246, 0.5)',
+                };
+            } else if (className.includes('green')) {
+                return {
+                    backgroundColor: 'rgba(34, 197, 94, 0.2)',
+                    color: 'rgb(134, 239, 172)',
+                    borderColor: 'rgba(34, 197, 94, 0.5)',
+                };
+            } else if (className.includes('red')) {
+                return {
+                    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                    color: 'rgb(252, 165, 165)',
+                    borderColor: 'rgba(239, 68, 68, 0.5)',
+                };
+            }
+        }
+        return {
+            backgroundColor: 'rgba(107, 114, 128, 0.2)',
+            color: 'rgb(209, 213, 219)',
+            borderColor: 'rgba(107, 114, 128, 0.5)',
+        };
+    };
+
+    // Check if current user is the task creator
+    const isTaskCreator = task.created_by && String(task.created_by) === String(user?.id);
+    
+    // Filter stages based on user role
+    const getAvailableStages = () => {
+        if (!stages || stages.length === 0) return [];
+        
+        // If user is creator, show all stages
+        if (isTaskCreator) {
+            return stages;
+        }
+        
+        // If user is not creator, filter out "Complete" and "Completed" stages
+        return stages.filter(stage => {
+            const stageName = (stage.name || '').toLowerCase();
+            return stageName !== 'complete' && stageName !== 'completed';
+        });
+    };
+
+    const availableStages = getAvailableStages();
+
+    // Handle stage change
+    const handleStageChange = async (stageId) => {
+        if (!stageId || !task) return;
+        
+        const selectedStage = stages.find(s => s.id === stageId);
+        if (!selectedStage) return;
+        
+        // Double-check: non-creators cannot select Complete stage
+        if (!isTaskCreator) {
+            const stageName = (selectedStage.name || '').toLowerCase();
+            if (stageName === 'complete' || stageName === 'completed') {
+                toast({
+                    title: 'Permission Denied',
+                    description: 'Only the task creator can change the stage to Complete.',
+                    variant: 'destructive',
+                });
+                return;
+            }
+        }
+        
+        setIsUpdatingStage(true);
+        try {
+            const agencyId = user?.agency_id || null;
+            await updateTask(taskId, { stage_id: stageId }, agencyId, user.access_token);
+            
+            // Refresh task data
+            const updatedTask = await getTaskDetails(taskId, agencyId, user.access_token);
+            setTask(updatedTask);
+            
+            // Refresh history
+            const updatedHistory = await getTaskHistory(taskId, agencyId, user.access_token);
+            setHistory(updatedHistory);
+            
+            toast({
+                title: 'Stage Updated',
+                description: `Task stage changed to ${selectedStage.name}`,
+            });
+        } catch (error) {
+            toast({
+                title: 'Error updating stage',
+                description: error.message,
+                variant: 'destructive',
+            });
+        } finally {
+            setIsUpdatingStage(false);
+        }
+    };
+
     // Get user info for display
     const createdByInfo = task.created_by_name 
         ? { name: task.created_by_name, email: 'N/A', role: task.created_by_role || getUserInfo(task.created_by).role || 'N/A' }
@@ -1244,11 +1378,11 @@ const TaskDashboardPage = () => {
                             <TableHeader>
                                 <TableRow className="border-white/10">
                                     <TableHead>T.ID</TableHead>
-                                    <TableHead>STATUS</TableHead>
                                     <TableHead>TASK DETAILS</TableHead>
                                     <TableHead>LAST UPDATE BY</TableHead>
                                     <TableHead>CREATED BY</TableHead>
                                     <TableHead>ASSIGNED TO</TableHead>
+                                    <TableHead>STATUS</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -1275,17 +1409,6 @@ const TaskDashboardPage = () => {
                                             {displayTaskId}
                                             </span>
                                         </div>
-                                    </TableCell>
-                                    
-                                    {/* STATUS */}
-                                    <TableCell>
-                                            <Badge 
-                                                variant="outline" 
-                                            className={task.stage?.color ? '' : `inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-medium w-fit ${getStatusColor(task).className || ''}`}
-                                            style={task.stage?.color ? getStatusColor(task) : {}}
-                                            >
-                                                {statusName}
-                                            </Badge>
                                     </TableCell>
                                     
                                     {/* TASK DETAILS */}
@@ -1344,6 +1467,47 @@ const TaskDashboardPage = () => {
                                                 </Badge>
                                             )}
                                 </div>
+                                    </TableCell>
+                                    
+                                    {/* STATUS */}
+                                    <TableCell>
+                                        <div className="flex items-center gap-2">
+                                            {isLoadingStages ? (
+                                                <Loader2 className="w-4 h-4 animate-spin text-white/70" />
+                                            ) : availableStages.length > 0 ? (
+                                                <div className="relative">
+                                                    {isUpdatingStage && (
+                                                        <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-lg z-10">
+                                                            <Loader2 className="w-4 h-4 animate-spin text-white/70" />
+                                                        </div>
+                                                    )}
+                                                    <Combobox
+                                                        options={availableStages.map(stage => ({
+                                                            value: String(stage.id),
+                                                            label: stage.name || 'Unnamed Stage',
+                                                        }))}
+                                                        value={task.stage_id ? String(task.stage_id) : ''}
+                                                        onValueChange={handleStageChange}
+                                                        placeholder={statusName || "Select Stage"}
+                                                        className="w-[180px]"
+                                                        disabled={isUpdatingStage}
+                                                        displayValue={(option) => {
+                                                            const stage = availableStages.find(s => String(s.id) === String(option.value));
+                                                            return stage?.name || option.label;
+                                                        }}
+                                                        style={getStageColorStyles()}
+                                                    />
+                                                </div>
+                                            ) : (
+                                                <Badge 
+                                                    variant="outline" 
+                                                    className={task.stage?.color ? '' : `inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-medium w-fit ${getStatusColor(task).className || ''}`}
+                                                    style={task.stage?.color ? getStatusColor(task) : {}}
+                                                >
+                                                    {statusName}
+                                                </Badge>
+                                            )}
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                             </TableBody>
