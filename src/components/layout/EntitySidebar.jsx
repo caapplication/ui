@@ -1,8 +1,8 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  LayoutDashboard, 
-  FileText, 
+import {
+  LayoutDashboard,
+  FileText,
   LogOut,
   Landmark,
   PanelLeftClose,
@@ -18,7 +18,7 @@ const EntitySidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) => {
   const { user, logout } = useAuth();
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const location = useLocation();
-  
+
   const menuItems = [
     { id: 'dashboard', path: '/', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'finance', path: '/finance', label: 'Finance', icon: Landmark },
@@ -46,24 +46,24 @@ const EntitySidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) => {
     <div className={`h-full glass-pane flex flex-col p-4`}>
       <div className="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar">
         <div className="mb-8">
-            <div className={`flex items-center mb-4 ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
-                <Link to="/profile" className="flex items-center space-x-4 cursor-pointer min-w-0">
-                    <Avatar className="w-12 h-12 flex-shrink-0 border-2 border-white/20">
-                        <AvatarImage src={user?.photo_url} alt={user?.name} />
-                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
-                            {user?.name?.charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                    </Avatar>
-                    <AnimatePresence>
-                    {!isCollapsed && (
-                    <motion.div variants={textVariants} initial="collapsed" animate="expanded" exit="collapsed" className="min-w-0 flex-1">
-                        <p className="text-white font-semibold truncate">{user?.name}</p>
-                        <p className="text-gray-400 text-sm truncate">{user?.sub}</p>
-                    </motion.div>
-                    )}
-                    </AnimatePresence>
-                </Link>
-            </div>
+          <div className={`flex items-center mb-4 ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
+            <Link to="/profile" className="flex items-center space-x-4 cursor-pointer min-w-0">
+              <Avatar className="w-12 h-12 flex-shrink-0 border-2 border-white/20">
+                <AvatarImage src={user?.photo_url} alt={user?.name} />
+                <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
+                  {user?.name?.charAt(0).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <AnimatePresence>
+                {!isCollapsed && (
+                  <motion.div variants={textVariants} initial="collapsed" animate="expanded" exit="collapsed" className="min-w-0 flex-1">
+                    <p className="text-white font-semibold truncate">{user?.name}</p>
+                    <p className="text-gray-400 text-sm truncate">{user?.sub}</p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </Link>
+          </div>
         </div>
 
         <nav>
@@ -80,22 +80,22 @@ const EntitySidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) => {
                       title={isCollapsed ? item.label : ''}
                     >
                       <AnimatePresence>
-                      {isActive && (
-                        <motion.div
-                          layoutId="active-nav-glow-entity"
-                          className="absolute inset-0 bg-white/10 rounded-lg shadow-glow-secondary"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                        ></motion.div>
-                      )}
+                        {isActive && (
+                          <motion.div
+                            layoutId="active-nav-glow-entity"
+                            className="absolute inset-0 bg-white/10 rounded-lg shadow-glow-secondary"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                          ></motion.div>
+                        )}
                       </AnimatePresence>
                       <Icon className={`w-6 h-6 flex-shrink-0 z-10 ${isCollapsed ? 'mx-auto' : 'mr-4'}`} />
-                       <AnimatePresence>
-                          {!isCollapsed && (
-                            <motion.span variants={textVariants} initial="collapsed" animate="expanded" exit="collapsed" className="flex-1 font-medium z-10">{item.label}</motion.span>
-                          )}
-                        </AnimatePresence>
+                      <AnimatePresence>
+                        {!isCollapsed && (
+                          <motion.span variants={textVariants} initial="collapsed" animate="expanded" exit="collapsed" className="flex-1 font-medium z-10">{item.label}</motion.span>
+                        )}
+                      </AnimatePresence>
                     </Button>
                   </Link>
                 </li>
@@ -106,34 +106,34 @@ const EntitySidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) => {
       </div>
 
       <div className="mt-auto pt-4 border-t border-white/10 space-y-2">
-          {isDesktop && (
-            <Button
-              variant="ghost"
-              className="w-full justify-start text-gray-300 hover:text-white h-12"
-              onClick={handleToggleCollapse}
-            >
-              <div className={isCollapsed ? "mx-auto" : "mr-4"}>
-                {isCollapsed ? <PanelLeftOpen className="w-6 h-6" /> : <PanelLeftClose className="w-6 h-6"/>}
-              </div>
-              <AnimatePresence>
-                {!isCollapsed && (
-                  <motion.span variants={textVariants} initial="collapsed" animate="expanded" exit="collapsed" className="font-medium">Collapse</motion.span>
-                )}
-              </AnimatePresence>
-            </Button>
-          )}
+        {isDesktop && (
           <Button
             variant="ghost"
-            className="w-full justify-start text-gray-300 hover:text-white hover:bg-red-500/20 h-12"
-            onClick={logout}
+            className="w-full justify-start text-gray-300 hover:text-white h-12"
+            onClick={handleToggleCollapse}
           >
-            <LogOut className={`w-6 h-6 flex-shrink-0 ${isCollapsed ? 'mx-auto' : 'mr-4'}`} />
+            <div className={isCollapsed ? "mx-auto" : "mr-4"}>
+              {isCollapsed ? <PanelLeftOpen className="w-6 h-6" /> : <PanelLeftClose className="w-6 h-6" />}
+            </div>
             <AnimatePresence>
               {!isCollapsed && (
-                <motion.span variants={textVariants} initial="collapsed" animate="expanded" exit="collapsed" className="font-medium">Sign Out</motion.span>
+                <motion.span variants={textVariants} initial="collapsed" animate="expanded" exit="collapsed" className="font-medium">Collapse</motion.span>
               )}
             </AnimatePresence>
           </Button>
+        )}
+        <Button
+          variant="ghost"
+          className="w-full justify-start text-gray-300 hover:text-white hover:bg-red-500/20 h-12"
+          onClick={logout}
+        >
+          <LogOut className={`w-6 h-6 flex-shrink-0 ${isCollapsed ? 'mx-auto' : 'mr-4'}`} />
+          <AnimatePresence>
+            {!isCollapsed && (
+              <motion.span variants={textVariants} initial="collapsed" animate="expanded" exit="collapsed" className="font-medium">Sign Out</motion.span>
+            )}
+          </AnimatePresence>
+        </Button>
       </div>
     </div>
   );
@@ -142,7 +142,7 @@ const EntitySidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) => {
     return (
       <AnimatePresence>
         {isOpen && (
-           <>
+          <>
             <motion.div
               className="fixed inset-0 bg-black/60 z-30"
               initial={{ opacity: 0 }}
@@ -158,9 +158,9 @@ const EntitySidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) => {
               exit="closed"
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
             >
-                {sidebarContent}
+              {sidebarContent}
             </motion.div>
-           </>
+          </>
         )}
       </AnimatePresence>
     )
@@ -168,11 +168,11 @@ const EntitySidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) => {
 
   return (
     <motion.aside
-        animate={isCollapsed ? "collapsed" : "expanded"}
-        variants={variants}
-        transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
-        className="relative z-20 h-screen flex-shrink-0 p-2"
-      >
+      animate={isCollapsed ? "collapsed" : "expanded"}
+      variants={variants}
+      transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
+      className="relative z-20 h-screen flex-shrink-0 p-2"
+    >
       <div className="h-full rounded-3xl overflow-hidden">
         {sidebarContent}
       </div>
