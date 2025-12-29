@@ -1704,7 +1704,7 @@ const TaskDashboardPage = () => {
                     {/* Subtasks, Checklists, Collaborate, Activity Logs - 50% Width, 2x2 Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch h-full min-h-0" style={{ gridTemplateRows: '1fr 1fr' }}>
                         {/* Subtasks Box */}
-                        <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col" style={{ height: '100%' }}>
+                        <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col " style={{ height: '100%' }}>
                             <CardHeader className="flex-shrink-0">
                                 <div className="flex items-center justify-between">
                                     <CardTitle>Subtasks</CardTitle>
