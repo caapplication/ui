@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth.jsx';
 import { useSocket } from '@/contexts/SocketContext.jsx';
 import { useOrganisation } from '@/hooks/useOrganisation';
 import { getTaskDetails, startTaskTimer, stopTaskTimer, getTaskHistory, addTaskSubtask, updateTaskSubtask, deleteTaskSubtask, updateTask, listClients, listServices, listTeamMembers, listTaskComments, createTaskComment, updateTaskComment, deleteTaskComment, addTaskCollaborator, removeTaskCollaborator, getTaskCollaborators, getCommentReadReceipts, requestTaskClosure, getClosureRequest, reviewClosureRequest, listTaskStages } from '@/lib/api';
+import * as pdfjsLib from 'pdfjs-dist';
 import { useToast } from '@/components/ui/use-toast';
 import { Loader2, ArrowLeft, Paperclip, Clock, Calendar, User, Tag, Flag, CheckCircle, FileText, List, MessageSquare, Briefcase, Users, Play, Square, History, Plus, Trash2, Send, Edit2, Bell, UserPlus, X, Download, Image as ImageIcon, Eye, Maximize2, Repeat, LayoutGrid, CheckCircle2, XCircle } from 'lucide-react';
 import { Combobox } from '@/components/ui/combobox';
@@ -61,6 +62,9 @@ const getPriorityVariant = (priority) => {
         default: return 'outline';
     }
 };
+
+// Configure PDF.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 const formatSeconds = (seconds) => {
     if (isNaN(seconds) || seconds < 0) return '00:00:00';
@@ -125,6 +129,13 @@ const TaskDashboardPage = () => {
     const [showClosureReviewDialog, setShowClosureReviewDialog] = useState(false);
     const [closureReason, setClosureReason] = useState('');
     const [previewAttachment, setPreviewAttachment] = useState(null); // { url, name, type }
+    const [pdfBlobUrl, setPdfBlobUrl] = useState(null);
+    const [isLoadingPdf, setIsLoadingPdf] = useState(false);
+    const [pdfDoc, setPdfDoc] = useState(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(0);
+    const pdfBlobUrlRef = useRef(null);
+    const canvasRef = useRef(null);
     const [stages, setStages] = useState([]);
     const [isLoadingStages, setIsLoadingStages] = useState(false);
     const [isUpdatingStage, setIsUpdatingStage] = useState(false);
@@ -306,6 +317,108 @@ const TaskDashboardPage = () => {
             setIsLoadingStages(false);
         }
     }, [user?.agency_id, user?.access_token]);
+
+    // Handle PDF preview - fetch and render using PDF.js
+    useEffect(() => {
+        const loadPdf = async () => {
+            if (!previewAttachment) {
+                // Clean up
+                if (pdfBlobUrlRef.current) {
+                    URL.revokeObjectURL(pdfBlobUrlRef.current);
+                    pdfBlobUrlRef.current = null;
+                }
+                setPdfBlobUrl(null);
+                setPdfDoc(null);
+                setCurrentPage(1);
+                setTotalPages(0);
+                return;
+            }
+
+            // Only handle if it's a PDF
+            if (previewAttachment.type === 'application/pdf' || previewAttachment.url.match(/\.pdf$/i)) {
+                setIsLoadingPdf(true);
+                try {
+                    // Clean up previous blob URL if exists
+                    if (pdfBlobUrlRef.current) {
+                        URL.revokeObjectURL(pdfBlobUrlRef.current);
+                    }
+                    
+                    // Fetch PDF as blob
+                    const response = await fetch(previewAttachment.url, {
+                        method: 'GET',
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch PDF');
+                    }
+                    
+                    const blob = await response.blob();
+                    const blobUrl = URL.createObjectURL(blob);
+                    pdfBlobUrlRef.current = blobUrl;
+                    setPdfBlobUrl(blobUrl);
+                    
+                    // Load PDF with PDF.js
+                    const loadingTask = pdfjsLib.getDocument({ url: blobUrl });
+                    const pdf = await loadingTask.promise;
+                    setPdfDoc(pdf);
+                    setTotalPages(pdf.numPages);
+                    setCurrentPage(1);
+                    
+                    // Render first page will be handled by the useEffect below
+                } catch (error) {
+                    console.error('Error loading PDF:', error);
+                    toast({
+                        title: 'Error loading PDF',
+                        description: 'Could not load the PDF. Please try downloading it instead.',
+                        variant: 'destructive',
+                    });
+                } finally {
+                    setIsLoadingPdf(false);
+                }
+            }
+        };
+
+        loadPdf();
+        
+        // Cleanup function
+        return () => {
+            if (pdfBlobUrlRef.current) {
+                URL.revokeObjectURL(pdfBlobUrlRef.current);
+                pdfBlobUrlRef.current = null;
+            }
+        };
+    }, [previewAttachment, toast]);
+
+    // Render PDF page
+    const renderPage = useCallback(async (pdf, pageNum) => {
+        if (!pdf || !canvasRef.current) return;
+        
+        try {
+            const page = await pdf.getPage(pageNum);
+            const viewport = page.getViewport({ scale: 1.5 });
+            const canvas = canvasRef.current;
+            const context = canvas.getContext('2d');
+            
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            
+            const renderContext = {
+                canvasContext: context,
+                viewport: viewport
+            };
+            
+            await page.render(renderContext).promise;
+        } catch (error) {
+            console.error('Error rendering PDF page:', error);
+        }
+    }, []);
+
+    // Handle page change
+    useEffect(() => {
+        if (pdfDoc && currentPage) {
+            renderPage(pdfDoc, currentPage);
+        }
+    }, [pdfDoc, currentPage, renderPage]);
 
     useEffect(() => {
         fetchTask();
@@ -2295,7 +2408,15 @@ const TaskDashboardPage = () => {
             </Dialog>
 
             {/* Attachment Preview Dialog */}
-            <Dialog open={!!previewAttachment} onOpenChange={() => setPreviewAttachment(null)}>
+            <Dialog open={!!previewAttachment} onOpenChange={() => {
+                setPreviewAttachment(null);
+                // Clean up blob URL when dialog closes
+                if (pdfBlobUrlRef.current) {
+                    URL.revokeObjectURL(pdfBlobUrlRef.current);
+                    pdfBlobUrlRef.current = null;
+                    setPdfBlobUrl(null);
+                }
+            }}>
                 <DialogContent className="glass-pane max-w-4xl w-[95vw] h-[90vh] flex flex-col p-0">
                     <DialogHeader className="flex-shrink-0 px-6 pt-6 pb-4 border-b border-white/10">
                         <div className="flex items-center justify-between">
@@ -2334,12 +2455,84 @@ const TaskDashboardPage = () => {
                                         />
                                     </div>
                                 ) : previewAttachment.type === 'application/pdf' || previewAttachment.url.match(/\.pdf$/i) ? (
-                                    <div className="h-full w-full">
-                                        <iframe
-                                            src={previewAttachment.url}
-                                            className="w-full h-full rounded-lg border border-white/10"
-                                            title={previewAttachment.name}
-                                        />
+                                    <div className="h-full w-full flex flex-col">
+                                        {isLoadingPdf ? (
+                                            <div className="flex-1 flex items-center justify-center">
+                                                <div className="text-center">
+                                                    <Loader2 className="w-8 h-8 animate-spin text-white mx-auto mb-4" />
+                                                    <p className="text-white">Loading PDF...</p>
+                                                </div>
+                                            </div>
+                                        ) : pdfDoc && totalPages > 0 ? (
+                                            <>
+                                                <div className="flex-1 w-full overflow-auto rounded-lg border border-white/10 bg-gray-900 p-4 flex justify-center">
+                                                    <canvas
+                                                        ref={canvasRef}
+                                                        className="shadow-lg"
+                                                        style={{ maxWidth: '100%', height: 'auto' }}
+                                                    />
+                                                </div>
+                                                <div className="mt-4 flex items-center justify-between gap-4">
+                                                    <div className="flex items-center gap-2">
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                                            disabled={currentPage === 1}
+                                                            className="bg-white/10 hover:bg-white/20 text-white"
+                                                        >
+                                                            Previous
+                                                        </Button>
+                                                        <span className="text-white px-4">
+                                                            Page {currentPage} of {totalPages}
+                                                        </span>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                                            disabled={currentPage === totalPages}
+                                                            className="bg-white/10 hover:bg-white/20 text-white"
+                                                        >
+                                                            Next
+                                                        </Button>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <a
+                                                            href={pdfBlobUrl || previewAttachment.url}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
+                                                        >
+                                                            <Maximize2 className="w-4 h-4" />
+                                                            Open in New Tab
+                                                        </a>
+                                                        <a
+                                                            href={pdfBlobUrl || previewAttachment.url}
+                                                            download={previewAttachment.name}
+                                                            className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
+                                                        >
+                                                            <Download className="w-4 h-4" />
+                                                            Download
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <div className="flex-1 flex items-center justify-center">
+                                                <div className="text-center">
+                                                    <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                                                    <p className="text-white mb-4">Could not load PDF</p>
+                                                    <a
+                                                        href={previewAttachment.url}
+                                                        download={previewAttachment.name}
+                                                        className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
+                                                    >
+                                                        <Download className="w-4 h-4" />
+                                                        Download PDF
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 ) : (
                                     <div className="h-full flex flex-col items-center justify-center text-center">
