@@ -1,8 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
     import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
     import { Input } from '@/components/ui/input';
     import { Button } from '@/components/ui/button';
-    import { Search, Plus, MoreVertical, Edit, Trash2, Bell, UserPlus } from 'lucide-react';
+    import { Search, Plus, MoreVertical, Edit, Trash2, Bell, UserPlus, ChevronLeft, ChevronRight } from 'lucide-react';
     import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
     import { Badge } from '@/components/ui/badge';
     import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -22,6 +22,8 @@ import React, { useState, useMemo } from 'react';
     const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew, onEditTask, onDeleteTask, onViewTask }) => {
         const [searchTerm, setSearchTerm] = useState('');
         const [statusFilter, setStatusFilter] = useState('all');
+        const [currentPage, setCurrentPage] = useState(1);
+        const [pageSize, setPageSize] = useState(25);
     
         const getStatusVariant = (status) => {
             switch (status) {
@@ -186,18 +188,28 @@ import React, { useState, useMemo } from 'react';
                 return statusMatch && searchMatch;
             })
         }, [tasks, statusFilter, searchTerm, clients]);
+
+        // Pagination calculations
+        const totalPages = Math.ceil(filteredTasks.length / pageSize);
+        const paginatedTasks = useMemo(() => {
+            const startIndex = (currentPage - 1) * pageSize;
+            return filteredTasks.slice(startIndex, startIndex + pageSize);
+        }, [filteredTasks, currentPage, pageSize]);
+
+        // Reset to page 1 when filters change
+        useEffect(() => {
+            setCurrentPage(1);
+        }, [searchTerm, statusFilter]);
+
+        // Clamp current page if it exceeds total pages
+        useEffect(() => {
+            if (currentPage > totalPages && totalPages > 0) {
+                setCurrentPage(totalPages);
+            }
+        }, [currentPage, totalPages]);
     
         return (
             <div className="h-full flex flex-col">
-                <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 flex-shrink-0">
-                    <div>
-                    </div>
-                    <Button onClick={onAddNew}>
-                        <Plus className="w-5 h-5 mr-2" />
-                        New Task
-                    </Button>
-                </header>
-    
                 <div className="glass-pane rounded-lg flex-grow flex flex-col">
                     <div className="p-4 border-b border-white/10">
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -242,7 +254,7 @@ import React, { useState, useMemo } from 'react';
                                         </TableCell>
                                     </TableRow>
                                 ) : (
-                                    filteredTasks.map(task => {
+                                    paginatedTasks.map(task => {
                                         // Use names and roles from API if available, otherwise lookup
                                         const createdByInfo = task.created_by_name 
                                             ? { name: task.created_by_name, email: 'N/A', role: task.created_by_role || getUserInfo(task.created_by).role || 'N/A' }
@@ -253,26 +265,47 @@ import React, { useState, useMemo } from 'react';
                                         const assignedToInfo = getUserInfo(task.assigned_to);
                                         const taskId = getTaskId(task);
                                         
-                                        // Get stage name from stages array if available
+                                        // Get stage name and color from stages array if available
                                         let statusName = task.status || 'Pending';
+                                        let stageColor = null;
                                         if (task.stage_id && stages.length > 0) {
                                             const stage = stages.find(s => s.id === task.stage_id || String(s.id) === String(task.stage_id));
                                             if (stage) {
                                                 statusName = stage.name;
+                                                stageColor = stage.color;
                                             }
                                         } else if (task.stage?.name) {
                                             statusName = task.stage.name;
+                                            stageColor = task.stage.color;
                                         }
+                                        
+                                        // Get color style for badge
+                                        const badgeStyle = stageColor ? {
+                                            backgroundColor: `${stageColor}20`,
+                                            color: stageColor,
+                                            borderColor: `${stageColor}50`
+                                        } : {};
+                                        const badgeClassName = stageColor ? '' : `inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-medium w-fit ${
+                                            statusName === 'Assigned' ? 'bg-orange-500/20 text-orange-300 border-orange-500/50' :
+                                            statusName === 'In Progress' ? 'bg-blue-500/20 text-blue-300 border-blue-500/50' :
+                                            statusName === 'Completed' ? 'bg-green-500/20 text-green-300 border-green-500/50' :
+                                            'bg-gray-500/20 text-gray-300 border-gray-500/50'
+                                        }`;
                                         
                                         return (
                                             <TableRow key={task.id} className="hover:bg-white/5 cursor-pointer" onClick={() => onViewTask && onViewTask(task.id)}>
                                                 {/* T.ID */}
                                                 <TableCell>
                                                     <div className="flex items-center gap-2">
+                                                        {task.has_unread_messages && (
+                                                            <Bell 
+                                                                className="w-4 h-4 text-red-500" 
+                                                                style={{
+                                                                    animation: 'vibrate 2s ease-in-out infinite'
+                                                                }}
+                                                            />
+                                                        )}
                                                         <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-pink-100 dark:bg-pink-900/30">
-                                                            {task.has_unread_messages && (
-                                                                <Bell className="w-3 h-3 text-red-500" />
-                                                            )}
                                                             <span className="text-purple-600 dark:text-purple-400 font-medium text-sm">{taskId}</span>
                                                         </div>
                                                     </div>
@@ -282,12 +315,8 @@ import React, { useState, useMemo } from 'react';
                                                 <TableCell>
                                                     <Badge 
                                                         variant="outline" 
-                                                        className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-medium w-fit ${
-                                                            statusName === 'Assigned' ? 'bg-orange-500/20 text-orange-300 border-orange-500/50' :
-                                                            statusName === 'In Progress' ? 'bg-blue-500/20 text-blue-300 border-blue-500/50' :
-                                                            statusName === 'Completed' ? 'bg-green-500/20 text-green-300 border-green-500/50' :
-                                                            'bg-gray-500/20 text-gray-300 border-gray-500/50'
-                                                        }`}
+                                                        className={badgeClassName}
+                                                        style={badgeStyle}
                                                     >
                                                         {statusName}
                                                     </Badge>
@@ -360,6 +389,51 @@ import React, { useState, useMemo } from 'react';
                             </TableBody>
                         </Table>
                     </div>
+                    {filteredTasks.length > 0 && (
+                        <div className="p-4 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center gap-4">
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm text-gray-400">Items per page:</span>
+                                <Select value={String(pageSize)} onValueChange={(value) => {
+                                    setPageSize(Number(value));
+                                    setCurrentPage(1);
+                                }}>
+                                    <SelectTrigger className="w-20 h-8">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="10">10</SelectItem>
+                                        <SelectItem value="25">25</SelectItem>
+                                        <SelectItem value="50">50</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <span className="text-sm text-gray-400">
+                                    Page {currentPage} of {totalPages} ({filteredTasks.length} total)
+                                </span>
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                        disabled={currentPage === 1}
+                                        className="h-8 w-8"
+                                    >
+                                        <ChevronLeft className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                        disabled={currentPage === totalPages}
+                                        className="h-8 w-8"
+                                    >
+                                        <ChevronRight className="w-4 h-4" />
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         );

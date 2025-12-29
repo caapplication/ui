@@ -73,6 +73,21 @@
   }
 }
 
+@keyframes vibrate {
+  0%, 100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  25% {
+    transform: translate(-1.5px, -1.5px) rotate(-1.5deg);
+  }
+  50% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  75% {
+    transform: translate(1.5px, 1.5px) rotate(1.5deg);
+  }
+}
+
 
 
 html {

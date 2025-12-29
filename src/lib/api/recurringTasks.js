@@ -5,8 +5,8 @@ const TASKS_API_BASE_URL = import.meta.env.VITE_TASK_API_URL || 'http://127.0.0.
 export const listRecurringTasks = async (agencyId, token, isActive = null) => {
     try {
         const params = new URLSearchParams();
-        if (isActive !== null) {
-            params.append('is_active', isActive);
+        if (isActive !== null && isActive !== undefined) {
+            params.append('is_active', String(isActive)); // Convert boolean to string
         }
         const url = `${TASKS_API_BASE_URL}/recurring-tasks${params.toString() ? '?' + params.toString() : ''}`;
         const response = await fetch(url, {
@@ -15,8 +15,8 @@ export const listRecurringTasks = async (agencyId, token, isActive = null) => {
         });
         return handleResponse(response);
     } catch (error) {
-        console.warn('Network or API error for listRecurringTasks:', error.message);
-        return [];
+        console.error('Network or API error for listRecurringTasks:', error);
+        throw error; // Re-throw to let the component handle it
     }
 };
 

@@ -1,8 +1,9 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useSocket } from '@/contexts/SocketContext.jsx';
-import { getTaskDetails, startTaskTimer, stopTaskTimer, getTaskHistory, addTaskSubtask, updateTaskSubtask, deleteTaskSubtask, listClients, listServices, listTeamMembers, listTaskComments, createTaskComment, updateTaskComment, deleteTaskComment, addTaskCollaborator, removeTaskCollaborator, getTaskCollaborators } from '@/lib/api';
+import { useOrganisation } from '@/hooks/useOrganisation';
+import { getTaskDetails, startTaskTimer, stopTaskTimer, getTaskHistory, addTaskSubtask, updateTaskSubtask, deleteTaskSubtask, updateTask, listClients, listServices, listTeamMembers, listTaskComments, createTaskComment, updateTaskComment, deleteTaskComment, addTaskCollaborator, removeTaskCollaborator, getTaskCollaborators, getCommentReadReceipts, requestTaskClosure, getClosureRequest, reviewClosureRequest } from '@/lib/api';
 import { useToast } from '@/components/ui/use-toast';
 import { Loader2, ArrowLeft, Paperclip, Clock, Calendar, User, Tag, Flag, CheckCircle, FileText, List, MessageSquare, Briefcase, Users, Play, Square, History, Plus, Trash2, Send, Edit2, Bell, UserPlus, X, Download, Image as ImageIcon } from 'lucide-react';
 import { Combobox } from '@/components/ui/combobox';
@@ -25,6 +26,21 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const getStatusVariant = (status) => {
     switch (status) {
@@ -70,6 +86,8 @@ const TaskDashboardPage = () => {
     const navigate = useNavigate();
     const { user } = useAuth();
     const { toast } = useToast();
+    const { selectedOrg, organisations } = useOrganisation();
+    const { socket, joinTaskRoom, leaveTaskRoom } = useSocket();
     const [task, setTask] = useState(null);
     const [history, setHistory] = useState([]);
     const [clients, setClients] = useState([]);
@@ -90,6 +108,18 @@ const TaskDashboardPage = () => {
     const [isAddingCollaborator, setIsAddingCollaborator] = useState(false);
     const [showAddCollaborator, setShowAddCollaborator] = useState(false);
     const [selectedCollaboratorId, setSelectedCollaboratorId] = useState('');
+    const [showSubtaskDialog, setShowSubtaskDialog] = useState(false);
+    const [isUpdatingChecklist, setIsUpdatingChecklist] = useState(false);
+    const [isAddingSubtask, setIsAddingSubtask] = useState(false);
+    const [readReceipts, setReadReceipts] = useState({}); // { commentId: [{ user_id, name, read_at }] }
+    const [isLoadingReadReceipts, setIsLoadingReadReceipts] = useState(false);
+    const chatMessagesEndRef = useRef(null);
+    const chatContainerRef = useRef(null);
+    const [closureRequest, setClosureRequest] = useState(null);
+    const [isLoadingClosureRequest, setIsLoadingClosureRequest] = useState(false);
+    const [showClosureRequestDialog, setShowClosureRequestDialog] = useState(false);
+    const [showClosureReviewDialog, setShowClosureReviewDialog] = useState(false);
+    const [closureReason, setClosureReason] = useState('');
 
     const fetchCollaborators = useCallback(async () => {
         if (!user?.access_token || !taskId) return;
@@ -201,17 +231,148 @@ const TaskDashboardPage = () => {
         fetchComments();
     }, [fetchComments]);
 
+    // Auto-scroll to bottom when comments load or new comment is added
+    useEffect(() => {
+        if (!isLoadingComments && comments.length > 0) {
+            // Use requestAnimationFrame and multiple attempts to ensure scroll happens
+            const scrollToBottom = () => {
+                if (chatContainerRef.current) {
+                    // Scroll the container directly to bottom
+                    chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+                } else if (chatMessagesEndRef.current) {
+                    // Fallback to scrollIntoView
+                    chatMessagesEndRef.current.scrollIntoView({ behavior: 'auto', block: 'end' });
+                }
+            };
+            
+            // Try immediately
+            requestAnimationFrame(() => {
+                scrollToBottom();
+                // Try again after a short delay to handle async content loading
+                setTimeout(() => {
+                    scrollToBottom();
+                }, 200);
+                // One more attempt for images/attachments
+                setTimeout(() => {
+                    scrollToBottom();
+                }, 500);
+            });
+        }
+    }, [comments, isLoadingComments]);
+
+    const fetchClosureRequest = useCallback(async () => {
+        if (!user?.access_token || !taskId) return;
+        setIsLoadingClosureRequest(true);
+        try {
+            const agencyId = user?.agency_id || null;
+            const request = await getClosureRequest(taskId, agencyId, user.access_token);
+            setClosureRequest(request || null);
+        } catch (error) {
+            // If 404, no request exists - that's fine
+            if (error?.response?.status !== 404) {
+                console.error('Error fetching closure request:', error);
+            }
+            setClosureRequest(null);
+        } finally {
+            setIsLoadingClosureRequest(false);
+        }
+    }, [taskId, user?.agency_id, user?.access_token]);
+
     useEffect(() => {
         fetchTask();
         fetchHistory();
         fetchCollaborators();
-    }, [fetchTask, fetchHistory, fetchCollaborators]);
+        fetchClosureRequest();
+    }, [fetchTask, fetchHistory, fetchCollaborators, fetchClosureRequest]);
+
+    // Socket.IO: Join task room and listen for real-time comment updates
+    useEffect(() => {
+        if (!socket || !taskId || !user?.id) return;
+
+        // Join the task room
+        joinTaskRoom(taskId);
+
+        // Listen for new comments
+        const handleNewComment = (data) => {
+            if (data.task_id === taskId && data.comment) {
+                const newComment = data.comment;
+                
+                // Don't add our own messages (shouldn't happen as backend doesn't emit to sender, but safety check)
+                if (newComment.user_id === user?.id || String(newComment.user_id) === String(user?.id)) {
+                    return;
+                }
+                
+                // Check if comment already exists (avoid duplicates) using functional update
+                setComments(prev => {
+                    const commentExists = prev.some(c => c.id === newComment.id);
+                    if (commentExists) {
+                        return prev; // Return previous state if duplicate
+                    }
+                    
+                    // Add the new comment to the list
+                    const updatedComments = [...prev, newComment];
+                    
+                    // Scroll to bottom to show new message
+                    setTimeout(() => {
+                        if (chatContainerRef.current) {
+                            chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+                        } else if (chatMessagesEndRef.current) {
+                            chatMessagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                        }
+                    }, 100);
+                    
+                    return updatedComments;
+                });
+            }
+        };
+
+        socket.on('new_comment', handleNewComment);
+
+        // Listen for read receipt updates
+        const handleReadReceipt = (data) => {
+            if (data.task_id === taskId && data.comment_id && data.receipt) {
+                const { comment_id, receipt } = data;
+                
+                // Update read receipts for this comment
+                setReadReceipts(prev => {
+                    const existingReceipts = prev[comment_id] || [];
+                    
+                    // Check if this receipt already exists
+                    const receiptExists = existingReceipts.some(r => r.id === receipt.id);
+                    if (receiptExists) {
+                        return prev; // Return previous state if duplicate
+                    }
+                    
+                    // Add the new receipt
+                    const updatedReceipt = {
+                        ...receipt,
+                        name: receipt.user_name || receipt.name || 'Unknown',
+                        email: receipt.user_email || receipt.email || 'N/A'
+                    };
+                    
+                    return {
+                        ...prev,
+                        [comment_id]: [...existingReceipts, updatedReceipt]
+                    };
+                });
+            }
+        };
+
+        socket.on('comment_read_receipt', handleReadReceipt);
+
+        // Cleanup: Leave task room and remove listeners
+        return () => {
+            leaveTaskRoom(taskId);
+            socket.off('new_comment', handleNewComment);
+            socket.off('comment_read_receipt', handleReadReceipt);
+        };
+    }, [socket, taskId, user?.id, joinTaskRoom, leaveTaskRoom]);
 
 
     const handleAddSubtask = async () => {
         if (!newSubtask.trim()) return;
         const subtaskTitle = newSubtask.trim();
-        setNewSubtask(''); // Clear input immediately for better UX
+        setIsAddingSubtask(true);
         
         try {
             const agencyId = user?.agency_id || null;
@@ -221,13 +382,20 @@ const TaskDashboardPage = () => {
                 const updatedSubtasks = [...(task.subtasks || []), newSubtaskData];
                 setTask({ ...task, subtasks: updatedSubtasks });
             }
+            setNewSubtask(''); // Clear input
+            setShowSubtaskDialog(false); // Close dialog
             toast({ title: "Subtask Added", description: "The new subtask has been added." });
-            // Silently refresh in background to ensure consistency
-            const updatedTask = await getTaskDetails(taskId, agencyId, user.access_token);
+            // Refresh task and history to get latest data
+            const [updatedTask, updatedHistory] = await Promise.all([
+                getTaskDetails(taskId, agencyId, user.access_token),
+                getTaskHistory(taskId, agencyId, user.access_token)
+            ]);
             setTask(updatedTask);
+            setHistory(updatedHistory);
         } catch (error) {
-            setNewSubtask(subtaskTitle); // Restore input on error
             toast({ title: "Error adding subtask", description: error.message, variant: "destructive" });
+        } finally {
+            setIsAddingSubtask(false);
         }
     };
 
@@ -243,9 +411,13 @@ const TaskDashboardPage = () => {
         try {
             const agencyId = user?.agency_id || null;
             await updateTaskSubtask(taskId, subtaskId, { is_completed: completed }, agencyId, user.access_token);
-            // Silently refresh task data in background without showing loading state
-            const updatedTask = await getTaskDetails(taskId, agencyId, user.access_token);
+            // Refresh task and history to get latest data including activity logs
+            const [updatedTask, updatedHistory] = await Promise.all([
+                getTaskDetails(taskId, agencyId, user.access_token),
+                getTaskHistory(taskId, agencyId, user.access_token)
+            ]);
             setTask(updatedTask);
+            setHistory(updatedHistory);
         } catch (error) {
             // Revert optimistic update on error
             if (task && task.subtasks) {
@@ -271,9 +443,13 @@ const TaskDashboardPage = () => {
             const agencyId = user?.agency_id || null;
             await deleteTaskSubtask(taskId, subtaskId, agencyId, user.access_token);
             toast({ title: "Subtask Deleted", description: "The subtask has been removed." });
-            // Silently refresh in background
-            const updatedTask = await getTaskDetails(taskId, agencyId, user.access_token);
+            // Refresh task and history to get latest data including activity logs
+            const [updatedTask, updatedHistory] = await Promise.all([
+                getTaskDetails(taskId, agencyId, user.access_token),
+                getTaskHistory(taskId, agencyId, user.access_token)
+            ]);
             setTask(updatedTask);
+            setHistory(updatedHistory);
         } catch (error) {
             // Revert optimistic update on error
             if (task && deletedSubtask) {
@@ -306,6 +482,102 @@ const TaskDashboardPage = () => {
         setFilePreview(null);
     };
 
+    const handleFetchReadReceipts = async (commentId) => {
+        // If already fetched, don't fetch again
+        if (readReceipts[commentId]) {
+            return;
+        }
+        
+        setIsLoadingReadReceipts(true);
+        try {
+            const agencyId = user?.agency_id || null;
+            const receipts = await getCommentReadReceipts(taskId, commentId, agencyId, user.access_token);
+            
+            // Map receipts to include user names (use API data if available, otherwise fallback to getUserInfo)
+            const receiptsWithNames = (receipts || []).map(receipt => {
+                // Use API data if available (user_name, user_email from backend)
+                if (receipt.user_name && receipt.user_name !== "Unknown") {
+                    return {
+                        ...receipt,
+                        name: receipt.user_name,
+                        email: receipt.user_email || receipt.email || 'N/A',
+                        read_at: receipt.read_at
+                    };
+                }
+                // Fallback to local user info
+                const userInfo = getUserInfo(receipt.user_id);
+                return {
+                    ...receipt,
+                    name: userInfo.name,
+                    email: userInfo.email,
+                    read_at: receipt.read_at
+                };
+            });
+            
+            setReadReceipts(prev => ({ ...prev, [commentId]: receiptsWithNames }));
+        } catch (error) {
+            console.error('Error fetching read receipts:', error);
+            // Don't show toast on hover - just log the error
+        } finally {
+            setIsLoadingReadReceipts(false);
+        }
+    };
+
+    // Generate color for user name based on user ID
+    const getUserNameColor = (userId) => {
+        if (!userId) return 'text-gray-300';
+        const colors = [
+            'text-red-400',
+            'text-blue-400',
+            'text-green-400',
+            'text-yellow-400',
+            'text-purple-400',
+            'text-pink-400',
+            'text-cyan-400',
+            'text-orange-400',
+        ];
+        const hash = String(userId).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        return colors[hash % colors.length];
+    };
+
+    const handleToggleChecklistItem = async (itemIndex, isCompleted) => {
+        if (!task?.checklist?.items) return;
+        
+        setIsUpdatingChecklist(true);
+        
+        try {
+            const agencyId = user?.agency_id || null;
+            const updatedItems = task.checklist.items.map((item, idx) => 
+                idx === itemIndex ? { ...item, is_completed: isCompleted } : item
+            );
+            
+            const updatedChecklist = {
+                enabled: task.checklist.enabled,
+                items: updatedItems
+            };
+            
+            // Optimistically update UI
+            setTask({ ...task, checklist: updatedChecklist });
+            
+            // Update via API
+            await updateTask(taskId, { checklist: updatedChecklist }, agencyId, user.access_token);
+            
+            // Refresh task and history to get latest data including activity logs
+            const [updatedTask, updatedHistory] = await Promise.all([
+                getTaskDetails(taskId, agencyId, user.access_token),
+                getTaskHistory(taskId, agencyId, user.access_token)
+            ]);
+            setTask(updatedTask);
+            setHistory(updatedHistory);
+        } catch (error) {
+            // Revert on error
+            setTask(task);
+            toast({ title: "Error updating checklist", description: error.message, variant: "destructive" });
+        } finally {
+            setIsUpdatingChecklist(false);
+        }
+    };
+
     const handleAddCollaborator = async () => {
         if (!selectedCollaboratorId || isAddingCollaborator) return;
         setIsAddingCollaborator(true);
@@ -324,6 +596,55 @@ const TaskDashboardPage = () => {
         }
     };
 
+    const handleRequestClosure = async () => {
+        if (!user?.access_token || !taskId) return;
+        
+        try {
+            const agencyId = user?.agency_id || null;
+            await requestTaskClosure(taskId, closureReason, agencyId, user.access_token);
+            toast({ 
+                title: "Closure Request Sent", 
+                description: "The task creator has been notified of your request to close this task." 
+            });
+            setShowClosureRequestDialog(false);
+            setClosureReason('');
+            fetchClosureRequest();
+            fetchTask();
+            fetchHistory();
+        } catch (error) {
+            toast({ 
+                title: "Error", 
+                description: error.message || "Failed to request task closure", 
+                variant: "destructive" 
+            });
+        }
+    };
+
+    const handleReviewClosure = async (status) => {
+        if (!user?.access_token || !taskId || !closureRequest) return;
+        
+        try {
+            const agencyId = user?.agency_id || null;
+            await reviewClosureRequest(taskId, closureRequest.id, status, agencyId, user.access_token);
+            toast({ 
+                title: status === 'approved' ? "Closure Approved" : "Closure Rejected", 
+                description: status === 'approved' 
+                    ? "The task has been closed and moved to history." 
+                    : "The closure request has been rejected. The task remains open." 
+            });
+            setShowClosureReviewDialog(false);
+            fetchClosureRequest();
+            fetchTask();
+            fetchHistory();
+        } catch (error) {
+            toast({ 
+                title: "Error", 
+                description: error.message || "Failed to review closure request", 
+                variant: "destructive" 
+            });
+        }
+    };
+
     const handleRemoveCollaborator = async (userId) => {
         try {
             const agencyId = user?.agency_id || null;
@@ -337,10 +658,9 @@ const TaskDashboardPage = () => {
     };
 
     const handleSendComment = async () => {
-        if (!newComment.trim() && !selectedFile) return;
         if (isSendingComment) return; // Prevent double submission
         
-        const commentText = newComment.trim();
+        const commentText = newComment.trim() || '';
         const fileToSend = selectedFile;
         
         setIsSendingComment(true);
@@ -350,16 +670,13 @@ const TaskDashboardPage = () => {
         try {
             const agencyId = user?.agency_id || null;
             
-            // Create FormData if file is attached
-            let commentData;
+            // Always use FormData (backend expects Form data)
+            const formData = new FormData();
+            formData.append('message', commentText || '');
             if (fileToSend) {
-                const formData = new FormData();
-                formData.append('message', commentText || '');
                 formData.append('attachment', fileToSend);
-                commentData = formData;
-            } else {
-                commentData = { message: commentText };
             }
+            const commentData = formData;
             
             const newCommentData = await createTaskComment(
                 taskId,
@@ -375,6 +692,16 @@ const TaskDashboardPage = () => {
             
             setComments([...comments, newCommentData]);
             toast({ title: "Message Sent", description: "Your message has been posted." });
+            // Scroll to bottom after sending message
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    if (chatContainerRef.current) {
+                        chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+                    } else if (chatMessagesEndRef.current) {
+                        chatMessagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                    }
+                }, 100);
+            });
         } catch (error) {
             // Don't restore inputs on error - let user retry
             toast({ title: "Error sending message", description: error.message, variant: "destructive" });
@@ -633,21 +960,38 @@ const TaskDashboardPage = () => {
         return task.status || 'Pending';
     };
 
-    const getStatusColor = (statusName) => {
+    const getStatusColor = (task) => {
+        // Use stage color if available
+        if (task.stage?.color) {
+            return {
+                backgroundColor: `${task.stage.color}20`,
+                color: task.stage.color,
+                borderColor: `${task.stage.color}50`
+            };
+        }
+        
+        // Fallback to default colors based on status name
+        const statusName = getStatusName(task);
+        let className = '';
         switch (statusName) {
             case 'To Do':
             case 'Assigned':
-                return 'bg-orange-500/20 text-orange-300 border-orange-500/50';
+                className = 'bg-orange-500/20 text-orange-300 border-orange-500/50';
+                break;
             case 'In Progress':
-                return 'bg-blue-500/20 text-blue-300 border-blue-500/50';
+                className = 'bg-blue-500/20 text-blue-300 border-blue-500/50';
+                break;
             case 'Complete':
             case 'Completed':
-                return 'bg-green-500/20 text-green-300 border-green-500/50';
+                className = 'bg-green-500/20 text-green-300 border-green-500/50';
+                break;
             case 'Blocked':
-                return 'bg-red-500/20 text-red-300 border-red-500/50';
+                className = 'bg-red-500/20 text-red-300 border-red-500/50';
+                break;
             default:
-                return 'bg-gray-500/20 text-gray-300 border-gray-500/50';
+                className = 'bg-gray-500/20 text-gray-300 border-gray-500/50';
         }
+        return { className };
     };
 
     // Get user info for display
@@ -661,6 +1005,17 @@ const TaskDashboardPage = () => {
     const displayTaskId = getTaskId(task);
     const statusName = getStatusName(task);
 
+    // Get business name for business users (not CA accounts)
+    const isBusinessUser = user?.role === 'CLIENT_USER' || user?.role === 'CLIENT_ADMIN' || user?.role === 'ENTITY_USER';
+    let businessName = null;
+    if (isBusinessUser) {
+        businessName = user?.organization_name || user?.entity_name;
+        if (!businessName && selectedOrg && organisations?.length > 0) {
+            const org = organisations.find(o => o.id === selectedOrg || String(o.id) === String(selectedOrg));
+            businessName = org?.name;
+        }
+    }
+
     return (
         <div className="p-4 md:p-8 text-white min-h-screen">
             <header className="flex items-center justify-between pb-4 border-b border-white/10 mb-6">
@@ -670,11 +1025,16 @@ const TaskDashboardPage = () => {
                     </Button>
                     <h1 className="text-3xl font-extrabold">{task.title}</h1>
                 </div>
+                {businessName && (
+                    <div className="px-4 py-2 rounded-xl border border-green-400/30 bg-gradient-to-r from-green-500/20 to-green-600/15 text-green-200 backdrop-blur-sm shadow-lg">
+                        {businessName}
+                    </div>
+                )}
             </header>
 
             {/* Task Summary Table - Same columns as Task List */}
             <div className="mb-6">
-                <Card className="glass-pane overflow-hidden">
+                <Card className="glass-pane overflow-hidden rounded-2xl">
                     <CardContent className="p-0">
                         <Table>
                             <TableHeader>
@@ -702,7 +1062,8 @@ const TaskDashboardPage = () => {
                                         <div className="flex flex-col gap-1">
                                             <Badge 
                                                 variant="outline" 
-                                                className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-medium w-fit ${getStatusColor(statusName)}`}
+                                                className={task.stage?.color ? '' : `inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-medium w-fit ${getStatusColor(task).className || ''}`}
+                                                style={task.stage?.color ? getStatusColor(task) : {}}
                                             >
                                                 {statusName}
                                             </Badge>
@@ -768,6 +1129,33 @@ const TaskDashboardPage = () => {
                                                     {formatTimeUntil(task.due_date)}
                                                 </Badge>
                                             )}
+                                            {/* Close Task Button - Show for assigned user if task is not completed */}
+                                            {task.assigned_to && String(task.assigned_to) === String(user?.id) && task.status !== 'completed' && (
+                                                <Button
+                                                    onClick={() => setShowClosureRequestDialog(true)}
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="mt-2 bg-red-500/20 text-red-300 border-red-500/50 hover:bg-red-500/30"
+                                                    disabled={closureRequest?.status === 'pending'}
+                                                >
+                                                    {closureRequest?.status === 'pending' ? (
+                                                        <>Pending Closure Request</>
+                                                    ) : (
+                                                        <>Request to Close Task</>
+                                                    )}
+                                                </Button>
+                                            )}
+                                            {/* Closure Request Review - Show for task creator if pending request exists */}
+                                            {task.created_by && String(task.created_by) === String(user?.id) && closureRequest?.status === 'pending' && (
+                                                <Button
+                                                    onClick={() => setShowClosureReviewDialog(true)}
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="mt-2 bg-yellow-500/20 text-yellow-300 border-yellow-500/50 hover:bg-yellow-500/30"
+                                                >
+                                                    Review Closure Request
+                                                </Button>
+                                            )}
                                         </div>
                                     </TableCell>
                                 </TableRow>
@@ -777,64 +1165,489 @@ const TaskDashboardPage = () => {
                 </Card>
             </div>
 
-            <div className="space-y-6">
-                {/* Subtasks and Chat - Side by Side */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Subtasks Box */}
-                    <Card className="glass-pane card-hover overflow-hidden">
-                        <CardHeader><CardTitle>Subtasks</CardTitle></CardHeader>
-                        <CardContent>
-                            <div className="flex gap-2 mb-4">
-                                <Input 
-                                    placeholder="Add a new subtask..."
-                                    value={newSubtask}
-                                    onChange={(e) => setNewSubtask(e.target.value)}
-                                    onKeyPress={(e) => e.key === 'Enter' && handleAddSubtask()}
-                                    className="glass-input"
-                                />
-                                <Button onClick={handleAddSubtask}><Plus className="w-4 h-4 mr-2" /> Add</Button>
-                            </div>
-                            <div className="space-y-2 max-h-[500px] overflow-y-auto">
-                                {task.subtasks?.length > 0 ? task.subtasks.map(sub => (
-                                    <div key={sub.id} className="flex items-center gap-3 p-2 rounded-md bg-white/5 transition-colors hover:bg-white/10">
-                                        <Checkbox 
-                                            id={`subtask-${sub.id}`}
-                                            checked={sub.is_completed}
-                                            onCheckedChange={(checked) => handleToggleSubtask(sub.id, checked)}
-                                        />
-                                        <label htmlFor={`subtask-${sub.id}`} className={`flex-grow text-sm ${sub.is_completed ? 'line-through text-gray-500' : ''}`}>
-                                            {sub.title || sub.name}
-                                        </label>
-                                        <AlertDialog>
-                                            <AlertDialogTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="text-gray-400 hover:text-red-500 h-8 w-8">
-                                                    <Trash2 className="w-4 h-4" />
-                                                </Button>
-                                            </AlertDialogTrigger>
-                                            <AlertDialogContent className="glass-pane">
-                                                <AlertDialogHeader>
-                                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                    <AlertDialogDescription>This will permanently delete the subtask.</AlertDialogDescription>
-                                                </AlertDialogHeader>
-                                                <AlertDialogFooter>
-                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                    <AlertDialogAction onClick={() => handleDeleteSubtask(sub.id)} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
-                                                </AlertDialogFooter>
-                                            </AlertDialogContent>
-                                        </AlertDialog>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Task Chat - 50% Width */}
+                <Card className="glass-pane card-hover flex flex-col overflow-hidden rounded-2xl">
+                    <CardHeader><CardTitle className="flex items-center gap-2"><MessageSquare className="w-5 h-5" /> Task Chat</CardTitle></CardHeader>
+                    <CardContent className="flex-1 flex flex-col overflow-hidden">
+                        <div ref={chatContainerRef} className="flex-1 overflow-y-auto space-y-4 mb-4 pr-2" style={{ maxHeight: '500px' }}>
+                                {isLoadingComments ? (
+                                    <div className="flex justify-center items-center py-8">
+                                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
                                     </div>
-                                )) : (
+                                ) : comments.length > 0 ? (
+                                    comments.map((comment, index) => {
+                                        const isOwnComment = comment.user_id === user?.id || String(comment.user_id) === String(user?.id);
+                                        const commentUser = teamMembers.find(m => 
+                                            m.user_id === comment.user_id || 
+                                            String(m.user_id) === String(comment.user_id) ||
+                                            m.id === comment.user_id ||
+                                            String(m.id) === String(comment.user_id)
+                                        ) || { name: user?.name || 'You', email: user?.email || '' };
+                                        
+                                        // Check if previous message is from same user to group messages
+                                        const prevComment = index > 0 ? comments[index - 1] : null;
+                                        const isGrouped = prevComment && prevComment.user_id === comment.user_id;
+                                        
+                                        // Format timestamp like WhatsApp
+                                        const messageDate = new Date(comment.created_at);
+                                        const now = new Date();
+                                        const isToday = messageDate.toDateString() === now.toDateString();
+                                        const isYesterday = new Date(now.getTime() - 86400000).toDateString() === messageDate.toDateString();
+                                        let timeStr = format(messageDate, 'HH:mm');
+                                        if (isToday) {
+                                            timeStr = format(messageDate, 'HH:mm');
+                                        } else if (isYesterday) {
+                                            timeStr = `Yesterday, ${format(messageDate, 'HH:mm')}`;
+                                        } else {
+                                            timeStr = format(messageDate, 'dd-MM-yyyy, HH:mm');
+                                        }
+                                        
+                                        return (
+                                            <div key={comment.id} className={`flex gap-2 ${isOwnComment ? 'flex-row-reverse' : 'flex-row'} ${isGrouped ? 'mt-1' : 'mt-4'}`}>
+                                                {/* Avatar - only show if not grouped */}
+                                                {!isGrouped && (
+                                                    <div className={`flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-primary/40 to-primary/60 flex items-center justify-center text-white font-semibold text-sm shadow-lg`}>
+                                                        {(commentUser.name || commentUser.email || 'U').charAt(0).toUpperCase()}
+                                                    </div>
+                                                )}
+                                                {isGrouped && <div className="w-10"></div>}
+                                                
+                                                <div className={`flex-1 ${isOwnComment ? 'flex flex-col items-end' : 'flex flex-col items-start'}`}>
+                                                    {/* User name - only show if not grouped */}
+                                                    {!isGrouped && (
+                                                        <div className={`mb-1 ${isOwnComment ? 'text-right' : 'text-left'}`}>
+                                                            <span className={`text-sm font-bold ${getUserNameColor(comment.user_id)}`}>
+                                                                {commentUser.name || commentUser.email || 'Unknown'}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                    
+                                                    {/* Message bubble - WhatsApp style */}
+                                                    <div className={`relative inline-block max-w-[75%] ${isOwnComment ? 'bg-[#dcf8c6] text-[#111b21]' : 'bg-white text-[#111b21]'} rounded-lg shadow-sm`} style={{
+                                                        borderRadius: isOwnComment 
+                                                            ? (isGrouped ? '7px 7px 2px 7px' : '7px 7px 2px 7px')
+                                                            : (isGrouped ? '2px 7px 7px 7px' : '7px 7px 7px 2px')
+                                                    }}>
+                                                        <div className="p-2 pb-1">
+                                                            {comment.attachment_url && (
+                                                            <div className="mb-2">
+                                                                {comment.attachment_type?.startsWith('image/') || comment.attachment_url.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ? (
+                                                                    // Image attachment - show inline like WhatsApp
+                                                                    <div className="rounded-lg overflow-hidden relative">
+                                                                        {loadingImages.has(comment.id) && (
+                                                                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10">
+                                                                                <Loader2 className="w-8 h-8 animate-spin text-white" />
+                                                                            </div>
+                                                                        )}
+                                                                        <img 
+                                                                            src={comment.attachment_url} 
+                                                                            alt={comment.attachment_name || "Image"} 
+                                                                            className="max-w-full h-auto rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                                                                            onClick={() => window.open(comment.attachment_url, '_blank')}
+                                                                            onLoad={() => {
+                                                                                setLoadingImages(prev => {
+                                                                                    const newSet = new Set(prev);
+                                                                                    newSet.delete(comment.id);
+                                                                                    return newSet;
+                                                                                });
+                                                                            }}
+                                                                            onLoadStart={() => {
+                                                                                setLoadingImages(prev => new Set(prev).add(comment.id));
+                                                                            }}
+                                                                            onError={(e) => {
+                                                                                setLoadingImages(prev => {
+                                                                                    const newSet = new Set(prev);
+                                                                                    newSet.delete(comment.id);
+                                                                                    return newSet;
+                                                                                });
+                                                                                e.target.style.display = 'none';
+                                                                                if (e.target.nextSibling) {
+                                                                                    e.target.nextSibling.style.display = 'flex';
+                                                                                }
+                                                                            }}
+                                                                        />
+                                                                        <div className="hidden items-center gap-2 p-3 bg-white/5 rounded-lg">
+                                                                            <ImageIcon className="w-5 h-5 text-gray-400" />
+                                                                            <a 
+                                                                                href={comment.attachment_url} 
+                                                                                download={comment.attachment_name}
+                                                                                target="_blank" 
+                                                                                rel="noopener noreferrer"
+                                                                                className="flex items-center gap-2 text-sm text-primary hover:underline flex-1"
+                                                                            >
+                                                                                <span>{comment.attachment_name || 'Download Image'}</span>
+                                                                                <Download className="w-4 h-4" />
+                                                                            </a>
+                                                                        </div>
+                                                                    </div>
+                                                                ) : (
+                                                                    // Non-image attachment - show download option like WhatsApp
+                                                                    <div className="flex items-center gap-3 p-2 bg-gray-100 rounded-lg">
+                                                                        <div className="flex-shrink-0">
+                                                                            {comment.attachment_type === 'application/pdf' ? (
+                                                                                <FileText className="w-8 h-8 text-red-500" />
+                                                                            ) : comment.attachment_type?.includes('word') || comment.attachment_url.match(/\.(doc|docx)$/i) ? (
+                                                                                <FileText className="w-8 h-8 text-blue-500" />
+                                                                            ) : comment.attachment_type?.includes('excel') || comment.attachment_type?.includes('spreadsheet') || comment.attachment_url.match(/\.(xls|xlsx)$/i) ? (
+                                                                                <FileText className="w-8 h-8 text-green-500" />
+                                                                            ) : (
+                                                                                <FileText className="w-8 h-8 text-gray-600" />
+                                                                            )}
+                                                                        </div>
+                                                                        <div className="flex-1 min-w-0">
+                                                                            <p className="text-sm font-medium text-[#111b21] truncate">
+                                                                                {comment.attachment_name || 'Attachment'}
+                                                                            </p>
+                                                                            {comment.attachment_type && (
+                                                                                <p className="text-xs text-gray-500">
+                                                                                    {comment.attachment_type.split('/')[1]?.toUpperCase() || 'FILE'}
+                                                                                </p>
+                                                                            )}
+                                                                        </div>
+                                                                        <a 
+                                                                            href={comment.attachment_url} 
+                                                                            download={comment.attachment_name}
+                                                                            target="_blank" 
+                                                                            rel="noopener noreferrer"
+                                                                            className="flex-shrink-0 p-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
+                                                                            title="Download"
+                                                                        >
+                                                                            <Download className="w-5 h-5 text-gray-700" />
+                                                                        </a>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                            {comment.message && (
+                                                                <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{comment.message}</p>
+                                                            )}
+                                                        </div>
+                                                        
+                                                        {/* Timestamp and read receipt - bottom right */}
+                                                        <div className={`flex items-center justify-end gap-1 px-2 pb-1`}>
+                                                            <span className="text-[10px] text-gray-500">
+                                                                {timeStr}
+                                                            </span>
+                                                            {/* Show read receipts only for sender's own messages */}
+                                                            {isOwnComment && (
+                                                                <TooltipProvider>
+                                                                    <Tooltip delayDuration={300}>
+                                                                        <TooltipTrigger asChild>
+                                                                            <button
+                                                                                onMouseEnter={() => handleFetchReadReceipts(comment.id)}
+                                                                                className="text-[10px] text-gray-500 hover:text-gray-700 cursor-pointer ml-1 flex items-center"
+                                                                            >
+                                                                                {/* Single tick if not read, double tick if read */}
+                                                                                {readReceipts[comment.id]?.length > 0 ? (
+                                                                                    <span className="text-blue-600">✓✓</span>
+                                                                                ) : (
+                                                                                    <span className="text-gray-400">✓</span>
+                                                                                )}
+                                                                            </button>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent 
+                                                                            side="top" 
+                                                                            className="bg-white border border-gray-200 shadow-lg p-0 max-w-xs z-50"
+                                                                            onOpenAutoFocus={(e) => e.preventDefault()}
+                                                                        >
+                                                                            <div className="p-3">
+                                                                                <div className="text-xs font-semibold text-gray-900 mb-2 pb-2 border-b border-gray-200">
+                                                                                    Read By
+                                                                                </div>
+                                                                                {isLoadingReadReceipts ? (
+                                                                                    <div className="flex justify-center items-center py-4">
+                                                                                        <Loader2 className="w-4 h-4 animate-spin text-gray-500" />
+                                                                                    </div>
+                                                                                ) : readReceipts[comment.id]?.length > 0 ? (
+                                                                                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                                                                                        {readReceipts[comment.id].map((receipt, idx) => (
+                                                                                            <div key={idx} className="flex items-center justify-between gap-3 py-1">
+                                                                                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                                                                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
+                                                                                                        {(receipt.name || receipt.email || 'U').charAt(0).toUpperCase()}
+                                                                                                    </div>
+                                                                                                    <span className="text-xs font-medium text-gray-900 truncate">
+                                                                                                        {receipt.name || receipt.email || 'Unknown'}
+                                                                                                    </span>
+                                                                                                </div>
+                                                                                                <span className="text-[10px] text-gray-500 whitespace-nowrap flex-shrink-0">
+                                                                                                    {(() => {
+                                                                                                        try {
+                                                                                                            const readDate = new Date(receipt.read_at);
+                                                                                                            const hours = readDate.getHours();
+                                                                                                            const minutes = readDate.getMinutes();
+                                                                                                            const ampm = hours >= 12 ? 'PM' : 'AM';
+                                                                                                            const displayHours = hours % 12 || 12;
+                                                                                                            const displayMinutes = minutes.toString().padStart(2, '0');
+                                                                                                            const dateStr = format(readDate, 'dd-MM-yyyy');
+                                                                                                            return `${displayHours}:${displayMinutes} ${hours >= 12 ? 'PM' : 'AM'}, ${dateStr}`;
+                                                                                                        } catch (e) {
+                                                                                                            return format(new Date(receipt.read_at), 'HH:mm a, dd-MM-yyyy');
+                                                                                                        }
+                                                                                                    })()}
+                                                                                                </span>
+                                                                                            </div>
+                                                                                        ))}
+                                                                                    </div>
+                                                                                ) : (
+                                                                                    <div className="text-xs text-gray-500 py-2">
+                                                                                        No one has read this message yet.
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                </TooltipProvider>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                ) : (
+                                    <div className="text-center py-8 text-gray-400">No comments yet. Start the conversation!</div>
+                                )}
+                                {/* Invisible element to scroll to */}
+                                <div ref={chatMessagesEndRef} />
+                            </div>
+                            {/* File preview if selected */}
+                            {selectedFile && (
+                                <div className="mb-2 p-2 bg-white/5 rounded-lg flex items-center gap-2">
+                                    {filePreview ? (
+                                        <img src={filePreview} alt="Preview" className="w-12 h-12 object-cover rounded" />
+                                    ) : (
+                                        <FileText className="w-8 h-8 text-gray-400" />
+                                    )}
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-xs text-white truncate">{selectedFile.name}</p>
+                                        <p className="text-xs text-gray-400">{(selectedFile.size / 1024).toFixed(2)} KB</p>
+                                    </div>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6 text-gray-400 hover:text-red-400"
+                                        onClick={handleRemoveFile}
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </Button>
+                                </div>
+                            )}
+                            
+                            <div className="flex gap-2 border-t border-white/10 pt-4">
+                                <input
+                                    type="file"
+                                    id="file-input"
+                                    ref={(input) => {
+                                        if (input) {
+                                            // Store ref for programmatic access
+                                            window.fileInputRef = input;
+                                        }
+                                    }}
+                                    className="hidden"
+                                    onChange={handleFileSelect}
+                                    accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt,.csv"
+                                />
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-gray-400 hover:text-white flex-shrink-0"
+                                    onClick={() => {
+                                        const fileInput = document.getElementById('file-input');
+                                        if (fileInput) {
+                                            fileInput.click();
+                                        }
+                                    }}
+                                    title="Attach file"
+                                >
+                                    <Paperclip className="w-5 h-5" />
+                                </Button>
+                                <Textarea
+                                    placeholder="Type your message..."
+                                    value={newComment}
+                                    onChange={(e) => setNewComment(e.target.value)}
+                                    onKeyPress={(e) => {
+                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                            e.preventDefault();
+                                            handleSendComment();
+                                        }
+                                    }}
+                                    className="flex-1 bg-white text-[#111b21] border-2 border-purple-300 rounded-lg resize-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400"
+                                    rows={2}
+                                />
+                                <Button 
+                                    onClick={handleSendComment} 
+                                    disabled={isSendingComment} 
+                                    className="self-end"
+                                >
+                                    {isSendingComment ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                        <Send className="w-4 h-4" />
+                                    )}
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+
+                {/* Subtasks, Checklists, Collaborate, Activity Logs - 50% Width, 2x2 Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Subtasks Box */}
+                    <Card className="glass-pane card-hover overflow-hidden rounded-2xl">
+                        <CardHeader>
+                            <div className="flex items-center justify-between">
+                                <CardTitle>Subtasks</CardTitle>
+                                <Dialog open={showSubtaskDialog} onOpenChange={setShowSubtaskDialog}>
+                                    <DialogTrigger asChild>
+                                        <Button variant="ghost" size="sm">
+                                            <Plus className="w-4 h-4 mr-2" /> Add
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent className="glass-pane">
+                                        <DialogHeader>
+                                            <DialogTitle>Add New Subtask</DialogTitle>
+                                            <DialogDescription>Enter the subtask title below</DialogDescription>
+                                        </DialogHeader>
+                                        <div className="py-4">
+                                            <Input 
+                                                placeholder="Add a new subtask..."
+                                                value={newSubtask}
+                                                onChange={(e) => setNewSubtask(e.target.value)}
+                                                onKeyPress={(e) => e.key === 'Enter' && !isAddingSubtask && handleAddSubtask()}
+                                                className="glass-input"
+                                                disabled={isAddingSubtask}
+                                            />
+                                        </div>
+                                        <DialogFooter>
+                                            <Button 
+                                                variant="ghost" 
+                                                onClick={() => {
+                                                    setShowSubtaskDialog(false);
+                                                    setNewSubtask('');
+                                                }}
+                                                disabled={isAddingSubtask}
+                                            >
+                                                Cancel
+                                            </Button>
+                                            <Button 
+                                                onClick={handleAddSubtask} 
+                                                disabled={!newSubtask.trim() || isAddingSubtask}
+                                            >
+                                                {isAddingSubtask ? (
+                                                    <>
+                                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                        Adding...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Plus className="w-4 h-4 mr-2" /> Add
+                                                    </>
+                                                )}
+                                            </Button>
+                                        </DialogFooter>
+                                    </DialogContent>
+                                </Dialog>
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-2 max-h-[500px] overflow-y-auto">
+                                {task.subtasks?.length > 0 ? task.subtasks.map(sub => {
+                                    const subtaskCreator = getUserInfo(sub.created_by || task.created_by);
+                                    return (
+                                        <div key={sub.id} className="flex flex-col gap-1 p-2 rounded-md bg-white/5 transition-colors hover:bg-white/10">
+                                            <div className="flex items-center gap-3">
+                                                <Checkbox 
+                                                    id={`subtask-${sub.id}`}
+                                                    checked={sub.is_completed || false}
+                                                    onCheckedChange={(checked) => handleToggleSubtask(sub.id, checked)}
+                                                />
+                                                <label htmlFor={`subtask-${sub.id}`} className={`flex-grow text-sm ${sub.is_completed ? 'line-through text-gray-500' : 'text-white'}`}>
+                                                    {sub.title || sub.name}
+                                                </label>
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="text-gray-400 hover:text-red-500 h-8 w-8">
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </Button>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent className="glass-pane">
+                                                        <AlertDialogHeader>
+                                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                            <AlertDialogDescription>This will permanently delete the subtask.</AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter>
+                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                            <AlertDialogAction onClick={() => handleDeleteSubtask(sub.id)} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            </div>
+                                            <p className="text-xs text-gray-400 italic ml-7">
+                                                Added by {subtaskCreator.name}
+                                            </p>
+                                        </div>
+                                    );
+                                }) : (
                                     <p className="text-center text-gray-400 py-4">No subtasks yet.</p>
                                 )}
                             </div>
                         </CardContent>
                     </Card>
 
-                    {/* Collaborators Box */}
-                    <Card className="glass-pane card-hover overflow-hidden">
+                    {/* Checklists Box */}
+                    <Card className="glass-pane card-hover overflow-hidden rounded-2xl">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <CheckCircle className="w-5 h-5" />
+                                Checklists
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {isUpdatingChecklist && (
+                                <div className="flex justify-center items-center py-2 mb-2">
+                                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                                </div>
+                            )}
+                            {task.checklist?.enabled && task.checklist?.items && task.checklist.items.length > 0 ? (
+                                <div className="space-y-2 max-h-[500px] overflow-y-auto">
+                                    {task.checklist.items.map((item, index) => {
+                                        const checklistCreator = item.assigned_to 
+                                            ? getUserInfo(item.assigned_to)
+                                            : getUserInfo(task.created_by);
+                                        return (
+                                            <div key={index} className="flex flex-col gap-1 p-2 rounded-md bg-white/5 transition-colors hover:bg-white/10">
+                                                <div className="flex items-center gap-3">
+                                                    <Checkbox 
+                                                        id={`checklist-${index}`}
+                                                        checked={item.is_completed || false}
+                                                        onCheckedChange={(checked) => handleToggleChecklistItem(index, checked)}
+                                                        disabled={isUpdatingChecklist}
+                                                    />
+                                                    <label htmlFor={`checklist-${index}`} className={`flex-grow text-sm ${item.is_completed ? 'line-through text-gray-500' : 'text-white'}`}>
+                                                        {item.name}
+                                                    </label>
+                                                </div>
+                                                <p className="text-xs text-gray-400 italic ml-7">
+                                                    Added by {checklistCreator.name}
+                                                </p>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <p className="text-center text-gray-400 py-4">No checklist items yet.</p>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    {/* Collaborate Box */}
+                    <Card className="glass-pane card-hover overflow-hidden rounded-2xl">
                         <CardHeader>
                             <div className="flex items-center justify-between">
-                                <CardTitle>Collaborators</CardTitle>
+                                <CardTitle>Collaborate</CardTitle>
                                 <Button 
                                     variant="ghost" 
                                     size="sm"
@@ -939,232 +1752,10 @@ const TaskDashboardPage = () => {
                             )}
                         </CardContent>
                     </Card>
-                </div>
 
-                {/* Chat and History - Side by Side */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Chat Box */}
-                    <Card className="glass-pane card-hover flex flex-col overflow-hidden">
-                        <CardHeader><CardTitle className="flex items-center gap-2"><MessageSquare className="w-5 h-5" /> Task Chat</CardTitle></CardHeader>
-                        <CardContent className="flex-1 flex flex-col overflow-hidden">
-                            <div className="flex-1 overflow-y-auto space-y-4 mb-4 pr-2" style={{ maxHeight: '500px' }}>
-                                {isLoadingComments ? (
-                                    <div className="flex justify-center items-center py-8">
-                                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                                    </div>
-                                ) : comments.length > 0 ? (
-                                    comments.map((comment) => {
-                                        const isOwnComment = comment.user_id === user?.id || String(comment.user_id) === String(user?.id);
-                                        const commentUser = teamMembers.find(m => 
-                                            m.user_id === comment.user_id || 
-                                            String(m.user_id) === String(comment.user_id) ||
-                                            m.id === comment.user_id ||
-                                            String(m.id) === String(comment.user_id)
-                                        ) || { name: user?.name || 'You', email: user?.email || '' };
-                                        
-                                        return (
-                                            <div key={comment.id} className={`flex gap-3 ${isOwnComment ? 'flex-row-reverse' : ''}`}>
-                                                <div className={`flex-shrink-0 w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-sm font-semibold`}>
-                                                    {(commentUser.name || commentUser.email || 'U').charAt(0).toUpperCase()}
-                                                </div>
-                                                <div className={`flex-1 ${isOwnComment ? 'text-right' : ''}`}>
-                                                    {/* User name and time - outside the message box */}
-                                                    <div className={`mb-1 ${isOwnComment ? 'text-right' : 'text-left'}`}>
-                                                        <span className="text-xs text-gray-400 font-medium">
-                                                            {commentUser.name || commentUser.email || 'Unknown'}
-                                                        </span>
-                                                        <span className="text-xs text-gray-500 mx-2">•</span>
-                                                        <span className="text-xs text-gray-500">
-                                                            {format(new Date(comment.created_at), 'MMM dd, HH:mm')}
-                                                        </span>
-                                                    </div>
-                                                    
-                                                    {/* Message box - only message content */}
-                                                    <div className={`inline-block max-w-[80%] rounded-lg p-3 ${isOwnComment ? 'bg-primary/20 text-white' : 'bg-white/10 text-white'}`}>
-                                                        {comment.attachment_url && (
-                                                            <div className="mb-2">
-                                                                {comment.attachment_type?.startsWith('image/') || comment.attachment_url.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ? (
-                                                                    // Image attachment - show inline like WhatsApp
-                                                                    <div className="rounded-lg overflow-hidden relative">
-                                                                        {loadingImages.has(comment.id) && (
-                                                                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10">
-                                                                                <Loader2 className="w-8 h-8 animate-spin text-white" />
-                                                                            </div>
-                                                                        )}
-                                                                        <img 
-                                                                            src={comment.attachment_url} 
-                                                                            alt={comment.attachment_name || "Image"} 
-                                                                            className="max-w-full h-auto rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-                                                                            onClick={() => window.open(comment.attachment_url, '_blank')}
-                                                                            onLoad={() => {
-                                                                                setLoadingImages(prev => {
-                                                                                    const newSet = new Set(prev);
-                                                                                    newSet.delete(comment.id);
-                                                                                    return newSet;
-                                                                                });
-                                                                            }}
-                                                                            onLoadStart={() => {
-                                                                                setLoadingImages(prev => new Set(prev).add(comment.id));
-                                                                            }}
-                                                                            onError={(e) => {
-                                                                                setLoadingImages(prev => {
-                                                                                    const newSet = new Set(prev);
-                                                                                    newSet.delete(comment.id);
-                                                                                    return newSet;
-                                                                                });
-                                                                                e.target.style.display = 'none';
-                                                                                if (e.target.nextSibling) {
-                                                                                    e.target.nextSibling.style.display = 'flex';
-                                                                                }
-                                                                            }}
-                                                                        />
-                                                                        <div className="hidden items-center gap-2 p-3 bg-white/5 rounded-lg">
-                                                                            <ImageIcon className="w-5 h-5 text-gray-400" />
-                                                                            <a 
-                                                                                href={comment.attachment_url} 
-                                                                                download={comment.attachment_name}
-                                                                                target="_blank" 
-                                                                                rel="noopener noreferrer"
-                                                                                className="flex items-center gap-2 text-sm text-primary hover:underline flex-1"
-                                                                            >
-                                                                                <span>{comment.attachment_name || 'Download Image'}</span>
-                                                                                <Download className="w-4 h-4" />
-                                                                            </a>
-                                                                        </div>
-                                                                    </div>
-                                                                ) : (
-                                                                    // Non-image attachment - show download option like WhatsApp
-                                                                    <div className="flex items-center gap-3 p-3 bg-white/5 rounded-lg border border-white/10">
-                                                                        <div className="flex-shrink-0">
-                                                                            {comment.attachment_type === 'application/pdf' ? (
-                                                                                <FileText className="w-8 h-8 text-red-500" />
-                                                                            ) : comment.attachment_type?.includes('word') || comment.attachment_url.match(/\.(doc|docx)$/i) ? (
-                                                                                <FileText className="w-8 h-8 text-blue-500" />
-                                                                            ) : comment.attachment_type?.includes('excel') || comment.attachment_type?.includes('spreadsheet') || comment.attachment_url.match(/\.(xls|xlsx)$/i) ? (
-                                                                                <FileText className="w-8 h-8 text-green-500" />
-                                                                            ) : (
-                                                                                <FileText className="w-8 h-8 text-gray-400" />
-                                                                            )}
-                                                                        </div>
-                                                                        <div className="flex-1 min-w-0">
-                                                                            <p className="text-sm font-medium text-white truncate">
-                                                                                {comment.attachment_name || 'Attachment'}
-                                                                            </p>
-                                                                            {comment.attachment_type && (
-                                                                                <p className="text-xs text-gray-400">
-                                                                                    {comment.attachment_type.split('/')[1]?.toUpperCase() || 'FILE'}
-                                                                                </p>
-                                                                            )}
-                                                                        </div>
-                                                                        <a 
-                                                                            href={comment.attachment_url} 
-                                                                            download={comment.attachment_name}
-                                                                            target="_blank" 
-                                                                            rel="noopener noreferrer"
-                                                                            className="flex-shrink-0 p-2 bg-primary/20 hover:bg-primary/30 rounded-lg transition-colors"
-                                                                            title="Download"
-                                                                        >
-                                                                            <Download className="w-5 h-5 text-primary" />
-                                                                        </a>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                        {comment.message && (
-                                                            <p className="text-sm whitespace-pre-wrap break-words">{comment.message}</p>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        );
-                                    })
-                                ) : (
-                                    <div className="text-center py-8 text-gray-400">No comments yet. Start the conversation!</div>
-                                )}
-                            </div>
-                            {/* File preview if selected */}
-                            {selectedFile && (
-                                <div className="mb-2 p-2 bg-white/5 rounded-lg flex items-center gap-2">
-                                    {filePreview ? (
-                                        <img src={filePreview} alt="Preview" className="w-12 h-12 object-cover rounded" />
-                                    ) : (
-                                        <FileText className="w-8 h-8 text-gray-400" />
-                                    )}
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-xs text-white truncate">{selectedFile.name}</p>
-                                        <p className="text-xs text-gray-400">{(selectedFile.size / 1024).toFixed(2)} KB</p>
-                                    </div>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-6 w-6 text-gray-400 hover:text-red-400"
-                                        onClick={handleRemoveFile}
-                                    >
-                                        <X className="w-4 h-4" />
-                                    </Button>
-                                </div>
-                            )}
-                            
-                            <div className="flex gap-2 border-t border-white/10 pt-4">
-                                <input
-                                    type="file"
-                                    id="file-input"
-                                    ref={(input) => {
-                                        if (input) {
-                                            // Store ref for programmatic access
-                                            window.fileInputRef = input;
-                                        }
-                                    }}
-                                    className="hidden"
-                                    onChange={handleFileSelect}
-                                    accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt,.csv"
-                                />
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    className="text-gray-400 hover:text-white flex-shrink-0"
-                                    onClick={() => {
-                                        const fileInput = document.getElementById('file-input');
-                                        if (fileInput) {
-                                            fileInput.click();
-                                        }
-                                    }}
-                                    title="Attach file"
-                                >
-                                    <Paperclip className="w-5 h-5" />
-                                </Button>
-                                <Textarea
-                                    placeholder="Type your message..."
-                                    value={newComment}
-                                    onChange={(e) => setNewComment(e.target.value)}
-                                    onKeyPress={(e) => {
-                                        if (e.key === 'Enter' && !e.shiftKey) {
-                                            e.preventDefault();
-                                            handleSendComment();
-                                        }
-                                    }}
-                                    className="flex-1 bg-white/10 border-white/20 text-white resize-none"
-                                    rows={2}
-                                />
-                                <Button 
-                                    onClick={handleSendComment} 
-                                    disabled={(!newComment.trim() && !selectedFile) || isSendingComment} 
-                                    className="self-end"
-                                >
-                                    {isSendingComment ? (
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                    ) : (
-                                        <Send className="w-4 h-4" />
-                                    )}
-                                </Button>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    {/* History Box */}
-                    <Card className="glass-pane card-hover overflow-hidden">
-                        <CardHeader><CardTitle>Task History</CardTitle></CardHeader>
+                    {/* Activity Logs Box */}
+                    <Card className="glass-pane card-hover overflow-hidden rounded-2xl">
+                        <CardHeader><CardTitle>Activity Logs</CardTitle></CardHeader>
                         <CardContent>
                             {isHistoryLoading ? (
                                 <div className="flex justify-center items-center py-8">
@@ -1189,6 +1780,85 @@ const TaskDashboardPage = () => {
                     </Card>
                 </div>
             </div>
+
+            {/* Closure Request Dialog */}
+            <Dialog open={showClosureRequestDialog} onOpenChange={setShowClosureRequestDialog}>
+                <DialogContent className="glass-pane">
+                    <DialogHeader>
+                        <DialogTitle>Request to Close Task</DialogTitle>
+                        <DialogDescription>
+                            Request the task creator to close this task. Once approved, the task will be moved to history.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div>
+                            <label className="text-sm font-medium text-white mb-2 block">Reason (Optional)</label>
+                            <Textarea
+                                placeholder="Enter reason for closing this task..."
+                                value={closureReason}
+                                onChange={(e) => setClosureReason(e.target.value)}
+                                className="bg-white/10 border-white/20 text-white"
+                                rows={3}
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => {
+                            setShowClosureRequestDialog(false);
+                            setClosureReason('');
+                        }}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleRequestClosure} className="bg-red-500 hover:bg-red-600">
+                            Request Closure
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Closure Review Dialog */}
+            <Dialog open={showClosureReviewDialog} onOpenChange={setShowClosureReviewDialog}>
+                <DialogContent className="glass-pane">
+                    <DialogHeader>
+                        <DialogTitle>Review Closure Request</DialogTitle>
+                        <DialogDescription>
+                            {closureRequest && (
+                                <div className="mt-2">
+                                    <p className="text-sm text-gray-300">
+                                        Requested by: {getUserInfo(closureRequest.requested_by).name}
+                                    </p>
+                                    {closureRequest.reason && (
+                                        <p className="text-sm text-gray-300 mt-2">
+                                            Reason: {closureRequest.reason}
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="gap-2">
+                        <Button 
+                            variant="outline" 
+                            onClick={() => setShowClosureReviewDialog(false)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button 
+                            variant="outline"
+                            className="bg-red-500/20 text-red-300 border-red-500/50 hover:bg-red-500/30"
+                            onClick={() => handleReviewClosure('rejected')}
+                        >
+                            Reject
+                        </Button>
+                        <Button 
+                            className="bg-green-500 hover:bg-green-600"
+                            onClick={() => handleReviewClosure('approved')}
+                        >
+                            Approve
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };

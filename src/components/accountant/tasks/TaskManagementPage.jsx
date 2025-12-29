@@ -3,7 +3,7 @@
     import { useAuth } from '@/hooks/useAuth.jsx';
     import { useSocket } from '@/contexts/SocketContext.jsx';
     import { useToast } from '@/components/ui/use-toast';
-    import { Loader2, Repeat, LayoutGrid, List } from 'lucide-react';
+    import { Loader2, Repeat, LayoutGrid, List, Plus } from 'lucide-react';
     import TaskList from '@/components/accountant/tasks/TaskList.jsx';
     import TaskKanbanView from '@/components/accountant/tasks/TaskKanbanView.jsx';
     import NewTaskForm from '@/components/accountant/tasks/NewTaskForm.jsx';
@@ -23,7 +23,7 @@
         const { user } = useAuth();
         const { toast } = useToast();
         const navigate = useNavigate();
-        const { selectedOrg } = useOrganisation();
+        const { selectedOrg, organisations } = useOrganisation();
         const [view, setView] = useState('list'); // 'list', 'kanban', 'new', 'edit'
         const [viewMode, setViewMode] = useState('list'); // 'list' or 'kanban'
         const [tasks, setTasks] = useState([]);
@@ -282,12 +282,30 @@
             }
         };
     
+        // Get business name for business users (not CA accounts)
+        const isBusinessUser = user?.role === 'CLIENT_USER' || user?.role === 'CLIENT_ADMIN' || user?.role === 'ENTITY_USER';
+        let businessName = null;
+        if (isBusinessUser) {
+            // Try to get organization name from user data or organisations list
+            businessName = user?.organization_name || user?.entity_name;
+            if (!businessName && selectedOrg && organisations?.length > 0) {
+                const org = organisations.find(o => o.id === selectedOrg || String(o.id) === String(selectedOrg));
+                businessName = org?.name;
+            }
+        }
+
         return (
             <div className="p-4 md:p-8 text-white relative overflow-hidden h-full">
                 {(view === 'list' || view === 'kanban') && (
                     <div className="flex items-center justify-between mb-4">
-                        <h1 className="text-3xl font-bold">Tasks</h1>
+                        <h1 className="text-3xl font-bold">
+                            Tasks{businessName && <span className="text-xl font-normal text-gray-400 ml-2">- {businessName}</span>}
+                        </h1>
                         <div className="flex items-center gap-2">
+                            <Button onClick={handleAddNew}>
+                                <Plus className="w-4 h-4 mr-2" />
+                                New Task
+                            </Button>
                             <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1">
                                 <Button
                                     variant={viewMode === 'list' ? 'default' : 'ghost'}
@@ -333,8 +351,8 @@
                 {/* Task Dialog Modal */}
                 <Dialog open={showTaskDialog} onOpenChange={setShowTaskDialog}>
                     <DialogContent className="glass-pane max-w-5xl max-h-[90vh] overflow-y-auto">
-                        <DialogHeader>
-                            <DialogTitle>{editingTask ? 'Edit Task' : 'Create New Task'}</DialogTitle>
+                        <DialogHeader className="text-left">
+                            <DialogTitle className="text-left">{editingTask ? 'Edit Task' : 'Create New Task'}</DialogTitle>
                         </DialogHeader>
                         <NewTaskForm 
                             onSave={handleSaveTask} 
