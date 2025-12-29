@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useSocket } from '@/contexts/SocketContext.jsx';
 import { useOrganisation } from '@/hooks/useOrganisation';
-import { getTaskDetails, startTaskTimer, stopTaskTimer, getTaskHistory, addTaskSubtask, updateTaskSubtask, deleteTaskSubtask, updateTask, listClients, listServices, listTeamMembers, listTaskComments, createTaskComment, updateTaskComment, deleteTaskComment, addTaskCollaborator, removeTaskCollaborator, getTaskCollaborators, getCommentReadReceipts, requestTaskClosure, getClosureRequest, reviewClosureRequest, listTaskStages } from '@/lib/api';
+import { getTaskDetails, startTaskTimer, stopTaskTimer, getTaskHistory, /* addTaskSubtask, updateTaskSubtask, deleteTaskSubtask, */ updateTask, listClients, listServices, listTeamMembers, listTaskComments, createTaskComment, updateTaskComment, deleteTaskComment, addTaskCollaborator, removeTaskCollaborator, getTaskCollaborators, getCommentReadReceipts, requestTaskClosure, getClosureRequest, reviewClosureRequest, listTaskStages } from '@/lib/api';
 import * as pdfjsLib from 'pdfjs-dist';
 import { useToast } from '@/components/ui/use-toast';
 import { Loader2, ArrowLeft, Paperclip, Clock, Calendar, User, Tag, Flag, CheckCircle, FileText, List, MessageSquare, Briefcase, Users, Play, Square, History, Plus, Trash2, Send, Edit2, Bell, UserPlus, X, Download, Image as ImageIcon, Eye, Maximize2, Repeat, LayoutGrid, CheckCircle2, XCircle } from 'lucide-react';
@@ -101,7 +101,8 @@ const TaskDashboardPage = () => {
     const [isSendingComment, setIsSendingComment] = useState(false);
     const [loadingImages, setLoadingImages] = useState(new Set());
     const [isHistoryLoading, setIsHistoryLoading] = useState(false);
-    const [newSubtask, setNewSubtask] = useState('');
+    // Subtask functionality commented out - using checklist instead
+    // const [newSubtask, setNewSubtask] = useState('');
     const [comments, setComments] = useState([]);
     const [newComment, setNewComment] = useState('');
     const [isLoadingComments, setIsLoadingComments] = useState(false);
@@ -112,13 +113,13 @@ const TaskDashboardPage = () => {
     const [isAddingCollaborator, setIsAddingCollaborator] = useState(false);
     const [showAddCollaborator, setShowAddCollaborator] = useState(false);
     const [selectedCollaboratorId, setSelectedCollaboratorId] = useState('');
-    const [showSubtaskDialog, setShowSubtaskDialog] = useState(false);
+    // const [showSubtaskDialog, setShowSubtaskDialog] = useState(false);
     const [showAddCollaboratorDialog, setShowAddCollaboratorDialog] = useState(false);
     const [showAddChecklistDialog, setShowAddChecklistDialog] = useState(false);
     const [newChecklistItem, setNewChecklistItem] = useState('');
     const [isAddingChecklistItem, setIsAddingChecklistItem] = useState(false);
     const [isUpdatingChecklist, setIsUpdatingChecklist] = useState(false);
-    const [isAddingSubtask, setIsAddingSubtask] = useState(false);
+    // const [isAddingSubtask, setIsAddingSubtask] = useState(false);
     const [readReceipts, setReadReceipts] = useState({}); // { commentId: [{ user_id, name, read_at }] }
     const [isLoadingReadReceipts, setIsLoadingReadReceipts] = useState(false);
     const chatMessagesEndRef = useRef(null);
@@ -512,6 +513,8 @@ const TaskDashboardPage = () => {
     }, [socket, taskId, user?.id, joinTaskRoom, leaveTaskRoom]);
 
 
+    // Subtask functionality commented out - using checklist instead
+    /*
     const handleAddSubtask = async () => {
         if (!newSubtask.trim()) return;
         const subtaskTitle = newSubtask.trim();
@@ -602,6 +605,7 @@ const TaskDashboardPage = () => {
             toast({ title: "Error deleting subtask", description: error.message, variant: "destructive" });
         }
     };
+    */
 
     const handleFileSelect = (e) => {
         const file = e.target.files[0];
@@ -1249,6 +1253,47 @@ const TaskDashboardPage = () => {
         return task.status || 'Pending';
     };
 
+    // Map stage names to display names for task detail page only
+    const getDisplayStageName = (stageName) => {
+        if (!stageName) return 'Open';
+        const nameLower = stageName.toLowerCase();
+        
+        // Map "In Progress" to "On Review"
+        if (nameLower === 'in progress' || nameLower === 'in-progress') {
+            return 'On Review';
+        }
+        
+        // Map "Complete" or "Completed" to "Complete"
+        if (nameLower === 'complete' || nameLower === 'completed') {
+            return 'Complete';
+        }
+        
+        // Everything else maps to "Open"
+        return 'Open';
+    };
+
+    // Get actual stage name from display name (reverse mapping)
+    const getActualStageName = (displayName) => {
+        if (!displayName) return null;
+        const displayLower = displayName.toLowerCase();
+        
+        if (displayLower === 'on review') {
+            return 'In Progress';
+        }
+        
+        if (displayLower === 'complete') {
+            return 'Complete';
+        }
+        
+        if (displayLower === 'open') {
+            // For "Open", we need to find a stage that's not "In Progress" or "Complete"
+            // This will be handled by finding the matching stage
+            return null;
+        }
+        
+        return displayName;
+    };
+
     const getStatusColor = (task) => {
         // Use stage color if available
         if (task.stage?.color) {
@@ -1261,24 +1306,29 @@ const TaskDashboardPage = () => {
 
         // Fallback to default colors based on status name
         const statusName = getStatusName(task);
+        const displayName = getDisplayStageName(statusName);
         let className = '';
-        switch (statusName) {
-            case 'To Do':
-            case 'Assigned':
-                className = 'bg-orange-500/20 text-orange-300 border-orange-500/50';
-                break;
-            case 'In Progress':
+        
+        // Use display name for color mapping on task detail page
+        switch (displayName) {
+            case 'On Review':
                 className = 'bg-blue-500/20 text-blue-300 border-blue-500/50';
                 break;
             case 'Complete':
-            case 'Completed':
                 className = 'bg-green-500/20 text-green-300 border-green-500/50';
                 break;
-            case 'Blocked':
-                className = 'bg-red-500/20 text-red-300 border-red-500/50';
-                break;
+            case 'Open':
             default:
-                className = 'bg-gray-500/20 text-gray-300 border-gray-500/50';
+                // For "Open", check original status name for more specific colors
+                const nameLower = statusName.toLowerCase();
+                if (nameLower === 'to do' || nameLower === 'assigned') {
+                    className = 'bg-orange-500/20 text-orange-300 border-orange-500/50';
+                } else if (nameLower === 'blocked') {
+                    className = 'bg-red-500/20 text-red-300 border-red-500/50';
+                } else {
+                    className = 'bg-gray-500/20 text-gray-300 border-gray-500/50';
+                }
+                break;
         }
         return { className };
     };
@@ -1383,9 +1433,11 @@ const TaskDashboardPage = () => {
             const updatedHistory = await getTaskHistory(taskId, agencyId, user.access_token);
             setHistory(updatedHistory);
             
+            // Show display name in toast
+            const displayName = getDisplayStageName(selectedStage.name);
             toast({
                 title: 'Stage Updated',
-                description: `Task stage changed to ${selectedStage.name}`,
+                description: `Task stage changed to ${displayName}`,
             });
         } catch (error) {
             toast({
@@ -1408,6 +1460,8 @@ const TaskDashboardPage = () => {
     const assignedToInfo = getUserInfo(task.assigned_to);
     const displayTaskId = getTaskId(task);
     const statusName = getStatusName(task);
+    // Get display name for status dropdown (only on task detail page)
+    const displayStatusName = getDisplayStageName(statusName);
 
     // Get business name for business users (not CA accounts)
     const isBusinessUser = user?.role === 'CLIENT_USER' || user?.role === 'CLIENT_ADMIN' || user?.role === 'ENTITY_USER';
@@ -1675,16 +1729,16 @@ const TaskDashboardPage = () => {
                                                     <Combobox
                                                         options={availableStages.map(stage => ({
                                                             value: String(stage.id),
-                                                            label: stage.name || 'Unnamed Stage',
+                                                            label: getDisplayStageName(stage.name) || 'Open',
                                                         }))}
                                                         value={task.stage_id ? String(task.stage_id) : ''}
                                                         onValueChange={handleStageChange}
-                                                        placeholder={statusName || "Select Stage"}
+                                                        placeholder={displayStatusName || "Select Stage"}
                                                         className="w-[180px]"
                                                         disabled={isUpdatingStage}
                                                         displayValue={(option) => {
                                                             const stage = availableStages.find(s => String(s.id) === String(option.value));
-                                                            return stage?.name || option.label;
+                                                            return getDisplayStageName(stage?.name) || option.label || 'Open';
                                                         }}
                                                         style={getStageColorStyles()}
                                                     />
@@ -1695,7 +1749,7 @@ const TaskDashboardPage = () => {
                                                     className={task.stage?.color ? '' : `inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-medium w-fit ${getStatusColor(task).className || ''}`}
                                                     style={task.stage?.color ? getStatusColor(task) : {}}
                                                 >
-                                                    {statusName}
+                                                    {displayStatusName}
                                                 </Badge>
                                             )}
                                         </div>
@@ -1708,9 +1762,10 @@ const TaskDashboardPage = () => {
                 </div>
 
             <div className="flex-1 min-h-0">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full min-h-0 overflow-hidden">
-                    {/* Task Chat - 50% Width */}
-                    <Card className="glass-pane card-hover flex flex-col overflow-hidden rounded-2xl" style={{ height: '100%' }}>
+                {/* 4 Columns, 2 Rows Layout */}
+                <div className="grid grid-cols-4 grid-rows-2 gap-6 h-full min-h-0 overflow-hidden">
+                    {/* Task Chat - Columns 1-2, Both Rows (col-span-2, row-span-2) */}
+                    <Card className="glass-pane card-hover flex flex-col overflow-hidden rounded-2xl col-span-2 row-span-2" style={{ height: '100%' }}>
                         <CardHeader className="flex-shrink-0"><CardTitle className="flex items-center gap-2"><MessageSquare className="w-5 h-5" /> Task Chat</CardTitle></CardHeader>
                         <CardContent className="flex-1 flex flex-col overflow-hidden min-h-0">
                             <div ref={chatContainerRef} className="flex-1 overflow-y-auto space-y-4 mb-4 pr-2 min-h-0" style={{ overflowX: 'visible' }}>
@@ -2055,133 +2110,8 @@ const TaskDashboardPage = () => {
                         </CardContent>
                     </Card>
 
-
-                    {/* Subtasks, Checklists, Collaborate, Activity Logs - 50% Width, 2x2 Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch h-full min-h-0" style={{ gridTemplateRows: '1fr 1fr' }}>
-                        {/* Subtasks Box */}
-                        <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col " style={{ height: '100%' }}>
-                            <CardHeader className="flex-shrink-0">
-                                <div className="flex items-center justify-between">
-                                    <CardTitle>Subtasks</CardTitle>
-                                    <Dialog open={showSubtaskDialog} onOpenChange={setShowSubtaskDialog}>
-                                        <DialogTrigger asChild>
-                                            <Button variant="ghost" size="sm" className="p-2">
-                                                <Plus className="w-4 h-4" />
-                                            </Button>
-                                        </DialogTrigger>
-                                        <DialogContent className="glass-pane">
-                                            <DialogHeader>
-                                                <DialogTitle>Add New Subtask</DialogTitle>
-                                                <DialogDescription>Enter the subtask title below</DialogDescription>
-                                            </DialogHeader>
-                                            <div className="py-4">
-                                                <Input
-                                                    placeholder="Add a new subtask..."
-                                                    value={newSubtask}
-                                                    onChange={(e) => setNewSubtask(e.target.value)}
-                                                    onKeyPress={(e) => e.key === 'Enter' && !isAddingSubtask && handleAddSubtask()}
-                                                    className="glass-input"
-                                                    disabled={isAddingSubtask}
-                                                />
-                                            </div>
-                                            <DialogFooter>
-                                                <Button
-                                                    variant="ghost"
-                                                    onClick={() => {
-                                                        setShowSubtaskDialog(false);
-                                                        setNewSubtask('');
-                                                    }}
-                                                    disabled={isAddingSubtask}
-                                                >
-                                                    Cancel
-                                                </Button>
-                                                <Button
-                                                    onClick={handleAddSubtask}
-                                                    disabled={!newSubtask.trim() || isAddingSubtask}
-                                                >
-                                                    {isAddingSubtask ? (
-                                                        <>
-                                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                                            Adding...
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <Plus className="w-4 h-4 mr-2" /> Add
-                                                        </>
-                                                    )}
-                                                </Button>
-                                            </DialogFooter>
-                                        </DialogContent>
-                                    </Dialog>
-                                </div>
-                            </CardHeader>
-                            <CardContent className="flex-1 min-h-0 overflow-hidden flex flex-col">
-                                <div className="flex-1 min-h-0 overflow-y-auto space-y-2">
-                                    {task.subtasks?.length > 0 ? [...(task.subtasks || [])]
-                                        .sort((a, b) => {
-                                            // Sort by created_at descending (newest first), fallback to id if no created_at
-                                            const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
-                                            const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
-                                            return dateB - dateA; // Newest first
-                                        })
-                                        .map(sub => {
-                                        // Find creator from activity logs for this subtask
-                                        // Try to match by subtask title in action or details
-                                        const subtaskTitle = sub.title || sub.name || '';
-                                        const subtaskActivity = history.find(h => {
-                                            if (h.event_type !== 'subtask_created') return false;
-                                            const action = h.action || '';
-                                            const details = h.details || '';
-                                            return action.includes(subtaskTitle) || details.includes(subtaskTitle);
-                                        });
-                                        
-                                        // If not found, try to get the most recent subtask_created activity
-                                        // (assuming it's for this subtask if it's the last one)
-                                        const subtaskCreatorId = subtaskActivity?.user_id || sub.created_by || task.created_by;
-                                        const subtaskCreator = getUserInfo(subtaskCreatorId);
-                                        return (
-                                            <div key={sub.id} className="flex flex-col gap-1 p-2 rounded-md bg-white/5 transition-colors hover:bg-white/10">
-                                                <div className="flex items-center gap-3">
-                                                    <Checkbox
-                                                        id={`subtask-${sub.id}`}
-                                                        checked={sub.is_completed || false}
-                                                        onCheckedChange={(checked) => handleToggleSubtask(sub.id, checked)}
-                                                    />
-                                                    <label htmlFor={`subtask-${sub.id}`} className={`flex-grow text-sm ${sub.is_completed ? 'line-through text-gray-500' : 'text-white'}`}>
-                                                        {sub.title || sub.name}
-                                                    </label>
-                                                    <AlertDialog>
-                                                        <AlertDialogTrigger asChild>
-                                                            <Button variant="ghost" size="icon" className="text-gray-400 hover:text-red-500 h-8 w-8">
-                                                                <Trash2 className="w-4 h-4" />
-                                                            </Button>
-                                                        </AlertDialogTrigger>
-                                                        <AlertDialogContent className="glass-pane">
-                                                            <AlertDialogHeader>
-                                                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                                <AlertDialogDescription>This will permanently delete the subtask.</AlertDialogDescription>
-                                                            </AlertDialogHeader>
-                                                            <AlertDialogFooter>
-                                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                                <AlertDialogAction onClick={() => handleDeleteSubtask(sub.id)} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
-                                                            </AlertDialogFooter>
-                                                        </AlertDialogContent>
-                                                    </AlertDialog>
-                                                </div>
-                                                <p className="text-xs text-gray-400 italic ml-7">
-                                                    Added by <span className="text-white">{subtaskCreator.name}</span>
-                                                </p>
-                                            </div>
-                                        );
-                                    }) : (
-                                        <p className="text-center text-gray-400 py-4">No subtasks yet.</p>
-                                    )}
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        {/* Checklists Box */}
-                        <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col" style={{ height: '100%' }}>
+                    {/* Checklists - Column 3, Both Rows (col-span-1, row-span-2) */}
+                    <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col col-span-1 row-span-2" style={{ height: '100%' }}>
                             <CardHeader className="flex-shrink-0">
                                 <div className="flex items-center justify-between">
                                     <CardTitle className="flex items-center gap-2">
@@ -2300,10 +2230,10 @@ const TaskDashboardPage = () => {
                                     <p className="text-center text-gray-400 py-4">No checklist items yet.</p>
                                 )}
                             </CardContent>
-                        </Card>
+                    </Card>
 
-                        {/* Collaborate Box */}
-                        <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col" style={{ height: '100%' }}>
+                    {/* Collaborate - Column 4, Row 1 (col-span-1, row-span-1) */}
+                    <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col col-span-1 row-span-1" style={{ height: '100%' }}>
                             <CardHeader className="flex-shrink-0">
                                 <div className="flex items-center justify-between">
                                     <CardTitle>Collaborate</CardTitle>
@@ -2414,10 +2344,10 @@ const TaskDashboardPage = () => {
                                     </div>
                                 )}
                             </CardContent>
-                        </Card>
+                    </Card>
 
-                        {/* Activity Logs Box */}
-                        <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col" style={{ height: '100%' }}>
+                    {/* Activity Logs - Column 4, Row 2 (col-span-1, row-span-1) */}
+                    <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col col-span-1 row-span-1" style={{ height: '100%' }}>
                             <CardHeader className="flex-shrink-0"><CardTitle>Activity Logs</CardTitle></CardHeader>
                             <CardContent className="flex-1 min-h-0 overflow-hidden flex flex-col">
                             {isHistoryLoading ? (
@@ -2442,7 +2372,6 @@ const TaskDashboardPage = () => {
                         </CardContent>
                     </Card>
                 </div>
-            </div>
             </div>
 
             {/* Closure Request Dialog */}
