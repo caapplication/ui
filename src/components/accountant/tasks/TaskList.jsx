@@ -104,6 +104,32 @@ import React, { useState, useMemo, useEffect } from 'react';
             return getUserInfo(userId).name;
         };
 
+        const getDateBadgeColor = (dateString) => {
+            if (!dateString) return 'bg-gray-500/20 text-gray-300 border-gray-500/50';
+            try {
+                const date = new Date(dateString);
+                if (isNaN(date.getTime())) {
+                    return 'bg-gray-500/20 text-gray-300 border-gray-500/50';
+                }
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const dateOnly = new Date(date);
+                dateOnly.setHours(0, 0, 0, 0);
+                const diffTime = today - dateOnly;
+                const diffDays = diffTime / (1000 * 60 * 60 * 24);
+                
+                if (diffDays === 0) {
+                    return 'bg-green-500/20 text-green-300 border-green-500/50'; // Today - Green
+                } else if (diffDays > 1) {
+                    return 'bg-red-500/20 text-red-300 border-red-500/50'; // More than 1 day - Red
+                } else {
+                    return 'bg-gray-500/20 text-gray-300 border-gray-500/50'; // Yesterday - Gray
+                }
+            } catch {
+                return 'bg-gray-500/20 text-gray-300 border-gray-500/50';
+            }
+        };
+
         const formatTimeAgo = (dateString) => {
             if (!dateString) return 'N/A';
             try {
@@ -175,9 +201,31 @@ import React, { useState, useMemo, useEffect } from 'react';
         const filteredTasks = useMemo(() => {
             if (!Array.isArray(tasks)) return [];
             return tasks.filter(task => {
-                // Handle status filter with case-insensitive matching
-                const taskStatus = task.status?.toLowerCase() || '';
-                const statusMatch = statusFilter === 'all' || taskStatus === statusFilter.toLowerCase();
+                // Handle status filter - check both stage name and status
+                let statusMatch = true;
+                if (statusFilter !== 'all') {
+                    // Get task's stage name if available
+                    let taskStageName = null;
+                    if (task.stage_id && stages.length > 0) {
+                        const stage = stages.find(s => {
+                            const stageIdStr = String(s.id);
+                            const taskStageIdStr = String(task.stage_id);
+                            return stageIdStr === taskStageIdStr;
+                        });
+                        if (stage) {
+                            taskStageName = stage.name?.toLowerCase();
+                        }
+                    } else if (task.stage?.name) {
+                        taskStageName = task.stage.name.toLowerCase();
+                    }
+                    
+                    // Also check task.status for backward compatibility
+                    const taskStatus = task.status?.toLowerCase() || '';
+                    const filterLower = statusFilter.toLowerCase();
+                    
+                    // Match if stage name or status matches the filter
+                    statusMatch = (taskStageName === filterLower) || (taskStatus === filterLower);
+                }
                 
                 // Handle search with case-insensitive matching
                 const clientName = getClientName(task.client_id) || '';
@@ -187,7 +235,7 @@ import React, { useState, useMemo, useEffect } from 'react';
                                     taskTitle.toLowerCase().includes(searchTerm.toLowerCase());
                 return statusMatch && searchMatch;
             })
-        }, [tasks, statusFilter, searchTerm, clients]);
+        }, [tasks, statusFilter, searchTerm, clients, stages]);
 
         // Pagination calculations
         const totalPages = Math.ceil(filteredTasks.length / pageSize);
@@ -221,10 +269,24 @@ import React, { useState, useMemo, useEffect } from 'react';
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="all">All Statuses</SelectItem>
-                                        <SelectItem value="pending">Pending</SelectItem>
-                                        <SelectItem value="in progress">In Progress</SelectItem>
-                                        <SelectItem value="completed">Completed</SelectItem>
-                                        <SelectItem value="hold">Hold</SelectItem>
+                                        {stages && stages.length > 0 ? (
+                                            // Dynamically populate from stages
+                                            stages
+                                                .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+                                                .map((stage) => (
+                                                    <SelectItem key={stage.id} value={stage.name?.toLowerCase() || ''}>
+                                                        {stage.name}
+                                                    </SelectItem>
+                                                ))
+                                        ) : (
+                                            // Fallback to hardcoded statuses if no stages available
+                                            <>
+                                                <SelectItem value="pending">Pending</SelectItem>
+                                                <SelectItem value="in progress">In Progress</SelectItem>
+                                                <SelectItem value="completed">Completed</SelectItem>
+                                                <SelectItem value="hold">Hold</SelectItem>
+                                            </>
+                                        )}
                                     </SelectContent>
                                 </Select>
                                 <div className="relative w-full sm:w-auto sm:max-w-xs">
@@ -296,18 +358,27 @@ import React, { useState, useMemo, useEffect } from 'react';
                                             <TableRow key={task.id} className="hover:bg-white/5 cursor-pointer" onClick={() => onViewTask && onViewTask(task.id)}>
                                                 {/* T.ID */}
                                                 <TableCell>
-                                                    <div className="flex items-center gap-2">
+                                                    <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded ${
+                                                        task.has_unread_messages 
+                                                            ? 'bg-pink-100 dark:bg-pink-900/30' 
+                                                            : ''
+                                                    }`}
+                                                    style={task.has_unread_messages ? {
+                                                        animation: 'vibrate 0.8s ease-in-out infinite'
+                                                    } : {}}
+                                                    >
                                                         {task.has_unread_messages && (
                                                             <Bell 
-                                                                className="w-4 h-4 text-red-500" 
-                                                                style={{
-                                                                    animation: 'vibrate 2s ease-in-out infinite'
-                                                                }}
+                                                                className="w-4 h-4 text-red-500"
                                                             />
                                                         )}
-                                                        <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-pink-100 dark:bg-pink-900/30">
-                                                            <span className="text-purple-600 dark:text-purple-400 font-medium text-sm">{taskId}</span>
-                                                        </div>
+                                                        <span className={`font-medium text-sm ${
+                                                            task.has_unread_messages 
+                                                                ? 'text-purple-600 dark:text-purple-400' 
+                                                                : 'text-white'
+                                                        }`}>
+                                                            {taskId}
+                                                        </span>
                                                     </div>
                                                 </TableCell>
                                                 
@@ -338,13 +409,12 @@ import React, { useState, useMemo, useEffect } from 'react';
                                                 <TableCell>
                                                     <div className="flex flex-col gap-1">
                                                         <span className="text-sm text-white">{updatedByInfo.name}</span>
-                                                        <span className="text-xs text-gray-400 italic">{updatedByInfo.role}</span>
                                                         {task.updated_at && (
                                                             <>
                                                                 <span className="text-xs text-gray-400 italic">
                                                                     {format(new Date(task.updated_at), 'dd-MM-yyyy hh:mm a')}
                                                                 </span>
-                                                                <Badge variant="outline" className="bg-red-500/20 text-red-300 border-red-500/50 text-xs w-fit italic">
+                                                                <Badge variant="outline" className={`${getDateBadgeColor(task.updated_at)} text-xs w-fit italic`}>
                                                                     {formatTimeAgo(task.updated_at)}
                                                                 </Badge>
                                                             </>
@@ -356,13 +426,12 @@ import React, { useState, useMemo, useEffect } from 'react';
                                                 <TableCell>
                                                     <div className="flex flex-col gap-1">
                                                         <span className="text-sm text-white">{createdByInfo.name}</span>
-                                                        <span className="text-xs text-gray-400 italic">{createdByInfo.role}</span>
                                                         {task.created_at && (
                                                             <>
                                                                 <span className="text-xs text-gray-400 italic">
                                                                     {format(new Date(task.created_at), 'dd-MM-yyyy hh:mm a')}
                                                                 </span>
-                                                                <Badge variant="outline" className="bg-red-500/20 text-red-300 border-red-500/50 text-xs w-fit italic">
+                                                                <Badge variant="outline" className={`${getDateBadgeColor(task.created_at)} text-xs w-fit italic`}>
                                                                     {formatTimeAgo(task.created_at)}
                                                                 </Badge>
                                                             </>
@@ -374,7 +443,6 @@ import React, { useState, useMemo, useEffect } from 'react';
                                                 <TableCell>
                                                     <div className="flex flex-col gap-1">
                                                         <span className="text-sm text-white">{assignedToInfo.name}</span>
-                                                        <span className="text-xs text-gray-400 italic">{assignedToInfo.role}</span>
                                                         {task.due_date && (
                                                             <Badge variant="outline" className="bg-green-500/20 text-green-300 border-green-500/50 text-xs w-fit italic">
                                                                 {formatTimeUntil(task.due_date)}

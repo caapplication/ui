@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useImperativeHandle, forwardRef } from 'react';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useToast } from '@/components/ui/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
-    Loader2, Plus, MoreVertical, Edit, Trash2, GripVertical,
+    Loader2, Plus, MoreVertical, Edit, Trash2,
     Settings, X, Check, AlertCircle
 } from 'lucide-react';
 import { 
@@ -38,9 +38,9 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { format } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 
-const TaskKanbanView = ({ 
+const TaskKanbanView = forwardRef(({ 
     tasks, 
     clients, 
     services, 
@@ -49,8 +49,9 @@ const TaskKanbanView = ({
     stages: propStages = [],
     onTaskClick,
     onAddNew,
-    onRefresh 
-}) => {
+    onRefresh,
+    onStagesUpdate 
+}, ref) => {
     const { user } = useAuth();
     const { toast } = useToast();
     const [stages, setStages] = useState(propStages || []);
@@ -71,7 +72,9 @@ const TaskKanbanView = ({
         try {
             const stagesData = await listTaskStages(user.agency_id, user.access_token);
             const stagesList = Array.isArray(stagesData) ? stagesData : (stagesData?.items || []);
-            setStages(stagesList.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)));
+            const sortedStages = stagesList.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+            // Force update by creating a new array reference
+            setStages([...sortedStages]);
         } catch (error) {
             console.error('Error fetching stages:', error);
             toast({
@@ -87,7 +90,9 @@ const TaskKanbanView = ({
     useEffect(() => {
         // Use prop stages if available, otherwise fetch
         if (propStages && propStages.length > 0) {
-            setStages(propStages.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)));
+            const sortedStages = propStages.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+            // Force update by creating a new array reference
+            setStages([...sortedStages]);
             setIsLoadingStages(false);
         } else {
             fetchStages();
@@ -97,7 +102,8 @@ const TaskKanbanView = ({
     // Update local tasks when prop tasks change
     useEffect(() => {
         if (tasks && Array.isArray(tasks)) {
-            setLocalTasks(tasks);
+            // Force update by creating a new array reference to ensure React detects the change
+            setLocalTasks([...tasks]);
         }
     }, [tasks]);
 
@@ -230,6 +236,11 @@ const TaskKanbanView = ({
         setShowStageDialog(true);
     };
 
+    // Expose openStageDialog to parent via ref
+    useImperativeHandle(ref, () => ({
+        openStageDialog: () => openStageDialog()
+    }));
+
     const handleSaveStage = async () => {
         if (!stageForm.name.trim()) {
             toast({
@@ -242,6 +253,24 @@ const TaskKanbanView = ({
 
         try {
             if (editingStage) {
+                // Optimistically update the stage in local state
+                setStages(prevStages => {
+                    const updated = prevStages.map(s => {
+                        const stageIdStr = String(s.id);
+                        const editIdStr = String(editingStage.id);
+                        if (stageIdStr === editIdStr) {
+                            return {
+                                ...s,
+                                ...stageForm,
+                                id: s.id // Preserve the original ID
+                            };
+                        }
+                        return s;
+                    });
+                    // Force update by creating a new array reference
+                    return [...updated];
+                });
+                
                 await updateTaskStage(
                     editingStage.id,
                     stageForm,
@@ -250,17 +279,57 @@ const TaskKanbanView = ({
                 );
                 toast({ title: 'Stage updated', description: 'Stage has been updated successfully.' });
             } else {
-                await createTaskStage(stageForm, user.agency_id, user.access_token);
+                // Optimistically add the new stage to local state
+                const tempId = `temp-${Date.now()}`;
+                const newStage = {
+                    id: tempId,
+                    name: stageForm.name,
+                    description: stageForm.description || '',
+                    color: stageForm.color || '#3b82f6',
+                    sort_order: stageForm.sort_order || stages.length,
+                    is_default: false
+                };
+                
+                setStages(prevStages => {
+                    const updated = [...prevStages, newStage].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+                    // Force update by creating a new array reference
+                    return [...updated];
+                });
+                
+                const createdStage = await createTaskStage(stageForm, user.agency_id, user.access_token);
                 toast({ title: 'Stage created', description: 'New stage has been created.' });
+                
+                // Replace the temporary stage with the actual created stage
+                setStages(prevStages => {
+                    const updated = prevStages.map(s => {
+                        if (String(s.id) === tempId) {
+                            return createdStage;
+                        }
+                        return s;
+                    }).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+                    // Force update by creating a new array reference
+                    return [...updated];
+                });
             }
             setShowStageDialog(false);
-            fetchStages();
+            
+            // Refresh stages from server to ensure consistency
+            await fetchStages();
+            // Notify parent component to refresh stages
+            if (onStagesUpdate) {
+                await onStagesUpdate();
+            }
         } catch (error) {
             toast({
                 title: `Error ${editingStage ? 'updating' : 'creating'} stage`,
                 description: error.message,
                 variant: 'destructive',
             });
+            // Revert optimistic update on error by refreshing stages
+            await fetchStages();
+            if (onStagesUpdate) {
+                await onStagesUpdate();
+            }
         }
     };
 
@@ -270,14 +339,37 @@ const TaskKanbanView = ({
             await deleteTaskStage(stageToDelete.id, user.agency_id, user.access_token);
             toast({ title: 'Stage deleted', description: 'Stage has been deleted.' });
             setShowDeleteDialog(false);
+            
+            // Optimistically remove the stage from local state immediately
+            setStages(prevStages => {
+                const filtered = prevStages.filter(s => {
+                    const stageIdStr = String(s.id);
+                    const deleteIdStr = String(stageToDelete.id);
+                    return stageIdStr !== deleteIdStr;
+                });
+                // Force update by creating a new array reference
+                return [...filtered];
+            });
+            
             setStageToDelete(null);
-            fetchStages();
+            
+            // Refresh stages from server to ensure consistency
+            await fetchStages();
+            // Notify parent component to refresh stages
+            if (onStagesUpdate) {
+                await onStagesUpdate();
+            }
         } catch (error) {
             toast({
                 title: 'Error deleting stage',
                 description: error.message,
                 variant: 'destructive',
             });
+            // Revert optimistic update on error by refreshing stages
+            await fetchStages();
+            if (onStagesUpdate) {
+                await onStagesUpdate();
+            }
         }
     };
 
@@ -316,6 +408,44 @@ const TaskKanbanView = ({
         return member?.name || member?.email || 'Unassigned';
     };
 
+    const getCreatorName = (task) => {
+        // First check if task has created_by_name directly from API
+        if (task?.created_by_name) {
+            return task.created_by_name;
+        }
+        
+        // Fallback to looking up in teamMembers array
+        const userId = task?.created_by;
+        if (!userId || !Array.isArray(teamMembers)) return 'N/A';
+        const member = teamMembers.find(m => 
+            m.user_id === userId || 
+            String(m.user_id) === String(userId) ||
+            m.id === userId ||
+            String(m.id) === String(userId)
+        );
+        return member?.name || member?.full_name || member?.email || 'N/A';
+    };
+
+    const getTimestampColor = (dateString) => {
+        if (!dateString) return 'text-gray-400';
+        try {
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) return 'text-gray-400';
+            
+            const now = new Date();
+            const diffMs = now - date;
+            const diffHours = diffMs / (1000 * 60 * 60);
+            
+            if (diffHours <= 24) {
+                return 'text-green-400'; // Green for within 24 hours
+            } else {
+                return 'text-red-400'; // Red for more than 24 hours
+            }
+        } catch {
+            return 'text-gray-400';
+        }
+    };
+
     const getPriorityColor = (priority) => {
         switch (priority) {
             case 'P1': return 'bg-red-500/20 text-red-300 border-red-500/50';
@@ -335,22 +465,7 @@ const TaskKanbanView = ({
     }
 
     return (
-        <div className="h-full flex flex-col">
-            <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-bold">Kanban Board</h2>
-                <div className="flex items-center gap-2">
-                    {onAddNew && (
-                        <Button onClick={onAddNew} variant="default" size="sm">
-                            <Plus className="w-4 h-4 mr-2" />
-                            Add Task
-                        </Button>
-                    )}
-                    <Button onClick={() => openStageDialog()} variant="outline" size="sm">
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add Stage
-                    </Button>
-                </div>
-            </div>
+        <div className="h-full flex flex-col min-h-0">
 
             <style>{`
                 .kanban-scroll-container::-webkit-scrollbar {
@@ -367,26 +482,44 @@ const TaskKanbanView = ({
                 .kanban-scroll-container::-webkit-scrollbar-thumb:hover {
                     background: rgba(255, 255, 255, 0.6);
                 }
+                
+                /* Stage column scrollbar styles */
+                .kanban-stage-scroll::-webkit-scrollbar {
+                    width: 8px;
+                }
+                .kanban-stage-scroll::-webkit-scrollbar-track {
+                    background: rgba(255, 255, 255, 0.05);
+                    border-radius: 4px;
+                }
+                .kanban-stage-scroll::-webkit-scrollbar-thumb {
+                    background: rgba(255, 255, 255, 0.2);
+                    border-radius: 4px;
+                }
+                .kanban-stage-scroll::-webkit-scrollbar-thumb:hover {
+                    background: rgba(255, 255, 255, 0.3);
+                }
             `}</style>
-            <div className="flex-1 overflow-x-auto pb-4 kanban-scroll-container" style={{ 
+            <div className="flex-1 overflow-x-auto kanban-scroll-container min-h-0 pb-2" style={{ 
                 scrollbarWidth: 'thin',
                 scrollbarColor: 'rgba(255, 255, 255, 0.4) rgba(255, 255, 255, 0.1)',
-                WebkitOverflowScrolling: 'touch'
+                WebkitOverflowScrolling: 'touch',
+                maxHeight: '100%'
             }}>
-                <div className="flex gap-4 min-w-max h-full" style={{ minHeight: 'calc(100vh - 300px)', paddingBottom: '1rem' }}>
+                <div className="flex gap-4 min-w-max" style={{ height: 'calc(100vh - 180px)' }}>
                     {stages.map((stage) => {
                         const stageTasks = getTasksForStage(stage.id);
                         return (
                             <div
                                 key={stage.id}
                                 className="flex-shrink-0 w-80 flex flex-col"
+                                style={{ height: 'calc(100vh - 180px)', maxHeight: 'calc(100vh - 180px)' }}
                                 onDragOver={handleDragOver}
                                 onDrop={(e) => handleDrop(e, stage.id)}
                             >
-                                <Card className="glass-pane h-full flex flex-col">
-                                    <CardContent className="p-4 flex-1 flex flex-col">
+                                <Card className="glass-pane h-full flex flex-col overflow-hidden">
+                                    <CardContent className="p-4 flex-1 flex flex-col min-h-0 overflow-hidden">
                                         <div 
-                                            className="flex items-center justify-between mb-4 pb-3 border-b border-white/10"
+                                            className="flex items-center justify-between mb-4 pb-3 border-b border-white/10 flex-shrink-0"
                                             style={{ borderLeftColor: stage.color, borderLeftWidth: '4px', paddingLeft: '12px' }}
                                         >
                                             <div className="flex items-center gap-2">
@@ -426,8 +559,12 @@ const TaskKanbanView = ({
                                             </DropdownMenu>
                                         </div>
 
-                                        <div className="flex-1 overflow-y-auto space-y-3 pr-2">
-                                            {stageTasks.map((task) => {
+                                        <div className="flex-1 overflow-y-auto space-y-3 pr-2 kanban-stage-scroll min-h-0" style={{ 
+                                            scrollbarWidth: 'thin',
+                                            scrollbarColor: 'rgba(255, 255, 255, 0.2) rgba(255, 255, 255, 0.05)',
+                                            maxHeight: '100%'
+                                        }}>
+                                            {stageTasks.map((task, taskIndex) => {
                                                 const isMoving = movingTaskId === task.id;
                                                 
                                                 return (
@@ -450,7 +587,6 @@ const TaskKanbanView = ({
                                                         
                                                         <div className="flex items-start justify-between mb-2">
                                                             <h4 className="font-medium text-white text-sm flex-1">{task.title}</h4>
-                                                            <GripVertical className="w-4 h-4 text-gray-400 flex-shrink-0 ml-2" />
                                                         </div>
                                                         {task.description && (
                                                             <p className="text-xs text-gray-400 mb-2 line-clamp-2">
@@ -466,17 +602,16 @@ const TaskKanbanView = ({
                                                                     {task.priority}
                                                                 </Badge>
                                                             )}
-                                                            {task.due_date && (
-                                                                <span className="text-xs text-gray-400">
-                                                                    {format(new Date(task.due_date), 'MMM dd')}
+                                                        </div>
+                                                        {task.created_at && (
+                                                            <div className="mt-2 flex items-center gap-2 text-xs">
+                                                                <span className={`${getTimestampColor(task.created_at)}`}>{getCreatorName(task)}</span>
+                                                                <span className={getTimestampColor(task.created_at)}>•</span>
+                                                                <span className={getTimestampColor(task.created_at)}>
+                                                                    {format(new Date(task.created_at), 'MMM dd, HH:mm')}
                                                                 </span>
-                                                            )}
-                                                        </div>
-                                                        <div className="mt-2 flex items-center gap-2 text-xs text-gray-400">
-                                                            <span>{getClientName(task.client_id)}</span>
-                                                            <span>•</span>
-                                                            <span>{getAssigneeName(task.assigned_to)}</span>
-                                                        </div>
+                                                            </div>
+                                                        )}
                                                     </Card>
                                                 );
                                             })}
@@ -579,7 +714,9 @@ const TaskKanbanView = ({
             </AlertDialog>
         </div>
     );
-};
+});
+
+TaskKanbanView.displayName = 'TaskKanbanView';
 
 export default TaskKanbanView;
 

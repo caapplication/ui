@@ -1,4 +1,4 @@
-    import React, { useState, useEffect, useCallback } from 'react';
+    import React, { useState, useEffect, useCallback, useRef } from 'react';
     import { useNavigate, Link } from 'react-router-dom';
     import { useAuth } from '@/hooks/useAuth.jsx';
     import { useSocket } from '@/contexts/SocketContext.jsx';
@@ -23,9 +23,16 @@
         const { user } = useAuth();
         const { toast } = useToast();
         const navigate = useNavigate();
-        const { selectedOrg, organisations } = useOrganisation();
-        const [view, setView] = useState('list'); // 'list', 'kanban', 'new', 'edit'
-        const [viewMode, setViewMode] = useState('list'); // 'list' or 'kanban'
+        const { selectedOrg, organisations, selectedEntity, entities } = useOrganisation();
+        // Load view mode from localStorage on mount
+        const [view, setView] = useState(() => {
+            const savedView = localStorage.getItem('taskView') || 'list';
+            return savedView === 'kanban' ? 'kanban' : 'list';
+        });
+        const [viewMode, setViewMode] = useState(() => {
+            const savedViewMode = localStorage.getItem('taskViewMode') || 'list';
+            return savedViewMode === 'kanban' ? 'kanban' : 'list';
+        });
         const [tasks, setTasks] = useState([]);
         const [clients, setClients] = useState([]);
         const [services, setServices] = useState([]);
@@ -34,6 +41,7 @@
     const [stages, setStages] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [editingTask, setEditingTask] = useState(null);
+    const kanbanViewRef = useRef(null);
     
         const fetchData = useCallback(async () => {
             setIsLoading(true);
@@ -110,7 +118,8 @@
                 setServices(servicesArray);
                 setTeamMembers(teamMembersArray);
                 setTags(tagsArray);
-                setStages(stagesArray);
+                // Force update by creating a new array reference
+                setStages([...stagesArray]);
     
             } catch (error) {
                 console.error('Error fetching task data:', error);
@@ -149,6 +158,12 @@
             setShowTaskDialog(false);
             setEditingTask(null);
         };
+
+        const handleAddStage = () => {
+            if (kanbanViewRef.current && kanbanViewRef.current.openStageDialog) {
+                kanbanViewRef.current.openStageDialog();
+            }
+        };
         
         const handleEditTask = (task) => {
             setEditingTask(task);
@@ -171,16 +186,28 @@
                     throw new Error("User information not available.");
                 }
                 const agencyId = user?.agency_id || null;
+                let createdTask = null;
                 if (isEditing) {
                     await updateTask(editingTask.id, taskData, agencyId, user.access_token);
                     toast({ title: "✅ Task Updated", description: `Task "${taskData.title}" has been updated.` });
                 } else {
-                    await createTask(taskData, agencyId, user.access_token);
+                    createdTask = await createTask(taskData, agencyId, user.access_token);
                     toast({ title: "✅ Task Created", description: `New task "${taskData.title}" has been added.` });
                 }
                 setShowTaskDialog(false);
                 setEditingTask(null);
-                fetchData();
+                
+                // Lightweight refresh - only fetch tasks, don't show full loader
+                try {
+                    const tasksData = await listTasks(agencyId, user.access_token);
+                    const tasksArray = Array.isArray(tasksData) ? tasksData : (tasksData?.items || []);
+                    // Force update by creating a new array reference to ensure React detects the change
+                    setTasks([...tasksArray]);
+                } catch (error) {
+                    console.error('Error refreshing tasks after save:', error);
+                    // Fallback to full refresh if lightweight refresh fails
+                    fetchData();
+                }
             } catch (error) {
                 toast({
                     title: `Error ${isEditing ? 'updating' : 'creating'} task`,
@@ -198,7 +225,26 @@
                 const agencyId = user?.agency_id || null;
                 await apiDeleteTask(taskId, agencyId, user.access_token);
                 toast({ title: "✅ Task Deleted", description: "The task has been successfully removed."});
-                setTasks(prev => prev.filter(t => t.id !== taskId));
+                
+                // Lightweight refresh - only fetch tasks, don't show full loader
+                try {
+                    const tasksData = await listTasks(agencyId, user.access_token);
+                    const tasksArray = Array.isArray(tasksData) ? tasksData : (tasksData?.items || []);
+                    // Force update by creating a new array reference to ensure React detects the change
+                    setTasks([...tasksArray]);
+                } catch (error) {
+                    console.error('Error refreshing tasks after delete:', error);
+                    // Fallback to optimistic update if refresh fails
+                    setTasks(prev => {
+                        const filtered = prev.filter(t => {
+                            const taskIdStr = String(t.id);
+                            const deleteIdStr = String(taskId);
+                            return taskIdStr !== deleteIdStr;
+                        });
+                        // Force update by creating a new array reference
+                        return [...filtered];
+                    });
+                }
             } catch (error) {
                 toast({
                     title: 'Error deleting task',
@@ -231,6 +277,7 @@
                                 className="h-full"
                             >
                                 <TaskKanbanView
+                                    ref={kanbanViewRef}
                                     tasks={tasks}
                                     clients={clients}
                                     services={services}
@@ -247,6 +294,18 @@
                                             setTasks(Array.isArray(tasksData) ? tasksData : (tasksData?.items || []));
                                         } catch (error) {
                                             console.error('Error refreshing tasks:', error);
+                                        }
+                                    }}
+                                    onStagesUpdate={async () => {
+                                        // Refresh stages in parent component when stages are added/deleted
+                                        try {
+                                            if (!user?.agency_id || !user?.access_token) return;
+                                            const stagesData = await listTaskStages(user.agency_id, user.access_token);
+                                            const stagesArray = Array.isArray(stagesData) ? stagesData : (stagesData?.items || []);
+                                            // Force update by creating a new array reference
+                                            setStages([...stagesArray]);
+                                        } catch (error) {
+                                            console.error('Error refreshing stages:', error);
                                         }
                                     }}
                                 />
@@ -282,15 +341,38 @@
             }
         };
     
-        // Get business name for business users (not CA accounts)
-        const isBusinessUser = user?.role === 'CLIENT_USER' || user?.role === 'CLIENT_ADMIN' || user?.role === 'ENTITY_USER';
-        let businessName = null;
-        if (isBusinessUser) {
-            // Try to get organization name from user data or organisations list
-            businessName = user?.organization_name || user?.entity_name;
-            if (!businessName && selectedOrg && organisations?.length > 0) {
-                const org = organisations.find(o => o.id === selectedOrg || String(o.id) === String(selectedOrg));
-                businessName = org?.name;
+        // Get display name based on selected entity or organization
+        let displayName = null;
+        
+        // First, try to get selected entity name
+        if (selectedEntity && entities?.length > 0) {
+            const entity = entities.find(e => {
+                const entityIdStr = String(e.id);
+                const selectedIdStr = String(selectedEntity);
+                return entityIdStr === selectedIdStr;
+            });
+            if (entity) {
+                displayName = entity.name;
+            }
+        }
+        
+        // If no entity selected, try to get organization name
+        if (!displayName && selectedOrg && organisations?.length > 0) {
+            const org = organisations.find(o => {
+                const orgIdStr = String(o.id);
+                const selectedIdStr = String(selectedOrg);
+                return orgIdStr === selectedIdStr;
+            });
+            if (org) {
+                displayName = org.name;
+            }
+        }
+        
+        // Fallback to user's organization/entity name for business users
+        if (!displayName) {
+            const isBusinessUser = user?.role === 'CLIENT_USER' || user?.role === 'CLIENT_ADMIN' || user?.role === 'ENTITY_USER';
+            if (isBusinessUser) {
+                displayName = user?.organization_name || user?.entity_name;
             }
         }
 
@@ -299,13 +381,28 @@
                 {(view === 'list' || view === 'kanban') && (
                     <div className="flex items-center justify-between mb-4">
                         <h1 className="text-3xl font-bold">
-                            Tasks{businessName && <span className="text-xl font-normal text-gray-400 ml-2">- {businessName}</span>}
+                            Tasks{displayName && <span className="text-3xl font-bold text-gray-400 ml-2">- {displayName}</span>}
                         </h1>
                         <div className="flex items-center gap-2">
-                            <Button onClick={handleAddNew}>
-                                <Plus className="w-4 h-4 mr-2" />
-                                New Task
-                            </Button>
+                            {viewMode === 'kanban' && (
+                                <Button 
+                                    onClick={handleAddStage}
+                                    variant="outline"
+                                    className="text-white border-white/20 hover:bg-white/10 rounded-lg"
+                                >
+                                    <Plus className="w-4 h-4 mr-2" />
+                                    Add Stage
+                                </Button>
+                            )}
+                            <Link to="/recurring-tasks">
+                                <Button
+                                    variant="outline"
+                                    className="text-white border-white/20 hover:bg-white/10 rounded-lg"
+                                >
+                                    <Repeat className="w-4 h-4 mr-2" />
+                                    Recurring Tasks
+                                </Button>
+                            </Link>
                             <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1">
                                 <Button
                                     variant={viewMode === 'list' ? 'default' : 'ghost'}
@@ -313,6 +410,8 @@
                                     onClick={() => {
                                         setViewMode('list');
                                         setView('list');
+                                        localStorage.setItem('taskViewMode', 'list');
+                                        localStorage.setItem('taskView', 'list');
                                     }}
                                     className={viewMode === 'list' ? 'bg-white/10' : ''}
                                 >
@@ -325,6 +424,8 @@
                                     onClick={() => {
                                         setViewMode('kanban');
                                         setView('kanban');
+                                        localStorage.setItem('taskViewMode', 'kanban');
+                                        localStorage.setItem('taskView', 'kanban');
                                     }}
                                     className={viewMode === 'kanban' ? 'bg-white/10' : ''}
                                 >
@@ -332,15 +433,10 @@
                                     Kanban
                                 </Button>
                             </div>
-                            <Link to="/recurring-tasks">
-                                <Button
-                                    variant="outline"
-                                    className="text-white border-white/20 hover:bg-white/10"
-                                >
-                                    <Repeat className="w-4 h-4 mr-2" />
-                                    Recurring Tasks
-                                </Button>
-                            </Link>
+                            <Button onClick={handleAddNew} className="rounded-lg">
+                                <Plus className="w-4 h-4 mr-2" />
+                                New Task
+                            </Button>
                         </div>
                     </div>
                 )}

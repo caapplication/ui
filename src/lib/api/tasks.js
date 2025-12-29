@@ -290,11 +290,11 @@ import { getAuthHeaders, handleResponse } from './utils';
     };
 
     // Task Closure Request APIs
-    export const requestTaskClosure = async (taskId, reason, agencyId, token) => {
+    export const requestTaskClosure = async (taskId, requestMessage, agencyId, token) => {
         const response = await fetch(`${TASKS_API_BASE_URL}/tasks/${taskId}/closure-request`, {
             method: 'POST',
             headers: getAuthHeaders(token, 'application/json', agencyId),
-            body: JSON.stringify({ reason: reason || null }),
+            body: JSON.stringify({ request_message: requestMessage || null }),
         });
         return handleResponse(response);
     };
@@ -307,11 +307,14 @@ import { getAuthHeaders, handleResponse } from './utils';
         return handleResponse(response);
     };
 
-    export const reviewClosureRequest = async (taskId, requestId, status, agencyId, token) => {
+    export const reviewClosureRequest = async (taskId, requestId, status, reason, agencyId, token) => {
         const response = await fetch(`${TASKS_API_BASE_URL}/tasks/${taskId}/closure-request/${requestId}`, {
             method: 'PATCH',
             headers: getAuthHeaders(token, 'application/json', agencyId),
-            body: JSON.stringify({ status }),
+            body: JSON.stringify({ 
+                status,
+                reason: reason || null
+            }),
         });
         return handleResponse(response);
     };

@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useSocket } from '@/contexts/SocketContext.jsx';
 import { useOrganisation } from '@/hooks/useOrganisation';
 import { getTaskDetails, startTaskTimer, stopTaskTimer, getTaskHistory, addTaskSubtask, updateTaskSubtask, deleteTaskSubtask, updateTask, listClients, listServices, listTeamMembers, listTaskComments, createTaskComment, updateTaskComment, deleteTaskComment, addTaskCollaborator, removeTaskCollaborator, getTaskCollaborators, getCommentReadReceipts, requestTaskClosure, getClosureRequest, reviewClosureRequest } from '@/lib/api';
 import { useToast } from '@/components/ui/use-toast';
-import { Loader2, ArrowLeft, Paperclip, Clock, Calendar, User, Tag, Flag, CheckCircle, FileText, List, MessageSquare, Briefcase, Users, Play, Square, History, Plus, Trash2, Send, Edit2, Bell, UserPlus, X, Download, Image as ImageIcon } from 'lucide-react';
+import { Loader2, ArrowLeft, Paperclip, Clock, Calendar, User, Tag, Flag, CheckCircle, FileText, List, MessageSquare, Briefcase, Users, Play, Square, History, Plus, Trash2, Send, Edit2, Bell, UserPlus, X, Download, Image as ImageIcon, Eye, Maximize2, Repeat, LayoutGrid, CheckCircle2, XCircle } from 'lucide-react';
 import { Combobox } from '@/components/ui/combobox';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,19 +27,19 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
 } from "@/components/ui/tooltip";
 
 const getStatusVariant = (status) => {
@@ -86,7 +86,7 @@ const TaskDashboardPage = () => {
     const navigate = useNavigate();
     const { user } = useAuth();
     const { toast } = useToast();
-    const { selectedOrg, organisations } = useOrganisation();
+    const { selectedOrg, organisations, selectedEntity, entities } = useOrganisation();
     const { socket, joinTaskRoom, leaveTaskRoom } = useSocket();
     const [task, setTask] = useState(null);
     const [history, setHistory] = useState([]);
@@ -109,6 +109,10 @@ const TaskDashboardPage = () => {
     const [showAddCollaborator, setShowAddCollaborator] = useState(false);
     const [selectedCollaboratorId, setSelectedCollaboratorId] = useState('');
     const [showSubtaskDialog, setShowSubtaskDialog] = useState(false);
+    const [showAddCollaboratorDialog, setShowAddCollaboratorDialog] = useState(false);
+    const [showAddChecklistDialog, setShowAddChecklistDialog] = useState(false);
+    const [newChecklistItem, setNewChecklistItem] = useState('');
+    const [isAddingChecklistItem, setIsAddingChecklistItem] = useState(false);
     const [isUpdatingChecklist, setIsUpdatingChecklist] = useState(false);
     const [isAddingSubtask, setIsAddingSubtask] = useState(false);
     const [readReceipts, setReadReceipts] = useState({}); // { commentId: [{ user_id, name, read_at }] }
@@ -120,6 +124,7 @@ const TaskDashboardPage = () => {
     const [showClosureRequestDialog, setShowClosureRequestDialog] = useState(false);
     const [showClosureReviewDialog, setShowClosureReviewDialog] = useState(false);
     const [closureReason, setClosureReason] = useState('');
+    const [previewAttachment, setPreviewAttachment] = useState(null); // { url, name, type }
 
     const fetchCollaborators = useCallback(async () => {
         if (!user?.access_token || !taskId) return;
@@ -244,7 +249,7 @@ const TaskDashboardPage = () => {
                     chatMessagesEndRef.current.scrollIntoView({ behavior: 'auto', block: 'end' });
                 }
             };
-            
+
             // Try immediately
             requestAnimationFrame(() => {
                 scrollToBottom();
@@ -268,10 +273,16 @@ const TaskDashboardPage = () => {
             const request = await getClosureRequest(taskId, agencyId, user.access_token);
             setClosureRequest(request || null);
         } catch (error) {
-            // If 404, no request exists - that's fine
-            if (error?.response?.status !== 404) {
-                console.error('Error fetching closure request:', error);
+            // Silently handle errors - CORS or endpoint not available is OK
+            // This prevents the app from breaking if the backend hasn't been updated yet
+            if (error?.message?.includes('CORS') || error?.message?.includes('Failed to fetch')) {
+                // CORS error - backend might not be running or endpoint not available
+                console.warn('Closure request endpoint not available (CORS or endpoint issue)');
+            } else if (error?.response?.status !== 404) {
+                // Other errors (but not 404)
+                console.warn('Error fetching closure request:', error.message);
             }
+            // Always set to null on error - no request exists or endpoint unavailable
             setClosureRequest(null);
         } finally {
             setIsLoadingClosureRequest(false);
@@ -296,22 +307,22 @@ const TaskDashboardPage = () => {
         const handleNewComment = (data) => {
             if (data.task_id === taskId && data.comment) {
                 const newComment = data.comment;
-                
+
                 // Don't add our own messages (shouldn't happen as backend doesn't emit to sender, but safety check)
                 if (newComment.user_id === user?.id || String(newComment.user_id) === String(user?.id)) {
                     return;
                 }
-                
+
                 // Check if comment already exists (avoid duplicates) using functional update
                 setComments(prev => {
                     const commentExists = prev.some(c => c.id === newComment.id);
                     if (commentExists) {
                         return prev; // Return previous state if duplicate
                     }
-                    
+
                     // Add the new comment to the list
                     const updatedComments = [...prev, newComment];
-                    
+
                     // Scroll to bottom to show new message
                     setTimeout(() => {
                         if (chatContainerRef.current) {
@@ -320,7 +331,7 @@ const TaskDashboardPage = () => {
                             chatMessagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
                         }
                     }, 100);
-                    
+
                     return updatedComments;
                 });
             }
@@ -332,24 +343,24 @@ const TaskDashboardPage = () => {
         const handleReadReceipt = (data) => {
             if (data.task_id === taskId && data.comment_id && data.receipt) {
                 const { comment_id, receipt } = data;
-                
+
                 // Update read receipts for this comment
                 setReadReceipts(prev => {
                     const existingReceipts = prev[comment_id] || [];
-                    
+
                     // Check if this receipt already exists
                     const receiptExists = existingReceipts.some(r => r.id === receipt.id);
                     if (receiptExists) {
                         return prev; // Return previous state if duplicate
                     }
-                    
+
                     // Add the new receipt
                     const updatedReceipt = {
                         ...receipt,
                         name: receipt.user_name || receipt.name || 'Unknown',
                         email: receipt.user_email || receipt.email || 'N/A'
                     };
-                    
+
                     return {
                         ...prev,
                         [comment_id]: [...existingReceipts, updatedReceipt]
@@ -487,12 +498,12 @@ const TaskDashboardPage = () => {
         if (readReceipts[commentId]) {
             return;
         }
-        
+
         setIsLoadingReadReceipts(true);
         try {
             const agencyId = user?.agency_id || null;
             const receipts = await getCommentReadReceipts(taskId, commentId, agencyId, user.access_token);
-            
+
             // Map receipts to include user names (use API data if available, otherwise fallback to getUserInfo)
             const receiptsWithNames = (receipts || []).map(receipt => {
                 // Use API data if available (user_name, user_email from backend)
@@ -513,7 +524,7 @@ const TaskDashboardPage = () => {
                     read_at: receipt.read_at
                 };
             });
-            
+
             setReadReceipts(prev => ({ ...prev, [commentId]: receiptsWithNames }));
         } catch (error) {
             console.error('Error fetching read receipts:', error);
@@ -542,26 +553,26 @@ const TaskDashboardPage = () => {
 
     const handleToggleChecklistItem = async (itemIndex, isCompleted) => {
         if (!task?.checklist?.items) return;
-        
+
         setIsUpdatingChecklist(true);
-        
+
         try {
             const agencyId = user?.agency_id || null;
-            const updatedItems = task.checklist.items.map((item, idx) => 
+            const updatedItems = task.checklist.items.map((item, idx) =>
                 idx === itemIndex ? { ...item, is_completed: isCompleted } : item
             );
-            
+
             const updatedChecklist = {
                 enabled: task.checklist.enabled,
                 items: updatedItems
             };
-            
+
             // Optimistically update UI
             setTask({ ...task, checklist: updatedChecklist });
-            
+
             // Update via API
             await updateTask(taskId, { checklist: updatedChecklist }, agencyId, user.access_token);
-            
+
             // Refresh task and history to get latest data including activity logs
             const [updatedTask, updatedHistory] = await Promise.all([
                 getTaskDetails(taskId, agencyId, user.access_token),
@@ -578,6 +589,47 @@ const TaskDashboardPage = () => {
         }
     };
 
+    const handleAddChecklistItem = async () => {
+        if (!newChecklistItem.trim() || isAddingChecklistItem) return;
+
+        setIsAddingChecklistItem(true);
+        try {
+            const agencyId = user?.agency_id || null;
+
+            // Ensure checklist is enabled and has items array
+            const currentItems = task?.checklist?.items || [];
+            const newItem = {
+                name: newChecklistItem.trim(),
+                is_completed: false,
+                assigned_to: user?.id || null
+            };
+
+            const updatedChecklist = {
+                enabled: true,
+                items: [...currentItems, newItem]
+            };
+
+            // Update via API
+            await updateTask(taskId, { checklist: updatedChecklist }, agencyId, user.access_token);
+
+            // Refresh task and history
+            const [updatedTask, updatedHistory] = await Promise.all([
+                getTaskDetails(taskId, agencyId, user.access_token),
+                getTaskHistory(taskId, agencyId, user.access_token)
+            ]);
+            setTask(updatedTask);
+            setHistory(updatedHistory);
+
+            setNewChecklistItem('');
+            setShowAddChecklistDialog(false);
+            toast({ title: "Checklist Item Added", description: "The checklist item has been added successfully." });
+        } catch (error) {
+            toast({ title: "Error adding checklist item", description: error.message, variant: "destructive" });
+        } finally {
+            setIsAddingChecklistItem(false);
+        }
+    };
+
     const handleAddCollaborator = async () => {
         if (!selectedCollaboratorId || isAddingCollaborator) return;
         setIsAddingCollaborator(true);
@@ -586,7 +638,7 @@ const TaskDashboardPage = () => {
             await addTaskCollaborator(taskId, selectedCollaboratorId, agencyId, user.access_token);
             toast({ title: "Collaborator Added", description: "Collaborator has been added to the task." });
             setSelectedCollaboratorId('');
-            setShowAddCollaborator(false);
+            setShowAddCollaboratorDialog(false);
             await fetchCollaborators();
             await fetchTask(); // Refresh task to update collaborators list
         } catch (error) {
@@ -598,13 +650,13 @@ const TaskDashboardPage = () => {
 
     const handleRequestClosure = async () => {
         if (!user?.access_token || !taskId) return;
-        
+
         try {
             const agencyId = user?.agency_id || null;
             await requestTaskClosure(taskId, closureReason, agencyId, user.access_token);
-            toast({ 
-                title: "Closure Request Sent", 
-                description: "The task creator has been notified of your request to close this task." 
+            toast({
+                title: "Closure Request Sent",
+                description: "The task creator has been notified of your request to close this task."
             });
             setShowClosureRequestDialog(false);
             setClosureReason('');
@@ -612,35 +664,36 @@ const TaskDashboardPage = () => {
             fetchTask();
             fetchHistory();
         } catch (error) {
-            toast({ 
-                title: "Error", 
-                description: error.message || "Failed to request task closure", 
-                variant: "destructive" 
+            toast({
+                title: "Error",
+                description: error.message || "Failed to request task closure",
+                variant: "destructive"
             });
         }
     };
 
     const handleReviewClosure = async (status) => {
         if (!user?.access_token || !taskId || !closureRequest) return;
-        
+
         try {
             const agencyId = user?.agency_id || null;
-            await reviewClosureRequest(taskId, closureRequest.id, status, agencyId, user.access_token);
-            toast({ 
-                title: status === 'approved' ? "Closure Approved" : "Closure Rejected", 
-                description: status === 'approved' 
-                    ? "The task has been closed and moved to history." 
-                    : "The closure request has been rejected. The task remains open." 
+            await reviewClosureRequest(taskId, closureRequest.id, status, closureReason, agencyId, user.access_token);
+            toast({
+                title: status === 'approved' ? "Closure Approved" : "Closure Rejected",
+                description: status === 'approved'
+                    ? "The task has been closed and moved to history."
+                    : "The closure request has been rejected. The task remains open."
             });
             setShowClosureReviewDialog(false);
+            setClosureReason('');
             fetchClosureRequest();
             fetchTask();
             fetchHistory();
         } catch (error) {
-            toast({ 
-                title: "Error", 
-                description: error.message || "Failed to review closure request", 
-                variant: "destructive" 
+            toast({
+                title: "Error",
+                description: error.message || "Failed to review closure request",
+                variant: "destructive"
             });
         }
     };
@@ -671,8 +724,8 @@ const TaskDashboardPage = () => {
             const agencyId = user?.agency_id || null;
             
             // Always use FormData (backend expects Form data)
-            const formData = new FormData();
-            formData.append('message', commentText || '');
+                const formData = new FormData();
+                formData.append('message', commentText || '');
             if (fileToSend) {
                 formData.append('attachment', fileToSend);
             }
@@ -895,6 +948,32 @@ const TaskDashboardPage = () => {
         return getUserInfo(userId).name;
     };
 
+    const getDateBadgeColor = (dateString) => {
+        if (!dateString) return 'bg-gray-500/20 text-gray-300 border-gray-500/50';
+        try {
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) {
+                return 'bg-gray-500/20 text-gray-300 border-gray-500/50';
+            }
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const dateOnly = new Date(date);
+            dateOnly.setHours(0, 0, 0, 0);
+            const diffTime = today - dateOnly;
+            const diffDays = diffTime / (1000 * 60 * 60 * 24);
+            
+            if (diffDays === 0) {
+                return 'bg-green-500/20 text-green-300 border-green-500/50'; // Today - Green
+            } else if (diffDays > 1) {
+                return 'bg-red-500/20 text-red-300 border-red-500/50'; // More than 1 day - Red
+            } else {
+                return 'bg-gray-500/20 text-gray-300 border-gray-500/50'; // Yesterday - Gray
+            }
+        } catch {
+            return 'bg-gray-500/20 text-gray-300 border-gray-500/50';
+        }
+    };
+
     const formatTimeAgo = (dateString) => {
         if (!dateString) return 'N/A';
         try {
@@ -969,7 +1048,7 @@ const TaskDashboardPage = () => {
                 borderColor: `${task.stage.color}50`
             };
         }
-        
+
         // Fallback to default colors based on status name
         const statusName = getStatusName(task);
         let className = '';
@@ -1016,24 +1095,149 @@ const TaskDashboardPage = () => {
         }
     }
 
+    // Get display name for header (same logic as TaskManagementPage)
+    let displayOrgName = null;
+    if (isBusinessUser) {
+        displayOrgName = user?.organization_name || user?.entity_name;
+    } else {
+        // For CA users, show selected entity or organization (same logic as TaskManagementPage)
+        // First, try to get selected entity name
+        if (selectedEntity && entities?.length > 0) {
+            const entity = entities.find(e => {
+                const entityIdStr = String(e.id);
+                const selectedIdStr = String(selectedEntity);
+                return entityIdStr === selectedIdStr;
+            });
+            if (entity) {
+                displayOrgName = entity.name;
+            }
+        }
+        
+        // If no entity selected, try to get organization name
+        if (!displayOrgName && selectedOrg && organisations?.length > 0) {
+            const org = organisations.find(o => {
+                const orgIdStr = String(o.id);
+                const selectedIdStr = String(selectedOrg);
+                return orgIdStr === selectedIdStr;
+            });
+            if (org) {
+                displayOrgName = org.name;
+            }
+        }
+    }
+
     return (
-        <div className="p-4 md:p-8 text-white min-h-screen">
-            <header className="flex items-center justify-between pb-4 border-b border-white/10 mb-6">
+        <div className="h-[100dvh] p-4 md:p-8 text-white flex flex-col min-h-0 overflow-hidden">
+            <header className="flex items-center justify-between pb-4 border-b border-white/10 mb-6 flex-shrink-0">
                 <div className="flex items-center gap-4">
                     <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
                         <ArrowLeft className="h-6 w-6" />
                     </Button>
-                    <h1 className="text-3xl font-extrabold">{task.title}</h1>
+                    <h1 className="text-3xl font-bold">
+                        Tasks{displayOrgName && <span className="text-3xl font-bold text-gray-400 ml-2">- {displayOrgName}</span>}
+                    </h1>
                 </div>
-                {businessName && (
-                    <div className="px-4 py-2 rounded-xl border border-green-400/30 bg-gradient-to-r from-green-500/20 to-green-600/15 text-green-200 backdrop-blur-sm shadow-lg">
-                        {businessName}
+                <div className="flex items-center gap-2">
+                    <Button
+                        onClick={() => navigate('/tasks', { state: { viewMode: 'kanban', openAddStage: true } })}
+                        variant="outline"
+                        className="text-white border-white/20 hover:bg-white/10"
+                    >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Stage
+                    </Button>
+                    <Link to="/recurring-tasks">
+                        <Button
+                            variant="outline"
+                            className="text-white border-white/20 hover:bg-white/10"
+                        >
+                            <Repeat className="w-4 h-4 mr-2" />
+                            Recurring Tasks
+                        </Button>
+                    </Link>
+                    <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => navigate('/tasks')}
+                            className="bg-white/10"
+                        >
+                            <List className="w-4 h-4 mr-2" />
+                            List
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => navigate('/tasks')}
+                        >
+                            <LayoutGrid className="w-4 h-4 mr-2" />
+                            Kanban
+                        </Button>
                     </div>
-                )}
+                    <Button onClick={() => navigate('/tasks')}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        New Task
+                    </Button>
+                </div>
             </header>
 
+            {/* Task Actions - Close Task Button */}
+            {task && (
+                <div className="mb-4 flex justify-end gap-2">
+                    {/* Close Task Button - Show for assigned user if task is not completed and no pending request */}
+                    {(() => {
+                        // Check if user is assigned to this task
+                        const isAssignedUser = task.assigned_to && String(task.assigned_to) === String(user?.id);
+                        // Check if task is not completed (check both status and statusName)
+                        const taskStatusLower = task.status?.toLowerCase() || '';
+                        const statusNameLower = statusName?.toLowerCase() || '';
+                        const isNotCompleted = taskStatusLower !== 'completed' && 
+                                              statusNameLower !== 'complete' &&
+                                              statusNameLower !== 'completed';
+                        // Check if there's no pending closure request
+                        const noPendingRequest = !closureRequest || closureRequest?.status !== 'pending';
+                        
+                        return isAssignedUser && isNotCompleted && noPendingRequest;
+                    })() && (
+                        <Button 
+                            onClick={() => setShowClosureRequestDialog(true)}
+                            variant="outline"
+                            size="default"
+                            className="bg-red-500/20 text-red-300 border-red-500/50 hover:bg-red-500/30"
+                        >
+                            <XCircle className="w-4 h-4 mr-2" />
+                            Request to Close Task
+                        </Button>
+                    )}
+                    {/* Closure Request Review - Show for task creator if pending request exists */}
+                    {task.created_by && String(task.created_by) === String(user?.id) && closureRequest?.status === 'pending' && (
+                        <Button 
+                            onClick={() => setShowClosureReviewDialog(true)}
+                            variant="outline"
+                            size="default" 
+                            className="bg-yellow-500/20 text-yellow-300 border-yellow-500/50 hover:bg-yellow-500/30"
+                        >
+                            <CheckCircle2 className="w-4 h-4 mr-2" />
+                            Review Closure Request
+                        </Button>
+                    )}
+                    {/* Show pending status if request is pending and user is assignee */}
+                    {task.assigned_to && String(task.assigned_to) === String(user?.id) && closureRequest?.status === 'pending' && (
+                        <Button 
+                            variant="outline"
+                            size="default"
+                            disabled
+                            className="bg-gray-500/20 text-gray-300 border-gray-500/50"
+                        >
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Pending Closure Request
+                        </Button>
+                    )}
+                </div>
+            )}
+
             {/* Task Summary Table - Same columns as Task List */}
-            <div className="mb-6">
+            <div className="mb-6 flex-shrink-0">
                 <Card className="glass-pane overflow-hidden rounded-2xl">
                     <CardContent className="p-0">
                         <Table>
@@ -1051,24 +1255,37 @@ const TaskDashboardPage = () => {
                                 <TableRow className="border-white/10">
                                     {/* T.ID */}
                                     <TableCell>
-                                        <Badge variant="outline" className="bg-pink-500/20 text-pink-300 border-pink-500/50 text-xs font-medium inline-flex items-center gap-1">
-                                            <Bell className="w-3 h-3" />
+                                        <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded ${task.has_unread_messages
+                                            ? 'bg-pink-100 dark:bg-pink-900/30'
+                                            : ''
+                                            }`}
+                                            style={task.has_unread_messages ? {
+                                                animation: 'vibrate 0.8s ease-in-out infinite'
+                                            } : {}}
+                                        >
+                                            {task.has_unread_messages && (
+                                                <Bell
+                                                    className="w-4 h-4 text-red-500"
+                                                />
+                                            )}
+                                            <span className={`font-medium text-sm ${task.has_unread_messages
+                                                ? 'text-purple-600 dark:text-purple-400'
+                                                : 'text-white'
+                                                }`}>
                                             {displayTaskId}
-                                        </Badge>
+                                            </span>
+                                        </div>
                                     </TableCell>
                                     
                                     {/* STATUS */}
                                     <TableCell>
-                                        <div className="flex flex-col gap-1">
                                             <Badge 
                                                 variant="outline" 
-                                                className={task.stage?.color ? '' : `inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-medium w-fit ${getStatusColor(task).className || ''}`}
-                                                style={task.stage?.color ? getStatusColor(task) : {}}
+                                            className={task.stage?.color ? '' : `inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-medium w-fit ${getStatusColor(task).className || ''}`}
+                                            style={task.stage?.color ? getStatusColor(task) : {}}
                                             >
                                                 {statusName}
                                             </Badge>
-                                            <UserPlus className="w-4 h-4 text-gray-400" />
-                                        </div>
                                     </TableCell>
                                     
                                     {/* TASK DETAILS */}
@@ -1087,13 +1304,12 @@ const TaskDashboardPage = () => {
                                     <TableCell>
                                         <div className="flex flex-col gap-1">
                                             <span className="text-sm text-white">{updatedByInfo.name}</span>
-                                            <span className="text-xs text-gray-400 italic">{updatedByInfo.role}</span>
                                             {task.updated_at && (
                                                 <>
                                                     <span className="text-xs text-gray-400 italic">
                                                         {format(new Date(task.updated_at), 'dd-MM-yyyy hh:mm a')}
                                                     </span>
-                                                    <Badge variant="outline" className="bg-red-500/20 text-red-300 border-red-500/50 text-xs w-fit italic">
+                                                    <Badge variant="outline" className={`${getDateBadgeColor(task.updated_at)} text-xs w-fit italic`}>
                                                         {formatTimeAgo(task.updated_at)}
                                                     </Badge>
                                                 </>
@@ -1105,13 +1321,12 @@ const TaskDashboardPage = () => {
                                     <TableCell>
                                         <div className="flex flex-col gap-1">
                                             <span className="text-sm text-white">{createdByInfo.name}</span>
-                                            <span className="text-xs text-gray-400 italic">{createdByInfo.role}</span>
                                             {task.created_at && (
                                                 <>
                                                     <span className="text-xs text-gray-400 italic">
                                                         {format(new Date(task.created_at), 'dd-MM-yyyy hh:mm a')}
                                                     </span>
-                                                    <Badge variant="outline" className="bg-red-500/20 text-red-300 border-red-500/50 text-xs w-fit italic">
+                                                    <Badge variant="outline" className={`${getDateBadgeColor(task.created_at)} text-xs w-fit italic`}>
                                                         {formatTimeAgo(task.created_at)}
                                                     </Badge>
                                                 </>
@@ -1123,54 +1338,27 @@ const TaskDashboardPage = () => {
                                     <TableCell>
                                         <div className="flex flex-col gap-1">
                                             <span className="text-sm text-white">{assignedToInfo.name}</span>
-                                            <span className="text-xs text-gray-400 italic">{assignedToInfo.role}</span>
                                             {task.due_date && (
                                                 <Badge variant="outline" className="bg-green-500/20 text-green-300 border-green-500/50 text-xs w-fit italic">
                                                     {formatTimeUntil(task.due_date)}
                                                 </Badge>
                                             )}
-                                            {/* Close Task Button - Show for assigned user if task is not completed */}
-                                            {task.assigned_to && String(task.assigned_to) === String(user?.id) && task.status !== 'completed' && (
-                                                <Button
-                                                    onClick={() => setShowClosureRequestDialog(true)}
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="mt-2 bg-red-500/20 text-red-300 border-red-500/50 hover:bg-red-500/30"
-                                                    disabled={closureRequest?.status === 'pending'}
-                                                >
-                                                    {closureRequest?.status === 'pending' ? (
-                                                        <>Pending Closure Request</>
-                                                    ) : (
-                                                        <>Request to Close Task</>
-                                                    )}
-                                                </Button>
-                                            )}
-                                            {/* Closure Request Review - Show for task creator if pending request exists */}
-                                            {task.created_by && String(task.created_by) === String(user?.id) && closureRequest?.status === 'pending' && (
-                                                <Button
-                                                    onClick={() => setShowClosureReviewDialog(true)}
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="mt-2 bg-yellow-500/20 text-yellow-300 border-yellow-500/50 hover:bg-yellow-500/30"
-                                                >
-                                                    Review Closure Request
-                                                </Button>
-                                            )}
-                                        </div>
+                                </div>
                                     </TableCell>
                                 </TableRow>
                             </TableBody>
                         </Table>
-                    </CardContent>
-                </Card>
-            </div>
+                        </CardContent>
+                    </Card>
+                </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Task Chat - 50% Width */}
-                <Card className="glass-pane card-hover flex flex-col overflow-hidden rounded-2xl">
-                    <CardHeader><CardTitle className="flex items-center gap-2"><MessageSquare className="w-5 h-5" /> Task Chat</CardTitle></CardHeader>
-                    <CardContent className="flex-1 flex flex-col overflow-hidden">
-                        <div ref={chatContainerRef} className="flex-1 overflow-y-auto space-y-4 mb-4 pr-2" style={{ maxHeight: '500px' }}>
+            <div className="flex-1 min-h-0">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full min-h-0 overflow-hidden">
+                    {/* Task Chat - 50% Width */}
+                    <Card className="glass-pane card-hover flex flex-col overflow-hidden rounded-2xl" style={{ height: '100%' }}>
+                        <CardHeader className="flex-shrink-0"><CardTitle className="flex items-center gap-2"><MessageSquare className="w-5 h-5" /> Task Chat</CardTitle></CardHeader>
+                        <CardContent className="flex-1 flex flex-col overflow-hidden min-h-0">
+                            <div ref={chatContainerRef} className="flex-1 overflow-y-auto space-y-4 mb-4 pr-2 min-h-0" style={{ overflowX: 'visible' }}>
                                 {isLoadingComments ? (
                                     <div className="flex justify-center items-center py-8">
                                         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -1184,11 +1372,11 @@ const TaskDashboardPage = () => {
                                             m.id === comment.user_id ||
                                             String(m.id) === String(comment.user_id)
                                         ) || { name: user?.name || 'You', email: user?.email || '' };
-                                        
+
                                         // Check if previous message is from same user to group messages
                                         const prevComment = index > 0 ? comments[index - 1] : null;
                                         const isGrouped = prevComment && prevComment.user_id === comment.user_id;
-                                        
+
                                         // Format timestamp like WhatsApp
                                         const messageDate = new Date(comment.created_at);
                                         const now = new Date();
@@ -1208,29 +1396,29 @@ const TaskDashboardPage = () => {
                                                 {/* Avatar - only show if not grouped */}
                                                 {!isGrouped && (
                                                     <div className={`flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-primary/40 to-primary/60 flex items-center justify-center text-white font-semibold text-sm shadow-lg`}>
-                                                        {(commentUser.name || commentUser.email || 'U').charAt(0).toUpperCase()}
-                                                    </div>
+                                                    {(commentUser.name || commentUser.email || 'U').charAt(0).toUpperCase()}
+                                                </div>
                                                 )}
                                                 {isGrouped && <div className="w-10"></div>}
-                                                
+
                                                 <div className={`flex-1 ${isOwnComment ? 'flex flex-col items-end' : 'flex flex-col items-start'}`}>
                                                     {/* User name - only show if not grouped */}
                                                     {!isGrouped && (
-                                                        <div className={`mb-1 ${isOwnComment ? 'text-right' : 'text-left'}`}>
+                                                    <div className={`mb-1 ${isOwnComment ? 'text-right' : 'text-left'}`}>
                                                             <span className={`text-sm font-bold ${getUserNameColor(comment.user_id)}`}>
-                                                                {commentUser.name || commentUser.email || 'Unknown'}
-                                                            </span>
-                                                        </div>
+                                                            {commentUser.name || commentUser.email || 'Unknown'}
+                                                        </span>
+                                                    </div>
                                                     )}
-                                                    
+
                                                     {/* Message bubble - WhatsApp style */}
                                                     <div className={`relative inline-block max-w-[75%] ${isOwnComment ? 'bg-[#dcf8c6] text-[#111b21]' : 'bg-white text-[#111b21]'} rounded-lg shadow-sm`} style={{
-                                                        borderRadius: isOwnComment 
+                                                        borderRadius: isOwnComment
                                                             ? (isGrouped ? '7px 7px 2px 7px' : '7px 7px 2px 7px')
                                                             : (isGrouped ? '2px 7px 7px 7px' : '7px 7px 7px 2px')
                                                     }}>
                                                         <div className="p-2 pb-1">
-                                                            {comment.attachment_url && (
+                                                        {comment.attachment_url && (
                                                             <div className="mb-2">
                                                                 {comment.attachment_type?.startsWith('image/') || comment.attachment_url.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ? (
                                                                     // Image attachment - show inline like WhatsApp
@@ -1244,7 +1432,11 @@ const TaskDashboardPage = () => {
                                                                             src={comment.attachment_url} 
                                                                             alt={comment.attachment_name || "Image"} 
                                                                             className="max-w-full h-auto rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-                                                                            onClick={() => window.open(comment.attachment_url, '_blank')}
+                                                                            onClick={() => setPreviewAttachment({
+                                                                                url: comment.attachment_url,
+                                                                                name: comment.attachment_name || 'Image',
+                                                                                type: comment.attachment_type || 'image'
+                                                                            })}
                                                                             onLoad={() => {
                                                                                 setLoadingImages(prev => {
                                                                                     const newSet = new Set(prev);
@@ -1283,7 +1475,7 @@ const TaskDashboardPage = () => {
                                                                     </div>
                                                                 ) : (
                                                                     // Non-image attachment - show download option like WhatsApp
-                                                                    <div className="flex items-center gap-3 p-2 bg-gray-100 rounded-lg">
+                                                                        <div className="flex items-center gap-3 p-2 bg-gray-100 rounded-lg">
                                                                         <div className="flex-shrink-0">
                                                                             {comment.attachment_type === 'application/pdf' ? (
                                                                                 <FileText className="w-8 h-8 text-red-500" />
@@ -1292,38 +1484,51 @@ const TaskDashboardPage = () => {
                                                                             ) : comment.attachment_type?.includes('excel') || comment.attachment_type?.includes('spreadsheet') || comment.attachment_url.match(/\.(xls|xlsx)$/i) ? (
                                                                                 <FileText className="w-8 h-8 text-green-500" />
                                                                             ) : (
-                                                                                <FileText className="w-8 h-8 text-gray-600" />
+                                                                                    <FileText className="w-8 h-8 text-gray-600" />
                                                                             )}
                                                                         </div>
                                                                         <div className="flex-1 min-w-0">
-                                                                            <p className="text-sm font-medium text-[#111b21] truncate">
+                                                                                <p className="text-sm font-medium text-[#111b21] truncate">
                                                                                 {comment.attachment_name || 'Attachment'}
                                                                             </p>
                                                                             {comment.attachment_type && (
-                                                                                <p className="text-xs text-gray-500">
+                                                                                    <p className="text-xs text-gray-500">
                                                                                     {comment.attachment_type.split('/')[1]?.toUpperCase() || 'FILE'}
                                                                                 </p>
                                                                             )}
                                                                         </div>
-                                                                        <a 
-                                                                            href={comment.attachment_url} 
-                                                                            download={comment.attachment_name}
-                                                                            target="_blank" 
-                                                                            rel="noopener noreferrer"
-                                                                            className="flex-shrink-0 p-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
-                                                                            title="Download"
-                                                                        >
-                                                                            <Download className="w-5 h-5 text-gray-700" />
-                                                                        </a>
+                                                                        <div className="flex items-center gap-1">
+                                                                            <button
+                                                                                onClick={() => setPreviewAttachment({
+                                                                                    url: comment.attachment_url,
+                                                                                    name: comment.attachment_name || 'Attachment',
+                                                                                    type: comment.attachment_type
+                                                                                })}
+                                                                                className="flex-shrink-0 p-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
+                                                                                title="Preview"
+                                                                            >
+                                                                                <Eye className="w-5 h-5 text-gray-700" />
+                                                                            </button>
+                                                                            <a 
+                                                                                href={comment.attachment_url} 
+                                                                                download={comment.attachment_name}
+                                                                                target="_blank" 
+                                                                                rel="noopener noreferrer"
+                                                                                    className="flex-shrink-0 p-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
+                                                                                title="Download"
+                                                                            >
+                                                                                    <Download className="w-5 h-5 text-gray-700" />
+                                                                            </a>
+                                                                        </div>
                                                                     </div>
                                                                 )}
                                                             </div>
                                                         )}
-                                                            {comment.message && (
+                                                        {comment.message && (
                                                                 <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{comment.message}</p>
-                                                            )}
-                                                        </div>
-                                                        
+                                                        )}
+                                                    </div>
+
                                                         {/* Timestamp and read receipt - bottom right */}
                                                         <div className={`flex items-center justify-end gap-1 px-2 pb-1`}>
                                                             <span className="text-[10px] text-gray-500">
@@ -1346,10 +1551,14 @@ const TaskDashboardPage = () => {
                                                                                 )}
                                                                             </button>
                                                                         </TooltipTrigger>
-                                                                        <TooltipContent 
-                                                                            side="top" 
-                                                                            className="bg-white border border-gray-200 shadow-lg p-0 max-w-xs z-50"
+                                                                        <TooltipContent
+                                                                            side="bottom"
+                                                                            align="end"
+                                                                            className="bg-white border border-gray-200 shadow-lg p-0 max-w-xs z-[9999]"
+                                                                            sideOffset={8}
+                                                                            alignOffset={-10}
                                                                             onOpenAutoFocus={(e) => e.preventDefault()}
+                                                                            collisionPadding={10}
                                                                         >
                                                                             <div className="p-3">
                                                                                 <div className="text-xs font-semibold text-gray-900 mb-2 pb-2 border-b border-gray-200">
@@ -1362,31 +1571,31 @@ const TaskDashboardPage = () => {
                                                                                 ) : readReceipts[comment.id]?.length > 0 ? (
                                                                                     <div className="space-y-2 max-h-64 overflow-y-auto">
                                                                                         {readReceipts[comment.id].map((receipt, idx) => (
-                                                                                            <div key={idx} className="flex items-center justify-between gap-3 py-1">
-                                                                                                <div className="flex items-center gap-2 flex-1 min-w-0">
-                                                                                                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
-                                                                                                        {(receipt.name || receipt.email || 'U').charAt(0).toUpperCase()}
-                                                                                                    </div>
-                                                                                                    <span className="text-xs font-medium text-gray-900 truncate">
-                                                                                                        {receipt.name || receipt.email || 'Unknown'}
-                                                                                                    </span>
+                                                                                            <div key={idx} className="flex items-start gap-2 py-1">
+                                                                                                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
+                                                                                                    {(receipt.name || receipt.email || 'U').charAt(0).toUpperCase()}
                                                                                                 </div>
-                                                                                                <span className="text-[10px] text-gray-500 whitespace-nowrap flex-shrink-0">
-                                                                                                    {(() => {
-                                                                                                        try {
-                                                                                                            const readDate = new Date(receipt.read_at);
-                                                                                                            const hours = readDate.getHours();
-                                                                                                            const minutes = readDate.getMinutes();
-                                                                                                            const ampm = hours >= 12 ? 'PM' : 'AM';
-                                                                                                            const displayHours = hours % 12 || 12;
-                                                                                                            const displayMinutes = minutes.toString().padStart(2, '0');
-                                                                                                            const dateStr = format(readDate, 'dd-MM-yyyy');
-                                                                                                            return `${displayHours}:${displayMinutes} ${hours >= 12 ? 'PM' : 'AM'}, ${dateStr}`;
-                                                                                                        } catch (e) {
-                                                                                                            return format(new Date(receipt.read_at), 'HH:mm a, dd-MM-yyyy');
-                                                                                                        }
-                                                                                                    })()}
-                                                                                                </span>
+                                                                                                <div className="flex-1 min-w-0">
+                                                                                                    <div className="text-xs font-medium text-gray-900 truncate">
+                                                                                                        {receipt.name || 'Unknown'}
+                                                                                                    </div>
+                                                                                                    <div className="text-[10px] text-gray-500 mt-0.5">
+                                                                                                        {(() => {
+                                                                                                            try {
+                                                                                                                const readDate = new Date(receipt.read_at);
+                                                                                                                const hours = readDate.getHours();
+                                                                                                                const minutes = readDate.getMinutes();
+                                                                                                                const ampm = hours >= 12 ? 'PM' : 'AM';
+                                                                                                                const displayHours = hours % 12 || 12;
+                                                                                                                const displayMinutes = minutes.toString().padStart(2, '0');
+                                                                                                                const dateStr = format(readDate, 'dd-MM-yyyy');
+                                                                                                                return `${displayHours}:${displayMinutes} ${hours >= 12 ? 'PM' : 'AM'}, ${dateStr}`;
+                                                                                                            } catch (e) {
+                                                                                                                return receipt.read_at ? format(new Date(receipt.read_at), 'h:mm a, dd-MM-yyyy') : 'N/A';
+                                                                                                            }
+                                                                                                        })()}
+                                                                                                    </div>
+                                                                                                </div>
                                                                                             </div>
                                                                                         ))}
                                                                                     </div>
@@ -1435,7 +1644,7 @@ const TaskDashboardPage = () => {
                                 </div>
                             )}
                             
-                            <div className="flex gap-2 border-t border-white/10 pt-4">
+                            <div className="flex items-center gap-2 border-t border-white/10 pt-4 pb-2 flex-shrink-0">
                                 <input
                                     type="file"
                                     id="file-input"
@@ -1453,7 +1662,7 @@ const TaskDashboardPage = () => {
                                     type="button"
                                     variant="ghost"
                                     size="icon"
-                                    className="text-gray-400 hover:text-white flex-shrink-0"
+                                    className="text-gray-400 hover:text-white flex-shrink-0 h-10 w-10"
                                     onClick={() => {
                                         const fileInput = document.getElementById('file-input');
                                         if (fileInput) {
@@ -1464,7 +1673,7 @@ const TaskDashboardPage = () => {
                                 >
                                     <Paperclip className="w-5 h-5" />
                                 </Button>
-                                <Textarea
+                                <Input
                                     placeholder="Type your message..."
                                     value={newComment}
                                     onChange={(e) => setNewComment(e.target.value)}
@@ -1474,18 +1683,17 @@ const TaskDashboardPage = () => {
                                             handleSendComment();
                                         }
                                     }}
-                                    className="flex-1 bg-white text-[#111b21] border-2 border-purple-300 rounded-lg resize-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400"
-                                    rows={2}
+                                    className="flex-1 bg-white text-[#111b21] border-2 border-purple-300 rounded-full h-10 px-4 focus:ring-2 focus:ring-purple-400 focus:border-purple-400"
                                 />
                                 <Button 
                                     onClick={handleSendComment} 
-                                    disabled={isSendingComment} 
-                                    className="self-end"
+                                    disabled={isSendingComment}
+                                    className="flex-shrink-0 h-10 w-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white p-0"
                                 >
                                     {isSendingComment ? (
-                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        <Loader2 className="w-5 h-5 animate-spin" />
                                     ) : (
-                                        <Send className="w-4 h-4" />
+                                        <Send className="w-5 h-5" />
                                     )}
                                 </Button>
                             </div>
@@ -1493,272 +1701,328 @@ const TaskDashboardPage = () => {
                     </Card>
 
 
-                {/* Subtasks, Checklists, Collaborate, Activity Logs - 50% Width, 2x2 Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Subtasks Box */}
-                    <Card className="glass-pane card-hover overflow-hidden rounded-2xl">
-                        <CardHeader>
-                            <div className="flex items-center justify-between">
-                                <CardTitle>Subtasks</CardTitle>
-                                <Dialog open={showSubtaskDialog} onOpenChange={setShowSubtaskDialog}>
-                                    <DialogTrigger asChild>
-                                        <Button variant="ghost" size="sm">
-                                            <Plus className="w-4 h-4 mr-2" /> Add
-                                        </Button>
-                                    </DialogTrigger>
-                                    <DialogContent className="glass-pane">
-                                        <DialogHeader>
-                                            <DialogTitle>Add New Subtask</DialogTitle>
-                                            <DialogDescription>Enter the subtask title below</DialogDescription>
-                                        </DialogHeader>
-                                        <div className="py-4">
-                                            <Input 
-                                                placeholder="Add a new subtask..."
-                                                value={newSubtask}
-                                                onChange={(e) => setNewSubtask(e.target.value)}
-                                                onKeyPress={(e) => e.key === 'Enter' && !isAddingSubtask && handleAddSubtask()}
-                                                className="glass-input"
-                                                disabled={isAddingSubtask}
-                                            />
-                                        </div>
-                                        <DialogFooter>
-                                            <Button 
-                                                variant="ghost" 
-                                                onClick={() => {
-                                                    setShowSubtaskDialog(false);
-                                                    setNewSubtask('');
-                                                }}
-                                                disabled={isAddingSubtask}
-                                            >
-                                                Cancel
+                    {/* Subtasks, Checklists, Collaborate, Activity Logs - 50% Width, 2x2 Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch h-full min-h-0" style={{ gridTemplateRows: '1fr 1fr' }}>
+                        {/* Subtasks Box */}
+                        <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col" style={{ height: '100%' }}>
+                            <CardHeader className="flex-shrink-0">
+                                <div className="flex items-center justify-between">
+                                    <CardTitle>Subtasks</CardTitle>
+                                    <Dialog open={showSubtaskDialog} onOpenChange={setShowSubtaskDialog}>
+                                        <DialogTrigger asChild>
+                                            <Button variant="ghost" size="sm" className="p-2">
+                                                <Plus className="w-4 h-4" />
                                             </Button>
-                                            <Button 
-                                                onClick={handleAddSubtask} 
-                                                disabled={!newSubtask.trim() || isAddingSubtask}
-                                            >
-                                                {isAddingSubtask ? (
-                                                    <>
-                                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                                        Adding...
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <Plus className="w-4 h-4 mr-2" /> Add
-                                                    </>
-                                                )}
-                                            </Button>
-                                        </DialogFooter>
-                                    </DialogContent>
-                                </Dialog>
-                            </div>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="space-y-2 max-h-[500px] overflow-y-auto">
-                                {task.subtasks?.length > 0 ? task.subtasks.map(sub => {
-                                    const subtaskCreator = getUserInfo(sub.created_by || task.created_by);
-                                    return (
-                                        <div key={sub.id} className="flex flex-col gap-1 p-2 rounded-md bg-white/5 transition-colors hover:bg-white/10">
-                                            <div className="flex items-center gap-3">
-                                                <Checkbox 
-                                                    id={`subtask-${sub.id}`}
-                                                    checked={sub.is_completed || false}
-                                                    onCheckedChange={(checked) => handleToggleSubtask(sub.id, checked)}
+                                        </DialogTrigger>
+                                        <DialogContent className="glass-pane">
+                                            <DialogHeader>
+                                                <DialogTitle>Add New Subtask</DialogTitle>
+                                                <DialogDescription>Enter the subtask title below</DialogDescription>
+                                            </DialogHeader>
+                                            <div className="py-4">
+                                                <Input
+                                                    placeholder="Add a new subtask..."
+                                                    value={newSubtask}
+                                                    onChange={(e) => setNewSubtask(e.target.value)}
+                                                    onKeyPress={(e) => e.key === 'Enter' && !isAddingSubtask && handleAddSubtask()}
+                                                    className="glass-input"
+                                                    disabled={isAddingSubtask}
                                                 />
-                                                <label htmlFor={`subtask-${sub.id}`} className={`flex-grow text-sm ${sub.is_completed ? 'line-through text-gray-500' : 'text-white'}`}>
-                                                    {sub.title || sub.name}
-                                                </label>
-                                                <AlertDialog>
-                                                    <AlertDialogTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="text-gray-400 hover:text-red-500 h-8 w-8">
-                                                            <Trash2 className="w-4 h-4" />
-                                                        </Button>
-                                                    </AlertDialogTrigger>
-                                                    <AlertDialogContent className="glass-pane">
-                                                        <AlertDialogHeader>
-                                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                            <AlertDialogDescription>This will permanently delete the subtask.</AlertDialogDescription>
-                                                        </AlertDialogHeader>
-                                                        <AlertDialogFooter>
-                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                            <AlertDialogAction onClick={() => handleDeleteSubtask(sub.id)} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
-                                                        </AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                </AlertDialog>
                                             </div>
-                                            <p className="text-xs text-gray-400 italic ml-7">
-                                                Added by {subtaskCreator.name}
-                                            </p>
-                                        </div>
-                                    );
-                                }) : (
-                                    <p className="text-center text-gray-400 py-4">No subtasks yet.</p>
-                                )}
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    {/* Checklists Box */}
-                    <Card className="glass-pane card-hover overflow-hidden rounded-2xl">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <CheckCircle className="w-5 h-5" />
-                                Checklists
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            {isUpdatingChecklist && (
-                                <div className="flex justify-center items-center py-2 mb-2">
-                                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                                            <DialogFooter>
+                                                <Button
+                                                    variant="ghost"
+                                                    onClick={() => {
+                                                        setShowSubtaskDialog(false);
+                                                        setNewSubtask('');
+                                                    }}
+                                                    disabled={isAddingSubtask}
+                                                >
+                                                    Cancel
+                                                </Button>
+                                                <Button
+                                                    onClick={handleAddSubtask}
+                                                    disabled={!newSubtask.trim() || isAddingSubtask}
+                                                >
+                                                    {isAddingSubtask ? (
+                                                        <>
+                                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                            Adding...
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Plus className="w-4 h-4 mr-2" /> Add
+                                                        </>
+                                                    )}
+                                                </Button>
+                                            </DialogFooter>
+                                        </DialogContent>
+                                    </Dialog>
                                 </div>
-                            )}
-                            {task.checklist?.enabled && task.checklist?.items && task.checklist.items.length > 0 ? (
-                                <div className="space-y-2 max-h-[500px] overflow-y-auto">
-                                    {task.checklist.items.map((item, index) => {
-                                        const checklistCreator = item.assigned_to 
-                                            ? getUserInfo(item.assigned_to)
-                                            : getUserInfo(task.created_by);
+                            </CardHeader>
+                            <CardContent className="flex-1 min-h-0 overflow-hidden flex flex-col">
+                                <div className="flex-1 min-h-0 overflow-y-auto space-y-2">
+                                    {task.subtasks?.length > 0 ? task.subtasks.map(sub => {
+                                        const subtaskCreator = getUserInfo(sub.created_by || task.created_by);
                                         return (
-                                            <div key={index} className="flex flex-col gap-1 p-2 rounded-md bg-white/5 transition-colors hover:bg-white/10">
+                                            <div key={sub.id} className="flex flex-col gap-1 p-2 rounded-md bg-white/5 transition-colors hover:bg-white/10">
                                                 <div className="flex items-center gap-3">
-                                                    <Checkbox 
-                                                        id={`checklist-${index}`}
-                                                        checked={item.is_completed || false}
-                                                        onCheckedChange={(checked) => handleToggleChecklistItem(index, checked)}
-                                                        disabled={isUpdatingChecklist}
+                                                    <Checkbox
+                                                        id={`subtask-${sub.id}`}
+                                                        checked={sub.is_completed || false}
+                                                        onCheckedChange={(checked) => handleToggleSubtask(sub.id, checked)}
                                                     />
-                                                    <label htmlFor={`checklist-${index}`} className={`flex-grow text-sm ${item.is_completed ? 'line-through text-gray-500' : 'text-white'}`}>
-                                                        {item.name}
+                                                    <label htmlFor={`subtask-${sub.id}`} className={`flex-grow text-sm ${sub.is_completed ? 'line-through text-gray-500' : 'text-white'}`}>
+                                                        {sub.title || sub.name}
                                                     </label>
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <Button variant="ghost" size="icon" className="text-gray-400 hover:text-red-500 h-8 w-8">
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </Button>
+                                                        </AlertDialogTrigger>
+                                                        <AlertDialogContent className="glass-pane">
+                                                            <AlertDialogHeader>
+                                                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                                <AlertDialogDescription>This will permanently delete the subtask.</AlertDialogDescription>
+                                                            </AlertDialogHeader>
+                                                            <AlertDialogFooter>
+                                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                                <AlertDialogAction onClick={() => handleDeleteSubtask(sub.id)} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
+                                                            </AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
                                                 </div>
                                                 <p className="text-xs text-gray-400 italic ml-7">
-                                                    Added by {checklistCreator.name}
+                                                    Added by {subtaskCreator.name}
                                                 </p>
                                             </div>
                                         );
-                                    })}
-                                </div>
-                            ) : (
-                                <p className="text-center text-gray-400 py-4">No checklist items yet.</p>
-                            )}
-                        </CardContent>
-                    </Card>
-
-                    {/* Collaborate Box */}
-                    <Card className="glass-pane card-hover overflow-hidden rounded-2xl">
-                        <CardHeader>
-                            <div className="flex items-center justify-between">
-                                <CardTitle>Collaborate</CardTitle>
-                                <Button 
-                                    variant="ghost" 
-                                    size="sm"
-                                    onClick={() => setShowAddCollaborator(!showAddCollaborator)}
-                                >
-                                    <UserPlus className="w-4 h-4 mr-2" /> Add
-                                </Button>
-                            </div>
-                        </CardHeader>
-                        <CardContent>
-                            {showAddCollaborator && (
-                                <div className="mb-4 p-3 bg-white/5 rounded-lg">
-                                    <Combobox
-                                        options={teamMembers
-                                            .filter(m => {
-                                                // Exclude already assigned user, creator, and existing collaborators
-                                                const userId = m.user_id || m.id;
-                                                return userId !== task.assigned_to && 
-                                                       userId !== task.created_by &&
-                                                       !collaborators.some(c => c.user_id === userId);
-                                            })
-                                            .map(m => ({
-                                                value: m.user_id || m.id,
-                                                label: `${m.name || m.full_name || m.email} (${m.role || m.department || 'N/A'})`
-                                            }))}
-                                        value={selectedCollaboratorId}
-                                        onValueChange={setSelectedCollaboratorId}
-                                        placeholder="Select a collaborator..."
-                                        className="mb-2"
-                                    />
-                                    <div className="flex gap-2">
-                                        <Button 
-                                            size="sm" 
-                                            onClick={handleAddCollaborator}
-                                            disabled={!selectedCollaboratorId || isAddingCollaborator}
-                                        >
-                                            {isAddingCollaborator ? (
-                                                <>
-                                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                                    Adding...
-                                                </>
-                                            ) : (
-                                                'Add Collaborator'
-                                            )}
-                                        </Button>
-                                        <Button 
-                                            size="sm" 
-                                            variant="ghost"
-                                            onClick={() => {
-                                                setShowAddCollaborator(false);
-                                                setSelectedCollaboratorId('');
-                                            }}
-                                        >
-                                            Cancel
-                                        </Button>
-                                    </div>
-                                </div>
-                            )}
-                            
-                            {isLoadingCollaborators ? (
-                                <div className="flex justify-center items-center py-4">
-                                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                                </div>
-                            ) : (
-                                <div className="space-y-2">
-                                    {collaborators.length > 0 ? (
-                                        collaborators.map((collab) => {
-                                            const collabUser = teamMembers.find(m => 
-                                                (m.user_id || m.id) === collab.user_id
-                                            ) || { name: 'Unknown', email: 'N/A', role: 'N/A' };
-                                            
-                                            return (
-                                                <div key={collab.id} className="flex items-center justify-between p-2 rounded-md bg-white/5 hover:bg-white/10">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-sm font-semibold">
-                                                            {(collabUser.name || collabUser.email || 'U').charAt(0).toUpperCase()}
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-sm font-medium text-white">
-                                                                {collabUser.name || collabUser.email || 'Unknown'}
-                                                            </p>
-                                                            <p className="text-xs text-gray-400 italic">
-                                                                {collabUser.role || collabUser.department || 'N/A'}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-8 w-8 text-gray-400 hover:text-red-500"
-                                                        onClick={() => handleRemoveCollaborator(collab.user_id)}
-                                                    >
-                                                        <X className="w-4 h-4" />
-                                                    </Button>
-                                                </div>
-                                            );
-                                        })
-                                    ) : (
-                                        <p className="text-center text-gray-400 py-4">No collaborators yet. Add collaborators to share this task.</p>
+                                    }) : (
+                                        <p className="text-center text-gray-400 py-4">No subtasks yet.</p>
                                     )}
                                 </div>
-                            )}
-                        </CardContent>
-                    </Card>
+                            </CardContent>
+                        </Card>
 
-                    {/* Activity Logs Box */}
-                    <Card className="glass-pane card-hover overflow-hidden rounded-2xl">
-                        <CardHeader><CardTitle>Activity Logs</CardTitle></CardHeader>
-                        <CardContent>
+                        {/* Checklists Box */}
+                        <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col" style={{ height: '100%' }}>
+                            <CardHeader className="flex-shrink-0">
+                                <div className="flex items-center justify-between">
+                                    <CardTitle className="flex items-center gap-2">
+                                        <CheckCircle className="w-5 h-5" />
+                                        Checklists
+                                    </CardTitle>
+                                    <Dialog open={showAddChecklistDialog} onOpenChange={setShowAddChecklistDialog}>
+                                        <DialogTrigger asChild>
+                                            <Button variant="ghost" size="sm" className="p-2">
+                                                <Plus className="w-4 h-4" />
+                                            </Button>
+                                        </DialogTrigger>
+                                        <DialogContent className="glass-pane">
+                                            <DialogHeader>
+                                                <DialogTitle>Add New Checklist Item</DialogTitle>
+                                                <DialogDescription>Enter the checklist item name below</DialogDescription>
+                                            </DialogHeader>
+                                            <div className="py-4">
+                                                <Input
+                                                    placeholder="Add a new checklist item..."
+                                                    value={newChecklistItem}
+                                                    onChange={(e) => setNewChecklistItem(e.target.value)}
+                                                    onKeyPress={(e) => e.key === 'Enter' && !isAddingChecklistItem && handleAddChecklistItem()}
+                                                    className="glass-input"
+                                                    disabled={isAddingChecklistItem}
+                                                />
+                                            </div>
+                                            <DialogFooter>
+                                                <Button
+                                                    variant="ghost"
+                                                    onClick={() => {
+                                                        setShowAddChecklistDialog(false);
+                                                        setNewChecklistItem('');
+                                                    }}
+                                                    disabled={isAddingChecklistItem}
+                                                >
+                                                    Cancel
+                                                </Button>
+                                                <Button
+                                                    onClick={handleAddChecklistItem}
+                                                    disabled={!newChecklistItem.trim() || isAddingChecklistItem}
+                                                >
+                                                    {isAddingChecklistItem ? (
+                                                        <>
+                                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                            Adding...
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Plus className="w-4 h-4 mr-2" /> Add
+                                                        </>
+                                                    )}
+                                                </Button>
+                                            </DialogFooter>
+                                        </DialogContent>
+                                    </Dialog>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="flex-1 min-h-0 overflow-hidden">
+                                {isUpdatingChecklist && (
+                                    <div className="flex justify-center items-center py-2 mb-2 flex-shrink-0">
+                                        <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                                    </div>
+                                )}
+                                {task.checklist?.enabled && task.checklist?.items && task.checklist.items.length > 0 ? (
+                                    <div className="space-y-2 h-full overflow-y-auto">
+                                        {task.checklist.items.map((item, index) => {
+                                            const checklistCreator = item.assigned_to
+                                                ? getUserInfo(item.assigned_to)
+                                                : getUserInfo(task.created_by);
+                                            return (
+                                                <div key={index} className="flex flex-col gap-1 p-2 rounded-md bg-white/5 transition-colors hover:bg-white/10">
+                                                    <div className="flex items-center gap-3">
+                                                        <Checkbox
+                                                            id={`checklist-${index}`}
+                                                            checked={item.is_completed || false}
+                                                            onCheckedChange={(checked) => handleToggleChecklistItem(index, checked)}
+                                                            disabled={isUpdatingChecklist}
+                                                        />
+                                                        <label htmlFor={`checklist-${index}`} className={`flex-grow text-sm ${item.is_completed ? 'line-through text-gray-500' : 'text-white'}`}>
+                                                            {item.name}
+                                                        </label>
+                                                    </div>
+                                                    <p className="text-xs text-gray-400 italic ml-7">
+                                                        Added by {checklistCreator.name}
+                                                    </p>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                ) : (
+                                    <p className="text-center text-gray-400 py-4">No checklist items yet.</p>
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        {/* Collaborate Box */}
+                        <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col" style={{ height: '100%' }}>
+                            <CardHeader className="flex-shrink-0">
+                                <div className="flex items-center justify-between">
+                                    <CardTitle>Collaborate</CardTitle>
+                                    <Dialog open={showAddCollaboratorDialog} onOpenChange={setShowAddCollaboratorDialog}>
+                                        <DialogTrigger asChild>
+                                            <Button variant="ghost" size="sm" className="p-2">
+                                                <UserPlus className="w-4 h-4" />
+                                            </Button>
+                                        </DialogTrigger>
+                                        <DialogContent className="glass-pane">
+                                            <DialogHeader>
+                                                <DialogTitle>Add Collaborator</DialogTitle>
+                                                <DialogDescription>Select a team member to add as a collaborator</DialogDescription>
+                                            </DialogHeader>
+                                            <div className="py-4">
+                                                <Combobox
+                                                    options={teamMembers
+                                                        .filter(m => {
+                                                            // Exclude already assigned user, creator, and existing collaborators
+                                                            const userId = m.user_id || m.id;
+                                                            return userId !== task.assigned_to &&
+                                                                userId !== task.created_by &&
+                                                                !collaborators.some(c => c.user_id === userId);
+                                                        })
+                                                        .map(m => ({
+                                                            value: m.user_id || m.id,
+                                                            label: `${m.name || m.full_name || m.email} (${m.role || m.department || 'N/A'})`
+                                                        }))}
+                                                    value={selectedCollaboratorId}
+                                                    onValueChange={setSelectedCollaboratorId}
+                                                    placeholder="Select a collaborator..."
+                                                    className="mb-2"
+                                                />
+                                            </div>
+                                            <DialogFooter>
+                                                <Button
+                                                    variant="ghost"
+                                                    onClick={() => {
+                                                        setShowAddCollaboratorDialog(false);
+                                                        setSelectedCollaboratorId('');
+                                                    }}
+                                                    disabled={isAddingCollaborator}
+                                                >
+                                                    Cancel
+                                                </Button>
+                                                <Button
+                                                    onClick={handleAddCollaborator}
+                                                    disabled={!selectedCollaboratorId || isAddingCollaborator}
+                                                >
+                                                    {isAddingCollaborator ? (
+                                                        <>
+                                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                            Adding...
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <UserPlus className="w-4 h-4 mr-2" /> Add Collaborator
+                                                        </>
+                                                    )}
+                                                </Button>
+                                            </DialogFooter>
+                                        </DialogContent>
+                                    </Dialog>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="flex-1 min-h-0 overflow-hidden flex flex-col">
+                                {isLoadingCollaborators ? (
+                                    <div className="flex justify-center items-center py-4 flex-shrink-0">
+                                        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                                    </div>
+                                ) : (
+                                    <div className="flex-1 min-h-0 overflow-y-auto space-y-2">
+                                        {collaborators.length > 0 ? (
+                                            collaborators.map((collab) => {
+                                                const collabUser = teamMembers.find(m =>
+                                                    (m.user_id || m.id) === collab.user_id
+                                                ) || { name: 'Unknown', email: 'N/A', role: 'N/A' };
+
+                                                return (
+                                                    <div key={collab.id} className="flex items-center justify-between p-2 rounded-md bg-white/5 hover:bg-white/10">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-sm font-semibold">
+                                                                {(collabUser.name || collabUser.email || 'U').charAt(0).toUpperCase()}
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-sm font-medium text-white">
+                                                                    {collabUser.name || collabUser.email || 'Unknown'}
+                                                                </p>
+                                                                <p className="text-xs text-gray-400 italic">
+                                                                    {collabUser.role || collabUser.department || 'N/A'}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-8 w-8 text-gray-400 hover:text-red-500"
+                                                            onClick={() => handleRemoveCollaborator(collab.user_id)}
+                                                        >
+                                                            <X className="w-4 h-4" />
+                                                        </Button>
+                                                    </div>
+                                                );
+                                            })
+                                        ) : (
+                                            <p className="text-center text-gray-400 py-4">No collaborators yet. Add collaborators to share this task.</p>
+                                        )}
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        {/* Activity Logs Box */}
+                        <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col" style={{ height: '100%' }}>
+                            <CardHeader className="flex-shrink-0"><CardTitle>Activity Logs</CardTitle></CardHeader>
+                            <CardContent className="flex-1 min-h-0 overflow-hidden flex flex-col">
                             {isHistoryLoading ? (
-                                <div className="flex justify-center items-center py-8">
+                                    <div className="flex justify-center items-center py-8 flex-shrink-0">
                                     <Loader2 className="w-8 h-8 animate-spin text-primary" />
                                 </div>
                             ) : (() => {
@@ -1769,16 +2033,17 @@ const TaskDashboardPage = () => {
                                     item.event_type !== 'comment_deleted'
                                 );
                                 return filteredHistory.length > 0 ? (
-                                    <div className="space-y-4 max-h-[500px] overflow-y-auto">
+                                        <div className="flex-1 min-h-0 overflow-y-auto space-y-4">
                                         {filteredHistory.map(renderHistoryItem)}
                                     </div>
                                 ) : (
-                                    <div className="text-center py-8 text-gray-400">No history found for this task.</div>
+                                        <div className="text-center py-8 text-gray-400 flex-shrink-0">No history found for this task.</div>
                                 );
                             })()}
                         </CardContent>
                     </Card>
                 </div>
+            </div>
             </div>
 
             {/* Closure Request Dialog */}
@@ -1837,26 +2102,103 @@ const TaskDashboardPage = () => {
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter className="gap-2">
-                        <Button 
-                            variant="outline" 
-                            onClick={() => setShowClosureReviewDialog(false)}
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                setShowClosureReviewDialog(false);
+                                setClosureReason('');
+                            }}
                         >
                             Cancel
                         </Button>
-                        <Button 
+                        <Button
                             variant="outline"
                             className="bg-red-500/20 text-red-300 border-red-500/50 hover:bg-red-500/30"
                             onClick={() => handleReviewClosure('rejected')}
                         >
+                            <XCircle className="w-4 h-4 mr-2" />
                             Reject
                         </Button>
-                        <Button 
+                        <Button
                             className="bg-green-500 hover:bg-green-600"
                             onClick={() => handleReviewClosure('approved')}
                         >
+                            <CheckCircle2 className="w-4 h-4 mr-2" />
                             Approve
                         </Button>
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Attachment Preview Dialog */}
+            <Dialog open={!!previewAttachment} onOpenChange={() => setPreviewAttachment(null)}>
+                <DialogContent className="glass-pane max-w-4xl w-[95vw] h-[90vh] flex flex-col p-0">
+                    <DialogHeader className="flex-shrink-0 px-6 pt-6 pb-4 border-b border-white/10">
+                        <div className="flex items-center justify-between">
+                            <DialogTitle className="text-lg">{previewAttachment?.name || 'Preview'}</DialogTitle>
+                            <div className="flex items-center gap-2">
+                                <a
+                                    href={previewAttachment?.url}
+                                    download={previewAttachment?.name}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                                    title="Download"
+                                >
+                                    <Download className="w-5 h-5 text-white" />
+                                </a>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => setPreviewAttachment(null)}
+                                    className="text-white hover:bg-white/10"
+                                >
+                                    <X className="w-5 h-5" />
+                                </Button>
+                            </div>
+                        </div>
+                    </DialogHeader>
+                    <div className="flex-1 min-h-0 overflow-hidden p-6">
+                        {previewAttachment && (
+                            <>
+                                {previewAttachment.type?.startsWith('image/') || previewAttachment.url.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ? (
+                                    <div className="h-full flex items-center justify-center">
+                                        <img
+                                            src={previewAttachment.url}
+                                            alt={previewAttachment.name}
+                                            className="max-w-full max-h-full object-contain rounded-lg"
+                                        />
+                                    </div>
+                                ) : previewAttachment.type === 'application/pdf' || previewAttachment.url.match(/\.pdf$/i) ? (
+                                    <div className="h-full w-full">
+                                        <iframe
+                                            src={previewAttachment.url}
+                                            className="w-full h-full rounded-lg border border-white/10"
+                                            title={previewAttachment.name}
+                                        />
+                                    </div>
+                                ) : (
+                                    <div className="h-full flex flex-col items-center justify-center text-center">
+                                        <FileText className="w-16 h-16 text-gray-400 mb-4" />
+                                        <p className="text-white text-lg mb-2">{previewAttachment.name}</p>
+                                        <p className="text-gray-400 text-sm mb-4">
+                                            Preview not available for this file type
+                                        </p>
+                                        <a
+                                            href={previewAttachment.url}
+                                            download={previewAttachment.name}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors"
+                                        >
+                                            <Download className="w-4 h-4" />
+                                            Download File
+                                        </a>
+                                    </div>
+                                )}
+                            </>
+                        )}
+                    </div>
                 </DialogContent>
             </Dialog>
         </div>
