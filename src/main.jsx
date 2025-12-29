@@ -7,8 +7,6 @@ import React from 'react';
     import '@fontsource/poppins/600.css';
     import '@fontsource/poppins/700.css';
     
-    ReactDOM.createRoot(document.getElementById('root')).render(
-      <React.StrictMode>
-        <App />
-      </React.StrictMode>
-    );
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <App />
+);

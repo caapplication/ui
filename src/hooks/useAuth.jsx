@@ -1,6 +1,7 @@
 import React, { useState, useEffect, createContext, useContext, useCallback, useRef } from 'react';
 import { getProfile as apiGetProfile, getEntities as apiGetEntities, refreshToken as apiRefreshToken, verify2FA as apiVerify2FA } from '@/lib/api';
 import { useNavigate } from 'react-router-dom';
+import { clearAttachmentCache } from '@/lib/cache';
 
 const AuthContext = createContext();
 
@@ -26,6 +27,17 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('entityId');
     localStorage.removeItem('entityData');
     localStorage.removeItem('beneficiaries');
+    
+    // Clear all fynivo cached items (vouchers, invoices, logs, etc.)
+    Object.keys(localStorage).forEach((key) => {
+      if (key.startsWith('fynivo_')) {
+        localStorage.removeItem(key);
+      }
+    });
+    
+    // Clear IndexedDB attachment cache
+    clearAttachmentCache();
+
     if (refreshIntervalRef.current) {
         clearInterval(refreshIntervalRef.current);
         refreshIntervalRef.current = null;

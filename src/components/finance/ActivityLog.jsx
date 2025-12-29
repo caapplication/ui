@@ -7,6 +7,24 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
+// Helper functions for localStorage caching
+const getCache = (key) => {
+  try {
+    const item = localStorage.getItem(key);
+    return item ? JSON.parse(item) : null;
+  } catch (e) {
+    return null;
+  }
+};
+
+const setCache = (key, data) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (e) {
+    // ignore
+  }
+};
+
 const ActivityLog = ({ itemId, itemType, showFilter = true }) => {
     const [logs, setLogs] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -17,20 +35,40 @@ const ActivityLog = ({ itemId, itemType, showFilter = true }) => {
 
     const fetchLogs = useCallback(async () => {
         if (!itemId || !itemType || !user?.access_token) return;
-        setIsLoading(true);
+        
+        const CACHE_KEY = `fynivo_activity_log_${itemType}_${itemId}`;
+        const cachedLogs = getCache(CACHE_KEY);
+        
+        // Use cache only if no date filters are applied (caching filtered results is complex)
+        const canUseCache = !startDate && !endDate;
+        
+        if (canUseCache && cachedLogs) {
+            setLogs(cachedLogs);
+            setIsLoading(false);
+        } else {
+            setIsLoading(true);
+        }
+
         try {
             // Convert date strings to ISO format for API
             const startDateISO = startDate ? new Date(startDate).toISOString() : null;
             const endDateISO = endDate ? new Date(endDate + 'T23:59:59').toISOString() : null; // Include time to cover entire day
             const data = await getActivityLog(itemId, itemType, user.access_token, startDateISO, endDateISO);
             setLogs(data);
+            
+            if (canUseCache) {
+                setCache(CACHE_KEY, data);
+            }
         } catch (error) {
-            const errorMessage = error?.message || (typeof error === 'string' ? error : 'An unexpected error occurred');
-            toast({
-                title: 'Error fetching activity log',
-                description: errorMessage,
-                variant: 'destructive',
-            });
+            // If cache exists and fetch fails, we still have data
+            if (!canUseCache || !cachedLogs) {
+                const errorMessage = error?.message || (typeof error === 'string' ? error : 'An unexpected error occurred');
+                toast({
+                    title: 'Error fetching activity log',
+                    description: errorMessage,
+                    variant: 'destructive',
+                });
+            }
         } finally {
             setIsLoading(false);
         }

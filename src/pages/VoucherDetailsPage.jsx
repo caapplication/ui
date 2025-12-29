@@ -30,6 +30,25 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.jsx";
 import ActivityLog from '@/components/finance/ActivityLog';
 
+// Helper functions for localStorage caching
+const getCache = (key) => {
+  try {
+    const item = localStorage.getItem(key);
+    return item ? JSON.parse(item) : null;
+  } catch (e) {
+    console.error('Failed to read from cache', e);
+    return null;
+  }
+};
+
+const setCache = (key, data) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (e) {
+    console.error('Failed to write to cache', e);
+  }
+};
+
 function formatPaymentMethod(method) {
     if (!method) return 'N/A';
     const map = {
@@ -151,6 +170,7 @@ const VoucherDetailsPage = () => {
     const navigate = useNavigate();
     const { user, loading: authLoading } = useAuth();
     const { toast } = useToast();
+    const cache = useApiCache();
     const { voucher: initialVoucher, vouchers, startInEditMode, organizationName, entityName, organisationId } = location.state || {};
     const [voucher, setVoucher] = useState(initialVoucher);
     const [currentIndex, setCurrentIndex] = useState(vouchers ? vouchers.findIndex(v => v.id === initialVoucher.id) : -1);
@@ -265,7 +285,19 @@ const VoucherDetailsPage = () => {
         const fetchData = async () => {
             try {
                 const entityId = localStorage.getItem('entityId');
+                const CACHE_KEY_VOUCHER = `fynivo_voucher_${voucherId}`;
                 
+                // 1. Try to load from cache immediately
+                const cachedVoucher = getCache(CACHE_KEY_VOUCHER);
+                if (cachedVoucher && isMounted) {
+                    setVoucher(cachedVoucher);
+                    // Don't setEditedVoucher here to avoid overwriting edits if re-render happens during edit?
+                    // Actually, fetchData runs on mount. If we edit, we update state locally.
+                    // If we navigate back, we want cache.
+                    setEditedVoucher(cachedVoucher);
+                    setIsLoading(false);
+                }
+
                 // Always fetch fresh voucher data to ensure we have all fields (especially snapshot fields)
                 // This ensures consistency and that we always have the latest data from the server
                 let currentVoucher = await getVoucher(entityId, voucherId, user.access_token);
@@ -276,12 +308,17 @@ const VoucherDetailsPage = () => {
                 }
 
                 if (!currentVoucher) {
-                    toast({ title: 'Error', description: 'Voucher not found.', variant: 'destructive' });
+                    if (!cachedVoucher) {
+                        toast({ title: 'Error', description: 'Voucher not found.', variant: 'destructive' });
+                    }
                     setIsLoading(false);
                     return;
                 }
 
                 if (isMounted) {
+                    // Cache the fresh data
+                    setCache(CACHE_KEY_VOUCHER, currentVoucher);
+
                     // Debug: Log the voucher data to verify snapshot fields are present
                     console.log('Setting voucher with data:', {
                         id: currentVoucher.id,
@@ -405,14 +442,30 @@ const VoucherDetailsPage = () => {
 
                 if (!orgId) return;
 
+                const CACHE_KEY_BENEFICIARIES = `fynivo_beneficiaries_${orgId}`;
+                const CACHE_KEY_ORG_ACCOUNTS = `fynivo_org_bank_accounts_${entityId}`;
+
+                // Try cache first
+                const cachedBeneficiaries = getCache(CACHE_KEY_BENEFICIARIES);
+                const cachedOrgAccounts = getCache(CACHE_KEY_ORG_ACCOUNTS);
+
+                if (cachedBeneficiaries) setBeneficiaries(cachedBeneficiaries);
+                if (cachedOrgAccounts) setFromBankAccounts(cachedOrgAccounts);
+
                 // Use optimized endpoints and fetch in parallel
                 const [beneficiariesData, fromAccountsData] = await Promise.all([
                     getBeneficiaries(orgId, user.access_token),
                     getOrganisationBankAccounts(entityId, user.access_token),
                 ]);
 
-                setBeneficiaries(beneficiariesData || []);
-                setFromBankAccounts(fromAccountsData || []);
+                if (beneficiariesData) {
+                    setBeneficiaries(beneficiariesData);
+                    setCache(CACHE_KEY_BENEFICIARIES, beneficiariesData);
+                }
+                if (fromAccountsData) {
+                    setFromBankAccounts(fromAccountsData);
+                    setCache(CACHE_KEY_ORG_ACCOUNTS, fromAccountsData);
+                }
                 
                 // Debug: Log voucher bank account data
                 if (voucher?.payment_type === 'bank_transfer') {
@@ -451,8 +504,15 @@ const VoucherDetailsPage = () => {
         
         (async () => {
             try {
+                const CACHE_KEY_BENEFICIARY_ACCOUNTS = `fynivo_beneficiary_bank_accounts_${beneficiaryId}`;
+                const cachedAccounts = getCache(CACHE_KEY_BENEFICIARY_ACCOUNTS);
+                if (cachedAccounts) setToBankAccounts(cachedAccounts);
+
                 const toAccounts = await getBankAccountsForBeneficiary(beneficiaryId, user.access_token);
-                setToBankAccounts(toAccounts || []);
+                if (toAccounts) {
+                    setToBankAccounts(toAccounts);
+                    setCache(CACHE_KEY_BENEFICIARY_ACCOUNTS, toAccounts);
+                }
             } catch {
                 console.error('Failed to fetch beneficiary bank accounts');
                 // Don't show toast for non-critical errors
@@ -1012,9 +1072,6 @@ const VoucherDetailsPage = () => {
         try {
             const entityId = voucherDetails.entity_id || localStorage.getItem('entityId');
             await deleteVoucher(entityId, voucherId, user.access_token);
-            // Invalidate cache
-            cache.invalidate('getCATeamVouchers', { entityId, token: user.access_token });
-            cache.invalidate('getCATeamVouchersBulk', { entityIds: '*', token: user.access_token });
             toast({ title: 'Success', description: 'Voucher deleted successfully.' });
             setShowDeleteDialog(false);
             if (user.role === 'CLIENT_USER') {
@@ -1075,13 +1132,10 @@ const VoucherDetailsPage = () => {
                 setVoucher(updatedVoucher);
                 setEditedVoucher(updatedVoucher);
             }
-            // Invalidate cache
-            const entityId = voucherDetails.entity_id || localStorage.getItem('entityId');
-            cache.invalidate('getCATeamVouchers', { entityId, token: user.access_token });
-            cache.invalidate('getCATeamVouchersBulk', null); // Invalidate all bulk caches
             toast({ title: 'Success', description: 'Voucher updated successfully.' });
             setIsEditing(false);
             // Refresh the voucher data to ensure we have the latest from server
+            const entityId = voucherDetails.entity_id || localStorage.getItem('entityId');
             const refreshedVoucher = await getVoucher(entityId, voucherId, user.access_token);
             if (refreshedVoucher) {
                 setVoucher(refreshedVoucher);

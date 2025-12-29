@@ -1,4 +1,5 @@
 import { getAuthHeaders, handleResponse } from './utils';
+import { getCachedAttachment, setCachedAttachment } from '../cache';
 
 const FINANCE_API_BASE_URL = import.meta.env.VITE_FINANCE_API_URL || 'http://127.0.0.1:8003';
 
@@ -362,7 +363,18 @@ export const getVoucher = async (entityId, voucherId, token) => {
 };
 
 export const getVoucherAttachment = async (attachmentId, token, entityId = null) => {
+    const CACHE_KEY = `attachment_${attachmentId}`;
     try {
+        // Check cache first
+        const cached = await getCachedAttachment(CACHE_KEY);
+        if (cached) {
+            console.log('Serving attachment from IDB cache:', attachmentId);
+            return {
+                url: URL.createObjectURL(cached.blob),
+                contentType: cached.contentType
+            };
+        }
+
         // Use the regular attachment endpoint for all users (CA and non-CA)
         // The backend handles authorization based on the token
         let url = `${FINANCE_API_BASE_URL}/api/attachments/${attachmentId}`;
@@ -402,6 +414,9 @@ export const getVoucherAttachment = async (attachmentId, token, entityId = null)
         if (finalContentType.toLowerCase().includes('pdf') && blob.type !== finalContentType) {
             blob = new Blob([blob], { type: finalContentType });
         }
+
+        // Cache the blob
+        await setCachedAttachment(CACHE_KEY, { blob, contentType: finalContentType });
         
         // Return both URL and content type
         return {

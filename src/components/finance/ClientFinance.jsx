@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import {
@@ -59,6 +59,28 @@ import { InvoiceHistorySkeleton } from '@/components/finance/InvoiceHistorySkele
 import { VoucherHistorySkeleton } from '@/components/finance/VoucherHistorySkeleton';
 import VoucherDetailsPage from '@/pages/VoucherDetailsPage';
 
+// Global map to track active fetches across component remounts
+const activeFetchPromises = new Map();
+
+// Helper functions for localStorage caching
+const getCache = (key) => {
+  try {
+    const item = localStorage.getItem(key);
+    return item ? JSON.parse(item) : null;
+  } catch (e) {
+    console.error('Failed to read from cache', e);
+    return null;
+  }
+};
+
+const setCache = (key, data) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (e) {
+    console.error('Failed to write to cache', e);
+  }
+};
+
 const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
   const [showInvoiceDialog, setShowInvoiceDialog] = useState(false);
   const [showVoucherDialog, setShowVoucherDialog] = useState(false);
@@ -71,6 +93,9 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isMutating, setIsMutating] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const isFetchingRef = useRef(false);
+  const lastFetchedEntityId = useRef(null);
+  const isMountedRef = useRef(true);
 
   const { user } = useAuth();
   const { toast } = useToast();
@@ -82,47 +107,178 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
     ? 'invoices'
     : 'vouchers';
 
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   const fetchData = useCallback(
     async (isRefresh = false) => {
       const token = localStorage.getItem('accessToken');
       if (!user?.organization_id || !token || !entityId) return;
 
-      if (isRefresh) setIsRefreshing(true);
-      else setIsLoading(true);
+      // Determine what to fetch based on active tab
+      const shouldFetchInvoices = activeTab === 'invoices' || isRefresh;
+      const shouldFetchVouchers = activeTab === 'vouchers' || isRefresh;
+
+      // Cache Keys
+      const CACHE_KEY_BENEFICIARIES = `fynivo_beneficiaries_${user.organization_id}`;
+      const CACHE_KEY_INVOICES = `fynivo_invoices_${entityId}`;
+      const CACHE_KEY_VOUCHERS = `fynivo_vouchers_${entityId}`;
+
+      // 1. Try to load from cache immediately (Stale-while-revalidate)
+      if (!isRefresh) {
+        const cachedBeneficiaries = getCache(CACHE_KEY_BENEFICIARIES);
+        const cachedInvoices = shouldFetchInvoices ? getCache(CACHE_KEY_INVOICES) : null;
+        const cachedVouchers = shouldFetchVouchers ? getCache(CACHE_KEY_VOUCHERS) : null;
+
+        if (isMountedRef.current) {
+            if (cachedBeneficiaries && beneficiaries.length === 0) setBeneficiaries(cachedBeneficiaries);
+            if (cachedInvoices && invoices.length === 0 && shouldFetchInvoices) setInvoices(cachedInvoices);
+            if (cachedVouchers && vouchers.length === 0 && shouldFetchVouchers) setVouchers(cachedVouchers);
+        }
+        
+        // If we have full cache for what we need, we can stop loading indicator (but continue fetch in background)
+        const hasNeededData = 
+            (cachedBeneficiaries) &&
+            (!shouldFetchInvoices || cachedInvoices) && 
+            (!shouldFetchVouchers || cachedVouchers);
+            
+        if (hasNeededData) {
+            // Data shown instantly!
+            // We can optionally return here if we want "cache-first" strategy, but user said "click back... fraction of second"
+            // usually implies showing cache. "stale-while-revalidate" updates it fresh.
+            // If we want to avoid network call completely if cache exists (until refresh), we could return.
+            // But usually keeping data fresh is better.
+            // Given "multiple api calls" complaint, maybe they prefer "Cache First, Network Only on Refresh"?
+            // Let's stick to Stale-While-Revalidate but make it silent (no loading spinner if cache exists).
+        }
+      }
+
+      const fetchKey = `${user.organization_id}-${entityId}-${activeTab}`;
+
+      // If a fetch is already in progress for this entity+tab (globally), reuse it
+      if (activeFetchPromises.has(fetchKey) && !isRefresh) {
+        // If we have cache, we don't need to show loading spinner for the piggy-back
+        const hasCache = (shouldFetchInvoices && getCache(CACHE_KEY_INVOICES)) || (shouldFetchVouchers && getCache(CACHE_KEY_VOUCHERS));
+        
+        if (!hasCache) {
+            if (isRefresh) setIsRefreshing(true);
+            else setIsLoading(true);
+        }
+        
+        try {
+          const result = await activeFetchPromises.get(fetchKey);
+          if (isMountedRef.current) {
+            if (result.beneficiaries) {
+                setBeneficiaries(result.beneficiaries);
+                setCache(CACHE_KEY_BENEFICIARIES, result.beneficiaries);
+            }
+            if (result.invoices) {
+                setInvoices(result.invoices);
+                if (shouldFetchInvoices) setCache(CACHE_KEY_INVOICES, result.invoices);
+            }
+            if (result.vouchers) {
+                setVouchers(result.vouchers);
+                if (shouldFetchVouchers) setCache(CACHE_KEY_VOUCHERS, result.vouchers);
+            }
+          }
+        } catch (error) {
+          // Error handled by the original fetcher
+        } finally {
+          if (isMountedRef.current) {
+            setIsLoading(false);
+            setIsRefreshing(false);
+          }
+        }
+        return;
+      }
+
+      lastFetchedEntityId.current = entityId;
+      
+      // Show loading only if we don't have cache (or if refreshing)
+      const hasCache = (shouldFetchInvoices && getCache(CACHE_KEY_INVOICES)) || (shouldFetchVouchers && getCache(CACHE_KEY_VOUCHERS));
+      if (isRefresh || !hasCache) {
+        if (isRefresh) setIsRefreshing(true);
+        else setIsLoading(true);
+      }
+
+      const fetchWork = async () => {
+         const promises = [];
+         const beneficiariesPromise = getBeneficiaries(user.organization_id, token);
+         const invoicesPromise = shouldFetchInvoices ? getInvoicesList(entityId, token) : Promise.resolve(null);
+         const vouchersPromise = shouldFetchVouchers ? getVouchersList(entityId, token) : Promise.resolve(null);
+
+         const [beneficiariesData, invoicesData, vouchersData] = await Promise.all([
+            beneficiariesPromise,
+            invoicesPromise,
+            vouchersPromise
+         ]);
+         
+         return {
+            beneficiaries: beneficiariesData,
+            invoices: invoicesData,
+            vouchers: vouchersData
+         };
+      };
+
+      const fetchPromise = fetchWork();
+
+      if (!isRefresh) {
+        activeFetchPromises.set(fetchKey, fetchPromise);
+      }
 
       try {
-        const promises = [
-          getBeneficiaries(user.organization_id, token),
-          getInvoicesList(entityId, token),
-          getVouchersList(entityId, token),
-        ];
-        const [beneficiariesData, invoicesData, vouchersData] =
-          await Promise.all(promises);
+        const result = await fetchPromise;
 
-        setBeneficiaries(beneficiariesData || []);
-        setInvoices(invoicesData || []);
-        setVouchers(vouchersData || []);
+        if (isMountedRef.current) {
+          if (result.beneficiaries) {
+            setBeneficiaries(result.beneficiaries || []);
+            setCache(CACHE_KEY_BENEFICIARIES, result.beneficiaries || []);
+          }
+          if (result.invoices) {
+             setInvoices(result.invoices || []);
+             if (shouldFetchInvoices) setCache(CACHE_KEY_INVOICES, result.invoices || []);
+          }
+          if (result.vouchers) {
+             setVouchers(result.vouchers || []);
+             if (shouldFetchVouchers) setCache(CACHE_KEY_VOUCHERS, result.vouchers || []);
+          }
+        }
       } catch (error) {
-        toast({
-          title: 'Error',
-          description: `Failed to fetch finance data: ${error.message}`,
-          variant: 'destructive',
-        });
-        setInvoices([]);
-        setVouchers([]);
+        if (isMountedRef.current) {
+          toast({
+            title: 'Error',
+            description: `Failed to fetch finance data: ${error.message}`,
+            variant: 'destructive',
+          });
+          // Only clear state if we failed to fetch
+          if (shouldFetchInvoices) setInvoices([]);
+          if (shouldFetchVouchers) setVouchers([]);
+        }
       } finally {
-        setIsLoading(false);
-        setIsRefreshing(false);
+        if (!isRefresh) {
+            // Remove from active fetches after a short delay
+            setTimeout(() => {
+                activeFetchPromises.delete(fetchKey);
+            }, 1000); 
+        }
+        if (isMountedRef.current) {
+          setIsLoading(false);
+          setIsRefreshing(false);
+        }
       }
     },
-    [user?.organization_id, toast, entityId]
+    [user?.organization_id, toast, entityId, activeTab, invoices.length, vouchers.length]
   );
 
   useEffect(() => {
     if (entityId) {
       fetchData();
     }
-  }, [fetchData, entityId, user]);
+  }, [fetchData, entityId, activeTab]);
 
   const enrichedVouchers = useMemo(() => {
     return (vouchers || []).map((v) => {
