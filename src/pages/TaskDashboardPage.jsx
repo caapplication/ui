@@ -167,26 +167,26 @@ const TaskDashboardPage = () => {
 
     // Lazy load clients, services, and team members only when task is loaded and we need them
     useEffect(() => {
-        if (!task || clients.length > 0 || services.length > 0 || teamMembers.length > 0) return;
+        if (!task || !user?.access_token) return;
         
         const loadRelatedData = async () => {
             try {
                 const agencyId = user?.agency_id || null;
                 const [clientsData, servicesData, teamData] = await Promise.allSettled([
-                    listClients(agencyId, user.access_token).catch(() => ({ status: 'rejected' })),
-                    listServices(agencyId, user.access_token).catch(() => ({ status: 'rejected' })),
-                    listTeamMembers(user.access_token).catch(() => ({ status: 'rejected' })),
+                    clients.length === 0 ? listClients(agencyId, user.access_token).catch(() => ({ status: 'rejected' })) : Promise.resolve({ status: 'fulfilled', value: clients }),
+                    services.length === 0 ? listServices(agencyId, user.access_token).catch(() => ({ status: 'rejected' })) : Promise.resolve({ status: 'fulfilled', value: services }),
+                    teamMembers.length === 0 ? listTeamMembers(user.access_token).catch(() => ({ status: 'rejected' })) : Promise.resolve({ status: 'fulfilled', value: teamMembers }),
                 ]);
 
-                if (clientsData.status === 'fulfilled') {
+                if (clientsData.status === 'fulfilled' && clients.length === 0) {
                     const clientsList = Array.isArray(clientsData.value) ? clientsData.value : (clientsData.value?.items || []);
                     setClients(clientsList);
                 }
-                if (servicesData.status === 'fulfilled') {
+                if (servicesData.status === 'fulfilled' && services.length === 0) {
                     const servicesList = Array.isArray(servicesData.value) ? servicesData.value : (servicesData.value?.items || []);
                     setServices(servicesList);
                 }
-                if (teamData.status === 'fulfilled') {
+                if (teamData.status === 'fulfilled' && teamMembers.length === 0) {
                     const teamList = Array.isArray(teamData.value) ? teamData.value : (teamData.value?.items || []);
                     setTeamMembers(teamList);
                 }
@@ -197,7 +197,7 @@ const TaskDashboardPage = () => {
         };
         
         loadRelatedData();
-    }, [task, user?.agency_id, user?.access_token, user?.role, clients.length, services.length, teamMembers.length]);
+    }, [task, user?.agency_id, user?.access_token]);
 
     const fetchHistory = useCallback(async () => {
         if (!user?.access_token || !taskId) return;
@@ -620,7 +620,8 @@ const TaskDashboardPage = () => {
             const newItem = {
                 name: newChecklistItem.trim(),
                 is_completed: false,
-                assigned_to: user?.id || null
+                assigned_to: user?.id || null,
+                created_by: user?.id || null
             };
 
             const updatedChecklist = {
@@ -646,6 +647,44 @@ const TaskDashboardPage = () => {
             toast({ title: "Error adding checklist item", description: error.message, variant: "destructive" });
         } finally {
             setIsAddingChecklistItem(false);
+        }
+    };
+
+    const handleDeleteChecklistItem = async (itemIndex) => {
+        if (!task?.checklist?.items || isUpdatingChecklist) return;
+
+        setIsUpdatingChecklist(true);
+        try {
+            const agencyId = user?.agency_id || null;
+            const itemToDelete = task.checklist.items[itemIndex];
+            const updatedItems = task.checklist.items.filter((_, idx) => idx !== itemIndex);
+
+            const updatedChecklist = {
+                enabled: task.checklist.enabled,
+                items: updatedItems
+            };
+
+            // Optimistically update UI
+            setTask({ ...task, checklist: updatedChecklist });
+
+            // Update via API
+            await updateTask(taskId, { checklist: updatedChecklist }, agencyId, user.access_token);
+
+            toast({ title: "Checklist Item Deleted", description: "The checklist item has been removed." });
+
+            // Refresh task and history to get latest data including activity logs
+            const [updatedTask, updatedHistory] = await Promise.all([
+                getTaskDetails(taskId, agencyId, user.access_token),
+                getTaskHistory(taskId, agencyId, user.access_token)
+            ]);
+            setTask(updatedTask);
+            setHistory(updatedHistory);
+        } catch (error) {
+            // Revert on error
+            setTask(task);
+            toast({ title: "Error deleting checklist item", description: error.message, variant: "destructive" });
+        } finally {
+            setIsUpdatingChecklist(false);
         }
     };
 
@@ -900,12 +939,19 @@ const TaskDashboardPage = () => {
                 }
         }
 
+        // Get user info for activity log creator
+        const activityCreator = getUserInfo(item.user_id);
+        
         return (
             <div key={item.id} className="flex items-start space-x-3 p-3 rounded-lg bg-white/5 transition-colors hover:bg-white/10">
                 <EventIcon className={`h-5 w-5 ${eventColor} mt-1`} />
                 <div className="flex-1">
                     <p className="text-sm text-white font-medium">{eventText}</p>
-                    <p className="text-xs text-gray-400">{format(new Date(item.created_at), 'dd MMM yyyy, HH:mm')}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                        <p className="text-xs text-gray-400">{format(new Date(item.created_at), 'dd MMM yyyy, HH:mm')}</p>
+                        <span className="text-xs text-gray-500">•</span>
+                        <p className="text-xs text-white">by {activityCreator.name}</p>
+                    </div>
                 </div>
             </div>
         );
@@ -943,24 +989,58 @@ const TaskDashboardPage = () => {
 
     const getUserInfo = (userId) => {
         if (!userId) return { name: 'N/A', email: 'N/A', role: 'N/A' };
-        if (!Array.isArray(teamMembers) || teamMembers.length === 0) {
-            return { name: 'N/A', email: 'N/A', role: 'N/A' };
-        }
+        
+        // First check if it's the current user
         const userIdStr = String(userId).toLowerCase();
-        const member = teamMembers.find(m => {
-            if (!m) return false;
-            const mUserId = m.user_id ? String(m.user_id).toLowerCase() : '';
-            const mId = m.id ? String(m.id).toLowerCase() : '';
-            return mUserId === userIdStr || mId === userIdStr;
-        });
-        if (!member) {
-            return { name: 'N/A', email: 'N/A', role: 'N/A' };
+        const currentUserIdStr = user?.id ? String(user.id).toLowerCase() : '';
+        if (currentUserIdStr && userIdStr === currentUserIdStr) {
+            return {
+                name: user.name || user.email || 'You',
+                email: user.email || 'N/A',
+                role: user.role || 'N/A'
+            };
         }
-        return {
-            name: member.name || member.full_name || member.email || 'N/A',
-            email: member.email || 'N/A',
-            role: member.role || member.department || 'N/A'
-        };
+        
+        // Then check teamMembers if available
+        if (Array.isArray(teamMembers) && teamMembers.length > 0) {
+            const member = teamMembers.find(m => {
+                if (!m) return false;
+                // Try multiple field combinations
+                const mUserId = m.user_id ? String(m.user_id).toLowerCase() : '';
+                const mId = m.id ? String(m.id).toLowerCase() : '';
+                const mUserIdStr = String(mUserId || mId).toLowerCase();
+                return mUserId === userIdStr || mId === userIdStr || mUserIdStr === userIdStr;
+            });
+            if (member) {
+                const memberName = member.name || member.full_name || member.display_name || member.email || 'Unknown';
+                return {
+                    name: memberName,
+                    email: member.email || 'N/A',
+                    role: member.role || member.department || 'N/A'
+                };
+            }
+        }
+        
+        // Check task for created_by_name or updated_by_name if userId matches
+        if (task) {
+            if (task.created_by && String(task.created_by).toLowerCase() === userIdStr && task.created_by_name) {
+                return {
+                    name: task.created_by_name || 'N/A',
+                    email: 'N/A',
+                    role: task.created_by_role || 'N/A'
+                };
+            }
+            if (task.updated_by && String(task.updated_by).toLowerCase() === userIdStr && task.updated_by_name) {
+                return {
+                    name: task.updated_by_name || 'N/A',
+                    email: 'N/A',
+                    role: task.updated_by_role || 'N/A'
+                };
+            }
+        }
+        
+        // Last resort: return Unknown instead of N/A
+        return { name: 'Unknown', email: 'N/A', role: 'N/A' };
     };
 
     const getAssigneeName = (userId) => {
@@ -974,19 +1054,17 @@ const TaskDashboardPage = () => {
             if (isNaN(date.getTime())) {
                 return 'bg-gray-500/20 text-gray-300 border-gray-500/50';
             }
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const dateOnly = new Date(date);
-            dateOnly.setHours(0, 0, 0, 0);
-            const diffTime = today - dateOnly;
-            const diffDays = diffTime / (1000 * 60 * 60 * 24);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffHours = diffMs / (1000 * 60 * 60);
+            const diffDays = diffHours / 24;
             
-            if (diffDays === 0) {
-                return 'bg-green-500/20 text-green-300 border-green-500/50'; // Today - Green
-            } else if (diffDays > 1) {
-                return 'bg-red-500/20 text-red-300 border-red-500/50'; // More than 1 day - Red
+            if (diffHours <= 24) {
+                return 'bg-green-500/20 text-green-300 border-green-500/50'; // Green for within 24 hours
+            } else if (diffDays <= 7) {
+                return 'bg-red-500/20 text-red-300 border-red-500/50'; // Red for more than 24 hours but less than 7 days
             } else {
-                return 'bg-gray-500/20 text-gray-300 border-gray-500/50'; // Yesterday - Gray
+                return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/50'; // Yellow for more than 7 days
             }
         } catch {
             return 'bg-gray-500/20 text-gray-300 border-gray-500/50';
@@ -1927,7 +2005,20 @@ const TaskDashboardPage = () => {
                             <CardContent className="flex-1 min-h-0 overflow-hidden flex flex-col">
                                 <div className="flex-1 min-h-0 overflow-y-auto space-y-2">
                                     {task.subtasks?.length > 0 ? task.subtasks.map(sub => {
-                                        const subtaskCreator = getUserInfo(sub.created_by || task.created_by);
+                                        // Find creator from activity logs for this subtask
+                                        // Try to match by subtask title in action or details
+                                        const subtaskTitle = sub.title || sub.name || '';
+                                        const subtaskActivity = history.find(h => {
+                                            if (h.event_type !== 'subtask_created') return false;
+                                            const action = h.action || '';
+                                            const details = h.details || '';
+                                            return action.includes(subtaskTitle) || details.includes(subtaskTitle);
+                                        });
+                                        
+                                        // If not found, try to get the most recent subtask_created activity
+                                        // (assuming it's for this subtask if it's the last one)
+                                        const subtaskCreatorId = subtaskActivity?.user_id || sub.created_by || task.created_by;
+                                        const subtaskCreator = getUserInfo(subtaskCreatorId);
                                         return (
                                             <div key={sub.id} className="flex flex-col gap-1 p-2 rounded-md bg-white/5 transition-colors hover:bg-white/10">
                                                 <div className="flex items-center gap-3">
@@ -1958,7 +2049,7 @@ const TaskDashboardPage = () => {
                                                     </AlertDialog>
                                                 </div>
                                                 <p className="text-xs text-gray-400 italic ml-7">
-                                                    Added by {subtaskCreator.name}
+                                                    Added by <span className="text-white">{subtaskCreator.name}</span>
                                                 </p>
                                             </div>
                                         );
@@ -2038,9 +2129,9 @@ const TaskDashboardPage = () => {
                                 {task.checklist?.enabled && task.checklist?.items && task.checklist.items.length > 0 ? (
                                     <div className="space-y-2 h-full overflow-y-auto">
                                         {task.checklist.items.map((item, index) => {
-                                            const checklistCreator = item.assigned_to
-                                                ? getUserInfo(item.assigned_to)
-                                                : getUserInfo(task.created_by);
+                                            // Use created_by if available, otherwise assigned_to, otherwise task.created_by
+                                            const checklistCreatorId = item.created_by || item.assigned_to || task.created_by;
+                                            const checklistCreator = getUserInfo(checklistCreatorId);
                                             return (
                                                 <div key={index} className="flex flex-col gap-1 p-2 rounded-md bg-white/5 transition-colors hover:bg-white/10">
                                                     <div className="flex items-center gap-3">
@@ -2053,9 +2144,26 @@ const TaskDashboardPage = () => {
                                                         <label htmlFor={`checklist-${index}`} className={`flex-grow text-sm ${item.is_completed ? 'line-through text-gray-500' : 'text-white'}`}>
                                                             {item.name}
                                                         </label>
+                                                        <AlertDialog>
+                                                            <AlertDialogTrigger asChild>
+                                                                <Button variant="ghost" size="icon" className="text-gray-400 hover:text-red-500 h-8 w-8">
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </Button>
+                                                            </AlertDialogTrigger>
+                                                            <AlertDialogContent className="glass-pane">
+                                                                <AlertDialogHeader>
+                                                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                                    <AlertDialogDescription>This will permanently delete the checklist item.</AlertDialogDescription>
+                                                                </AlertDialogHeader>
+                                                                <AlertDialogFooter>
+                                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                                    <AlertDialogAction onClick={() => handleDeleteChecklistItem(index)} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
+                                                                </AlertDialogFooter>
+                                                            </AlertDialogContent>
+                                                        </AlertDialog>
                                                     </div>
                                                     <p className="text-xs text-gray-400 italic ml-7">
-                                                        Added by {checklistCreator.name}
+                                                        Added by <span className="text-white">{checklistCreator.name}</span>
                                                     </p>
                                                 </div>
                                             );

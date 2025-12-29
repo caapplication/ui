@@ -111,19 +111,17 @@ import React, { useState, useMemo, useEffect } from 'react';
                 if (isNaN(date.getTime())) {
                     return 'bg-gray-500/20 text-gray-300 border-gray-500/50';
                 }
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                const dateOnly = new Date(date);
-                dateOnly.setHours(0, 0, 0, 0);
-                const diffTime = today - dateOnly;
-                const diffDays = diffTime / (1000 * 60 * 60 * 24);
+                const now = new Date();
+                const diffMs = now - date;
+                const diffHours = diffMs / (1000 * 60 * 60);
+                const diffDays = diffHours / 24;
                 
-                if (diffDays === 0) {
-                    return 'bg-green-500/20 text-green-300 border-green-500/50'; // Today - Green
-                } else if (diffDays > 1) {
-                    return 'bg-red-500/20 text-red-300 border-red-500/50'; // More than 1 day - Red
+                if (diffHours <= 24) {
+                    return 'bg-green-500/20 text-green-300 border-green-500/50'; // Green for within 24 hours
+                } else if (diffDays <= 7) {
+                    return 'bg-red-500/20 text-red-300 border-red-500/50'; // Red for more than 24 hours but less than 7 days
                 } else {
-                    return 'bg-gray-500/20 text-gray-300 border-gray-500/50'; // Yesterday - Gray
+                    return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/50'; // Yellow for more than 7 days
                 }
             } catch {
                 return 'bg-gray-500/20 text-gray-300 border-gray-500/50';

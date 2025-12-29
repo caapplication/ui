@@ -545,11 +545,14 @@ const TaskKanbanView = forwardRef(({
             const now = new Date();
             const diffMs = now - date;
             const diffHours = diffMs / (1000 * 60 * 60);
-
+            const diffDays = diffHours / 24;
+            
             if (diffHours <= 24) {
                 return 'text-green-400'; // Green for within 24 hours
+            } else if (diffDays <= 7) {
+                return 'text-red-400'; // Red for more than 24 hours but less than 7 days
             } else {
-                return 'text-red-400'; // Red for more than 24 hours
+                return 'text-yellow-400'; // Yellow for more than 7 days
             }
         } catch {
             return 'text-gray-400';
@@ -615,7 +618,7 @@ const TaskKanbanView = forwardRef(({
                 WebkitOverflowScrolling: 'touch',
                 maxHeight: '100%'
             }}>
-                <div className="flex gap-4 min-w-max" style={{ height: 'calc(100vh - 180px)' }}>
+                <div className="flex gap-4 min-w-max rounded-lg" style={{ height: 'calc(100vh - 180px)' }}>
                     {stages.map((stage) => {
                         const stageTasks = getTasksForStage(stage.id);
                         return (
@@ -719,7 +722,7 @@ const TaskKanbanView = forwardRef(({
                                                         </div>
                                                         {task.created_at && (
                                                             <div className="mt-2 flex items-center gap-2 text-xs">
-                                                                <span className={`${getTimestampColor(task.created_at)}`}>{getCreatorName(task)}</span>
+                                                                <span className="text-white">{getCreatorName(task)}</span>
                                                                 <span className={getTimestampColor(task.created_at)}>•</span>
                                                                 <span className={getTimestampColor(task.created_at)}>
                                                                     {format(new Date(task.created_at), 'MMM dd, HH:mm')}
