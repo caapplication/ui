@@ -41,8 +41,6 @@ import React, { useState, useEffect } from 'react';
         due_time: '12:00',  // Time for due date (HH:mm format)
         target_date: null,
         description: '',
-        document_request_enabled: false,
-        document_request_items: [],
         checklist_enabled: false,
         checklist_items: [],
         assigned_user_id: '',
@@ -153,8 +151,6 @@ import React, { useState, useEffect } from 'react';
             due_date: task.due_date ? new Date(task.due_date) : null,
             target_date: task.target_date ? new Date(task.target_date) : null,
             description: task.description || '',
-            document_request_enabled: task.document_request?.enabled || false,
-            document_request_items: task.document_request?.items || [],
             checklist_enabled: task.checklist?.enabled || false,
             checklist_items: (task.checklist?.items || []).map(item => ({
               name: item.name || '',
@@ -235,27 +231,6 @@ import React, { useState, useEffect } from 'react';
         setFormData(prev => ({ ...prev, [name]: checked }));
       };
     
-      const addDocRequestItem = () => {
-        setFormData(prev => ({
-          ...prev,
-          document_request_items: [...prev.document_request_items, { name: '', required: true }]
-        }));
-      };
-    
-      const updateDocRequestItem = (index, field, value) => {
-        setFormData(prev => {
-          const items = [...prev.document_request_items];
-          items[index] = { ...items[index], [field]: value };
-          return { ...prev, document_request_items: items };
-        });
-      };
-    
-      const removeDocRequestItem = (index) => {
-        setFormData(prev => ({
-          ...prev,
-          document_request_items: prev.document_request_items.filter((_, i) => i !== index)
-        }));
-      };
 
       const addChecklistItem = () => {
         setFormData(prev => ({
@@ -361,10 +336,6 @@ import React, { useState, useEffect } from 'react';
           description: formData.description,
           priority: formData.priority || null,
           tag_id: formData.tag_id || null,
-          document_request: {
-            enabled: formData.document_request_enabled,
-            items: formData.document_request_items
-          },
           checklist: {
             enabled: formData.checklist_enabled,
             items: formData.checklist_items.filter(item => item.name.trim() !== '').map(item => ({
@@ -442,51 +413,8 @@ import React, { useState, useEffect } from 'react';
                   <Label htmlFor="description">Description</Label>
                   <Textarea id="description" name="description" placeholder="Add a detailed description for the task..." value={formData.description} onChange={handleChange} disabled={isSaving} />
                 </div>
-                <div className="flex items-center space-x-2">
-                  <Switch id="document_request_enabled" checked={formData.document_request_enabled} onCheckedChange={(c) => handleSwitchChange('document_request_enabled', c)} disabled={isSaving} />
-                  <Label htmlFor="document_request_enabled">Enable Document Collection Request</Label>
-                </div>
               </div>
             </div>
-    
-            {formData.document_request_enabled && (
-              <div className="glass-pane p-6 rounded-lg">
-                <h2 className="text-xl font-semibold mb-4 border-b border-white/10 pb-2">Document Request Items</h2>
-                <div className="space-y-4">
-                  {formData.document_request_items.map((item, index) => (
-                    <div key={index} className="flex items-center gap-4 p-2 rounded-md bg-black/20">
-<Input 
-    value={item.name} 
-    onChange={(e) => updateDocRequestItem(index, 'name', e.target.value)} 
-    placeholder="e.g., PAN Card Copy"
-    className="flex-grow"
-    disabled={isSaving}
-/>
-                      <div className="flex items-center space-x-2">
-<Switch id={`doc-req-${index}`} checked={item.required} onCheckedChange={(c) => updateDocRequestItem(index, 'required', c)} disabled={isSaving} />
-                        <Label htmlFor={`doc-req-${index}`}>Required</Label>
-                      </div>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-<Button variant="destructive" size="icon" disabled={isSaving}><Trash2 className="w-4 h-4" /></Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                            <AlertDialogDescription>This will remove the document request item.</AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => removeDocRequestItem(index)} className="bg-red-600 hover:bg-red-700">Remove</AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  ))}
-                </div>
-<Button type="button" variant="outline" onClick={addDocRequestItem} className="mt-4" disabled={isSaving}><Plus className="w-4 h-4 mr-2" />Add Document Item</Button>
-              </div>
-            )}
 
             <div className="glass-pane p-6 rounded-lg">
               <div className="flex items-center space-x-2 mb-4">

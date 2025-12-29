@@ -47,8 +47,6 @@ const NewRecurringTaskForm = ({ onSave, onCancel, clients, services, teamMembers
     client_id: '',
     service_id: '',
     description: '',
-    document_request_enabled: false,
-    document_request_items: [],
     assigned_user_id: '',
     priority: '',
     tag_id: '',
@@ -72,8 +70,6 @@ const NewRecurringTaskForm = ({ onSave, onCancel, clients, services, teamMembers
         client_id: recurringTask.client_id || '',
         service_id: recurringTask.service_id || '',
         description: recurringTask.description || '',
-        document_request_enabled: recurringTask.document_request?.enabled || false,
-        document_request_items: recurringTask.document_request?.items || [],
         assigned_user_id: recurringTask.assigned_to || '',
         priority: recurringTask.priority || '',
         tag_id: recurringTask.tag_id || '',
@@ -115,27 +111,6 @@ const NewRecurringTaskForm = ({ onSave, onCancel, clients, services, teamMembers
     }
   };
 
-  const addDocRequestItem = () => {
-    setFormData(prev => ({
-      ...prev,
-      document_request_items: [...prev.document_request_items, { name: '', required: true }]
-    }));
-  };
-
-  const updateDocRequestItem = (index, field, value) => {
-    setFormData(prev => {
-      const items = [...prev.document_request_items];
-      items[index] = { ...items[index], [field]: value };
-      return { ...prev, document_request_items: items };
-    });
-  };
-
-  const removeDocRequestItem = (index) => {
-    setFormData(prev => ({
-      ...prev,
-      document_request_items: prev.document_request_items.filter((_, i) => i !== index)
-    }));
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -156,10 +131,6 @@ const NewRecurringTaskForm = ({ onSave, onCancel, clients, services, teamMembers
       description: formData.description,
       priority: formData.priority || null,
       tag_id: formData.tag_id || null,
-      document_request: {
-        enabled: formData.document_request_enabled,
-        items: formData.document_request_items
-      },
       assigned_to: formData.assigned_user_id || null,
       frequency: formData.frequency,
       interval: formData.interval,
@@ -238,10 +209,6 @@ const NewRecurringTaskForm = ({ onSave, onCancel, clients, services, teamMembers
             <div className="md:col-span-2">
               <Label htmlFor="description">Description</Label>
               <Textarea id="description" name="description" placeholder="Add a detailed description..." value={formData.description} onChange={handleChange} disabled={isSaving} />
-            </div>
-            <div className="md:col-span-2 flex items-center space-x-2">
-              <Switch id="document_request_enabled" checked={formData.document_request_enabled} onCheckedChange={(c) => handleSwitchChange('document_request_enabled', c)} disabled={isSaving} />
-              <Label htmlFor="document_request_enabled">Enable Document Collection Request</Label>
             </div>
           </div>
         </div>
@@ -400,49 +367,7 @@ const NewRecurringTaskForm = ({ onSave, onCancel, clients, services, teamMembers
           </div>
         </div>
 
-        {/* Document Request and Assignment sections - Same as NewTaskForm */}
-        {formData.document_request_enabled && (
-          <div className="glass-pane p-6 rounded-lg">
-            <h2 className="text-xl font-semibold mb-4 border-b border-white/10 pb-2">Document Request Items</h2>
-            <div className="space-y-4">
-              {formData.document_request_items.map((item, index) => (
-                <div key={index} className="flex items-center gap-4 p-2 rounded-md bg-black/20">
-                  <Input 
-                    value={item.name} 
-                    onChange={(e) => updateDocRequestItem(index, 'name', e.target.value)} 
-                    placeholder="e.g., PAN Card Copy"
-                    className="flex-grow"
-                    disabled={isSaving}
-                  />
-                  <div className="flex items-center space-x-2">
-                    <Switch id={`doc-req-${index}`} checked={item.required} onCheckedChange={(c) => updateDocRequestItem(index, 'required', c)} disabled={isSaving} />
-                    <Label htmlFor={`doc-req-${index}`}>Required</Label>
-                  </div>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="destructive" size="icon" disabled={isSaving}><Trash2 className="w-4 h-4" /></Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                        <AlertDialogDescription>This will remove the document request item.</AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => removeDocRequestItem(index)} className="bg-red-600 hover:bg-red-700">Remove</AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              ))}
-            </div>
-            <Button type="button" variant="outline" onClick={addDocRequestItem} className="mt-4" disabled={isSaving}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Document Item
-            </Button>
-          </div>
-        )}
-
+        {/* Assignment section */}
         <div className="glass-pane p-6 rounded-lg">
           <h2 className="text-xl font-semibold mb-4 border-b border-white/10 pb-2">Assignment & Status</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

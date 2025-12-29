@@ -989,7 +989,7 @@ const TaskDashboardPage = () => {
         switch (item.event_type) {
             case 'task_created':
                 eventText = `Task created${item.to_value?.status ? ` with status "${item.to_value.status}"` : ''}`;
-                eventColor = "text-green-400";
+                eventColor = "text-blue-400";
                 break;
             case 'task_updated':
                 if (item.from_value?.status && item.to_value?.status) {
@@ -1042,7 +1042,7 @@ const TaskDashboardPage = () => {
                 break;
             case 'checklist_updated':
                 eventText = item.details || `Checklist updated`;
-                eventColor = "text-green-400";
+                eventColor = "text-blue-400";
                 EventIcon = CheckCircle;
                 break;
             case 'checklist_removed':
@@ -1058,14 +1058,14 @@ const TaskDashboardPage = () => {
 
         // Get user info for activity log creator
         const activityCreator = getUserInfo(item.user_id);
-        
+
         return (
             <div key={item.id} className="flex items-start space-x-3 p-3 rounded-lg bg-white/5 transition-colors hover:bg-white/10">
                 <EventIcon className={`h-5 w-5 ${eventColor} mt-1`} />
                 <div className="flex-1">
                     <p className="text-sm text-white font-medium">{eventText}</p>
                     <div className="flex items-center gap-2 mt-1">
-                        <p className="text-xs text-gray-400">{format(new Date(item.created_at), 'dd MMM yyyy, HH:mm')}</p>
+                    <p className="text-xs text-gray-400">{format(new Date(item.created_at), 'dd MMM yyyy, HH:mm')}</p>
                         <span className="text-xs text-gray-500">•</span>
                         <p className="text-xs text-white">by {activityCreator.name}</p>
                     </div>
@@ -1120,21 +1120,21 @@ const TaskDashboardPage = () => {
         
         // Then check teamMembers if available
         if (Array.isArray(teamMembers) && teamMembers.length > 0) {
-            const member = teamMembers.find(m => {
-                if (!m) return false;
+        const member = teamMembers.find(m => {
+            if (!m) return false;
                 // Try multiple field combinations
-                const mUserId = m.user_id ? String(m.user_id).toLowerCase() : '';
-                const mId = m.id ? String(m.id).toLowerCase() : '';
+            const mUserId = m.user_id ? String(m.user_id).toLowerCase() : '';
+            const mId = m.id ? String(m.id).toLowerCase() : '';
                 const mUserIdStr = String(mUserId || mId).toLowerCase();
                 return mUserId === userIdStr || mId === userIdStr || mUserIdStr === userIdStr;
-            });
+        });
             if (member) {
                 const memberName = member.name || member.full_name || member.display_name || member.email || 'Unknown';
-                return {
+        return {
                     name: memberName,
-                    email: member.email || 'N/A',
-                    role: member.role || member.department || 'N/A'
-                };
+            email: member.email || 'N/A',
+            role: member.role || member.department || 'N/A'
+        };
             }
         }
         
@@ -1177,7 +1177,7 @@ const TaskDashboardPage = () => {
             const diffDays = diffHours / 24;
             
             if (diffHours <= 24) {
-                return 'bg-green-500/20 text-green-300 border-green-500/50'; // Green for within 24 hours
+                return 'bg-blue-500/20 text-blue-300 border-blue-500/50'; // Blue for within 24 hours
             } else if (diffDays <= 7) {
                 return 'bg-red-500/20 text-red-300 border-red-500/50'; // Red for more than 24 hours but less than 7 days
             } else {
@@ -1315,7 +1315,7 @@ const TaskDashboardPage = () => {
                 className = 'bg-blue-500/20 text-blue-300 border-blue-500/50';
                 break;
             case 'Complete':
-                className = 'bg-green-500/20 text-green-300 border-green-500/50';
+                className = 'bg-blue-500/20 text-blue-300 border-blue-500/50';
                 break;
             case 'Open':
             default:
@@ -1382,19 +1382,45 @@ const TaskDashboardPage = () => {
     // Check if current user is the task creator
     const isTaskCreator = task.created_by && String(task.created_by) === String(user?.id);
     
-    // Filter stages based on user role
+    // Filter stages based on user role and deduplicate by display name
     const getAvailableStages = () => {
         if (!stages || stages.length === 0) return [];
         
-        // If user is creator, show all stages
-        if (isTaskCreator) {
-            return stages;
-        }
+        let filteredStages = stages;
         
         // If user is not creator, filter out "Complete" and "Completed" stages
-        return stages.filter(stage => {
-            const stageName = (stage.name || '').toLowerCase();
-            return stageName !== 'complete' && stageName !== 'completed';
+        if (!isTaskCreator) {
+            filteredStages = stages.filter(stage => {
+                const stageName = (stage.name || '').toLowerCase();
+                return stageName !== 'complete' && stageName !== 'completed';
+            });
+        }
+        
+        // Deduplicate stages by display name (group by display name, keep first occurrence)
+        const seenDisplayNames = new Set();
+        const uniqueStages = [];
+        
+        for (const stage of filteredStages) {
+            const displayName = getDisplayStageName(stage.name);
+            
+            // Only show: "Open", "On Review", and "Complete"
+            if (displayName !== 'Open' && displayName !== 'On Review' && displayName !== 'Complete') {
+                continue;
+            }
+            
+            // If we haven't seen this display name, add it
+            if (!seenDisplayNames.has(displayName)) {
+                seenDisplayNames.add(displayName);
+                uniqueStages.push(stage);
+            }
+        }
+        
+        // Sort to ensure consistent order: Open, On Review, Complete
+        return uniqueStages.sort((a, b) => {
+            const displayA = getDisplayStageName(a.name);
+            const displayB = getDisplayStageName(b.name);
+            const order = { 'Open': 1, 'On Review': 2, 'Complete': 3 };
+            return (order[displayA] || 999) - (order[displayB] || 999);
         });
     };
 
@@ -1513,51 +1539,14 @@ const TaskDashboardPage = () => {
                         <ArrowLeft className="h-6 w-6" />
                     </Button>
                     <h1 className="text-3xl font-bold">
-                        Tasks{displayOrgName && <span className="text-3xl font-bold text-gray-400 ml-2">- {displayOrgName}</span>}
+                        Tasks
                     </h1>
                 </div>
-                <div className="flex items-center gap-2">
-                    <Button
-                        onClick={() => navigate('/tasks', { state: { viewMode: 'kanban', openAddStage: true } })}
-                        variant="outline"
-                        className="text-white border-white/20 hover:bg-white/10"
-                    >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add Stage
-                    </Button>
-                    <Link to="/recurring-tasks">
-                        <Button
-                            variant="outline"
-                            className="text-white border-white/20 hover:bg-white/10"
-                        >
-                            <Repeat className="w-4 h-4 mr-2" />
-                            Recurring Tasks
-                        </Button>
-                    </Link>
-                    <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1">
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => navigate('/tasks')}
-                            className="bg-white/10"
-                        >
-                            <List className="w-4 h-4 mr-2" />
-                            List
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => navigate('/tasks')}
-                        >
-                            <LayoutGrid className="w-4 h-4 mr-2" />
-                            Kanban
-                        </Button>
+                {displayOrgName && (
+                    <div className="px-4 py-2 bg-blue-500/20 text-blue-300 border border-blue-500/50 rounded-lg">
+                        <span className="text-lg font-semibold">{displayOrgName}</span>
                     </div>
-                    <Button onClick={() => navigate('/tasks')}>
-                        <Plus className="w-4 h-4 mr-2" />
-                        New Task
-                    </Button>
-                </div>
+                )}
             </header>
 
             {/* Task Actions - Close Task Button */}
@@ -1707,11 +1696,11 @@ const TaskDashboardPage = () => {
                                         <div className="flex flex-col gap-1">
                                             <span className="text-sm text-white">{assignedToInfo.name}</span>
                                             {task.due_date && (
-                                                <Badge variant="outline" className="bg-green-500/20 text-green-300 border-green-500/50 text-xs w-fit italic">
+                                                <Badge variant="outline" className="bg-blue-500/20 text-blue-300 border-blue-500/50 text-xs w-fit italic">
                                                     {formatTimeUntil(task.due_date)}
                                                 </Badge>
                                             )}
-                                </div>
+                                        </div>
                                     </TableCell>
                                     
                                     {/* STATUS */}
@@ -1724,9 +1713,9 @@ const TaskDashboardPage = () => {
                                                     {isUpdatingStage && (
                                                         <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-lg z-10">
                                                             <Loader2 className="w-4 h-4 animate-spin text-white/70" />
-                                                        </div>
+                            </div>
                                                     )}
-                                                    <Combobox
+                                    <Combobox
                                                         options={availableStages.map(stage => ({
                                                             value: String(stage.id),
                                                             label: getDisplayStageName(stage.name) || 'Open',
@@ -1742,8 +1731,8 @@ const TaskDashboardPage = () => {
                                                         }}
                                                         style={getStageColorStyles()}
                                                     />
-                                                </div>
-                                            ) : (
+                                </div>
+                            ) : (
                                                 <Badge 
                                                     variant="outline" 
                                                     className={task.stage?.color ? '' : `inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-medium w-fit ${getStatusColor(task).className || ''}`}
@@ -1751,8 +1740,8 @@ const TaskDashboardPage = () => {
                                                 >
                                                     {displayStatusName}
                                                 </Badge>
-                                            )}
-                                        </div>
+                                    )}
+                                </div>
                                     </TableCell>
                                 </TableRow>
                             </TableBody>
@@ -1822,7 +1811,7 @@ const TaskDashboardPage = () => {
                                                     )}
 
                                                     {/* Message bubble - WhatsApp style */}
-                                                    <div className={`relative inline-block max-w-[75%] ${isOwnComment ? 'bg-[#dcf8c6] text-[#111b21]' : 'bg-white text-[#111b21]'} rounded-lg shadow-sm`} style={{
+                                                    <div className={`relative inline-block max-w-[75%] ${isOwnComment ? 'bg-blue-500/20 text-white border border-blue-500/50' : 'bg-white/10 text-white border border-white/20'} rounded-lg shadow-sm`} style={{
                                                         borderRadius: isOwnComment
                                                             ? (isGrouped ? '7px 7px 2px 7px' : '7px 7px 2px 7px')
                                                             : (isGrouped ? '2px 7px 7px 7px' : '7px 7px 7px 2px')
@@ -1885,24 +1874,24 @@ const TaskDashboardPage = () => {
                                                                     </div>
                                                                 ) : (
                                                                     // Non-image attachment - show download option like WhatsApp
-                                                                        <div className="flex items-center gap-3 p-2 bg-gray-100 rounded-lg">
+                                                                        <div className="flex items-center gap-3 p-2 bg-white/5 border border-white/10 rounded-lg">
                                                                         <div className="flex-shrink-0">
                                                                             {comment.attachment_type === 'application/pdf' ? (
                                                                                 <FileText className="w-8 h-8 text-red-500" />
                                                                             ) : comment.attachment_type?.includes('word') || comment.attachment_url.match(/\.(doc|docx)$/i) ? (
                                                                                 <FileText className="w-8 h-8 text-blue-500" />
                                                                             ) : comment.attachment_type?.includes('excel') || comment.attachment_type?.includes('spreadsheet') || comment.attachment_url.match(/\.(xls|xlsx)$/i) ? (
-                                                                                <FileText className="w-8 h-8 text-green-500" />
+                                                                                <FileText className="w-8 h-8 text-blue-500" />
                                                                             ) : (
-                                                                                    <FileText className="w-8 h-8 text-gray-600" />
+                                                                                    <FileText className="w-8 h-8 text-gray-400" />
                                                                             )}
                                                                         </div>
                                                                         <div className="flex-1 min-w-0">
-                                                                                <p className="text-sm font-medium text-[#111b21] truncate">
+                                                                                <p className="text-sm font-medium text-white truncate">
                                                                                 {comment.attachment_name || 'Attachment'}
                                                                             </p>
                                                                             {comment.attachment_type && (
-                                                                                    <p className="text-xs text-gray-500">
+                                                                                    <p className="text-xs text-gray-400">
                                                                                     {comment.attachment_type.split('/')[1]?.toUpperCase() || 'FILE'}
                                                                                 </p>
                                                                             )}
@@ -1914,34 +1903,34 @@ const TaskDashboardPage = () => {
                                                                                     name: comment.attachment_name || 'Attachment',
                                                                                     type: comment.attachment_type
                                                                                 })}
-                                                                                className="flex-shrink-0 p-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
+                                                                                className="flex-shrink-0 p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
                                                                                 title="Preview"
                                                                             >
-                                                                                <Eye className="w-5 h-5 text-gray-700" />
+                                                                                <Eye className="w-5 h-5 text-white" />
                                                                             </button>
-                                                                            <a 
-                                                                                href={comment.attachment_url} 
-                                                                                download={comment.attachment_name}
-                                                                                target="_blank" 
-                                                                                rel="noopener noreferrer"
-                                                                                    className="flex-shrink-0 p-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
-                                                                                title="Download"
-                                                                            >
-                                                                                    <Download className="w-5 h-5 text-gray-700" />
-                                                                            </a>
+                                                                        <a 
+                                                                            href={comment.attachment_url} 
+                                                                            download={comment.attachment_name}
+                                                                            target="_blank" 
+                                                                            rel="noopener noreferrer"
+                                                                                    className="flex-shrink-0 p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+                                                                            title="Download"
+                                                                        >
+                                                                                    <Download className="w-5 h-5 text-white" />
+                                                                        </a>
                                                                         </div>
                                                                     </div>
                                                                 )}
                                                             </div>
                                                         )}
                                                         {comment.message && (
-                                                                <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{comment.message}</p>
+                                                                <p className="text-sm whitespace-pre-wrap break-words leading-relaxed text-white">{comment.message}</p>
                                                         )}
                                                     </div>
 
                                                         {/* Timestamp and read receipt - bottom right */}
                                                         <div className={`flex items-center justify-end gap-1 px-2 pb-1`}>
-                                                            <span className="text-[10px] text-gray-500">
+                                                            <span className="text-[10px] text-gray-400">
                                                                 {timeStr}
                                                             </span>
                                                             {/* Show read receipts only for sender's own messages */}
@@ -1951,13 +1940,13 @@ const TaskDashboardPage = () => {
                                                                         <TooltipTrigger asChild>
                                                                             <button
                                                                                 onMouseEnter={() => handleFetchReadReceipts(comment.id)}
-                                                                                className="text-[10px] text-gray-500 hover:text-gray-700 cursor-pointer ml-1 flex items-center"
+                                                                                className="text-[10px] text-gray-400 hover:text-gray-300 cursor-pointer ml-1 flex items-center"
                                                                             >
                                                                                 {/* Single tick if not read, double tick if read */}
                                                                                 {readReceipts[comment.id]?.length > 0 ? (
-                                                                                    <span className="text-blue-600">✓✓</span>
+                                                                                    <span className="text-blue-400">✓✓</span>
                                                                                 ) : (
-                                                                                    <span className="text-gray-400">✓</span>
+                                                                                    <span className="text-gray-500">✓</span>
                                                                                 )}
                                                                             </button>
                                                                         </TooltipTrigger>
@@ -2093,7 +2082,7 @@ const TaskDashboardPage = () => {
                                             handleSendComment();
                                         }
                                     }}
-                                    className="flex-1 bg-white text-[#111b21] border-2 border-purple-300 rounded-full h-10 px-4 focus:ring-2 focus:ring-purple-400 focus:border-purple-400"
+                                    className="flex-1 bg-white/10 text-white border-2 border-blue-500/50 rounded-full h-10 px-4 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 placeholder:text-gray-400"
                                 />
                                 <Button 
                                     onClick={handleSendComment} 
@@ -2448,7 +2437,7 @@ const TaskDashboardPage = () => {
                             Reject
                         </Button>
                         <Button
-                            className="bg-green-500 hover:bg-green-600"
+                            className="bg-blue-500 hover:bg-blue-600"
                             onClick={() => handleReviewClosure('approved')}
                         >
                             <CheckCircle2 className="w-4 h-4 mr-2" />

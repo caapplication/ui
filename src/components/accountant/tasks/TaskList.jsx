@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
     import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
     import { Input } from '@/components/ui/input';
     import { Button } from '@/components/ui/button';
@@ -7,6 +7,8 @@ import React, { useState, useMemo, useEffect } from 'react';
     import { Badge } from '@/components/ui/badge';
     import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
     import { format, formatDistanceToNow, formatDistanceStrict } from 'date-fns';
+    import { useAuth } from '@/hooks/useAuth.jsx';
+    import { getTaskCollaborators } from '@/lib/api';
     import {
       AlertDialog,
       AlertDialogAction,
@@ -19,11 +21,15 @@ import React, { useState, useMemo, useEffect } from 'react';
     } from "@/components/ui/alert-dialog";
     import { AlertDialogTrigger } from '@radix-ui/react-alert-dialog';
     
-    const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew, onEditTask, onDeleteTask, onViewTask }) => {
+    const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew, onEditTask, onDeleteTask, onViewTask, currentUserId }) => {
+        const { user } = useAuth();
         const [searchTerm, setSearchTerm] = useState('');
         const [statusFilter, setStatusFilter] = useState('all');
+        const [userFilter, setUserFilter] = useState('all'); // 'all', 'created_by_me', 'assigned_to_me', 'collaborates'
         const [currentPage, setCurrentPage] = useState(1);
         const [pageSize, setPageSize] = useState(25);
+        const [taskCollaborators, setTaskCollaborators] = useState({}); // { taskId: [collaboratorIds] }
+        const fetchedCollaboratorsRef = useRef(new Set()); // Track which tasks we've fetched collaborators for
     
         const getStatusVariant = (status) => {
             switch (status) {
@@ -117,7 +123,7 @@ import React, { useState, useMemo, useEffect } from 'react';
                 const diffDays = diffHours / 24;
                 
                 if (diffHours <= 24) {
-                    return 'bg-green-500/20 text-green-300 border-green-500/50'; // Green for within 24 hours
+                    return 'bg-blue-500/20 text-blue-300 border-blue-500/50'; // Blue for within 24 hours
                 } else if (diffDays <= 7) {
                     return 'bg-red-500/20 text-red-300 border-red-500/50'; // Red for more than 24 hours but less than 7 days
                 } else {
@@ -198,7 +204,7 @@ import React, { useState, useMemo, useEffect } from 'react';
     
         const filteredTasks = useMemo(() => {
             if (!Array.isArray(tasks)) return [];
-            return tasks.filter(task => {
+            const filtered = tasks.filter(task => {
                 // Handle status filter - check both stage name and status
                 let statusMatch = true;
                 if (statusFilter !== 'all') {
@@ -225,15 +231,64 @@ import React, { useState, useMemo, useEffect } from 'react';
                     statusMatch = (taskStageName === filterLower) || (taskStatus === filterLower);
                 }
                 
+                // Handle user filter
+                let userMatch = true;
+                if (userFilter !== 'all' && currentUserId) {
+                    const currentUserIdStr = String(currentUserId);
+                    if (userFilter === 'created_by_me') {
+                        userMatch = task.created_by && String(task.created_by) === currentUserIdStr;
+                    } else if (userFilter === 'assigned_to_me') {
+                        userMatch = task.assigned_to && String(task.assigned_to) === currentUserIdStr;
+                    } else if (userFilter === 'collaborates') {
+                        // Check if task has collaborators array or if current user is in collaborators
+                        if (task.collaborators && Array.isArray(task.collaborators)) {
+                            userMatch = task.collaborators.some(collab => {
+                                const collabUserId = collab.user_id || collab.id;
+                                return collabUserId && String(collabUserId) === currentUserIdStr;
+                            });
+                        } else if (taskCollaborators[task.id]) {
+                            // Check cached collaborators
+                            userMatch = taskCollaborators[task.id].some(collabId => 
+                                String(collabId) === currentUserIdStr
+                            );
+                        } else {
+                            // If no collaborator info available, don't match
+                            userMatch = false;
+                        }
+                    }
+                }
+                
                 // Handle search with case-insensitive matching
                 const clientName = getClientName(task.client_id) || '';
                 const taskTitle = task.title || '';
                 const searchMatch = !searchTerm || 
                                     clientName.toLowerCase().includes(searchTerm.toLowerCase()) || 
                                     taskTitle.toLowerCase().includes(searchTerm.toLowerCase());
-                return statusMatch && searchMatch;
-            })
-        }, [tasks, statusFilter, searchTerm, clients, stages]);
+                return statusMatch && userMatch && searchMatch;
+            });
+            
+            // Sort: tasks with notifications first (sorted by updated_at descending), then others
+            return filtered.sort((a, b) => {
+                const aHasNotification = a.has_unread_messages || false;
+                const bHasNotification = b.has_unread_messages || false;
+                
+                // If both have notifications, sort by updated_at (latest first)
+                if (aHasNotification && bHasNotification) {
+                    const aUpdated = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+                    const bUpdated = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+                    return bUpdated - aUpdated; // Descending (newest first)
+                }
+                
+                // If only one has notification, it comes first
+                if (aHasNotification && !bHasNotification) return -1;
+                if (!aHasNotification && bHasNotification) return 1;
+                
+                // Neither has notification, maintain original order (or sort by updated_at descending)
+                const aUpdated = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+                const bUpdated = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+                return bUpdated - aUpdated;
+            });
+        }, [tasks, statusFilter, userFilter, searchTerm, clients, stages, currentUserId, taskCollaborators]);
 
         // Pagination calculations
         const totalPages = Math.ceil(filteredTasks.length / pageSize);
@@ -242,10 +297,68 @@ import React, { useState, useMemo, useEffect } from 'react';
             return filteredTasks.slice(startIndex, startIndex + pageSize);
         }, [filteredTasks, currentPage, pageSize]);
 
+        // Fetch collaborators for tasks when "collaborates" filter is active
+        useEffect(() => {
+            if (userFilter === 'collaborates' && tasks.length > 0 && user?.access_token && currentUserId) {
+                const fetchCollaborators = async () => {
+                    try {
+                        const agencyId = user?.agency_id || null;
+                        // Only fetch for tasks that don't have collaborators data and aren't already fetched
+                        const tasksToFetch = tasks.filter(task => {
+                            // Skip if task already has collaborators array
+                            if (task.collaborators && Array.isArray(task.collaborators) && task.collaborators.length > 0) {
+                                return false;
+                            }
+                            // Skip if already fetched
+                            if (fetchedCollaboratorsRef.current.has(task.id)) {
+                                return false;
+                            }
+                            return true;
+                        });
+                        
+                        if (tasksToFetch.length === 0) {
+                            return;
+                        }
+                        
+                        const collaboratorPromises = tasksToFetch.map(async (task) => {
+                            try {
+                                const collaborators = await getTaskCollaborators(task.id, agencyId, user.access_token);
+                                return { 
+                                    taskId: task.id, 
+                                    collaborators: Array.isArray(collaborators) ? collaborators : (collaborators?.items || []) 
+                                };
+                            } catch (error) {
+                                console.error(`Error fetching collaborators for task ${task.id}:`, error);
+                                return { taskId: task.id, collaborators: [] };
+                            }
+                        });
+                        
+                        const results = await Promise.allSettled(collaboratorPromises);
+                        const newCollaborators = {};
+                        results.forEach((result) => {
+                            if (result.status === 'fulfilled' && result.value) {
+                                const taskId = result.value.taskId;
+                                newCollaborators[taskId] = result.value.collaborators.map(c => c.user_id || c.id);
+                                fetchedCollaboratorsRef.current.add(taskId);
+                            }
+                        });
+                        
+                        if (Object.keys(newCollaborators).length > 0) {
+                            setTaskCollaborators(prev => ({ ...prev, ...newCollaborators }));
+                        }
+                    } catch (error) {
+                        console.error('Error fetching collaborators:', error);
+                    }
+                };
+                
+                fetchCollaborators();
+            }
+        }, [userFilter, tasks, user?.access_token, user?.agency_id, currentUserId]);
+
         // Reset to page 1 when filters change
         useEffect(() => {
             setCurrentPage(1);
-        }, [searchTerm, statusFilter]);
+        }, [searchTerm, statusFilter, userFilter]);
 
         // Clamp current page if it exceeds total pages
         useEffect(() => {
@@ -287,6 +400,17 @@ import React, { useState, useMemo, useEffect } from 'react';
                                         )}
                                     </SelectContent>
                                 </Select>
+                                <Select value={userFilter} onValueChange={setUserFilter}>
+                                    <SelectTrigger className="w-full sm:w-[180px]">
+                                        <SelectValue placeholder="Filter by user" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Tasks</SelectItem>
+                                        <SelectItem value="created_by_me">Created by me</SelectItem>
+                                        <SelectItem value="assigned_to_me">Assigned to me</SelectItem>
+                                        <SelectItem value="collaborates">Collaborates</SelectItem>
+                                    </SelectContent>
+                                </Select>
                                 <div className="relative w-full sm:w-auto sm:max-w-xs">
                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                                     <Input placeholder="Search tasks..." className="pl-10" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
@@ -299,7 +423,6 @@ import React, { useState, useMemo, useEffect } from 'react';
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>T.ID</TableHead>
-                                    <TableHead>STATUS</TableHead>
                                     <TableHead>TASK DETAILS</TableHead>
                                     <TableHead>LAST UPDATE BY</TableHead>
                                     <TableHead>CREATED BY</TableHead>
@@ -309,7 +432,7 @@ import React, { useState, useMemo, useEffect } from 'react';
                             <TableBody>
                                 {filteredTasks.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={6} className="text-center py-8">
+                                        <TableCell colSpan={5} className="text-center py-8">
                                             <p className="text-gray-400">No tasks found. {tasks.length === 0 ? 'Create your first task to get started!' : 'Try adjusting your filters.'}</p>
                                         </TableCell>
                                     </TableRow>
@@ -348,7 +471,7 @@ import React, { useState, useMemo, useEffect } from 'react';
                                         const badgeClassName = stageColor ? '' : `inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-medium w-fit ${
                                             statusName === 'Assigned' ? 'bg-orange-500/20 text-orange-300 border-orange-500/50' :
                                             statusName === 'In Progress' ? 'bg-blue-500/20 text-blue-300 border-blue-500/50' :
-                                            statusName === 'Completed' ? 'bg-green-500/20 text-green-300 border-green-500/50' :
+                                            statusName === 'Completed' ? 'bg-blue-500/20 text-blue-300 border-blue-500/50' :
                                             'bg-gray-500/20 text-gray-300 border-gray-500/50'
                                         }`;
                                         
@@ -380,17 +503,6 @@ import React, { useState, useMemo, useEffect } from 'react';
                                                     </div>
                                                 </TableCell>
                                                 
-                                                {/* STATUS */}
-                                                <TableCell>
-                                                    <Badge 
-                                                        variant="outline" 
-                                                        className={badgeClassName}
-                                                        style={badgeStyle}
-                                                    >
-                                                        {statusName}
-                                                    </Badge>
-                                                </TableCell>
-                                                
                                                 {/* TASK DETAILS */}
                                                 <TableCell>
                                                     <div className="flex flex-col gap-1">
@@ -400,6 +512,13 @@ import React, { useState, useMemo, useEffect } from 'react';
                                                                 {format(new Date(task.due_date), 'dd-MM-yyyy')} {task.due_time || (task.target_date ? format(new Date(task.target_date), 'hh:mm a') : (task.updated_at ? format(new Date(task.updated_at), 'hh:mm a') : '12:00 PM'))}
                                                             </span>
                                                         )}
+                                                        <Badge 
+                                                            variant="outline" 
+                                                            className={badgeClassName}
+                                                            style={badgeStyle}
+                                                        >
+                                                            {statusName}
+                                                        </Badge>
                                                     </div>
                                                 </TableCell>
                                                 
@@ -442,7 +561,7 @@ import React, { useState, useMemo, useEffect } from 'react';
                                                     <div className="flex flex-col gap-1">
                                                         <span className="text-sm text-white">{assignedToInfo.name}</span>
                                                         {task.due_date && (
-                                                            <Badge variant="outline" className="bg-green-500/20 text-green-300 border-green-500/50 text-xs w-fit italic">
+                                                            <Badge variant="outline" className="bg-blue-500/20 text-blue-300 border-blue-500/50 text-xs w-fit italic">
                                                                 {formatTimeUntil(task.due_date)}
                                                             </Badge>
                                                         )}

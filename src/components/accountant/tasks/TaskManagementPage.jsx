@@ -333,6 +333,7 @@
                                 onDeleteTask={handleDeleteTask}
                                 onViewTask={handleViewTask}
                                 onRefresh={fetchData}
+                                currentUserId={user?.id}
                             />
                         </motion.div>
                     );
