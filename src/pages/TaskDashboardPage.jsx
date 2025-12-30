@@ -1883,15 +1883,15 @@ const TaskDashboardPage = () => {
                                                                             ) : comment.attachment_type?.includes('excel') || comment.attachment_type?.includes('spreadsheet') || comment.attachment_url.match(/\.(xls|xlsx)$/i) ? (
                                                                                 <FileText className="w-8 h-8 text-blue-500" />
                                                                             ) : (
-                                                                                    <FileText className="w-8 h-8 text-gray-400" />
+                                                                                <FileText className="w-8 h-8 text-gray-400" />
                                                                             )}
                                                                         </div>
                                                                         <div className="flex-1 min-w-0">
-                                                                                <p className="text-sm font-medium text-white truncate">
+                                                                            <p className="text-sm font-medium text-white truncate">
                                                                                 {comment.attachment_name || 'Attachment'}
                                                                             </p>
                                                                             {comment.attachment_type && (
-                                                                                    <p className="text-xs text-gray-400">
+                                                                                <p className="text-xs text-gray-400">
                                                                                     {comment.attachment_type.split('/')[1]?.toUpperCase() || 'FILE'}
                                                                                 </p>
                                                                             )}

@@ -451,7 +451,7 @@
                         <DialogHeader className="text-left">
                             <DialogTitle className="text-left">{editingTask ? 'Edit Task' : 'Create New Task'}</DialogTitle>
                         </DialogHeader>
-                        <NewTaskForm 
+                        <NewTaskForm
                             onSave={handleSaveTask} 
                             onCancel={handleCloseTaskDialog}
                             clients={clients}
