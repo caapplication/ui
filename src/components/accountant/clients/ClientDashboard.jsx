@@ -156,8 +156,8 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
         'Details',
         'Services',
         'Passwords',
-        `Users (${(client.orgUsers?.invited_users?.length || 0) + (client.orgUsers?.joined_users?.length || 0)})`,
-        `Team Members (${teamMembers?.length || 0})`,
+        `Client User (${(client.orgUsers?.invited_users?.length || 0) + (client.orgUsers?.joined_users?.length || 0)})`,
+        `MyTeam (${teamMembers?.length || 0})`,
         `Entities (${client.entities?.length || 0})`,
         'Activity Log'
     ];
@@ -261,10 +261,10 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
                     </div>
                 );
             default:
-                if (activeSubTab.startsWith('Users')) {
+                if (activeSubTab.startsWith('Client User')) {
                     return <ClientUsersTab client={client} />;
                 }
-                if (activeSubTab.startsWith('Team Members')) {
+                if (activeSubTab.startsWith('MyTeam')) {
                     return <ClientTeamMembersTab client={client} teamMembers={teamMembers} />;
                 }
                 if (activeSubTab.startsWith('Entities')) {
@@ -367,7 +367,6 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
                         <ArrowLeft className="w-5 h-5" />
                     </Button>
                     <h1 className="text-2xl font-bold text-white">
-                        <span className="text-gray-400 cursor-pointer hover:underline" onClick={onBack}>Clients / </span>
                         {client.name}
                     </h1>
                 </div>
@@ -425,7 +424,7 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
                                 </Avatar>
                             </div>
                             <h2 className="text-xl font-semibold text-white">{client.name}</h2>
-                            <p className="text-gray-400">File No.: {client.file_no || 'N/A'}</p>
+                            <p className="text-gray-400">Customer No.: {client.customer_id || 'N/A'}</p>
 
                             {/* Users section removed as per user request */}
                         </div>

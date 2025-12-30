@@ -177,8 +177,13 @@ const ClientDashboardDetails = ({ client, teamMembers = [], onUpdateClient, onTe
                     </DetailItem>
                     <DetailItem label="Type" value={client.client_type} />
                     <DetailItem label="Contact Person" value={client.contact_person_name || 'N/A'} />
-                    <DetailItem label="Date of Birth" value={client.dob || client.date_of_birth ? format(new Date(client.dob || client.date_of_birth), 'dd-MM-yyyy') : 'N/A'} />
+                    <DetailItem label="Date of Establishment" value={client.dob || client.date_of_birth ? format(new Date(client.dob || client.date_of_birth), 'dd-MM-yyyy') : 'N/A'} />
                     <DetailItem label="PAN" value={client.pan || 'N/A'} />
+                    <DetailItem label="Organization" value={client.organization_name || 'N/A'} />
+                    <DetailItem label="GSTIN" value={client.gstin || 'N/A'} />
+                    <DetailItem label="Secondary Phone" value={client.secondary_phone || 'N/A'} />
+                    <DetailItem label="Address Line 1" value={client.address_line1 || 'N/A'} />
+                    <DetailItem label="Address Line 2" value={client.address_line2 || 'N/A'} />
                     <DetailItem label="Mobile No.">
                         <div className="flex items-center gap-2">
                             {client.mobile || 'N/A'}
