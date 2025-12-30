@@ -625,7 +625,7 @@ const TaskKanbanView = forwardRef(({
                             <div
                                 key={stage.id}
                                 className="flex-shrink-0 w-80 flex flex-col"
-                                style={{ height: 'calc(100vh)', maxHeight: 'calc(100vh - 130px)' }}
+                                style={{ height: 'calc(100vh)', maxHeight: 'calc(100vh - 100px)' }}
                                 onDragOver={handleDragOver}
                                 onDrop={(e) => handleDrop(e, stage.id)}
                             >
