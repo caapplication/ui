@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth.jsx';
 import { useSocket } from '@/contexts/SocketContext.jsx';
 import { useOrganisation } from '@/hooks/useOrganisation';
 import { getTaskDetails, startTaskTimer, stopTaskTimer, getTaskHistory, /* addTaskSubtask, updateTaskSubtask, deleteTaskSubtask, */ updateTask, listClients, listServices, listTeamMembers, listTaskComments, createTaskComment, updateTaskComment, deleteTaskComment, addTaskCollaborator, removeTaskCollaborator, getTaskCollaborators, getCommentReadReceipts, requestTaskClosure, getClosureRequest, reviewClosureRequest, listTaskStages } from '@/lib/api';
+import { listOrgUsers } from '@/lib/api/organisation';
 import * as pdfjsLib from 'pdfjs-dist';
 import { useToast } from '@/components/ui/use-toast';
 import { Loader2, ArrowLeft, Paperclip, Clock, Calendar as CalendarIcon, User, Tag, Flag, CheckCircle, FileText, List, MessageSquare, Briefcase, Users, Play, Square, History, Plus, Trash2, Send, Edit2, Bell, UserPlus, X, Download, Image as ImageIcon, Eye, Maximize2, Repeat, LayoutGrid, CheckCircle2, XCircle } from 'lucide-react';
@@ -102,6 +103,7 @@ const TaskDashboardPage = () => {
     const [clients, setClients] = useState([]);
     const [services, setServices] = useState([]);
     const [teamMembers, setTeamMembers] = useState([]);
+    const [orgUsers, setOrgUsers] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSendingComment, setIsSendingComment] = useState(false);
     const [loadingImages, setLoadingImages] = useState(new Set());
@@ -159,6 +161,8 @@ const TaskDashboardPage = () => {
         recurrence_day_of_month: null,
         recurrence_start_date: null
     });
+    const [showCloseConfirmationDialog, setShowCloseConfirmationDialog] = useState(false);
+    const [pendingCloseStageId, setPendingCloseStageId] = useState(null);
 
     const fetchCollaborators = useCallback(async () => {
         if (!user?.access_token || !taskId) return;
@@ -203,10 +207,11 @@ const TaskDashboardPage = () => {
         const loadRelatedData = async () => {
             try {
                 const agencyId = user?.agency_id || null;
-                const [clientsData, servicesData, teamData] = await Promise.allSettled([
+                const [clientsData, servicesData, teamData, orgUsersData] = await Promise.allSettled([
                     clients.length === 0 ? listClients(agencyId, user.access_token).catch(() => ({ status: 'rejected' })) : Promise.resolve({ status: 'fulfilled', value: clients }),
                     services.length === 0 ? listServices(agencyId, user.access_token).catch(() => ({ status: 'rejected' })) : Promise.resolve({ status: 'fulfilled', value: services }),
                     teamMembers.length === 0 ? listTeamMembers(user.access_token).catch(() => ({ status: 'rejected' })) : Promise.resolve({ status: 'fulfilled', value: teamMembers }),
+                    (selectedOrg && orgUsers.length === 0 && (user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM')) ? listOrgUsers(selectedOrg, user.access_token).catch(() => ({ status: 'rejected' })) : Promise.resolve({ status: 'fulfilled', value: orgUsers }),
                 ]);
 
                 if (clientsData.status === 'fulfilled' && clients.length === 0) {
@@ -221,6 +226,19 @@ const TaskDashboardPage = () => {
                     const teamList = Array.isArray(teamData.value) ? teamData.value : (teamData.value?.items || []);
                     setTeamMembers(teamList);
                 }
+                if (orgUsersData.status === 'fulfilled' && orgUsers.length === 0 && selectedOrg) {
+                    const orgUsersResponse = orgUsersData.value;
+                    const invitedUsers = Array.isArray(orgUsersResponse?.invited_users) ? orgUsersResponse.invited_users : [];
+                    const joinedUsers = Array.isArray(orgUsersResponse?.joined_users) ? orgUsersResponse.joined_users : [];
+                    const allOrgUsers = [...invitedUsers, ...joinedUsers].map(orgUser => ({
+                        id: orgUser.id || orgUser.user_id,
+                        user_id: orgUser.id || orgUser.user_id,
+                        name: orgUser.name || orgUser.full_name || `${orgUser.first_name || ''} ${orgUser.last_name || ''}`.trim() || orgUser.email,
+                        email: orgUser.email || orgUser.user_email,
+                        role: orgUser.role || 'N/A'
+                    }));
+                    setOrgUsers(allOrgUsers);
+                }
             } catch (error) {
                 console.error('Error loading related data:', error);
                 // Don't show toast for related data failures - they're not critical
@@ -228,7 +246,7 @@ const TaskDashboardPage = () => {
         };
         
         loadRelatedData();
-    }, [task, user?.agency_id, user?.access_token]);
+    }, [task, user?.agency_id, user?.access_token, selectedOrg, clients.length, services.length, teamMembers.length, orgUsers.length]);
 
     const fetchHistory = useCallback(async () => {
         if (!user?.access_token || !taskId) return;
@@ -1171,6 +1189,24 @@ const TaskDashboardPage = () => {
             }
         }
         
+        // Check organization users if available
+        if (Array.isArray(orgUsers) && orgUsers.length > 0) {
+            const orgUser = orgUsers.find(u => {
+                if (!u) return false;
+                const uUserId = u.user_id ? String(u.user_id).toLowerCase() : '';
+                const uId = u.id ? String(u.id).toLowerCase() : '';
+                const uUserIdStr = String(uUserId || uId).toLowerCase();
+                return uUserId === userIdStr || uId === userIdStr || uUserIdStr === userIdStr;
+            });
+            if (orgUser) {
+                return {
+                    name: orgUser.name || orgUser.email || 'Unknown',
+                    email: orgUser.email || 'N/A',
+                    role: orgUser.role || 'N/A'
+                };
+            }
+        }
+        
         // Check task for created_by_name or updated_by_name if userId matches
         if (task) {
             if (task.created_by && String(task.created_by).toLowerCase() === userIdStr && task.created_by_name) {
@@ -1296,9 +1332,9 @@ const TaskDashboardPage = () => {
             return 'On Review';
         }
         
-        // Map "Complete" or "Completed" to "Complete"
+        // Map "Complete" or "Completed" to "Close"
         if (nameLower === 'complete' || nameLower === 'completed') {
-            return 'Complete';
+            return 'Close';
         }
         
         // Everything else maps to "Open"
@@ -1347,7 +1383,7 @@ const TaskDashboardPage = () => {
             case 'On Review':
                 className = 'bg-blue-500/20 text-blue-300 border-blue-500/50';
                 break;
-            case 'Complete':
+            case 'Close':
                 className = 'bg-blue-500/20 text-blue-300 border-blue-500/50';
                 break;
             case 'Open':
@@ -1436,8 +1472,8 @@ const TaskDashboardPage = () => {
         for (const stage of filteredStages) {
             const displayName = getDisplayStageName(stage.name);
             
-            // Only show: "Open", "On Review", and "Complete"
-            if (displayName !== 'Open' && displayName !== 'On Review' && displayName !== 'Complete') {
+            // Only show: "Open", "On Review", and "Close" (mapped from Complete)
+            if (displayName !== 'Open' && displayName !== 'On Review' && displayName !== 'Close') {
                 continue;
             }
             
@@ -1448,11 +1484,11 @@ const TaskDashboardPage = () => {
             }
         }
         
-        // Sort to ensure consistent order: Open, On Review, Complete
+        // Sort to ensure consistent order: Open, On Review, Close
         return uniqueStages.sort((a, b) => {
             const displayA = getDisplayStageName(a.name);
             const displayB = getDisplayStageName(b.name);
-            const order = { 'Open': 1, 'On Review': 2, 'Complete': 3 };
+            const order = { 'Open': 1, 'On Review': 2, 'Close': 3 };
             return (order[displayA] || 999) - (order[displayB] || 999);
         });
     };
@@ -1466,18 +1502,37 @@ const TaskDashboardPage = () => {
         const selectedStage = stages.find(s => s.id === stageId);
         if (!selectedStage) return;
         
-        // Double-check: non-creators cannot select Complete stage
-        if (!isTaskCreator) {
-            const stageName = (selectedStage.name || '').toLowerCase();
-            if (stageName === 'complete' || stageName === 'completed') {
-                toast({
-                    title: 'Permission Denied',
-                    description: 'Only the task creator can change the stage to Complete.',
-                    variant: 'destructive',
-                });
-                return;
-            }
+        // Check if this is a "Close" stage (Complete/Completed)
+        const stageName = (selectedStage.name || '').toLowerCase();
+        const isCloseStage = stageName === 'complete' || stageName === 'completed';
+        
+        // If it's a Close stage, show confirmation dialog
+        if (isCloseStage) {
+            setPendingCloseStageId(stageId);
+            setShowCloseConfirmationDialog(true);
+            return; // Don't proceed yet, wait for confirmation
         }
+        
+        // Double-check: non-creators cannot select Complete stage (shouldn't reach here if Close is selected)
+        if (!isTaskCreator && isCloseStage) {
+            toast({
+                title: 'Permission Denied',
+                description: 'Only the task creator can change the stage to Close.',
+                variant: 'destructive',
+            });
+            return;
+        }
+        
+        // For non-Close stages, proceed directly
+        await updateStageTo(stageId);
+    };
+
+    // Update stage to the given stageId
+    const updateStageTo = async (stageId) => {
+        if (!stageId || !task) return;
+        
+        const selectedStage = stages.find(s => s.id === stageId);
+        if (!selectedStage) return;
         
         setIsUpdatingStage(true);
         try {
@@ -1506,6 +1561,15 @@ const TaskDashboardPage = () => {
             });
         } finally {
             setIsUpdatingStage(false);
+        }
+    };
+
+    // Handle confirmation to close task
+    const handleConfirmClose = async () => {
+        if (pendingCloseStageId) {
+            await updateStageTo(pendingCloseStageId);
+            setShowCloseConfirmationDialog(false);
+            setPendingCloseStageId(null);
         }
     };
 
@@ -1911,7 +1975,7 @@ const TaskDashboardPage = () => {
                                                         onValueChange={handleStageChange}
                                                         placeholder={displayStatusName || "Select Stage"}
                                                         className="w-[180px]"
-                                                        disabled={isUpdatingStage || displayStatusName === 'Complete' || statusName?.toLowerCase() === 'complete' || statusName?.toLowerCase() === 'completed'}
+                                                        disabled={isUpdatingStage || displayStatusName === 'Close' || statusName?.toLowerCase() === 'complete' || statusName?.toLowerCase() === 'completed'}
                                                         displayValue={(option) => {
                                                             const stage = availableStages.find(s => String(s.id) === String(option.value));
                                                             return getDisplayStageName(stage?.name) || option.label || 'Open';
@@ -2666,6 +2730,36 @@ const TaskDashboardPage = () => {
                                 </>
                             ) : (
                                 'Save'
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Close Task Confirmation Dialog */}
+            <Dialog open={showCloseConfirmationDialog} onOpenChange={setShowCloseConfirmationDialog}>
+                <DialogContent className="glass-pane">
+                    <DialogHeader>
+                        <DialogTitle>Are You Sure You Want To Close This Task?</DialogTitle>
+                        <DialogDescription>
+                            This will mark the task as complete. This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => {
+                            setShowCloseConfirmationDialog(false);
+                            setPendingCloseStageId(null);
+                        }}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleConfirmClose} className="bg-red-500 hover:bg-red-600" disabled={isUpdatingStage}>
+                            {isUpdatingStage ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Closing...
+                                </>
+                            ) : (
+                                'Yes, Close Task'
                             )}
                         </Button>
                     </DialogFooter>
