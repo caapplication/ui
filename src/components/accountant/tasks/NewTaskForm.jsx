@@ -320,21 +320,60 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
         <div className="glass-pane p-6 rounded-lg">
           <h2 className="text-xl font-semibold mb-4 border-b border-white/10 pb-2">Task Details</h2>
           <div className="space-y-6">
-            <div>
-              <Label htmlFor="title">Task Title*</Label>
-              <Input id="title" name="title" placeholder="e.g., File annual tax returns" value={formData.title} onChange={handleChange} required disabled={isSaving} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <Label htmlFor="title">Task Title*</Label>
+                <Input id="title" name="title" placeholder="e.g., File annual tax returns" value={formData.title} onChange={handleChange} required disabled={isSaving} />
+              </div>
+              <div>
+                <Label htmlFor="due_date" className="mb-2">Due Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formData.due_date && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {formData.due_date ? format(formData.due_date, "PPP") : <span>Pick a date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={formData.due_date} onSelect={(d) => handleDateChange('due_date', d)} initialFocus /></PopoverContent>
+                </Popover>
+              </div>
             </div>
+
+            {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
+              <div>
+                <Label htmlFor="client_id" className="mb-2">Client*</Label>
+                <Combobox
+                  options={(clients || []).map(client => ({
+                    value: String(client.id),
+                    label: client.name || 'Unnamed Client'
+                  }))}
+                  value={formData.client_id ? String(formData.client_id) : ''}
+                  onValueChange={(value) => handleSelectChange('client_id', value)}
+                  placeholder="Select a client"
+                  searchPlaceholder="Search clients..."
+                  emptyText="No clients found."
+                  disabled={isSaving}
+                />
+              </div>
+            )}
+
             <div>
-              <Label htmlFor="due_date">Due Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formData.due_date && "text-muted-foreground")}>
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {formData.due_date ? format(formData.due_date, "PPP") : <span>Pick a date</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={formData.due_date} onSelect={(d) => handleDateChange('due_date', d)} initialFocus /></PopoverContent>
-              </Popover>
+              <Label htmlFor="assigned_user_id" className="mb-2">Assign To*</Label>
+              <Combobox
+                options={allUsers.map(user => {
+                  const userId = user.user_id || user.id;
+                  return {
+                    value: String(userId),
+                    label: user.name || user.email || 'Unnamed User'
+                  };
+                })}
+                value={formData.assigned_user_id ? String(formData.assigned_user_id) : ''}
+                onValueChange={(value) => handleSelectChange('assigned_user_id', value)}
+                placeholder="Select a user"
+                searchPlaceholder="Search users..."
+                emptyText="No users found."
+                disabled={isSaving || loadingUsers}
+              />
             </div>
             <div>
               {/* <Label htmlFor="description">Description</Label> */}
@@ -398,11 +437,11 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
               <div className="space-y-2">
                 {formData.checklist_items.map((item, index) => (
                   <div key={index} className="flex items-center gap-3 p-3 rounded-md bg-white/5 border border-white/10">
-                    <Checkbox
+                    {/* <Checkbox
                       checked={item.is_completed || false}
                       onCheckedChange={(checked) => updateChecklistItem(index, 'is_completed', checked)}
                       disabled={isSaving}
-                    />
+                    /> */}
                     <Input
                       value={item.name}
                       onChange={(e) => updateChecklistItem(index, 'name', e.target.value)}
@@ -429,44 +468,13 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
             </>
           )}
         </div>
-
+        {/* 
         <div className="glass-pane p-6 rounded-lg">
           <h2 className="text-xl font-semibold mb-4 border-b border-white/10 pb-2">Assignment & Status</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
-              <div>
-                <Label htmlFor="client_id">Client*</Label>
-                <Combobox
-                  options={(clients || []).map(client => ({
-                    value: String(client.id),
-                    label: client.name || 'Unnamed Client'
-                  }))}
-                  value={formData.client_id ? String(formData.client_id) : ''}
-                  onValueChange={(value) => handleSelectChange('client_id', value)}
-                  placeholder="Select a client"
-                  searchPlaceholder="Search clients..."
-                  emptyText="No clients found."
-                  disabled={isSaving}
-                />
-              </div>
-            )}
+      
             <div>
-              <Label htmlFor="assigned_user_id">Assign To*</Label>
-              <Combobox
-                options={allUsers.map(user => {
-                  const userId = user.user_id || user.id;
-                  return {
-                    value: String(userId),
-                    label: user.name || user.email || 'Unnamed User'
-                  };
-                })}
-                value={formData.assigned_user_id ? String(formData.assigned_user_id) : ''}
-                onValueChange={(value) => handleSelectChange('assigned_user_id', value)}
-                placeholder="Select a user"
-                searchPlaceholder="Search users..."
-                emptyText="No users found."
-                disabled={isSaving || loadingUsers}
-              />
+            
             </div>
             <div>
               <Label htmlFor="priority">Priority</Label>
@@ -496,7 +504,7 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
               </Select>
             </div>
           </div>
-        </div>
+        </div> */}
 
         <div className="glass-pane p-6 rounded-lg">
           <div className="flex items-center space-x-2 mb-4">
@@ -513,7 +521,7 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
 
           {formData.is_recurring && (
             <div className="space-y-4 mt-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1  gap-4">
                 <div>
                   <Label htmlFor="recurrence_frequency">Frequency</Label>
                   <Select
@@ -549,7 +557,7 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="recurrence_start_date">Start Date</Label>
+                  {/* <Label htmlFor="recurrence_start_date">Start Date</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formData.recurrence_start_date && "text-muted-foreground")}>
@@ -565,7 +573,7 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
                         initialFocus
                       />
                     </PopoverContent>
-                  </Popover>
+                  </Popover> */}
                 </div>
               </div>
 

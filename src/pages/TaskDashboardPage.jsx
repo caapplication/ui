@@ -23,15 +23,15 @@ import { Calendar } from '@/components/ui/calendar';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
     Dialog,
@@ -203,7 +203,7 @@ const TaskDashboardPage = () => {
     // Lazy load clients, services, and team members only when task is loaded and we need them
     useEffect(() => {
         if (!task || !user?.access_token) return;
-        
+
         const loadRelatedData = async () => {
             try {
                 const agencyId = user?.agency_id || null;
@@ -244,7 +244,7 @@ const TaskDashboardPage = () => {
                 // Don't show toast for related data failures - they're not critical
             }
         };
-        
+
         loadRelatedData();
     }, [task, user?.agency_id, user?.access_token, selectedOrg, clients.length, services.length, teamMembers.length, orgUsers.length]);
 
@@ -380,28 +380,28 @@ const TaskDashboardPage = () => {
                     if (pdfBlobUrlRef.current) {
                         URL.revokeObjectURL(pdfBlobUrlRef.current);
                     }
-                    
+
                     // Fetch PDF as blob
                     const response = await fetch(previewAttachment.url, {
                         method: 'GET',
                     });
-                    
+
                     if (!response.ok) {
                         throw new Error('Failed to fetch PDF');
                     }
-                    
+
                     const blob = await response.blob();
                     const blobUrl = URL.createObjectURL(blob);
                     pdfBlobUrlRef.current = blobUrl;
                     setPdfBlobUrl(blobUrl);
-                    
+
                     // Load PDF with PDF.js
                     const loadingTask = pdfjsLib.getDocument({ url: blobUrl });
                     const pdf = await loadingTask.promise;
                     setPdfDoc(pdf);
                     setTotalPages(pdf.numPages);
                     setCurrentPage(1);
-                    
+
                     // Render first page will be handled by the useEffect below
                 } catch (error) {
                     console.error('Error loading PDF:', error);
@@ -417,7 +417,7 @@ const TaskDashboardPage = () => {
         };
 
         loadPdf();
-        
+
         // Cleanup function
         return () => {
             if (pdfBlobUrlRef.current) {
@@ -430,21 +430,21 @@ const TaskDashboardPage = () => {
     // Render PDF page
     const renderPage = useCallback(async (pdf, pageNum) => {
         if (!pdf || !canvasRef.current) return;
-        
+
         try {
             const page = await pdf.getPage(pageNum);
             const viewport = page.getViewport({ scale: 1.5 });
             const canvas = canvasRef.current;
             const context = canvas.getContext('2d');
-            
+
             canvas.height = viewport.height;
             canvas.width = viewport.width;
-            
+
             const renderContext = {
                 canvasContext: context,
                 viewport: viewport
             };
-            
+
             await page.render(renderContext).promise;
         } catch (error) {
             console.error('Error rendering PDF page:', error);
@@ -762,6 +762,66 @@ const TaskDashboardPage = () => {
         }
     };
 
+    const [draggedChecklistIndex, setDraggedChecklistIndex] = useState(null);
+
+    const handleChecklistDragStart = (e, index) => {
+        setDraggedChecklistIndex(index);
+        e.dataTransfer.effectAllowed = 'move';
+        // HTML5 drag and drop requires data to be set for Firefox
+        e.dataTransfer.setData('text/plain', index);
+    };
+
+    const handleChecklistDragOver = (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+    };
+
+    const handleChecklistDrop = async (e, targetIndex) => {
+        e.preventDefault();
+        if (draggedChecklistIndex === null || draggedChecklistIndex === targetIndex) return;
+
+        // Clone the items array
+        const newItems = [...(task.checklist?.items || [])];
+
+        // Remove the dragged item
+        const [draggedItem] = newItems.splice(draggedChecklistIndex, 1);
+
+        // Insert it at the new position
+        newItems.splice(targetIndex, 0, draggedItem);
+
+        const updatedChecklist = {
+            ...task.checklist,
+            items: newItems
+        };
+
+        // Optimistically update UI
+        setTask({ ...task, checklist: updatedChecklist });
+        setDraggedChecklistIndex(null);
+
+        try {
+            setIsUpdatingChecklist(true);
+            const agencyId = user?.agency_id || null;
+            await updateTask(taskId, { checklist: updatedChecklist }, agencyId, user.access_token);
+
+            // Refresh task to ensure consistency
+            const updatedTask = await getTaskDetails(taskId, agencyId, user.access_token);
+            setTask(updatedTask);
+        } catch (error) {
+            console.error("Failed to reorder checklist:", error);
+            toast({
+                title: "Error reordering checklist",
+                description: "Failed to save the new order. Refreshing...",
+                variant: "destructive"
+            });
+            // Revert by refetching
+            const agencyId = user?.agency_id || null;
+            const originalTask = await getTaskDetails(taskId, agencyId, user.access_token);
+            setTask(originalTask);
+        } finally {
+            setIsUpdatingChecklist(false);
+        }
+    };
+
     const handleAddChecklistItem = async () => {
         if (!newChecklistItem.trim() || isAddingChecklistItem) return;
 
@@ -798,11 +858,13 @@ const TaskDashboardPage = () => {
             setShowAddChecklistDialog(false);
             toast({ title: "Checklist Item Added", description: "The checklist item has been added successfully." });
         } catch (error) {
-            toast({ title: "Error adding checklist item", description: error.message, variant: "destructive" });
+            console.error("Error adding checklist item:", error);
+            toast({ title: "Error adding item", description: error.message, variant: "destructive" });
         } finally {
             setIsAddingChecklistItem(false);
         }
     };
+
 
     const handleDeleteChecklistItem = async (itemIndex) => {
         if (!task?.checklist?.items || isUpdatingChecklist) return;
@@ -890,7 +952,7 @@ const TaskDashboardPage = () => {
         try {
             const agencyId = user?.agency_id || null;
             await reviewClosureRequest(taskId, closureRequest.id, status, closureReason, agencyId, user.access_token);
-            
+
             // If approved, set task status to "Complete"
             if (status === 'approved') {
                 // Find the "Complete" stage
@@ -898,12 +960,12 @@ const TaskDashboardPage = () => {
                     const stageName = (s.name || '').toLowerCase();
                     return stageName === 'complete' || stageName === 'completed';
                 });
-                
+
                 if (completeStage) {
                     await updateTask(taskId, { stage_id: completeStage.id }, agencyId, user.access_token);
                 }
             }
-            
+
             toast({
                 title: status === 'approved' ? "Closure Approved" : "Closure Rejected",
                 description: status === 'approved'
@@ -938,37 +1000,37 @@ const TaskDashboardPage = () => {
 
     const handleSendComment = async () => {
         if (isSendingComment) return; // Prevent double submission
-        
+
         const commentText = newComment.trim() || '';
         const fileToSend = selectedFile;
-        
+
         setIsSendingComment(true);
-        
+
         // Don't clear inputs yet - wait for success
-        
+
         try {
             const agencyId = user?.agency_id || null;
-            
+
             // Always use FormData (backend expects Form data)
-                const formData = new FormData();
-                formData.append('message', commentText || '');
+            const formData = new FormData();
+            formData.append('message', commentText || '');
             if (fileToSend) {
                 formData.append('attachment', fileToSend);
             }
             const commentData = formData;
-            
+
             const newCommentData = await createTaskComment(
                 taskId,
                 commentData,
                 agencyId,
                 user.access_token
             );
-            
+
             // Clear inputs only after success
             setNewComment('');
             setSelectedFile(null);
             setFilePreview(null);
-            
+
             setComments([...comments, newCommentData]);
             toast({ title: "Message Sent", description: "Your message has been posted." });
             // Scroll to bottom after sending message
@@ -1001,7 +1063,7 @@ const TaskDashboardPage = () => {
 
     const handleUpdateComment = async (commentId) => {
         if (!editCommentText.trim()) return;
-        
+
         try {
             const agencyId = user?.agency_id || null;
             const updatedComment = await updateTaskComment(
@@ -1030,12 +1092,12 @@ const TaskDashboardPage = () => {
             toast({ title: "Error deleting comment", description: error.message, variant: "destructive" });
         }
     };
-    
+
     const renderHistoryItem = (item) => {
         let eventText = item.action || `Task ${item.event_type?.replace(/_/g, ' ') || 'activity'}`;
         let EventIcon = History;
         let eventColor = "text-primary";
-        
+
         // Customize display based on event type
         switch (item.event_type) {
             case 'task_created':
@@ -1116,7 +1178,7 @@ const TaskDashboardPage = () => {
                 <div className="flex-1">
                     <p className="text-sm text-white font-medium">{eventText}</p>
                     <div className="flex items-center gap-2 mt-1">
-                    <p className="text-xs text-gray-400">{format(new Date(item.created_at), 'dd MMM yyyy, HH:mm')}</p>
+                        <p className="text-xs text-gray-400">{format(new Date(item.created_at), 'dd MMM yyyy, HH:mm')}</p>
                         <span className="text-xs text-gray-500">•</span>
                         <p className="text-xs text-white">by {activityCreator.name}</p>
                     </div>
@@ -1136,8 +1198,8 @@ const TaskDashboardPage = () => {
     if (!task) {
         return (
             <div className="flex flex-col items-center justify-center h-screen bg-transparent text-white">
-               <p className="mb-4">Could not load task details.</p>
-               <Button onClick={() => navigate(-1)}>Go Back</Button>
+                <p className="mb-4">Could not load task details.</p>
+                <Button onClick={() => navigate(-1)}>Go Back</Button>
             </div>
         );
     }
@@ -1157,7 +1219,7 @@ const TaskDashboardPage = () => {
 
     const getUserInfo = (userId) => {
         if (!userId) return { name: 'N/A', email: 'N/A', role: 'N/A' };
-        
+
         // First check if it's the current user
         const userIdStr = String(userId).toLowerCase();
         const currentUserIdStr = user?.id ? String(user.id).toLowerCase() : '';
@@ -1168,27 +1230,27 @@ const TaskDashboardPage = () => {
                 role: user.role || 'N/A'
             };
         }
-        
+
         // Then check teamMembers if available
         if (Array.isArray(teamMembers) && teamMembers.length > 0) {
-        const member = teamMembers.find(m => {
-            if (!m) return false;
+            const member = teamMembers.find(m => {
+                if (!m) return false;
                 // Try multiple field combinations
-            const mUserId = m.user_id ? String(m.user_id).toLowerCase() : '';
-            const mId = m.id ? String(m.id).toLowerCase() : '';
+                const mUserId = m.user_id ? String(m.user_id).toLowerCase() : '';
+                const mId = m.id ? String(m.id).toLowerCase() : '';
                 const mUserIdStr = String(mUserId || mId).toLowerCase();
                 return mUserId === userIdStr || mId === userIdStr || mUserIdStr === userIdStr;
-        });
+            });
             if (member) {
                 const memberName = member.name || member.full_name || member.display_name || member.email || 'Unknown';
-        return {
+                return {
                     name: memberName,
-            email: member.email || 'N/A',
-            role: member.role || member.department || 'N/A'
-        };
+                    email: member.email || 'N/A',
+                    role: member.role || member.department || 'N/A'
+                };
             }
         }
-        
+
         // Check organization users if available
         if (Array.isArray(orgUsers) && orgUsers.length > 0) {
             const orgUser = orgUsers.find(u => {
@@ -1206,7 +1268,7 @@ const TaskDashboardPage = () => {
                 };
             }
         }
-        
+
         // Check task for created_by_name or updated_by_name if userId matches
         if (task) {
             if (task.created_by && String(task.created_by).toLowerCase() === userIdStr && task.created_by_name) {
@@ -1224,7 +1286,7 @@ const TaskDashboardPage = () => {
                 };
             }
         }
-        
+
         // Last resort: return Unknown instead of N/A
         return { name: 'Unknown', email: 'N/A', role: 'N/A' };
     };
@@ -1244,13 +1306,13 @@ const TaskDashboardPage = () => {
             const diffMs = now - date;
             const diffHours = diffMs / (1000 * 60 * 60);
             const diffDays = diffHours / 24;
-            
+
             if (diffHours <= 24) {
-                return 'bg-blue-500/20 text-blue-300 border-blue-500/50'; // Blue for within 24 hours
+                return 'bg-green-500/20 text-green-300 border-green-500/50'; // Green for within 24 hours
             } else if (diffDays <= 7) {
-                return 'bg-red-500/20 text-red-300 border-red-500/50'; // Red for more than 24 hours but less than 7 days
+                return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/50'; // Yellow for < 7 days
             } else {
-                return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/50'; // Yellow for more than 7 days
+                return 'bg-red-500/20 text-red-300 border-red-500/50'; // Red for more than 7 days
             }
         } catch {
             return 'bg-gray-500/20 text-gray-300 border-gray-500/50';
@@ -1272,7 +1334,7 @@ const TaskDashboardPage = () => {
             const diffMins = Math.floor(diffMs / 60000);
             const diffHours = Math.floor(diffMs / 3600000);
             const diffDays = Math.floor(diffMs / 86400000);
-            
+
             if (diffMins < 1) return 'Just now';
             if (diffMins < 60) return `${diffMins} ${diffMins === 1 ? 'min' : 'mins'} ago`;
             if (diffHours < 24) return `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
@@ -1292,7 +1354,7 @@ const TaskDashboardPage = () => {
             const diffMins = Math.floor(diffMs / 60000);
             const diffHours = Math.floor(diffMs / 3600000);
             const diffDays = Math.floor(diffMs / 86400000);
-            
+
             if (diffMins < 0) return 'Overdue';
             if (diffMins < 1) return 'Due now';
             if (diffMins < 60) return `In ${diffMins} ${diffMins === 1 ? 'min' : 'mins'}`;
@@ -1326,17 +1388,17 @@ const TaskDashboardPage = () => {
     const getDisplayStageName = (stageName) => {
         if (!stageName) return 'Open';
         const nameLower = stageName.toLowerCase();
-        
+
         // Map "In Progress" to "On Review"
         if (nameLower === 'in progress' || nameLower === 'in-progress') {
             return 'On Review';
         }
-        
+
         // Map "Complete" or "Completed" to "Close"
         if (nameLower === 'complete' || nameLower === 'completed') {
             return 'Close';
         }
-        
+
         // Everything else maps to "Open"
         return 'Open';
     };
@@ -1345,21 +1407,21 @@ const TaskDashboardPage = () => {
     const getActualStageName = (displayName) => {
         if (!displayName) return null;
         const displayLower = displayName.toLowerCase();
-        
+
         if (displayLower === 'on review') {
             return 'In Progress';
         }
-        
+
         if (displayLower === 'complete') {
             return 'Complete';
         }
-        
+
         if (displayLower === 'open') {
             // For "Open", we need to find a stage that's not "In Progress" or "Complete"
             // This will be handled by finding the matching stage
             return null;
         }
-        
+
         return displayName;
     };
 
@@ -1377,7 +1439,7 @@ const TaskDashboardPage = () => {
         const statusName = getStatusName(task);
         const displayName = getDisplayStageName(statusName);
         let className = '';
-        
+
         // Use display name for color mapping on task detail page
         switch (displayName) {
             case 'On Review':
@@ -1450,13 +1512,13 @@ const TaskDashboardPage = () => {
 
     // Check if current user is the task creator
     const isTaskCreator = task.created_by && String(task.created_by) === String(user?.id);
-    
+
     // Filter stages based on user role and deduplicate by display name
     const getAvailableStages = () => {
         if (!stages || stages.length === 0) return [];
-        
+
         let filteredStages = stages;
-        
+
         // If user is not creator, filter out "Complete" and "Completed" stages
         if (!isTaskCreator) {
             filteredStages = stages.filter(stage => {
@@ -1464,26 +1526,26 @@ const TaskDashboardPage = () => {
                 return stageName !== 'complete' && stageName !== 'completed';
             });
         }
-        
+
         // Deduplicate stages by display name (group by display name, keep first occurrence)
         const seenDisplayNames = new Set();
         const uniqueStages = [];
-        
+
         for (const stage of filteredStages) {
             const displayName = getDisplayStageName(stage.name);
-            
+
             // Only show: "Open", "On Review", and "Close" (mapped from Complete)
             if (displayName !== 'Open' && displayName !== 'On Review' && displayName !== 'Close') {
                 continue;
             }
-            
+
             // If we haven't seen this display name, add it
             if (!seenDisplayNames.has(displayName)) {
                 seenDisplayNames.add(displayName);
                 uniqueStages.push(stage);
             }
         }
-        
+
         // Sort to ensure consistent order: Open, On Review, Close
         return uniqueStages.sort((a, b) => {
             const displayA = getDisplayStageName(a.name);
@@ -1498,21 +1560,21 @@ const TaskDashboardPage = () => {
     // Handle stage change
     const handleStageChange = async (stageId) => {
         if (!stageId || !task) return;
-        
+
         const selectedStage = stages.find(s => s.id === stageId);
         if (!selectedStage) return;
-        
+
         // Check if this is a "Close" stage (Complete/Completed)
         const stageName = (selectedStage.name || '').toLowerCase();
         const isCloseStage = stageName === 'complete' || stageName === 'completed';
-        
+
         // If it's a Close stage, show confirmation dialog
         if (isCloseStage) {
             setPendingCloseStageId(stageId);
             setShowCloseConfirmationDialog(true);
             return; // Don't proceed yet, wait for confirmation
         }
-        
+
         // Double-check: non-creators cannot select Complete stage (shouldn't reach here if Close is selected)
         if (!isTaskCreator && isCloseStage) {
             toast({
@@ -1522,7 +1584,7 @@ const TaskDashboardPage = () => {
             });
             return;
         }
-        
+
         // For non-Close stages, proceed directly
         await updateStageTo(stageId);
     };
@@ -1530,23 +1592,23 @@ const TaskDashboardPage = () => {
     // Update stage to the given stageId
     const updateStageTo = async (stageId) => {
         if (!stageId || !task) return;
-        
+
         const selectedStage = stages.find(s => s.id === stageId);
         if (!selectedStage) return;
-        
+
         setIsUpdatingStage(true);
         try {
             const agencyId = user?.agency_id || null;
             await updateTask(taskId, { stage_id: stageId }, agencyId, user.access_token);
-            
+
             // Refresh task data
             const updatedTask = await getTaskDetails(taskId, agencyId, user.access_token);
             setTask(updatedTask);
-            
+
             // Refresh history
             const updatedHistory = await getTaskHistory(taskId, agencyId, user.access_token);
             setHistory(updatedHistory);
-            
+
             // Show display name in toast
             const displayName = getDisplayStageName(selectedStage.name);
             toast({
@@ -1586,13 +1648,13 @@ const TaskDashboardPage = () => {
             const agencyId = user?.agency_id || null;
             const dueDateStr = editingDueDate ? format(editingDueDate, 'yyyy-MM-dd') : null;
             await updateTask(taskId, { due_date: dueDateStr }, agencyId, user.access_token);
-            
+
             const updatedTask = await getTaskDetails(taskId, agencyId, user.access_token);
             setTask(updatedTask);
-            
+
             const updatedHistory = await getTaskHistory(taskId, agencyId, user.access_token);
             setHistory(updatedHistory);
-            
+
             toast({
                 title: 'Due Date Updated',
                 description: 'Task due date has been updated successfully.',
@@ -1628,10 +1690,10 @@ const TaskDashboardPage = () => {
     // Format recurring details
     const formatRecurringDetails = () => {
         if (!task?.is_recurring) return null;
-        
+
         const frequency = task.recurrence_frequency || 'weekly';
         const details = [];
-        
+
         if (frequency === 'daily' && task.recurrence_time) {
             details.push(`Daily at ${task.recurrence_time}`);
         } else if (frequency === 'weekly' && task.recurrence_day_of_week !== null) {
@@ -1645,11 +1707,11 @@ const TaskDashboardPage = () => {
         } else {
             details.push(frequency.charAt(0).toUpperCase() + frequency.slice(1));
         }
-        
+
         if (task.recurrence_start_date) {
             details.push(`Starting ${format(new Date(task.recurrence_start_date), 'MMM dd, yyyy')}`);
         }
-        
+
         return details.join(' • ');
     };
 
@@ -1690,15 +1752,15 @@ const TaskDashboardPage = () => {
                 recurrence_day_of_month: recurringFormData.is_recurring && ['quarterly', 'half_yearly'].includes(recurringFormData.recurrence_frequency) ? recurringFormData.recurrence_day_of_month : null,
                 recurrence_start_date: recurringFormData.is_recurring && recurringFormData.recurrence_start_date ? format(recurringFormData.recurrence_start_date, 'yyyy-MM-dd') : null
             };
-            
+
             await updateTask(taskId, updateData, agencyId, user.access_token);
-            
+
             const updatedTask = await getTaskDetails(taskId, agencyId, user.access_token);
             setTask(updatedTask);
-            
+
             const updatedHistory = await getTaskHistory(taskId, agencyId, user.access_token);
             setHistory(updatedHistory);
-            
+
             toast({
                 title: 'Recurring Details Updated',
                 description: 'Task recurring schedule has been updated successfully.',
@@ -1716,10 +1778,10 @@ const TaskDashboardPage = () => {
     };
 
     // Get user info for display
-    const createdByInfo = task?.created_by_name 
+    const createdByInfo = task?.created_by_name
         ? { name: task.created_by_name, email: 'N/A', role: task.created_by_role || getUserInfo(task.created_by).role || 'N/A' }
         : getUserInfo(task?.created_by);
-    const updatedByInfo = task?.updated_by_name 
+    const updatedByInfo = task?.updated_by_name
         ? { name: task.updated_by_name, email: 'N/A', role: task.updated_by_role || getUserInfo(task?.updated_by || task?.created_by).role || 'N/A' }
         : getUserInfo(task?.updated_by || task?.created_by);
     const assignedToInfo = getUserInfo(task?.assigned_to);
@@ -1756,7 +1818,7 @@ const TaskDashboardPage = () => {
                 displayOrgName = entity.name;
             }
         }
-        
+
         // If no entity selected, try to get organization name
         if (!displayOrgName && selectedOrg && organisations?.length > 0) {
             const org = organisations.find(o => {
@@ -1798,12 +1860,12 @@ const TaskDashboardPage = () => {
                         // Check if task is not completed (check both status and statusName)
                         const taskStatusLower = task.status?.toLowerCase() || '';
                         const statusNameLower = statusName?.toLowerCase() || '';
-                        const isNotCompleted = taskStatusLower !== 'completed' && 
-                                              statusNameLower !== 'complete' &&
-                                              statusNameLower !== 'completed';
+                        const isNotCompleted = taskStatusLower !== 'completed' &&
+                            statusNameLower !== 'complete' &&
+                            statusNameLower !== 'completed';
                         // Check if there's no pending closure request
                         const noPendingRequest = !closureRequest || closureRequest?.status !== 'pending';
-                        
+
                         // Debug logging
                         console.log('Close Button Visibility Check:', {
                             isAssignedUser,
@@ -1815,25 +1877,25 @@ const TaskDashboardPage = () => {
                             statusNameLower,
                             closureRequestStatus: closureRequest?.status
                         });
-                        
+
                         return isAssignedUser && isNotCompleted && noPendingRequest;
                     })() && (
-                        <Button 
-                            onClick={() => setShowClosureRequestDialog(true)}
-                            variant="outline"
-                            size="default"
-                            className="bg-red-500/20 text-red-300 border-red-500/50 hover:bg-red-500/30"
-                        >
-                            <XCircle className="w-4 h-4 mr-2" />
-                            Close
-                        </Button>
-                    )}
+                            <Button
+                                onClick={() => setShowClosureRequestDialog(true)}
+                                variant="outline"
+                                size="default"
+                                className="bg-red-500/20 text-red-300 border-red-500/50 hover:bg-red-500/30"
+                            >
+                                <XCircle className="w-4 h-4 mr-2" />
+                                Close
+                            </Button>
+                        )}
                     {/* Closure Request Review - Show for task creator if pending request exists */}
                     {task.created_by && String(task.created_by) === String(user?.id) && closureRequest?.status === 'pending' && (
-                        <Button 
+                        <Button
                             onClick={() => setShowClosureReviewDialog(true)}
                             variant="outline"
-                            size="default" 
+                            size="default"
                             className="bg-yellow-500/20 text-yellow-300 border-yellow-500/50 hover:bg-yellow-500/30"
                         >
                             <CheckCircle2 className="w-4 h-4 mr-2" />
@@ -1842,7 +1904,7 @@ const TaskDashboardPage = () => {
                     )}
                     {/* Show pending status if request is pending and user is assignee */}
                     {task.assigned_to && String(task.assigned_to) === String(user?.id) && closureRequest?.status === 'pending' && (
-                        <Button 
+                        <Button
                             variant="outline"
                             size="default"
                             disabled
@@ -1891,11 +1953,11 @@ const TaskDashboardPage = () => {
                                                 ? 'text-purple-600 dark:text-purple-400'
                                                 : 'text-white'
                                                 }`}>
-                                            {displayTaskId}
+                                                {displayTaskId}
                                             </span>
                                         </div>
                                     </TableCell>
-                                    
+
                                     {/* TASK DETAILS */}
                                     <TableCell>
                                         <div className="flex flex-col gap-1">
@@ -1907,7 +1969,7 @@ const TaskDashboardPage = () => {
                                             )}
                                         </div>
                                     </TableCell>
-                                    
+
                                     {/* LAST UPDATE BY */}
                                     <TableCell>
                                         <div className="flex flex-col gap-1">
@@ -1924,7 +1986,7 @@ const TaskDashboardPage = () => {
                                             )}
                                         </div>
                                     </TableCell>
-                                    
+
                                     {/* CREATED BY */}
                                     <TableCell>
                                         <div className="flex flex-col gap-1">
@@ -1941,7 +2003,7 @@ const TaskDashboardPage = () => {
                                             )}
                                         </div>
                                     </TableCell>
-                                    
+
                                     {/* ASSIGNED TO */}
                                     <TableCell>
                                         <div className="flex flex-col gap-1">
@@ -1953,7 +2015,7 @@ const TaskDashboardPage = () => {
                                             )}
                                         </div>
                                     </TableCell>
-                                    
+
                                     {/* STATUS */}
                                     <TableCell>
                                         <div className="flex items-center gap-2">
@@ -1964,9 +2026,9 @@ const TaskDashboardPage = () => {
                                                     {isUpdatingStage && (
                                                         <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-lg z-10">
                                                             <Loader2 className="w-4 h-4 animate-spin text-white/70" />
-                            </div>
+                                                        </div>
                                                     )}
-                                    <Combobox
+                                                    <Combobox
                                                         options={availableStages.map(stage => ({
                                                             value: String(stage.id),
                                                             label: getDisplayStageName(stage.name) || 'Open',
@@ -1987,42 +2049,42 @@ const TaskDashboardPage = () => {
                                                         const isAssignedUser = task.assigned_to && String(task.assigned_to) === String(user?.id);
                                                         const taskStatusLower = task.status?.toLowerCase() || '';
                                                         const statusNameLower = statusName?.toLowerCase() || '';
-                                                        const isNotCompleted = taskStatusLower !== 'completed' && 
-                                                                              statusNameLower !== 'complete' &&
-                                                                              statusNameLower !== 'completed';
+                                                        const isNotCompleted = taskStatusLower !== 'completed' &&
+                                                            statusNameLower !== 'complete' &&
+                                                            statusNameLower !== 'completed';
                                                         const noPendingRequest = !closureRequest || closureRequest?.status !== 'pending';
-                                                        
+
                                                         return isAssignedUser && isNotCompleted && noPendingRequest;
                                                     })() && (
-                                                        <Button 
-                                                            onClick={() => setShowClosureRequestDialog(true)}
-                                                            variant="outline"
-                                                            size="sm"
-                                                            className="bg-red-500/20 text-red-300 border-red-500/50 hover:bg-red-500/30"
-                                                            title="Request to complete this task"
-                                                        >
-                                                            <XCircle className="w-4 h-4 mr-1" />
-                                                            Close
-                                                        </Button>
-                                                    )}
-                                </div>
-                            ) : (
-                                                <Badge 
-                                                    variant="outline" 
+                                                            <Button
+                                                                onClick={() => setShowClosureRequestDialog(true)}
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="bg-red-500/20 text-red-300 border-red-500/50 hover:bg-red-500/30"
+                                                                title="Request to complete this task"
+                                                            >
+                                                                <XCircle className="w-4 h-4 mr-1" />
+                                                                Close
+                                                            </Button>
+                                                        )}
+                                                </div>
+                                            ) : (
+                                                <Badge
+                                                    variant="outline"
                                                     className={task.stage?.color ? '' : `inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-medium w-fit ${getStatusColor(task).className || ''}`}
                                                     style={task.stage?.color ? getStatusColor(task) : {}}
                                                 >
                                                     {displayStatusName}
                                                 </Badge>
-                                    )}
-                                </div>
+                                            )}
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                             </TableBody>
                         </Table>
-                        </CardContent>
-                    </Card>
-                </div>
+                    </CardContent>
+                </Card>
+            </div>
 
             <div className="flex-1 min-h-0">
                 {/* 4 Columns, 2 Rows Layout */}
@@ -2039,8 +2101,8 @@ const TaskDashboardPage = () => {
                                 ) : comments.length > 0 ? (
                                     comments.map((comment, index) => {
                                         const isOwnComment = comment.user_id === user?.id || String(comment.user_id) === String(user?.id);
-                                        const commentUser = teamMembers.find(m => 
-                                            m.user_id === comment.user_id || 
+                                        const commentUser = teamMembers.find(m =>
+                                            m.user_id === comment.user_id ||
                                             String(m.user_id) === String(comment.user_id) ||
                                             m.id === comment.user_id ||
                                             String(m.id) === String(comment.user_id)
@@ -2063,25 +2125,25 @@ const TaskDashboardPage = () => {
                                         } else {
                                             timeStr = format(messageDate, 'dd-MM-yyyy, HH:mm');
                                         }
-                                        
+
                                         return (
                                             <div key={comment.id} className={`flex gap-2 ${isOwnComment ? 'flex-row-reverse' : 'flex-row'} ${isGrouped ? 'mt-1' : 'mt-4'}`}>
                                                 {/* Avatar - only show if not grouped */}
                                                 {!isGrouped && (
                                                     <div className={`flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-primary/40 to-primary/60 flex items-center justify-center text-white font-semibold text-sm shadow-lg`}>
-                                                    {(commentUser.name || commentUser.email || 'U').charAt(0).toUpperCase()}
-                                                </div>
+                                                        {(commentUser.name || commentUser.email || 'U').charAt(0).toUpperCase()}
+                                                    </div>
                                                 )}
                                                 {isGrouped && <div className="w-10"></div>}
 
                                                 <div className={`flex-1 ${isOwnComment ? 'flex flex-col items-end' : 'flex flex-col items-start'}`}>
                                                     {/* User name - only show if not grouped */}
                                                     {!isGrouped && (
-                                                    <div className={`mb-1 ${isOwnComment ? 'text-right' : 'text-left'}`}>
+                                                        <div className={`mb-1 ${isOwnComment ? 'text-right' : 'text-left'}`}>
                                                             <span className={`text-sm font-bold ${getUserNameColor(comment.user_id)}`}>
-                                                            {commentUser.name || commentUser.email || 'Unknown'}
-                                                        </span>
-                                                    </div>
+                                                                {commentUser.name || commentUser.email || 'Unknown'}
+                                                            </span>
+                                                        </div>
                                                     )}
 
                                                     {/* Message bubble - WhatsApp style */}
@@ -2091,116 +2153,116 @@ const TaskDashboardPage = () => {
                                                             : (isGrouped ? '2px 7px 7px 7px' : '7px 7px 7px 2px')
                                                     }}>
                                                         <div className="p-2 pb-1">
-                                                        {comment.attachment_url && (
-                                                            <div className="mb-2">
-                                                                {comment.attachment_type?.startsWith('image/') || comment.attachment_url.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ? (
-                                                                    // Image attachment - show inline like WhatsApp
-                                                                    <div className="rounded-lg overflow-hidden relative">
-                                                                        {loadingImages.has(comment.id) && (
-                                                                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10">
-                                                                                <Loader2 className="w-8 h-8 animate-spin text-white" />
-                                                                            </div>
-                                                                        )}
-                                                                        <img 
-                                                                            src={comment.attachment_url} 
-                                                                            alt={comment.attachment_name || "Image"} 
-                                                                            className="max-w-full h-auto rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-                                                                            onClick={() => setPreviewAttachment({
-                                                                                url: comment.attachment_url,
-                                                                                name: comment.attachment_name || 'Image',
-                                                                                type: comment.attachment_type || 'image'
-                                                                            })}
-                                                                            onLoad={() => {
-                                                                                setLoadingImages(prev => {
-                                                                                    const newSet = new Set(prev);
-                                                                                    newSet.delete(comment.id);
-                                                                                    return newSet;
-                                                                                });
-                                                                            }}
-                                                                            onLoadStart={() => {
-                                                                                setLoadingImages(prev => new Set(prev).add(comment.id));
-                                                                            }}
-                                                                            onError={(e) => {
-                                                                                setLoadingImages(prev => {
-                                                                                    const newSet = new Set(prev);
-                                                                                    newSet.delete(comment.id);
-                                                                                    return newSet;
-                                                                                });
-                                                                                e.target.style.display = 'none';
-                                                                                if (e.target.nextSibling) {
-                                                                                    e.target.nextSibling.style.display = 'flex';
-                                                                                }
-                                                                            }}
-                                                                        />
-                                                                        <div className="hidden items-center gap-2 p-3 bg-white/5 rounded-lg">
-                                                                            <ImageIcon className="w-5 h-5 text-gray-400" />
-                                                                            <a 
-                                                                                href={comment.attachment_url} 
-                                                                                download={comment.attachment_name}
-                                                                                target="_blank" 
-                                                                                rel="noopener noreferrer"
-                                                                                className="flex items-center gap-2 text-sm text-primary hover:underline flex-1"
-                                                                            >
-                                                                                <span>{comment.attachment_name || 'Download Image'}</span>
-                                                                                <Download className="w-4 h-4" />
-                                                                            </a>
-                                                                        </div>
-                                                                    </div>
-                                                                ) : (
-                                                                    // Non-image attachment - show download option like WhatsApp
-                                                                        <div className="flex items-center gap-3 p-2 bg-white/5 border border-white/10 rounded-lg">
-                                                                        <div className="flex-shrink-0">
-                                                                            {comment.attachment_type === 'application/pdf' ? (
-                                                                                <FileText className="w-8 h-8 text-red-500" />
-                                                                            ) : comment.attachment_type?.includes('word') || comment.attachment_url.match(/\.(doc|docx)$/i) ? (
-                                                                                <FileText className="w-8 h-8 text-blue-500" />
-                                                                            ) : comment.attachment_type?.includes('excel') || comment.attachment_type?.includes('spreadsheet') || comment.attachment_url.match(/\.(xls|xlsx)$/i) ? (
-                                                                                <FileText className="w-8 h-8 text-blue-500" />
-                                                                            ) : (
-                                                                                <FileText className="w-8 h-8 text-gray-400" />
+                                                            {comment.attachment_url && (
+                                                                <div className="mb-2">
+                                                                    {comment.attachment_type?.startsWith('image/') || comment.attachment_url.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ? (
+                                                                        // Image attachment - show inline like WhatsApp
+                                                                        <div className="rounded-lg overflow-hidden relative">
+                                                                            {loadingImages.has(comment.id) && (
+                                                                                <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10">
+                                                                                    <Loader2 className="w-8 h-8 animate-spin text-white" />
+                                                                                </div>
                                                                             )}
-                                                                        </div>
-                                                                        <div className="flex-1 min-w-0">
-                                                                            <p className="text-sm font-medium text-white truncate">
-                                                                                {comment.attachment_name || 'Attachment'}
-                                                                            </p>
-                                                                            {comment.attachment_type && (
-                                                                                <p className="text-xs text-gray-400">
-                                                                                    {comment.attachment_type.split('/')[1]?.toUpperCase() || 'FILE'}
-                                                                                </p>
-                                                                            )}
-                                                                        </div>
-                                                                        <div className="flex items-center gap-1">
-                                                                            <button
+                                                                            <img
+                                                                                src={comment.attachment_url}
+                                                                                alt={comment.attachment_name || "Image"}
+                                                                                className="max-w-full h-auto rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
                                                                                 onClick={() => setPreviewAttachment({
                                                                                     url: comment.attachment_url,
-                                                                                    name: comment.attachment_name || 'Attachment',
-                                                                                    type: comment.attachment_type
+                                                                                    name: comment.attachment_name || 'Image',
+                                                                                    type: comment.attachment_type || 'image'
                                                                                 })}
-                                                                                className="flex-shrink-0 p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
-                                                                                title="Preview"
-                                                                            >
-                                                                                <Eye className="w-5 h-5 text-white" />
-                                                                            </button>
-                                                                        <a 
-                                                                            href={comment.attachment_url} 
-                                                                            download={comment.attachment_name}
-                                                                            target="_blank" 
-                                                                            rel="noopener noreferrer"
-                                                                                    className="flex-shrink-0 p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
-                                                                            title="Download"
-                                                                        >
-                                                                                    <Download className="w-5 h-5 text-white" />
-                                                                        </a>
+                                                                                onLoad={() => {
+                                                                                    setLoadingImages(prev => {
+                                                                                        const newSet = new Set(prev);
+                                                                                        newSet.delete(comment.id);
+                                                                                        return newSet;
+                                                                                    });
+                                                                                }}
+                                                                                onLoadStart={() => {
+                                                                                    setLoadingImages(prev => new Set(prev).add(comment.id));
+                                                                                }}
+                                                                                onError={(e) => {
+                                                                                    setLoadingImages(prev => {
+                                                                                        const newSet = new Set(prev);
+                                                                                        newSet.delete(comment.id);
+                                                                                        return newSet;
+                                                                                    });
+                                                                                    e.target.style.display = 'none';
+                                                                                    if (e.target.nextSibling) {
+                                                                                        e.target.nextSibling.style.display = 'flex';
+                                                                                    }
+                                                                                }}
+                                                                            />
+                                                                            <div className="hidden items-center gap-2 p-3 bg-white/5 rounded-lg">
+                                                                                <ImageIcon className="w-5 h-5 text-gray-400" />
+                                                                                <a
+                                                                                    href={comment.attachment_url}
+                                                                                    download={comment.attachment_name}
+                                                                                    target="_blank"
+                                                                                    rel="noopener noreferrer"
+                                                                                    className="flex items-center gap-2 text-sm text-primary hover:underline flex-1"
+                                                                                >
+                                                                                    <span>{comment.attachment_name || 'Download Image'}</span>
+                                                                                    <Download className="w-4 h-4" />
+                                                                                </a>
+                                                                            </div>
                                                                         </div>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                        {comment.message && (
+                                                                    ) : (
+                                                                        // Non-image attachment - show download option like WhatsApp
+                                                                        <div className="flex items-center gap-3 p-2 bg-white/5 border border-white/10 rounded-lg">
+                                                                            <div className="flex-shrink-0">
+                                                                                {comment.attachment_type === 'application/pdf' ? (
+                                                                                    <FileText className="w-8 h-8 text-red-500" />
+                                                                                ) : comment.attachment_type?.includes('word') || comment.attachment_url.match(/\.(doc|docx)$/i) ? (
+                                                                                    <FileText className="w-8 h-8 text-blue-500" />
+                                                                                ) : comment.attachment_type?.includes('excel') || comment.attachment_type?.includes('spreadsheet') || comment.attachment_url.match(/\.(xls|xlsx)$/i) ? (
+                                                                                    <FileText className="w-8 h-8 text-blue-500" />
+                                                                                ) : (
+                                                                                    <FileText className="w-8 h-8 text-gray-400" />
+                                                                                )}
+                                                                            </div>
+                                                                            <div className="flex-1 min-w-0">
+                                                                                <p className="text-sm font-medium text-white truncate">
+                                                                                    {comment.attachment_name || 'Attachment'}
+                                                                                </p>
+                                                                                {comment.attachment_type && (
+                                                                                    <p className="text-xs text-gray-400">
+                                                                                        {comment.attachment_type.split('/')[1]?.toUpperCase() || 'FILE'}
+                                                                                    </p>
+                                                                                )}
+                                                                            </div>
+                                                                            <div className="flex items-center gap-1">
+                                                                                <button
+                                                                                    onClick={() => setPreviewAttachment({
+                                                                                        url: comment.attachment_url,
+                                                                                        name: comment.attachment_name || 'Attachment',
+                                                                                        type: comment.attachment_type
+                                                                                    })}
+                                                                                    className="flex-shrink-0 p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+                                                                                    title="Preview"
+                                                                                >
+                                                                                    <Eye className="w-5 h-5 text-white" />
+                                                                                </button>
+                                                                                <a
+                                                                                    href={comment.attachment_url}
+                                                                                    download={comment.attachment_name}
+                                                                                    target="_blank"
+                                                                                    rel="noopener noreferrer"
+                                                                                    className="flex-shrink-0 p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+                                                                                    title="Download"
+                                                                                >
+                                                                                    <Download className="w-5 h-5 text-white" />
+                                                                                </a>
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                            {comment.message && (
                                                                 <p className="text-sm whitespace-pre-wrap break-words leading-relaxed text-white">{comment.message}</p>
-                                                        )}
-                                                    </div>
+                                                            )}
+                                                        </div>
 
                                                         {/* Timestamp and read receipt - bottom right */}
                                                         <div className={`flex items-center justify-end gap-1 px-2 pb-1`}>
@@ -2227,19 +2289,19 @@ const TaskDashboardPage = () => {
                                                                         <TooltipContent
                                                                             side="bottom"
                                                                             align="end"
-                                                                            className="bg-white border border-gray-200 shadow-lg p-0 max-w-xs z-[9999]"
+                                                                            className="bg-slate-900/95 backdrop-blur-md border border-white/10 shadow-xl p-0 max-w-xs z-[9999]"
                                                                             sideOffset={8}
                                                                             alignOffset={-10}
                                                                             onOpenAutoFocus={(e) => e.preventDefault()}
                                                                             collisionPadding={10}
                                                                         >
                                                                             <div className="p-3">
-                                                                                <div className="text-xs font-semibold text-gray-900 mb-2 pb-2 border-b border-gray-200">
+                                                                                <div className="text-xs font-semibold text-white mb-2 pb-2 border-b border-white/10">
                                                                                     Read By
                                                                                 </div>
                                                                                 {isLoadingReadReceipts ? (
                                                                                     <div className="flex justify-center items-center py-4">
-                                                                                        <Loader2 className="w-4 h-4 animate-spin text-gray-500" />
+                                                                                        <Loader2 className="w-4 h-4 animate-spin text-white" />
                                                                                     </div>
                                                                                 ) : readReceipts[comment.id]?.length > 0 ? (
                                                                                     <div className="space-y-2 max-h-64 overflow-y-auto">
@@ -2249,10 +2311,10 @@ const TaskDashboardPage = () => {
                                                                                                     {(receipt.name || receipt.email || 'U').charAt(0).toUpperCase()}
                                                                                                 </div>
                                                                                                 <div className="flex-1 min-w-0">
-                                                                                                    <div className="text-xs font-medium text-gray-900 truncate">
+                                                                                                    <div className="text-xs font-medium text-white truncate">
                                                                                                         {receipt.name || 'Unknown'}
                                                                                                     </div>
-                                                                                                    <div className="text-[10px] text-gray-500 mt-0.5">
+                                                                                                    <div className="text-[10px] text-gray-400 mt-0.5">
                                                                                                         {(() => {
                                                                                                             try {
                                                                                                                 const readDate = new Date(receipt.read_at);
@@ -2273,7 +2335,7 @@ const TaskDashboardPage = () => {
                                                                                         ))}
                                                                                     </div>
                                                                                 ) : (
-                                                                                    <div className="text-xs text-gray-500 py-2">
+                                                                                    <div className="text-xs text-gray-400 py-2">
                                                                                         No one has read this message yet.
                                                                                     </div>
                                                                                 )}
@@ -2316,7 +2378,7 @@ const TaskDashboardPage = () => {
                                     </Button>
                                 </div>
                             )}
-                            
+
                             <div className="flex items-center gap-2 border-t border-white/10 pt-4 pb-2 flex-shrink-0">
                                 <input
                                     type="file"
@@ -2358,8 +2420,8 @@ const TaskDashboardPage = () => {
                                     }}
                                     className="flex-1 bg-white/10 text-white border-2 border-blue-500/50 rounded-full h-10 px-4 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 placeholder:text-gray-400"
                                 />
-                                <Button 
-                                    onClick={handleSendComment} 
+                                <Button
+                                    onClick={handleSendComment}
                                     disabled={isSendingComment}
                                     className="flex-shrink-0 h-10 w-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white p-0"
                                 >
@@ -2375,85 +2437,89 @@ const TaskDashboardPage = () => {
 
                     {/* Checklists - Column 3, Row 1 (col-span-1, row-span-1) - Green Box */}
                     <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col col-span-1 row-span-1 border-2 border-green-500/50" style={{ height: '100%' }}>
-                            <CardHeader className="flex-shrink-0">
-                                <div className="flex items-center justify-between">
-                                    <CardTitle className="flex items-center gap-2">
-                                        <CheckCircle className="w-5 h-5" />
-                                        Checklists
-                                    </CardTitle>
-                                    <Dialog open={showAddChecklistDialog} onOpenChange={setShowAddChecklistDialog}>
-                                        <DialogTrigger asChild>
-                                            <Button variant="ghost" size="sm" className="p-2">
-                                                <Plus className="w-4 h-4" />
+                        <CardHeader className="flex-shrink-0">
+                            <div className="flex items-center justify-between">
+                                <CardTitle className="flex items-center gap-2">
+                                    <CheckCircle className="w-5 h-5" />
+                                    Checklists
+                                </CardTitle>
+                                <Dialog open={showAddChecklistDialog} onOpenChange={setShowAddChecklistDialog}>
+                                    <DialogTrigger asChild>
+                                        <Button variant="ghost" size="sm" className="p-2">
+                                            <Plus className="w-4 h-4" />
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent className="glass-pane">
+                                        <DialogHeader>
+                                            <DialogTitle>Add New Checklist Item</DialogTitle>
+                                            <DialogDescription>Enter the checklist item name below</DialogDescription>
+                                        </DialogHeader>
+                                        <div className="py-4">
+                                            <Input
+                                                placeholder="Add a new checklist item..."
+                                                value={newChecklistItem}
+                                                onChange={(e) => setNewChecklistItem(e.target.value)}
+                                                onKeyPress={(e) => e.key === 'Enter' && !isAddingChecklistItem && handleAddChecklistItem()}
+                                                className="glass-input"
+                                                disabled={isAddingChecklistItem}
+                                            />
+                                        </div>
+                                        <DialogFooter>
+                                            <Button
+                                                variant="ghost"
+                                                onClick={() => {
+                                                    setShowAddChecklistDialog(false);
+                                                    setNewChecklistItem('');
+                                                }}
+                                                disabled={isAddingChecklistItem}
+                                            >
+                                                Cancel
                                             </Button>
-                                        </DialogTrigger>
-                                        <DialogContent className="glass-pane">
-                                            <DialogHeader>
-                                                <DialogTitle>Add New Checklist Item</DialogTitle>
-                                                <DialogDescription>Enter the checklist item name below</DialogDescription>
-                                            </DialogHeader>
-                                            <div className="py-4">
-                                                <Input
-                                                    placeholder="Add a new checklist item..."
-                                                    value={newChecklistItem}
-                                                    onChange={(e) => setNewChecklistItem(e.target.value)}
-                                                    onKeyPress={(e) => e.key === 'Enter' && !isAddingChecklistItem && handleAddChecklistItem()}
-                                                    className="glass-input"
-                                                    disabled={isAddingChecklistItem}
-                                                />
-                                            </div>
-                                            <DialogFooter>
-                                                <Button
-                                                    variant="ghost"
-                                                    onClick={() => {
-                                                        setShowAddChecklistDialog(false);
-                                                        setNewChecklistItem('');
-                                                    }}
-                                                    disabled={isAddingChecklistItem}
-                                                >
-                                                    Cancel
-                                                </Button>
-                                                <Button
-                                                    onClick={handleAddChecklistItem}
-                                                    disabled={!newChecklistItem.trim() || isAddingChecklistItem}
-                                                >
-                                                    {isAddingChecklistItem ? (
-                                                        <>
-                                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                                            Adding...
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <Plus className="w-4 h-4 mr-2" /> Add
-                                                        </>
-                                                    )}
-                                                </Button>
-                                            </DialogFooter>
-                                        </DialogContent>
-                                    </Dialog>
+                                            <Button
+                                                onClick={handleAddChecklistItem}
+                                                disabled={!newChecklistItem.trim() || isAddingChecklistItem}
+                                            >
+                                                {isAddingChecklistItem ? (
+                                                    <>
+                                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                        Adding...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Plus className="w-4 h-4 mr-2" /> Add
+                                                    </>
+                                                )}
+                                            </Button>
+                                        </DialogFooter>
+                                    </DialogContent>
+                                </Dialog>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="flex-1 min-h-0 overflow-hidden">
+                            {isUpdatingChecklist && (
+                                <div className="flex justify-center items-center py-2 mb-2 flex-shrink-0">
+                                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
                                 </div>
-                            </CardHeader>
-                            <CardContent className="flex-1 min-h-0 overflow-hidden">
-                                {isUpdatingChecklist && (
-                                    <div className="flex justify-center items-center py-2 mb-2 flex-shrink-0">
-                                        <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                                    </div>
-                                )}
-                                {task.checklist?.enabled && task.checklist?.items && task.checklist.items.length > 0 ? (
-                                    <div className="space-y-2 h-full overflow-y-auto">
-                                        {[...(task.checklist.items || [])]
-                                            .sort((a, b) => {
-                                                // Sort by created_at descending (newest first), fallback to index if no created_at
-                                                const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
-                                                const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
-                                                return dateB - dateA; // Newest first
-                                            })
-                                            .map((item, index) => {
+                            )}
+                            {task.checklist?.enabled && task.checklist?.items && task.checklist.items.length > 0 ? (
+                                <div className="space-y-2 h-full overflow-y-auto">
+                                    {[...(task.checklist.items || [])]
+                                        .map((item, index) => {
+                                            // draggable related styles and handlers
+                                            const isDragging = draggedChecklistIndex === index;
+
                                             // Use created_by if available, otherwise assigned_to, otherwise task.created_by
                                             const checklistCreatorId = item.created_by || item.assigned_to || task.created_by;
                                             const checklistCreator = getUserInfo(checklistCreatorId);
                                             return (
-                                                <div key={index} className="flex flex-col gap-1 p-2 rounded-md bg-white/5 transition-colors hover:bg-white/10">
+                                                <div
+                                                    key={index}
+                                                    className={`flex flex-col gap-1 p-2 rounded-md bg-white/5 transition-colors hover:bg-white/10 ${isDragging ? 'opacity-50' : ''}`}
+                                                    draggable={!isUpdatingChecklist}
+                                                    onDragStart={(e) => handleChecklistDragStart(e, index)}
+                                                    onDragOver={handleChecklistDragOver}
+                                                    onDrop={(e) => handleChecklistDrop(e, index)}
+                                                >
                                                     <div className="flex items-center gap-3">
                                                         <Checkbox
                                                             id={`checklist-${index}`}
@@ -2488,232 +2554,231 @@ const TaskDashboardPage = () => {
                                                 </div>
                                             );
                                         })}
-                                    </div>
-                                ) : (
-                                    <p className="text-center text-gray-400 py-4">No checklist items yet.</p>
-                                )}
-                            </CardContent>
+                                </div>
+                            ) : (
+                                <p className="text-center text-gray-400 py-4">No checklist items yet.</p>
+                            )}
+                        </CardContent>
                     </Card>
 
                     {/* Due Date & Recurring - Column 3, Row 2 (col-span-1, row-span-1) - Merged Card */}
                     <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col col-span-1 row-span-1 border-2 border-purple-500/50" style={{ height: '100%' }}>
-                            <CardContent className="flex-1 min-h-0 overflow-hidden flex flex-col p-6">
-                                {/* Due Date Section - Top */}
-                                <div className="flex flex-col border-b border-white/10 pb-6 mb-6 flex-1 min-h-0">
-                                    <div className="flex items-center justify-between mb-4 flex-shrink-0">
-                                        <CardTitle className="flex items-center gap-2">
-                                            <CalendarIcon className="w-5 h-5" />
-                                            Due Date
-                                        </CardTitle>
-                                        <Button variant="ghost" size="sm" className="p-2" onClick={handleEditDueDate}>
-                                            <Edit2 className="w-4 h-4" />
-                                        </Button>
-                                    </div>
-                                    <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
-                                        {task?.due_date ? (
-                                            <div className="text-center space-y-2">
-                                                <div className="text-xl font-bold text-white">
-                                                    {format(new Date(task.due_date), 'MMM dd, yyyy')}
-                                                </div>
-                                                {(() => {
-                                                    const days = getDaysUntilDueDate();
-                                                    if (days === null) return null;
-                                                    const isOverdue = days < 0;
-                                                    const isToday = days === 0;
-                                                    const isSoon = days > 0 && days <= 7;
-                                                    
-                                                    return (
-                                                        <div className={`text-sm font-semibold ${
-                                                            isOverdue ? 'text-red-400' : 
-                                                            isToday ? 'text-yellow-400' : 
-                                                            isSoon ? 'text-orange-400' : 
-                                                            'text-green-400'
-                                                        }`}>
-                                                            {isOverdue ? `${Math.abs(days)} days overdue` :
-                                                             isToday ? 'Due today' :
-                                                             isSoon ? `${days} days remaining` :
-                                                             `${days} days remaining`}
-                                                        </div>
-                                                    );
-                                                })()}
-                                            </div>
-                                        ) : (
-                                            <div className="text-center text-gray-400">
-                                                <p className="text-sm">No due date set</p>
-                                            </div>
-                                        )}
-                                    </div>
+                        <CardContent className="flex-1 min-h-0 overflow-hidden flex flex-col p-6">
+                            {/* Due Date Section - Top */}
+                            <div className="flex flex-col border-b border-white/10 pb-6 mb-6 flex-1 min-h-0">
+                                <div className="flex items-center justify-between mb-4 flex-shrink-0">
+                                    <CardTitle className="flex items-center gap-2">
+                                        <CalendarIcon className="w-5 h-5" />
+                                        Due Date
+                                    </CardTitle>
+                                    <Button variant="ghost" size="sm" className="p-2" onClick={handleEditDueDate}>
+                                        <Edit2 className="w-4 h-4" />
+                                    </Button>
                                 </div>
+                                <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
+                                    {task?.due_date ? (
+                                        <div className="text-center space-y-2">
+                                            <div className="text-xl font-bold text-white">
+                                                {format(new Date(task.due_date), 'MMM dd, yyyy')}
+                                            </div>
+                                            {(() => {
+                                                const days = getDaysUntilDueDate();
+                                                if (days === null) return null;
+                                                const isOverdue = days < 0;
+                                                const isToday = days === 0;
+                                                const isSoon = days > 0 && days <= 7;
 
-                                {/* Recurring Section - Bottom */}
-                                <div className="flex flex-col flex-1 min-h-0">
-                                    <div className="flex items-center justify-between mb-4 flex-shrink-0">
-                                        <CardTitle className="flex items-center gap-2">
-                                            <Repeat className="w-5 h-5" />
-                                            Recurring
-                                        </CardTitle>
-                                        <Button variant="ghost" size="sm" className="p-2" onClick={handleEditRecurring}>
-                                            <Edit2 className="w-4 h-4" />
-                                        </Button>
-                                    </div>
-                                    <div className="flex-1 min-h-0 overflow-y-auto">
-                                        {task?.is_recurring ? (
-                                            <div className="text-sm text-gray-300">
-                                                {formatRecurringDetails() || 'Recurring task configured'}
-                                            </div>
-                                        ) : (
-                                            <div className="text-sm text-gray-400">
-                                                <p>Not a recurring task</p>
-                                            </div>
-                                        )}
-                                    </div>
+                                                return (
+                                                    <div className={`text-sm font-semibold ${isOverdue ? 'text-red-400' :
+                                                        isToday ? 'text-yellow-400' :
+                                                            isSoon ? 'text-orange-400' :
+                                                                'text-green-400'
+                                                        }`}>
+                                                        {isOverdue ? `${Math.abs(days)} days overdue` :
+                                                            isToday ? 'Due today' :
+                                                                isSoon ? `${days} days remaining` :
+                                                                    `${days} days remaining`}
+                                                    </div>
+                                                );
+                                            })()}
+                                        </div>
+                                    ) : (
+                                        <div className="text-center text-gray-400">
+                                            <p className="text-sm">No due date set</p>
+                                        </div>
+                                    )}
                                 </div>
-                            </CardContent>
+                            </div>
+
+                            {/* Recurring Section - Bottom */}
+                            <div className="flex flex-col flex-1 min-h-0">
+                                <div className="flex items-center justify-between mb-4 flex-shrink-0">
+                                    <CardTitle className="flex items-center gap-2">
+                                        <Repeat className="w-5 h-5" />
+                                        Recurring
+                                    </CardTitle>
+                                    <Button variant="ghost" size="sm" className="p-2" onClick={handleEditRecurring}>
+                                        <Edit2 className="w-4 h-4" />
+                                    </Button>
+                                </div>
+                                <div className="flex-1 min-h-0 overflow-y-auto">
+                                    {task?.is_recurring ? (
+                                        <div className="text-sm text-gray-300">
+                                            {formatRecurringDetails() || 'Recurring task configured'}
+                                        </div>
+                                    ) : (
+                                        <div className="text-sm text-gray-400">
+                                            <p>Not a recurring task</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </CardContent>
                     </Card>
 
                     {/* Collaborate - Column 4, Row 1 (col-span-1, row-span-1) - Red Box */}
                     <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col col-span-1 row-span-1 border-2 border-red-500/50" style={{ height: '100%' }}>
-                            <CardHeader className="flex-shrink-0">
-                                <div className="flex items-center justify-between">
-                                    <CardTitle>Collaborate</CardTitle>
-                                    <Dialog open={showAddCollaboratorDialog} onOpenChange={setShowAddCollaboratorDialog}>
-                                        <DialogTrigger asChild>
-                                            <Button variant="ghost" size="sm" className="p-2">
-                                                <UserPlus className="w-4 h-4" />
+                        <CardHeader className="flex-shrink-0">
+                            <div className="flex items-center justify-between">
+                                <CardTitle>Collaborate</CardTitle>
+                                <Dialog open={showAddCollaboratorDialog} onOpenChange={setShowAddCollaboratorDialog}>
+                                    <DialogTrigger asChild>
+                                        <Button variant="ghost" size="sm" className="p-2">
+                                            <UserPlus className="w-4 h-4" />
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent className="glass-pane">
+                                        <DialogHeader>
+                                            <DialogTitle>Add Collaborator</DialogTitle>
+                                            <DialogDescription>Select a team member to add as a collaborator</DialogDescription>
+                                        </DialogHeader>
+                                        <div className="py-4">
+                                            <Combobox
+                                                options={teamMembers
+                                                    .filter(m => {
+                                                        // Exclude already assigned user, creator, and existing collaborators
+                                                        const userId = m.user_id || m.id;
+                                                        return userId !== task.assigned_to &&
+                                                            userId !== task.created_by &&
+                                                            !collaborators.some(c => c.user_id === userId);
+                                                    })
+                                                    .map(m => ({
+                                                        value: m.user_id || m.id,
+                                                        label: `${m.name || m.full_name || m.email} (${m.role || m.department || 'N/A'})`
+                                                    }))}
+                                                value={selectedCollaboratorId}
+                                                onValueChange={setSelectedCollaboratorId}
+                                                placeholder="Select a collaborator..."
+                                                className="mb-2"
+                                            />
+                                        </div>
+                                        <DialogFooter>
+                                            <Button
+                                                variant="ghost"
+                                                onClick={() => {
+                                                    setShowAddCollaboratorDialog(false);
+                                                    setSelectedCollaboratorId('');
+                                                }}
+                                                disabled={isAddingCollaborator}
+                                            >
+                                                Cancel
                                             </Button>
-                                        </DialogTrigger>
-                                        <DialogContent className="glass-pane">
-                                            <DialogHeader>
-                                                <DialogTitle>Add Collaborator</DialogTitle>
-                                                <DialogDescription>Select a team member to add as a collaborator</DialogDescription>
-                                            </DialogHeader>
-                                            <div className="py-4">
-                                                <Combobox
-                                                    options={teamMembers
-                                                        .filter(m => {
-                                                            // Exclude already assigned user, creator, and existing collaborators
-                                                            const userId = m.user_id || m.id;
-                                                            return userId !== task.assigned_to &&
-                                                                userId !== task.created_by &&
-                                                                !collaborators.some(c => c.user_id === userId);
-                                                        })
-                                                        .map(m => ({
-                                                            value: m.user_id || m.id,
-                                                            label: `${m.name || m.full_name || m.email} (${m.role || m.department || 'N/A'})`
-                                                        }))}
-                                                    value={selectedCollaboratorId}
-                                                    onValueChange={setSelectedCollaboratorId}
-                                                    placeholder="Select a collaborator..."
-                                                    className="mb-2"
-                                                />
-                                            </div>
-                                            <DialogFooter>
-                                                <Button
-                                                    variant="ghost"
-                                                    onClick={() => {
-                                                        setShowAddCollaboratorDialog(false);
-                                                        setSelectedCollaboratorId('');
-                                                    }}
-                                                    disabled={isAddingCollaborator}
-                                                >
-                                                    Cancel
-                                                </Button>
-                                                <Button
-                                                    onClick={handleAddCollaborator}
-                                                    disabled={!selectedCollaboratorId || isAddingCollaborator}
-                                                >
-                                                    {isAddingCollaborator ? (
-                                                        <>
-                                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                                            Adding...
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <UserPlus className="w-4 h-4 mr-2" /> Add Collaborator
-                                                        </>
-                                                    )}
-                                                </Button>
-                                            </DialogFooter>
-                                        </DialogContent>
-                                    </Dialog>
+                                            <Button
+                                                onClick={handleAddCollaborator}
+                                                disabled={!selectedCollaboratorId || isAddingCollaborator}
+                                            >
+                                                {isAddingCollaborator ? (
+                                                    <>
+                                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                        Adding...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <UserPlus className="w-4 h-4 mr-2" /> Add Collaborator
+                                                    </>
+                                                )}
+                                            </Button>
+                                        </DialogFooter>
+                                    </DialogContent>
+                                </Dialog>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="flex-1 min-h-0 overflow-hidden flex flex-col">
+                            {isLoadingCollaborators ? (
+                                <div className="flex justify-center items-center py-4 flex-shrink-0">
+                                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
                                 </div>
-                            </CardHeader>
-                            <CardContent className="flex-1 min-h-0 overflow-hidden flex flex-col">
-                                {isLoadingCollaborators ? (
-                                    <div className="flex justify-center items-center py-4 flex-shrink-0">
-                                        <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                                    </div>
-                                ) : (
-                                    <div className="flex-1 min-h-0 overflow-y-auto space-y-2">
-                                        {collaborators.length > 0 ? (
-                                            collaborators.map((collab) => {
-                                                const collabUser = teamMembers.find(m =>
-                                                    (m.user_id || m.id) === collab.user_id
-                                                ) || { name: 'Unknown', email: 'N/A', role: 'N/A' };
+                            ) : (
+                                <div className="flex-1 min-h-0 overflow-y-auto space-y-2">
+                                    {collaborators.length > 0 ? (
+                                        collaborators.map((collab) => {
+                                            const collabUser = teamMembers.find(m =>
+                                                (m.user_id || m.id) === collab.user_id
+                                            ) || { name: 'Unknown', email: 'N/A', role: 'N/A' };
 
-                                                return (
-                                                    <div key={collab.id} className="flex items-center justify-between p-2 rounded-md bg-white/5 hover:bg-white/10">
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-sm font-semibold">
-                                                                {(collabUser.name || collabUser.email || 'U').charAt(0).toUpperCase()}
-                                                            </div>
-                                                            <div>
-                                                                <p className="text-sm font-medium text-white">
-                                                                    {collabUser.name || collabUser.email || 'Unknown'}
-                                                                </p>
-                                                                <p className="text-xs text-gray-400 italic">
-                                                                    {collabUser.role || collabUser.department || 'N/A'}
-                                                                </p>
-                                                            </div>
+                                            return (
+                                                <div key={collab.id} className="flex items-center justify-between p-2 rounded-md bg-white/5 hover:bg-white/10">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-sm font-semibold">
+                                                            {(collabUser.name || collabUser.email || 'U').charAt(0).toUpperCase()}
                                                         </div>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-8 w-8 text-gray-400 hover:text-red-500"
-                                                            onClick={() => handleRemoveCollaborator(collab.user_id)}
-                                                        >
-                                                            <X className="w-4 h-4" />
-                                                        </Button>
+                                                        <div>
+                                                            <p className="text-sm font-medium text-white">
+                                                                {collabUser.name || collabUser.email || 'Unknown'}
+                                                            </p>
+                                                            <p className="text-xs text-gray-400 italic">
+                                                                {collabUser.role || collabUser.department || 'N/A'}
+                                                            </p>
+                                                        </div>
                                                     </div>
-                                                );
-                                            })
-                                        ) : (
-                                            <p className="text-center text-gray-400 py-4">No collaborators yet. Add collaborators to share this task.</p>
-                                        )}
-                                    </div>
-                                )}
-                            </CardContent>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 text-gray-400 hover:text-red-500"
+                                                        onClick={() => handleRemoveCollaborator(collab.user_id)}
+                                                    >
+                                                        <X className="w-4 h-4" />
+                                                    </Button>
+                                                </div>
+                                            );
+                                        })
+                                    ) : (
+                                        <p className="text-center text-gray-400 py-4">No collaborators yet. Add collaborators to share this task.</p>
+                                    )}
+                                </div>
+                            )}
+                        </CardContent>
                     </Card>
 
                     {/* Activity Log - Column 4, Row 2 (col-span-1, row-span-1) - Blue Box */}
                     <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col col-span-1 row-span-1 border-2 border-blue-500/50" style={{ height: '100%' }}>
-                            <CardHeader className="flex-shrink-0">
-                                <CardTitle className="flex items-center gap-2">
-                                    <History className="w-5 h-5" />
-                                    Activity Log
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="flex-1 min-h-0 overflow-hidden flex flex-col">
-                                {isHistoryLoading ? (
-                                    <div className="flex justify-center items-center py-8 flex-shrink-0">
-                                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                        <CardHeader className="flex-shrink-0">
+                            <CardTitle className="flex items-center gap-2">
+                                <History className="w-5 h-5" />
+                                Activity Log
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="flex-1 min-h-0 overflow-hidden flex flex-col">
+                            {isHistoryLoading ? (
+                                <div className="flex justify-center items-center py-8 flex-shrink-0">
+                                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                                </div>
+                            ) : (() => {
+                                // Filter out comment-related events (chat history)
+                                const filteredHistory = history.filter(item =>
+                                    item.event_type !== 'comment_added' &&
+                                    item.event_type !== 'comment_updated' &&
+                                    item.event_type !== 'comment_deleted'
+                                );
+                                return filteredHistory.length > 0 ? (
+                                    <div className="flex-1 min-h-0 overflow-y-auto space-y-4">
+                                        {filteredHistory.map(renderHistoryItem)}
                                     </div>
-                                ) : (() => {
-                                    // Filter out comment-related events (chat history)
-                                    const filteredHistory = history.filter(item => 
-                                        item.event_type !== 'comment_added' && 
-                                        item.event_type !== 'comment_updated' && 
-                                        item.event_type !== 'comment_deleted'
-                                    );
-                                    return filteredHistory.length > 0 ? (
-                                        <div className="flex-1 min-h-0 overflow-y-auto space-y-4">
-                                            {filteredHistory.map(renderHistoryItem)}
-                                        </div>
-                                    ) : (
-                                        <div className="text-center py-8 text-gray-400 flex-shrink-0">No history found for this task.</div>
-                                    );
-                                })()}
-                            </CardContent>
+                                ) : (
+                                    <div className="text-center py-8 text-gray-400 flex-shrink-0">No history found for this task.</div>
+                                );
+                            })()}
+                        </CardContent>
                     </Card>
                 </div>
             </div>
@@ -2812,7 +2877,7 @@ const TaskDashboardPage = () => {
 
                         {recurringFormData.is_recurring && (
                             <div className="space-y-4 mt-4">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 gap-4">
                                     <div>
                                         <Label htmlFor="recurrence_frequency">Frequency</Label>
                                         <Select
@@ -2846,7 +2911,7 @@ const TaskDashboardPage = () => {
                                             </SelectContent>
                                         </Select>
                                     </div>
-                                    <div>
+                                    {/* <div>
                                         <Label htmlFor="recurrence_start_date">Start Date</Label>
                                         <Popover>
                                             <PopoverTrigger asChild>
@@ -2864,7 +2929,7 @@ const TaskDashboardPage = () => {
                                                 />
                                             </PopoverContent>
                                         </Popover>
-                                    </div>
+                                    </div> */}
                                 </div>
 
                                 {recurringFormData.recurrence_frequency === 'daily' && (

@@ -111,7 +111,7 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
     };
 
     const getDateBadgeColor = (dateString) => {
-        if (!dateString) return 'bg-gray-500/20 text-gray-300 border-gray-500/50';
+        if (!dateString) return 'bg-gray-500/20  text-gray-300 border-gray-500/50';
         try {
             const date = new Date(dateString);
             if (isNaN(date.getTime())) {
@@ -123,11 +123,11 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
             const diffDays = diffHours / 24;
 
             if (diffHours <= 24) {
-                return 'bg-blue-500/20 text-blue-300 border-blue-500/50'; // Blue for within 24 hours
+                return 'bg-green-500/20 text-green-300 border-green-500/50'; // Green for within 24 hours
             } else if (diffDays <= 7) {
-                return 'bg-red-500/20 text-red-300 border-red-500/50'; // Red for more than 24 hours but less than 7 days
+                return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/50'; // Yellow for 24h to 7 days
             } else {
-                return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/50'; // Yellow for more than 7 days
+                return 'bg-red-500/20 text-red-300 border-red-500/50'; // Red for more than 7 days
             }
         } catch {
             return 'bg-gray-500/20 text-gray-300 border-gray-500/50';
@@ -468,7 +468,7 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                                         color: stageColor,
                                         borderColor: `${stageColor}50`
                                     } : {};
-                                    const badgeClassName = stageColor ? '' : `inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-medium w-fit ${statusName === 'Assigned' ? 'bg-orange-500/20 text-orange-300 border-orange-500/50' :
+                                    const badgeClassName = stageColor ? 'w-fit italic' : ` w-fit inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-medium w-fit ${statusName === 'Assigned' ? 'bg-orange-500/20 text-orange-300 border-orange-500/50' :
                                         statusName === 'In Progress' ? 'bg-blue-500/20 text-blue-300 border-blue-500/50' :
                                             statusName === 'Completed' ? 'bg-blue-500/20 text-blue-300 border-blue-500/50' :
                                                 'bg-gray-500/20 text-gray-300 border-gray-500/50'
@@ -528,7 +528,7 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                                                             <span className="text-xs text-gray-400 italic">
                                                                 {format(new Date(task.updated_at), 'dd-MM-yyyy hh:mm a')}
                                                             </span>
-                                                            <Badge variant="outline" className={`${getDateBadgeColor(task.updated_at)} text-xs w-fit italic`}>
+                                                            <Badge variant="outline" className={`${getDateBadgeColor(task.updated_at)} w-fit text-xs italic`}>
                                                                 {formatTimeAgo(task.updated_at)}
                                                             </Badge>
                                                         </>
