@@ -9,10 +9,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Edit, Trash2, ArrowLeft, Users, UserPlus, Loader2, RefreshCw, Briefcase, Send, ArrowUp, ArrowDown, Filter } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth.jsx';
-import { 
-    listOrganisations, 
-    createOrganisation, 
-    updateOrganisation, 
+import {
+    listOrganisations,
+    createOrganisation,
+    updateOrganisation,
     deleteOrganisation,
     listEntities,
     listAllEntities,
@@ -28,13 +28,13 @@ import { inviteCaTeamMember, deleteCaTeamMember } from '@/lib/api/organisation';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuLabel,
+    DropdownMenuRadioGroup,
+    DropdownMenuRadioItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
 const Organisation = () => {
@@ -48,18 +48,15 @@ const Organisation = () => {
     const [editingOrg, setEditingOrg] = useState(null);
     const [orgName, setOrgName] = useState('');
     const [orgToDelete, setOrgToDelete] = useState(null);
-
     const [entities, setEntities] = useState([]);
     const [orgUsers, setOrgUsers] = useState([]);
     const [showEntityForm, setShowEntityForm] = useState(false);
     const [editingEntity, setEditingEntity] = useState(null);
     const [entityName, setEntityName] = useState('');
     const [isDetailsLoading, setIsDetailsLoading] = useState(false);
-
     const [showInviteUserDialog, setShowInviteUserDialog] = useState(false);
     const [inviteUserEmail, setInviteUserEmail] = useState('');
     const [isSendingInvite, setIsSendingInvite] = useState(false);
-
     const [sortConfig, setSortConfig] = useState({ key: 'email', direction: 'ascending' });
     const [statusFilter, setStatusFilter] = useState('all');
 
@@ -114,7 +111,7 @@ const Organisation = () => {
             fetchOrgDetails(selectedOrg.id);
         }
     }, [selectedOrg, fetchOrgDetails]);
-    
+
     const sortedAndFilteredUsers = useMemo(() => {
         let filteredUsers = [...orgUsers];
 
@@ -189,7 +186,7 @@ const Organisation = () => {
             setIsMutating(false);
         }
     };
-    
+
     const handleDeleteOrg = async () => {
         if (!orgToDelete) return;
         setIsMutating(true);
@@ -207,13 +204,13 @@ const Organisation = () => {
             setIsMutating(false);
         }
     };
-    
+
     const handleAddEntity = () => {
         setEditingEntity(null);
         setEntityName('');
         setShowEntityForm(true);
     };
-    
+
     const handleEditEntity = (entity) => {
         setEditingEntity(entity);
         setEntityName(entity.name);
@@ -249,13 +246,13 @@ const Organisation = () => {
             await deleteEntity(entityId, user.access_token);
             toast({ title: "Success", description: "Entity deleted." });
             fetchOrgDetails(selectedOrg.id);
-        } catch(error) {
+        } catch (error) {
             toast({ title: "Error deleting entity", description: error.message, variant: "destructive" });
         } finally {
             setIsMutating(false);
         }
     };
-    
+
     const handleResendToken = async (email) => {
         setIsMutating(email);
         try {
@@ -267,7 +264,7 @@ const Organisation = () => {
             setIsMutating(false);
         }
     };
-    
+
     const handleDeleteOrgUser = async (u) => {
         setIsMutating(u.user_id || u.email);
         try {
@@ -343,26 +340,26 @@ const Organisation = () => {
             </div>
             <div className="glass-pane p-4 rounded-lg flex-grow">
                 {isLoading ? <div className="flex items-center justify-center h-full"><Loader2 className="w-8 h-8 animate-spin" /></div>
-                : organisations.length > 0 ? (
-                <Table>
-                    <TableHeader><TableRow className="border-b-white/10"><TableHead>Name</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
-                    <TableBody>
-                        {organisations.map(org => (
-                            <TableRow key={org.id} className="border-none hover:bg-white/5 cursor-pointer" onClick={() => setSelectedOrg(org)}>
-                                <TableCell className="font-medium">{org.name}</TableCell>
-                                <TableCell className="text-right">
-                                    <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleEditOrg(org); }} disabled={isMutating}><Edit className="w-4 h-4" /></Button>
-                                    <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-400" onClick={(e) => { e.stopPropagation(); setOrgToDelete(org); }} disabled={isMutating}>
-                                        {isMutating && orgToDelete?.id === org.id ? <Loader2 className="w-4 h-4 animate-spin"/> : <Trash2 className="w-4 h-4" />}
-                                    </Button>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-                ) : (
-                    <div className="text-center py-16 text-gray-500"><p className="text-lg">No organisations found.</p><p>Click "Add Organisation" to get started.</p></div>
-                )}
+                    : organisations.length > 0 ? (
+                        <Table>
+                            <TableHeader><TableRow className="border-b-white/10"><TableHead>Name</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                            <TableBody>
+                                {organisations.map(org => (
+                                    <TableRow key={org.id} className="border-none hover:bg-white/5 cursor-pointer" onClick={() => setSelectedOrg(org)}>
+                                        <TableCell className="font-medium">{org.name}</TableCell>
+                                        <TableCell className="text-right">
+                                            <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleEditOrg(org); }} disabled={isMutating}><Edit className="w-4 h-4" /></Button>
+                                            <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-400" onClick={(e) => { e.stopPropagation(); setOrgToDelete(org); }} disabled={isMutating}>
+                                                {isMutating && orgToDelete?.id === org.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    ) : (
+                        <div className="text-center py-16 text-gray-500"><p className="text-lg">No organisations found.</p><p>Click "Add Organisation" to get started.</p></div>
+                    )}
             </div>
         </motion.div>
     );
@@ -392,40 +389,40 @@ const Organisation = () => {
                 </TabsList>
                 <TabsContent value="entities">
                     <div className="glass-pane p-4 rounded-lg">
-                        <Button onClick={handleAddEntity} className="mb-4"><Plus className="w-4 h-4 mr-2"/>Add Entity</Button>
+                        <Button onClick={handleAddEntity} className="mb-4"><Plus className="w-4 h-4 mr-2" />Add Entity</Button>
                         {isDetailsLoading ? <div className="flex items-center justify-center h-64"><Loader2 className="w-8 h-8 animate-spin" /></div>
-                        : entities.length > 0 ? (
-                        <Table>
-                           <TableHeader><TableRow className="border-b-white/10"><TableHead>Name</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
-                           <TableBody>
-                            {entities.map(entity => (
-                                <TableRow key={entity.id} className="border-none">
-                                    <TableCell className="font-medium">{entity.name}</TableCell>
-                                    <TableCell className="text-right">
-                                        <Button variant="ghost" size="icon" onClick={() => handleEditEntity(entity)} disabled={isMutating === entity.id}><Edit className="w-4 h-4" /></Button>
-                                        <AlertDialog>
-                                          <AlertDialogTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="text-red-500" disabled={isMutating === entity.id}>{isMutating === entity.id ? <Loader2 className="w-4 h-4 animate-spin"/> : <Trash2 className="w-4 h-4" />}</Button>
-                                          </AlertDialogTrigger>
-                                          <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                              <AlertDialogDescription>
-                                                This action cannot be undone. This will permanently delete the entity.
-                                              </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                              <AlertDialogAction onClick={() => handleDeleteEntity(entity.id)}>Delete</AlertDialogAction>
-                                            </AlertDialogFooter>
-                                          </AlertDialogContent>
-                                        </AlertDialog>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                           </TableBody>
-                        </Table>
-                        ) : <div className="text-center py-16 text-gray-500"><p>No entities found for this organisation.</p></div>}
+                            : entities.length > 0 ? (
+                                <Table>
+                                    <TableHeader><TableRow className="border-b-white/10"><TableHead>Name</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                                    <TableBody>
+                                        {entities.map(entity => (
+                                            <TableRow key={entity.id} className="border-none">
+                                                <TableCell className="font-medium">{entity.name}</TableCell>
+                                                <TableCell className="text-right">
+                                                    <Button variant="ghost" size="icon" onClick={() => handleEditEntity(entity)} disabled={isMutating === entity.id}><Edit className="w-4 h-4" /></Button>
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <Button variant="ghost" size="icon" className="text-red-500" disabled={isMutating === entity.id}>{isMutating === entity.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}</Button>
+                                                        </AlertDialogTrigger>
+                                                        <AlertDialogContent>
+                                                            <AlertDialogHeader>
+                                                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                                <AlertDialogDescription>
+                                                                    This action cannot be undone. This will permanently delete the entity.
+                                                                </AlertDialogDescription>
+                                                            </AlertDialogHeader>
+                                                            <AlertDialogFooter>
+                                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                                <AlertDialogAction onClick={() => handleDeleteEntity(entity.id)}>Delete</AlertDialogAction>
+                                                            </AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            ) : <div className="text-center py-16 text-gray-500"><p>No entities found for this organisation.</p></div>}
                     </div>
                 </TabsContent>
                 <TabsContent value="users">
@@ -448,55 +445,55 @@ const Organisation = () => {
                             </DropdownMenu>
                         </div>
                         {isDetailsLoading ? <div className="flex items-center justify-center h-64"><Loader2 className="w-8 h-8 animate-spin" /></div>
-                        : sortedAndFilteredUsers.length > 0 ? (
-                        <Table>
-                            <TableHeader>
-                                <TableRow className="border-b-white/10">
-                                    <SortableHeader sortKey="email">Email</SortableHeader>
-                                    <SortableHeader sortKey="role">Role</SortableHeader>
-                                    <SortableHeader sortKey="status">Status</SortableHeader>
-                                    <TableHead className="text-right">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                            {sortedAndFilteredUsers.map(u => (
-                                <TableRow key={u.email} className="border-none">
-                                    <TableCell>{u.email}</TableCell>
-                                    <TableCell>
-                                        {u.status.toLowerCase() === 'joined' ? (
-                                            u.role === 'CLIENT_USER' ? 'Organisation Owner' : 'Member'
-                                        ) : (
-                                            <span className="text-gray-500">N/A</span>
-                                        )}
-                                    </TableCell>
-                                    <TableCell><Badge variant={u.status.toLowerCase() === 'joined' ? 'success' : 'secondary'}>{u.status}</Badge></TableCell>
-                                    <TableCell className="text-right">
-                                        {u.status.toLowerCase() === 'invited' && <Button onClick={() => handleResendToken(u.email)} disabled={isMutating === u.email}>{isMutating === u.email ? <Loader2 className="w-4 h-4 animate-spin"/> : <><Send className="w-4 h-4 mr-2" /> Resend Invite</>}</Button>}
-                                        {u.status.toLowerCase() === 'joined' && 
-                                          <AlertDialog>
-                                            <AlertDialogTrigger asChild>
-                                              <Button variant="destructive" size="icon" disabled={isMutating === u.user_id}>{isMutating === u.user_id ? <Loader2 className="w-4 h-4 animate-spin"/> : <Trash2 className="w-4 h-4" />}</Button>
-                                            </AlertDialogTrigger>
-                                            <AlertDialogContent>
-                                              <AlertDialogHeader>
-                                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                <AlertDialogDescription>
-                                                  This action cannot be undone. This will permanently delete the user.
-                                                </AlertDialogDescription>
-                                              </AlertDialogHeader>
-                                              <AlertDialogFooter>
-                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                <AlertDialogAction onClick={() => handleDeleteOrgUser(u)}>Delete</AlertDialogAction>
-                                              </AlertDialogFooter>
-                                            </AlertDialogContent>
-                                          </AlertDialog>
-                                        }
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                            </TableBody>
-                        </Table>
-                        ) : <div className="text-center py-16 text-gray-500"><p>No users found matching the criteria.</p></div>}
+                            : sortedAndFilteredUsers.length > 0 ? (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow className="border-b-white/10">
+                                            <SortableHeader sortKey="email">Email</SortableHeader>
+                                            <SortableHeader sortKey="role">Role</SortableHeader>
+                                            <SortableHeader sortKey="status">Status</SortableHeader>
+                                            <TableHead className="text-right">Actions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {sortedAndFilteredUsers.map(u => (
+                                            <TableRow key={u.email} className="border-none">
+                                                <TableCell>{u.email}</TableCell>
+                                                <TableCell>
+                                                    {u.status.toLowerCase() === 'joined' ? (
+                                                        u.role === 'CLIENT_USER' ? 'Organisation Owner' : 'Member'
+                                                    ) : (
+                                                        <span className="text-gray-500">N/A</span>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell><Badge variant={u.status.toLowerCase() === 'joined' ? 'success' : 'secondary'}>{u.status}</Badge></TableCell>
+                                                <TableCell className="text-right">
+                                                    {u.status.toLowerCase() === 'invited' && <Button onClick={() => handleResendToken(u.email)} disabled={isMutating === u.email}>{isMutating === u.email ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Send className="w-4 h-4 mr-2" /> Resend Invite</>}</Button>}
+                                                    {u.status.toLowerCase() === 'joined' &&
+                                                        <AlertDialog>
+                                                            <AlertDialogTrigger asChild>
+                                                                <Button variant="destructive" size="icon" disabled={isMutating === u.user_id}>{isMutating === u.user_id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}</Button>
+                                                            </AlertDialogTrigger>
+                                                            <AlertDialogContent>
+                                                                <AlertDialogHeader>
+                                                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                                    <AlertDialogDescription>
+                                                                        This action cannot be undone. This will permanently delete the user.
+                                                                    </AlertDialogDescription>
+                                                                </AlertDialogHeader>
+                                                                <AlertDialogFooter>
+                                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                                    <AlertDialogAction onClick={() => handleDeleteOrgUser(u)}>Delete</AlertDialogAction>
+                                                                </AlertDialogFooter>
+                                                            </AlertDialogContent>
+                                                        </AlertDialog>
+                                                    }
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            ) : <div className="text-center py-16 text-gray-500"><p>No users found matching the criteria.</p></div>}
                     </div>
                 </TabsContent>
             </Tabs>

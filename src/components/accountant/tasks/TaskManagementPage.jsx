@@ -274,7 +274,7 @@ const TaskManagementPage = () => {
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.95 }}
                             transition={{ duration: 0.3, ease: 'easeInOut' }}
-                            className="h-full"
+                            className="flex-1 min-h-0 w-full"
                         >
                             <TaskKanbanView
                                 ref={kanbanViewRef}
@@ -319,7 +319,7 @@ const TaskManagementPage = () => {
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: 300 }}
                         transition={{ duration: 0.3, ease: 'easeInOut' }}
-                        className="h-full"
+                        className="flex-1 min-h-0 w-full"
                     >
                         <TaskList
                             tasks={tasks}
@@ -378,7 +378,7 @@ const TaskManagementPage = () => {
     }
 
     return (
-        <div className="p-4 md:p-8 text-white relative overflow-hidden h-full">
+        <div className="p-4 md:p-8 text-white relative overflow-hidden h-full flex flex-col">
             {(view === 'list' || view === 'kanban') && (
                 <div className="flex items-center justify-between mb-4">
                     <h1 className="text-3xl font-bold">

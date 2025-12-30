@@ -17,9 +17,9 @@ import { ArrowLeft, Edit, Trash2, FileText, Loader2, ChevronLeft, ChevronRight, 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
-  ResizablePanelGroup,
-  ResizablePanel,
-  ResizableHandle,
+    ResizablePanelGroup,
+    ResizablePanel,
+    ResizableHandle,
 } from "@/components/ui/resizable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.jsx";
 import ActivityLog from '@/components/finance/ActivityLog';
@@ -134,14 +134,14 @@ const VoucherDetailsCA = () => {
     const [currentAttachmentIndex, setCurrentAttachmentIndex] = useState(0);
     const [isSaving, setIsSaving] = useState(false);
     const [sidebarWidth, setSidebarWidth] = useState(320); // Default to expanded width (300px + padding)
-    
+
     // Refs to prevent duplicate API calls
     const fetchingVoucherRef = useRef(false);
     const fetchingAttachmentRef = useRef(null); // Track which attachment is being fetched
     const lastFetchedVoucherIdRef = useRef(null);
     const activityLogRef = useRef(null);
     const attachmentRef = useRef(null);
-    
+
     // Hide scrollbars globally for this page
     useEffect(() => {
         const style = document.createElement('style');
@@ -210,13 +210,13 @@ const VoucherDetailsCA = () => {
 
     useEffect(() => {
         if (authLoading || !user?.access_token) return;
-        
+
         // Reset refs when voucherId changes
         if (lastFetchedVoucherIdRef.current !== voucherId) {
             fetchingVoucherRef.current = false;
             fetchingAttachmentRef.current = null;
         }
-        
+
         // Prevent duplicate fetches for the same voucher
         if (fetchingVoucherRef.current || lastFetchedVoucherIdRef.current === voucherId) {
             return;
@@ -228,16 +228,16 @@ const VoucherDetailsCA = () => {
                 // Prevent duplicate calls
                 if (fetchingVoucherRef.current) return;
                 fetchingVoucherRef.current = true;
-                
+
                 // Use initialVoucher if available, otherwise fetch
                 let currentVoucher = initialVoucher;
-                
+
                 // Only fetch if we don't have initial voucher or if voucherId changed
                 if (!currentVoucher || String(currentVoucher.id) !== String(voucherId)) {
                     // Check cache first
                     const cacheKey = { voucherId, token: user.access_token };
                     currentVoucher = cache.get('getVoucher', cacheKey);
-                    
+
                     if (!currentVoucher) {
                         // Use CA-specific endpoint - no entity_id required
                         currentVoucher = await getCAVoucher(voucherId, user.access_token);
@@ -257,7 +257,7 @@ const VoucherDetailsCA = () => {
                     setIsLoading(false);
                     setLoadingVoucher(false);
                     lastFetchedVoucherIdRef.current = voucherId;
-                    
+
                     // Collect all attachment IDs (primary + additional)
                     const primaryAttachmentId = currentVoucher.attachment_id || (currentVoucher.attachment && currentVoucher.attachment.id);
                     const additionalIds = currentVoucher.additional_attachment_ids || [];
@@ -274,10 +274,10 @@ const VoucherDetailsCA = () => {
                     console.log("Collected attachment IDs:", { primaryAttachmentId, additionalIds, allIds });
                     setAllAttachmentIds(allIds);
                     setCurrentAttachmentIndex(0); // Reset to first attachment
-                    
+
                     // Load attachment and finance headers in parallel (non-blocking)
                     const promises = [];
-                    
+
                     // Always reset attachment state when voucher changes
                     // Load first attachment - prevent duplicate fetches
                     if (allIds.length > 0 && fetchingAttachmentRef.current !== allIds[0]) {
@@ -288,34 +288,34 @@ const VoucherDetailsCA = () => {
                         console.log("Fetching voucher attachment with ID:", allIds[0]);
                         promises.push(
                             getVoucherAttachment(allIds[0], user.access_token)
-                            .then(result => {
-                                // Handle both old format (string URL) and new format (object with url and contentType)
-                                const url = typeof result === 'string' ? result : result?.url;
-                                const contentType = typeof result === 'object' ? result?.contentType : null;
-                                
+                                .then(result => {
+                                    // Handle both old format (string URL) and new format (object with url and contentType)
+                                    const url = typeof result === 'string' ? result : result?.url;
+                                    const contentType = typeof result === 'object' ? result?.contentType : null;
+
                                     console.log("Voucher attachment URL received:", url ? "Yes" : "No", url, "Content-Type:", contentType);
-                                if (url) {
-                                    setAttachmentUrl(url);
-                                    setAttachmentContentType(contentType);
+                                    if (url) {
+                                        setAttachmentUrl(url);
+                                        setAttachmentContentType(contentType);
                                         // For PDFs, set loading to false immediately since iframes don't have onLoad
-                                    const isPdf = contentType?.toLowerCase().includes('pdf') || url.toLowerCase().endsWith('.pdf');
-                                    if (isPdf) {
-                                        setIsImageLoading(false);
-                                    }
+                                        const isPdf = contentType?.toLowerCase().includes('pdf') || url.toLowerCase().endsWith('.pdf');
+                                        if (isPdf) {
+                                            setIsImageLoading(false);
+                                        }
                                         // For images, keep loading state true - onLoad handler will set it to false
-                                } else {
+                                    } else {
                                         console.log("No URL returned from getVoucherAttachment");
-                                    setIsImageLoading(false);
+                                        setIsImageLoading(false);
                                         setAttachmentUrl(null);
                                         setAttachmentContentType(null);
-                                }
+                                    }
                                     fetchingAttachmentRef.current = null; // Clear fetching flag
-                            })
-                            .catch(err => {
+                                })
+                                .catch(err => {
                                     console.error("Failed to fetch voucher attachment:", err);
-                                setIsImageLoading(false);
-                                setAttachmentUrl(null);
-                                setAttachmentContentType(null);
+                                    setIsImageLoading(false);
+                                    setAttachmentUrl(null);
+                                    setAttachmentContentType(null);
                                     fetchingAttachmentRef.current = null; // Clear fetching flag
                                     // Show a toast for user feedback
                                     toast({
@@ -330,7 +330,7 @@ const VoucherDetailsCA = () => {
                         setAttachmentUrl(null);
                         setIsImageLoading(false);
                     }
-                    
+
                     if (user && (user.role === 'CA_ACCOUNTANT' || user.role === 'CA_TEAM')) {
                         promises.push(
                             getFinanceHeaders(user.agency_id, user.access_token)
@@ -338,7 +338,7 @@ const VoucherDetailsCA = () => {
                                 .catch(err => console.error("Failed to fetch finance headers:", err))
                         );
                     }
-                    
+
                     // Don't wait for these - they load in background
                     Promise.all(promises).catch(err => console.error("Background fetch error:", err));
                 }
@@ -351,7 +351,7 @@ const VoucherDetailsCA = () => {
         };
 
         fetchData();
-        return () => { 
+        return () => {
             isMounted = false;
             fetchingVoucherRef.current = false;
         };
@@ -365,15 +365,15 @@ const VoucherDetailsCA = () => {
                 // Check cache first
                 const beneficiariesKey = { orgId: organisationId, token: user.access_token };
                 const accountsKey = { entityId: selectedEntity, token: user.access_token };
-                
+
                 let beneficiariesData = cache.get('getBeneficiariesForCA', beneficiariesKey);
                 let fromAccountsData = cache.get('getOrganisationBankAccountsForCA', accountsKey);
-                
+
                 if (!beneficiariesData) {
                     beneficiariesData = await getBeneficiariesForCA(organisationId, user.access_token);
                     cache.set('getBeneficiariesForCA', beneficiariesKey, beneficiariesData);
                 }
-                
+
                 if (!fromAccountsData) {
                     fromAccountsData = await getOrganisationBankAccountsForCA(selectedEntity, user.access_token);
                     cache.set('getOrganisationBankAccountsForCA', accountsKey, fromAccountsData);
@@ -410,26 +410,26 @@ const VoucherDetailsCA = () => {
     // Handle attachment navigation
     const handleAttachmentNavigate = async (direction) => {
         if (allAttachmentIds.length <= 1 || !user?.access_token) return; // No navigation if only one or no attachments, or no auth token
-        
+
         const newIndex = currentAttachmentIndex + direction;
         if (newIndex >= 0 && newIndex < allAttachmentIds.length) {
             const attachmentId = allAttachmentIds[newIndex];
-            
+
             // Prevent duplicate fetches
             if (fetchingAttachmentRef.current === attachmentId) return;
-            
+
             setIsImageLoading(true);
             setAttachmentUrl(null);
             setAttachmentContentType(null);
             setCurrentAttachmentIndex(newIndex);
             fetchingAttachmentRef.current = attachmentId;
-            
+
             try {
                 const result = await getVoucherAttachment(attachmentId, user.access_token);
                 // Handle both old format (string URL) and new format (object with url and contentType)
                 const url = typeof result === 'string' ? result : result?.url;
                 const contentType = typeof result === 'object' ? result?.contentType : null;
-                
+
                 if (url) {
                     setAttachmentUrl(url);
                     setAttachmentContentType(contentType);
@@ -493,7 +493,7 @@ const VoucherDetailsCA = () => {
 
         const fetchAllVouchers = async () => {
             hasFetchedVouchers.current = true;
-            
+
             let entityIdsToFetch = [];
             if (selectedEntity === "all") {
                 entityIdsToFetch = entities.map((e) => e.id);
@@ -513,7 +513,7 @@ const VoucherDetailsCA = () => {
                     cache.set('getCATeamVouchers', cacheKey, data);
                     return data;
                 });
-                
+
                 const results = await Promise.all(fetchPromises);
                 const allVouchers = results.flat().sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
                 setVoucherList(allVouchers);
@@ -577,10 +577,10 @@ const VoucherDetailsCA = () => {
             console.warn("Navigation out of bounds:", { newIndex, vouchersLength: voucherList.length });
         }
     };
-    
+
     // Check if we have vouchers to navigate - show arrows if we have multiple vouchers
     const hasVouchers = voucherList && Array.isArray(voucherList) && voucherList.length > 1;
-    
+
     const voucherDetails = voucher || {
         id: voucherId,
         beneficiaryName: 'N/A',
@@ -608,13 +608,13 @@ const VoucherDetailsCA = () => {
             return;
         }
 
-            const pdf = new jsPDF({
-                orientation: 'portrait',
-                unit: 'mm',
-                format: 'a4'
-            });
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = pdf.internal.pageSize.getHeight();
+        const pdf = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: 'a4'
+        });
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
         const margin = 10;
         const contentWidth = pdfWidth - (margin * 2);
         const contentHeight = pdfHeight - (margin * 2);
@@ -637,7 +637,7 @@ const VoucherDetailsCA = () => {
 
                 let displayWidth = contentWidth;
                 let displayHeight = displayWidth / ratio;
-                
+
                 // If content is taller than page, scale it down to fit
                 if (displayHeight > contentHeight) {
                     displayHeight = contentHeight;
@@ -649,7 +649,7 @@ const VoucherDetailsCA = () => {
                     console.warn('Invalid display dimensions:', { displayWidth, displayHeight });
                     return false;
                 }
-                
+
                 // Center the image on the page
                 const xPos = margin + (contentWidth - displayWidth) / 2;
                 const yPos = margin + (contentHeight - displayHeight) / 2;
@@ -659,7 +659,7 @@ const VoucherDetailsCA = () => {
                     console.warn('Invalid coordinates:', { xPos, yPos });
                     return false;
                 }
-                
+
                 try {
                     pdf.addImage(imgData, 'PNG', xPos, yPos, displayWidth, displayHeight);
                     return true;
@@ -680,41 +680,41 @@ const VoucherDetailsCA = () => {
                     const lightText = [255, 255, 255];
                     const grayText = [203, 213, 225]; // #cbd5e1 (slate-300)
                     const borderColor = [100, 100, 100]; // Gray border for visibility
-                    
+
                     // Set background to dark
                     pdf.setFillColor(...darkBg);
                     pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
-                    
+
                     // Header section
                     let yPos = margin + 5;
                     pdf.setTextColor(...lightText);
                     pdf.setFontSize(20);
                     pdf.setFont(undefined, 'bold');
                     pdf.text('Voucher Details', margin + 5, yPos);
-                    
+
                     yPos += 8;
                     pdf.setFontSize(12);
                     pdf.setFont(undefined, 'normal');
                     pdf.setTextColor(...grayText);
                     const beneficiaryName = voucherDetails.beneficiary
-                        ? (voucherDetails.beneficiary.beneficiary_type === 'individual' 
-                            ? voucherDetails.beneficiary.name 
+                        ? (voucherDetails.beneficiary.beneficiary_type === 'individual'
+                            ? voucherDetails.beneficiary.name
                             : voucherDetails.beneficiary.company_name)
                         : voucherDetails.beneficiaryName || 'N/A';
                     pdf.text(`Voucher to ${beneficiaryName}`, margin + 5, yPos);
-                    
+
                     yPos += 5;
                     pdf.setFontSize(10);
                     pdf.text(`Created on ${new Date(voucherDetails.created_date).toLocaleDateString()}`, margin + 5, yPos);
-                    
+
                     yPos += 10;
-                    
+
                     // Create table with dark theme
                     const tableStartY = yPos;
                     const rowHeight = 8;
                     const col1Width = contentWidth * 0.4;
                     const col2Width = contentWidth * 0.6;
-                    
+
                     // Table header
                     pdf.setFillColor(...darkCard);
                     pdf.rect(margin, tableStartY, contentWidth, rowHeight, 'F');
@@ -723,13 +723,13 @@ const VoucherDetailsCA = () => {
                     pdf.setFont(undefined, 'bold');
                     pdf.text('Field', margin + 3, tableStartY + 5);
                     pdf.text('Value', margin + col1Width + 3, tableStartY + 5);
-                    
+
                     // Draw border
                     pdf.setDrawColor(...borderColor);
                     pdf.rect(margin, tableStartY, contentWidth, rowHeight);
-                    
+
                     yPos = tableStartY + rowHeight;
-                    
+
                     // Table rows
                     // Use "Rs." instead of rupee symbol since jsPDF default font doesn't support ₹
                     const amountText = `Rs. ${parseFloat(voucherDetails.amount).toFixed(2)}`;
@@ -743,7 +743,7 @@ const VoucherDetailsCA = () => {
                                 .replace(/\s/g, '_')
                         )]
                     ];
-                    
+
                     // Add bank account details if applicable
                     if (voucherDetails.payment_type === 'bank_transfer') {
                         const fromBank = fromBankAccounts.find(
@@ -755,7 +755,7 @@ const VoucherDetailsCA = () => {
                                 ? `${voucherDetails.from_bank_account_name} - ${voucherDetails.from_bank_account_number || ''}`.trim()
                                 : voucherDetails.from_bank_account_id || 'N/A');
                         rows.push(['From Bank Account', fromBankText]);
-                        
+
                         const toBank = toBankAccounts.find(
                             acc => String(acc.id) === String(voucherDetails.to_bank_account_id)
                         );
@@ -766,11 +766,11 @@ const VoucherDetailsCA = () => {
                                 : voucherDetails.to_bank_account_id || 'N/A');
                         rows.push(['To Bank Account', toBankText]);
                     }
-                    
+
                     // Draw table rows
                     pdf.setFontSize(10);
                     pdf.setFont(undefined, 'normal');
-                    
+
                     rows.forEach((row, index) => {
                         // Check if we need a new page
                         if (yPos + rowHeight > pdfHeight - margin - 10) {
@@ -779,18 +779,18 @@ const VoucherDetailsCA = () => {
                             pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
                             yPos = margin + 5;
                         }
-                        
+
                         // Use same background as page for all rows except header
                         pdf.setFillColor(...darkBg);
                         pdf.rect(margin, yPos, contentWidth, rowHeight, 'F');
-                        
+
                         // Draw row border
                         pdf.setDrawColor(...borderColor);
                         pdf.rect(margin, yPos, contentWidth, rowHeight);
-                        
+
                         // Draw column separator
                         pdf.line(margin + col1Width, yPos, margin + col1Width, yPos + rowHeight);
-                        
+
                         // Add text
                         pdf.setTextColor(...grayText);
                         pdf.text(row[0], margin + 3, yPos + 5);
@@ -800,10 +800,10 @@ const VoucherDetailsCA = () => {
                         const valueText = pdf.splitTextToSize(row[1], col2Width - 6);
                         pdf.text(valueText, margin + col1Width + 3, yPos + 5);
                         pdf.setFont(undefined, 'normal');
-                        
+
                         yPos += rowHeight;
                     });
-                    
+
                     // Remarks section - no gap between title and content
                     if (yPos + 20 > pdfHeight - margin - 10) {
                         pdf.addPage();
@@ -811,42 +811,42 @@ const VoucherDetailsCA = () => {
                         pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
                         yPos = margin + 5;
                     }
-                    
+
                     // Remarks title row - similar to table rows
                     const remarksTitleY = yPos;
                     const remarksTitleHeight = rowHeight;
                     pdf.setFillColor(...darkBg);
                     pdf.rect(margin, remarksTitleY, contentWidth, remarksTitleHeight, 'F');
-                    
+
                     // Draw border around remarks title row
                     pdf.setDrawColor(...borderColor);
                     pdf.rect(margin, remarksTitleY, contentWidth, remarksTitleHeight);
-                    
+
                     pdf.setFontSize(11);
                     pdf.setFont(undefined, 'bold');
                     pdf.setTextColor(...grayText);
                     pdf.text('Remarks', margin + 3, remarksTitleY + 5);
-                    
+
                     // Remarks content box - directly below title, no gap
                     yPos = remarksTitleY + remarksTitleHeight;
                     pdf.setFillColor(...darkBg);
                     const remarksHeight = 12;
                     const remarksBoxY = yPos;
                     pdf.rect(margin, remarksBoxY, contentWidth, remarksHeight, 'F');
-                    
+
                     // Draw border around remarks box - use same color as table rows
                     pdf.setDrawColor(...borderColor);
                     pdf.rect(margin, remarksBoxY, contentWidth, remarksHeight);
-                    
+
                     pdf.setFontSize(10);
                     pdf.setFont(undefined, 'normal');
                     pdf.setTextColor(...lightText);
-                    const remarksText = voucherDetails.remarks && voucherDetails.remarks.trim() 
-                        ? voucherDetails.remarks 
+                    const remarksText = voucherDetails.remarks && voucherDetails.remarks.trim()
+                        ? voucherDetails.remarks
                         : 'N/A';
                     const wrappedRemarks = pdf.splitTextToSize(remarksText, contentWidth - 6);
                     pdf.text(wrappedRemarks, margin + 3, remarksBoxY + 5);
-                    
+
                     hasContent = true;
                 } catch (error) {
                     console.error('Error creating voucher details PDF:', error);
@@ -856,17 +856,17 @@ const VoucherDetailsCA = () => {
             // Page 2: Attachment (image only - PDFs will be merged separately)
             if (attachmentUrl) {
                 const isPdfAttachment = attachmentContentType?.toLowerCase().includes('pdf') || attachmentUrl?.toLowerCase().endsWith('.pdf');
-                
+
                 if (!isPdfAttachment) {
                     // For image attachments only, add them to jsPDF
                     // For image attachments, use the existing logic
                     try {
                         pdf.addPage();
-                        
+
                         // Load the image directly from URL
                         const img = new Image();
                         img.crossOrigin = 'anonymous';
-                        
+
                         await new Promise((resolve, reject) => {
                             img.onload = () => resolve();
                             img.onerror = (err) => {
@@ -874,7 +874,7 @@ const VoucherDetailsCA = () => {
                                 reject(err);
                             };
                             img.src = attachmentUrl;
-                            
+
                             // Timeout after 10 seconds
                             setTimeout(() => {
                                 if (!img.complete) {
@@ -882,25 +882,25 @@ const VoucherDetailsCA = () => {
                                 }
                             }, 10000);
                         });
-                        
+
                         // Calculate dimensions to fit the page
                         const imgWidth = img.width;
                         const imgHeight = img.height;
                         const ratio = imgWidth / imgHeight;
-                        
+
                         let displayWidth = contentWidth;
                         let displayHeight = displayWidth / ratio;
-                        
+
                         // If image is taller than page, scale it down
                         if (displayHeight > contentHeight) {
                             displayHeight = contentHeight;
                             displayWidth = displayHeight * ratio;
                         }
-                        
+
                         // Center the image on the page
                         const xPos = margin + (contentWidth - displayWidth) / 2;
                         const yPos = margin + (contentHeight - displayHeight) / 2;
-                        
+
                         // Add image to PDF
                         pdf.addImage(attachmentUrl, 'PNG', xPos, yPos, displayWidth, displayHeight);
                     } catch (error) {
@@ -908,14 +908,14 @@ const VoucherDetailsCA = () => {
                         // Fallback: try using html2canvas if direct image load fails
                         if (attachmentRef.current) {
                             try {
-                                const attachmentCanvas = await html2canvas(attachmentRef.current, { 
+                                const attachmentCanvas = await html2canvas(attachmentRef.current, {
                                     useCORS: true,
                                     scale: 2,
                                     backgroundColor: '#ffffff',
                                     logging: false,
                                     allowTaint: true
                                 });
-                                
+
                                 if (attachmentCanvas && attachmentCanvas.width > 0 && attachmentCanvas.height > 0) {
                                     const attachmentImgData = attachmentCanvas.toDataURL('image/png');
                                     addImageToPDF(attachmentImgData, attachmentCanvas.width, attachmentCanvas.height);
@@ -932,14 +932,14 @@ const VoucherDetailsCA = () => {
             if (activityLogRef.current) {
                 try {
                     pdf.addPage();
-                    const activityCanvas = await html2canvas(activityLogRef.current, { 
+                    const activityCanvas = await html2canvas(activityLogRef.current, {
                         useCORS: true,
                         scale: 2,
                         backgroundColor: '#1e293b',
                         logging: false,
                         allowTaint: true
                     });
-                    
+
                     if (activityCanvas && activityCanvas.width > 0 && activityCanvas.height > 0) {
                         const activityImgData = activityCanvas.toDataURL('image/png');
                         addImageToPDF(activityImgData, activityCanvas.width, activityCanvas.height);
@@ -955,22 +955,22 @@ const VoucherDetailsCA = () => {
 
             // Convert jsPDF to arrayBuffer for merging
             const detailsPdfBytes = pdf.output('arraybuffer');
-            
+
             // Now merge PDFs if there's a PDF attachment
             const isPdfAttachment = attachmentUrl && (attachmentContentType?.toLowerCase().includes('pdf') || attachmentUrl?.toLowerCase().endsWith('.pdf'));
-            
+
             if (isPdfAttachment) {
                 try {
                     // Dynamically import pdf-lib only when needed
                     const { PDFDocument } = await import('pdf-lib');
-                    
+
                     // Get attachment ID from voucher or allAttachmentIds
                     const attachmentId = voucher?.attachment_id || (voucher?.attachment && voucher?.attachment.id) || allAttachmentIds[0];
-                    
+
                     if (!attachmentId) {
                         throw new Error('No attachment ID available');
                     }
-                    
+
                     // Fetch the PDF directly from the API endpoint
                     const FINANCE_API_BASE_URL = import.meta.env.VITE_FINANCE_API_URL || 'http://127.0.0.1:8003';
                     const response = await fetch(`${FINANCE_API_BASE_URL}/api/attachments/${attachmentId}`, {
@@ -979,27 +979,27 @@ const VoucherDetailsCA = () => {
                             'Content-Type': 'application/json'
                         }
                     });
-                    
+
                     if (!response.ok) {
                         throw new Error(`Failed to fetch attachment: ${response.status}`);
                     }
-                    
+
                     const attachmentBlob = await response.blob();
                     const attachmentPdfBytes = await attachmentBlob.arrayBuffer();
-                    
+
                     // Create a new PDF document to merge
                     const mergedPdf = await PDFDocument.create();
-                    
+
                     // Load the details PDF
                     const detailsPdf = await PDFDocument.load(detailsPdfBytes);
                     const detailsPages = await mergedPdf.copyPages(detailsPdf, detailsPdf.getPageIndices());
                     detailsPages.forEach((page) => mergedPdf.addPage(page));
-                    
+
                     // Load and merge the attachment PDF
                     const attachmentPdf = await PDFDocument.load(attachmentPdfBytes);
                     const attachmentPages = await mergedPdf.copyPages(attachmentPdf, attachmentPdf.getPageIndices());
                     attachmentPages.forEach((page) => mergedPdf.addPage(page));
-                    
+
                     // Save the merged PDF
                     const mergedPdfBytes = await mergedPdf.save();
                     const blob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
@@ -1009,16 +1009,16 @@ const VoucherDetailsCA = () => {
                     link.download = `voucher-${voucher.voucher_id || voucherId}.pdf`;
                     link.click();
                     URL.revokeObjectURL(url);
-                    
+
                     toast({ title: 'Export Successful', description: 'Voucher exported to PDF with details, attachment, and activity log.' });
                 } catch (error) {
                     console.error('Error merging PDF attachment:', error);
                     // Fallback to saving jsPDF if merging fails
                     pdf.save(`voucher-${voucher.voucher_id || voucherId}.pdf`);
-                    toast({ 
-                        title: 'Export Warning', 
-                        description: 'PDF exported but attachment could not be merged. Details only.', 
-                        variant: 'default' 
+                    toast({
+                        title: 'Export Warning',
+                        description: 'PDF exported but attachment could not be merged. Details only.',
+                        variant: 'default'
                     });
                 }
             } else {
@@ -1031,9 +1031,9 @@ const VoucherDetailsCA = () => {
             toast({ title: 'Export Error', description: `An error occurred: ${error.message}`, variant: 'destructive' });
         }
     };
-    
-    const beneficiaryName = voucherDetails.beneficiary 
-        ? (voucherDetails.beneficiary.beneficiary_type === 'individual' ? voucherDetails.beneficiary.name : voucherDetails.beneficiary.company_name) 
+
+    const beneficiaryName = voucherDetails.beneficiary
+        ? (voucherDetails.beneficiary.beneficiary_type === 'individual' ? voucherDetails.beneficiary.name : voucherDetails.beneficiary.company_name)
         : voucherDetails.beneficiaryName || 'N/A';
 
     const handleDelete = async () => {
@@ -1061,7 +1061,7 @@ const VoucherDetailsCA = () => {
             } else if (error?.error) {
                 errorMessage = error.error;
             }
-            
+
             toast({
                 title: 'Error',
                 description: `Failed to delete voucher: ${errorMessage}`,
@@ -1078,20 +1078,20 @@ const VoucherDetailsCA = () => {
         setIsSaving(true);
         const formData = new FormData(e.target);
         const data = Object.fromEntries(formData.entries());
-        
+
         // Get remarks value - always use form data if available, even if empty string
         // Convert empty string to null for API
         let remarksValue = null;
         if ('remarks' in data) {
             // Form field exists - use its value (even if empty string)
-            remarksValue = data.remarks && typeof data.remarks === 'string' && data.remarks.trim() 
-                ? data.remarks.trim() 
+            remarksValue = data.remarks && typeof data.remarks === 'string' && data.remarks.trim()
+                ? data.remarks.trim()
                 : null;
         } else {
             // Form field doesn't exist - keep existing value
             remarksValue = editedVoucher?.remarks || null;
         }
-        
+
         const payload = {
             beneficiary_id: editedVoucher.beneficiary_id,
             amount: Number(data.amount) || Number(editedVoucher.amount),
@@ -1113,7 +1113,7 @@ const VoucherDetailsCA = () => {
             cache.invalidate('getCATeamVouchers');
             const cacheKey = { voucherId, token: user.access_token };
             cache.invalidate('getVoucher', cacheKey);
-            
+
             // Update local state with the returned voucher data immediately
             if (updatedVoucher) {
                 setVoucher(updatedVoucher);
@@ -1127,11 +1127,11 @@ const VoucherDetailsCA = () => {
             // Use CA-specific endpoint - no entity_id required
             try {
                 const refreshedVoucher = await getCAVoucher(voucherId, user.access_token);
-            if (refreshedVoucher) {
-                setVoucher(refreshedVoucher);
-                setEditedVoucher(refreshedVoucher);
-                cache.set('getVoucher', cacheKey, refreshedVoucher);
-                    
+                if (refreshedVoucher) {
+                    setVoucher(refreshedVoucher);
+                    setEditedVoucher(refreshedVoucher);
+                    cache.set('getVoucher', cacheKey, refreshedVoucher);
+
                     // Reload attachment if needed
                     const primaryAttachmentId = refreshedVoucher.attachment_id || (refreshedVoucher.attachment && refreshedVoucher.attachment.id);
                     const additionalIds = refreshedVoucher.additional_attachment_ids || [];
@@ -1146,7 +1146,7 @@ const VoucherDetailsCA = () => {
                     });
                     setAllAttachmentIds(allIds);
                     setCurrentAttachmentIndex(0);
-                    
+
                     if (allIds.length > 0) {
                         setIsImageLoading(true);
                         setAttachmentUrl(null);
@@ -1337,364 +1337,364 @@ const VoucherDetailsCA = () => {
                     <div className="relative flex h-full flex-col">
                         <div className="flex-1 overflow-y-auto p-6" style={{ paddingBottom: hasVouchers ? '6rem' : '1.5rem' }}>
                             <Tabs defaultValue="details" className="w-full">
-                    <TabsList className="grid w-full grid-cols-3">
-                        <TabsTrigger value="details">Details</TabsTrigger>
-                        <TabsTrigger value="activity">Activity Log</TabsTrigger>
-                        <TabsTrigger value="beneficiary">Beneficiary</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="details" className="mt-4">
-                        {isEditing ? (
-                            <form onSubmit={handleUpdate} className="space-y-4">
-                                <div>
-                                    <Label htmlFor="beneficiary_id">Beneficiary</Label>
-                                    <Select
-                                        value={editedVoucher?.beneficiary_id ? String(editedVoucher.beneficiary_id) : ''}
-                                        onValueChange={(val) => setEditedVoucher(p => ({ ...p, beneficiary_id: val }))}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select a beneficiary" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {beneficiaries.map(b => (
-                                                <SelectItem key={b.id} value={String(b.id)}>
-                                                    {b.beneficiary_type === 'individual' ? b.name : b.company_name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div>
-                                    <Label htmlFor="amount">Amount</Label>
-                                    <Input 
-                                        name="amount" 
-                                        type="number" 
-                                        step="0.01"
-                                        defaultValue={editedVoucher.amount} 
-                                        onChange={(e) => setEditedVoucher(p => ({ ...p, amount: parseFloat(e.target.value) || 0 }))}
-                                    />
-                                </div>
-                                <div>
-                                    <Label htmlFor="voucher_type">Voucher Type</Label>
-                                    <Select
-                                        value={editedVoucher?.voucher_type}
-                                        onValueChange={(val) => setEditedVoucher(p => ({ ...p, voucher_type: val }))}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select a voucher type" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="debit">Debit</SelectItem>
-                                            <SelectItem value="cash">Cash</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div>
-                                    <Label htmlFor="payment_type">Payment Method</Label>
-                                    {editedVoucher?.voucher_type === 'cash' ? (
-                                        <Input value="Cash" disabled />
-                                    ) : (
-                                        <Select
-                                            value={(editedVoucher?.payment_type ?? '').toLowerCase()}
-                                            onValueChange={(val) => setEditedVoucher(p => ({ ...p, payment_type: val }))}
-                                        >
-                                            <SelectTrigger><SelectValue placeholder="Select a payment method" /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                                                <SelectItem value="upi">UPI</SelectItem>
-                                                <SelectItem value="card">Card</SelectItem>
-                                                <SelectItem value="cheque">Cheque</SelectItem>
-                                                <SelectItem value="demand_draft">Demand Draft</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    )}
-                                </div>
-                                {editedVoucher?.payment_type === 'bank_transfer' && (
-                                    <>
-                                        <Select
-                                            value={editedVoucher?.from_bank_account_id ? String(editedVoucher.from_bank_account_id) : ''}
-                                            onValueChange={(val) => setEditedVoucher(p => ({ ...p, from_bank_account_id: val }))}
-                                        >
-                                            <SelectTrigger><SelectValue placeholder="Select your bank account" /></SelectTrigger>
-                                            <SelectContent>
-                                                {fromBankAccounts.map(acc => (
-                                                    <SelectItem key={acc.id} value={String(acc.id)}>
-                                                        {acc.bank_name} - {acc.account_number}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                <TabsList className="grid w-full grid-cols-3">
+                                    <TabsTrigger value="details">Details</TabsTrigger>
+                                    <TabsTrigger value="activity">Activity Log</TabsTrigger>
+                                    <TabsTrigger value="beneficiary">Beneficiary</TabsTrigger>
+                                </TabsList>
+                                <TabsContent value="details" className="mt-4">
+                                    {isEditing ? (
+                                        <form onSubmit={handleUpdate} className="space-y-4">
+                                            <div>
+                                                <Label htmlFor="beneficiary_id">Beneficiary</Label>
+                                                <Select
+                                                    value={editedVoucher?.beneficiary_id ? String(editedVoucher.beneficiary_id) : ''}
+                                                    onValueChange={(val) => setEditedVoucher(p => ({ ...p, beneficiary_id: val }))}
+                                                >
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Select a beneficiary" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {beneficiaries.map(b => (
+                                                            <SelectItem key={b.id} value={String(b.id)}>
+                                                                {b.beneficiary_type === 'individual' ? b.name : b.company_name}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div>
+                                                <Label htmlFor="amount">Amount</Label>
+                                                <Input
+                                                    name="amount"
+                                                    type="number"
+                                                    step="0.01"
+                                                    defaultValue={editedVoucher.amount}
+                                                    onChange={(e) => setEditedVoucher(p => ({ ...p, amount: parseFloat(e.target.value) || 0 }))}
+                                                />
+                                            </div>
+                                            <div>
+                                                <Label htmlFor="voucher_type">Voucher Type</Label>
+                                                <Select
+                                                    value={editedVoucher?.voucher_type}
+                                                    onValueChange={(val) => setEditedVoucher(p => ({ ...p, voucher_type: val }))}
+                                                >
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Select a voucher type" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="debit">Debit</SelectItem>
+                                                        <SelectItem value="cash">Cash</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div>
+                                                <Label htmlFor="payment_type">Payment Method</Label>
+                                                {editedVoucher?.voucher_type === 'cash' ? (
+                                                    <Input value="Cash" disabled />
+                                                ) : (
+                                                    <Select
+                                                        value={(editedVoucher?.payment_type ?? '').toLowerCase()}
+                                                        onValueChange={(val) => setEditedVoucher(p => ({ ...p, payment_type: val }))}
+                                                    >
+                                                        <SelectTrigger><SelectValue placeholder="Select a payment method" /></SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                                                            <SelectItem value="upi">UPI</SelectItem>
+                                                            <SelectItem value="card">Card</SelectItem>
+                                                            <SelectItem value="cheque">Cheque</SelectItem>
+                                                            <SelectItem value="demand_draft">Demand Draft</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                )}
+                                            </div>
+                                            {editedVoucher?.payment_type === 'bank_transfer' && (
+                                                <>
+                                                    <Select
+                                                        value={editedVoucher?.from_bank_account_id ? String(editedVoucher.from_bank_account_id) : ''}
+                                                        onValueChange={(val) => setEditedVoucher(p => ({ ...p, from_bank_account_id: val }))}
+                                                    >
+                                                        <SelectTrigger><SelectValue placeholder="Select your bank account" /></SelectTrigger>
+                                                        <SelectContent>
+                                                            {fromBankAccounts.map(acc => (
+                                                                <SelectItem key={acc.id} value={String(acc.id)}>
+                                                                    {acc.bank_name} - {acc.account_number}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
 
-                                        <Select
-                                            value={editedVoucher?.to_bank_account_id ? String(editedVoucher.to_bank_account_id) : ''}
-                                            onValueChange={(val) => setEditedVoucher(p => ({ ...p, to_bank_account_id: val }))}
-                                        >
-                                            <SelectTrigger><SelectValue placeholder="Select beneficiary's bank account" /></SelectTrigger>
-                                            <SelectContent>
-                                                {toBankAccounts.map(acc => (
-                                                    <SelectItem key={acc.id} value={String(acc.id)}>
-                                                        {acc.bank_name} - {acc.account_number}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </>
-                                )}
-                                <div>
-                                    <Label htmlFor="remarks">Remarks</Label>
-                                    <Input name="remarks" defaultValue={editedVoucher.remarks || ''} />
-                                </div>
-                                {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
-                                    <div>
-                                        <Label htmlFor="finance_header_id">Header</Label>
-                                        <Select 
-                                            name="finance_header_id" 
-                                            value={editedVoucher.finance_header_id ? String(editedVoucher.finance_header_id) : ''}
-                                            onValueChange={(value) => setEditedVoucher(p => ({ ...p, finance_header_id: value ? Number(value) : null }))}
-                                        >
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select a header" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {financeHeaders.map((h) => (
-                                                    <SelectItem key={h.id} value={String(h.id)}>
-                                                        {h.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                )}
-                                <div className="flex justify-end gap-2">
-                                    <Button variant="ghost" onClick={() => setIsEditing(false)} disabled={isSaving}>Cancel</Button>
-                                    <Button type="submit" disabled={isSaving}>
-                                        {isSaving ? (
-                                            <>
-                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                Saving...
-                                            </>
-                                        ) : (
-                                            'Save Changes'
-                                        )}
-                                    </Button>
-                                </div>
-                            </form>
-                        ) : (
-                            <Card ref={voucherDetailsRef} className="w-full glass-pane border-none shadow-none bg-gray-800 text-white relative z-20">
-                                <div ref={voucherDetailsPDFRef} className="w-full">
-                                <CardHeader>
-                                    <CardTitle>Voucher to {beneficiaryName}</CardTitle>
-                                    <CardDescription>Created on {new Date(voucherDetails.created_date).toLocaleDateString()}</CardDescription>
-                                </CardHeader>
-                                    <CardContent className="space-y-2 relative z-20">
-                                    <DetailItem label="Amount" value={`₹${parseFloat(voucherDetails.amount).toFixed(2)}`} />
-                                    <DetailItem label="Voucher Type" value={voucherDetails.voucher_type} />
-                                    <DetailItem
-                                        label="Payment Method"
-                                        value={
-                                            voucherDetails.voucher_type === 'cash'
-                                                ? 'Cash'
-                                                : formatPaymentMethod(
-                                                    (voucherDetails.payment_type || '')
-                                                        .toString()
-                                                        .toLowerCase()
-                                                        .replace(/\s/g, '_')
-                                                )
-                                        }
-                                    />
-                                    {(voucherDetails.payment_type === 'bank_transfer' || voucher?.payment_type === 'bank_transfer') && (
-                                        <>
-                                            <DetailItem
-                                                label="From Bank Account"
-                                                value={
-                                                    (() => {
-                                                        // Use voucher directly if voucherDetails doesn't have the fields
-                                                        const source = voucher || voucherDetails;
-                                                        const fromId = source.from_bank_account_id;
-                                                        const fromName = source.from_bank_account_name;
-                                                        const fromNumber = source.from_bank_account_number;
-                                                        
-                                                        // Priority 1: Use snapshot data first (most reliable, always available after save)
-                                                        if (fromName && fromName.trim()) {
-                                                            return `${fromName}${fromNumber ? ' - ' + fromNumber : ''}`.trim();
-                                                        }
-                                                        
-                                                        // Priority 2: Try to find in fetched bank accounts array (if loaded)
-                                                        if (fromId && fromBankAccounts?.length > 0) {
-                                                            const fromBank = fromBankAccounts.find(
-                                                                acc => String(acc.id) === String(fromId)
-                                                            );
-                                                            if (fromBank) {
-                                                                return `${fromBank.bank_name} - ${fromBank.account_number}`;
-                                                            }
-                                                        }
-                                                        
-                                                        // Priority 3: Show ID if available
-                                                        if (fromId) {
-                                                            return String(fromId);
-                                                        }
-                                                        
-                                                        return 'N/A';
-                                                    })()
-                                                }
-                                            />
-                                            <DetailItem
-                                                label="To Bank Account"
-                                                value={
-                                                    (() => {
-                                                        // Use voucher directly if voucherDetails doesn't have the fields
-                                                        const source = voucher || voucherDetails;
-                                                        const toId = source.to_bank_account_id;
-                                                        const toName = source.to_bank_account_name;
-                                                        const toNumber = source.to_bank_account_number;
-                                                        
-                                                        // Priority 1: Use snapshot data first (most reliable, always available after save)
-                                                        if (toName && toName.trim()) {
-                                                            return `${toName}${toNumber ? ' - ' + toNumber : ''}`.trim();
-                                                        }
-                                                        
-                                                        // Priority 2: Try to find in fetched bank accounts array (if loaded)
-                                                        if (toId && toBankAccounts?.length > 0) {
-                                                            const toBank = toBankAccounts.find(
-                                                                acc => String(acc.id) === String(toId)
-                                                            );
-                                                            if (toBank) {
-                                                                return `${toBank.bank_name} - ${toBank.account_number}`;
-                                                            }
-                                                        }
-                                                        
-                                                        // Priority 3: Show ID if available
-                                                        if (toId) {
-                                                            return String(toId);
-                                                        }
-                                                        
-                                                        return 'N/A';
-                                                    })()
-                                                }
-                                            />
-                                        </>
-                                    )}
-                                    <div className="pt-4">
-                                        <p className="text-sm text-gray-400 mb-1">Remarks</p>
-                                        <p className="text-sm text-white p-3 bg-white/5 rounded-md">{voucherDetails.remarks || 'N/A'}</p>
-                                    </div>
-                                    {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
-                                        <div className="pt-4">
-                                            <Label htmlFor="finance_header_id">Header</Label>
-                                            <Select name="finance_header_id" defaultValue={editedVoucher.finance_header_id} onValueChange={(value) => setEditedVoucher(p => ({ ...p, finance_header_id: value }))}>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Select a header" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {financeHeaders.map((h) => (
-                                                        <SelectItem key={h.id} value={h.id}>
-                                                            {h.name}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    )}
-                                    <div className="flex items-center gap-2 mt-4 justify-between relative z-20">
-                                        {/* Action buttons at bottom right */}
-                                        <div className="flex items-center gap-2 relative z-20">
-                                            <TooltipProvider>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button
-                                                            variant="destructive"
-                                                            size="icon"
-                                                            onClick={() => setShowDeleteDialog(true)}
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>
-                                                        <p>Delete</p>
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button
-                                                            variant="outline"
-                                                            size="icon"
-                                                            onClick={handleExportToPDF}
-                                                            disabled={
-                                                                voucher?.payment_type === 'bank_transfer' &&
-                                                                (!fromBankAccounts.length || !toBankAccounts.length)
-                                                            }
-                                                        >
-                                                            <FileText className="h-4 w-4" />
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>
-                                                        <p>Export</p>
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button variant="outline" size="icon" onClick={() => setIsEditing(!isEditing)}>
-                                                            <Edit className="h-4 w-4" />
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>
-                                                        <p>Edit</p>
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                            </TooltipProvider>
-                                            {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
-                                                <Button onClick={() => {
-                                                    updateCAVoucher(voucherId, { is_ready: true, finance_header_id: editedVoucher.finance_header_id }, user.access_token)
-                                                        .then(() => {
-                                                            toast({ title: 'Success', description: 'Voucher tagged successfully.' });
-                                                            navigate('/finance/ca');
-                                                        })
-                                                        .catch(err => {
-                                                            toast({ title: 'Error', description: `Failed to tag voucher: ${err.message}`, variant: 'destructive' });
-                                                        });
-                                                }}>Tag</Button>
+                                                    <Select
+                                                        value={editedVoucher?.to_bank_account_id ? String(editedVoucher.to_bank_account_id) : ''}
+                                                        onValueChange={(val) => setEditedVoucher(p => ({ ...p, to_bank_account_id: val }))}
+                                                    >
+                                                        <SelectTrigger><SelectValue placeholder="Select beneficiary's bank account" /></SelectTrigger>
+                                                        <SelectContent>
+                                                            {toBankAccounts.map(acc => (
+                                                                <SelectItem key={acc.id} value={String(acc.id)}>
+                                                                    {acc.bank_name} - {acc.account_number}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </>
                                             )}
-                                        </div>
+                                            <div>
+                                                <Label htmlFor="remarks">Remarks</Label>
+                                                <Input name="remarks" defaultValue={editedVoucher.remarks || ''} />
+                                            </div>
+                                            {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
+                                                <div>
+                                                    <Label htmlFor="finance_header_id">Header</Label>
+                                                    <Select
+                                                        name="finance_header_id"
+                                                        value={editedVoucher.finance_header_id ? String(editedVoucher.finance_header_id) : ''}
+                                                        onValueChange={(value) => setEditedVoucher(p => ({ ...p, finance_header_id: value ? Number(value) : null }))}
+                                                    >
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Select a header" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {financeHeaders.map((h) => (
+                                                                <SelectItem key={h.id} value={String(h.id)}>
+                                                                    {h.name}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                            )}
+                                            <div className="flex justify-end gap-2">
+                                                <Button variant="ghost" onClick={() => setIsEditing(false)} disabled={isSaving}>Cancel</Button>
+                                                <Button type="submit" disabled={isSaving}>
+                                                    {isSaving ? (
+                                                        <>
+                                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                            Saving...
+                                                        </>
+                                                    ) : (
+                                                        'Save Changes'
+                                                    )}
+                                                </Button>
+                                            </div>
+                                        </form>
+                                    ) : (
+                                        <Card ref={voucherDetailsRef} className="w-full glass-pane border-none shadow-none bg-gray-800 text-white relative z-20">
+                                            <div ref={voucherDetailsPDFRef} className="w-full">
+                                                <CardHeader>
+                                                    <CardTitle>Voucher to {beneficiaryName}</CardTitle>
+                                                    <CardDescription>Created on {new Date(voucherDetails.created_date).toLocaleDateString()}</CardDescription>
+                                                </CardHeader>
+                                                <CardContent className="space-y-2 relative z-20">
+                                                    <DetailItem label="Amount" value={`₹${parseFloat(voucherDetails.amount).toFixed(2)}`} />
+                                                    <DetailItem label="Voucher Type" value={voucherDetails.voucher_type} />
+                                                    <DetailItem
+                                                        label="Payment Method"
+                                                        value={
+                                                            voucherDetails.voucher_type === 'cash'
+                                                                ? 'Cash'
+                                                                : formatPaymentMethod(
+                                                                    (voucherDetails.payment_type || '')
+                                                                        .toString()
+                                                                        .toLowerCase()
+                                                                        .replace(/\s/g, '_')
+                                                                )
+                                                        }
+                                                    />
+                                                    {(voucherDetails.payment_type === 'bank_transfer' || voucher?.payment_type === 'bank_transfer') && (
+                                                        <>
+                                                            <DetailItem
+                                                                label="From Bank Account"
+                                                                value={
+                                                                    (() => {
+                                                                        // Use voucher directly if voucherDetails doesn't have the fields
+                                                                        const source = voucher || voucherDetails;
+                                                                        const fromId = source.from_bank_account_id;
+                                                                        const fromName = source.from_bank_account_name;
+                                                                        const fromNumber = source.from_bank_account_number;
+
+                                                                        // Priority 1: Use snapshot data first (most reliable, always available after save)
+                                                                        if (fromName && fromName.trim()) {
+                                                                            return `${fromName}${fromNumber ? ' - ' + fromNumber : ''}`.trim();
+                                                                        }
+
+                                                                        // Priority 2: Try to find in fetched bank accounts array (if loaded)
+                                                                        if (fromId && fromBankAccounts?.length > 0) {
+                                                                            const fromBank = fromBankAccounts.find(
+                                                                                acc => String(acc.id) === String(fromId)
+                                                                            );
+                                                                            if (fromBank) {
+                                                                                return `${fromBank.bank_name} - ${fromBank.account_number}`;
+                                                                            }
+                                                                        }
+
+                                                                        // Priority 3: Show ID if available
+                                                                        if (fromId) {
+                                                                            return String(fromId);
+                                                                        }
+
+                                                                        return 'N/A';
+                                                                    })()
+                                                                }
+                                                            />
+                                                            <DetailItem
+                                                                label="To Bank Account"
+                                                                value={
+                                                                    (() => {
+                                                                        // Use voucher directly if voucherDetails doesn't have the fields
+                                                                        const source = voucher || voucherDetails;
+                                                                        const toId = source.to_bank_account_id;
+                                                                        const toName = source.to_bank_account_name;
+                                                                        const toNumber = source.to_bank_account_number;
+
+                                                                        // Priority 1: Use snapshot data first (most reliable, always available after save)
+                                                                        if (toName && toName.trim()) {
+                                                                            return `${toName}${toNumber ? ' - ' + toNumber : ''}`.trim();
+                                                                        }
+
+                                                                        // Priority 2: Try to find in fetched bank accounts array (if loaded)
+                                                                        if (toId && toBankAccounts?.length > 0) {
+                                                                            const toBank = toBankAccounts.find(
+                                                                                acc => String(acc.id) === String(toId)
+                                                                            );
+                                                                            if (toBank) {
+                                                                                return `${toBank.bank_name} - ${toBank.account_number}`;
+                                                                            }
+                                                                        }
+
+                                                                        // Priority 3: Show ID if available
+                                                                        if (toId) {
+                                                                            return String(toId);
+                                                                        }
+
+                                                                        return 'N/A';
+                                                                    })()
+                                                                }
+                                                            />
+                                                        </>
+                                                    )}
+                                                    <div className="pt-4">
+                                                        <p className="text-sm text-gray-400 mb-1">Remarks</p>
+                                                        <p className="text-sm text-white p-3 bg-white/5 rounded-md">{voucherDetails.remarks || 'N/A'}</p>
+                                                    </div>
+                                                    {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
+                                                        <div className="pt-4">
+                                                            <Label htmlFor="finance_header_id">Header</Label>
+                                                            <Select name="finance_header_id" defaultValue={editedVoucher.finance_header_id} onValueChange={(value) => setEditedVoucher(p => ({ ...p, finance_header_id: value }))}>
+                                                                <SelectTrigger>
+                                                                    <SelectValue placeholder="Select a header" />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {financeHeaders.map((h) => (
+                                                                        <SelectItem key={h.id} value={h.id}>
+                                                                            {h.name}
+                                                                        </SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+                                                    )}
+                                                    <div className="flex items-center gap-2 mt-4 justify-between relative z-20">
+                                                        {/* Action buttons at bottom right */}
+                                                        <div className="flex items-center gap-2 relative z-20">
+                                                            <TooltipProvider>
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <Button
+                                                                            variant="destructive"
+                                                                            size="icon"
+                                                                            onClick={() => setShowDeleteDialog(true)}
+                                                                        >
+                                                                            <Trash2 className="h-4 w-4" />
+                                                                        </Button>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent>
+                                                                        <p>Delete</p>
+                                                                    </TooltipContent>
+                                                                </Tooltip>
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <Button
+                                                                            variant="outline"
+                                                                            size="icon"
+                                                                            onClick={handleExportToPDF}
+                                                                            disabled={
+                                                                                voucher?.payment_type === 'bank_transfer' &&
+                                                                                (!fromBankAccounts.length || !toBankAccounts.length)
+                                                                            }
+                                                                        >
+                                                                            <FileText className="h-4 w-4" />
+                                                                        </Button>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent>
+                                                                        <p>Export</p>
+                                                                    </TooltipContent>
+                                                                </Tooltip>
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <Button variant="outline" size="icon" onClick={() => setIsEditing(!isEditing)}>
+                                                                            <Edit className="h-4 w-4" />
+                                                                        </Button>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent>
+                                                                        <p>Edit</p>
+                                                                    </TooltipContent>
+                                                                </Tooltip>
+                                                            </TooltipProvider>
+                                                            {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
+                                                                <Button onClick={() => {
+                                                                    updateCAVoucher(voucherId, { is_ready: true, finance_header_id: editedVoucher.finance_header_id }, user.access_token)
+                                                                        .then(() => {
+                                                                            toast({ title: 'Success', description: 'Voucher tagged successfully.' });
+                                                                            navigate('/finance/ca');
+                                                                        })
+                                                                        .catch(err => {
+                                                                            toast({ title: 'Error', description: `Failed to tag voucher: ${err.message}`, variant: 'destructive' });
+                                                                        });
+                                                                }}>Tag</Button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </CardContent>
+                                            </div>
+                                        </Card>
+                                    )}
+                                </TabsContent>
+                                <TabsContent value="activity" className="mt-4">
+                                    <div className="p-4" ref={activityLogRef}>
+                                        <ActivityLog itemId={voucher?.voucher_id || voucherId} itemType="voucher" showFilter={false} />
                                     </div>
-                                </CardContent>
-                                </div>
-                            </Card>
-                        )}
-                    </TabsContent>
-                    <TabsContent value="activity" className="mt-4">
-                        <div className="p-4" ref={activityLogRef}>
-                            <ActivityLog itemId={voucher?.voucher_id || voucherId} itemType="voucher" showFilter={false} />
-                        </div>
-                    </TabsContent>
-                    <TabsContent value="beneficiary" className="mt-4">
-                        {(() => {
-                            // Try to resolve the full beneficiary object
-                            let beneficiaryObj = voucherDetails.beneficiary;
-                            if (
-                                (!beneficiaryObj || !beneficiaryObj.phone) &&
-                                beneficiaries &&
-                                voucherDetails.beneficiary_id
-                            ) {
-                                const found = beneficiaries.find(
-                                    b => String(b.id) === String(voucherDetails.beneficiary_id)
-                                );
-                                if (found) beneficiaryObj = found;
-                            }
-                            return (
-                                <Card className="w-full glass-pane border-none shadow-none bg-gray-800 text-white">
-                                    <CardHeader>
-                                        <CardTitle>Beneficiary Details</CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="space-y-2">
-                                        <DetailItem label="Name" value={beneficiaryObj?.name || beneficiaryName} />
-                                        <DetailItem label="PAN" value={beneficiaryObj?.pan || 'N/A'} />
-                                        <DetailItem label="Email" value={beneficiaryObj?.email || 'N/A'} />
-                                        <DetailItem label="Phone" value={beneficiaryObj?.phone || 'N/A'} />
-                                    </CardContent>
-                                </Card>
-                            );
-                        })()}
-                            </TabsContent>
-                        </Tabs>
+                                </TabsContent>
+                                <TabsContent value="beneficiary" className="mt-4">
+                                    {(() => {
+                                        // Try to resolve the full beneficiary object
+                                        let beneficiaryObj = voucherDetails.beneficiary;
+                                        if (
+                                            (!beneficiaryObj || !beneficiaryObj.phone) &&
+                                            beneficiaries &&
+                                            voucherDetails.beneficiary_id
+                                        ) {
+                                            const found = beneficiaries.find(
+                                                b => String(b.id) === String(voucherDetails.beneficiary_id)
+                                            );
+                                            if (found) beneficiaryObj = found;
+                                        }
+                                        return (
+                                            <Card className="w-full glass-pane border-none shadow-none bg-gray-800 text-white">
+                                                <CardHeader>
+                                                    <CardTitle>Beneficiary Details</CardTitle>
+                                                </CardHeader>
+                                                <CardContent className="space-y-2">
+                                                    <DetailItem label="Name" value={beneficiaryObj?.name || beneficiaryName} />
+                                                    <DetailItem label="PAN" value={beneficiaryObj?.pan || 'N/A'} />
+                                                    <DetailItem label="Email" value={beneficiaryObj?.email || 'N/A'} />
+                                                    <DetailItem label="Phone" value={beneficiaryObj?.phone || 'N/A'} />
+                                                </CardContent>
+                                            </Card>
+                                        );
+                                    })()}
+                                </TabsContent>
+                            </Tabs>
                         </div>
                     </div>
                 </ResizablePanel>
@@ -1704,31 +1704,31 @@ const VoucherDetailsCA = () => {
             {hasVouchers && (
                 <>
                     {/* Previous button at bottom left (after sidebar) */}
-                    <Button 
-                        variant="outline" 
+                    <Button
+                        variant="outline"
                         size="icon"
                         onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
                             handleNavigate(1);
-                        }} 
+                        }}
                         disabled={currentIndex === voucherList.length - 1}
                         className="hidden md:flex fixed bottom-4 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg z-[50]"
-                        style={{ 
+                        style={{
                             left: sidebarWidth <= 150 ? `${sidebarWidth + 16}px` : '20rem' // Dynamic positioning when collapsed (sidebar width + 16px margin), left-80 (20rem) when expanded
                         }}
                     >
                         <ChevronLeft className="h-5 w-5" />
                     </Button>
                     {/* Next button at bottom right corner */}
-                    <Button 
-                        variant="outline" 
+                    <Button
+                        variant="outline"
                         size="icon"
                         onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
                             handleNavigate(-1);
-                        }} 
+                        }}
                         disabled={currentIndex === 0 || currentIndex === -1}
                         className="hidden md:flex fixed bottom-4 right-4 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg z-[50]"
                     >
@@ -1736,27 +1736,27 @@ const VoucherDetailsCA = () => {
                     </Button>
                     {/* Mobile navigation buttons */}
                     <div className="flex md:hidden fixed bottom-4 left-4 right-4 justify-between z-[50] gap-2 pointer-events-none">
-                        <Button 
-                            variant="outline" 
+                        <Button
+                            variant="outline"
                             size="icon"
                             onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
                                 handleNavigate(1);
-                            }} 
+                            }}
                             disabled={currentIndex === voucherList.length - 1}
                             className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg flex-1 pointer-events-auto"
                         >
                             <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
                         </Button>
-                        <Button 
-                            variant="outline" 
+                        <Button
+                            variant="outline"
                             size="icon"
                             onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
                                 handleNavigate(-1);
-                            }} 
+                            }}
                             disabled={currentIndex === 0 || currentIndex === -1}
                             className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg flex-1 pointer-events-auto"
                         >
