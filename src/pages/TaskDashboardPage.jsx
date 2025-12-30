@@ -2495,56 +2495,79 @@ const TaskDashboardPage = () => {
                             </CardContent>
                     </Card>
 
-                    {/* Due Date - Column 3, Row 2 (col-span-1, row-span-1) - Pink Box */}
-                    <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col col-span-1 row-span-1 border-2 border-pink-500/50" style={{ height: '100%' }}>
-                            <CardHeader className="flex-shrink-0">
-                                <div className="flex items-center justify-between">
-                                    <CardTitle className="flex items-center gap-2">
-                                        <CalendarIcon className="w-5 h-5" />
-                                        Due Date
-                                    </CardTitle>
-                                    <Button variant="ghost" size="sm" className="p-2" onClick={handleEditDueDate}>
-                                        <Edit2 className="w-4 h-4" />
-                                    </Button>
-                                </div>
-                            </CardHeader>
-                            <CardContent className="flex-1 min-h-0 overflow-hidden flex flex-col items-center justify-center">
-                                {task?.due_date ? (
-                                    <div className="text-center space-y-2">
-                                        <div className="text-2xl font-bold text-white">
-                                            {format(new Date(task.due_date), 'MMM dd, yyyy')}
-                                        </div>
-                                        {(() => {
-                                            const days = getDaysUntilDueDate();
-                                            if (days === null) return null;
-                                            const isOverdue = days < 0;
-                                            const isToday = days === 0;
-                                            const isSoon = days > 0 && days <= 7;
-                                            
-                                            return (
-                                                <div className={`text-lg font-semibold ${
-                                                    isOverdue ? 'text-red-400' : 
-                                                    isToday ? 'text-yellow-400' : 
-                                                    isSoon ? 'text-orange-400' : 
-                                                    'text-green-400'
-                                                }`}>
-                                                    {isOverdue ? `${Math.abs(days)} days overdue` :
-                                                     isToday ? 'Due today' :
-                                                     isSoon ? `${days} days remaining` :
-                                                     `${days} days remaining`}
-                                                </div>
-                                            );
-                                        })()}
-                                    </div>
-                                ) : (
-                                    <div className="text-center text-gray-400">
-                                        <p>No due date set</p>
-                                        <Button variant="outline" size="sm" className="mt-2" onClick={handleEditDueDate}>
-                                            <Plus className="w-4 h-4 mr-2" />
-                                            Set Due Date
+                    {/* Due Date & Recurring - Column 3, Row 2 (col-span-1, row-span-1) - Merged Card */}
+                    <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col col-span-1 row-span-1 border-2 border-purple-500/50" style={{ height: '100%' }}>
+                            <CardContent className="flex-1 min-h-0 overflow-hidden flex flex-col p-6">
+                                {/* Due Date Section - Top */}
+                                <div className="flex flex-col border-b border-white/10 pb-6 mb-6 flex-1 min-h-0">
+                                    <div className="flex items-center justify-between mb-4 flex-shrink-0">
+                                        <CardTitle className="flex items-center gap-2">
+                                            <CalendarIcon className="w-5 h-5" />
+                                            Due Date
+                                        </CardTitle>
+                                        <Button variant="ghost" size="sm" className="p-2" onClick={handleEditDueDate}>
+                                            <Edit2 className="w-4 h-4" />
                                         </Button>
                                     </div>
-                                )}
+                                    <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
+                                        {task?.due_date ? (
+                                            <div className="text-center space-y-2">
+                                                <div className="text-xl font-bold text-white">
+                                                    {format(new Date(task.due_date), 'MMM dd, yyyy')}
+                                                </div>
+                                                {(() => {
+                                                    const days = getDaysUntilDueDate();
+                                                    if (days === null) return null;
+                                                    const isOverdue = days < 0;
+                                                    const isToday = days === 0;
+                                                    const isSoon = days > 0 && days <= 7;
+                                                    
+                                                    return (
+                                                        <div className={`text-sm font-semibold ${
+                                                            isOverdue ? 'text-red-400' : 
+                                                            isToday ? 'text-yellow-400' : 
+                                                            isSoon ? 'text-orange-400' : 
+                                                            'text-green-400'
+                                                        }`}>
+                                                            {isOverdue ? `${Math.abs(days)} days overdue` :
+                                                             isToday ? 'Due today' :
+                                                             isSoon ? `${days} days remaining` :
+                                                             `${days} days remaining`}
+                                                        </div>
+                                                    );
+                                                })()}
+                                            </div>
+                                        ) : (
+                                            <div className="text-center text-gray-400">
+                                                <p className="text-sm">No due date set</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Recurring Section - Bottom */}
+                                <div className="flex flex-col flex-1 min-h-0">
+                                    <div className="flex items-center justify-between mb-4 flex-shrink-0">
+                                        <CardTitle className="flex items-center gap-2">
+                                            <Repeat className="w-5 h-5" />
+                                            Recurring
+                                        </CardTitle>
+                                        <Button variant="ghost" size="sm" className="p-2" onClick={handleEditRecurring}>
+                                            <Edit2 className="w-4 h-4" />
+                                        </Button>
+                                    </div>
+                                    <div className="flex-1 min-h-0 overflow-y-auto">
+                                        {task?.is_recurring ? (
+                                            <div className="text-sm text-gray-300">
+                                                {formatRecurringDetails() || 'Recurring task configured'}
+                                            </div>
+                                        ) : (
+                                            <div className="text-sm text-gray-400">
+                                                <p>Not a recurring task</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
                             </CardContent>
                     </Card>
 
@@ -2662,31 +2685,34 @@ const TaskDashboardPage = () => {
                             </CardContent>
                     </Card>
 
-                    {/* Recurring Details - Column 4, Row 2 (col-span-1, row-span-1) - Blue Box */}
+                    {/* Activity Log - Column 4, Row 2 (col-span-1, row-span-1) - Blue Box */}
                     <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col col-span-1 row-span-1 border-2 border-blue-500/50" style={{ height: '100%' }}>
                             <CardHeader className="flex-shrink-0">
-                                <div className="flex items-center justify-between">
-                                    <CardTitle className="flex items-center gap-2">
-                                        <Repeat className="w-5 h-5" />
-                                        Recurring Details
-                                    </CardTitle>
-                                    <Button variant="ghost" size="sm" className="p-2" onClick={handleEditRecurring}>
-                                        <Edit2 className="w-4 h-4" />
-                                    </Button>
-                                </div>
+                                <CardTitle className="flex items-center gap-2">
+                                    <History className="w-5 h-5" />
+                                    Activity Log
+                                </CardTitle>
                             </CardHeader>
-                            <CardContent className="flex-1 min-h-0 overflow-hidden flex flex-col items-center justify-center">
-                                {task?.is_recurring ? (
-                                    <div className="text-center space-y-2 p-4">
-                                        <div className="text-sm text-gray-300">
-                                            {formatRecurringDetails() || 'Recurring task configured'}
+                            <CardContent className="flex-1 min-h-0 overflow-hidden flex flex-col">
+                                {isHistoryLoading ? (
+                                    <div className="flex justify-center items-center py-8 flex-shrink-0">
+                                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                                    </div>
+                                ) : (() => {
+                                    // Filter out comment-related events (chat history)
+                                    const filteredHistory = history.filter(item => 
+                                        item.event_type !== 'comment_added' && 
+                                        item.event_type !== 'comment_updated' && 
+                                        item.event_type !== 'comment_deleted'
+                                    );
+                                    return filteredHistory.length > 0 ? (
+                                        <div className="flex-1 min-h-0 overflow-y-auto space-y-4">
+                                            {filteredHistory.map(renderHistoryItem)}
                                         </div>
-                                    </div>
-                                ) : (
-                                    <div className="text-center text-gray-400 p-4">
-                                        <p>Not a recurring task</p>
-                                    </div>
-                                )}
+                                    ) : (
+                                        <div className="text-center py-8 text-gray-400 flex-shrink-0">No history found for this task.</div>
+                                    );
+                                })()}
                             </CardContent>
                     </Card>
                 </div>
