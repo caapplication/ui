@@ -140,7 +140,7 @@ const LandingPage = () => {
             {/* Hero Section */}
             <section
                 id="overview"
-                className="relative pt-24 md:pt-32 lg:pt-48 pb-12 md:pb-20 overflow-hidden min-h-screen flex items-center justify-center"
+                className="relative pt-40 lg:pt-48 pb-20 overflow-hidden min-h-screen flex items-center justify-center"
             >
                 <motion.div
                     variants={containerVariants}

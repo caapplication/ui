@@ -546,7 +546,7 @@ const TaskKanbanView = forwardRef(({
             const diffMs = now - date;
             const diffHours = diffMs / (1000 * 60 * 60);
             const diffDays = diffHours / 24;
-            
+
             if (diffHours <= 24) {
                 return 'text-green-400'; // Green for within 24 hours
             } else if (diffDays <= 7) {
@@ -612,25 +612,27 @@ const TaskKanbanView = forwardRef(({
                     background: rgba(255, 255, 255, 0.3);
                 }
             `}</style>
-            <div className="flex-1 overflow-x-auto kanban-scroll-container min-h-0 pb-2" style={{
-                scrollbarWidth: 'thin',
-                scrollbarColor: 'rgba(255, 255, 255, 0.4) rgba(255, 255, 255, 0.1)',
-                WebkitOverflowScrolling: 'touch',
-                maxHeight: '100%'
-            }}>
-                <div className="flex gap-4 min-w-max rounded-lg" style={{ height: 'calc(100vh - 180px)' }}>
+            <div
+                className="flex-1 w-full overflow-x-scroll overflow-y-hidden kanban-scroll-container min-h-0 pb-2"
+                style={{
+                    scrollbarWidth: 'thin',
+                    scrollbarColor: 'rgba(255, 255, 255, 0.4) rgba(255, 255, 255, 0.1)',
+                    WebkitOverflowScrolling: 'touch',
+                }}
+            >
+
+                <div className="flex gap-4 min-w-max h-full pr-4">
                     {stages.map((stage) => {
                         const stageTasks = getTasksForStage(stage.id);
                         return (
                             <div
                                 key={stage.id}
-                                className="flex-shrink-0 w-80 flex flex-col"
-                                style={{ height: 'calc(100vh - 180px)', maxHeight: 'calc(100vh - 180px)' }}
+                                className="flex-shrink-0 w-80 flex flex-col h-full"
                                 onDragOver={handleDragOver}
                                 onDrop={(e) => handleDrop(e, stage.id)}
                             >
-                                <Card className="glass-pane h-full flex flex-col overflow-hidden rounded-2xl ">
-                                    <CardContent className="p-4 flex-1 flex flex-col min-h-0 overflow-hidden">
+                                <Card className="glass-pane h-full flex flex-col  rounded-2xl ">
+                                    <CardContent className="p-4 flex-1 flex flex-col min-h-0 ">
                                         <div
                                             className="flex items-center justify-between mb-4 pb-3 border-b border-white/10 flex-shrink-0"
                                             style={{ borderLeftColor: stage.color, borderLeftWidth: '4px', paddingLeft: '12px' }}
