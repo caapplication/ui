@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Trash2, Calendar, Repeat, User, Building } from 'lucide-react';
+import { Edit, Trash2, Calendar, Repeat, User, Building, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import {
   AlertDialog,
@@ -23,7 +23,7 @@ const FREQUENCY_LABELS = {
   yearly: 'Yearly',
 };
 
-const RecurringTaskList = ({ recurringTasks, onEdit, onDelete }) => {
+const RecurringTaskList = ({ recurringTasks, onEdit, onDelete, isLoading = false }) => {
   const getFrequencyDescription = (task) => {
     let desc = `Every ${task.interval} ${FREQUENCY_LABELS[task.frequency]}`;
     
@@ -42,6 +42,19 @@ const RecurringTaskList = ({ recurringTasks, onEdit, onDelete }) => {
     
     return desc;
   };
+
+  if (isLoading) {
+    return (
+      <Card className="glass-pane rounded-2xl border border-white/10">
+        <CardContent className="py-16 text-center">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            <p className="text-gray-400">Loading recurring tasks...</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (recurringTasks.length === 0) {
     return (

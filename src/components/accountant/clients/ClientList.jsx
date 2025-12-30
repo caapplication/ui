@@ -8,7 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { Search, Plus, Upload, Download, Phone, MessageSquare, Settings2, MoreVertical, RefreshCw, ArrowRight, ArrowLeft, Filter, Check, X, UserCheck, Trash2, Loader2 } from 'lucide-react';
+import { Search, Plus, Upload, Download, Phone, MessageSquare, Settings2, MoreVertical, RefreshCw, ArrowRight, ArrowLeft, Filter, Check, X, UserCheck, Trash2, Loader2, List as ListIcon, Grid as GridIcon } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -66,6 +66,7 @@ const FilterPopover = ({ title, options, selectedValue, onSelect, children }) =>
 
 
 const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices, onDeleteClient, onRefresh, businessTypes, onBulkDelete, teamMembers = [] }) => {
+    const [viewMode, setViewMode] = useState('list'); // 'list' or 'grid'
     const { toast } = useToast();
     const [searchTerm, setSearchTerm] = useState('');
     const [filters, setFilters] = useState({
@@ -190,6 +191,22 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
                     Clients
                 </h1>
                 <div className="flex items-center gap-2">
+                    <Button
+                        variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+                        size="icon"
+                        onClick={() => setViewMode('list')}
+                        title="List View"
+                    >
+                        <ListIcon className="w-5 h-5" />
+                    </Button>
+                    <Button
+                        variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+                        size="icon"
+                        onClick={() => setViewMode('grid')}
+                        title="Grid View"
+                    >
+                        <GridIcon className="w-5 h-5" />
+                    </Button>
                     <Button onClick={onAddNew}><Plus className="w-4 h-4 mr-2" /> New</Button>
                 </div>
             </div>
@@ -250,30 +267,116 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
             </div>
 
             <div className="flex-grow overflow-y-auto glass-pane p-1 rounded-lg">
-                <Table>
-                    <TableHeader>
-                        <TableRow className="border-b border-white/10">
-                            <TableHead>Photo</TableHead>
-                            <TableHead>Customer ID</TableHead>
-                            <TableHead>Name</TableHead>
-                            <TableHead>Type</TableHead>
-                            <TableHead>Organisation</TableHead>
-                            <TableHead>Assigned To</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Users</TableHead>
-                            <TableHead>Tags</TableHead>
-                            <TableHead className="w-[50px]"></TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
+                {viewMode === 'list' ? (
+                    <>
+                        <Table>
+                            <TableHeader>
+                                <TableRow className="border-b border-white/10">
+                                    <TableHead>Photo</TableHead>
+                                    <TableHead>Customer ID</TableHead>
+                                    <TableHead>Name</TableHead>
+                                    <TableHead>Type</TableHead>
+                                    <TableHead>Organisation</TableHead>
+                                    <TableHead>Assigned To</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>Users</TableHead>
+                                    <TableHead>Tags</TableHead>
+                                    <TableHead className="w-[50px]"></TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {paginatedClients.map(client => (
+                                    <TableRow 
+                                        key={client.id}
+                                        className={cn("border-none hover:bg-white/5 cursor-pointer", selectedClients.includes(client.id) && "bg-primary/10")}
+                                        onClick={() => onViewClient(client)}
+                                    >
+                                        <TableCell>
+                                            <Avatar>
+                                                <AvatarImage 
+                                                    src={client.photo_url && client.photo_url.includes('.s3.amazonaws.com/') 
+                                                        ? `${import.meta.env.VITE_CLIENT_API_URL || 'http://127.0.0.1:8002'}/clients/${client.id}/photo`
+                                                        : (client.photo_url || client.photo)} 
+                                                />
+                                                <AvatarFallback>{client.name.charAt(0)}</AvatarFallback>
+                                            </Avatar>
+                                        </TableCell>
+                                        <TableCell>{client.customer_id || 'N/A'}</TableCell>
+                                        <TableCell><span className="text-blue-400 hover:underline">{client.name}</span></TableCell>
+                                        <TableCell>{client.client_type}</TableCell>
+                                        <TableCell>
+                                            {client.organization_name || '-'}
+                                        </TableCell>
+                                        <TableCell>
+                                            {(() => {
+                                                const assignedMember = teamMembers.find(
+                                                    (member) => String(member.user_id) === String(client.assigned_ca_user_id)
+                                                );
+                                                return assignedMember ? (
+                                                    <div className="flex items-center gap-2">
+                                                        <Avatar className="w-8 h-8">
+                                                            <AvatarImage src={assignedMember.photo} />
+                                                            <AvatarFallback>{assignedMember.name ? assignedMember.name.charAt(0) : assignedMember.email.charAt(0)}</AvatarFallback>
+                                                        </Avatar>
+                                                        <span className="text-sm">{assignedMember.name || assignedMember.email}</span>
+                                                    </div>
+                                                ) : (
+                                                    '-'
+                                                );
+                                            })()}
+                                        </TableCell>
+                                        <TableCell>
+                                            {client.is_active ? <Badge variant="success">Active</Badge> : <Badge variant="destructive">Inactive</Badge>}
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="flex -space-x-2">
+                                                {client.orgUsers &&
+                                                    [...(client.orgUsers.invited_users || []), ...(client.orgUsers.joined_users || [])].map(user => (
+                                                        <Avatar key={user.user_id} className="w-8 h-8 border-2 border-gray-800">
+                                                            <AvatarImage src={user.photo} />
+                                                            <AvatarFallback>{user.email.charAt(0)}</AvatarFallback>
+                                                        </Avatar>
+                                                    ))
+                                                }
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="flex flex-wrap gap-1">
+                                                {client.tags && client.tags.length > 0 ? (
+                                                    client.tags.map(tag => (
+                                                        <Badge key={tag.id} variant="secondary" style={{ backgroundColor: tag.color, color: '#fff' }}>
+                                                            {tag.name}
+                                                        </Badge>
+                                                    ))
+                                                ) : (
+                                                    '-'
+                                                )}
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                        {paginatedClients.length === 0 && (
+                            <div className="text-center py-16 text-gray-500">
+                                <p className="text-lg">No clients found.</p>
+                                {clients.length > 0 ? <p>Try adjusting your filters.</p> : <p>Click "New" to get started.</p>}
+                            </div>
+                        )}
+                    </>
+                ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 p-4">
                         {paginatedClients.map(client => (
-                            <TableRow 
+                            <div
                                 key={client.id}
-                                className={cn("border-none hover:bg-white/5 cursor-pointer", selectedClients.includes(client.id) && "bg-primary/10")}
+                                className={cn(
+                                    "bg-white/5 rounded-lg p-4 flex flex-col gap-3 cursor-pointer hover:bg-primary/10 border border-white/10 transition-all",
+                                    selectedClients.includes(client.id) && "ring-2 ring-primary"
+                                )}
                                 onClick={() => onViewClient(client)}
                             >
-                                <TableCell>
-                                    <Avatar>
+                                <div className="flex items-center gap-3">
+                                    <Avatar className="w-14 h-14">
                                         <AvatarImage 
                                             src={client.photo_url && client.photo_url.includes('.s3.amazonaws.com/') 
                                                 ? `${import.meta.env.VITE_CLIENT_API_URL || 'http://127.0.0.1:8002'}/clients/${client.id}/photo`
@@ -281,67 +384,56 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
                                         />
                                         <AvatarFallback>{client.name.charAt(0)}</AvatarFallback>
                                     </Avatar>
-                                </TableCell>
-                                <TableCell>{client.customer_id || 'N/A'}</TableCell>
-                                <TableCell><span className="text-blue-400 hover:underline">{client.name}</span></TableCell>
-                                <TableCell>{client.client_type}</TableCell>
-                                <TableCell>
-                                    {client.organization_name || '-'}
-                                </TableCell>
-                                <TableCell>
+                                    <div>
+                                        <div className="font-bold text-lg text-white">{client.name}</div>
+                                        <div className="text-xs text-gray-400">{client.customer_id || 'N/A'}</div>
+                                    </div>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    <Badge variant="outline">{client.client_type}</Badge>
+                                    {client.is_active ? <Badge variant="success">Active</Badge> : <Badge variant="destructive">Inactive</Badge>}
+                                </div>
+                                <div className="text-sm text-gray-300">
+                                    <span className="font-semibold">Org:</span> {client.organization_name || '-'}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="font-semibold text-xs text-gray-400">Assigned:</span>
                                     {(() => {
                                         const assignedMember = teamMembers.find(
                                             (member) => String(member.user_id) === String(client.assigned_ca_user_id)
                                         );
                                         return assignedMember ? (
-                                            <div className="flex items-center gap-2">
-                                                <Avatar className="w-8 h-8">
+                                            <div className="flex items-center gap-1">
+                                                <Avatar className="w-6 h-6">
                                                     <AvatarImage src={assignedMember.photo} />
                                                     <AvatarFallback>{assignedMember.name ? assignedMember.name.charAt(0) : assignedMember.email.charAt(0)}</AvatarFallback>
                                                 </Avatar>
-                                                <span className="text-sm">{assignedMember.name || assignedMember.email}</span>
+                                                <span className="text-xs">{assignedMember.name || assignedMember.email}</span>
                                             </div>
                                         ) : (
-                                            '-'
+                                            <span className="text-xs">-</span>
                                         );
                                     })()}
-                                </TableCell>
-                                <TableCell>
-                                    {client.is_active ? <Badge variant="success">Active</Badge> : <Badge variant="destructive">Inactive</Badge>}
-                                </TableCell>
-                                <TableCell>
-                                    <div className="flex -space-x-2">
-                                        {client.orgUsers &&
-                                            [...(client.orgUsers.invited_users || []), ...(client.orgUsers.joined_users || [])].map(user => (
-                                                <Avatar key={user.user_id} className="w-8 h-8 border-2 border-gray-800">
-                                                    <AvatarImage src={user.photo} />
-                                                    <AvatarFallback>{user.email.charAt(0)}</AvatarFallback>
-                                                </Avatar>
-                                            ))
-                                        }
-                                    </div>
-                                </TableCell>
-                                <TableCell>
-                                    <div className="flex flex-wrap gap-1">
-                                        {client.tags && client.tags.length > 0 ? (
-                                            client.tags.map(tag => (
-                                                <Badge key={tag.id} variant="secondary" style={{ backgroundColor: tag.color, color: '#fff' }}>
-                                                    {tag.name}
-                                                </Badge>
-                                            ))
-                                        ) : (
-                                            '-'
-                                        )}
-                                    </div>
-                                </TableCell>
-                            </TableRow>
+                                </div>
+                                <div className="flex flex-wrap gap-1">
+                                    {client.tags && client.tags.length > 0 ? (
+                                        client.tags.map(tag => (
+                                            <Badge key={tag.id} variant="secondary" style={{ backgroundColor: tag.color, color: '#fff' }}>
+                                                {tag.name}
+                                            </Badge>
+                                        ))
+                                    ) : (
+                                        <span className="text-xs text-gray-400">No tags</span>
+                                    )}
+                                </div>
+                            </div>
                         ))}
-                    </TableBody>
-                </Table>
-                 {paginatedClients.length === 0 && (
-                    <div className="text-center py-16 text-gray-500">
-                        <p className="text-lg">No clients found.</p>
-                        {clients.length > 0 ? <p>Try adjusting your filters.</p> : <p>Click "New" to get started.</p>}
+                        {paginatedClients.length === 0 && (
+                            <div className="col-span-full text-center py-16 text-gray-500">
+                                <p className="text-lg">No clients found.</p>
+                                {clients.length > 0 ? <p>Try adjusting your filters.</p> : <p>Click "New" to get started.</p>}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

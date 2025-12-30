@@ -310,6 +310,7 @@ const RecurringTaskManagementPage = () => {
                             recurringTasks={recurringTasks}
                             onEdit={handleEdit}
                             onDelete={handleDelete}
+                            isLoading={isLoading}
                         />
                     </motion.div>
                 )}

@@ -72,6 +72,9 @@ import React, { useState, useEffect, useRef } from 'react';
             opening_balance_date: null,
             assigned_ca_user_id: '',
             tag_ids: [],
+            notify_client: false,
+            gst_autofill_enabled: false,
+            users: [],
         });
     
     const [isSaving, setIsSaving] = useState(false);
@@ -112,10 +115,10 @@ import React, { useState, useEffect, useRef } from 'react';
                     date_of_birth: client.date_of_birth || client.dob ? new Date(client.date_of_birth || client.dob) : null,
                     contact_person_name: client.contact_person_name || '',
                     mobile: client.contact?.mobile || client.mobile || '',
-                    secondary_phone: client.contact?.secondary_phone || '',
+                    secondary_phone: client.contact?.secondary_phone || client.secondary_phone || '',
                     email: client.contact?.email || client.email || '',
-                    address_line1: client.contact?.address_line1 || '',
-                    address_line2: client.contact?.address_line2 || '',
+                    address_line1: client.contact?.address_line1 || client.address_line1 || '',
+                    address_line2: client.contact?.address_line2 || client.address_line2 || '',
                     city: client.contact?.city || client.city || '',
                     state: client.contact?.state || client.state || '',
                     postal_code: client.contact?.postal_code || client.postal_code || '',
@@ -124,6 +127,9 @@ import React, { useState, useEffect, useRef } from 'react';
                     opening_balance_date: client.opening_balance?.opening_balance_date || client.opening_balance_date ? new Date(client.opening_balance?.opening_balance_date || client.opening_balance_date) : null,
                     assigned_ca_user_id: client.assigned_ca_user_id || '',
                     tag_ids: Array.isArray(client.tags) ? client.tags.map(t => t.id) : (client.tag_ids || []),
+                    notify_client: client.notify_client ?? false,
+                    gst_autofill_enabled: client.gst_autofill_enabled ?? false,
+                    users: Array.isArray(client.users) ? client.users : [],
                 });
             }
         }, [client]);
@@ -398,11 +404,21 @@ import React, { useState, useEffect, useRef } from 'react';
                                     />
                                 </div>
                                 <h2 className="text-xl font-semibold mb-4 w-full mt-4">Client Status</h2>
-                                 <div className="flex items-center space-x-2 pt-6 w-full justify-center">
-<Switch id="is_active" name="is_active" checked={formData.is_active} onCheckedChange={(c) => handleSwitchChange('is_active', c)} disabled={isSaving} />
-                                    <Label htmlFor="is_active">Client is Active</Label>
-                                </div>
+                        <div className="flex flex-col gap-4 pt-6 w-full justify-center">
+                            <div className="flex items-center space-x-2">
+                                <Switch id="is_active" name="is_active" checked={formData.is_active} onCheckedChange={(c) => handleSwitchChange('is_active', c)} disabled={isSaving} />
+                                <Label htmlFor="is_active">Client is Active</Label>
                             </div>
+                            <div className="flex items-center space-x-2">
+                                <Switch id="notify_client" name="notify_client" checked={formData.notify_client} onCheckedChange={(c) => handleSwitchChange('notify_client', c)} disabled={isSaving} />
+                                <Label htmlFor="notify_client">Notify Client</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <Switch id="gst_autofill_enabled" name="gst_autofill_enabled" checked={formData.gst_autofill_enabled} onCheckedChange={(c) => handleSwitchChange('gst_autofill_enabled', c)} disabled={isSaving} />
+                                <Label htmlFor="gst_autofill_enabled">GST Autofill Enabled</Label>
+                            </div>
+                        </div>
+                    </div>
     
                             <div className="lg:col-span-2 glass-pane p-6 rounded-lg">
                                  <h2 className="text-xl font-semibold mb-4">Business Details</h2>
@@ -652,6 +668,21 @@ import React, { useState, useEffect, useRef } from 'react';
                                     </Popover>
                                 </div>
                             </div>
+                        </div>
+                        {/* Users Section */}
+                        <div className="glass-pane p-6 rounded-lg mt-6">
+                            <h2 className="text-xl font-semibold mb-4">Users</h2>
+                            {formData.users && formData.users.length > 0 ? (
+                                <ul className="list-disc pl-6">
+                                    {formData.users.map((user, idx) => (
+                                        <li key={user.id || user.email || idx}>
+                                            {user.name || user.email || user.id}
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <p className="text-gray-400">No users assigned.</p>
+                            )}
                         </div>
                     </form>
                 </div>
