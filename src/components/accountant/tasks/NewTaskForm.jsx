@@ -39,7 +39,6 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
     stage_id: '',
     due_date: null,
     due_time: '12:00',  // Time for due date (HH:mm format)
-    target_date: null,
     description: '',
     checklist_enabled: false,
     checklist_items: [],
@@ -152,7 +151,6 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
         service_id: task.service_id || '',
         stage_id: task.stage_id || task.stage?.id || '',
         due_date: task.due_date ? new Date(task.due_date) : null,
-        target_date: task.target_date ? new Date(task.target_date) : null,
         description: task.description || '',
         checklist_enabled: task.checklist?.enabled || false,
         checklist_items: (task.checklist?.items || []).map(item => ({
@@ -183,51 +181,7 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
   };
 
   const handleDateChange = (name, date) => {
-    if (name === 'due_date' && date) {
-      // If target date exists and is greater than or equal to due date, adjust it
-      setFormData(prev => {
-        let newTargetDate = prev.target_date;
-        if (prev.target_date) {
-          // Compare dates without time components
-          const targetDateOnly = new Date(prev.target_date);
-          targetDateOnly.setHours(0, 0, 0, 0);
-          const dueDateOnly = new Date(date);
-          dueDateOnly.setHours(0, 0, 0, 0);
-
-          if (targetDateOnly >= dueDateOnly) {
-            // Set target date to one day before due date
-            const oneDayBefore = new Date(date);
-            oneDayBefore.setDate(oneDayBefore.getDate() - 1);
-            oneDayBefore.setHours(0, 0, 0, 0);
-            newTargetDate = oneDayBefore;
-          }
-        }
-        return { ...prev, [name]: date, target_date: newTargetDate };
-      });
-    } else if (name === 'target_date' && date) {
-      // Validate that target date is less than due date
-      setFormData(prev => {
-        if (prev.due_date) {
-          // Compare dates without time components
-          const targetDateOnly = new Date(date);
-          targetDateOnly.setHours(0, 0, 0, 0);
-          const dueDateOnly = new Date(prev.due_date);
-          dueDateOnly.setHours(0, 0, 0, 0);
-
-          if (targetDateOnly >= dueDateOnly) {
-            toast({
-              title: "Validation Error",
-              description: "Target date must be earlier than due date.",
-              variant: "destructive"
-            });
-            return prev; // Don't update if validation fails
-          }
-        }
-        return { ...prev, [name]: date };
-      });
-    } else {
-      setFormData(prev => ({ ...prev, [name]: date }));
-    }
+    setFormData(prev => ({ ...prev, [name]: date }));
   };
 
   const handleSwitchChange = (name, checked) => {
@@ -335,7 +289,6 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
       service_id: null, // Service field removed
       stage_id: stageId || null,
       due_date: formData.due_date ? format(formData.due_date, 'yyyy-MM-dd') : null,
-      target_date: formData.target_date ? format(formData.target_date, 'yyyy-MM-dd') : null,
       description: formData.description,
       priority: formData.priority || null,
       tag_id: formData.tag_id || null,
@@ -371,46 +324,17 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
               <Label htmlFor="title">Task Title*</Label>
               <Input id="title" name="title" placeholder="e.g., File annual tax returns" value={formData.title} onChange={handleChange} required disabled={isSaving} />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <Label htmlFor="due_date">Due Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formData.due_date && "text-muted-foreground")}>
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {formData.due_date ? format(formData.due_date, "PPP") : <span>Pick a date</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={formData.due_date} onSelect={(d) => handleDateChange('due_date', d)} initialFocus /></PopoverContent>
-                </Popover>
-              </div>
-              <div>
-                <Label htmlFor="target_date">Target Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formData.target_date && "text-muted-foreground")}>
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {formData.target_date ? format(formData.target_date, "PPP") : <span>Pick a date</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={formData.target_date}
-                      onSelect={(d) => handleDateChange('target_date', d)}
-                      initialFocus
-                      disabled={(date) => {
-                        if (!formData.due_date) return false;
-                        const dateOnly = new Date(date);
-                        dateOnly.setHours(0, 0, 0, 0);
-                        const dueDateOnly = new Date(formData.due_date);
-                        dueDateOnly.setHours(0, 0, 0, 0);
-                        return dateOnly >= dueDateOnly;
-                      }}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
+            <div>
+              <Label htmlFor="due_date">Due Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formData.due_date && "text-muted-foreground")}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {formData.due_date ? format(formData.due_date, "PPP") : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={formData.due_date} onSelect={(d) => handleDateChange('due_date', d)} initialFocus /></PopoverContent>
+              </Popover>
             </div>
             <div>
               {/* <Label htmlFor="description">Description</Label> */}

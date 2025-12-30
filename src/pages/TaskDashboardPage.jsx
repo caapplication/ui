@@ -6,7 +6,7 @@ import { useOrganisation } from '@/hooks/useOrganisation';
 import { getTaskDetails, startTaskTimer, stopTaskTimer, getTaskHistory, /* addTaskSubtask, updateTaskSubtask, deleteTaskSubtask, */ updateTask, listClients, listServices, listTeamMembers, listTaskComments, createTaskComment, updateTaskComment, deleteTaskComment, addTaskCollaborator, removeTaskCollaborator, getTaskCollaborators, getCommentReadReceipts, requestTaskClosure, getClosureRequest, reviewClosureRequest, listTaskStages } from '@/lib/api';
 import * as pdfjsLib from 'pdfjs-dist';
 import { useToast } from '@/components/ui/use-toast';
-import { Loader2, ArrowLeft, Paperclip, Clock, Calendar, User, Tag, Flag, CheckCircle, FileText, List, MessageSquare, Briefcase, Users, Play, Square, History, Plus, Trash2, Send, Edit2, Bell, UserPlus, X, Download, Image as ImageIcon, Eye, Maximize2, Repeat, LayoutGrid, CheckCircle2, XCircle } from 'lucide-react';
+import { Loader2, ArrowLeft, Paperclip, Clock, Calendar as CalendarIcon, User, Tag, Flag, CheckCircle, FileText, List, MessageSquare, Briefcase, Users, Play, Square, History, Plus, Trash2, Send, Edit2, Bell, UserPlus, X, Download, Image as ImageIcon, Eye, Maximize2, Repeat, LayoutGrid, CheckCircle2, XCircle } from 'lucide-react';
 import { Combobox } from '@/components/ui/combobox';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,8 +14,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format, formatDistanceToNow } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -140,6 +145,20 @@ const TaskDashboardPage = () => {
     const [stages, setStages] = useState([]);
     const [isLoadingStages, setIsLoadingStages] = useState(false);
     const [isUpdatingStage, setIsUpdatingStage] = useState(false);
+    const [showEditDueDateDialog, setShowEditDueDateDialog] = useState(false);
+    const [editingDueDate, setEditingDueDate] = useState(null);
+    const [isUpdatingDueDate, setIsUpdatingDueDate] = useState(false);
+    const [showEditRecurringDialog, setShowEditRecurringDialog] = useState(false);
+    const [isUpdatingRecurring, setIsUpdatingRecurring] = useState(false);
+    const [recurringFormData, setRecurringFormData] = useState({
+        is_recurring: false,
+        recurrence_frequency: 'weekly',
+        recurrence_time: '09:00',
+        recurrence_day_of_week: null,
+        recurrence_date: null,
+        recurrence_day_of_month: null,
+        recurrence_start_date: null
+    });
 
     const fetchCollaborators = useCallback(async () => {
         if (!user?.access_token || !taskId) return;
@@ -853,10 +872,24 @@ const TaskDashboardPage = () => {
         try {
             const agencyId = user?.agency_id || null;
             await reviewClosureRequest(taskId, closureRequest.id, status, closureReason, agencyId, user.access_token);
+            
+            // If approved, set task status to "Complete"
+            if (status === 'approved') {
+                // Find the "Complete" stage
+                const completeStage = stages.find(s => {
+                    const stageName = (s.name || '').toLowerCase();
+                    return stageName === 'complete' || stageName === 'completed';
+                });
+                
+                if (completeStage) {
+                    await updateTask(taskId, { stage_id: completeStage.id }, agencyId, user.access_token);
+                }
+            }
+            
             toast({
                 title: status === 'approved' ? "Closure Approved" : "Closure Rejected",
                 description: status === 'approved'
-                    ? "The task has been closed and moved to history."
+                    ? "The task has been closed and marked as Complete."
                     : "The closure request has been rejected. The task remains open."
             });
             setShowClosureReviewDialog(false);
@@ -1476,14 +1509,156 @@ const TaskDashboardPage = () => {
         }
     };
 
+    // Handle due date edit
+    const handleEditDueDate = () => {
+        setEditingDueDate(task?.due_date ? new Date(task.due_date) : null);
+        setShowEditDueDateDialog(true);
+    };
+
+    const handleSaveDueDate = async () => {
+        if (!task) return;
+        setIsUpdatingDueDate(true);
+        try {
+            const agencyId = user?.agency_id || null;
+            const dueDateStr = editingDueDate ? format(editingDueDate, 'yyyy-MM-dd') : null;
+            await updateTask(taskId, { due_date: dueDateStr }, agencyId, user.access_token);
+            
+            const updatedTask = await getTaskDetails(taskId, agencyId, user.access_token);
+            setTask(updatedTask);
+            
+            const updatedHistory = await getTaskHistory(taskId, agencyId, user.access_token);
+            setHistory(updatedHistory);
+            
+            toast({
+                title: 'Due Date Updated',
+                description: 'Task due date has been updated successfully.',
+            });
+            setShowEditDueDateDialog(false);
+        } catch (error) {
+            toast({
+                title: 'Error updating due date',
+                description: error.message,
+                variant: 'destructive',
+            });
+        } finally {
+            setIsUpdatingDueDate(false);
+        }
+    };
+
+    // Calculate days until due date
+    const getDaysUntilDueDate = () => {
+        if (!task?.due_date) return null;
+        try {
+            const dueDate = new Date(task.due_date);
+            const now = new Date();
+            now.setHours(0, 0, 0, 0);
+            dueDate.setHours(0, 0, 0, 0);
+            const diffMs = dueDate - now;
+            const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+            return diffDays;
+        } catch {
+            return null;
+        }
+    };
+
+    // Format recurring details
+    const formatRecurringDetails = () => {
+        if (!task?.is_recurring) return null;
+        
+        const frequency = task.recurrence_frequency || 'weekly';
+        const details = [];
+        
+        if (frequency === 'daily' && task.recurrence_time) {
+            details.push(`Daily at ${task.recurrence_time}`);
+        } else if (frequency === 'weekly' && task.recurrence_day_of_week !== null) {
+            const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+            details.push(`Weekly on ${days[task.recurrence_day_of_week]}`);
+        } else if (['monthly', 'yearly'].includes(frequency) && task.recurrence_date) {
+            details.push(`${frequency.charAt(0).toUpperCase() + frequency.slice(1)} on ${format(new Date(task.recurrence_date), 'MMM dd')}`);
+        } else if (['quarterly', 'half_yearly'].includes(frequency) && task.recurrence_day_of_month !== null) {
+            const period = frequency === 'quarterly' ? '3 months' : '6 months';
+            details.push(`Every ${period} on day ${task.recurrence_day_of_month}`);
+        } else {
+            details.push(frequency.charAt(0).toUpperCase() + frequency.slice(1));
+        }
+        
+        if (task.recurrence_start_date) {
+            details.push(`Starting ${format(new Date(task.recurrence_start_date), 'MMM dd, yyyy')}`);
+        }
+        
+        return details.join(' • ');
+    };
+
+    // Handle recurring details edit - open edit dialog
+    const handleEditRecurring = () => {
+        if (!task) return;
+        setRecurringFormData({
+            is_recurring: task.is_recurring || false,
+            recurrence_frequency: task.recurrence_frequency || 'weekly',
+            recurrence_time: task.recurrence_time || '09:00',
+            recurrence_day_of_week: task.recurrence_day_of_week ?? null,
+            recurrence_date: task.recurrence_date ? new Date(task.recurrence_date) : null,
+            recurrence_day_of_month: task.recurrence_day_of_month ?? null,
+            recurrence_start_date: task.recurrence_start_date ? new Date(task.recurrence_start_date) : null
+        });
+        setShowEditRecurringDialog(true);
+    };
+
+    const handleRecurringFormChange = (name, value) => {
+        setRecurringFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleRecurringDateChange = (name, date) => {
+        setRecurringFormData(prev => ({ ...prev, [name]: date }));
+    };
+
+    const handleSaveRecurring = async () => {
+        if (!task) return;
+        setIsUpdatingRecurring(true);
+        try {
+            const agencyId = user?.agency_id || null;
+            const updateData = {
+                is_recurring: recurringFormData.is_recurring,
+                recurrence_frequency: recurringFormData.is_recurring ? recurringFormData.recurrence_frequency : null,
+                recurrence_time: recurringFormData.is_recurring && recurringFormData.recurrence_frequency === 'daily' ? recurringFormData.recurrence_time : null,
+                recurrence_day_of_week: recurringFormData.is_recurring && recurringFormData.recurrence_frequency === 'weekly' ? recurringFormData.recurrence_day_of_week : null,
+                recurrence_date: recurringFormData.is_recurring && ['monthly', 'yearly'].includes(recurringFormData.recurrence_frequency) && recurringFormData.recurrence_date ? format(recurringFormData.recurrence_date, 'yyyy-MM-dd') : null,
+                recurrence_day_of_month: recurringFormData.is_recurring && ['quarterly', 'half_yearly'].includes(recurringFormData.recurrence_frequency) ? recurringFormData.recurrence_day_of_month : null,
+                recurrence_start_date: recurringFormData.is_recurring && recurringFormData.recurrence_start_date ? format(recurringFormData.recurrence_start_date, 'yyyy-MM-dd') : null
+            };
+            
+            await updateTask(taskId, updateData, agencyId, user.access_token);
+            
+            const updatedTask = await getTaskDetails(taskId, agencyId, user.access_token);
+            setTask(updatedTask);
+            
+            const updatedHistory = await getTaskHistory(taskId, agencyId, user.access_token);
+            setHistory(updatedHistory);
+            
+            toast({
+                title: 'Recurring Details Updated',
+                description: 'Task recurring schedule has been updated successfully.',
+            });
+            setShowEditRecurringDialog(false);
+        } catch (error) {
+            toast({
+                title: 'Error updating recurring details',
+                description: error.message,
+                variant: 'destructive',
+            });
+        } finally {
+            setIsUpdatingRecurring(false);
+        }
+    };
+
     // Get user info for display
-    const createdByInfo = task.created_by_name 
+    const createdByInfo = task?.created_by_name 
         ? { name: task.created_by_name, email: 'N/A', role: task.created_by_role || getUserInfo(task.created_by).role || 'N/A' }
-        : getUserInfo(task.created_by);
-    const updatedByInfo = task.updated_by_name 
-        ? { name: task.updated_by_name, email: 'N/A', role: task.updated_by_role || getUserInfo(task.updated_by || task.created_by).role || 'N/A' }
-        : getUserInfo(task.updated_by || task.created_by);
-    const assignedToInfo = getUserInfo(task.assigned_to);
+        : getUserInfo(task?.created_by);
+    const updatedByInfo = task?.updated_by_name 
+        ? { name: task.updated_by_name, email: 'N/A', role: task.updated_by_role || getUserInfo(task?.updated_by || task?.created_by).role || 'N/A' }
+        : getUserInfo(task?.updated_by || task?.created_by);
+    const assignedToInfo = getUserInfo(task?.assigned_to);
     const displayTaskId = getTaskId(task);
     const statusName = getStatusName(task);
     // Get display name for status dropdown (only on task detail page)
@@ -1565,6 +1740,18 @@ const TaskDashboardPage = () => {
                         // Check if there's no pending closure request
                         const noPendingRequest = !closureRequest || closureRequest?.status !== 'pending';
                         
+                        // Debug logging
+                        console.log('Close Button Visibility Check:', {
+                            isAssignedUser,
+                            taskAssignedTo: task.assigned_to,
+                            currentUserId: user?.id,
+                            isNotCompleted,
+                            noPendingRequest,
+                            taskStatusLower,
+                            statusNameLower,
+                            closureRequestStatus: closureRequest?.status
+                        });
+                        
                         return isAssignedUser && isNotCompleted && noPendingRequest;
                     })() && (
                         <Button 
@@ -1574,7 +1761,7 @@ const TaskDashboardPage = () => {
                             className="bg-red-500/20 text-red-300 border-red-500/50 hover:bg-red-500/30"
                         >
                             <XCircle className="w-4 h-4 mr-2" />
-                            Request to Close Task
+                            Close
                         </Button>
                     )}
                     {/* Closure Request Review - Show for task creator if pending request exists */}
@@ -1709,7 +1896,7 @@ const TaskDashboardPage = () => {
                                             {isLoadingStages ? (
                                                 <Loader2 className="w-4 h-4 animate-spin text-white/70" />
                                             ) : availableStages.length > 0 ? (
-                                                <div className="relative">
+                                                <div className="relative flex items-center gap-2">
                                                     {isUpdatingStage && (
                                                         <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-lg z-10">
                                                             <Loader2 className="w-4 h-4 animate-spin text-white/70" />
@@ -1724,13 +1911,36 @@ const TaskDashboardPage = () => {
                                                         onValueChange={handleStageChange}
                                                         placeholder={displayStatusName || "Select Stage"}
                                                         className="w-[180px]"
-                                                        disabled={isUpdatingStage}
+                                                        disabled={isUpdatingStage || displayStatusName === 'Complete' || statusName?.toLowerCase() === 'complete' || statusName?.toLowerCase() === 'completed'}
                                                         displayValue={(option) => {
                                                             const stage = availableStages.find(s => String(s.id) === String(option.value));
                                                             return getDisplayStageName(stage?.name) || option.label || 'Open';
                                                         }}
                                                         style={getStageColorStyles()}
                                                     />
+                                                    {/* Close Button - Show for assigned user if task is not completed and no pending request */}
+                                                    {(() => {
+                                                        const isAssignedUser = task.assigned_to && String(task.assigned_to) === String(user?.id);
+                                                        const taskStatusLower = task.status?.toLowerCase() || '';
+                                                        const statusNameLower = statusName?.toLowerCase() || '';
+                                                        const isNotCompleted = taskStatusLower !== 'completed' && 
+                                                                              statusNameLower !== 'complete' &&
+                                                                              statusNameLower !== 'completed';
+                                                        const noPendingRequest = !closureRequest || closureRequest?.status !== 'pending';
+                                                        
+                                                        return isAssignedUser && isNotCompleted && noPendingRequest;
+                                                    })() && (
+                                                        <Button 
+                                                            onClick={() => setShowClosureRequestDialog(true)}
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="bg-red-500/20 text-red-300 border-red-500/50 hover:bg-red-500/30"
+                                                            title="Request to complete this task"
+                                                        >
+                                                            <XCircle className="w-4 h-4 mr-1" />
+                                                            Close
+                                                        </Button>
+                                                    )}
                                 </div>
                             ) : (
                                                 <Badge 
@@ -2099,8 +2309,8 @@ const TaskDashboardPage = () => {
                         </CardContent>
                     </Card>
 
-                    {/* Checklists - Column 3, Both Rows (col-span-1, row-span-2) */}
-                    <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col col-span-1 row-span-2" style={{ height: '100%' }}>
+                    {/* Checklists - Column 3, Row 1 (col-span-1, row-span-1) - Green Box */}
+                    <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col col-span-1 row-span-1 border-2 border-green-500/50" style={{ height: '100%' }}>
                             <CardHeader className="flex-shrink-0">
                                 <div className="flex items-center justify-between">
                                     <CardTitle className="flex items-center gap-2">
@@ -2221,8 +2431,61 @@ const TaskDashboardPage = () => {
                             </CardContent>
                     </Card>
 
-                    {/* Collaborate - Column 4, Row 1 (col-span-1, row-span-1) */}
-                    <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col col-span-1 row-span-1" style={{ height: '100%' }}>
+                    {/* Due Date - Column 3, Row 2 (col-span-1, row-span-1) - Pink Box */}
+                    <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col col-span-1 row-span-1 border-2 border-pink-500/50" style={{ height: '100%' }}>
+                            <CardHeader className="flex-shrink-0">
+                                <div className="flex items-center justify-between">
+                                    <CardTitle className="flex items-center gap-2">
+                                        <CalendarIcon className="w-5 h-5" />
+                                        Due Date
+                                    </CardTitle>
+                                    <Button variant="ghost" size="sm" className="p-2" onClick={handleEditDueDate}>
+                                        <Edit2 className="w-4 h-4" />
+                                    </Button>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="flex-1 min-h-0 overflow-hidden flex flex-col items-center justify-center">
+                                {task?.due_date ? (
+                                    <div className="text-center space-y-2">
+                                        <div className="text-2xl font-bold text-white">
+                                            {format(new Date(task.due_date), 'MMM dd, yyyy')}
+                                        </div>
+                                        {(() => {
+                                            const days = getDaysUntilDueDate();
+                                            if (days === null) return null;
+                                            const isOverdue = days < 0;
+                                            const isToday = days === 0;
+                                            const isSoon = days > 0 && days <= 7;
+                                            
+                                            return (
+                                                <div className={`text-lg font-semibold ${
+                                                    isOverdue ? 'text-red-400' : 
+                                                    isToday ? 'text-yellow-400' : 
+                                                    isSoon ? 'text-orange-400' : 
+                                                    'text-green-400'
+                                                }`}>
+                                                    {isOverdue ? `${Math.abs(days)} days overdue` :
+                                                     isToday ? 'Due today' :
+                                                     isSoon ? `${days} days remaining` :
+                                                     `${days} days remaining`}
+                                                </div>
+                                            );
+                                        })()}
+                                    </div>
+                                ) : (
+                                    <div className="text-center text-gray-400">
+                                        <p>No due date set</p>
+                                        <Button variant="outline" size="sm" className="mt-2" onClick={handleEditDueDate}>
+                                            <Plus className="w-4 h-4 mr-2" />
+                                            Set Due Date
+                                        </Button>
+                                    </div>
+                                )}
+                            </CardContent>
+                    </Card>
+
+                    {/* Collaborate - Column 4, Row 1 (col-span-1, row-span-1) - Red Box */}
+                    <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col col-span-1 row-span-1 border-2 border-red-500/50" style={{ height: '100%' }}>
                             <CardHeader className="flex-shrink-0">
                                 <div className="flex items-center justify-between">
                                     <CardTitle>Collaborate</CardTitle>
@@ -2335,48 +2598,272 @@ const TaskDashboardPage = () => {
                             </CardContent>
                     </Card>
 
-                    {/* Activity Logs - Column 4, Row 2 (col-span-1, row-span-1) */}
-                    <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col col-span-1 row-span-1" style={{ height: '100%' }}>
-                            <CardHeader className="flex-shrink-0"><CardTitle>Activity Logs</CardTitle></CardHeader>
-                            <CardContent className="flex-1 min-h-0 overflow-hidden flex flex-col">
-                            {isHistoryLoading ? (
-                                    <div className="flex justify-center items-center py-8 flex-shrink-0">
-                                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                    {/* Recurring Details - Column 4, Row 2 (col-span-1, row-span-1) - Blue Box */}
+                    <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col col-span-1 row-span-1 border-2 border-blue-500/50" style={{ height: '100%' }}>
+                            <CardHeader className="flex-shrink-0">
+                                <div className="flex items-center justify-between">
+                                    <CardTitle className="flex items-center gap-2">
+                                        <Repeat className="w-5 h-5" />
+                                        Recurring Details
+                                    </CardTitle>
+                                    <Button variant="ghost" size="sm" className="p-2" onClick={handleEditRecurring}>
+                                        <Edit2 className="w-4 h-4" />
+                                    </Button>
                                 </div>
-                            ) : (() => {
-                                // Filter out comment-related events (chat history)
-                                const filteredHistory = history.filter(item => 
-                                    item.event_type !== 'comment_added' && 
-                                    item.event_type !== 'comment_updated' && 
-                                    item.event_type !== 'comment_deleted'
-                                );
-                                return filteredHistory.length > 0 ? (
-                                        <div className="flex-1 min-h-0 overflow-y-auto space-y-4">
-                                        {filteredHistory.map(renderHistoryItem)}
+                            </CardHeader>
+                            <CardContent className="flex-1 min-h-0 overflow-hidden flex flex-col items-center justify-center">
+                                {task?.is_recurring ? (
+                                    <div className="text-center space-y-2 p-4">
+                                        <div className="text-sm text-gray-300">
+                                            {formatRecurringDetails() || 'Recurring task configured'}
+                                        </div>
                                     </div>
                                 ) : (
-                                        <div className="text-center py-8 text-gray-400 flex-shrink-0">No history found for this task.</div>
-                                );
-                            })()}
-                        </CardContent>
+                                    <div className="text-center text-gray-400 p-4">
+                                        <p>Not a recurring task</p>
+                                    </div>
+                                )}
+                            </CardContent>
                     </Card>
                 </div>
             </div>
+
+            {/* Edit Due Date Dialog */}
+            <Dialog open={showEditDueDateDialog} onOpenChange={setShowEditDueDateDialog}>
+                <DialogContent className="glass-pane">
+                    <DialogHeader>
+                        <DialogTitle>Edit Due Date</DialogTitle>
+                        <DialogDescription>Select a new due date for this task</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div>
+                            <Label htmlFor="due-date">Due Date</Label>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !editingDueDate && "text-muted-foreground")}>
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {editingDueDate ? format(editingDueDate, "PPP") : <span>Pick a date</span>}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0">
+                                    <Calendar mode="single" selected={editingDueDate} onSelect={setEditingDueDate} initialFocus />
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => {
+                            setShowEditDueDateDialog(false);
+                            setEditingDueDate(null);
+                        }} disabled={isUpdatingDueDate}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleSaveDueDate} disabled={isUpdatingDueDate}>
+                            {isUpdatingDueDate ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Saving...
+                                </>
+                            ) : (
+                                'Save'
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Edit Recurring Details Dialog */}
+            <Dialog open={showEditRecurringDialog} onOpenChange={setShowEditRecurringDialog}>
+                <DialogContent className="glass-pane max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>Edit Recurring Schedule</DialogTitle>
+                        <DialogDescription>Update the recurring task schedule configuration</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="flex items-center space-x-2">
+                            <Checkbox
+                                id="is_recurring"
+                                checked={recurringFormData.is_recurring}
+                                onCheckedChange={(checked) => handleRecurringFormChange('is_recurring', checked)}
+                                disabled={isUpdatingRecurring}
+                            />
+                            <Label htmlFor="is_recurring" className="cursor-pointer">Make this task recurring</Label>
+                        </div>
+
+                        {recurringFormData.is_recurring && (
+                            <div className="space-y-4 mt-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <Label htmlFor="recurrence_frequency">Frequency</Label>
+                                        <Select
+                                            value={recurringFormData.recurrence_frequency}
+                                            onValueChange={(v) => {
+                                                handleRecurringFormChange('recurrence_frequency', v);
+                                                // Reset dependent fields when frequency changes
+                                                if (v !== 'daily') {
+                                                    handleRecurringFormChange('recurrence_time', '09:00');
+                                                }
+                                                if (v !== 'weekly') {
+                                                    handleRecurringFormChange('recurrence_day_of_week', null);
+                                                }
+                                                if (!['monthly', 'yearly'].includes(v)) {
+                                                    handleRecurringDateChange('recurrence_date', null);
+                                                }
+                                                if (!['quarterly', 'half_yearly'].includes(v)) {
+                                                    handleRecurringFormChange('recurrence_day_of_month', null);
+                                                }
+                                            }}
+                                            disabled={isUpdatingRecurring}
+                                        >
+                                            <SelectTrigger><SelectValue placeholder="Select frequency" /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="daily">Daily</SelectItem>
+                                                <SelectItem value="weekly">Weekly</SelectItem>
+                                                <SelectItem value="monthly">Monthly</SelectItem>
+                                                <SelectItem value="quarterly">Quarterly</SelectItem>
+                                                <SelectItem value="half_yearly">Half Yearly</SelectItem>
+                                                <SelectItem value="yearly">Yearly</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="recurrence_start_date">Start Date</Label>
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !recurringFormData.recurrence_start_date && "text-muted-foreground")}>
+                                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                                    {recurringFormData.recurrence_start_date ? format(recurringFormData.recurrence_start_date, "PPP") : <span>Pick a start date</span>}
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0">
+                                                <Calendar
+                                                    mode="single"
+                                                    selected={recurringFormData.recurrence_start_date}
+                                                    onSelect={(d) => handleRecurringDateChange('recurrence_start_date', d)}
+                                                    initialFocus
+                                                />
+                                            </PopoverContent>
+                                        </Popover>
+                                    </div>
+                                </div>
+
+                                {recurringFormData.recurrence_frequency === 'daily' && (
+                                    <div>
+                                        <Label htmlFor="recurrence_time">Time</Label>
+                                        <Input
+                                            id="recurrence_time"
+                                            name="recurrence_time"
+                                            type="time"
+                                            value={recurringFormData.recurrence_time || '09:00'}
+                                            onChange={(e) => handleRecurringFormChange('recurrence_time', e.target.value)}
+                                            disabled={isUpdatingRecurring}
+                                            className="w-full"
+                                        />
+                                    </div>
+                                )}
+
+                                {recurringFormData.recurrence_frequency === 'weekly' && (
+                                    <div>
+                                        <Label htmlFor="recurrence_day_of_week">Day of Week</Label>
+                                        <Select
+                                            value={recurringFormData.recurrence_day_of_week !== null ? String(recurringFormData.recurrence_day_of_week) : ''}
+                                            onValueChange={(v) => handleRecurringFormChange('recurrence_day_of_week', v ? parseInt(v) : null)}
+                                            disabled={isUpdatingRecurring}
+                                        >
+                                            <SelectTrigger><SelectValue placeholder="Select day" /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="0">Monday</SelectItem>
+                                                <SelectItem value="1">Tuesday</SelectItem>
+                                                <SelectItem value="2">Wednesday</SelectItem>
+                                                <SelectItem value="3">Thursday</SelectItem>
+                                                <SelectItem value="4">Friday</SelectItem>
+                                                <SelectItem value="5">Saturday</SelectItem>
+                                                <SelectItem value="6">Sunday</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                )}
+
+                                {['monthly', 'yearly'].includes(recurringFormData.recurrence_frequency) && (
+                                    <div>
+                                        <Label htmlFor="recurrence_date">
+                                            {recurringFormData.recurrence_frequency === 'monthly' ? 'Date (Day of Month)' : 'Date'}
+                                        </Label>
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !recurringFormData.recurrence_date && "text-muted-foreground")}>
+                                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                                    {recurringFormData.recurrence_date ? format(recurringFormData.recurrence_date, "PPP") : <span>Pick a date</span>}
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0">
+                                                <Calendar
+                                                    mode="single"
+                                                    selected={recurringFormData.recurrence_date}
+                                                    onSelect={(d) => handleRecurringDateChange('recurrence_date', d)}
+                                                    initialFocus
+                                                />
+                                            </PopoverContent>
+                                        </Popover>
+                                    </div>
+                                )}
+
+                                {['quarterly', 'half_yearly'].includes(recurringFormData.recurrence_frequency) && (
+                                    <div>
+                                        <Label htmlFor="recurrence_day_of_month">
+                                            Day of Month (repeats every {recurringFormData.recurrence_frequency === 'quarterly' ? '3 months' : '6 months'})
+                                        </Label>
+                                        <Select
+                                            value={recurringFormData.recurrence_day_of_month !== null ? String(recurringFormData.recurrence_day_of_month) : ''}
+                                            onValueChange={(v) => handleRecurringFormChange('recurrence_day_of_month', v ? parseInt(v) : null)}
+                                            disabled={isUpdatingRecurring}
+                                        >
+                                            <SelectTrigger><SelectValue placeholder="Select day" /></SelectTrigger>
+                                            <SelectContent>
+                                                {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                                                    <SelectItem key={day} value={String(day)}>{day}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => {
+                            setShowEditRecurringDialog(false);
+                        }} disabled={isUpdatingRecurring}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleSaveRecurring} disabled={isUpdatingRecurring}>
+                            {isUpdatingRecurring ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Saving...
+                                </>
+                            ) : (
+                                'Save Changes'
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {/* Closure Request Dialog */}
             <Dialog open={showClosureRequestDialog} onOpenChange={setShowClosureRequestDialog}>
                 <DialogContent className="glass-pane">
                     <DialogHeader>
-                        <DialogTitle>Request to Close Task</DialogTitle>
+                        <DialogTitle>Are You Sure You Want To Complete This Task?</DialogTitle>
                         <DialogDescription>
-                            Request the task creator to close this task. Once approved, the task will be moved to history.
+                            This will send a request to the task owner. Once approved, the task will be marked as Complete.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                         <div>
                             <label className="text-sm font-medium text-white mb-2 block">Reason (Optional)</label>
                             <Textarea
-                                placeholder="Enter reason for closing this task..."
+                                placeholder="Enter reason for completing this task..."
                                 value={closureReason}
                                 onChange={(e) => setClosureReason(e.target.value)}
                                 className="bg-white/10 border-white/20 text-white"
@@ -2392,7 +2879,7 @@ const TaskDashboardPage = () => {
                             Cancel
                         </Button>
                         <Button onClick={handleRequestClosure} className="bg-red-500 hover:bg-red-600">
-                            Request Closure
+                            Yes, Complete Task
                         </Button>
                     </DialogFooter>
                 </DialogContent>

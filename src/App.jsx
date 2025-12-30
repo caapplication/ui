@@ -244,7 +244,7 @@ function App() {
               <Helmet>
                 <title>Fynivo: Simplify Your Finances</title>
                 <meta name="description" content="Comprehensive financial management platform for documents, beneficiaries, transactions, and invoice management." />
-                <meta property="og:title" content="Fynivo: Simplify Your Finances" />
+                <meta property="og:title" content="Fynivo: Simplify Your Accounts" />
                 <meta property="og:description" content="Comprehensive financial management platform for documents, beneficiaries, transactions, and invoice management." />
                 <link rel="icon" type="image/png" href="/logo.png" />
               </Helmet>
