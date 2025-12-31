@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useSocket } from '@/contexts/SocketContext.jsx';
 import { useToast } from '@/components/ui/use-toast';
@@ -19,10 +19,11 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 
-const TaskManagementPage = () => {
+const TaskManagementPage = ({ entityId, entityName }) => {
     const { user } = useAuth();
     const { toast } = useToast();
     const navigate = useNavigate();
+    const location = useLocation();
     const { selectedOrg, organisations, selectedEntity, entities } = useOrganisation();
     // Load view mode from localStorage on mount
     const [view, setView] = useState(() => {
@@ -49,8 +50,33 @@ const TaskManagementPage = () => {
             if (!user?.access_token) {
                 throw new Error("User information not available.");
             }
-            // For CLIENT users, agency_id might be null/undefined - API will handle it
-            const agencyId = user?.agency_id || null;
+            // For CLIENT users, agency_id might be missing from direct property
+            // Try to find it in entities if available
+            let agencyId = user?.agency_id || null;
+            if (!agencyId && user?.entities && user.entities.length > 0) {
+                agencyId = user.entities[0].agency_id;
+            }
+            // Fallback: Check entities from useOrganisation hook
+            if (!agencyId && entities && entities.length > 0) {
+                // Try to find one with agency_id
+                const entWithAgency = entities.find(e => e.agency_id);
+                if (entWithAgency) {
+                    agencyId = entWithAgency.agency_id;
+                }
+            }
+            // Last resort: Check localStorage
+            if (!agencyId) {
+                const storedAgencyId = localStorage.getItem('agency_id');
+                if (storedAgencyId) agencyId = storedAgencyId;
+            }
+
+            console.debug('TaskManagementPage - Fetching data with config:', {
+                role: user?.role,
+                userAgencyId: user?.agency_id,
+                derivedAgencyId: agencyId,
+                entityId: entityId
+            });
+
             // Use Promise.allSettled to handle individual failures gracefully
             const results = await Promise.allSettled([
                 listTasks(agencyId, user.access_token).catch(err => {
@@ -78,7 +104,6 @@ const TaskManagementPage = () => {
                     return [];
                 }),
             ]);
-
             // Extract data from settled promises, handling both fulfilled and rejected states
             const tasksData = results[0].status === 'fulfilled' ? results[0].value : { items: [] };
             const clientsData = results[1].status === 'fulfilled' ? results[1].value : [];
@@ -141,11 +166,20 @@ const TaskManagementPage = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [user?.agency_id, user?.access_token, user?.role, toast]);
+    }, [user, entities, toast]);
 
     useEffect(() => {
         fetchData();
-    }, [fetchData]);
+
+        if (location.state?.quickAction === 'add-task') {
+            handleAddNew();
+        }
+    }, [fetchData, location.state]);
+
+    const filteredTasks = useMemo(() => {
+        if (!entityId) return tasks;
+        return tasks.filter(task => task.client_id && String(task.client_id) === String(entityId));
+    }, [tasks, entityId]);
 
     const [showTaskDialog, setShowTaskDialog] = useState(false);
 
@@ -157,6 +191,9 @@ const TaskManagementPage = () => {
     const handleCloseTaskDialog = () => {
         setShowTaskDialog(false);
         setEditingTask(null);
+        if (location.state?.returnToDashboard) {
+            navigate('/');
+        }
     };
 
     const handleAddStage = () => {
@@ -196,6 +233,11 @@ const TaskManagementPage = () => {
             }
             setShowTaskDialog(false);
             setEditingTask(null);
+
+            if (location.state?.returnToDashboard) {
+                navigate('/');
+                return; // Exit early as we are navigating away
+            }
 
             // Lightweight refresh - only fetch tasks, don't show full loader
             try {
@@ -278,7 +320,7 @@ const TaskManagementPage = () => {
                         >
                             <TaskKanbanView
                                 ref={kanbanViewRef}
-                                tasks={tasks}
+                                tasks={filteredTasks}
                                 clients={clients}
                                 services={services}
                                 teamMembers={teamMembers}
@@ -322,7 +364,7 @@ const TaskManagementPage = () => {
                         className="flex-1 min-h-0 w-full"
                     >
                         <TaskList
-                            tasks={tasks}
+                            tasks={filteredTasks}
                             clients={clients}
                             services={services}
                             teamMembers={teamMembers}
@@ -343,10 +385,10 @@ const TaskManagementPage = () => {
     };
 
     // Get display name based on selected entity or organization
-    let displayName = null;
+    let displayName = entityName; // Use prop if available
 
-    // First, try to get selected entity name
-    if (selectedEntity && entities?.length > 0) {
+    // First, try to get selected entity name FROM CONTEXT if prop not provided
+    if (!displayName && selectedEntity && entities?.length > 0) {
         const entity = entities.find(e => {
             const entityIdStr = String(e.id);
             const selectedIdStr = String(selectedEntity);
@@ -460,7 +502,7 @@ const TaskManagementPage = () => {
                         tags={tags}
                         stages={stages}
                         task={editingTask}
-                        selectedOrg={selectedOrg}
+                        selectedOrg={entityId || selectedOrg}
                     />
                 </DialogContent>
             </Dialog>

@@ -174,7 +174,7 @@ const ProtectedContent = () => {
             <Route path="/organisation-bank" element={<OrganisationBank entityId={currentEntity} entityName={getEntityName(currentEntity)} quickAction={null} clearQuickAction={() => { }} organisationBankAccounts={organisationBankAccounts} />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/clients" element={<Clients setActiveTab={() => { }} />} />
-            <Route path="/tasks" element={<TaskManagementPage />} />
+            <Route path="/tasks" element={<TaskManagementPage entityId={currentEntity} entityName={getEntityName(currentEntity)} />} />
             <Route path="/recurring-tasks" element={<RecurringTaskManagementPage />} />
             <Route path="/todos" element={<TodoPage />} />
             <Route path="/services" element={<Services />} />

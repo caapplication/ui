@@ -8,11 +8,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/components/ui/use-toast';
 import { Plus, Users, Banknote, Building, Search, Loader2, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth.jsx';
-import { 
-  getBeneficiaries, 
-  addBeneficiary, 
+import {
+  getBeneficiaries,
+  addBeneficiary,
   addBankAccount,
   deleteBankAccount,
   getBankAccountsForBeneficiary,
@@ -28,17 +28,17 @@ const BeneficiaryForm = ({ onAdd, onCancel, isEdit, beneficiary, isSaving }) => 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (isSaving) return; // Prevent submission if already saving
-    
+
     const formData = new FormData(e.target);
     const data = Object.fromEntries(formData.entries());
-    
+
     // Convert empty email strings to null/undefined to allow saving without email
     if (data.email && data.email.trim() === '') {
       data.email = null;
     } else if (data.email) {
       data.email = data.email.trim();
     }
-    
+
     if (isEdit) {
       onAdd({ ...beneficiary, ...data, beneficiary_type: beneficiaryType });
     } else {
@@ -70,14 +70,14 @@ const BeneficiaryForm = ({ onAdd, onCancel, isEdit, beneficiary, isSaving }) => 
       )}
 
       {beneficiaryType === 'company' && (
-         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div><Label htmlFor="company_name">Company Name</Label><Input name="company_name" id="company_name" required /></div>
-            <div><Label htmlFor="phone">Phone</Label><Input name="phone" id="phone" type="tel" required /></div>
-            <div className="md:col-span-2"><Label htmlFor="email">Email Address <span className="text-gray-400 text-xs">(Optional)</span></Label><Input name="email" id="email" type="email" /></div>
-            <div><Label htmlFor="gstin">GSTIN</Label><Input name="gstin" id="gstin" required /></div>
-            <div><Label htmlFor="pan">PAN</Label><Input name="pan" id="pan" required /></div>
-            <div><Label htmlFor="aadhar">Aadhar (of Proprietor)</Label><Input name="aadhar" id="aadhar" required /></div>
-            <div><Label htmlFor="proprietor_name">Proprietor Name</Label><Input name="proprietor_name" id="proprietor_name" required /></div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div><Label htmlFor="company_name">Company Name</Label><Input name="company_name" id="company_name" required /></div>
+          <div><Label htmlFor="phone">Phone</Label><Input name="phone" id="phone" type="tel" required /></div>
+          <div className="md:col-span-2"><Label htmlFor="email">Email Address <span className="text-gray-400 text-xs">(Optional)</span></Label><Input name="email" id="email" type="email" /></div>
+          <div><Label htmlFor="gstin">GSTIN</Label><Input name="gstin" id="gstin" required /></div>
+          <div><Label htmlFor="pan">PAN</Label><Input name="pan" id="pan" required /></div>
+          <div><Label htmlFor="aadhar">Aadhar (of Proprietor)</Label><Input name="aadhar" id="aadhar" required /></div>
+          <div><Label htmlFor="proprietor_name">Proprietor Name</Label><Input name="proprietor_name" id="proprietor_name" required /></div>
         </div>
       )}
 
@@ -106,27 +106,27 @@ const BeneficiaryForm = ({ onAdd, onCancel, isEdit, beneficiary, isSaving }) => 
 };
 
 const AddBankAccountForm = ({ beneficiary, onAddBankAccount, onCancel }) => {
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        const formData = new FormData(e.target);
-        const data = Object.fromEntries(formData.entries());
-        onAddBankAccount(beneficiary.id, data);
-    };
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData.entries());
+    onAddBankAccount(beneficiary.id, data);
+  };
 
-    return (
-        <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><Label htmlFor="bank_name">Bank Name</Label><Input name="bank_name" id="bank_name" required /></div>
-                <div><Label htmlFor="branch_name">Branch Name</Label><Input name="branch_name" id="branch_name" required /></div>
-                <div><Label htmlFor="ifsc_code">IFSC</Label><Input name="ifsc_code" id="ifsc_code" required /></div>
-                <div><Label htmlFor="account_number">Account Number</Label><Input name="account_number" id="account_number" required /></div>
-            </div>
-            <DialogFooter>
-                <DialogClose asChild><Button variant="ghost" type="button" onClick={onCancel}>Cancel</Button></DialogClose>
-                <Button type="submit"><Plus className="w-4 h-4 mr-2"/> Add Account</Button>
-            </DialogFooter>
-        </form>
-    );
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div><Label htmlFor="bank_name">Bank Name</Label><Input name="bank_name" id="bank_name" required /></div>
+        <div><Label htmlFor="branch_name">Branch Name</Label><Input name="branch_name" id="branch_name" required /></div>
+        <div><Label htmlFor="ifsc_code">IFSC</Label><Input name="ifsc_code" id="ifsc_code" required /></div>
+        <div><Label htmlFor="account_number">Account Number</Label><Input name="account_number" id="account_number" required /></div>
+      </div>
+      <DialogFooter>
+        <DialogClose asChild><Button variant="ghost" type="button" onClick={onCancel}>Cancel</Button></DialogClose>
+        <Button type="submit"><Plus className="w-4 h-4 mr-2" /> Add Account</Button>
+      </DialogFooter>
+    </form>
+  );
 };
 
 
@@ -147,6 +147,15 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleDialogChange = (open) => {
+    setShowAddDialog(open);
+    if (!open && location.state?.returnToDashboard) {
+      navigate('/');
+    }
+  };
 
   const fetchBeneficiaries = useCallback(async () => {
     if (!user?.access_token) return;
@@ -200,13 +209,16 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.access_token, user?.organization_id]); // Only depend on user data, not the entire callback
-  
+
   useEffect(() => {
     if (quickAction === 'add-beneficiary') {
       setShowAddDialog(true);
       clearQuickAction();
     }
-  }, [quickAction, clearQuickAction]);
+    if (location.state?.quickAction === 'add-beneficiary') {
+      setShowAddDialog(true);
+    }
+  }, [quickAction, clearQuickAction, location.state]);
 
   const filteredBeneficiaries = useMemo(() => {
     // Sort beneficiaries: newest first (beneficiaries are already sorted in fetchBeneficiaries)
@@ -215,7 +227,7 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
       // Prioritize created_at timestamp
       const dateA = a?.created_at ? new Date(a.created_at).getTime() : (a?.createdAt ? new Date(a.createdAt).getTime() : 0);
       const dateB = b?.created_at ? new Date(b.created_at).getTime() : (b?.createdAt ? new Date(b.createdAt).getTime() : 0);
-      
+
       if (dateA !== 0 && dateB !== 0) {
         return dateB - dateA; // Newest first (descending)
       }
@@ -225,7 +237,7 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
       // Fallback: Sort by updated_at if available
       const updatedA = a?.updated_at ? new Date(a.updated_at).getTime() : (a?.updatedAt ? new Date(a.updatedAt).getTime() : 0);
       const updatedB = b?.updated_at ? new Date(b.updated_at).getTime() : (b?.updatedAt ? new Date(b.updatedAt).getTime() : 0);
-      
+
       if (updatedA !== 0 && updatedB !== 0) {
         return updatedB - updatedA;
       }
@@ -310,6 +322,10 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
 
       // Fetch updated list - the new beneficiary will appear first due to sorting
       await fetchBeneficiaries();
+
+      if (location.state?.returnToDashboard) {
+        navigate('/');
+      }
     } catch (error) {
       toast({
         title: 'Error',
@@ -324,8 +340,8 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
   const handleUpdate = async (beneficiaryData) => {
     setIsSaving(true);
     try {
-      const organizationId = typeof user.organization_id === 'object' && user.organization_id !== null 
-        ? user.organization_id.id 
+      const organizationId = typeof user.organization_id === 'object' && user.organization_id !== null
+        ? user.organization_id.id
         : user.organization_id;
       await updateBeneficiary(selectedBeneficiary.id, organizationId, beneficiaryData, user.access_token);
       toast({ title: 'Success', description: 'Beneficiary updated successfully.' });
@@ -368,7 +384,7 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
     setSelectedBeneficiary(beneficiary);
     setShowAddAccountDialog(true);
   };
-  
+
   const handleAddAccountSubmit = async (beneficiaryId, bankAccountData) => {
     try {
       await addBankAccount(beneficiaryId, bankAccountData, user.access_token);
@@ -377,26 +393,26 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
       setSelectedBeneficiary(null);
       fetchBeneficiaries();
     } catch (error) {
-       toast({
+      toast({
         title: 'Error',
         description: `Failed to add bank account: ${error.message}`,
         variant: 'destructive',
       });
     }
   };
-  
+
   const handleDeleteAccountClick = async (beneficiaryId, accountId) => {
-      try {
-        await deleteBankAccount(beneficiaryId, accountId, user.access_token);
-        toast({ title: 'Success', description: 'Bank account deleted successfully.' });
-        fetchBeneficiaries();
-      } catch (error) {
-         toast({
-          title: 'Error',
-          description: `Failed to delete bank account: ${error.message}`,
-          variant: 'destructive',
-        });
-      }
+    try {
+      await deleteBankAccount(beneficiaryId, accountId, user.access_token);
+      toast({ title: 'Success', description: 'Bank account deleted successfully.' });
+      fetchBeneficiaries();
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: `Failed to delete bank account: ${error.message}`,
+        variant: 'destructive',
+      });
+    }
   }
 
   const PaginationFooter = () => (
@@ -432,10 +448,10 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
         <div className="flex flex-col gap-4 mb-6 sm:mb-8">
           <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white">Beneficiaries</h1>
-           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 w-full">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 w-full">
             <div className="relative flex-1 sm:w-64">
-                <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
-                <Input placeholder="Search..." className="pl-9 sm:pl-12 h-9 sm:h-10 text-sm" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+              <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+              <Input placeholder="Search..." className="pl-9 sm:pl-12 h-9 sm:h-10 text-sm" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
             </div>
             <Button onClick={() => setShowAddDialog(true)} className="h-9 sm:h-10 text-sm sm:text-base w-full sm:w-auto">
               <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
@@ -713,14 +729,14 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
         )}
 
       </motion.div>
-      
-      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+
+      <Dialog open={showAddDialog} onOpenChange={handleDialogChange}>
         <DialogContent className="max-w-2xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-lg sm:text-xl">Add New Beneficiary</DialogTitle>
             <CardDescription className="text-sm">Enter the details for the new beneficiary.</CardDescription>
           </DialogHeader>
-          <BeneficiaryForm onAdd={handleAdd} onCancel={() => setShowAddDialog(false)} isSaving={isSaving} />
+          <BeneficiaryForm onAdd={handleAdd} onCancel={() => handleDialogChange(false)} isSaving={isSaving} />
         </DialogContent>
       </Dialog>
 
@@ -731,7 +747,7 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
             <CardDescription className="text-sm">For: <span className="font-semibold text-sky-400">{selectedBeneficiary?.beneficiary_type === 'individual' ? selectedBeneficiary.name : selectedBeneficiary?.company_name}</span></CardDescription>
           </DialogHeader>
           <div className="py-4">
-            {selectedBeneficiary && <AddBankAccountForm beneficiary={selectedBeneficiary} onAddBankAccount={handleAddAccountSubmit} onCancel={() => setShowAddAccountDialog(false)}/>}
+            {selectedBeneficiary && <AddBankAccountForm beneficiary={selectedBeneficiary} onAddBankAccount={handleAddAccountSubmit} onCancel={() => setShowAddAccountDialog(false)} />}
           </div>
         </DialogContent>
       </Dialog>

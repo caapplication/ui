@@ -190,10 +190,10 @@ const Dashboard = ({
     const navigate = useNavigate();
 
     const fabItems = [
-        { label: "Vouchers", icon: Banknote, path: "/finance" },
-        { label: "Beneficiaries", icon: Users, path: "/beneficiaries" },
-        { label: "Invoices", icon: FileText, path: "/finance/invoices" },
-        { label: "Bank Accounts", icon: Landmark, path: "/organisation-bank" },
+        { label: "Beneficiaries", icon: Users, path: "/beneficiaries", state: { quickAction: 'add-beneficiary', returnToDashboard: true } },
+        { label: "Tasks", icon: Landmark, path: "/tasks", state: { quickAction: 'add-task', returnToDashboard: true } },
+        { label: "Invoices", icon: FileText, path: "/finance/invoices", state: { quickAction: 'add-invoice', returnToDashboard: true } },
+        { label: "Vouchers", icon: Banknote, path: "/finance", state: { quickAction: 'add-voucher', returnToDashboard: true } },
     ];
 
     const fetchDashboardData = useCallback(async () => {
@@ -430,7 +430,7 @@ const Dashboard = ({
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="p-4 sm:p-6 pl-0">
-                                <div className="h-[350px] w-full">
+                                <div className="h-[175px] w-full">
                                     <ResponsiveContainer width="100%" height="100%">
                                         <BarChart
                                             data={chartData}
@@ -653,7 +653,7 @@ const Dashboard = ({
                                     animate={{ opacity: 1, x: 0 }}
                                     transition={{ delay: index * 0.1 }}
                                     onClick={() => {
-                                        navigate(item.path);
+                                        navigate(item.path, { state: item.state });
                                         setIsFabOpen(false);
                                     }}
                                     className="flex items-center gap-3 bg-white/10 backdrop-blur-md border border-white/20 p-3 rounded-full shadow-lg hover:bg-white/20 transition-all group justify-between"

@@ -168,8 +168,12 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
         recurrence_day_of_month: task.recurrence_day_of_month || null,
         recurrence_start_date: task.recurrence_start_date ? new Date(task.recurrence_start_date) : null
       });
+    } else if (selectedOrg) {
+      // If creating a new task and an entity/org is selected, pre-fill client_id
+      // Assuming selectedOrg is the client/entity ID
+      setFormData(prev => ({ ...prev, client_id: selectedOrg }));
     }
-  }, [task]);
+  }, [task, selectedOrg]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;

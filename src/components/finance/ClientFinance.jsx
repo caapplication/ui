@@ -109,10 +109,17 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
 
   useEffect(() => {
     isMountedRef.current = true;
+
+    if (location.state?.quickAction === 'add-invoice') {
+      setShowInvoiceDialog(true);
+    } else if (location.state?.quickAction === 'add-voucher') {
+      setShowVoucherDialog(true);
+    }
+
     return () => {
       isMountedRef.current = false;
     };
-  }, []);
+  }, [location.state]);
 
   const fetchData = useCallback(
     async (isRefresh = false) => {
@@ -135,25 +142,25 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
         const cachedVouchers = shouldFetchVouchers ? getCache(CACHE_KEY_VOUCHERS) : null;
 
         if (isMountedRef.current) {
-            if (cachedBeneficiaries && beneficiaries.length === 0) setBeneficiaries(cachedBeneficiaries);
-            if (cachedInvoices && invoices.length === 0 && shouldFetchInvoices) setInvoices(cachedInvoices);
-            if (cachedVouchers && vouchers.length === 0 && shouldFetchVouchers) setVouchers(cachedVouchers);
+          if (cachedBeneficiaries && beneficiaries.length === 0) setBeneficiaries(cachedBeneficiaries);
+          if (cachedInvoices && invoices.length === 0 && shouldFetchInvoices) setInvoices(cachedInvoices);
+          if (cachedVouchers && vouchers.length === 0 && shouldFetchVouchers) setVouchers(cachedVouchers);
         }
-        
+
         // If we have full cache for what we need, we can stop loading indicator (but continue fetch in background)
-        const hasNeededData = 
-            (cachedBeneficiaries) &&
-            (!shouldFetchInvoices || cachedInvoices) && 
-            (!shouldFetchVouchers || cachedVouchers);
-            
+        const hasNeededData =
+          (cachedBeneficiaries) &&
+          (!shouldFetchInvoices || cachedInvoices) &&
+          (!shouldFetchVouchers || cachedVouchers);
+
         if (hasNeededData) {
-            // Data shown instantly!
-            // We can optionally return here if we want "cache-first" strategy, but user said "click back... fraction of second"
-            // usually implies showing cache. "stale-while-revalidate" updates it fresh.
-            // If we want to avoid network call completely if cache exists (until refresh), we could return.
-            // But usually keeping data fresh is better.
-            // Given "multiple api calls" complaint, maybe they prefer "Cache First, Network Only on Refresh"?
-            // Let's stick to Stale-While-Revalidate but make it silent (no loading spinner if cache exists).
+          // Data shown instantly!
+          // We can optionally return here if we want "cache-first" strategy, but user said "click back... fraction of second"
+          // usually implies showing cache. "stale-while-revalidate" updates it fresh.
+          // If we want to avoid network call completely if cache exists (until refresh), we could return.
+          // But usually keeping data fresh is better.
+          // Given "multiple api calls" complaint, maybe they prefer "Cache First, Network Only on Refresh"?
+          // Let's stick to Stale-While-Revalidate but make it silent (no loading spinner if cache exists).
         }
       }
 
@@ -163,26 +170,26 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
       if (activeFetchPromises.has(fetchKey) && !isRefresh) {
         // If we have cache, we don't need to show loading spinner for the piggy-back
         const hasCache = (shouldFetchInvoices && getCache(CACHE_KEY_INVOICES)) || (shouldFetchVouchers && getCache(CACHE_KEY_VOUCHERS));
-        
+
         if (!hasCache) {
-            if (isRefresh) setIsRefreshing(true);
-            else setIsLoading(true);
+          if (isRefresh) setIsRefreshing(true);
+          else setIsLoading(true);
         }
-        
+
         try {
           const result = await activeFetchPromises.get(fetchKey);
           if (isMountedRef.current) {
             if (result.beneficiaries) {
-                setBeneficiaries(result.beneficiaries);
-                setCache(CACHE_KEY_BENEFICIARIES, result.beneficiaries);
+              setBeneficiaries(result.beneficiaries);
+              setCache(CACHE_KEY_BENEFICIARIES, result.beneficiaries);
             }
             if (result.invoices) {
-                setInvoices(result.invoices);
-                if (shouldFetchInvoices) setCache(CACHE_KEY_INVOICES, result.invoices);
+              setInvoices(result.invoices);
+              if (shouldFetchInvoices) setCache(CACHE_KEY_INVOICES, result.invoices);
             }
             if (result.vouchers) {
-                setVouchers(result.vouchers);
-                if (shouldFetchVouchers) setCache(CACHE_KEY_VOUCHERS, result.vouchers);
+              setVouchers(result.vouchers);
+              if (shouldFetchVouchers) setCache(CACHE_KEY_VOUCHERS, result.vouchers);
             }
           }
         } catch (error) {
@@ -197,7 +204,7 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
       }
 
       lastFetchedEntityId.current = entityId;
-      
+
       // Show loading only if we don't have cache (or if refreshing)
       const hasCache = (shouldFetchInvoices && getCache(CACHE_KEY_INVOICES)) || (shouldFetchVouchers && getCache(CACHE_KEY_VOUCHERS));
       if (isRefresh || !hasCache) {
@@ -206,22 +213,22 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
       }
 
       const fetchWork = async () => {
-         const promises = [];
-         const beneficiariesPromise = getBeneficiaries(user.organization_id, token);
-         const invoicesPromise = shouldFetchInvoices ? getInvoicesList(entityId, token) : Promise.resolve(null);
-         const vouchersPromise = shouldFetchVouchers ? getVouchersList(entityId, token) : Promise.resolve(null);
+        const promises = [];
+        const beneficiariesPromise = getBeneficiaries(user.organization_id, token);
+        const invoicesPromise = shouldFetchInvoices ? getInvoicesList(entityId, token) : Promise.resolve(null);
+        const vouchersPromise = shouldFetchVouchers ? getVouchersList(entityId, token) : Promise.resolve(null);
 
-         const [beneficiariesData, invoicesData, vouchersData] = await Promise.all([
-            beneficiariesPromise,
-            invoicesPromise,
-            vouchersPromise
-         ]);
-         
-         return {
-            beneficiaries: beneficiariesData,
-            invoices: invoicesData,
-            vouchers: vouchersData
-         };
+        const [beneficiariesData, invoicesData, vouchersData] = await Promise.all([
+          beneficiariesPromise,
+          invoicesPromise,
+          vouchersPromise
+        ]);
+
+        return {
+          beneficiaries: beneficiariesData,
+          invoices: invoicesData,
+          vouchers: vouchersData
+        };
       };
 
       const fetchPromise = fetchWork();
@@ -239,12 +246,12 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
             setCache(CACHE_KEY_BENEFICIARIES, result.beneficiaries || []);
           }
           if (result.invoices) {
-             setInvoices(result.invoices || []);
-             if (shouldFetchInvoices) setCache(CACHE_KEY_INVOICES, result.invoices || []);
+            setInvoices(result.invoices || []);
+            if (shouldFetchInvoices) setCache(CACHE_KEY_INVOICES, result.invoices || []);
           }
           if (result.vouchers) {
-             setVouchers(result.vouchers || []);
-             if (shouldFetchVouchers) setCache(CACHE_KEY_VOUCHERS, result.vouchers || []);
+            setVouchers(result.vouchers || []);
+            if (shouldFetchVouchers) setCache(CACHE_KEY_VOUCHERS, result.vouchers || []);
           }
         }
       } catch (error) {
@@ -260,10 +267,10 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
         }
       } finally {
         if (!isRefresh) {
-            // Remove from active fetches after a short delay
-            setTimeout(() => {
-                activeFetchPromises.delete(fetchKey);
-            }, 1000); 
+          // Remove from active fetches after a short delay
+          setTimeout(() => {
+            activeFetchPromises.delete(fetchKey);
+          }, 1000);
         }
         if (isMountedRef.current) {
           setIsLoading(false);
@@ -318,6 +325,12 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
       }
       setShowInvoiceDialog(false);
       setEditingInvoice(null);
+
+      if (location.state?.returnToDashboard) {
+        navigate('/');
+        return;
+      }
+
       fetchData(true);
     } catch (error) {
       toast({
@@ -343,6 +356,10 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
       }
       setShowVoucherDialog(false);
       setEditingVoucher(null);
+      if (location.state?.returnToDashboard) {
+        navigate('/');
+        return;
+      }
       fetchData(true);
     } catch (error) {
       toast({
@@ -398,15 +415,15 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
       const entity = user.entities.find(e => e.id === entityId);
       if (entity) entityName = entity.name;
     }
-    
-    navigate(`/finance/vouchers/${voucher.id}`, { 
-      state: { 
+
+    navigate(`/finance/vouchers/${voucher.id}`, {
+      state: {
         voucher,
         vouchers: vouchers || [],
         organisationId: user?.organization_id,
         entityName: entityName,
         organizationName: user?.organization_name || 'N/A'
-      } 
+      }
     });
   };
 
@@ -439,6 +456,10 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
     setEditingInvoice(null);
     setShowVoucherDialog(false);
     setEditingVoucher(null);
+
+    if (location.state?.returnToDashboard) {
+      navigate('/');
+    }
   };
 
   return (
@@ -453,13 +474,13 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
           {/* Top Line: Finance + Filters */}
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             {/* Finance Title + Icon */}
-          <div className="flex items-center gap-3 sm:gap-4">
-            <div className="bg-primary/10 p-2 sm:p-3 rounded-xl">
-              <Landmark className="w-6 h-6 sm:w-8 sm:h-8 text-primary" />
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="bg-primary/10 p-2 sm:p-3 rounded-xl">
+                <Landmark className="w-6 h-6 sm:w-8 sm:h-8 text-primary" />
+              </div>
+              <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white">Finance</h1>
+              {/* Removed Add Voucher and Add Invoice buttons as per user request */}
             </div>
-            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white">Finance</h1>
-            {/* Removed Add Voucher and Add Invoice buttons as per user request */}
-          </div>
 
             {/* Refresh Button and Add Dropdown */}
             <div className="flex items-center gap-2">
