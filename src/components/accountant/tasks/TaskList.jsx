@@ -419,14 +419,14 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                     </div>
                 </div>
                 <div className="flex-grow overflow-auto relative min-h-0">
-                    <Table className="min-w-[1100px]">
+                    <Table className="min-w-full">
                         <TableHeader>
                             <TableRow>
-                                <TableHead>T.ID</TableHead>
+                                <TableHead className="w-24">T.ID</TableHead>
                                 <TableHead>TASK DETAILS</TableHead>
-                                <TableHead>LAST UPDATE BY</TableHead>
-                                <TableHead>CREATED BY</TableHead>
-                                <TableHead>ASSIGNED TO</TableHead>
+                                <TableHead className="hidden lg:table-cell">LAST UPDATE BY</TableHead>
+                                <TableHead className="hidden md:table-cell">CREATED BY</TableHead>
+                                <TableHead className="hidden sm:table-cell">ASSIGNED TO</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -478,26 +478,20 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                                         <TableRow key={task.id} className="hover:bg-white/5 cursor-pointer" onClick={() => onViewTask && onViewTask(task.id)}>
                                             {/* T.ID */}
                                             <TableCell>
-                                                <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded ${task.has_unread_messages
-                                                    ? 'bg-pink-100 dark:bg-pink-900/30'
-                                                    : ''
-                                                    }`}
-                                                    style={task.has_unread_messages ? {
-                                                        animation: 'vibrate 0.8s ease-in-out infinite'
-                                                    } : {}}
+                                                <Badge
+                                                    variant="outline"
+                                                    className={`w-fit italic flex items-center gap-1.5 ${task.has_unread_messages ? 'animate-pulse' : ''}`}
+                                                    style={{
+                                                        backgroundColor: task.has_unread_messages ? '#f9731620' : '#3b82f620',
+                                                        color: task.has_unread_messages ? '#f97316' : '#3b82f6',
+                                                        borderColor: task.has_unread_messages ? '#f9731650' : '#3b82f650'
+                                                    }}
                                                 >
                                                     {task.has_unread_messages && (
-                                                        <Bell
-                                                            className="w-4 h-4 text-red-500"
-                                                        />
+                                                        <Bell className="w-3.5 h-3.5" />
                                                     )}
-                                                    <span className={`font-medium text-sm ${task.has_unread_messages
-                                                        ? 'text-purple-600 dark:text-purple-400'
-                                                        : 'text-white'
-                                                        }`}>
-                                                        {taskId}
-                                                    </span>
-                                                </div>
+                                                    {taskId}
+                                                </Badge>
                                             </TableCell>
 
                                             {/* TASK DETAILS */}
@@ -520,7 +514,7 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                                             </TableCell>
 
                                             {/* LAST UPDATE BY */}
-                                            <TableCell>
+                                            <TableCell className="hidden lg:table-cell">
                                                 <div className="flex flex-col gap-1">
                                                     <span className="text-sm text-white">{updatedByInfo.name}</span>
                                                     {task.updated_at && (
@@ -537,7 +531,7 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                                             </TableCell>
 
                                             {/* CREATED BY */}
-                                            <TableCell>
+                                            <TableCell className="hidden md:table-cell">
                                                 <div className="flex flex-col gap-1">
                                                     <span className="text-sm text-white">{createdByInfo.name}</span>
                                                     {task.created_at && (
@@ -554,7 +548,7 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                                             </TableCell>
 
                                             {/* ASSIGNED TO */}
-                                            <TableCell>
+                                            <TableCell className="hidden sm:table-cell">
                                                 <div className="flex flex-col gap-1">
                                                     <span className="text-sm text-white">{assignedToInfo.name}</span>
                                                     {task.due_date && (

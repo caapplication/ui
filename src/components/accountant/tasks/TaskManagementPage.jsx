@@ -177,9 +177,9 @@ const TaskManagementPage = ({ entityId, entityName }) => {
     }, [fetchData, location.state]);
 
     const filteredTasks = useMemo(() => {
-        if (!entityId) return tasks;
-        return tasks.filter(task => task.client_id && String(task.client_id) === String(entityId));
-    }, [tasks, entityId]);
+        // Show all tasks for the organization, no entity filtering
+        return tasks;
+    }, [tasks]);
 
     const [showTaskDialog, setShowTaskDialog] = useState(false);
 
@@ -422,19 +422,19 @@ const TaskManagementPage = ({ entityId, entityName }) => {
     return (
         <div className="p-4 md:p-8 text-white relative overflow-hidden h-full flex flex-col">
             {(view === 'list' || view === 'kanban') && (
-                <div className="flex items-center justify-between mb-4">
-                    <h1 className="text-3xl font-bold">
-                        Tasks{displayName && <span className="text-3xl font-bold text-gray-400 ml-2">- {displayName}</span>}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
+                    <h1 className="text-2xl sm:text-3xl font-bold">
+                        Tasks{displayName && <span className="text-2xl sm:text-3xl font-bold text-gray-400 ml-2">- {displayName}</span>}
                     </h1>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                         {viewMode === 'kanban' && (
                             <Button
                                 onClick={handleAddStage}
                                 variant="outline"
                                 className="text-white border-white/20 hover:bg-white/10 rounded-lg"
                             >
-                                <Plus className="w-4 h-4 mr-2" />
-                                Add Stage
+                                <Plus className="w-4 h-4 sm:mr-2" />
+                                <span className="hidden sm:inline">Add Stage</span>
                             </Button>
                         )}
                         <Link to="/recurring-tasks">
@@ -442,8 +442,8 @@ const TaskManagementPage = ({ entityId, entityName }) => {
                                 variant="outline"
                                 className="text-white border-white/20 hover:bg-white/10 rounded-lg"
                             >
-                                <Repeat className="w-4 h-4 mr-2" />
-                                Recurring Tasks
+                                <Repeat className="w-4 h-4 sm:mr-2" />
+                                <span className="hidden sm:inline">Recurring Tasks</span>
                             </Button>
                         </Link>
                         <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1">
@@ -458,8 +458,8 @@ const TaskManagementPage = ({ entityId, entityName }) => {
                                 }}
                                 className={viewMode === 'list' ? 'bg-white/10' : ''}
                             >
-                                <List className="w-4 h-4 mr-2" />
-                                List
+                                <List className="w-4 h-4 sm:mr-2" />
+                                <span className="hidden sm:inline">List</span>
                             </Button>
                             <Button
                                 variant={viewMode === 'kanban' ? 'default' : 'ghost'}
@@ -472,13 +472,13 @@ const TaskManagementPage = ({ entityId, entityName }) => {
                                 }}
                                 className={viewMode === 'kanban' ? 'bg-white/10' : ''}
                             >
-                                <LayoutGrid className="w-4 h-4 mr-2" />
-                                Kanban
+                                <LayoutGrid className="w-4 h-4 sm:mr-2" />
+                                <span className="hidden sm:inline">Kanban</span>
                             </Button>
                         </div>
-                        <Button onClick={handleAddNew} className="rounded-lg">
-                            <Plus className="w-4 h-4 mr-2" />
-                            New Task
+                        <Button onClick={handleAddNew} className="rounded-lg flex-1 sm:flex-initial">
+                            <Plus className="w-4 h-4 sm:mr-2" />
+                            <span className="hidden sm:inline">New Task</span>
                         </Button>
                     </div>
                 </div>

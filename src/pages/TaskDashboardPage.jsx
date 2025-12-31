@@ -1877,19 +1877,19 @@ const TaskDashboardPage = () => {
     }
 
     return (
-        <div className="h-[100dvh] p-4 md:p-8 text-white flex flex-col min-h-0 overflow-hidden">
-            <header className="flex items-center justify-between pb-4 border-b border-white/10 mb-6 flex-shrink-0">
-                <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-                        <ArrowLeft className="h-6 w-6" />
+        <div className="h-auto min-h-screen lg:h-[100dvh] p-4 md:p-8 text-white flex flex-col min-h-0 overflow-x-hidden lg:overflow-hidden">
+            <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-white/10 mb-6 flex-shrink-0">
+                <div className="flex items-center gap-4 w-full sm:w-auto">
+                    <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="flex-shrink-0">
+                        <ArrowLeft className="h-5 w-5 sm:h-6 sm:w-6" />
                     </Button>
-                    <h1 className="text-3xl font-bold">
+                    <h1 className="text-2xl sm:text-3xl font-bold truncate">
                         Tasks
                     </h1>
                 </div>
                 {displayOrgName && (
-                    <div className="px-4 py-2 bg-blue-500/20 text-blue-300 border border-blue-500/50 rounded-lg">
-                        <span className="text-lg font-semibold">{displayOrgName}</span>
+                    <div className="px-3 py-1.5 sm:px-4 sm:py-2 bg-blue-500/20 text-blue-300 border border-blue-500/50 rounded-lg w-full sm:w-auto text-center sm:text-left">
+                        <span className="text-base sm:text-lg font-semibold truncate block">{displayOrgName}</span>
                     </div>
                 )}
             </header>
@@ -1964,8 +1964,8 @@ const TaskDashboardPage = () => {
             {/* Task Summary Table - Same columns as Task List */}
             <div className="mb-6 flex-shrink-0">
                 <Card className="glass-pane overflow-hidden rounded-2xl">
-                    <CardContent className="p-0">
-                        <Table>
+                    <CardContent className="p-0 overflow-x-auto">
+                        <Table className="min-w-[1000px]">
                             <TableHeader>
                                 <TableRow className="border-white/10">
                                     <TableHead>T.ID</TableHead>
@@ -2131,10 +2131,10 @@ const TaskDashboardPage = () => {
             </div>
 
             <div className="flex-1 min-h-0">
-                {/* 4 Columns, 2 Rows Layout */}
-                <div className="grid grid-cols-4 grid-rows-2 gap-6 h-full min-h-0 overflow-hidden">
-                    {/* Task Chat - Columns 1-2, Both Rows (col-span-2, row-span-2) */}
-                    <Card className="glass-pane card-hover flex flex-col overflow-hidden rounded-2xl col-span-2 row-span-2" style={{ height: '100%' }}>
+                {/* Responsive Grid Layout: 1 col (mobile), 2 cols (tablet), 4 cols (desktop) */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 lg:grid-rows-2 gap-4 md:gap-6 h-auto lg:h-full min-h-0 overflow-visible lg:overflow-hidden">
+                    {/* Task Chat - Full width on mobile, 2 cols on desktop */}
+                    <Card className="glass-pane card-hover flex flex-col overflow-hidden rounded-2xl md:col-span-2 lg:row-span-2 h-[500px] lg:h-full">
                         <CardHeader className="flex-shrink-0"><CardTitle className="flex items-center gap-2"><MessageSquare className="w-5 h-5" /> Task Chat</CardTitle></CardHeader>
                         <CardContent className="flex-1 flex flex-col overflow-hidden min-h-0">
                             <div ref={chatContainerRef} className="flex-1 overflow-y-auto space-y-4 mb-4 pr-2 min-h-0" style={{ overflowX: 'visible' }}>
@@ -2488,7 +2488,7 @@ const TaskDashboardPage = () => {
                     </Card>
 
                     {/* Checklists - Column 3, Row 1 (col-span-1, row-span-1) - Green Box */}
-                    <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col col-span-1 row-span-1 border-2 border-green-500/50" style={{ height: '100%' }}>
+                    <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col md:col-span-1 lg:col-span-1 lg:row-span-1 border-2 border-green-500/50 h-[400px] lg:h-full">
                         <CardHeader className="flex-shrink-0">
                             <div className="flex items-center justify-between">
                                 <CardTitle className="flex items-center gap-2">
@@ -2614,7 +2614,7 @@ const TaskDashboardPage = () => {
                     </Card>
 
                     {/* Due Date & Recurring - Column 3, Row 2 (col-span-1, row-span-1) - Merged Card */}
-                    <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col col-span-1 row-span-1 border-2 border-purple-500/50" style={{ height: '100%' }}>
+                    <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col md:col-span-1 lg:col-span-1 lg:row-span-1 border-2 border-purple-500/50 h-[400px] lg:h-full">
                         <CardContent className="flex-1 min-h-0 overflow-hidden flex flex-col p-6">
                             {/* Due Date Section - Top */}
                             <div className="flex flex-col border-b border-white/10 pb-6 mb-6 flex-1 min-h-0">
@@ -2689,7 +2689,7 @@ const TaskDashboardPage = () => {
                     </Card>
 
                     {/* Collaborate - Column 4, Row 1 (col-span-1, row-span-1) - Red Box */}
-                    <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col col-span-1 row-span-1 border-2 border-red-500/50" style={{ height: '100%' }}>
+                    <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col md:col-span-1 lg:col-span-1 lg:row-span-1 border-2 border-red-500/50 h-[400px] lg:h-full">
                         <CardHeader className="flex-shrink-0">
                             <div className="flex items-center justify-between">
                                 <CardTitle>Collaborate</CardTitle>
@@ -2803,7 +2803,7 @@ const TaskDashboardPage = () => {
                     </Card>
 
                     {/* Activity Log - Column 4, Row 2 (col-span-1, row-span-1) - Blue Box */}
-                    <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col col-span-1 row-span-1 border-2 border-blue-500/50" style={{ height: '100%' }}>
+                    <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col md:col-span-1 lg:col-span-1 lg:row-span-1 border-2 border-blue-500/50 h-[400px] lg:h-full">
                         <CardHeader className="flex-shrink-0">
                             <CardTitle className="flex items-center gap-2">
                                 <History className="w-5 h-5" />
