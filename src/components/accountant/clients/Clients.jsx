@@ -189,17 +189,31 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
             setView('dashboard');
         }
     
-        const handleBackToList = () => {
+    const handleBackToList = () => {
+        setView('list');
+        setSelectedClient(null);
+        setEditingClient(null);
+        // Don't refetch - data is already up to date
+    };
+
+    const handleCancelForm = () => {
+        if (editingClient && selectedClient && editingClient.id === selectedClient.id) {
+            // We were editing the selected client (likely came from dashboard)
+            setView('dashboard');
+            setEditingClient(null);
+            // keep selectedClient as is
+        } else {
+            // New client or came from list
             setView('list');
             setSelectedClient(null);
             setEditingClient(null);
-            // Don't refetch - data is already up to date
-        };
-        
-        const handleEditClient = (client) => {
-            setEditingClient(client);
-            setView('new');
         }
+    };
+    
+    const handleEditClient = (client) => {
+        setEditingClient(client);
+        setView('new');
+    }
         
         const handleDeleteClient = async (clientId) => {
             try {
@@ -258,26 +272,35 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
                     const updatedClients = clients.map(c => c.id === editingClient.id ? finalClient : c);
                     setClients(updatedClients);
                     // Update selectedClient if it's the same client
-                    if (selectedClient && selectedClient.id === editingClient.id) {
-                        setSelectedClient(finalClient);
-                    }
+            if (selectedClient && selectedClient.id === editingClient.id) {
+                    setSelectedClient(finalClient);
+                }
+                
+                // Go to dashboard if we have a selected client (which we should if editing)
+                if (selectedClient) {
+                    setView('dashboard');
+                    setEditingClient(null); // Clear editing state
                 } else {
-                    const newClient = await createClient(clientData, user.agency_id, user.access_token);
-                    let finalClient = newClient;
-                if (photoFile) {
-                    const photoRes = await uploadClientPhoto(newClient.id, photoFile, user.agency_id, user.access_token);
-                    // Convert S3 URL to proxy endpoint URL
-                    const photoUrl = photoRes.photo_url && photoRes.photo_url.includes('.s3.amazonaws.com/')
-                        ? `${import.meta.env.VITE_CLIENT_API_URL || 'http://127.0.0.1:8002'}/clients/${newClient.id}/photo`
-                        : photoRes.photo_url;
-                    finalClient = { ...newClient, photo: photoUrl, photo_url: photoUrl };
+                    setView('list'); // Fallback
+                    setEditingClient(null);
                 }
-                    toast({ title: "✅ Client Created", description: `Client ${newClient.name} has been added.` });
-                    setClients(prev => [{ ...finalClient, availedServices: [], orgUsers: { invited_users: [], joined_users: [] }, entities: [] }, ...prev]);
-                }
+            } else {
+                const newClient = await createClient(clientData, user.agency_id, user.access_token);
+                let finalClient = newClient;
+            if (photoFile) {
+                const photoRes = await uploadClientPhoto(newClient.id, photoFile, user.agency_id, user.access_token);
+                // Convert S3 URL to proxy endpoint URL
+                const photoUrl = photoRes.photo_url && photoRes.photo_url.includes('.s3.amazonaws.com/')
+                    ? `${import.meta.env.VITE_CLIENT_API_URL || 'http://127.0.0.1:8002'}/clients/${newClient.id}/photo`
+                    : photoRes.photo_url;
+                finalClient = { ...newClient, photo: photoUrl, photo_url: photoUrl };
+            }
+                toast({ title: "✅ Client Created", description: `Client ${newClient.name} has been added.` });
+                setClients(prev => [{ ...finalClient, availedServices: [], orgUsers: { invited_users: [], joined_users: [] }, entities: [] }, ...prev]);
                 setView('list');
-                // Don't refetch - we already updated the state
-            } catch (error) {
+            }
+            // Don't refetch - we already updated the state
+        } catch (error) {
                 toast({
                     title: 'Error saving client',
                     description: error.message,
@@ -340,28 +363,28 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
                             />
                         </motion.div>
                     );
-                case 'new':
-                     return (
-                        <motion.div
-                            key="form"
-                            initial={{ opacity: 0, x: 300 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -300 }}
-                            transition={{ duration: 0.3, ease: 'easeInOut' }}
-                            className="h-full"
-                        >
-                            <NewClientForm 
-                                onBack={handleBackToList} 
-                                onSave={handleSaveClient}
-                                client={editingClient}
-                                allServices={allServices}
-                                organisations={organisations}
-                                businessTypes={businessTypes}
-                                teamMembers={teamMembers}
-                                tags={tags}
-                            />
-                        </motion.div>
-                    );
+            case 'new':
+                 return (
+                    <motion.div
+                        key="form"
+                        initial={{ opacity: 0, x: 300 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -300 }}
+                        transition={{ duration: 0.3, ease: 'easeInOut' }}
+                        className="h-full"
+                    >
+                        <NewClientForm 
+                            onBack={handleCancelForm} 
+                            onSave={handleSaveClient}
+                            client={editingClient}
+                            allServices={allServices}
+                            organisations={organisations}
+                            businessTypes={businessTypes}
+                            teamMembers={teamMembers}
+                            tags={tags}
+                        />
+                    </motion.div>
+                );
                 case 'dashboard':
                     return (
                          <motion.div

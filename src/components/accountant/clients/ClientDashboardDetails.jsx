@@ -206,7 +206,13 @@ const ClientDashboardDetails = ({ client, teamMembers = [], onUpdateClient, onTe
                 </div>
                 
                 <div className="mt-6 pt-6 border-t border-white/10 grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <DetailItem label="Created By" value={teamMembers.find(m => m.user_id === client.created_by)?.name || 'Admin'} />
+                    <DetailItem label="Created By" value={(() => {
+                        if (!client.created_by) return 'N/A';
+                        const creatorId = String(client.created_by);
+                        if (user && String(user.id) === creatorId) return user.name || 'Me';
+                        const member = teamMembers.find(m => String(m.user_id || m.id) === creatorId);
+                        return member ? (member.name || member.email) : 'Admin';
+                    })()} />
                     <DetailItem label="Created On" value={client.created_at ? format(new Date(client.created_at), 'dd MMM, yyyy') : 'N/A'} />
                     <div>
                         <p className="text-sm text-gray-400 mb-2">Team Members</p>
