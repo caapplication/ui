@@ -5,15 +5,15 @@ import { useToast } from '@/components/ui/use-toast';
 import { Loader2, Plus, RefreshCw, ArrowLeft } from 'lucide-react';
 import RecurringTaskList from '@/components/accountant/tasks/RecurringTaskList.jsx';
 import NewRecurringTaskForm from '@/components/accountant/tasks/NewRecurringTaskForm.jsx';
-import { 
-    listRecurringTasks, 
-    createRecurringTask, 
-    updateRecurringTask, 
+import {
+    listRecurringTasks,
+    createRecurringTask,
+    updateRecurringTask,
     deleteRecurringTask,
-    listClients, 
-    listServices, 
-    listTeamMembers, 
-    getTags 
+    listClients,
+    listServices,
+    listTeamMembers,
+    getTags
 } from '@/lib/api';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -38,20 +38,20 @@ const RecurringTaskManagementPage = () => {
         // Get agency_id from user or localStorage
         const agencyId = user?.agency_id || localStorage.getItem('agency_id');
         const accessToken = user?.access_token || localStorage.getItem('accessToken');
-        
+
         // Don't fetch if user is not loaded yet or missing required data
         if (!user || !agencyId || !accessToken) {
             console.log('Skipping fetch - missing data:', { hasUser: !!user, agencyId, hasToken: !!accessToken });
             setIsLoading(false);
             return;
         }
-        
+
         console.log('Fetching recurring tasks data...');
         setIsLoading(true);
         setHasAttemptedFetch(true);
         try {
             const isActive = activeFilter === 'all' ? null : activeFilter === 'active';
-            
+
             const results = await Promise.allSettled([
                 listRecurringTasks(agencyId, accessToken, isActive),
                 listClients(agencyId, accessToken),
@@ -122,15 +122,15 @@ const RecurringTaskManagementPage = () => {
         if (authLoading) {
             return; // Wait for auth to finish loading
         }
-        
+
         if (!user) {
             setIsLoading(false);
             return;
         }
-        
+
         const agencyId = user?.agency_id || localStorage.getItem('agency_id');
         const accessToken = user?.access_token || localStorage.getItem('accessToken');
-        
+
         if (agencyId && accessToken) {
             fetchData();
         } else {
@@ -216,7 +216,7 @@ const RecurringTaskManagementPage = () => {
             </div>
         );
     }
-    
+
     // Add a timeout to prevent infinite loading
     useEffect(() => {
         if (!authLoading && user && isLoading) {
@@ -226,11 +226,11 @@ const RecurringTaskManagementPage = () => {
                     setIsLoading(false);
                 }
             }, 10000); // 10 second timeout
-            
+
             return () => clearTimeout(timer);
         }
     }, [authLoading, user, isLoading]);
-    
+
     if (isLoading && !hasAttemptedFetch && recurringTasks.length === 0) {
         return (
             <div className="flex items-center justify-center h-64">
@@ -286,19 +286,19 @@ const RecurringTaskManagementPage = () => {
                     >
                         <Tabs value={activeFilter} onValueChange={setActiveFilter} className="mb-6">
                             <TabsList className="bg-white/10 border border-white/20">
-                                <TabsTrigger 
-                                    value="all" 
+                                <TabsTrigger
+                                    value="all"
                                     className="data-[state=active]:bg-primary data-[state=active]:text-white"
                                 >
                                     All
                                 </TabsTrigger>
-                                <TabsTrigger 
+                                <TabsTrigger
                                     value="active"
                                     className="data-[state=active]:bg-primary data-[state=active]:text-white"
                                 >
                                     Active
                                 </TabsTrigger>
-                                <TabsTrigger 
+                                <TabsTrigger
                                     value="inactive"
                                     className="data-[state=active]:bg-primary data-[state=active]:text-white"
                                 >
@@ -311,6 +311,8 @@ const RecurringTaskManagementPage = () => {
                             onEdit={handleEdit}
                             onDelete={handleDelete}
                             isLoading={isLoading}
+                            clients={clients}
+                            teamMembers={teamMembers}
                         />
                     </motion.div>
                 )}
