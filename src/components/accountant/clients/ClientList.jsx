@@ -100,7 +100,7 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
     }
 
     const filteredClients = useMemo(() => {
-        return clients.filter(client => {
+        const filtered = clients.filter(client => {
             const searchLower = searchTerm.toLowerCase();
             const matchesSearch = (
                 client.name?.toLowerCase().includes(searchLower) ||
@@ -115,6 +115,13 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
             const matchesStatus = !filters.status || (filters.status === 'active' && client.is_active) || (filters.status === 'inactive' && !client.is_active);
 
             return matchesSearch && matchesService && matchesType && matchesStatus;
+        });
+
+        // Sort by updated_at (or created_at) descending - newest first (updated last comes on top)
+        return filtered.sort((a, b) => {
+            const dateA = new Date(a.updated_at || a.created_at || 0);
+            const dateB = new Date(b.updated_at || b.created_at || 0);
+            return dateB - dateA;
         });
     }, [clients, searchTerm, filters]);
 

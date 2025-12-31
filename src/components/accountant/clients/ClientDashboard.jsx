@@ -24,7 +24,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-import { updateEntity, deleteEntity } from '@/lib/api/organisation';
+import { updateEntity, deleteEntity, createEntity } from '@/lib/api/organisation';
 import {
     Dialog,
     DialogContent,
@@ -197,7 +197,42 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
 
     if (!client) return null;
 
+    // Helper to check for duplicate entity names
+    const checkForDuplicate = (name, excludeId = null) => {
+        if (!client.entities) return false;
+        return client.entities.some(e => 
+            e.name.trim().toLowerCase() === name.trim().toLowerCase() && 
+            (excludeId ? (e.id || e.entity_id) !== excludeId : true)
+        );
+    };
+
     // Entity Edit/Delete Handlers
+    const handleAddEntity = async (entityData) => {
+        if (!client.organization_id) {
+             toast({ title: "Error", description: "Client does not have an organization assigned.", variant: "destructive" });
+             return;
+        }
+        
+        if (checkForDuplicate(entityData.name)) {
+            toast({ title: "Duplicate Entity", description: "An entity with this name already exists.", variant: "destructive" });
+            return;
+        }
+
+        setIsEntityMutating(true);
+        try {
+            const newEntity = await createEntity({ name: entityData.name, organization_id: client.organization_id }, user.access_token);
+            toast({ title: "Entity created", description: "Entity created successfully." });
+            
+            // Update state locally to avoid reload
+            const updatedEntities = [...(client.entities || []), newEntity];
+            onUpdateClient({ entities: updatedEntities });
+        } catch (error) {
+             toast({ title: "Error creating entity", description: error.message, variant: "destructive" });
+        } finally {
+            setIsEntityMutating(false);
+        }
+    };
+
     const handleEditEntity = (entity) => {
         setEntityToEdit(entity);
         setEditEntityName(entity.name);
@@ -209,12 +244,25 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
             setEditEntityDialogOpen(false);
             return;
         }
+
+        const entityId = entityToEdit.id || entityToEdit.entity_id;
+
+        if (checkForDuplicate(editEntityName, entityId)) {
+             toast({ title: "Duplicate Entity", description: "An entity with this name already exists.", variant: "destructive" });
+             return;
+        }
+
         setIsEntityMutating(true);
         try {
-            await updateEntity(entityToEdit.id || entityToEdit.entity_id, { name: editEntityName }, user.access_token);
+            const updatedEntity = await updateEntity(entityId, { name: editEntityName }, user.access_token);
             toast({ title: "Entity updated", description: "Entity name updated successfully." });
             setEditEntityDialogOpen(false);
-            window.location.reload();
+            
+            // Update state locally
+            const updatedEntities = (client.entities || []).map(e => 
+                (e.id || e.entity_id) === entityId ? { ...e, name: editEntityName, ...updatedEntity } : e
+            );
+            onUpdateClient({ entities: updatedEntities });
         } catch (error) {
             toast({ title: "Error updating entity", description: error.message, variant: "destructive" });
         } finally {
@@ -231,11 +279,15 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
         if (!entityToDelete) return;
         setIsEntityMutating(true);
         try {
-            await deleteEntity(entityToDelete.id || entityToDelete.entity_id, user.access_token);
+            const entityId = entityToDelete.id || entityToDelete.entity_id;
+            await deleteEntity(entityId, user.access_token);
             toast({ title: "Entity deleted", description: "Entity deleted successfully." });
             setDeleteEntityDialogOpen(false);
             setEntityToDelete(null);
-            window.location.reload();
+            
+            // Update state locally
+            const updatedEntities = (client.entities || []).filter(e => (e.id || e.entity_id) !== entityId);
+            onUpdateClient({ entities: updatedEntities });
         } catch (error) {
             toast({ title: "Error deleting entity", description: error.message, variant: "destructive" });
         } finally {
@@ -273,6 +325,7 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
                             entities={client.entities || []}
                             onEditEntity={handleEditEntity}
                             onDeleteEntity={handleDeleteEntity}
+                            onAddEntity={handleAddEntity}
                             isMutating={isEntityMutating}
                         />
                     );
