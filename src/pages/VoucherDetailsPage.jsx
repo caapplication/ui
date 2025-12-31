@@ -1320,7 +1320,7 @@ const VoucherDetailsPage = () => {
                 <ResizableHandle withHandle />
                 <ResizablePanel defaultSize={40} minSize={30}>
                     <div className="relative flex h-full flex-col">
-                        <div className="flex-1 overflow-y-auto p-4 sm:p-6 hide-scrollbar" style={{ paddingBottom: hasVouchers ? '8rem' : '2rem' }}>
+                        <div className="flex-1 overflow-y-auto px-4 py-6 sm:p-6 hide-scrollbar" style={{ paddingBottom: hasVouchers ? '8rem' : '2rem' }}>
                             <Tabs defaultValue={defaultTab} className="w-full">
                             <TabsList className={`grid w-full ${cols} text-xs sm:text-sm`}>
                                 {!isClientUser && (

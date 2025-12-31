@@ -17,8 +17,6 @@ import {
     ArrowUpRight,
     ArrowDownRight,
     Calendar,
-    Plus,
-    X,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useMediaQuery } from "@/hooks/useMediaQuery.jsx";
@@ -149,25 +147,32 @@ const StatCard = ({
     );
 };
 
-const TransactionItem = ({ transaction, onClick }) => {
+const TransactionItem = ({ transaction, remarks, onClick, index, name }) => {
+
     const amount = parseFloat(transaction.amount).toFixed(2);
     return (
         <div
             onClick={onClick}
-            className="flex items-center justify-between p-3 sm:p-4 bg-white/5 rounded-lg hover:bg-white/10 transition-colors duration-300 gap-3 cursor-pointer"
+            className="grid grid-cols-12 items-center text-sm py-2 hover:bg-white/5 transition-colors rounded px-1 cursor-pointer"
         >
-            <div className="flex-1 min-w-0">
-                <p className="text-white font-medium capitalize text-sm sm:text-base truncate">
-                    {transaction.remarks || `${transaction.voucher_type} voucher`}
-                </p>
-                <p className="text-gray-400 text-xs sm:text-sm">
-                    {new Date(transaction.created_date).toLocaleDateString()}
-                </p>
+            <div className="col-span-2 text-gray-400 font-mono">
+                {String(index + 1).padStart(2, "0")}
             </div>
-            <div
-                className={`font-semibold text-base sm:text-lg text-red-400 flex-shrink-0`}
-            >
+            <div className="col-span-6 text-white truncate pr-2">
+                {name || transaction.beneficiary?.name}
+                <div className="text-gray-400 text-xs sm:text-sm italic truncate">
+                    {remarks}
+                </div>
+                <div className="text-gray-400 text-xs sm:text-sm italic">
+                    {new Date(transaction.created_date).toLocaleDateString()}
+                </div>
+            </div>
+            <div className="col-span-4 text-right text-red-400 font-medium">
                 ₹{amount}
+                <div className={`text-xs font-normal mt-1 capitalize ${transaction.voucher_type === 'cash' ? 'text-green-400' : 'text-red-400'
+                    }`}>
+                    {transaction.voucher_type}
+                </div>
             </div>
         </div>
     );
@@ -180,10 +185,11 @@ const Dashboard = ({
     organisationBankAccounts,
 }) => {
     const [dashboardData, setDashboardData] = useState(null);
+    console.log(dashboardData, "data");
     const [isLoading, setIsLoading] = useState(true);
     const [vouchers, setVouchers] = useState([]);
     const [expensePeriod, setExpensePeriod] = useState("1month"); // Default to 1 month
-    const [isFabOpen, setIsFabOpen] = useState(false);
+
     const isMobile = useMediaQuery("(max-width: 640px)");
     const { user } = useAuth();
     const { toast } = useToast();
@@ -193,7 +199,7 @@ const Dashboard = ({
         { label: "Beneficiaries", icon: Users, path: "/beneficiaries", state: { quickAction: 'add-beneficiary', returnToDashboard: true } },
         { label: "Tasks", icon: Landmark, path: "/tasks", state: { quickAction: 'add-task', returnToDashboard: true } },
         { label: "Invoices", icon: FileText, path: "/finance/invoices", state: { quickAction: 'add-invoice', returnToDashboard: true } },
-        { label: "Vouchers", icon: Banknote, path: "/finance", state: { quickAction: 'add-voucher', returnToDashboard: true } },
+        { label: "Vouchers", icon: Banknote, path: "/finance/vouchers", state: { quickAction: 'add-voucher', returnToDashboard: true } },
     ];
 
     const fetchDashboardData = useCallback(async () => {
@@ -302,7 +308,7 @@ const Dashboard = ({
     const topTransactions = React.useMemo(() => {
         return [...vouchers]
             .sort((a, b) => (parseFloat(b.amount) || 0) - (parseFloat(a.amount) || 0))
-            .slice(0, 5);
+            .slice(0, 50);
     }, [vouchers]);
 
     const chartData = React.useMemo(() => {
@@ -443,6 +449,13 @@ const Dashboard = ({
                                                 tickLine={false}
                                                 axisLine={false}
                                                 minTickGap={30}
+                                                tickFormatter={(value) => {
+                                                    const date = new Date(value);
+                                                    return date.toLocaleDateString("en-IN", {
+                                                        day: "numeric",
+                                                        month: "short",
+                                                    });
+                                                }}
                                             />
                                             <YAxis
                                                 stroke="#9ca3af"
@@ -518,43 +531,46 @@ const Dashboard = ({
                                 </CardHeader>
                                 <CardContent className="p-4 sm:p-6">
                                     <div className="space-y-2">
-                                        <div className="grid grid-cols-12 text-xs text-gray-400 font-medium uppercase tracking-wider border-b border-white/10 pb-2 mb-2">
+                                        <div className="grid grid-cols-12 text-xs text-gray-400 font-medium uppercase tracking-wider border-b border-white/10 pb-2 mb-2 pr-2">
                                             <div className="col-span-2">S.No</div>
-                                            <div className="col-span-6">Description</div>
+                                            <div className="col-span-6">Beneficiaries</div>
                                             <div className="col-span-4 text-right">Amount</div>
                                         </div>
-                                        {topTransactions.length > 0 ? (
-                                            topTransactions.map((transaction, index) => (
-                                                <div
-                                                    key={transaction.id || index}
-                                                    onClick={() =>
-                                                        navigate(`/finance/vouchers/${transaction.id}`)
-                                                    }
-                                                    className="grid grid-cols-12 items-center text-sm py-2 hover:bg-white/5 transition-colors rounded px-1 cursor-pointer"
-                                                >
-                                                    <div className="col-span-2 text-gray-400 font-mono">
-                                                        {String(index + 1).padStart(2, "0")}
-                                                    </div>
+                                        <div className="max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                                            {topTransactions.length > 0 ? (
+                                                topTransactions.map((transaction, index) => (
                                                     <div
-                                                        className="col-span-6 text-white truncate pr-2"
-                                                        title={transaction.remarks}
+                                                        key={transaction.id || index}
+                                                        onClick={() =>
+                                                            navigate(`/finance/vouchers/${transaction.id}`)
+                                                        }
+                                                        className="grid grid-cols-12 items-center text-sm py-2 hover:bg-white/5 transition-colors rounded px-1 cursor-pointer"
                                                     >
-                                                        {transaction.remarks ||
-                                                            `${transaction.voucher_type} voucher`}
+                                                        <div className="col-span-2 text-gray-400 font-mono">
+                                                            {String(index + 1).padStart(2, "0")}
+                                                        </div>
+                                                        <div
+                                                            className="col-span-6 text-white truncate pr-2"
+                                                            title={transaction.remarks}
+                                                        >
+                                                            {transaction.beneficiary_name || transaction.beneficiary?.name}
+                                                            <div className=" text-xs text-gray-400 italic">  {transaction.remarks}</div>
+                                                            {/* <div className="text-xs text-gray-400 italic">  {transaction.date}</div> */}
+                                                        </div>
+                                                        <div className="col-span-4 text-right text-red-400 font-medium">
+                                                            ₹
+                                                            {parseFloat(transaction.amount).toLocaleString(
+                                                                "en-IN"
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                    <div className="col-span-4 text-right text-red-400 font-medium">
-                                                        ₹
-                                                        {parseFloat(transaction.amount).toLocaleString(
-                                                            "en-IN"
-                                                        )}
-                                                    </div>
+                                                ))
+                                            ) : (
+                                                <div className="text-center py-6 text-gray-400 text-sm">
+                                                    No transactions found
                                                 </div>
-                                            ))
-                                        ) : (
-                                            <div className="text-center py-6 text-gray-400 text-sm">
-                                                No transactions found
-                                            </div>
-                                        )}
+                                            )}
+                                        </div>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -580,22 +596,32 @@ const Dashboard = ({
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent className="p-4 sm:p-6">
-                                    <div className="space-y-3 sm:space-y-4">
-                                        {dashboardData?.recent_vouchers?.length > 0 ? (
-                                            dashboardData.recent_vouchers.map((transaction) => (
-                                                <TransactionItem
-                                                    key={transaction.id}
-                                                    transaction={transaction}
-                                                    onClick={() =>
-                                                        navigate(`/finance/vouchers/${transaction.id}`)
-                                                    }
-                                                />
-                                            ))
-                                        ) : (
-                                            <div className="text-center py-8 sm:py-10 text-gray-400 text-sm sm:text-base">
-                                                No recent transactions found.
-                                            </div>
-                                        )}
+                                    <div className="space-y-2">
+                                        <div className="grid grid-cols-12 text-xs text-gray-400 font-medium uppercase tracking-wider border-b border-white/10 pb-2 mb-2 pr-2">
+                                            <div className="col-span-2">S.No</div>
+                                            <div className="col-span-6">Beneficiaries</div>
+                                            <div className="col-span-4 text-right">Amount</div>
+                                        </div>
+                                        <div className="max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                                            {dashboardData?.recent_vouchers?.length > 0 ? (
+                                                dashboardData.recent_vouchers.map((transaction, index) => (
+                                                    <TransactionItem
+                                                        key={transaction.id}
+                                                        transaction={transaction}
+                                                        index={index}
+                                                        remarks={transaction.remarks}
+                                                        onClick={() =>
+                                                            navigate(`/finance/vouchers/${transaction.id}`)
+                                                        }
+                                                        name={transaction.beneficiary?.name}
+                                                    />
+                                                ))
+                                            ) : (
+                                                <div className="text-center py-8 sm:py-10 text-gray-400 text-sm sm:text-base">
+                                                    No recent transactions found.
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -635,57 +661,7 @@ const Dashboard = ({
                 )}
             </motion.div>
 
-            {/* Floating Action Button */}
-            <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-4">
-                {isFabOpen && (
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.8, y: 20 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.8, y: 20 }}
-                        className="flex flex-col gap-3 mb-2"
-                    >
-                        {fabItems.map((item, index) => {
-                            const Icon = item.icon;
-                            return (
-                                <motion.button
-                                    key={item.label}
-                                    initial={{ opacity: 0, x: 20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: index * 0.1 }}
-                                    onClick={() => {
-                                        navigate(item.path, { state: item.state });
-                                        setIsFabOpen(false);
-                                    }}
-                                    className="flex items-center gap-3 bg-white/10 backdrop-blur-md border border-white/20 p-3 rounded-full shadow-lg hover:bg-white/20 transition-all group justify-between"
-                                >
-                                    <span className="text-sm font-medium text-white whitespace-nowrap px-2">
-                                        {item.label}
-                                    </span>
-                                    <div className="bg-white/10 p-2 rounded-full group-hover:bg-white/20 transition-colors">
-                                        <Icon className="w-5 h-5 text-white" />
-                                    </div>
-                                </motion.button>
-                            );
-                        })}
-                    </motion.div>
-                )}
 
-                <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() => setIsFabOpen(!isFabOpen)}
-                    className={`p-4 rounded-full shadow-lg backdrop-blur-sm transition-all duration-300 ${isFabOpen
-                        ? "bg-red-500 hover:bg-red-600 rotate-90"
-                        : "bg-blue-600 hover:bg-blue-700"
-                        }`}
-                >
-                    {isFabOpen ? (
-                        <X className="w-6 h-6 text-white" />
-                    ) : (
-                        <Plus className="w-6 h-6 text-white" />
-                    )}
-                </motion.button>
-            </div>
         </div>
     );
 };

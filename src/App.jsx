@@ -45,6 +45,7 @@ import PublicDocumentView from './pages/PublicDocumentView.jsx';
 import LandingPage from '@/pages/LandingPage.jsx';
 import PrivacyPolicy from '@/pages/PrivacyPolicy.jsx';
 import TermsOfService from '@/pages/TermsOfService.jsx';
+import GlobalFAB from '@/components/common/GlobalFAB';
 
 const ProtectedContent = () => {
   const { user } = useAuth();
@@ -191,6 +192,7 @@ const ProtectedContent = () => {
           </Routes>
         </div>
       </main>
+      <GlobalFAB />
     </div>
   );
 };

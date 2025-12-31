@@ -288,6 +288,45 @@ const TaskDashboardPage = () => {
         fetchComments();
     }, [fetchComments]);
 
+    // Hydrate read receipts from comments when loaded
+    useEffect(() => {
+        if (comments.length > 0) {
+            setReadReceipts(prev => {
+                const next = { ...prev };
+                let changed = false;
+                comments.forEach(c => {
+                    const receipts = c.read_receipts || c.read_by;
+                    if (receipts && Array.isArray(receipts) && !next[c.id]) {
+                        next[c.id] = receipts;
+                        changed = true;
+                    }
+                });
+                return changed ? next : prev;
+            });
+        }
+    }, [comments]);
+
+    // Automatically fetch read receipts for recent own comments to ensure correct tick status
+    useEffect(() => {
+        if (!user?.id || comments.length === 0) return;
+
+        // Get recent own comments (last 15) that might need receipt updates
+        const recentOwnComments = comments
+            .filter(c => String(c.user_id) === String(user.id))
+            .slice(-15);
+
+        recentOwnComments.forEach(c => {
+            // If we don't have receipts in state, and they aren't in the comment object
+            if (!readReceipts[c.id] &&
+                (!c.read_receipts || c.read_receipts.length === 0) &&
+                (!c.read_by || c.read_by.length === 0)) {
+
+                // Trigger fetch (it has internal check to avoid duplicate fetches if already in progress/done)
+                handleFetchReadReceipts(c.id);
+            }
+        });
+    }, [comments, user?.id]);
+
     // Auto-scroll to bottom when comments load or new comment is added
     useEffect(() => {
         if (!isLoadingComments && comments.length > 0) {
@@ -1756,7 +1795,12 @@ const TaskDashboardPage = () => {
             await updateTask(taskId, updateData, agencyId, user.access_token);
 
             const updatedTask = await getTaskDetails(taskId, agencyId, user.access_token);
-            setTask(updatedTask);
+
+            // Merge updated data to ensure UI reflects changes immediately (handles potential read-after-write lag)
+            setTask({
+                ...updatedTask,
+                ...updateData
+            });
 
             const updatedHistory = await getTaskHistory(taskId, agencyId, user.access_token);
             setHistory(updatedHistory);
@@ -2279,11 +2323,19 @@ const TaskDashboardPage = () => {
                                                                                 className="text-[10px] text-gray-400 hover:text-gray-300 cursor-pointer ml-1 flex items-center"
                                                                             >
                                                                                 {/* Single tick if not read, double tick if read */}
-                                                                                {readReceipts[comment.id]?.length > 0 ? (
-                                                                                    <span className="text-blue-400">✓✓</span>
-                                                                                ) : (
-                                                                                    <span className="text-gray-500">✓</span>
-                                                                                )}
+                                                                                {(() => {
+                                                                                    const receipts = readReceipts[comment.id] || comment.read_receipts || comment.read_by || [];
+                                                                                    const hasRead = Array.isArray(receipts) && receipts.some(r => {
+                                                                                        const userId = r.user_id || r.id || (typeof r !== 'object' ? r : null);
+                                                                                        return userId && String(userId) !== String(user?.id);
+                                                                                    });
+
+                                                                                    return hasRead ? (
+                                                                                        <span className="text-blue-400">✓✓</span>
+                                                                                    ) : (
+                                                                                        <span className="text-gray-500">✓</span>
+                                                                                    );
+                                                                                })()}
                                                                             </button>
                                                                         </TooltipTrigger>
                                                                         <TooltipContent
@@ -2622,7 +2674,7 @@ const TaskDashboardPage = () => {
                                     </Button>
                                 </div>
                                 <div className="flex-1 min-h-0 overflow-y-auto">
-                                    {task?.is_recurring ? (
+                                    {(task?.is_recurring || task?.is_recurring === 1 || task?.is_recurring === '1') ? (
                                         <div className="text-sm text-gray-300">
                                             {formatRecurringDetails() || 'Recurring task configured'}
                                         </div>

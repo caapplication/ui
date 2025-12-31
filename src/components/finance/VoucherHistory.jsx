@@ -20,7 +20,7 @@ const formatDate = (dateString) => {
     // To correct this, we get the timezone offset from the client's machine and adjust the date.
     // This creates a new Date object that correctly represents the UTC time.
     const utcDate = new Date(localDate.getTime() - (localDate.getTimezoneOffset() * 60000));
-    
+
     return {
         date: utcDate.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }),
         time: utcDate.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' }),
@@ -30,281 +30,280 @@ const formatDate = (dateString) => {
 import { Check } from 'lucide-react';
 
 const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVoucher, isAccountantView, onRefresh }) => {
-  const [activeFilters, setActiveFilters] = useState([]);
-  const [filterValues, setFilterValues] = useState({ dateFrom: '', dateTo: '', beneficiary: '', voucher_id: '', type: '', remarks: '' });
-  const [voucherToDelete, setVoucherToDelete] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [financeHeaders, setFinanceHeaders] = useState([]);
-  const { user } = useAuth();
-  const { toast } = useToast();
-  const navigate = useNavigate();
+    const [activeFilters, setActiveFilters] = useState([]);
+    const [filterValues, setFilterValues] = useState({ dateFrom: '', dateTo: '', beneficiary: '', voucher_id: '', type: '', remarks: '' });
+    const [voucherToDelete, setVoucherToDelete] = useState(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [financeHeaders, setFinanceHeaders] = useState([]);
+    const { user } = useAuth();
+    const { toast } = useToast();
+    const navigate = useNavigate();
 
-  useEffect(() => {
-    const fetchHeaders = async () => {
-      if (user && (user.role === 'CA_ACCOUNTANT' || user.role === 'CA_TEAM')) {
+    useEffect(() => {
+        const fetchHeaders = async () => {
+            if (user && (user.role === 'CA_ACCOUNTANT' || user.role === 'CA_TEAM')) {
+                try {
+                    const headers = await getFinanceHeaders(user.agency_id, user.access_token);
+                    setFinanceHeaders(headers);
+                } catch (error) {
+                    toast({
+                        title: 'Error',
+                        description: `Failed to fetch finance headers: ${error.message}`,
+                        variant: 'destructive',
+                    });
+                }
+            }
+        };
+        fetchHeaders();
+    }, [user, toast]);
+
+    const [readyLoadingId, setReadyLoadingId] = useState(null);
+
+    const sortedAndFilteredVouchers = useMemo(() => {
+        let sortableVouchers = [...(vouchers || [])];
+        sortableVouchers.sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
+        const unexportedVouchers = sortableVouchers.filter(v => !v.is_exported);
+        // Filter out vouchers that have tags (finance_header_id is set)
+        const untaggedVouchers = unexportedVouchers.filter(v => !v.finance_header_id);
+
+        return untaggedVouchers.filter(v => {
+            let match = true;
+            for (const filter of activeFilters) {
+                if (filter === 'beneficiary') {
+                    const searchTerm = (filterValues.beneficiary || '').toLowerCase().trim();
+                    match = match && (!searchTerm || (v.beneficiaryName && v.beneficiaryName.toLowerCase().includes(searchTerm)));
+                }
+                if (filter === 'voucher_id') {
+                    const searchTerm = (filterValues.voucher_id || '').toLowerCase().trim();
+                    const voucherId = (v.voucher_id || v.id || '').toString().toLowerCase();
+                    match = match && (!searchTerm || voucherId.includes(searchTerm));
+                }
+                if (filter === 'type') {
+                    if (filterValues.type && filterValues.type !== 'all') {
+                        match = match && v.voucher_type === filterValues.type;
+                    }
+                }
+                if (filter === 'date') {
+                    const from = filterValues.dateFrom ? new Date(filterValues.dateFrom) : null;
+                    const to = filterValues.dateTo ? new Date(filterValues.dateTo) : null;
+                    const vDate = new Date(v.created_date);
+                    if (from && to) {
+                        match = match && vDate >= from && vDate <= to;
+                    } else if (from) {
+                        match = match && vDate >= from;
+                    } else if (to) {
+                        match = match && vDate <= to;
+                    }
+                }
+                if (filter === 'remarks') {
+                    const searchTerm = (filterValues.remarks || '').toLowerCase().trim();
+                    const remarks = (v.remarks || 'N/A').toLowerCase();
+                    match = match && (!searchTerm || remarks.includes(searchTerm));
+                }
+            }
+            return match;
+        });
+    }, [vouchers, activeFilters, filterValues]);
+
+    const totalPages = Math.ceil(sortedAndFilteredVouchers.length / ITEMS_PER_PAGE);
+    const paginatedVouchers = sortedAndFilteredVouchers.slice(
+        (currentPage - 1) * ITEMS_PER_PAGE,
+        currentPage * ITEMS_PER_PAGE
+    );
+
+    // Reset to page 1 when filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [activeFilters, filterValues]);
+
+    const handleViewAttachment = async (voucher) => {
+        if (!voucher.attachment_id) {
+            toast({ title: 'No Attachment', description: 'This voucher does not have an attachment.', variant: 'destructive' });
+            return;
+        }
         try {
-          const headers = await getFinanceHeaders(user.agency_id, user.access_token);
-          setFinanceHeaders(headers);
+            const attachmentUrl = await getVoucherAttachment(voucher.attachment_id, user.access_token);
+            navigate(`/vouchers/${voucher.id}`, { state: { attachmentUrl, voucher } });
         } catch (error) {
-          toast({
-            title: 'Error',
-            description: `Failed to fetch finance headers: ${error.message}`,
-            variant: 'destructive',
-          });
+            toast({ title: 'Error', description: `Could not fetch attachment: ${error.message}`, variant: 'destructive' });
         }
-      }
     };
-    fetchHeaders();
-  }, [user, toast]);
 
-  const [readyLoadingId, setReadyLoadingId] = useState(null);
-
-  const sortedAndFilteredVouchers = useMemo(() => {
-    let sortableVouchers = [...(vouchers || [])];
-    sortableVouchers.sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
-    const unexportedVouchers = sortableVouchers.filter(v => !v.is_exported);
-    // Filter out vouchers that have tags (finance_header_id is set)
-    const untaggedVouchers = unexportedVouchers.filter(v => !v.finance_header_id);
-
-    return untaggedVouchers.filter(v => {
-      let match = true;
-      for (const filter of activeFilters) {
-        if (filter === 'beneficiary') {
-          const searchTerm = (filterValues.beneficiary || '').toLowerCase().trim();
-          match = match && (!searchTerm || (v.beneficiaryName && v.beneficiaryName.toLowerCase().includes(searchTerm)));
-        }
-        if (filter === 'voucher_id') {
-          const searchTerm = (filterValues.voucher_id || '').toLowerCase().trim();
-          const voucherId = (v.voucher_id || v.id || '').toString().toLowerCase();
-          match = match && (!searchTerm || voucherId.includes(searchTerm));
-        }
-        if (filter === 'type') {
-          if (filterValues.type && filterValues.type !== 'all') {
-            match = match && v.voucher_type === filterValues.type;
-          }
-        }
-        if (filter === 'date') {
-          const from = filterValues.dateFrom ? new Date(filterValues.dateFrom) : null;
-          const to = filterValues.dateTo ? new Date(filterValues.dateTo) : null;
-          const vDate = new Date(v.created_date);
-          if (from && to) {
-            match = match && vDate >= from && vDate <= to;
-          } else if (from) {
-            match = match && vDate >= from;
-          } else if (to) {
-            match = match && vDate <= to;
-          }
-        }
-        if (filter === 'remarks') {
-          const searchTerm = (filterValues.remarks || '').toLowerCase().trim();
-          const remarks = (v.remarks || 'N/A').toLowerCase();
-          match = match && (!searchTerm || remarks.includes(searchTerm));
-        }
-      }
-      return match;
-    });
-  }, [vouchers, activeFilters, filterValues]);
-
-  const totalPages = Math.ceil(sortedAndFilteredVouchers.length / ITEMS_PER_PAGE);
-  const paginatedVouchers = sortedAndFilteredVouchers.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
-  );
-
-  // Reset to page 1 when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [activeFilters, filterValues]);
-
-  const handleViewAttachment = async (voucher) => {
-    if (!voucher.attachment_id) {
-        toast({ title: 'No Attachment', description: 'This voucher does not have an attachment.', variant: 'destructive' });
-        return;
-    }
-    try {
-        const attachmentUrl = await getVoucherAttachment(voucher.attachment_id, user.access_token);
-        navigate(`/vouchers/${voucher.id}`, { state: { attachmentUrl, voucher } });
-    } catch (error) {
-       toast({ title: 'Error', description: `Could not fetch attachment: ${error.message}`, variant: 'destructive' });
-    }
-  };
-
-  return (
-    <Card className="glass-card mt-4">
-        <CardHeader className="p-4 sm:p-6">
-            <div className="flex flex-col gap-4">
-                <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-                    <Select
-                        value=""
-                        onValueChange={filter => {
-                            if (!activeFilters.includes(filter)) {
-                                setActiveFilters([...activeFilters, filter]);
-                            }
-                        }}
-                    >
-                        <SelectTrigger className="w-full sm:w-[180px] text-sm sm:text-base">
-                            <SelectValue placeholder="Add Filter" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {!activeFilters.includes('beneficiary') && <SelectItem value="beneficiary">Beneficiary Name</SelectItem>}
-                            {!activeFilters.includes('voucher_id') && <SelectItem value="voucher_id">Voucher ID</SelectItem>}
-                            {!activeFilters.includes('type') && <SelectItem value="type">Type</SelectItem>}
-                            {!activeFilters.includes('date') && <SelectItem value="date">Date</SelectItem>}
-                            {!activeFilters.includes('remarks') && <SelectItem value="remarks">Remarks</SelectItem>}
-                        </SelectContent>
-                    </Select>
-                    {activeFilters.map(filter => (
-                        <div key={filter} className="flex items-center gap-2 flex-wrap">
-                            {filter === 'beneficiary' && (
-                                <Input
-                                    placeholder="Search by beneficiary..."
-                                    value={filterValues.beneficiary || ''}
-                                    onChange={e => setFilterValues(fv => ({ ...fv, beneficiary: e.target.value }))}
-                                    className="w-full sm:max-w-xs text-sm sm:text-base"
-                                />
-                            )}
-                            {filter === 'voucher_id' && (
-                                <Input
-                                    placeholder="Search by voucher ID..."
-                                    value={filterValues.voucher_id || ''}
-                                    onChange={e => setFilterValues(fv => ({ ...fv, voucher_id: e.target.value }))}
-                                    className="w-full sm:max-w-xs text-sm sm:text-base"
-                                />
-                            )}
-                            {filter === 'type' && (
-                                <Select
-                                    value={filterValues.type || 'all'}
-                                    onValueChange={val => setFilterValues(fv => ({ ...fv, type: val }))}
+    return (
+        <Card className="glass-card mt-4">
+            <CardHeader className="p-4 sm:p-6">
+                <div className="flex flex-col gap-4">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+                        <Select
+                            value=""
+                            onValueChange={filter => {
+                                if (!activeFilters.includes(filter)) {
+                                    setActiveFilters([...activeFilters, filter]);
+                                }
+                            }}
+                        >
+                            <SelectTrigger className="w-full sm:w-[180px] text-sm sm:text-base">
+                                <SelectValue placeholder="Add Filter" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {!activeFilters.includes('beneficiary') && <SelectItem value="beneficiary">Beneficiary Name</SelectItem>}
+                                {!activeFilters.includes('voucher_id') && <SelectItem value="voucher_id">Voucher ID</SelectItem>}
+                                {!activeFilters.includes('type') && <SelectItem value="type">Type</SelectItem>}
+                                {!activeFilters.includes('date') && <SelectItem value="date">Date</SelectItem>}
+                                {!activeFilters.includes('remarks') && <SelectItem value="remarks">Remarks</SelectItem>}
+                            </SelectContent>
+                        </Select>
+                        {activeFilters.map(filter => (
+                            <div key={filter} className="flex items-center gap-2 flex-wrap">
+                                {filter === 'beneficiary' && (
+                                    <Input
+                                        placeholder="Search by beneficiary..."
+                                        value={filterValues.beneficiary || ''}
+                                        onChange={e => setFilterValues(fv => ({ ...fv, beneficiary: e.target.value }))}
+                                        className="w-full sm:max-w-xs text-sm sm:text-base"
+                                    />
+                                )}
+                                {filter === 'voucher_id' && (
+                                    <Input
+                                        placeholder="Search by voucher ID..."
+                                        value={filterValues.voucher_id || ''}
+                                        onChange={e => setFilterValues(fv => ({ ...fv, voucher_id: e.target.value }))}
+                                        className="w-full sm:max-w-xs text-sm sm:text-base"
+                                    />
+                                )}
+                                {filter === 'type' && (
+                                    <Select
+                                        value={filterValues.type || 'all'}
+                                        onValueChange={val => setFilterValues(fv => ({ ...fv, type: val }))}
+                                    >
+                                        <SelectTrigger className="w-full sm:w-[180px] text-sm sm:text-base">
+                                            <SelectValue placeholder="All Types" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All Types</SelectItem>
+                                            <SelectItem value="debit">Debit</SelectItem>
+                                            <SelectItem value="cash">Cash</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                )}
+                                {filter === 'date' && (
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <Input
+                                            type="date"
+                                            value={filterValues.dateFrom || ''}
+                                            onChange={e => setFilterValues(fv => ({ ...fv, dateFrom: e.target.value }))}
+                                            className="w-full sm:max-w-xs text-sm sm:text-base"
+                                            placeholder="From"
+                                        />
+                                        <span className="text-gray-400 text-sm">to</span>
+                                        <Input
+                                            type="date"
+                                            value={filterValues.dateTo || ''}
+                                            onChange={e => setFilterValues(fv => ({ ...fv, dateTo: e.target.value }))}
+                                            className="w-full sm:max-w-xs text-sm sm:text-base"
+                                            placeholder="To"
+                                        />
+                                    </div>
+                                )}
+                                {filter === 'remarks' && (
+                                    <Input
+                                        placeholder="Search by remarks..."
+                                        value={filterValues.remarks || ''}
+                                        onChange={e => setFilterValues(fv => ({ ...fv, remarks: e.target.value }))}
+                                        className="w-full sm:max-w-xs text-sm sm:text-base"
+                                    />
+                                )}
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                        setActiveFilters(activeFilters.filter(f => f !== filter));
+                                        setFilterValues(fv => {
+                                            const newFv = { ...fv };
+                                            if (filter === 'date') {
+                                                delete newFv.dateFrom;
+                                                delete newFv.dateTo;
+                                            } else {
+                                                delete newFv[filter];
+                                            }
+                                            return newFv;
+                                        });
+                                    }}
+                                    title="Remove filter"
+                                    className="h-8 w-8 sm:h-10 sm:w-10"
                                 >
-                                    <SelectTrigger className="w-full sm:w-[180px] text-sm sm:text-base">
-                                        <SelectValue placeholder="All Types" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">All Types</SelectItem>
-                                        <SelectItem value="debit">Debit</SelectItem>
-                                        <SelectItem value="cash">Cash</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            )}
-                            {filter === 'date' && (
-                                <div className="flex items-center gap-2 flex-wrap">
-                                    <Input
-                                        type="date"
-                                        value={filterValues.dateFrom || ''}
-                                        onChange={e => setFilterValues(fv => ({ ...fv, dateFrom: e.target.value }))}
-                                        className="w-full sm:max-w-xs text-sm sm:text-base"
-                                        placeholder="From"
-                                    />
-                                    <span className="text-gray-400 text-sm">to</span>
-                                    <Input
-                                        type="date"
-                                        value={filterValues.dateTo || ''}
-                                        onChange={e => setFilterValues(fv => ({ ...fv, dateTo: e.target.value }))}
-                                        className="w-full sm:max-w-xs text-sm sm:text-base"
-                                        placeholder="To"
-                                    />
-                                </div>
-                            )}
-                            {filter === 'remarks' && (
-                                <Input
-                                    placeholder="Search by remarks..."
-                                    value={filterValues.remarks || ''}
-                                    onChange={e => setFilterValues(fv => ({ ...fv, remarks: e.target.value }))}
-                                    className="w-full sm:max-w-xs text-sm sm:text-base"
-                                />
-                            )}
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => {
-                                    setActiveFilters(activeFilters.filter(f => f !== filter));
-                                    setFilterValues(fv => {
-                                        const newFv = { ...fv };
-                                        if (filter === 'date') {
-                                            delete newFv.dateFrom;
-                                            delete newFv.dateTo;
-                                        } else {
-                                            delete newFv[filter];
-                                        }
-                                        return newFv;
-                                    });
-                                }}
-                                title="Remove filter"
-                                className="h-8 w-8 sm:h-10 sm:w-10"
-                            >
-                                ×
-                            </Button>
-                        </div>
-                    ))}
+                                    ×
+                                </Button>
+                            </div>
+                        ))}
+                    </div>
                 </div>
-            </div>
-        </CardHeader>
-        <CardContent className="p-0 sm:p-6">
-            <div className="overflow-x-auto">
-             <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead className="text-xs sm:text-sm">Date</TableHead>
-                        <TableHead className="text-xs sm:text-sm">Voucher ID</TableHead>
-                        <TableHead className="text-xs sm:text-sm">Type</TableHead>
-                        <TableHead className="text-xs sm:text-sm">Beneficiaries</TableHead>
-                        <TableHead className="text-xs sm:text-sm">Amount</TableHead>
-                        <TableHead className="text-xs sm:text-sm">Status</TableHead>
-                        <TableHead className="text-xs sm:text-sm">Remarks</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {paginatedVouchers.map(voucher => {
-                        const { date, time } = formatDate(voucher.created_date);
-                        return (
-                            <TableRow key={voucher.id} onClick={() => onViewVoucher(voucher)} className={`transition-colors cursor-pointer ${voucher.is_ready ? 'bg-green-500/10' : ''}`}>
-                                <TableCell className="text-xs sm:text-sm">
-                                    <div>{date}</div>
-                                    <div className="text-xs text-gray-400">{time}</div>
-                                </TableCell>
-<TableCell className="text-xs sm:text-sm">{voucher.voucher_id ? voucher.voucher_id : (voucher.id ? voucher.id : '-')}</TableCell>
-                                <TableCell className="text-xs sm:text-sm">
-                                    <span className={`px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-medium capitalize ${voucher.voucher_type === 'cash' ? 'bg-green-500/20 text-green-300' : 'bg-pink-500/20 text-pink-300'}`}>
-                                        {voucher.voucher_type}
-                                    </span>
-                                </TableCell>
-                                <TableCell className="text-xs sm:text-sm truncate max-w-[120px] sm:max-w-none">{voucher.beneficiaryName}</TableCell>
-                                <TableCell className="text-xs sm:text-sm">₹{parseFloat(voucher.amount).toFixed(2)}</TableCell>
-                                <TableCell className="text-xs sm:text-sm">
-                                    <span className={`px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-medium capitalize ${
-                                        voucher.status === 'approved' 
-                                            ? 'bg-green-500/20 text-green-300' 
-                                            : voucher.status === 'rejected'
-                                            ? 'bg-red-500/20 text-red-300'
-                                            : 'bg-blue-500/20 text-blue-300'
-                                    }`}>
-                                        {voucher.status || 'created'}
-                                    </span>
-                                </TableCell>
-                                <TableCell className="text-xs sm:text-sm truncate max-w-[100px] sm:max-w-none">{voucher.remarks && voucher.remarks.trim() ? voucher.remarks : 'N/A'}</TableCell>
+            </CardHeader>
+            <CardContent className="p-0 sm:p-6">
+                <div className="overflow-x-auto">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className="text-xs sm:text-sm">Date</TableHead>
+                                <TableHead className="text-xs sm:text-sm">Voucher ID</TableHead>
+                                <TableHead className="text-xs sm:text-sm">Type</TableHead>
+                                <TableHead className="text-xs sm:text-sm">Beneficiaries</TableHead>
+                                <TableHead className="text-xs sm:text-sm">Amount</TableHead>
+                                <TableHead className="text-xs sm:text-sm">Status</TableHead>
+                                <TableHead className="text-xs sm:text-sm">Remarks</TableHead>
                             </TableRow>
-                        );
-                    })}
-                </TableBody>
-            </Table>
-            </div>
-            {paginatedVouchers.length === 0 && <p className="text-center text-gray-400 py-8 text-sm sm:text-base">No vouchers found.</p>}
-        </CardContent>
-        <CardFooter className="flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-0 p-4 sm:p-6">
-            <div>
-                <p className="text-xs sm:text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
-            </div>
-            <div className="flex items-center gap-2">
-                <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="h-8 w-8 sm:h-10 sm:w-10">
-                <ChevronLeft className="w-4 h-4" />
-                </Button>
-                <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="h-8 w-8 sm:h-10 sm:w-10">
-                <ChevronRight className="w-4 h-4" />
-                </Button>
-            </div>
-        </CardFooter>
-    </Card>
-  );
+                        </TableHeader>
+                        <TableBody>
+                            {paginatedVouchers.map(voucher => {
+                                const { date, time } = formatDate(voucher.created_date);
+                                return (
+                                    <TableRow key={voucher.id} onClick={() => onViewVoucher(voucher)} className={`transition-colors cursor-pointer ${voucher.is_ready ? 'bg-green-500/10' : ''}`}>
+                                        <TableCell className="text-xs sm:text-sm">
+                                            <div>{date}</div>
+                                            <div className="text-xs text-gray-400">{time}</div>
+                                        </TableCell>
+                                        <TableCell className="text-xs sm:text-sm">{voucher.voucher_id ? voucher.voucher_id : (voucher.id ? voucher.id : '-')}</TableCell>
+                                        <TableCell className="text-xs sm:text-sm">
+                                            <span className={`px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-medium capitalize ${voucher.voucher_type === 'cash' ? 'bg-green-500/20 text-green-300' : 'bg-pink-500/20 text-pink-300'}`}>
+                                                {voucher.voucher_type}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell className="text-xs sm:text-sm truncate max-w-[120px] sm:max-w-none">{voucher.beneficiaryName}</TableCell>
+                                        <TableCell className="text-xs sm:text-sm">₹{parseFloat(voucher.amount).toFixed(2)}</TableCell>
+                                        <TableCell className="text-xs sm:text-sm">
+                                            <span className={`px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-medium capitalize ${voucher.status === 'approved'
+                                                    ? 'bg-green-500/20 text-green-300'
+                                                    : voucher.status === 'rejected'
+                                                        ? 'bg-red-500/20 text-red-300'
+                                                        : 'bg-blue-500/20 text-blue-300'
+                                                }`}>
+                                                {voucher.status || 'created'}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell className="text-xs sm:text-sm truncate max-w-[100px] sm:max-w-none">{voucher.remarks && voucher.remarks.trim() ? voucher.remarks : 'N/A'}</TableCell>
+                                    </TableRow>
+                                );
+                            })}
+                        </TableBody>
+                    </Table>
+                </div>
+                {paginatedVouchers.length === 0 && <p className="text-center text-gray-400 py-8 text-sm sm:text-base">No vouchers found.</p>}
+            </CardContent>
+            <CardFooter className="flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-0 p-4 sm:p-6">
+                <div>
+                    <p className="text-xs sm:text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="h-8 w-8 sm:h-10 sm:w-10">
+                        <ChevronLeft className="w-4 h-4" />
+                    </Button>
+                    <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="h-8 w-8 sm:h-10 sm:w-10">
+                        <ChevronRight className="w-4 h-4" />
+                    </Button>
+                </div>
+            </CardFooter>
+        </Card>
+    );
 };
 
 export default VoucherHistory;

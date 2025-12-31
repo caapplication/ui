@@ -24,7 +24,7 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
     const [toBankAccountId, setToBankAccountId] = useState(voucher?.to_bank_account_id || '');
 
     useEffect(() => {
-        if(voucher){
+        if (voucher) {
             setVoucherType(voucher.voucher_type);
             setPaymentType(voucher.payment_type);
             setSelectedBeneficiaryId(voucher.beneficiary_id);
@@ -36,7 +36,7 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
     useEffect(() => {
         if (voucherType === 'cash') {
             setPaymentType('cash');
-        } else if (!isEditing) { 
+        } else if (!isEditing) {
             setPaymentType('');
         }
     }, [voucherType, isEditing]);
@@ -88,10 +88,10 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
         // Handle multiple attachments - compress images if needed
         const attachmentInput = e.target.querySelector('input[name="attachment"]');
         const files = attachmentInput?.files;
-        
+
         // Remove any existing attachment entries
         formData.delete('attachment');
-        
+
         if (files && files.length > 0) {
             for (let i = 0; i < files.length; i++) {
                 const file = files[i];
@@ -118,7 +118,7 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
         if (user?.role === 'CLIENT_USER') {
             formData.delete('finance_header_id');
         }
-        
+
         onSave(formData, voucher?.id);
     };
 
@@ -132,7 +132,7 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
                 if (beneficiaryBankAccountsCache[selectedBeneficiaryId]) {
                     return; // Already cached, no need to fetch
                 }
-                
+
                 setIsLoadingBeneficiaryAccounts(true);
                 try {
                     // Use optimized dropdown endpoint - much faster, returns only essential fields
@@ -164,7 +164,7 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
                 if (!selectedBeneficiaryId || !beneficiaries) return [];
                 const beneficiary = beneficiaries.find(b => String(b.id) === String(selectedBeneficiaryId));
                 return beneficiary?.bank_accounts || [];
-              })()
+            })()
             : (beneficiaryBankAccountsCache[selectedBeneficiaryId] || []);
 
         // Only show active accounts in voucher bank transfer dropdown
@@ -172,7 +172,7 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
     }, [selectedBeneficiaryId, beneficiaries, isEditing, beneficiaryBankAccountsCache]);
 
     return (
-        <DialogContent className="max-w-3xl" closeDisabled={isLoading}>
+        <DialogContent className="w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto px-4 py-6 sm:p-6" closeDisabled={isLoading}>
             <DialogHeader>
                 <DialogTitle>{isEditing ? 'Edit Voucher' : 'Add New Voucher'}</DialogTitle>
                 <DialogDescription>
@@ -181,150 +181,151 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-6 pt-4">
                 <div
+                    className="space-y-6"
                     style={isLoading ? { opacity: 0.5, pointerEvents: 'none' } : {}}
                 >
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <Label htmlFor="voucherType">Voucher Type</Label>
-                        <Select name="voucher_type" required onValueChange={setVoucherType} value={voucherType} disabled={isLoading}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="debit">Debit</SelectItem>
-                                <SelectItem value="cash">Cash</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div>
-                        <Label htmlFor="amount">Amount</Label>
-                        <Input name="amount" id="amount" type="number" step="0.01" required defaultValue={voucher?.amount} disabled={isLoading}/>
-                    </div>
-                </div>
-
-                <div>
-                    <Label htmlFor="beneficiary_id">Beneficiary</Label>
-                    {isLoading ? (
-                        <div className="flex items-center justify-center p-2 border border-white/20 bg-white/10 rounded-lg h-11">
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                        </div>
-                    ) : (
-                        <Combobox
-                            options={(beneficiaries || []).map(b => ({
-                                value: String(b.id),
-                                label: b.beneficiary_type === 'individual' ? b.name : b.company_name
-                            }))}
-                            value={selectedBeneficiaryId ? String(selectedBeneficiaryId) : ''}
-                            onValueChange={(value) => setSelectedBeneficiaryId(value)}
-                            placeholder="Select beneficiary..."
-                            searchPlaceholder="Search beneficiaries..."
-                            emptyText="No beneficiaries found."
-                            disabled={isLoading}
-                        />
-                    )}
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <Label htmlFor="payment_type">Payment Type</Label>
-                        {voucherType === 'debit' ? (
-                            <Select name="payment_type" required onValueChange={setPaymentType} value={paymentType} disabled={isLoading}>
-                                <SelectTrigger><SelectValue placeholder="Select payment type" /></SelectTrigger>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <Label htmlFor="voucherType" className="mb-2">Voucher Type</Label>
+                            <Select name="voucher_type" required onValueChange={setVoucherType} value={voucherType} disabled={isLoading}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                                    <SelectItem value="upi">UPI</SelectItem>
-                                    <SelectItem value="card">Card</SelectItem>
-                                    <SelectItem value="cheque">Cheque</SelectItem>
-                                    <SelectItem value="demand_draft">Demand Draft</SelectItem>
+                                    <SelectItem value="debit">Debit</SelectItem>
+                                    <SelectItem value="cash">Cash</SelectItem>
                                 </SelectContent>
                             </Select>
+                        </div>
+                        <div>
+                            <Label htmlFor="amount" className="mb-2">Amount</Label>
+                            <Input name="amount" id="amount" type="number" step="0.01" required defaultValue={voucher?.amount} disabled={isLoading} />
+                        </div>
+                    </div>
+
+                    <div>
+                        <Label htmlFor="beneficiary_id" className="mb-2">Beneficiary</Label>
+                        {isLoading ? (
+                            <div className="flex items-center justify-center p-2 border border-white/20 bg-white/10 rounded-lg h-11">
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                            </div>
                         ) : (
-                            <Input value="Cash" disabled />
+                            <Combobox
+                                options={(beneficiaries || []).map(b => ({
+                                    value: String(b.id),
+                                    label: b.beneficiary_type === 'individual' ? b.name : b.company_name
+                                }))}
+                                value={selectedBeneficiaryId ? String(selectedBeneficiaryId) : ''}
+                                onValueChange={(value) => setSelectedBeneficiaryId(value)}
+                                placeholder="Select beneficiary..."
+                                searchPlaceholder="Search beneficiaries..."
+                                emptyText="No beneficiaries found."
+                                disabled={isLoading}
+                            />
                         )}
                     </div>
 
-                    {voucherType === 'debit' && paymentType && paymentType !== '' && (
-                        <>
-                            <div>
-                                <Label htmlFor="from_bank_account_id">From (Organisation Bank)</Label>
-                                {isLoadingOrgAccounts ? (
-                                    <div className="flex items-center justify-center p-2 border border-white/20 bg-white/10 rounded-lg h-11">
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                    </div>
-                                ) : (
-                                    <Combobox
-                                        options={(isEditing ? (organisationBankAccounts || []) : orgBankAccounts).map(acc => ({
-                                            value: String(acc.id),
-                                            label: `${acc.bank_name} - ...${String(acc.account_number).slice(-4)}`
-                                        }))}
-                                        value={fromBankAccountId ? String(fromBankAccountId) : ''}
-                                        onValueChange={(value) => setFromBankAccountId(value)}
-                                        placeholder="Select your bank account..."
-                                        searchPlaceholder="Search bank accounts..."
-                                        emptyText="No bank accounts found."
-                                        disabled={isLoading || isLoadingOrgAccounts}
-                                    />
-                                )}
-                            </div>
-                            <div className="md:col-span-2">
-                                <Label htmlFor="to_bank_account_id">To (Beneficiary Bank)</Label>
-                                {isLoadingBeneficiaryAccounts ? (
-                                    <div className="flex items-center justify-center p-2 border border-white/20 bg-white/10 rounded-lg h-11">
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                    </div>
-                                ) : !selectedBeneficiaryId ? (
-                                    <div className="flex items-center justify-center p-2 border border-white/20 bg-white/10 rounded-lg h-11 text-gray-400">
-                                        First select a beneficiary
-                                    </div>
-                                ) : selectedBeneficiaryBankAccounts.length === 0 ? (
-                                    <div className="flex items-center justify-center p-2 border border-white/20 bg-white/10 rounded-lg h-11 text-gray-400">
-                                        No bank accounts for this beneficiary
-                                    </div>
-                                ) : (
-                                    <Combobox
-                                        options={selectedBeneficiaryBankAccounts.map(acc => ({
-                                            value: String(acc.id),
-                                            label: `${acc.bank_name} - ${acc.account_number}`
-                                        }))}
-                                        value={toBankAccountId ? String(toBankAccountId) : ''}
-                                        onValueChange={(value) => setToBankAccountId(value)}
-                                        placeholder="Select beneficiary's account..."
-                                        searchPlaceholder="Search beneficiary accounts..."
-                                        emptyText="No bank accounts found."
-                                        disabled={isLoading || isLoadingBeneficiaryAccounts}
-                                    />
-                                )}
-                            </div>
-                        </>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <Label htmlFor="payment_type" className="mb-2">Payment Type</Label>
+                            {voucherType === 'debit' ? (
+                                <Select name="payment_type" required onValueChange={setPaymentType} value={paymentType} disabled={isLoading}>
+                                    <SelectTrigger><SelectValue placeholder="Select payment type" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                                        <SelectItem value="upi">UPI</SelectItem>
+                                        <SelectItem value="card">Card</SelectItem>
+                                        <SelectItem value="cheque">Cheque</SelectItem>
+                                        <SelectItem value="demand_draft">Demand Draft</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            ) : (
+                                <Input value="Cash" disabled />
+                            )}
+                        </div>
+
+                        {voucherType === 'debit' && paymentType && paymentType !== '' && (
+                            <>
+                                <div>
+                                    <Label htmlFor="from_bank_account_id" className="mb-2">From (Organisation Bank)</Label>
+                                    {isLoadingOrgAccounts ? (
+                                        <div className="flex items-center justify-center p-2 border border-white/20 bg-white/10 rounded-lg h-11">
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                        </div>
+                                    ) : (
+                                        <Combobox
+                                            options={(isEditing ? (organisationBankAccounts || []) : orgBankAccounts).map(acc => ({
+                                                value: String(acc.id),
+                                                label: `${acc.bank_name} - ...${String(acc.account_number).slice(-4)}`
+                                            }))}
+                                            value={fromBankAccountId ? String(fromBankAccountId) : ''}
+                                            onValueChange={(value) => setFromBankAccountId(value)}
+                                            placeholder="Select your bank account..."
+                                            searchPlaceholder="Search bank accounts..."
+                                            emptyText="No bank accounts found."
+                                            disabled={isLoading || isLoadingOrgAccounts}
+                                        />
+                                    )}
+                                </div>
+                                <div className="md:col-span-2">
+                                    <Label htmlFor="to_bank_account_id" className="mb-2">To (Beneficiary Bank)</Label>
+                                    {isLoadingBeneficiaryAccounts ? (
+                                        <div className="flex items-center justify-center p-2 border border-white/20 bg-white/10 rounded-lg h-11">
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                        </div>
+                                    ) : !selectedBeneficiaryId ? (
+                                        <div className="flex items-center justify-center p-2 border border-white/20 bg-white/10 rounded-lg h-11 text-gray-400">
+                                            First select a beneficiary
+                                        </div>
+                                    ) : selectedBeneficiaryBankAccounts.length === 0 ? (
+                                        <div className="flex items-center justify-center p-2 border border-white/20 bg-white/10 rounded-lg h-11 text-gray-400">
+                                            No bank accounts for this beneficiary
+                                        </div>
+                                    ) : (
+                                        <Combobox
+                                            options={selectedBeneficiaryBankAccounts.map(acc => ({
+                                                value: String(acc.id),
+                                                label: `${acc.bank_name} - ${acc.account_number}`
+                                            }))}
+                                            value={toBankAccountId ? String(toBankAccountId) : ''}
+                                            onValueChange={(value) => setToBankAccountId(value)}
+                                            placeholder="Select beneficiary's account..."
+                                            searchPlaceholder="Search beneficiary accounts..."
+                                            emptyText="No bank accounts found."
+                                            disabled={isLoading || isLoadingBeneficiaryAccounts}
+                                        />
+                                    )}
+                                </div>
+                            </>
+                        )}
+                    </div>
+
+                    <div>
+                        <Label htmlFor="attachment" className="mb-2">Attachments (Multiple files allowed)</Label>
+                        <Input id="attachment" name="attachment" type="file" multiple disabled={isLoading} />
+                        {isEditing && voucher?.attachment_id && <p className="text-xs text-gray-400 mt-1">Leave empty to keep existing attachments.</p>}
+                    </div>
+
+                    {user?.role !== 'CLIENT_USER' && (
+                        <div>
+                            <Label htmlFor="finance_header_id" className="mb-2">Finance Header</Label>
+                            <Select name="finance_header_id" defaultValue={voucher?.finance_header_id} disabled={isLoading}>
+                                <SelectTrigger><SelectValue placeholder="Select a header" /></SelectTrigger>
+                                <SelectContent>
+                                    {(financeHeaders || []).map(header => (
+                                        <SelectItem key={header.id} value={String(header.id)}>
+                                            {header.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
                     )}
+
+                    <div>
+                        <Label htmlFor="remarks" className="mb-2">Remarks</Label>
+                        <Textarea name="remarks" id="remarks" defaultValue={voucher?.remarks} disabled={isLoading} />
+                    </div>
                 </div>
 
-                <div>
-                    <Label htmlFor="attachment">Attachments (Multiple files allowed)</Label>
-                    <Input id="attachment" name="attachment" type="file" multiple disabled={isLoading} />
-                    {isEditing && voucher?.attachment_id && <p className="text-xs text-gray-400 mt-1">Leave empty to keep existing attachments.</p>}
-                </div>
-
-                {user?.role !== 'CLIENT_USER' && (
-                <div>
-                    <Label htmlFor="finance_header_id">Finance Header</Label>
-                    <Select name="finance_header_id" defaultValue={voucher?.finance_header_id} disabled={isLoading}>
-                        <SelectTrigger><SelectValue placeholder="Select a header" /></SelectTrigger>
-                        <SelectContent>
-                            {(financeHeaders || []).map(header => (
-                                <SelectItem key={header.id} value={String(header.id)}>
-                                    {header.name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-                )}
-
-                <div>
-                    <Label htmlFor="remarks">Remarks</Label>
-                    <Textarea name="remarks" id="remarks" defaultValue={voucher?.remarks} disabled={isLoading}/>
-                </div>
-                </div>
-               
                 <DialogFooter>
                     <DialogClose asChild>
                         <Button

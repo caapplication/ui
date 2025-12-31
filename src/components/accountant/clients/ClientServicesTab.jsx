@@ -27,7 +27,7 @@ const ClientServicesTab = ({ client, allServices, onUpdateClient }) => {
     const { toast } = useToast();
     const { user } = useAuth();
     const [searchTerm, setSearchTerm] = useState('');
-    
+
     const getInitialAvailedIds = useCallback(() => new Set((client.availedServices || []).map(s => s.service_id)), [client.availedServices]);
 
     const [availedServiceIds, setAvailedServiceIds] = useState(getInitialAvailedIds);
@@ -52,7 +52,7 @@ const ClientServicesTab = ({ client, allServices, onUpdateClient }) => {
             return newSet;
         });
     };
-    
+
     const handleSaveChanges = async () => {
         setIsSaving(true);
         try {
@@ -83,7 +83,7 @@ const ClientServicesTab = ({ client, allServices, onUpdateClient }) => {
                 description: `Services for ${client.name} have been saved.`,
             });
         } catch (error) {
-             toast({
+            toast({
                 title: 'Error updating services',
                 description: error.message,
                 variant: 'destructive',
@@ -103,7 +103,7 @@ const ClientServicesTab = ({ client, allServices, onUpdateClient }) => {
     const currentAvailed = useMemo(() => {
         return allServices.filter(s => availedServiceIds.has(s.id));
     }, [allServices, availedServiceIds]);
-    
+
     const hasChanges = useMemo(() => {
         if (availedServiceIds.size !== initialAvailedServiceIds.size) return true;
         for (const id of availedServiceIds) {
@@ -120,7 +120,7 @@ const ClientServicesTab = ({ client, allServices, onUpdateClient }) => {
                     <h3 className="text-lg font-semibold mb-4 px-2">Available Services</h3>
                     <div className="relative mb-4 px-2">
                         <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <Input 
+                        <Input
                             placeholder="Search available..."
                             className="glass-input pl-10"
                             value={searchTerm}
