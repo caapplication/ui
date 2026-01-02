@@ -42,7 +42,6 @@ import BeneficiaryDetailsPage from '@/pages/BeneficiaryDetailsPage.jsx';
 import ComingSoon from './pages/ComingSoon.jsx';
 import UpcomingTask from './pages/UpcomingTask.jsx';
 import PublicDocumentView from './pages/PublicDocumentView.jsx';
-import LandingPage from '@/pages/LandingPage.jsx';
 import PrivacyPolicy from '@/pages/PrivacyPolicy.jsx';
 import TermsOfService from '@/pages/TermsOfService.jsx';
 import GlobalFAB from '@/components/common/GlobalFAB';
@@ -224,7 +223,7 @@ const AppContent = () => {
         </>
       ) : (
         <>
-          <Route path="/" element={<LandingPage />} />
+          <Route path="/" element={<Navigate to="/login" />} />
           <Route path="/login" element={<LoginForm />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />

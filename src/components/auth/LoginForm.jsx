@@ -156,10 +156,10 @@ const LoginForm = () => {
               </div>
               <div className="flex items-center justify-center gap-4">
                 <Button asChild variant="outline">
-                  <button onClick={() => navigate("/")}>
+                  <a href="https://fynivo.in/">
                     <ArrowLeft className="w-5 h-5 mr-2" />
                     Explore Fynivo
-                  </button>
+                  </a>
                 </Button>
               </div>
 

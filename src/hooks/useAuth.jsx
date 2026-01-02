@@ -248,6 +248,12 @@ export const AuthProvider = ({ children }) => {
             finishLogin(fullUserData);
             return { twoFactorEnabled: false };
         }
+    } else if (data.role === 'SUPER_ADMIN') {
+        window.location.href = 'https://admin.fynivo.in';
+        return { twoFactorEnabled: false };
+    } else if (data.role === 'AGENCY_ADMIN') {
+        window.location.href = 'https://agency.fynivo.in';
+        return { twoFactorEnabled: false };
     } else {
         throw new Error('Permission Denied. Your user role is not supported.');
     }

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,20 +8,28 @@ import { verifyToken, acceptInvitation } from "@/lib/api/auth";
 
 const VerifyToken = () => {
   const [searchParams] = useSearchParams();
-  const token = searchParams.get("token");
-  const [status, setStatus] = useState("loading"); // loading | verified | error | submitting | done
+  // Replace spaces with + to handle potential URL decoding issues where + was not properly encoded in the link
+  const token = searchParams.get("token")?.replace(/ /g, '+');
+  const [status, setStatus] = useState("loading"); // loading | verified | error | submitting | done | no_token
   const [message, setMessage] = useState("");
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [postError, setPostError] = useState("");
+  const verifiedTokenRef = useRef(null);
 
   useEffect(() => {
     if (!token) {
-      setStatus("error");
+      setStatus("no_token");
       setMessage("No token provided in the URL.");
       return;
     }
+
+    if (verifiedTokenRef.current === token) {
+      return;
+    }
+    verifiedTokenRef.current = token;
+
     setStatus("loading");
     verifyToken(token)
       .then((res) => {
@@ -47,11 +55,16 @@ const VerifyToken = () => {
       setStatus("done");
       setMessage("Account setup successful! You can now log in.");
     } catch (err) {
-      setStatus("verified");
-      setPostError(
-        err?.message ||
-          "Failed to set up account. Please try again or contact support."
-      );
+      if (err?.message?.includes("Email already registered")) {
+        setStatus("existing_user");
+        setMessage("It looks like you already have an account with us. Please log in to accept the invitation.");
+      } else {
+        setStatus("verified");
+        setPostError(
+          err?.message ||
+            "Failed to set up account. Please try again or contact support."
+        );
+      }
     }
   };
 
@@ -69,7 +82,11 @@ const VerifyToken = () => {
               ? "Your token has been verified. Please set your name and password."
               : status === "done"
               ? "Account setup complete."
-              : "There was a problem verifying your token."}
+              : status === "existing_user"
+              ? "Account already exists."
+              : status === "no_token"
+              ? "Invalid Verification Link"
+              : "Hold on, verifying and setting up your profile..."}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -77,10 +94,26 @@ const VerifyToken = () => {
             {status === "loading" && (
               <Loader2 className="animate-spin w-12 h-12 text-blue-500" />
             )}
-            {status === "error" && (
+            {(status === "error" || status === "no_token") && (
               <>
                 <XCircle className="w-12 h-12 text-red-500" />
                 <div className="text-lg font-medium text-gray-200">{message}</div>
+              </>
+            )}
+            {status === "existing_user" && (
+              <>
+                <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 text-left w-full">
+                  <div className="flex items-start gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-yellow-500 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-yellow-500 mb-1">Account Exists</p>
+                      <p className="text-sm text-gray-300">{message}</p>
+                    </div>
+                  </div>
+                </div>
+                <Button asChild className="w-full mt-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold py-3 text-base rounded-lg">
+                  <a href="/login">Go to Login</a>
+                </Button>
               </>
             )}
             {status === "verified" && (

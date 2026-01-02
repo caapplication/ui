@@ -305,6 +305,7 @@ import React, { useState, useEffect, useRef } from 'react';
                 state: formData.state,
                 opening_balance_date: formData.opening_balance_date ? format(formData.opening_balance_date, 'yyyy-MM-dd') : null,
                 opening_balance_amount: formData.opening_balance_amount ? parseFloat(formData.opening_balance_amount) : 0,
+                assigned_ca_user_id: (formData.assigned_ca_user_id && formData.assigned_ca_user_id !== "undefined") ? formData.assigned_ca_user_id : null,
             };
 
             await onSave(dataToSave, photoFile);
@@ -614,8 +615,8 @@ import React, { useState, useEffect, useRef } from 'react';
                                             <SelectValue>
                                                 {formData.assigned_ca_user_id
                                                     ? (
-                                                        teamMembers.find(m => String(m.user_id) === String(formData.assigned_ca_user_id))?.name ||
-                                                        teamMembers.find(m => String(m.user_id) === String(formData.assigned_ca_user_id))?.email ||
+                                                        teamMembers.find(m => String(m.user_id || m.id) === String(formData.assigned_ca_user_id))?.name ||
+                                                        teamMembers.find(m => String(m.user_id || m.id) === String(formData.assigned_ca_user_id))?.email ||
                                                         "Select a team member"
                                                     )
                                                     : "Select a team member"}
@@ -624,7 +625,7 @@ import React, { useState, useEffect, useRef } from 'react';
                                         <SelectContent>
                                            {teamMembers && teamMembers.filter(member => member.status && member.status.toLowerCase() === 'joined').length > 0 ? (
                                                teamMembers.filter(member => member.status && member.status.toLowerCase() === 'joined').map(member => (
-                                                   <SelectItem key={member.user_id} value={String(member.user_id)}>{member.name || member.email}</SelectItem>
+                                                   <SelectItem key={member.user_id || member.id} value={String(member.user_id || member.id)}>{member.name || member.email}</SelectItem>
                                                ))
                                            ) : (
                                                <SelectItem value="no-members" disabled>No team members found</SelectItem>

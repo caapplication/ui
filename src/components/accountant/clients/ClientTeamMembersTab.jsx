@@ -11,14 +11,26 @@ const ClientTeamMembersTab = ({ client, teamMembers = [] }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
 
-    // Filter team members based on search term
+    // Filter team members based on assigned user and search term
     const filteredTeamMembers = useMemo(() => {
+        let members = teamMembers;
+
+        // If an assigned user exists, filter to show only that user
+        if (client.assigned_ca_user_id) {
+            members = teamMembers.filter(member => 
+                String(member.user_id || member.id) === String(client.assigned_ca_user_id)
+            );
+        } else {
+            // If no assigned user, show no one
+            return [];
+        }
+
         if (!searchTerm.trim()) {
-            return teamMembers;
+            return members;
         }
         
         const term = searchTerm.toLowerCase();
-        return teamMembers.filter(member => {
+        return members.filter(member => {
             const name = (member.name || '').toLowerCase();
             const email = (member.email || '').toLowerCase();
             const phone = (member.phone || '').toLowerCase();
@@ -29,9 +41,19 @@ const ClientTeamMembersTab = ({ client, teamMembers = [] }) => {
                    phone.includes(term) || 
                    role.includes(term);
         });
-    }, [teamMembers, searchTerm]);
+    }, [teamMembers, searchTerm, client.assigned_ca_user_id]);
 
-    // Show all team members, with indication of which one is assigned
+    // Show message if no team member is assigned or available
+    if (!client.assigned_ca_user_id) {
+         return (
+            <div className="glass-pane p-8 rounded-lg text-center">
+                <User className="mx-auto w-12 h-12 text-gray-400 mb-4" />
+                <h3 className="text-xl font-semibold text-white mb-2">No Assigned CA Team Member</h3>
+                <p className="text-gray-400">This client has not been assigned to any team member yet.</p>
+            </div>
+        );
+    }
+
     if (teamMembers.length === 0) {
         return (
             <div className="glass-pane p-8 rounded-lg text-center">

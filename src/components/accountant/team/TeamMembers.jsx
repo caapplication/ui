@@ -48,6 +48,13 @@ const TeamMembers = () => {
             toast({ title: "Error", description: "Please enter a valid email.", variant: "destructive" });
             return;
         }
+
+        // Check for duplicates
+        if (team.some(member => member.email.toLowerCase() === formData.email.toLowerCase().trim())) {
+            toast({ title: "Error", description: "User already exists in the team.", variant: "destructive" });
+            return;
+        }
+
         try {
             await inviteTeamMember(formData.email, user.id, user.access_token);
             toast({ title: "Success", description: `Invitation sent to ${formData.email}.` });
