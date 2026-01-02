@@ -57,6 +57,9 @@ const StatCard = ({
     hideValue,
 }) => {
     const Icon = icon;
+
+
+    console.log(trend);
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -98,22 +101,27 @@ const StatCard = ({
                 </CardHeader>
                 <CardContent className="p-4 sm:p-6 pt-0">
                     {!hideValue && (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-3 mb-1">
                             <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white">
                                 {value}
                             </div>
 
-                            {trend &&
-                                (trend.isPositive ? (
-                                    <ArrowUpRight className="w-5 h-5 text-green-500" />
-                                ) : (
-                                    <ArrowDownRight className="w-5 h-5 text-red-500" />
-                                ))}
+                            {trend && (
+                                <div className={`${trend.isBad ? 'text-red-500' : 'text-green-500'}`}>
+                                    {trend.isUp ? (
+                                        <ArrowUpRight className="w-6 h-6" />
+                                    ) : (
+                                        <ArrowDownRight className="w-6 h-6" />
+                                    )}
+                                </div>
+                            )}
                         </div>
                     )}
 
                     {description && (
-                        <p className="text-xs text-gray-400 mt-1">{description}</p>
+                        <p className={`text-xs mt-1 ${trend ? (trend.isBad ? 'text-red-500' : 'text-green-500') : 'text-gray-400'}`}>
+                            {description}
+                        </p>
                     )}
 
                     {meta && (
@@ -229,40 +237,71 @@ const Dashboard = ({
         fetchDashboardData();
     }, [fetchDashboardData]);
 
-    // Calculate total expenses based on selected time period
-    const calculateExpenseTotal = useCallback(() => {
-        if (!vouchers || vouchers.length === 0) return 0;
+    // Calculate total expenses and stats based on selected time period
+    const calculateExpenseStats = useCallback(() => {
+        if (!vouchers || vouchers.length === 0) return { currentTotal: "0.00", percentageChange: 0, isIncrease: false };
 
         const now = new Date();
-        let cutoffDate = new Date();
+        let currentStartDate = new Date();
+        let previousStartDate = new Date();
+        let currentEndDate = new Date(); // usually now
+        let previousEndDate = new Date();
 
         switch (expensePeriod) {
             case "1day":
-                cutoffDate.setDate(now.getDate() - 1);
+                currentStartDate.setDate(now.getDate() - 1);
+                previousEndDate.setDate(now.getDate() - 1);
+                previousStartDate.setDate(now.getDate() - 2);
                 break;
             case "1week":
-                cutoffDate.setDate(now.getDate() - 7);
+                currentStartDate.setDate(now.getDate() - 7);
+                previousEndDate.setDate(now.getDate() - 7);
+                previousStartDate.setDate(now.getDate() - 14);
                 break;
             case "1month":
-                cutoffDate.setMonth(now.getMonth() - 1);
+                currentStartDate.setMonth(now.getMonth() - 1);
+                previousEndDate.setMonth(now.getMonth() - 1);
+                previousStartDate.setMonth(now.getMonth() - 2);
                 break;
             case "1year":
-                cutoffDate.setFullYear(now.getFullYear() - 1);
+                currentStartDate.setFullYear(now.getFullYear() - 1);
+                previousEndDate.setFullYear(now.getFullYear() - 1);
+                previousStartDate.setFullYear(now.getFullYear() - 2);
                 break;
             default:
-                cutoffDate.setMonth(now.getMonth() - 1);
+                currentStartDate.setMonth(now.getMonth() - 1);
+                previousEndDate.setMonth(now.getMonth() - 1);
+                previousStartDate.setMonth(now.getMonth() - 2);
         }
 
-        const filteredVouchers = vouchers.filter((voucher) => {
+        const currentTotal = vouchers.reduce((sum, voucher) => {
             const voucherDate = new Date(voucher.created_date || voucher.created_at);
-            return voucherDate >= cutoffDate;
-        });
-
-        const total = filteredVouchers.reduce((sum, voucher) => {
-            return sum + (parseFloat(voucher.amount) || 0);
+            if (voucherDate >= currentStartDate && voucherDate <= now) {
+                return sum + (parseFloat(voucher.amount) || 0);
+            }
+            return sum;
         }, 0);
 
-        return total.toFixed(2);
+        const previousTotal = vouchers.reduce((sum, voucher) => {
+            const voucherDate = new Date(voucher.created_date || voucher.created_at);
+            if (voucherDate >= previousStartDate && voucherDate <= previousEndDate) {
+                return sum + (parseFloat(voucher.amount) || 0);
+            }
+            return sum;
+        }, 0);
+
+        let percentageChange = 0;
+        if (previousTotal > 0) {
+            percentageChange = ((currentTotal - previousTotal) / previousTotal) * 100;
+        } else if (currentTotal > 0) {
+            percentageChange = 100;
+        }
+
+        return {
+            currentTotal: currentTotal.toFixed(2),
+            percentageChange: Math.abs(percentageChange).toFixed(1),
+            isIncrease: currentTotal > previousTotal
+        };
     }, [vouchers, expensePeriod]);
 
     const getPeriodLabel = () => {
@@ -302,8 +341,7 @@ const Dashboard = ({
             selected: expensePeriod === "1year",
         },
     ];
-    const expenseTotal = calculateExpenseTotal();
-    const isPositive = expenseTotal >= 0;
+    const expenseStats = calculateExpenseStats();
 
     const topTransactions = React.useMemo(() => {
         return [...vouchers]
@@ -353,16 +391,16 @@ const Dashboard = ({
         ? [
             {
                 title: "Expense Snapshot",
-                value: `₹${Math.abs(expenseTotal).toLocaleString("en-IN")}`,
-                description: getPeriodLabel(),
+                value: `₹${Math.abs(expenseStats.currentTotal).toLocaleString("en-IN")}`,
+                description: `${expenseStats.percentageChange}% ${expenseStats.isIncrease ? 'increase' : 'decrease'} vs last period`,
                 icon: Banknote,
                 color: "from-purple-500 to-indigo-600",
                 showMenu: true,
                 menuItems: expenseMenuItems,
                 onMenuSelect: setExpensePeriod,
                 trend: {
-                    isPositive,
-                    value: expenseTotal,
+                    isUp: expenseStats.isIncrease,
+                    isBad: expenseStats.isIncrease
                 },
             },
 

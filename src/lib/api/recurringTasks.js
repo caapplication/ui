@@ -8,7 +8,7 @@ export const listRecurringTasks = async (agencyId, token, isActive = null) => {
         if (isActive !== null && isActive !== undefined) {
             params.append('is_active', String(isActive)); // Convert boolean to string
         }
-        const url = `${TASKS_API_BASE_URL}/recurring-tasks${params.toString() ? '?' + params.toString() : ''}`;
+        const url = `${TASKS_API_BASE_URL}/recurring-tasks/${params.toString() ? '?' + params.toString() : ''}`;
         const response = await fetch(url, {
             method: 'GET',
             headers: getAuthHeaders(token, 'application/json', agencyId),
@@ -63,7 +63,7 @@ export const updateRecurringTask = async (recurringTaskId, recurringTaskData, ag
 
 export const deleteRecurringTask = async (recurringTaskId, agencyId, token) => {
     try {
-        const response = await fetch(`${TASKS_API_BASE_URL}/recurring-tasks/${recurringTaskId}`, {
+        const response = await fetch(`${TASKS_API_BASE_URL}/recurring-tasks/${recurringTaskId}/`, {
             method: 'DELETE',
             headers: getAuthHeaders(token, null, agencyId),
         });

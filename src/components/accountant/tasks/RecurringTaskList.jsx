@@ -23,10 +23,22 @@ const FREQUENCY_LABELS = {
   yearly: 'Yearly',
 };
 
-const RecurringTaskList = ({ recurringTasks, onEdit, onDelete, isLoading = false }) => {
+const RecurringTaskList = ({ recurringTasks, onEdit, onDelete, isLoading = false, clients = [], teamMembers = [] }) => {
+  const getClientName = (clientId) => {
+    if (!clientId) return 'N/A';
+    const client = clients.find(c => c.id === clientId);
+    return client ? client.name : clientId.substring(0, 8) + '...';
+  };
+
+  const getTeamMemberName = (memberId) => {
+    if (!memberId) return 'N/A';
+    const member = teamMembers.find(m => m.id === memberId);
+    return member ? member.name : memberId.substring(0, 8) + '...';
+  };
+
   const getFrequencyDescription = (task) => {
     let desc = `Every ${task.interval} ${FREQUENCY_LABELS[task.frequency]}`;
-    
+
     if (task.frequency === 'weekly' && task.day_of_week !== null) {
       const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
       desc += ` on ${days[task.day_of_week]}`;
@@ -39,7 +51,7 @@ const RecurringTaskList = ({ recurringTasks, onEdit, onDelete, isLoading = false
         desc = `${weeks[task.week_of_month - 1]} ${days[task.day_of_week]} of every ${task.interval} month(s)`;
       }
     }
-    
+
     return desc;
   };
 
@@ -83,10 +95,10 @@ const RecurringTaskList = ({ recurringTasks, onEdit, onDelete, isLoading = false
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-2 flex-wrap">
                   <CardTitle className="text-xl text-white">{task.title}</CardTitle>
-                  <Badge 
+                  <Badge
                     variant={task.is_active ? 'default' : 'outline'}
-                    className={task.is_active 
-                      ? 'bg-green-500/20 text-green-300 border-green-500/50' 
+                    className={task.is_active
+                      ? 'bg-green-500/20 text-green-300 border-green-500/50'
                       : 'bg-gray-500/20 text-gray-300 border-gray-500/50'
                     }
                   >
@@ -169,13 +181,13 @@ const RecurringTaskList = ({ recurringTasks, onEdit, onDelete, isLoading = false
               {task.client_id && (
                 <div className="flex items-center gap-2 text-gray-300 bg-white/5 p-2 rounded-lg">
                   <Building className="w-4 h-4 text-primary flex-shrink-0" />
-                  <span>Client: {task.client_name || 'N/A'}</span>
+                  <span>Client: {getClientName(task.client_id)}</span>
                 </div>
               )}
               {task.assigned_to && (
                 <div className="flex items-center gap-2 text-gray-300 bg-white/5 p-2 rounded-lg">
                   <User className="w-4 h-4 text-primary flex-shrink-0" />
-                  <span>Assigned: {task.assigned_to_name || 'N/A'}</span>
+                  <span>Assigned: {getTeamMemberName(task.assigned_to)}</span>
                 </div>
               )}
             </div>
