@@ -140,7 +140,6 @@ export const listClients = async (agencyId, token) => {
         // Return proxy URL instead of direct S3 URL
         if (result.photo_url) {
             // Replace S3 URL with proxy endpoint URL
-            const objectName = result.photo_url.split('.s3.amazonaws.com/')[-1];
             result.photo_url = `${CLIENTS_API_BASE_URL}/clients/${clientId}/photo`;
         }
         return result;

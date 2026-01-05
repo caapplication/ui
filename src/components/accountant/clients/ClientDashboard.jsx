@@ -13,15 +13,15 @@ import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { deleteClient } from '@/lib/api';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
 import { updateEntity, deleteEntity, createEntity } from '@/lib/api/organisation';
@@ -34,7 +34,7 @@ import {
     DialogFooter
 } from '@/components/ui/dialog';
 
-const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, onUpdateClient, onClientDeleted, teamMembers, onTeamMemberInvited }) => {
+const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, onUpdateClient, onClientDeleted, teamMembers, onTeamMemberInvited, onClientUserInvited }) => {
     const [activeSubTab, setActiveSubTab] = useState('Details');
     const [isDeleting, setIsDeleting] = useState(false);
     const [isEntityMutating, setIsEntityMutating] = useState(false);
@@ -45,136 +45,78 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
     const [entityToDelete, setEntityToDelete] = useState(null);
     const { toast } = useToast();
     const { user } = useAuth();
-    
-    const [photoBlobUrl, setPhotoBlobUrl] = useState(null);
 
-    // Helper function to get the correct photo URL
+    const [photoUrl, setPhotoUrl] = useState(null);
+    const [photoKey, setPhotoKey] = useState(0);
+
+    // Helper function to get the correct photo URL with cache-busting
     const getClientPhotoUrl = (client) => {
         if (!client || !client.id) return null;
-        const photoUrl = client.photo_url || client.photo;
-        if (!photoUrl) return null;
-        // If it's an S3 URL, use proxy endpoint for authenticated access
         const clientApiUrl = import.meta.env.VITE_CLIENT_API_URL || 'http://127.0.0.1:8002';
-        if (photoUrl.includes('.s3.amazonaws.com/')) {
-            return `${clientApiUrl}/clients/${client.id}/photo?t=${Date.now()}`;
-        }
-        // If it's already the proxy URL, add cache-busting if not present
-        if (photoUrl.includes(`/clients/${client.id}/photo`)) {
-            return photoUrl.includes('?') ? photoUrl : `${photoUrl}?t=${Date.now()}`;
-        }
-        // Otherwise use the URL directly (could be proxy URL or other URL)
-        return photoUrl;
+        // Always use proxy endpoint for authenticated access
+        return `${clientApiUrl}/clients/${client.id}/photo`;
     };
 
-    // Fetch photo as blob with authentication
+    // Update photo URL and key when client or photo_url changes to force image reload
     useEffect(() => {
-        // Cleanup previous blob URL
-        if (photoBlobUrl && photoBlobUrl.startsWith('blob:')) {
-            URL.revokeObjectURL(photoBlobUrl);
-        }
-
-        if (client?.id && user?.access_token) {
-            const photoUrl = getClientPhotoUrl(client);
-            // Always try to fetch from the photo endpoint if we have a client ID
+        if (client?.id) {
             const clientApiUrl = import.meta.env.VITE_CLIENT_API_URL || 'http://127.0.0.1:8002';
-            const photoEndpoint = `${clientApiUrl}/clients/${client.id}/photo?t=${Date.now()}`;
-            
-            if (photoUrl && photoUrl.includes(`/clients/${client.id}/photo`)) {
-                // Fetch with authentication
-                fetch(photoUrl, {
-                    headers: {
-                        'Authorization': `Bearer ${user.access_token}`,
-                        'x-agency-id': user.agency_id || ''
-                    }
-                })
-                .then(response => {
-                    if (response.ok) {
-                        return response.blob();
-                    }
-                    throw new Error('Failed to fetch photo');
-                })
-                .then(blob => {
-                    const url = URL.createObjectURL(blob);
-                    setPhotoBlobUrl(url);
-                })
-                .catch(err => {
-                    console.error('Error loading client photo:', err);
-                    // Try the endpoint directly even if photo_url is not set
-                    fetch(photoEndpoint, {
-                        headers: {
-                            'Authorization': `Bearer ${user.access_token}`,
-                            'x-agency-id': user.agency_id || ''
-                        }
-                    })
-                    .then(response => {
-                        if (response.ok) {
-                            return response.blob();
-                        }
-                        throw new Error('Photo not found');
-                    })
-                    .then(blob => {
-                        const url = URL.createObjectURL(blob);
-                        setPhotoBlobUrl(url);
-                    })
-                    .catch(() => {
-                        setPhotoBlobUrl(null);
-                    });
-                });
-            } else if (!photoUrl && client?.id) {
-                // If no photo_url is set, try to fetch from the endpoint anyway
-                fetch(photoEndpoint, {
-                    headers: {
-                        'Authorization': `Bearer ${user.access_token}`,
-                        'x-agency-id': user.agency_id || ''
-                    }
-                })
-                .then(response => {
-                    if (response.ok) {
-                        return response.blob();
-                    }
-                    throw new Error('Photo not found');
-                })
-                .then(blob => {
-                    const url = URL.createObjectURL(blob);
-                    setPhotoBlobUrl(url);
-                })
-                .catch(() => {
-                    setPhotoBlobUrl(null);
-                });
-            } else if (photoUrl) {
-                // If it's not the proxy URL, use it directly
-                setPhotoBlobUrl(photoUrl);
-            } else {
-                setPhotoBlobUrl(null);
+            // Always use the proxy endpoint - never use blob URLs or direct S3 URLs
+            // Extract a hash from photo_url to detect changes
+            let photoHash = 'no-photo';
+            if (client.photo_url) {
+                // Ignore blob URLs - always fetch from server
+                if (client.photo_url.startsWith('blob:')) {
+                    photoHash = 'blob-ignored';
+                } else if (client.photo_url.includes('.s3.amazonaws.com/')) {
+                    photoHash = client.photo_url.split('.s3.amazonaws.com/')[1];
+                } else if (client.photo_url.includes('/clients/')) {
+                    // If it's already a proxy URL, extract timestamp if present, or use full URL
+                    photoHash = client.photo_url;
+                } else {
+                    photoHash = client.photo_url;
+                }
             }
+            // Create cache-busting URL with timestamp and photo hash
+            // Always use proxy endpoint, never blob URLs
+            // Use updated_at timestamp if available to detect changes
+            const updateTimestamp = client.updated_at ? new Date(client.updated_at).getTime() : Date.now();
+            const timestamp = Date.now();
+            const randomSuffix = Math.random().toString(36).substring(7);
+            const url = `${clientApiUrl}/clients/${client.id}/photo?t=${timestamp}&r=${randomSuffix}&h=${photoHash.slice(-10)}&u=${updateTimestamp}`;
+            setPhotoUrl(url);
+            // Update key to force React to reload the image component
+            // Include timestamp and updated_at to ensure it's always unique when photo changes
+            setPhotoKey(`${client.id}-${timestamp}-${updateTimestamp}-${photoHash.slice(-20)}`);
         } else {
-            setPhotoBlobUrl(null);
+            setPhotoUrl(null);
+            setPhotoKey(0);
         }
-    }, [client?.id, client?.photo_url, client?.photo, user?.access_token, user?.agency_id]);
+    }, [client?.id, client?.photo_url, client?.updated_at]);
 
     const tabs = [
         'Details',
         'Services',
         'Passwords',
         `Client User (${(client.orgUsers?.invited_users?.length || 0) + (client.orgUsers?.joined_users?.length || 0)})`,
-        `MyTeam (${teamMembers?.length || 0})`,
+        `MyTeam (${client.assigned_ca_user_id ? teamMembers.filter(m => String(m.user_id || m.id) === String(client.assigned_ca_user_id)).length : 0})`,
         `Entities (${client.entities?.length || 0})`,
         'Activity Log'
     ];
 
     const handleTabClick = (tab) => {
-        if(tab === 'Documents') {
+        if (tab === 'Documents') {
             setActiveTab('documents');
         } else {
             setActiveSubTab(tab);
         }
     }
-    
+
     const handleDeleteClient = async () => {
         setIsDeleting(true);
         try {
             if (!user?.agency_id || !user?.access_token) {
-                 throw new Error("User information is not available.");
+                throw new Error("User information is not available.");
             }
             await deleteClient(client.id, user.agency_id, user.access_token);
             toast({
@@ -184,7 +126,7 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
             onClientDeleted(client.id);
             onBack();
         } catch (error) {
-             toast({
+            toast({
                 title: 'Error deleting client',
                 description: error.message,
                 variant: 'destructive',
@@ -200,8 +142,8 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
     // Helper to check for duplicate entity names
     const checkForDuplicate = (name, excludeId = null) => {
         if (!client.entities) return false;
-        return client.entities.some(e => 
-            e.name.trim().toLowerCase() === name.trim().toLowerCase() && 
+        return client.entities.some(e =>
+            e.name.trim().toLowerCase() === name.trim().toLowerCase() &&
             (excludeId ? (e.id || e.entity_id) !== excludeId : true)
         );
     };
@@ -209,10 +151,10 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
     // Entity Edit/Delete Handlers
     const handleAddEntity = async (entityData) => {
         if (!client.organization_id) {
-             toast({ title: "Error", description: "Client does not have an organization assigned.", variant: "destructive" });
-             return;
+            toast({ title: "Error", description: "Client does not have an organization assigned.", variant: "destructive" });
+            return;
         }
-        
+
         if (checkForDuplicate(entityData.name)) {
             toast({ title: "Duplicate Entity", description: "An entity with this name already exists.", variant: "destructive" });
             return;
@@ -222,12 +164,12 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
         try {
             const newEntity = await createEntity({ name: entityData.name, organization_id: client.organization_id }, user.access_token);
             toast({ title: "Entity created", description: "Entity created successfully." });
-            
+
             // Update state locally to avoid reload
             const updatedEntities = [...(client.entities || []), newEntity];
             onUpdateClient({ entities: updatedEntities });
         } catch (error) {
-             toast({ title: "Error creating entity", description: error.message, variant: "destructive" });
+            toast({ title: "Error creating entity", description: error.message, variant: "destructive" });
         } finally {
             setIsEntityMutating(false);
         }
@@ -248,8 +190,8 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
         const entityId = entityToEdit.id || entityToEdit.entity_id;
 
         if (checkForDuplicate(editEntityName, entityId)) {
-             toast({ title: "Duplicate Entity", description: "An entity with this name already exists.", variant: "destructive" });
-             return;
+            toast({ title: "Duplicate Entity", description: "An entity with this name already exists.", variant: "destructive" });
+            return;
         }
 
         setIsEntityMutating(true);
@@ -257,9 +199,9 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
             const updatedEntity = await updateEntity(entityId, { name: editEntityName }, user.access_token);
             toast({ title: "Entity updated", description: "Entity name updated successfully." });
             setEditEntityDialogOpen(false);
-            
+
             // Update state locally
-            const updatedEntities = (client.entities || []).map(e => 
+            const updatedEntities = (client.entities || []).map(e =>
                 (e.id || e.entity_id) === entityId ? { ...e, name: editEntityName, ...updatedEntity } : e
             );
             onUpdateClient({ entities: updatedEntities });
@@ -284,7 +226,7 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
             toast({ title: "Entity deleted", description: "Entity deleted successfully." });
             setDeleteEntityDialogOpen(false);
             setEntityToDelete(null);
-            
+
             // Update state locally
             const updatedEntities = (client.entities || []).filter(e => (e.id || e.entity_id) !== entityId);
             onUpdateClient({ entities: updatedEntities });
@@ -314,7 +256,7 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
                 );
             default:
                 if (activeSubTab.startsWith('Client User')) {
-                    return <ClientUsersTab client={client} />;
+                    return <ClientUsersTab client={client} onUserInvited={onClientUserInvited} />;
                 }
                 if (activeSubTab.startsWith('MyTeam')) {
                     return <ClientTeamMembersTab client={client} teamMembers={teamMembers} />;
@@ -428,7 +370,7 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
                         <Edit className="w-4 h-4 mr-2" />
                         Edit
                     </Button>
-                     <AlertDialog>
+                    <AlertDialog>
                         <AlertDialogTrigger asChild>
                             <Button variant="destructive">
                                 <Trash2 className="w-4 h-4 mr-2" />
@@ -445,7 +387,7 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
                             <AlertDialogFooter>
                                 <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
                                 <AlertDialogAction onClick={handleDeleteClient} disabled={isDeleting} className="bg-red-600 hover:bg-red-700">
-                                     {isDeleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin"/> : null}
+                                    {isDeleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
                                     Yes, delete client
                                 </AlertDialogAction>
                             </AlertDialogFooter>
@@ -453,22 +395,27 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
                     </AlertDialog>
                 </div>
             </header>
-            
+
             <div className="flex-grow overflow-y-auto no-scrollbar pr-2 space-y-6">
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                     {/* Left Panel */}
                     <div className="lg:col-span-1">
                         <div className="glass-pane p-6 rounded-lg text-center">
                             <div className="relative mb-4 inline-block">
-                                    <Avatar className="w-24 h-24 mx-auto border-4 border-white/20">
-                                    <AvatarImage 
-                                        src={photoBlobUrl || getClientPhotoUrl(client)} 
-                                        alt={client.name} 
-                                        key={`client-photo-${client.id}-${client.photo_url || 'no-photo'}-${Date.now()}`}
+                                <Avatar className="w-24 h-24 mx-auto border-4 border-white/20">
+                                    <AvatarImage
+                                        src={photoUrl || getClientPhotoUrl(client)}
+                                        alt={client.name}
+                                        key={`client-photo-${photoKey}`}
                                         loading="eager"
+                                        crossOrigin="anonymous"
                                         onError={(e) => {
-                                            console.error('Failed to load client photo:', e);
-                                            setPhotoBlobUrl(null);
+                                            console.error('Failed to load client photo:', e, 'URL:', photoUrl || getClientPhotoUrl(client));
+                                            // Reset photoUrl to trigger retry
+                                            setPhotoUrl(null);
+                                        }}
+                                        onLoad={() => {
+                                            console.log('Client photo loaded successfully');
                                         }}
                                     />
                                     <AvatarFallback className="text-3xl bg-gradient-to-br from-sky-500 to-indigo-600 text-white">
@@ -491,18 +438,17 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
                                     <button
                                         key={tab}
                                         onClick={() => handleTabClick(tab)}
-                                        className={`${
-                                            activeSubTab === tab
-                                                ? 'border-primary text-primary'
-                                                : 'border-transparent text-gray-400 hover:text-white hover:border-gray-300'
-                                        } whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors`}
+                                        className={`${activeSubTab === tab
+                                            ? 'border-primary text-primary'
+                                            : 'border-transparent text-gray-400 hover:text-white hover:border-gray-300'
+                                            } whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors`}
                                     >
                                         {tab}
                                     </button>
                                 ))}
                             </nav>
                         </div>
-                        
+
                         <div>
                             {renderTabContent()}
                         </div>

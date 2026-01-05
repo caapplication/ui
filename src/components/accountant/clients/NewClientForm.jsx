@@ -310,9 +310,14 @@ import React, { useState, useEffect, useRef } from 'react';
 
             await onSave(dataToSave, photoFile);
             setIsSaving(false);
-            // Reset photo after save
+            // Reset photo after save and cleanup blob URLs
             setPhotoFile(null);
             setPhotoPreview(null);
+            // Cleanup blob URL if it exists
+            if (photoBlobUrl && photoBlobUrl.startsWith('blob:')) {
+                URL.revokeObjectURL(photoBlobUrl);
+            }
+            setPhotoBlobUrl(null);
         };
     
         const states = ["Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal", "Andaman and Nicobar Islands", "Chandigarh", "Dadra and Nagar Haveli and Daman and Diu", "Delhi", "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry"];
