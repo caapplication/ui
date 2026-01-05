@@ -1,5 +1,5 @@
 import React, { useState, useEffect, createContext, useContext, useCallback, useRef } from 'react';
-import { getProfile as apiGetProfile, getEntities as apiGetEntities, refreshToken as apiRefreshToken, verify2FA as apiVerify2FA } from '@/lib/api';
+import { getProfile as apiGetProfile, getEntities as apiGetEntities, refreshToken as apiRefreshToken, verify2FA as apiVerify2FA, get2FAStatus as apiGet2FAStatus } from '@/lib/api';
 import { useNavigate } from 'react-router-dom';
 import { clearAttachmentCache } from '@/lib/cache';
 
@@ -165,18 +165,20 @@ export const AuthProvider = ({ children }) => {
     }
   };
   
-  const login = async (email, password) => {
+  const login = async (email, password, otp = null) => {
     const loginApiUrl = import.meta.env.VITE_LOGIN_API_URL || 'http://127.0.0.1:8001';
+    const bodyParams = { email, password };
+    if (otp) {
+        bodyParams.otp = otp;
+    }
+
     const response = await fetch(`${loginApiUrl}/login/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
         'accept': 'application/json'
       },
-      body: new URLSearchParams({
-        email,
-        password
-      })
+      body: new URLSearchParams(bodyParams)
     });
     
     const data = await response.json();
@@ -186,9 +188,10 @@ export const AuthProvider = ({ children }) => {
     }
 
     if (data.role === 'CLIENT_USER') {
-        const [profileData, entitiesData] = await Promise.all([
+        const [profileData, entitiesData, twoFactorStatus] = await Promise.all([
             apiGetProfile(data.access_token),
-            apiGetEntities(data.access_token)
+            apiGetEntities(data.access_token),
+            apiGet2FAStatus(data.access_token)
         ]);
 
         if (!profileData.is_active) {
@@ -196,53 +199,64 @@ export const AuthProvider = ({ children }) => {
             throw new Error('Your account is inactive. Please contact support.');
         }
         const fullUserData = { ...data, ...profileData, entities: entitiesData || [] };
+        const is2FA = twoFactorStatus?.status === 'Enabled' || twoFactorStatus?.is_2fa_enabled === true;
 
-        if (profileData.is_2fa_enabled) {
+        if (is2FA && !otp) {
             return { twoFactorEnabled: true, loginData: fullUserData };
         } else {
             finishLogin(fullUserData);
             return { twoFactorEnabled: false };
         }
     } else if (data.role === 'CA_ACCOUNTANT') {
-        const [profileData, entitiesData] = await Promise.all([
+        const [profileData, entitiesData, twoFactorStatus] = await Promise.all([
             apiGetProfile(data.access_token, data.agency_id),
-            apiGetEntities(data.access_token)
+            apiGetEntities(data.access_token),
+            apiGet2FAStatus(data.access_token)
         ]);
         if (!profileData.is_active) {
             logout();
             throw new Error('Your account is inactive. Please contact support.');
         }
         const fullUserData = { ...data, ...profileData, name: data.agency_name, entities: entitiesData || [] };
+        const is2FA = twoFactorStatus?.status === 'Enabled' || twoFactorStatus?.is_2fa_enabled === true;
         
-        if (profileData.is_2fa_enabled) {
+        if (is2FA && !otp) {
             return { twoFactorEnabled: true, loginData: fullUserData };
         } else {
             finishLogin(fullUserData);
             return { twoFactorEnabled: false };
         }
     } else if (data.role === 'ENTITY_USER') {
-        const profileData = await apiGetProfile(data.access_token);
+        const [profileData, twoFactorStatus] = await Promise.all([
+            apiGetProfile(data.access_token),
+            apiGet2FAStatus(data.access_token)
+        ]);
         if (!profileData.is_active) {
             logout();
             throw new Error('Your account is inactive. Please contact support.');
         }
         const fullUserData = { ...data, ...profileData, id: data.sub };
+        const is2FA = twoFactorStatus?.status === 'Enabled' || twoFactorStatus?.is_2fa_enabled === true;
         
-        if (profileData.is_2fa_enabled) {
+        if (is2FA && !otp) {
             return { twoFactorEnabled: true, loginData: fullUserData };
         } else {
             finishLogin(fullUserData);
             return { twoFactorEnabled: false };
         }
     } else if (data.role === 'CA_TEAM') {
-        const profileData = await apiGetProfile(data.access_token);
+        const [profileData, twoFactorStatus] = await Promise.all([
+            apiGetProfile(data.access_token),
+            apiGet2FAStatus(data.access_token)
+        ]);
         if (!profileData.is_active) {
             logout();
             throw new Error('Your account is inactive. Please contact support.');
         }
         const fullUserData = { ...data, ...profileData, id: data.sub };
+        const is2FA = twoFactorStatus?.status === 'Enabled' || twoFactorStatus?.is_2fa_enabled === true;
         
-        if (profileData.is_2fa_enabled) {
+        if (is2FA && !otp) {
             return { twoFactorEnabled: true, loginData: fullUserData };
         } else {
             finishLogin(fullUserData);

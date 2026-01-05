@@ -22,6 +22,7 @@ export const {
     updatePassword, 
     toggle2FA, 
     verify2FA,
+    get2FAStatus,
     uploadProfilePicture,
     deleteProfilePicture
 } = auth;
