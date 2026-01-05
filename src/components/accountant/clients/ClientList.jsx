@@ -24,6 +24,33 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
+// Mapping between business type enum values and display names (same as detail page)
+const businessTypeToEnum = {
+    'Individual': 'individual',
+    'Sole Proprietorship': 'sole_proprietorship',
+    'Partnership': 'partnership',
+    'LLP': 'llp',
+    'HUF': 'huf',
+    'Private Limited Company': 'private_limited',
+    'Public Limited Company': 'limited_company',
+    'Joint Venture': 'joint_venture',
+    'One Person Company': 'one_person_company',
+    'NGO\'s': 'ngo',
+    'NGO': 'ngo',
+    'Trust': 'trust',
+    'Section 8 Company': 'section_8_company',
+    'Government Entity': 'government_entity',
+    'Cooperative Society': 'cooperative_society',
+    'Branch Office': 'branch_office',
+    'AOP': 'aop',
+    'Society': 'society',
+};
+
+// Reverse mapping: enum value to display name
+const enumToBusinessType = Object.fromEntries(
+    Object.entries(businessTypeToEnum).map(([key, value]) => [value, key])
+);
+
 const FilterPopover = ({ title, options, selectedValue, onSelect, children }) => {
     const [open, setOpen] = useState(false);
 
@@ -111,7 +138,9 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
             );
 
             const matchesService = !filters.service || client.availedServices?.some(s => s.id === filters.service);
-            const matchesType = !filters.type || client.client_type?.toLowerCase() === filters.type.toLowerCase();
+            // Match by display name (filter uses display name, but client.client_type is enum)
+            const clientTypeDisplay = enumToBusinessType[client.client_type] || client.client_type;
+            const matchesType = !filters.type || clientTypeDisplay?.toLowerCase() === filters.type.toLowerCase();
             const matchesStatus = !filters.status || (filters.status === 'active' && client.is_active) || (filters.status === 'inactive' && !client.is_active);
 
             return matchesSearch && matchesService && matchesType && matchesStatus;
@@ -310,7 +339,7 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
                                         </TableCell>
                                         <TableCell>{client.customer_id || 'N/A'}</TableCell>
                                         <TableCell><span className="text-blue-400 hover:underline">{client.name}</span></TableCell>
-                                        <TableCell>{client.client_type}</TableCell>
+                                        <TableCell>{enumToBusinessType[client.client_type] || client.client_type || 'N/A'}</TableCell>
                                         <TableCell>
                                             {client.organization_name || '-'}
                                         </TableCell>
@@ -397,7 +426,7 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
                                     </div>
                                 </div>
                                 <div className="flex flex-wrap gap-2">
-                                    <Badge variant="outline">{client.client_type}</Badge>
+                                    <Badge variant="outline">{enumToBusinessType[client.client_type] || client.client_type || 'N/A'}</Badge>
                                     {client.is_active ? <Badge variant="success">Active</Badge> : <Badge variant="destructive">Inactive</Badge>}
                                 </div>
                                 <div className="text-sm text-gray-300">
