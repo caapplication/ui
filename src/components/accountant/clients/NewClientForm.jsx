@@ -81,6 +81,7 @@ import React, { useState, useEffect, useRef } from 'react';
     const [photoFile, setPhotoFile] = useState(null);
     const [photoPreview, setPhotoPreview] = useState(null);
     const [photoBlobUrl, setPhotoBlobUrl] = useState(null);
+    const [isPhotoLoading, setIsPhotoLoading] = useState(false);
     const fileInputRef = useRef(null);
     const photoFileInputRef = useRef(null);
 
@@ -134,7 +135,7 @@ import React, { useState, useEffect, useRef } from 'react';
             }
         }, [client]);
 
-        // Fetch photo as blob with authentication
+        // Fetch photo as blob with authentication (optimized to reduce delay)
         useEffect(() => {
             // Cleanup previous blob URL
             if (photoBlobUrl && photoBlobUrl.startsWith('blob:')) {
@@ -142,83 +143,48 @@ import React, { useState, useEffect, useRef } from 'react';
             }
 
             if (client?.id && user?.access_token && !photoPreview) {
-                const photoUrl = client.photo_url || client.photo;
-                // Always try to fetch from the photo endpoint if we have a client ID
+                setIsPhotoLoading(true);
                 const clientApiUrl = import.meta.env.VITE_CLIENT_API_URL || 'http://127.0.0.1:8002';
-                const photoEndpoint = `${clientApiUrl}/clients/${client.id}/photo?t=${Date.now()}`;
+                // Use cache-busting with updated_at timestamp if available
+                const updateTimestamp = client.updated_at ? new Date(client.updated_at).getTime() : Date.now();
+                const photoEndpoint = `${clientApiUrl}/clients/${client.id}/photo?t=${updateTimestamp}`;
                 
-                if (photoUrl && photoUrl.includes(`/clients/${client.id}/photo`)) {
-                    // Fetch with authentication
-                    fetch(photoUrl, {
-                        headers: {
-                            'Authorization': `Bearer ${user.access_token}`,
-                            'x-agency-id': user.agency_id || ''
-                        }
-                    })
-                    .then(response => {
-                        if (response.ok) {
-                            return response.blob();
-                        }
-                        throw new Error('Failed to fetch photo');
-                    })
-                    .then(blob => {
-                        const url = URL.createObjectURL(blob);
-                        setPhotoBlobUrl(url);
-                    })
-                    .catch(err => {
-                        console.error('Error loading client photo:', err);
-                        // Try the endpoint directly even if photo_url is not set
-                        fetch(photoEndpoint, {
-                            headers: {
-                                'Authorization': `Bearer ${user.access_token}`,
-                                'x-agency-id': user.agency_id || ''
-                            }
-                        })
-                        .then(response => {
-                            if (response.ok) {
-                                return response.blob();
-                            }
-                            throw new Error('Photo not found');
-                        })
-                        .then(blob => {
-                            const url = URL.createObjectURL(blob);
-                            setPhotoBlobUrl(url);
-                        })
-                        .catch(() => {
-                            setPhotoBlobUrl(null);
-                        });
-                    });
-                } else if (!photoUrl && client?.id) {
-                    // If no photo_url is set, try to fetch from the endpoint anyway
-                    fetch(photoEndpoint, {
-                        headers: {
-                            'Authorization': `Bearer ${user.access_token}`,
-                            'x-agency-id': user.agency_id || ''
-                        }
-                    })
-                    .then(response => {
-                        if (response.ok) {
-                            return response.blob();
-                        }
-                        throw new Error('Photo not found');
-                    })
-                    .then(blob => {
-                        const url = URL.createObjectURL(blob);
-                        setPhotoBlobUrl(url);
-                    })
-                    .catch(() => {
+                // Always fetch from the endpoint with authentication (simplified approach)
+                fetch(photoEndpoint, {
+                    headers: {
+                        'Authorization': `Bearer ${user.access_token}`,
+                        'x-agency-id': user.agency_id || ''
+                    }
+                })
+                .then(response => {
+                    if (response.ok) {
+                        return response.blob();
+                    }
+                    // If 404, there's no photo - that's OK
+                    if (response.status === 404) {
                         setPhotoBlobUrl(null);
-                    });
-                } else if (photoUrl) {
-                    // If it's not the proxy URL, use it directly
-                    setPhotoBlobUrl(photoUrl);
-                } else {
+                        setIsPhotoLoading(false);
+                        return null;
+                    }
+                    throw new Error(`Failed to fetch photo: ${response.status}`);
+                })
+                .then(blob => {
+                    if (blob) {
+                        const url = URL.createObjectURL(blob);
+                        setPhotoBlobUrl(url);
+                    }
+                    setIsPhotoLoading(false);
+                })
+                .catch(err => {
+                    console.error('Error loading client photo:', err);
                     setPhotoBlobUrl(null);
-                }
+                    setIsPhotoLoading(false);
+                });
             } else {
                 setPhotoBlobUrl(null);
+                setIsPhotoLoading(false);
             }
-        }, [client?.id, client?.photo_url, client?.photo, user?.access_token, user?.agency_id, photoPreview]);
+        }, [client?.id, client?.updated_at, user?.access_token, user?.agency_id, photoPreview]);
     
         const handleChange = (e) => {
             const { name, value } = e.target;
@@ -360,12 +326,22 @@ import React, { useState, useEffect, useRef } from 'react';
                                             onError={(e) => {
                                                 console.error('Failed to load client photo:', e);
                                                 setPhotoBlobUrl(null);
+                                                setIsPhotoLoading(false);
+                                            }}
+                                            onLoad={() => {
+                                                setIsPhotoLoading(false);
                                             }}
                                         />
                                         <AvatarFallback className="bg-gradient-to-br from-sky-500 to-indigo-600 text-white">
                                             {formData.name?.charAt(0).toUpperCase() || 'C'}
                                         </AvatarFallback>
                                     </Avatar>
+                                    {/* Loading overlay */}
+                                    {isPhotoLoading && !photoPreview && (
+                                        <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-full">
+                                            <Loader2 className="w-10 h-10 text-white animate-spin" />
+                                        </div>
+                                    )}
                                     <div className="absolute bottom-1 right-1 flex gap-2">
                                         <Button
                                             type="button"

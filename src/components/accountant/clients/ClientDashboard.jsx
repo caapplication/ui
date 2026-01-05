@@ -46,8 +46,9 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
     const { toast } = useToast();
     const { user } = useAuth();
 
-    const [photoUrl, setPhotoUrl] = useState(null);
+    const [photoBlobUrl, setPhotoBlobUrl] = useState(null);
     const [photoKey, setPhotoKey] = useState(0);
+    const [isPhotoLoading, setIsPhotoLoading] = useState(false);
 
     // Helper function to get the correct photo URL with cache-busting
     const getClientPhotoUrl = (client) => {
@@ -57,42 +58,63 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
         return `${clientApiUrl}/clients/${client.id}/photo`;
     };
 
-    // Update photo URL and key when client or photo_url changes to force image reload
+    // Cleanup blob URL on unmount
     useEffect(() => {
-        if (client?.id) {
-            const clientApiUrl = import.meta.env.VITE_CLIENT_API_URL || 'http://127.0.0.1:8002';
-            // Always use the proxy endpoint - never use blob URLs or direct S3 URLs
-            // Extract a hash from photo_url to detect changes
-            let photoHash = 'no-photo';
-            if (client.photo_url) {
-                // Ignore blob URLs - always fetch from server
-                if (client.photo_url.startsWith('blob:')) {
-                    photoHash = 'blob-ignored';
-                } else if (client.photo_url.includes('.s3.amazonaws.com/')) {
-                    photoHash = client.photo_url.split('.s3.amazonaws.com/')[1];
-                } else if (client.photo_url.includes('/clients/')) {
-                    // If it's already a proxy URL, extract timestamp if present, or use full URL
-                    photoHash = client.photo_url;
-                } else {
-                    photoHash = client.photo_url;
-                }
+        return () => {
+            if (photoBlobUrl && photoBlobUrl.startsWith('blob:')) {
+                URL.revokeObjectURL(photoBlobUrl);
             }
-            // Create cache-busting URL with timestamp and photo hash
-            // Always use proxy endpoint, never blob URLs
-            // Use updated_at timestamp if available to detect changes
+        };
+    }, [photoBlobUrl]);
+
+    // Fetch photo as blob with authentication (same approach as edit form)
+    useEffect(() => {
+        // Cleanup previous blob URL
+        if (photoBlobUrl && photoBlobUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(photoBlobUrl);
+            setPhotoBlobUrl(null);
+        }
+
+        if (client?.id && user?.access_token) {
+            setIsPhotoLoading(true);
+            const clientApiUrl = import.meta.env.VITE_CLIENT_API_URL || 'http://127.0.0.1:8002';
+            // Create cache-busting URL to ensure fresh image
             const updateTimestamp = client.updated_at ? new Date(client.updated_at).getTime() : Date.now();
             const timestamp = Date.now();
-            const randomSuffix = Math.random().toString(36).substring(7);
-            const url = `${clientApiUrl}/clients/${client.id}/photo?t=${timestamp}&r=${randomSuffix}&h=${photoHash.slice(-10)}&u=${updateTimestamp}`;
-            setPhotoUrl(url);
-            // Update key to force React to reload the image component
-            // Include timestamp and updated_at to ensure it's always unique when photo changes
-            setPhotoKey(`${client.id}-${timestamp}-${updateTimestamp}-${photoHash.slice(-20)}`);
+            const photoEndpoint = `${clientApiUrl}/clients/${client.id}/photo?t=${timestamp}&u=${updateTimestamp}`;
+            
+            // Fetch with authentication headers
+            fetch(photoEndpoint, {
+                headers: {
+                    'Authorization': `Bearer ${user.access_token}`,
+                    'x-agency-id': user.agency_id || ''
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    return response.blob();
+                }
+                throw new Error('Failed to fetch photo');
+            })
+            .then(blob => {
+                const url = URL.createObjectURL(blob);
+                setPhotoBlobUrl(url);
+                // Update key to force React to reload the image component
+                setPhotoKey(`${client.id}-${timestamp}-${updateTimestamp}`);
+                setIsPhotoLoading(false);
+            })
+            .catch(err => {
+                console.error('Error loading client photo:', err);
+                setPhotoBlobUrl(null);
+                setPhotoKey(`${client.id}-error-${Date.now()}`);
+                setIsPhotoLoading(false);
+            });
         } else {
-            setPhotoUrl(null);
+            setPhotoBlobUrl(null);
             setPhotoKey(0);
+            setIsPhotoLoading(false);
         }
-    }, [client?.id, client?.photo_url, client?.updated_at]);
+    }, [client?.id, client?.photo_url, client?.updated_at, user?.access_token, user?.agency_id]);
 
     const tabs = [
         'Details',
@@ -404,24 +426,34 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
                             <div className="relative mb-4 inline-block">
                                 <Avatar className="w-24 h-24 mx-auto border-4 border-white/20">
                                     <AvatarImage
-                                        src={photoUrl || getClientPhotoUrl(client)}
+                                        src={photoBlobUrl || getClientPhotoUrl(client)}
                                         alt={client.name}
                                         key={`client-photo-${photoKey}`}
                                         loading="eager"
-                                        crossOrigin="anonymous"
                                         onError={(e) => {
-                                            console.error('Failed to load client photo:', e, 'URL:', photoUrl || getClientPhotoUrl(client));
-                                            // Reset photoUrl to trigger retry
-                                            setPhotoUrl(null);
+                                            console.error('Failed to load client photo:', e);
+                                            // Cleanup blob URL on error
+                                            if (photoBlobUrl && photoBlobUrl.startsWith('blob:')) {
+                                                URL.revokeObjectURL(photoBlobUrl);
+                                            }
+                                            setPhotoBlobUrl(null);
+                                            setIsPhotoLoading(false);
                                         }}
                                         onLoad={() => {
                                             console.log('Client photo loaded successfully');
+                                            setIsPhotoLoading(false);
                                         }}
                                     />
                                     <AvatarFallback className="text-3xl bg-gradient-to-br from-sky-500 to-indigo-600 text-white">
                                         {client.name.charAt(0).toUpperCase()}
                                     </AvatarFallback>
                                 </Avatar>
+                                {/* Loading overlay */}
+                                {isPhotoLoading && (
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-full">
+                                        <Loader2 className="w-8 h-8 text-white animate-spin" />
+                                    </div>
+                                )}
                             </div>
                             <h2 className="text-xl font-semibold text-white">{client.name}</h2>
                             <p className="text-gray-400">Customer No.: {client.customer_id || 'N/A'}</p>
