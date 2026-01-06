@@ -21,8 +21,17 @@ const ClientUsersTab = ({ client, onUserInvited }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [userFilter, setUserFilter] = useState('all'); // all, joined, invited
 
-    const invitedUsers = (client.orgUsers?.invited_users || []).map(user => ({ ...user, status: 'Invited', role: 'CLIENT user' }));
-    const joinedUsers = (client.orgUsers?.joined_users || []).map(user => ({ ...user, status: 'Joined', role: 'ENTITY USER' }));
+    // Use roles from backend instead of hardcoding
+    const invitedUsers = (client.orgUsers?.invited_users || []).map(user => ({
+        ...user,
+        status: 'Invited',
+        role: user.target_role || 'CLIENT_USER'
+    }));
+    const joinedUsers = (client.orgUsers?.joined_users || []).map(user => ({
+        ...user,
+        status: 'Joined'
+        // role already comes from backend User table
+    }));
     const allUsers = [...invitedUsers, ...joinedUsers];
 
     const filteredUsers = useMemo(() => {
@@ -169,11 +178,13 @@ const ClientUsersTab = ({ client, onUserInvited }) => {
                             <TableRow key={user.user_id}>
                                 <TableCell>{user.email}</TableCell>
                                 <TableCell>
-                                    {user.role === 'ENTITY USER'
-                                        ? 'Organization Owner'
-                                        : user.role === 'CLIENT user'
-                                            ? 'Member'
-                                            : user.role}
+                                    {user.role === 'CLIENT_USER' || user.role === 'CLIENT user'
+                                        ? 'Member'
+                                        : user.role === 'CLIENT_ADMIN'
+                                            ? 'Organization Owner'
+                                            : user.role === 'ENTITY_USER'
+                                                ? 'Entity User'
+                                                : user.role}
                                 </TableCell>
                                 <TableCell>
                                     <Badge variant={user.status === 'Joined' ? 'success' : 'default'}>
