@@ -1,145 +1,147 @@
 import { handleResponse, getAuthHeaders } from './utils';
-    import * as auth from './auth';
-    import * as finance from './finance';
-    import * as documents from './documents';
-    import * as services from './services';
-    import * as organisation from './organisation';
-    import * as clients from './clients';
-    import * as settings from './settings';
-    import * as team from './team';
-    import * as tasks from './tasks';
-    import * as recurringTasks from './recurringTasks';
+import * as auth from './auth';
+import * as finance from './finance';
+import * as documents from './documents';
+import * as services from './services';
+import * as organisation from './organisation';
+import * as clients from './clients';
+import * as settings from './settings';
+import * as team from './team';
+import * as tasks from './tasks';
+import * as recurringTasks from './recurringTasks';
 
-    const API_BASE_URL = import.meta.env.VITE_LOGIN_API_URL || 'http://127.0.0.1:8001';
-    const FINANCE_API_BASE_URL = import.meta.env.VITE_FINANCE_API_URL || 'http://127.0.0.1:8003';
+const API_BASE_URL = import.meta.env.VITE_LOGIN_API_URL || 'http://127.0.0.1:8001';
+const FINANCE_API_BASE_URL = import.meta.env.VITE_FINANCE_API_URL || 'http://127.0.0.1:8003';
 
-    export const {
-      refreshToken,
-      requestPasswordReset,
-      confirmPasswordReset,
-      getProfile,
-      updateName,
-      updatePassword,
-      toggle2FA,
-      verify2FA
-    } = auth;
+export const {
+  refreshToken,
+  requestPasswordReset,
+  confirmPasswordReset,
+  getProfile,
+  updateName,
+  updatePassword,
+  toggle2FA,
+  verify2FA
+} = auth;
 
-    export const {
-      getEntities,
-      getDashboardData,
-      getBeneficiaries,
-      getBeneficiariesForCA,
-      addBeneficiary,
-      deleteBeneficiary,
-      getBankAccountsForBeneficiary,
-      addBankAccount,
-      deleteBankAccount,
-      getOrganisationBankAccounts,
-      getOrganisationBankAccountsForCA,
-      addOrganisationBankAccount,
-      deleteOrganisationBankAccount,
-      getInvoices,
-      addInvoice,
-      updateInvoice,
-      deleteInvoice,
-      getInvoiceAttachment,
-      getVouchers,
-      addVoucher,
-      updateVoucher,
-      deleteVoucher,
-      getCATeamVouchers,
-      getCATeamInvoices,
-      getCATeamVouchersBulk,
-      getCATeamInvoicesBulk,
-      getCATeamInvoiceAttachment,
-      exportVouchersToTallyXML,
-      getActivityLog,
-      getAccountantDashboardStats,
-    } = finance;
+export const {
+  getEntities,
+  getDashboardData,
+  getBeneficiaries,
+  getBeneficiariesForCA,
+  addBeneficiary,
+  deleteBeneficiary,
+  getBankAccountsForBeneficiary,
+  addBankAccount,
+  deleteBankAccount,
+  getOrganisationBankAccounts,
+  getOrganisationBankAccountsForCA,
+  addOrganisationBankAccount,
+  deleteOrganisationBankAccount,
+  getInvoices,
+  addInvoice,
+  updateInvoice,
+  deleteInvoice,
+  getInvoiceAttachment,
+  getVouchers,
+  addVoucher,
+  updateVoucher,
+  deleteVoucher,
+  getCATeamVouchers,
+  getCATeamInvoices,
+  getCATeamVouchersBulk,
+  getCATeamInvoicesBulk,
+  getCATeamInvoiceAttachment,
+  exportVouchersToTallyXML,
+  getActivityLog,
+  getAccountantDashboardStats,
+} = finance;
 
-    export const {
-      getDocuments,
-      createFolder,
-      uploadFile,
-      deleteDocument,
-      shareDocument,
-      viewFile,
-      getSharedDocuments,
-      createPublicShareTokenDocument,
-      createPublicShareTokenFolder,
-      revokePublicShareTokenDocument,
-      revokePublicShareTokenFolder,
-      getPublicFolder,
-      getPublicSubfolder,
-      viewPublicDocument,
-      shareFolder,
-      createCAFolder,
-      uploadCAFile,
-      FINANCE_API_BASE_URL
-    } = documents;
+export const {
+  getDocuments,
+  createFolder,
+  uploadFile,
+  deleteDocument,
+  shareDocument,
+  viewFile,
+  getSharedDocuments,
+  createPublicShareTokenDocument,
+  createPublicShareTokenFolder,
+  revokePublicShareTokenDocument,
+  revokePublicShareTokenFolder,
+  getPublicFolder,
+  getPublicSubfolder,
+  viewPublicDocument,
+  shareFolder,
+  createCAFolder,
+  uploadCAFile
+} = documents;
 
-    export const {
-      createService,
-      listServices,
-      getServiceDetails,
-      deleteService,
-      updateServiceSettings,
-      getChecklists,
-      addChecklistItem,
-      deleteChecklistItem,
-      getSubtasks,
-      addSubtask,
-      deleteSubtask,
-      getSupportingFiles,
-      addSupportingFile,
-      deleteSupportingFile,
-      getClientCountForService
-    } = services;
+export const {
+  createService,
+  listServices,
+  getServiceDetails,
+  deleteService,
+  updateServiceSettings,
+  getChecklists,
+  addChecklistItem,
+  deleteChecklistItem,
+  getSubtasks,
+  addSubtask,
+  deleteSubtask,
+  getSupportingFiles,
+  addSupportingFile,
+  deleteSupportingFile,
+  getClientCountForService
+} = services;
 
-    export const {
-      listOrganisations,
-      createOrganisation,
-      updateOrganisation,
-      deleteOrganisation,
-      listAllEntities,
-      listEntities,
-      createEntity,
-      updateEntity,
-      deleteEntity,
-      listOrgUsers,
-      resendToken,
-      inviteOrganizationUser,
-      deleteOrgUser
-    } = organisation;
+export const {
+  listOrganisations,
+  createOrganisation,
+  updateOrganisation,
+  deleteOrganisation,
+  listAllEntities,
+  listEntities,
+  createEntity,
+  updateEntity,
+  deleteEntity,
+  listOrgUsers,
+  resendToken,
+  inviteOrganizationUser,
+  deleteOrgUser
+} = organisation;
 
-    export const {
-      listClients,
-      createClient,
-      updateClient,
-      uploadClientPhoto,
-      deleteClientPhoto,
-      deleteClient,
-      listClientPortals,
-      createClientPortal,
-      updateClientPortal,
-      revealClientPortalSecret,
-      deleteClientPortal,
-      listClientServices,
-      addServicesToClient,
-      removeServicesFromClient,
-      getClientDashboard
-    } = clients;
+export const {
+  listClients,
+  createClient,
+  updateClient,
+  uploadClientPhoto,
+  deleteClientPhoto,
+  deleteClient,
+  listClientPortals,
+  createClientPortal,
+  updateClientPortal,
+  revealClientPortalSecret,
+  deleteClientPortal,
+  listClientServices,
+  addServicesToClient,
+  removeServicesFromClient,
+  getClientDashboard,
+  getClientTeamMembers,
+  assignTeamMembers,
+  removeTeamMember
+} = clients;
 
-    export const {
-      getGeneralSettings,
-      updateGeneralSettings,
-      getTags,
-      createTag,
-      updateTag,
-      deleteTag,
-      getPortals,
-      createPortal,
-      deletePortal,
+export const {
+  getGeneralSettings,
+  updateGeneralSettings,
+  getTags,
+  createTag,
+  updateTag,
+  deleteTag,
+  getPortals,
+  createPortal,
+  deletePortal,
   getBusinessTypes,
   createBusinessType,
   updateBusinessType,
@@ -150,46 +152,46 @@ import { handleResponse, getAuthHeaders } from './utils';
   deleteFinanceHeader
 } = settings;
 
-    export const {
-      inviteTeamMember,
-      listTeamMembers,
-      updateTeamMember,
-      deleteTeamMember,
-      listDepartments
-    } = team;
+export const {
+  inviteTeamMember,
+  listTeamMembers,
+  updateTeamMember,
+  deleteTeamMember,
+  listDepartments
+} = team;
 
-    export const {
-      listTasks,
-      createTask,
-      getTaskDetails,
-      getTaskHistory,
-      updateTask,
-      deleteTask,
-      startTaskTimer,
-      stopTaskTimer,
-      addManuallyLoggedTime,
-      listTodos,
-      createTodo,
-      updateTodo,
-      deleteTodo,
-      addTaskSubtask,
-      updateTaskSubtask,
-      deleteTaskSubtask,
-      listTaskStages,
-      createTaskStage,
-      updateTaskStage,
-      deleteTaskStage,
-      listTaskComments,
-      createTaskComment,
-      updateTaskComment,
-      deleteTaskComment
-    } = tasks;
+export const {
+  listTasks,
+  createTask,
+  getTaskDetails,
+  getTaskHistory,
+  updateTask,
+  deleteTask,
+  startTaskTimer,
+  stopTaskTimer,
+  addManuallyLoggedTime,
+  listTodos,
+  createTodo,
+  updateTodo,
+  deleteTodo,
+  addTaskSubtask,
+  updateTaskSubtask,
+  deleteTaskSubtask,
+  listTaskStages,
+  createTaskStage,
+  updateTaskStage,
+  deleteTaskStage,
+  listTaskComments,
+  createTaskComment,
+  updateTaskComment,
+  deleteTaskComment
+} = tasks;
 
-    export const {
-      listRecurringTasks,
-      getRecurringTask,
-      createRecurringTask,
-      updateRecurringTask,
-      deleteRecurringTask,
-      triggerRecurringTaskScheduler
-    } = recurringTasks;
+export const {
+  listRecurringTasks,
+  getRecurringTask,
+  createRecurringTask,
+  updateRecurringTask,
+  deleteRecurringTask,
+  triggerRecurringTaskScheduler
+} = recurringTasks;

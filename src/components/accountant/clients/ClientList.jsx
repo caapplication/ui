@@ -12,16 +12,18 @@ import { Search, Plus, Upload, Download, Phone, MessageSquare, Settings2, MoreVe
 import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '@/hooks/useAuth';
+import { getClientTeamMembers } from '@/lib/api/clients';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
 // Mapping between business type enum values and display names (same as detail page)
@@ -105,6 +107,8 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
     const [showFilters, setShowFilters] = useState(false);
     const [selectedClients, setSelectedClients] = useState([]);
     const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+    const [clientTeamMembers, setClientTeamMembers] = useState({});
+    const { user } = useAuth();
     const ITEMS_PER_PAGE = 10;
 
     const handleNotImplemented = () => {
@@ -115,10 +119,10 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
     };
 
     const handleFilterChange = (key, value) => {
-        setFilters(prev => ({...prev, [key]: value}));
+        setFilters(prev => ({ ...prev, [key]: value }));
         setCurrentPage(1);
     };
-    
+
     const hasActiveFilters = Object.values(filters).some(v => v);
 
     const clearFilters = () => {
@@ -161,6 +165,29 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
         setSelectedClients([]);
     }, [currentPage, filters, searchTerm]);
 
+    // Fetch team members for all clients
+    useEffect(() => {
+        const fetchAllClientTeamMembers = async () => {
+            if (!user?.access_token || !user?.agency_id) return;
+
+            const teamMembersMap = {};
+            for (const client of clients) {
+                try {
+                    const result = await getClientTeamMembers(client.id, user.agency_id, user.access_token);
+                    teamMembersMap[client.id] = result.team_members || [];
+                } catch (error) {
+                    console.error(`Failed to fetch team members for client ${client.id}:`, error);
+                    teamMembersMap[client.id] = [];
+                }
+            }
+            setClientTeamMembers(teamMembersMap);
+        };
+
+        if (clients.length > 0) {
+            fetchAllClientTeamMembers();
+        }
+    }, [clients, user?.access_token, user?.agency_id]);
+
     const handleNextPage = () => {
         if (currentPage < totalPages) {
             setCurrentPage(currentPage + 1);
@@ -174,8 +201,8 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
     };
 
     const handleSelectClient = (clientId) => {
-        setSelectedClients(prev => 
-            prev.includes(clientId) 
+        setSelectedClients(prev =>
+            prev.includes(clientId)
                 ? prev.filter(id => id !== clientId)
                 : [...prev, clientId]
         );
@@ -249,11 +276,11 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
 
             <div className="glass-pane p-4 rounded-lg mb-4">
                 <div className="flex flex-wrap items-center gap-4">
-                     <div className="relative flex-grow min-w-[250px]">
+                    <div className="relative flex-grow min-w-[250px]">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <Input 
-                            placeholder="Search Client, PAN, Mobile, Email, Customer ID..." 
-                            className="glass-input pl-10" 
+                        <Input
+                            placeholder="Search Client, PAN, Mobile, Email, Customer ID..."
+                            className="glass-input pl-10"
                             value={searchTerm}
                             onChange={(e) => {
                                 setSearchTerm(e.target.value);
@@ -266,14 +293,14 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
                         Filters
                         {hasActiveFilters && <span className="ml-2 w-2 h-2 rounded-full bg-green-400" />}
                     </Button>
-                    
+
                     {hasActiveFilters && (
                         <Button variant="ghost" onClick={clearFilters} className="text-red-400 hover:text-red-300">
                             <X className="w-4 h-4 mr-2" />
                             Clear Filters
                         </Button>
                     )}
-                    
+
                     <div className="flex-grow flex justify-end items-center gap-2">
                         <Button variant="ghost" size="icon" onClick={onRefresh}><RefreshCw className="w-4 h-4" /></Button>
                         <Button variant="ghost" size="icon" onClick={handlePrevPage} disabled={currentPage === 1}><ArrowLeft className="w-4 h-4" /></Button>
@@ -289,12 +316,12 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
                             </Button>
                         </FilterPopover>
                         <FilterPopover title="Type" options={filterOptions.type} selectedValue={filters.type} onSelect={(v) => handleFilterChange('type', v)}>
-                             <Button variant="outline" className="justify-between">
+                            <Button variant="outline" className="justify-between">
                                 {filters.type ? filters.type : 'Type'}
                             </Button>
                         </FilterPopover>
                         <FilterPopover title="Status" options={filterOptions.status} selectedValue={filters.status} onSelect={(v) => handleFilterChange('status', v)}>
-                             <Button variant="outline" className="justify-between">
+                            <Button variant="outline" className="justify-between">
                                 {filters.status ? filterOptions.status.find(o => o.value === filters.status)?.label : 'Status'}
                             </Button>
                         </FilterPopover>
@@ -309,72 +336,82 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
                             <TableHeader>
                                 <TableRow className="border-b border-white/10">
                                     <TableHead>Photo</TableHead>
-                                    <TableHead>Customer ID</TableHead>
-                                    <TableHead>Name</TableHead>
-                                    <TableHead>Type</TableHead>
+                                    <TableHead>Entity Name</TableHead>
                                     <TableHead>Organisation</TableHead>
-                                    <TableHead>Assigned To</TableHead>
+                                    <TableHead>Contact No.</TableHead>
+                                    <TableHead>Mail ID</TableHead>
+                                    <TableHead>Client Users</TableHead>
+                                    <TableHead>My Team</TableHead>
                                     <TableHead>Status</TableHead>
-                                    <TableHead>Tags</TableHead>
                                     <TableHead className="w-[50px]"></TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {paginatedClients.map(client => (
-                                    <TableRow 
+                                    <TableRow
                                         key={client.id}
                                         className={cn("border-none hover:bg-white/5 cursor-pointer", selectedClients.includes(client.id) && "bg-primary/10")}
                                         onClick={() => onViewClient(client)}
                                     >
                                         <TableCell>
                                             <Avatar>
-                                                <AvatarImage 
-                                                    src={client.photo_url && client.photo_url.includes('.s3.amazonaws.com/') 
+                                                <AvatarImage
+                                                    src={client.photo_url && client.photo_url.includes('.s3.amazonaws.com/')
                                                         ? `${import.meta.env.VITE_CLIENT_API_URL || 'http://127.0.0.1:8002'}/clients/${client.id}/photo`
-                                                        : (client.photo_url || client.photo)} 
+                                                        : (client.photo_url || client.photo)}
                                                 />
                                                 <AvatarFallback>{client.name.charAt(0)}</AvatarFallback>
                                             </Avatar>
                                         </TableCell>
-                                        <TableCell>{client.customer_id || 'N/A'}</TableCell>
                                         <TableCell><span className="text-blue-400 hover:underline">{client.name}</span></TableCell>
-                                        <TableCell>{enumToBusinessType[client.client_type] || client.client_type || 'N/A'}</TableCell>
                                         <TableCell>
                                             {client.organization_name || '-'}
                                         </TableCell>
+                                        <TableCell>{client.mobile || '-'}</TableCell>
+                                        <TableCell>{client.email || '-'}</TableCell>
+                                        <TableCell>
+                                            <div className="flex -space-x-2">
+                                                {client.orgUsers &&
+                                                    [...(client.orgUsers.invited_users || []), ...(client.orgUsers.joined_users || [])].map(user => (
+                                                        <Avatar key={user.user_id} className="w-8 h-8 border-2 border-gray-800">
+                                                            <AvatarImage src={user.photo} />
+                                                            <AvatarFallback>{user.email.charAt(0)}</AvatarFallback>
+                                                        </Avatar>
+                                                    ))
+                                                }
+                                            </div>
+                                        </TableCell>
                                         <TableCell>
                                             {(() => {
-                                                const assignedMember = teamMembers.find(
-                                                    (member) => String(member.user_id || member.id) === String(client.assigned_ca_user_id)
-                                                );
-                                                return assignedMember ? (
-                                                    <div className="flex items-center gap-2">
-                                                        <Avatar className="w-8 h-8">
-                                                            <AvatarImage src={assignedMember.photo} />
-                                                            <AvatarFallback>{assignedMember.name ? assignedMember.name.charAt(0) : assignedMember.email.charAt(0)}</AvatarFallback>
-                                                        </Avatar>
-                                                        <span className="text-sm">{assignedMember.name || assignedMember.email}</span>
+                                                const assignedTeamMembers = clientTeamMembers[client.id] || [];
+                                                if (assignedTeamMembers.length === 0) {
+                                                    return '-';
+                                                }
+
+                                                // Find full team member data
+                                                const memberDetails = assignedTeamMembers.map(assigned =>
+                                                    teamMembers.find(m => String(m.user_id || m.id) === String(assigned.team_member_user_id))
+                                                ).filter(Boolean);
+
+                                                return (
+                                                    <div className="flex -space-x-2">
+                                                        {memberDetails.slice(0, 3).map((member, idx) => (
+                                                            <Avatar key={idx} className="w-8 h-8 border-2 border-gray-800">
+                                                                <AvatarImage src={member.photo} />
+                                                                <AvatarFallback>{member.name ? member.name.charAt(0) : member.email.charAt(0)}</AvatarFallback>
+                                                            </Avatar>
+                                                        ))}
+                                                        {memberDetails.length > 3 && (
+                                                            <div className="w-8 h-8 rounded-full bg-gray-700 border-2 border-gray-800 flex items-center justify-center text-xs">
+                                                                +{memberDetails.length - 3}
+                                                            </div>
+                                                        )}
                                                     </div>
-                                                ) : (
-                                                    '-'
                                                 );
                                             })()}
                                         </TableCell>
                                         <TableCell>
                                             {client.is_active ? <Badge variant="success">Active</Badge> : <Badge variant="destructive">Inactive</Badge>}
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="flex flex-wrap gap-1">
-                                                {client.tags && client.tags.length > 0 ? (
-                                                    client.tags.map(tag => (
-                                                        <Badge key={tag.id} variant="secondary" style={{ backgroundColor: tag.color, color: '#fff' }}>
-                                                            {tag.name}
-                                                        </Badge>
-                                                    ))
-                                                ) : (
-                                                    '-'
-                                                )}
-                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -400,10 +437,10 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
                             >
                                 <div className="flex items-center gap-3">
                                     <Avatar className="w-14 h-14">
-                                        <AvatarImage 
-                                            src={client.photo_url && client.photo_url.includes('.s3.amazonaws.com/') 
+                                        <AvatarImage
+                                            src={client.photo_url && client.photo_url.includes('.s3.amazonaws.com/')
                                                 ? `${import.meta.env.VITE_CLIENT_API_URL || 'http://127.0.0.1:8002'}/clients/${client.id}/photo`
-                                                : (client.photo_url || client.photo)} 
+                                                : (client.photo_url || client.photo)}
                                         />
                                         <AvatarFallback>{client.name.charAt(0)}</AvatarFallback>
                                     </Avatar>
@@ -423,7 +460,7 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
                                     <span className="font-semibold text-xs text-gray-400">Assigned:</span>
                                     {(() => {
                                         const assignedMember = teamMembers.find(
-                                            (member) => String(member.user_id || member.id) === String(client.assigned_ca_user_id)
+                                            (member) => String(member.user_id) === String(client.assigned_ca_user_id)
                                         );
                                         return assignedMember ? (
                                             <div className="flex items-center gap-1">
@@ -462,7 +499,7 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
             </div>
             <AnimatePresence>
                 {selectedClients.length > 0 && (
-                    <motion.div 
+                    <motion.div
                         initial={{ y: 100, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         exit={{ y: 100, opacity: 0 }}
@@ -487,7 +524,7 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
                                     <AlertDialogFooter>
                                         <AlertDialogCancel disabled={isBulkDeleting}>Cancel</AlertDialogCancel>
                                         <AlertDialogAction onClick={handleBulkDelete} disabled={isBulkDeleting} className="bg-red-600 hover:bg-red-700">
-                                            {isBulkDeleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin"/> : null}
+                                            {isBulkDeleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
                                             Yes, delete
                                         </AlertDialogAction>
                                     </AlertDialogFooter>

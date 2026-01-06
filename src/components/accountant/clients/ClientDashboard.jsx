@@ -12,6 +12,7 @@ import ActivityLog from '@/components/finance/ActivityLog';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { deleteClient } from '@/lib/api';
+import { getClientTeamMembers } from '@/lib/api/clients';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -49,6 +50,7 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
     const [photoBlobUrl, setPhotoBlobUrl] = useState(null);
     const [photoKey, setPhotoKey] = useState(0);
     const [isPhotoLoading, setIsPhotoLoading] = useState(false);
+    const [teamMemberCount, setTeamMemberCount] = useState(0);
 
     // Helper function to get the correct photo URL with cache-busting
     const getClientPhotoUrl = (client) => {
@@ -82,7 +84,7 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
             const updateTimestamp = client.updated_at ? new Date(client.updated_at).getTime() : Date.now();
             const timestamp = Date.now();
             const photoEndpoint = `${clientApiUrl}/clients/${client.id}/photo?t=${timestamp}&u=${updateTimestamp}`;
-            
+
             // Fetch with authentication headers
             fetch(photoEndpoint, {
                 headers: {
@@ -90,25 +92,25 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
                     'x-agency-id': user.agency_id || ''
                 }
             })
-            .then(response => {
-                if (response.ok) {
-                    return response.blob();
-                }
-                throw new Error('Failed to fetch photo');
-            })
-            .then(blob => {
-                const url = URL.createObjectURL(blob);
-                setPhotoBlobUrl(url);
-                // Update key to force React to reload the image component
-                setPhotoKey(`${client.id}-${timestamp}-${updateTimestamp}`);
-                setIsPhotoLoading(false);
-            })
-            .catch(err => {
-                console.error('Error loading client photo:', err);
-                setPhotoBlobUrl(null);
-                setPhotoKey(`${client.id}-error-${Date.now()}`);
-                setIsPhotoLoading(false);
-            });
+                .then(response => {
+                    if (response.ok) {
+                        return response.blob();
+                    }
+                    throw new Error('Failed to fetch photo');
+                })
+                .then(blob => {
+                    const url = URL.createObjectURL(blob);
+                    setPhotoBlobUrl(url);
+                    // Update key to force React to reload the image component
+                    setPhotoKey(`${client.id}-${timestamp}-${updateTimestamp}`);
+                    setIsPhotoLoading(false);
+                })
+                .catch(err => {
+                    console.error('Error loading client photo:', err);
+                    setPhotoBlobUrl(null);
+                    setPhotoKey(`${client.id}-error-${Date.now()}`);
+                    setIsPhotoLoading(false);
+                });
         } else {
             setPhotoBlobUrl(null);
             setPhotoKey(0);
@@ -116,12 +118,26 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
         }
     }, [client?.id, client?.photo_url, client?.updated_at, user?.access_token, user?.agency_id]);
 
+    // Fetch team member count
+    useEffect(() => {
+        if (client?.id && user?.access_token) {
+            getClientTeamMembers(client.id, user.agency_id, user.access_token)
+                .then(result => {
+                    setTeamMemberCount(result?.team_members?.length || 0);
+                })
+                .catch(err => {
+                    console.error('Failed to fetch team members:', err);
+                    setTeamMemberCount(0);
+                });
+        }
+    }, [client?.id, user?.access_token, user?.agency_id]);
+
     const tabs = [
         'Details',
         'Services',
         'Passwords',
         `Client User (${(client.orgUsers?.invited_users?.length || 0) + (client.orgUsers?.joined_users?.length || 0)})`,
-        `MyTeam (${client.assigned_ca_user_id ? teamMembers.filter(m => String(m.user_id || m.id) === String(client.assigned_ca_user_id)).length : 0})`,
+        `MyTeam (${teamMemberCount})`,
         `Entities (${client.entities?.length || 0})`,
         'Activity Log'
     ];

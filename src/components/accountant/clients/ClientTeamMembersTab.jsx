@@ -1,65 +1,129 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { User, Mail, Phone, Search, List as ListIcon, Grid as GridIcon } from 'lucide-react';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { User, Plus, Trash2, UserPlus, Loader2 } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/components/ui/use-toast';
+import { getClientTeamMembers, assignTeamMembers, removeTeamMember } from '@/lib/api/clients';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 
 const ClientTeamMembersTab = ({ client, teamMembers = [] }) => {
-    const [searchTerm, setSearchTerm] = useState('');
-    const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
+    const { user } = useAuth();
+    const { toast } = useToast();
 
-    // Filter team members based on assigned user and search term
-    const filteredTeamMembers = useMemo(() => {
-        let members = teamMembers;
+    const [assignedMembers, setAssignedMembers] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isAssigning, setIsAssigning] = useState(false);
+    const [showAddDialog, setShowAddDialog] = useState(false);
+    const [selectedMembers, setSelectedMembers] = useState([]);
 
-        // If an assigned user exists, filter to show only that user
-        if (client.assigned_ca_user_id) {
-            members = teamMembers.filter(member => 
-                String(member.user_id || member.id) === String(client.assigned_ca_user_id)
-            );
-        } else {
-            // If no assigned user, show no one
-            return [];
+    // Fetch assigned team members
+    const fetchAssignedMembers = async () => {
+        setIsLoading(true);
+        try {
+            const result = await getClientTeamMembers(client.id, user.agency_id, user.access_token);
+
+            // Match team member IDs with full team member data
+            const memberDetails = result.team_members.map(assigned => {
+                const memberData = teamMembers.find(m =>
+                    String(m.user_id || m.id) === String(assigned.team_member_user_id)
+                );
+                return {
+                    ...assigned,
+                    ...memberData
+                };
+            });
+
+            setAssignedMembers(memberDetails);
+        } catch (error) {
+            console.error('Failed to fetch team members:', error);
+            toast({
+                title: 'Error',
+                description: 'Failed to load team members',
+                variant: 'destructive'
+            });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (client?.id && user?.access_token) {
+            fetchAssignedMembers();
+        }
+    }, [client?.id, user?.access_token]);
+
+    const handleAddTeamMembers = async () => {
+        if (selectedMembers.length === 0) {
+            toast({
+                title: 'No Selection',
+                description: 'Please select at least one team member',
+                variant: 'destructive'
+            });
+            return;
         }
 
-        if (!searchTerm.trim()) {
-            return members;
+        setIsAssigning(true);
+        try {
+            await assignTeamMembers(client.id, selectedMembers, user.agency_id, user.access_token);
+            toast({
+                title: 'Success',
+                description: `Added ${selectedMembers.length} team member(s)`
+            });
+            setShowAddDialog(false);
+            setSelectedMembers([]);
+            fetchAssignedMembers();
+        } catch (error) {
+            toast({
+                title: 'Error',
+                description: error.message || 'Failed to assign team members',
+                variant: 'destructive'
+            });
+        } finally {
+            setIsAssigning(false);
         }
-        
-        const term = searchTerm.toLowerCase();
-        return members.filter(member => {
-            const name = (member.name || '').toLowerCase();
-            const email = (member.email || '').toLowerCase();
-            const phone = (member.phone || '').toLowerCase();
-            const role = (member.role || '').toLowerCase();
-            
-            return name.includes(term) || 
-                   email.includes(term) || 
-                   phone.includes(term) || 
-                   role.includes(term);
-        });
-    }, [teamMembers, searchTerm, client.assigned_ca_user_id]);
+    };
 
-    // Show message if no team member is assigned or available
-    if (!client.assigned_ca_user_id) {
-         return (
-            <div className="glass-pane p-8 rounded-lg text-center">
-                <User className="mx-auto w-12 h-12 text-gray-400 mb-4" />
-                <h3 className="text-xl font-semibold text-white mb-2">No Assigned CA Team Member</h3>
-                <p className="text-gray-400">This client has not been assigned to any team member yet.</p>
-            </div>
+    const handleRemoveTeamMember = async (userId) => {
+        try {
+            await removeTeamMember(client.id, userId, user.agency_id, user.access_token);
+            toast({
+                title: 'Success',
+                description: 'Team member removed'
+            });
+            fetchAssignedMembers();
+        } catch (error) {
+            toast({
+                title: 'Error',
+                description: 'Failed to remove team member',
+                variant: 'destructive'
+            });
+        }
+    };
+
+    const handleSelectMember = (memberId) => {
+        setSelectedMembers(prev =>
+            prev.includes(memberId)
+                ? prev.filter(id => id !== memberId)
+                : [...prev, memberId]
         );
-    }
+    };
 
-    if (teamMembers.length === 0) {
+    // Available members (not yet assigned)
+    const availableMembers = teamMembers.filter(member =>
+        !assignedMembers.some(assigned =>
+            String(assigned.team_member_user_id) === String(member.user_id || member.id)
+        )
+    );
+
+    if (isLoading) {
         return (
-            <div className="glass-pane p-8 rounded-lg text-center">
-                <User className="mx-auto w-12 h-12 text-gray-400 mb-4" />
-                <h3 className="text-xl font-semibold text-white mb-2">No Team Members</h3>
-                <p className="text-gray-400">No team members available.</p>
+            <div className="flex items-center justify-center p-12">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
         );
     }
@@ -68,156 +132,112 @@ const ClientTeamMembersTab = ({ client, teamMembers = [] }) => {
         <div className="space-y-4">
             <Card className="glass-pane border-none shadow-none">
                 <CardHeader>
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                        <CardTitle className="text-white">Team Members</CardTitle>
-                        <div className="flex items-center gap-2 w-full sm:w-auto">
-                            <Button
-                                variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
-                                size="icon"
-                                onClick={() => setViewMode('grid')}
-                                title="Grid View"
-                            >
-                                <GridIcon className="w-5 h-5" />
-                            </Button>
-                            <Button
-                                variant={viewMode === 'list' ? 'secondary' : 'ghost'}
-                                size="icon"
-                                onClick={() => setViewMode('list')}
-                                title="List View"
-                            >
-                                <ListIcon className="w-5 h-5" />
-                            </Button>
-                            <div className="relative w-full sm:w-auto sm:min-w-[300px]">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                <Input 
-                                    placeholder="Search team members..."
-                                    className="glass-input pl-10 bg-gray-700/50 border-gray-600 text-white"
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                />
-                            </div>
-                        </div>
+                    <div className="flex justify-between items-center">
+                        <CardTitle className="text-white">Team Members ({assignedMembers.length})</CardTitle>
+                        <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+                            <DialogTrigger asChild>
+                                <Button>
+                                    <UserPlus className="w-4 h-4 mr-2" />
+                                    Add Team Member
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-[500px]">
+                                <DialogHeader>
+                                    <DialogTitle>Add Team Members</DialogTitle>
+                                </DialogHeader>
+                                <div className="max-h-[400px] overflow-y-auto space-y-2 py-4">
+                                    {availableMembers.length === 0 ? (
+                                        <p className="text-gray-400 text-center py-4">All team members are already assigned</p>
+                                    ) : (
+                                        availableMembers.map(member => (
+                                            <div key={member.user_id || member.id} className="flex items-center space-x-2 p-3 rounded hover:bg-gray-700/30">
+                                                <Checkbox
+                                                    id={`member-${member.user_id || member.id}`}
+                                                    checked={selectedMembers.includes(member.user_id || member.id)}
+                                                    onCheckedChange={() => handleSelectMember(member.user_id || member.id)}
+                                                />
+                                                <Label htmlFor={`member-${member.user_id || member.id}`} className="flex-1 cursor-pointer">
+                                                    <div className="flex items-center gap-3">
+                                                        <Avatar className="w-8 h-8">
+                                                            <AvatarFallback className="bg-gradient-to-br from-sky-500 to-indigo-600 text-white text-xs">
+                                                                {member.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'}
+                                                            </AvatarFallback>
+                                                        </Avatar>
+                                                        <div>
+                                                            <div className="font-medium">{member.name || 'Unknown'}</div>
+                                                            <div className="text-sm text-gray-400">{member.email}</div>
+                                                        </div>
+                                                    </div>
+                                                </Label>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                                <DialogFooter>
+                                    <Button variant="ghost" onClick={() => setShowAddDialog(false)}>Cancel</Button>
+                                    <Button onClick={handleAddTeamMembers} disabled={isAssigning || selectedMembers.length === 0}>
+                                        {isAssigning ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                                        Add Selected ({selectedMembers.length})
+                                    </Button>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
                     </div>
                 </CardHeader>
                 <CardContent>
-                    {filteredTeamMembers.length === 0 ? (
-                        <div className="text-center py-8">
-                            <p className="text-gray-400">No team members found matching "{searchTerm}"</p>
-                        </div>
-                    ) : viewMode === 'grid' ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {filteredTeamMembers.map((member) => {
-                                const memberUserId = member.user_id || member.id;
-                                const isAssigned = client.assigned_ca_user_id && 
-                                                memberUserId && 
-                                                String(memberUserId) === String(client.assigned_ca_user_id);
-                                
-                                return (
-                                    <Card 
-                                        key={member.user_id || member.id} 
-                                        className={`bg-white/5 border-white/10 ${isAssigned ? 'ring-2 ring-green-500/50' : ''}`}
-                                    >
-                                        <CardContent className="pt-6">
-                                            <div className="flex items-center gap-4">
-                                                <Avatar className="w-16 h-16 border-2 border-white/20">
-                                                    <AvatarImage src={member.photo || member.photo_url} alt={member.name || member.email} />
-                                                    <AvatarFallback className="bg-gradient-to-br from-sky-500 to-indigo-600 text-white">
-                                                        {(member.name || member.email || 'U').charAt(0).toUpperCase()}
-                                                    </AvatarFallback>
-                                                </Avatar>
-                                                <div className="flex-1">
-                                                    <div className="flex items-center gap-2">
-                                                        <h4 className="font-semibold text-white">
-                                                            {member.name || member.email || 'Unknown User'}
-                                                        </h4>
-                                                        {isAssigned && (
-                                                            <Badge variant="success" className="text-xs">Assigned</Badge>
-                                                        )}
-                                                    </div>
-                                                    <div className="flex flex-col gap-1 mt-1">
-                                                        {member.email && (
-                                                            <div className="flex items-center gap-2 text-sm text-gray-400">
-                                                                <Mail className="w-4 h-4" />
-                                                                <span>{member.email}</span>
-                                                            </div>
-                                                        )}
-                                                        {member.phone && (
-                                                            <div className="flex items-center gap-2 text-sm text-gray-400">
-                                                                <Phone className="w-4 h-4" />
-                                                                <span>{member.phone}</span>
-                                                            </div>
-                                                        )}
-                                                        {member.role && (
-                                                            <Badge variant="secondary" className="w-fit mt-1">
-                                                                {member.role}
-                                                            </Badge>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                );
-                            })}
+                    {assignedMembers.length === 0 ? (
+                        <div className="text-center py-12">
+                            <User className="mx-auto w-12 h-12 text-gray-400 mb-4" />
+                            <h3 className="text-xl font-semibold text-white mb-2">No Team Members Assigned</h3>
+                            <p className="text-gray-400 mb-4">This client has no team members assigned yet.</p>
+                            <Button onClick={() => setShowAddDialog(true)}>
+                                <Plus className="w-4 h-4 mr-2" />
+                                Add Team Members
+                            </Button>
                         </div>
                     ) : (
-                        <div className="overflow-x-auto">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Photo</TableHead>
-                                        <TableHead>Name</TableHead>
-                                        <TableHead>Email</TableHead>
-                                        <TableHead>Phone</TableHead>
-                                        <TableHead>Role</TableHead>
-                                        <TableHead>Assigned</TableHead>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Team Member</TableHead>
+                                    <TableHead>Email</TableHead>
+                                    <TableHead>Role</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {assignedMembers.map(member => (
+                                    <TableRow key={member.team_member_user_id}>
+                                        <TableCell>
+                                            <div className="flex items-center gap-3">
+                                                <Avatar>
+                                                    <AvatarFallback className="bg-gradient-to-br from-sky-500 to-indigo-600 text-white">
+                                                        {member.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'}
+                                                    </AvatarFallback>
+                                                </Avatar>
+                                                <span className="font-medium">{member.name || 'Unknown'}</span>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>{member.email || 'N/A'}</TableCell>
+                                        <TableCell>
+                                            <span className="px-2 py-1 rounded bg-blue-500/20 text-blue-300 text-sm">
+                                                {member.role || 'Team Member'}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="text-red-400 hover:text-red-300"
+                                                onClick={() => handleRemoveTeamMember(member.team_member_user_id)}
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </Button>
+                                        </TableCell>
                                     </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {filteredTeamMembers.map((member) => {
-                                        const memberUserId = member.user_id || member.id;
-                                        const isAssigned = client.assigned_ca_user_id && 
-                                            memberUserId && 
-                                            String(memberUserId) === String(client.assigned_ca_user_id);
-                                        return (
-                                            <TableRow key={member.user_id || member.id}>
-                                                <TableCell>
-                                                    <Avatar className="w-10 h-10">
-                                                        <AvatarImage src={member.photo || member.photo_url} alt={member.name || member.email} />
-                                                        <AvatarFallback className="bg-gradient-to-br from-sky-500 to-indigo-600 text-white">
-                                                            {(member.name || member.email || 'U').charAt(0).toUpperCase()}
-                                                        </AvatarFallback>
-                                                    </Avatar>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <span className="font-semibold text-white">{member.name || member.email || 'Unknown User'}</span>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <span className="text-gray-300">{member.email || '-'}</span>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <span className="text-gray-300">{member.phone || '-'}</span>
-                                                </TableCell>
-                                                <TableCell>
-                                                    {member.role ? (
-                                                        <Badge variant="secondary">{member.role}</Badge>
-                                                    ) : (
-                                                        <span className="text-gray-400">-</span>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {isAssigned ? (
-                                                        <Badge variant="success" className="text-xs">Assigned</Badge>
-                                                    ) : (
-                                                        <span className="text-gray-400">-</span>
-                                                    )}
-                                                </TableCell>
-                                            </TableRow>
-                                        );
-                                    })}
-                                </TableBody>
-                            </Table>
-                        </div>
+                                ))}
+                            </TableBody>
+                        </Table>
                     )}
                 </CardContent>
             </Card>
