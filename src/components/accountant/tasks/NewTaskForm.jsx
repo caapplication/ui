@@ -82,7 +82,8 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
                 user_id: memberId,
                 name: member.name || member.full_name || `${member.first_name || ''} ${member.last_name || ''}`.trim() || member.email,
                 email: member.email || member.user_email,
-                type: 'team_member'
+                type: 'team_member',
+                role: member.role
               });
             }
           });
@@ -106,7 +107,8 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
                   user_id: userId,
                   name: orgUser.name || orgUser.full_name || `${orgUser.first_name || ''} ${orgUser.last_name || ''}`.trim() || orgUser.email,
                   email: orgUser.email || orgUser.user_email,
-                  type: 'org_user'
+                  type: 'org_user',
+                  role: orgUser.role
                 });
               }
             });
@@ -125,7 +127,8 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
                 user_id: memberId,
                 name: member.name || member.email,
                 email: member.email,
-                type: 'ca_user'
+                type: 'ca_user',
+                role: member.role
               });
             }
           });
@@ -366,9 +369,13 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
               <Combobox
                 options={allUsers.map(user => {
                   const userId = user.user_id || user.id;
+                  let displayRole = '';
+                  if (user.role) {
+                    displayRole = ` (${user.role.replace('CA_', '').replace('_', ' ')})`;
+                  }
                   return {
                     value: String(userId),
-                    label: user.name || user.email || 'Unnamed User'
+                    label: `${user.name || user.email || 'Unnamed User'}${displayRole}`
                   };
                 })}
                 value={formData.assigned_user_id ? String(formData.assigned_user_id) : ''}

@@ -445,7 +445,9 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                                     const updatedByInfo = task.updated_by_name
                                         ? { name: task.updated_by_name, email: 'N/A', role: task.updated_by_role || getUserInfo(task.updated_by || task.created_by).role || 'N/A' }
                                         : getUserInfo(task.updated_by || task.created_by);
-                                    const assignedToInfo = getUserInfo(task.assigned_to);
+                                    const assignedToInfo = task.assigned_to_name
+                                        ? { name: task.assigned_to_name, email: 'N/A', role: task.assigned_to_role || 'N/A' }
+                                        : getUserInfo(task.assigned_to);
                                     const taskId = getTaskId(task);
 
                                     // Get stage name and color from stages array if available
