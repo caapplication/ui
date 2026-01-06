@@ -12,7 +12,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { resendToken, deleteOrgUser, inviteOrganizationUser, deleteInvitedOrgUser } from '@/lib/api/organisation';
 import { useToast } from '@/components/ui/use-toast';
 
-const ClientUsersTab = ({ client }) => {
+const ClientUsersTab = ({ client, onUserInvited }) => {
     const { user } = useAuth();
     const { toast } = useToast();
     const [loadingUserId, setLoadingUserId] = useState(null);
@@ -89,7 +89,10 @@ const ClientUsersTab = ({ client }) => {
             toast({ title: "Success", description: `Invitation sent to ${inviteEmail}.` });
             setShowInviteDialog(false);
             setInviteEmail('');
-            // Optionally, trigger a refresh here
+            // Refresh only the organization users data
+            if (onUserInvited) {
+                onUserInvited();
+            }
         } catch (error) {
             toast({ title: "Error", description: `Failed to send invite: ${error.message}`, variant: "destructive" });
         }
@@ -100,7 +103,7 @@ const ClientUsersTab = ({ client }) => {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
                 <div className="relative w-full sm:w-auto sm:min-w-[300px]">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <Input 
+                    <Input
                         placeholder="Search users..."
                         className="glass-input pl-10 bg-gray-700/50 border-gray-600 text-white"
                         value={searchTerm}
@@ -203,7 +206,7 @@ const ClientUsersTab = ({ client }) => {
                                                 >
                                                     <span className="sr-only">Delete</span>
                                                     <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
-                                                        <path d="M6 7h12M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2m2 0v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V7h12z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                        <path d="M6 7h12M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2m2 0v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V7h12z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                                                     </svg>
                                                 </Button>
                                             </>
@@ -219,7 +222,7 @@ const ClientUsersTab = ({ client }) => {
                                             >
                                                 <span className="sr-only">Delete</span>
                                                 <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
-                                                    <path d="M6 7h12M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2m2 0v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V7h12z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                    <path d="M6 7h12M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2m2 0v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V7h12z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                                                 </svg>
                                             </Button>
                                         )}

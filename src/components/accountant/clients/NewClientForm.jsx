@@ -81,6 +81,7 @@ const NewClientForm = ({ onBack, onSave, client, allServices, organisations, bus
     const [photoFile, setPhotoFile] = useState(null);
     const [photoPreview, setPhotoPreview] = useState(null);
     const [photoBlobUrl, setPhotoBlobUrl] = useState(null);
+    const [isPhotoLoading, setIsPhotoLoading] = useState(false);
     const fileInputRef = useRef(null);
     const photoFileInputRef = useRef(null);
 
@@ -134,7 +135,7 @@ const NewClientForm = ({ onBack, onSave, client, allServices, organisations, bus
         }
     }, [client]);
 
-    // Fetch photo as blob with authentication
+    // Fetch photo as blob with authentication (optimized to reduce delay)
     useEffect(() => {
         // Cleanup previous blob URL
         if (photoBlobUrl && photoBlobUrl.startsWith('blob:')) {
@@ -142,83 +143,48 @@ const NewClientForm = ({ onBack, onSave, client, allServices, organisations, bus
         }
 
         if (client?.id && user?.access_token && !photoPreview) {
-            const photoUrl = client.photo_url || client.photo;
-            // Always try to fetch from the photo endpoint if we have a client ID
+            setIsPhotoLoading(true);
             const clientApiUrl = import.meta.env.VITE_CLIENT_API_URL || 'http://127.0.0.1:8002';
-            const photoEndpoint = `${clientApiUrl}/clients/${client.id}/photo?t=${Date.now()}`;
+            // Use cache-busting with updated_at timestamp if available
+            const updateTimestamp = client.updated_at ? new Date(client.updated_at).getTime() : Date.now();
+            const photoEndpoint = `${clientApiUrl}/clients/${client.id}/photo?t=${updateTimestamp}`;
 
-            if (photoUrl && photoUrl.includes(`/clients/${client.id}/photo`)) {
-                // Fetch with authentication
-                fetch(photoUrl, {
-                    headers: {
-                        'Authorization': `Bearer ${user.access_token}`,
-                        'x-agency-id': user.agency_id || ''
+            // Always fetch from the endpoint with authentication (simplified approach)
+            fetch(photoEndpoint, {
+                headers: {
+                    'Authorization': `Bearer ${user.access_token}`,
+                    'x-agency-id': user.agency_id || ''
+                }
+            })
+                .then(response => {
+                    if (response.ok) {
+                        return response.blob();
                     }
-                })
-                    .then(response => {
-                        if (response.ok) {
-                            return response.blob();
-                        }
-                        throw new Error('Failed to fetch photo');
-                    })
-                    .then(blob => {
-                        const url = URL.createObjectURL(blob);
-                        setPhotoBlobUrl(url);
-                    })
-                    .catch(err => {
-                        console.error('Error loading client photo:', err);
-                        // Try the endpoint directly even if photo_url is not set
-                        fetch(photoEndpoint, {
-                            headers: {
-                                'Authorization': `Bearer ${user.access_token}`,
-                                'x-agency-id': user.agency_id || ''
-                            }
-                        })
-                            .then(response => {
-                                if (response.ok) {
-                                    return response.blob();
-                                }
-                                throw new Error('Photo not found');
-                            })
-                            .then(blob => {
-                                const url = URL.createObjectURL(blob);
-                                setPhotoBlobUrl(url);
-                            })
-                            .catch(() => {
-                                setPhotoBlobUrl(null);
-                            });
-                    });
-            } else if (!photoUrl && client?.id) {
-                // If no photo_url is set, try to fetch from the endpoint anyway
-                fetch(photoEndpoint, {
-                    headers: {
-                        'Authorization': `Bearer ${user.access_token}`,
-                        'x-agency-id': user.agency_id || ''
-                    }
-                })
-                    .then(response => {
-                        if (response.ok) {
-                            return response.blob();
-                        }
-                        throw new Error('Photo not found');
-                    })
-                    .then(blob => {
-                        const url = URL.createObjectURL(blob);
-                        setPhotoBlobUrl(url);
-                    })
-                    .catch(() => {
+                    // If 404, there's no photo - that's OK
+                    if (response.status === 404) {
                         setPhotoBlobUrl(null);
-                    });
-            } else if (photoUrl) {
-                // If it's not the proxy URL, use it directly
-                setPhotoBlobUrl(photoUrl);
-            } else {
-                setPhotoBlobUrl(null);
-            }
+                        setIsPhotoLoading(false);
+                        return null;
+                    }
+                    throw new Error(`Failed to fetch photo: ${response.status}`);
+                })
+                .then(blob => {
+                    if (blob) {
+                        const url = URL.createObjectURL(blob);
+                        setPhotoBlobUrl(url);
+                    }
+                    setIsPhotoLoading(false);
+                })
+                .catch(err => {
+                    console.error('Error loading client photo:', err);
+                    setPhotoBlobUrl(null);
+                    setIsPhotoLoading(false);
+                });
         } else {
             setPhotoBlobUrl(null);
+            setIsPhotoLoading(false);
         }
-    }, [client?.id, client?.photo_url, client?.photo, user?.access_token, user?.agency_id, photoPreview]);
+    }, [client?.id, client?.updated_at, user?.access_token, user?.agency_id, photoPreview]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -310,9 +276,14 @@ const NewClientForm = ({ onBack, onSave, client, allServices, organisations, bus
 
         await onSave(dataToSave, photoFile);
         setIsSaving(false);
-        // Reset photo after save
+        // Reset photo after save and cleanup blob URLs
         setPhotoFile(null);
         setPhotoPreview(null);
+        // Cleanup blob URL if it exists
+        if (photoBlobUrl && photoBlobUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(photoBlobUrl);
+        }
+        setPhotoBlobUrl(null);
     };
 
     const states = ["Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal", "Andaman and Nicobar Islands", "Chandigarh", "Dadra and Nagar Haveli and Daman and Diu", "Delhi", "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry"];
@@ -325,8 +296,14 @@ const NewClientForm = ({ onBack, onSave, client, allServices, organisations, bus
                         <ArrowLeft className="w-5 h-5" />
                     </Button>
                     <h1 className="text-2xl font-bold text-white">
-                        <span className="text-gray-400 cursor-pointer hover:underline" onClick={onBack}>Clients / </span>
-                        {client ? 'Edit Client' : 'New Client'}
+                        {client ? (
+                            <>
+                                <span className="text-gray-400 cursor-pointer hover:underline" onClick={onBack}>Clients / </span>
+                                Edit Client
+                            </>
+                        ) : (
+                            'Client Onboarding'
+                        )}
                     </h1>
                 </div>
                 <div className="flex items-center gap-2">
@@ -355,12 +332,22 @@ const NewClientForm = ({ onBack, onSave, client, allServices, organisations, bus
                                         onError={(e) => {
                                             console.error('Failed to load client photo:', e);
                                             setPhotoBlobUrl(null);
+                                            setIsPhotoLoading(false);
+                                        }}
+                                        onLoad={() => {
+                                            setIsPhotoLoading(false);
                                         }}
                                     />
                                     <AvatarFallback className="bg-gradient-to-br from-sky-500 to-indigo-600 text-white">
                                         {formData.name?.charAt(0).toUpperCase() || 'C'}
                                     </AvatarFallback>
                                 </Avatar>
+                                {/* Loading overlay */}
+                                {isPhotoLoading && !photoPreview && (
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-full">
+                                        <Loader2 className="w-10 h-10 text-white animate-spin" />
+                                    </div>
+                                )}
                                 <div className="absolute bottom-1 right-1 flex gap-2">
                                     <Button
                                         type="button"
@@ -600,7 +587,76 @@ const NewClientForm = ({ onBack, onSave, client, allServices, organisations, bus
                     </div>
 
 
-
+                    <div className="glass-pane p-6 rounded-lg">
+                        <h2 className="text-xl font-semibold mb-4">Assignments (Optional)</h2>
+                        <p className="text-sm text-gray-400 mb-4">Assign team members and tags. This can also be done later.</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <Label>Assigned Team member</Label>
+                                <Select
+                                    onValueChange={v => handleSelectChange('assigned_ca_user_id', v)}
+                                    value={formData.assigned_ca_user_id ? String(formData.assigned_ca_user_id) : ""}
+                                    disabled={isSaving}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue>
+                                            {formData.assigned_ca_user_id
+                                                ? (
+                                                    teamMembers.find(m => String(m.user_id || m.id) === String(formData.assigned_ca_user_id))?.name ||
+                                                    teamMembers.find(m => String(m.user_id || m.id) === String(formData.assigned_ca_user_id))?.email ||
+                                                    "Select a team member"
+                                                )
+                                                : "Select a team member"}
+                                        </SelectValue>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {teamMembers && teamMembers.filter(member => member.status && member.status.toLowerCase() === 'joined').length > 0 ? (
+                                            teamMembers.filter(member => member.status && member.status.toLowerCase() === 'joined').map(member => (
+                                                <SelectItem key={member.user_id || member.id} value={String(member.user_id || member.id)}>{member.name || member.email}</SelectItem>
+                                            ))
+                                        ) : (
+                                            <SelectItem value="no-members" disabled>No team members found</SelectItem>
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div>
+                                <Label>Tags</Label>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" className="w-full justify-start" disabled={isSaving}>
+                                            <div className="flex gap-1 flex-wrap">
+                                                {formData.tag_ids.map(tagId => {
+                                                    const tag = tags.find(t => t.id === tagId);
+                                                    return <Badge key={tagId} variant="secondary">{tag?.name}</Badge>;
+                                                })}
+                                                {formData.tag_ids.length === 0 && 'Select tags'}
+                                            </div>
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                                        <Command>
+                                            <CommandInput placeholder="Search tags..." />
+                                            <CommandList>
+                                                <CommandEmpty>No tags found.</CommandEmpty>
+                                                <CommandGroup>
+                                                    {tags && tags.map(tag => (
+                                                        <CommandItem
+                                                            key={tag.id}
+                                                            onSelect={() => handleMultiSelectChange('tag_ids', tag.id)}
+                                                        >
+                                                            <Check className={cn("mr-2 h-4 w-4", formData.tag_ids.includes(tag.id) ? "opacity-100" : "opacity-0")} />
+                                                            {tag.name}
+                                                        </CommandItem>
+                                                    ))}
+                                                </CommandGroup>
+                                            </CommandList>
+                                        </Command>
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
+                        </div>
+                    </div>
                     {/* Users Section */}
                     <div className="glass-pane p-6 rounded-lg mt-6">
                         <h2 className="text-xl font-semibold mb-4">Users</h2>

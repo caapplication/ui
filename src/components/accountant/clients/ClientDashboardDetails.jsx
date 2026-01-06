@@ -14,6 +14,33 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/hooks/useAuth';
 import { updateClient, inviteTeamMember } from '@/lib/api';
 
+// Mapping between business type enum values and display names
+const businessTypeToEnum = {
+    'Individual': 'individual',
+    'Sole Proprietorship': 'sole_proprietorship',
+    'Partnership': 'partnership',
+    'LLP': 'llp',
+    'HUF': 'huf',
+    'Private Limited Company': 'private_limited',
+    'Public Limited Company': 'limited_company',
+    'Joint Venture': 'joint_venture',
+    'One Person Company': 'one_person_company',
+    'NGO\'s': 'ngo',
+    'NGO': 'ngo',
+    'Trust': 'trust',
+    'Section 8 Company': 'section_8_company',
+    'Government Entity': 'government_entity',
+    'Cooperative Society': 'cooperative_society',
+    'Branch Office': 'branch_office',
+    'AOP': 'aop',
+    'Society': 'society',
+};
+
+// Reverse mapping: enum value to display name
+const enumToBusinessType = Object.fromEntries(
+    Object.entries(businessTypeToEnum).map(([key, value]) => [value, key])
+);
+
 const StatCard = ({ title, value, valueClassName }) => (
     <Card className="bg-white/5 border-white/10 text-white">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -60,7 +87,7 @@ const ClientDashboardDetails = ({ client, teamMembers = [], onUpdateClient, onTe
     const ledgerBalance = client.opening_balance?.amount || client.opening_balance_amount || 0;
     const ledgerBalanceType = client.opening_balance?.opening_balance_type || client.opening_balance_type;
     const balanceColor = ledgerBalanceType === 'credit' ? 'text-green-400' : ledgerBalanceType === 'debit' ? 'text-red-400' : 'text-white';
-    
+
     const clientEmail = client.email;
 
     const handleSaveTeamMember = async () => {
@@ -83,16 +110,16 @@ const ClientDashboardDetails = ({ client, teamMembers = [], onUpdateClient, onTe
                 user.agency_id,
                 user.access_token
             );
-            
+
             if (onUpdateClient) {
                 onUpdateClient(updatedClient);
             }
-            
+
             toast({
                 title: "✅ Team Member Updated",
                 description: "Team member assignment has been updated successfully.",
             });
-            
+
             setShowTeamMemberDialog(false);
         } catch (error) {
             toast({
@@ -138,7 +165,7 @@ const ClientDashboardDetails = ({ client, teamMembers = [], onUpdateClient, onTe
             });
             setShowInviteDialog(false);
             setInviteEmail('');
-            
+
             // Notify parent to refresh team members
             if (onTeamMemberInvited) {
                 onTeamMemberInvited();
@@ -175,7 +202,7 @@ const ClientDashboardDetails = ({ client, teamMembers = [], onUpdateClient, onTe
                     <DetailItem label="Status">
                         <Badge variant={client.is_active ? 'success' : 'destructive'}>{client.is_active ? 'Active' : 'Inactive'}</Badge>
                     </DetailItem>
-                    <DetailItem label="Type" value={client.client_type} />
+                    <DetailItem label="Type" value={enumToBusinessType[client.client_type] || client.client_type || 'N/A'} />
                     <DetailItem label="Contact Person" value={client.contact_person_name || 'N/A'} />
                     <DetailItem label="Date of Establishment" value={client.dob || client.date_of_birth ? format(new Date(client.dob || client.date_of_birth), 'dd-MM-yyyy') : 'N/A'} />
                     <DetailItem label="PAN" value={client.pan || 'N/A'} />
@@ -188,23 +215,23 @@ const ClientDashboardDetails = ({ client, teamMembers = [], onUpdateClient, onTe
                         <div className="flex items-center gap-2">
                             {client.mobile || 'N/A'}
                             {client.mobile && <>
-                                
+
                             </>}
                         </div>
                     </DetailItem>
                     <DetailItem label="Email">
-                         {clientEmail ? (
+                        {clientEmail ? (
                             <a href={`mailto:${clientEmail}`} className="flex items-center gap-1 text-blue-400 hover:underline">
                                 {clientEmail}
                                 <ExternalLink className="w-3 h-3" />
                             </a>
-                         ) : 'N/A'}
+                        ) : 'N/A'}
                     </DetailItem>
                     <DetailItem label="City" value={client.city || 'N/A'} />
                     <DetailItem label="Pincode" value={client.postal_code || 'N/A'} />
                     <DetailItem label="State" value={client.state || 'N/A'} />
                 </div>
-                
+
                 <div className="mt-6 pt-6 border-t border-white/10 grid grid-cols-1 md:grid-cols-3 gap-6">
                     <DetailItem label="Created By" value={(() => {
                         if (!client.created_by) return 'N/A';
@@ -223,7 +250,7 @@ const ClientDashboardDetails = ({ client, teamMembers = [], onUpdateClient, onTe
                             className="w-full justify-start gap-2"
                         >
                             <UserPlus className="w-4 h-4" />
-                            {assignedTeamMember 
+                            {assignedTeamMember
                                 ? assignedTeamMember.name || assignedTeamMember.email || 'Team Member Assigned'
                                 : 'Add Team Member'}
                         </Button>

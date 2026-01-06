@@ -8,6 +8,7 @@ import { SocketProvider } from '@/contexts/SocketContext.jsx';
 import LoginForm from '@/components/auth/LoginForm';
 import ForgotPassword from '@/components/auth/ForgotPassword';
 import ResetPassword from '@/components/auth/ResetPassword';
+import TwoFactorVerify from '@/components/auth/TwoFactorVerify';
 import VerifyToken from '@/pages/VerifyToken.jsx';
 import Sidebar from '@/components/layout/Sidebar';
 import EntitySidebar from '@/components/layout/EntitySidebar';
@@ -188,6 +189,7 @@ const ProtectedContent = () => {
             <Route path="/beneficiaries/:beneficiaryId" element={<BeneficiaryDetailsPage />} />
             <Route path="/coming-soon" element={<ComingSoon />} />
             <Route path="/upcoming/task" element={<UpcomingTask />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
       </main>
@@ -225,6 +227,7 @@ const AppContent = () => {
         <>
           <Route path="/" element={<Navigate to="/login" />} />
           <Route path="/login" element={<LoginForm />} />
+          <Route path="/verify-2fa" element={<TwoFactorVerify />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/auth/verify" element={<VerifyToken />} />

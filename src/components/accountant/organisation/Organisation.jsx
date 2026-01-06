@@ -93,7 +93,12 @@ const Organisation = () => {
             setEntities(entitiesData || []);
             const invited = orgUsersData?.invited_users || [];
             const joined = orgUsersData?.joined_users || [];
-            const allUsers = [...invited, ...joined];
+            
+            // Filter out invited users who have already joined
+            const joinedEmails = new Set(joined.map(u => u.email));
+            const uniqueInvited = invited.filter(u => !joinedEmails.has(u.email));
+            
+            const allUsers = [...uniqueInvited, ...joined];
             setOrgUsers(allUsers || []);
         } catch (error) {
             toast({

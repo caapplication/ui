@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/components/ui/use-toast';
 import { User, Lock, Shield, Camera, Mail, Eye, EyeOff, Trash2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { getProfile, updateName, updatePassword, toggle2FA, verify2FA, uploadProfilePicture, deleteProfilePicture } from '@/lib/api';
+import { getProfile, updateName, updatePassword, toggle2FA, verify2FA, uploadProfilePicture, deleteProfilePicture, get2FAStatus } from '@/lib/api';
 
 const PasswordInput = ({ id, value, onChange, ...props }) => {
     const [showPassword, setShowPassword] = useState(false);
@@ -58,12 +58,19 @@ const Profile = () => {
     const fetchProfileData = useCallback(async (token) => {
         setIsLoadingProfile(true);
         try {
-            const data = await getProfile(token);
+            const [data, twoFactorStatus] = await Promise.all([
+                getProfile(token),
+                get2FAStatus(token)
+            ]);
             setProfileData(data);
             const [firstName, ...lastNameParts] = data.name.split(' ');
             setFirstName(firstName);
             setLastName(lastNameParts.join(' '));
-            updateUser({ is_2fa_enabled: data.is_2fa_enabled, name: data.name, sub: data.email });
+
+            // Determine 2FA status from API response
+            const is2FA = twoFactorStatus?.status === 'Enabled' || twoFactorStatus?.is_2fa_enabled === true;
+
+            updateUser({ is_2fa_enabled: is2FA, name: data.name, sub: data.email });
         } catch (error) {
             toast({ title: "Error", description: "Failed to fetch profile data.", variant: "destructive" });
         } finally {
