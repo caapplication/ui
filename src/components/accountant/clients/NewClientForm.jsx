@@ -587,76 +587,7 @@ const NewClientForm = ({ onBack, onSave, client, allServices, organisations, bus
                     </div>
 
 
-                    <div className="glass-pane p-6 rounded-lg">
-                        <h2 className="text-xl font-semibold mb-4">Assignments (Optional)</h2>
-                        <p className="text-sm text-gray-400 mb-4">Assign team members and tags. This can also be done later.</p>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <Label>Assigned Team member</Label>
-                                <Select
-                                    onValueChange={v => handleSelectChange('assigned_ca_user_id', v)}
-                                    value={formData.assigned_ca_user_id ? String(formData.assigned_ca_user_id) : ""}
-                                    disabled={isSaving}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue>
-                                            {formData.assigned_ca_user_id
-                                                ? (
-                                                    teamMembers.find(m => String(m.user_id || m.id) === String(formData.assigned_ca_user_id))?.name ||
-                                                    teamMembers.find(m => String(m.user_id || m.id) === String(formData.assigned_ca_user_id))?.email ||
-                                                    "Select a team member"
-                                                )
-                                                : "Select a team member"}
-                                        </SelectValue>
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {teamMembers && teamMembers.filter(member => member.status && member.status.toLowerCase() === 'joined').length > 0 ? (
-                                            teamMembers.filter(member => member.status && member.status.toLowerCase() === 'joined').map(member => (
-                                                <SelectItem key={member.user_id || member.id} value={String(member.user_id || member.id)}>{member.name || member.email}</SelectItem>
-                                            ))
-                                        ) : (
-                                            <SelectItem value="no-members" disabled>No team members found</SelectItem>
-                                        )}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div>
-                                <Label>Tags</Label>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button variant="outline" className="w-full justify-start" disabled={isSaving}>
-                                            <div className="flex gap-1 flex-wrap">
-                                                {formData.tag_ids.map(tagId => {
-                                                    const tag = tags.find(t => t.id === tagId);
-                                                    return <Badge key={tagId} variant="secondary">{tag?.name}</Badge>;
-                                                })}
-                                                {formData.tag_ids.length === 0 && 'Select tags'}
-                                            </div>
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                                        <Command>
-                                            <CommandInput placeholder="Search tags..." />
-                                            <CommandList>
-                                                <CommandEmpty>No tags found.</CommandEmpty>
-                                                <CommandGroup>
-                                                    {tags && tags.map(tag => (
-                                                        <CommandItem
-                                                            key={tag.id}
-                                                            onSelect={() => handleMultiSelectChange('tag_ids', tag.id)}
-                                                        >
-                                                            <Check className={cn("mr-2 h-4 w-4", formData.tag_ids.includes(tag.id) ? "opacity-100" : "opacity-0")} />
-                                                            {tag.name}
-                                                        </CommandItem>
-                                                    ))}
-                                                </CommandGroup>
-                                            </CommandList>
-                                        </Command>
-                                    </PopoverContent>
-                                </Popover>
-                            </div>
-                        </div>
-                    </div>
+
                     {/* Users Section */}
                     <div className="glass-pane p-6 rounded-lg mt-6">
                         <h2 className="text-xl font-semibold mb-4">Users</h2>
