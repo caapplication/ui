@@ -1,0 +1,12 @@
+              <Combobox
+                options={allUsers.map(user => {
+                  const userId = user.user_id || user.id;
+                  let displayRole = '';
+                  if (user.role) {
+                    displayRole = ` (${user.role.replace('CA_', '').replace('_', ' ')})`;
+                  }
+                  return {
+                    value: String(userId),
+                    label: `${user.name || user.email || 'Unnamed User'}${displayRole}`
+                  };
+                })}

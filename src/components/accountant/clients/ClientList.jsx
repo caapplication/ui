@@ -315,7 +315,6 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
                                     <TableHead>Organisation</TableHead>
                                     <TableHead>Assigned To</TableHead>
                                     <TableHead>Status</TableHead>
-                                    <TableHead>Users</TableHead>
                                     <TableHead>Tags</TableHead>
                                     <TableHead className="w-[50px]"></TableHead>
                                 </TableRow>
@@ -346,7 +345,7 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
                                         <TableCell>
                                             {(() => {
                                                 const assignedMember = teamMembers.find(
-                                                    (member) => String(member.user_id) === String(client.assigned_ca_user_id)
+                                                    (member) => String(member.user_id || member.id) === String(client.assigned_ca_user_id)
                                                 );
                                                 return assignedMember ? (
                                                     <div className="flex items-center gap-2">
@@ -363,18 +362,6 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
                                         </TableCell>
                                         <TableCell>
                                             {client.is_active ? <Badge variant="success">Active</Badge> : <Badge variant="destructive">Inactive</Badge>}
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="flex -space-x-2">
-                                                {client.orgUsers &&
-                                                    [...(client.orgUsers.invited_users || []), ...(client.orgUsers.joined_users || [])].map(user => (
-                                                        <Avatar key={user.user_id} className="w-8 h-8 border-2 border-gray-800">
-                                                            <AvatarImage src={user.photo} />
-                                                            <AvatarFallback>{user.email.charAt(0)}</AvatarFallback>
-                                                        </Avatar>
-                                                    ))
-                                                }
-                                            </div>
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex flex-wrap gap-1">
@@ -436,7 +423,7 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
                                     <span className="font-semibold text-xs text-gray-400">Assigned:</span>
                                     {(() => {
                                         const assignedMember = teamMembers.find(
-                                            (member) => String(member.user_id) === String(client.assigned_ca_user_id)
+                                            (member) => String(member.user_id || member.id) === String(client.assigned_ca_user_id)
                                         );
                                         return assignedMember ? (
                                             <div className="flex items-center gap-1">
