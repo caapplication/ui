@@ -296,8 +296,14 @@ import React, { useState, useEffect, useRef } from 'react';
     <ArrowLeft className="w-5 h-5" />
 </Button>
                         <h1 className="text-2xl font-bold text-white">
-                            <span className="text-gray-400 cursor-pointer hover:underline" onClick={onBack}>Clients / </span>
-                            {client ? 'Edit Client' : 'New Client'}
+                            {client ? (
+                                <>
+                                    <span className="text-gray-400 cursor-pointer hover:underline" onClick={onBack}>Clients / </span>
+                                    Edit Client
+                                </>
+                            ) : (
+                                'Client Onboarding'
+                            )}
                         </h1>
                     </div>
                     <div className="flex items-center gap-2">

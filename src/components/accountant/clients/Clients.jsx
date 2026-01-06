@@ -4,7 +4,7 @@ import NewClientForm from '@/components/accountant/clients/NewClientForm';
 import ClientDashboard from '@/components/accountant/clients/ClientDashboard';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
-import { listClients, createClient, updateClient, listServices as fetchAllServices, deleteClient as apiDeleteClient, listOrganisations, getBusinessTypes, listClientServices, listTeamMembers, getTags, uploadClientPhoto, listOrgUsers, listEntities } from '@/lib/api';
+import { listClients, createClient, updateClient, listServices as fetchAllServices, deleteClient as apiDeleteClient, listOrganisations, getBusinessTypes, listClientServices, listTeamMembers, getTags, uploadClientPhoto, listOrgUsers, listEntities, createEntity } from '@/lib/api';
 import { useToast } from '@/components/ui/use-toast';
 import { Loader2 } from 'lucide-react';
 
@@ -330,6 +330,32 @@ const Clients = ({ setActiveTab }) => {
             } else {
                 const newClient = await createClient(clientData, user.agency_id, user.access_token);
                 let finalClient = newClient;
+                
+                // Automatically create entity for the new client
+                if (newClient.organization_id) {
+                    try {
+                        const newEntity = await createEntity({
+                            name: newClient.name,
+                            organization_id: newClient.organization_id
+                        }, user.access_token);
+
+                        // Update organization cache with new entity
+                        const cacheKey = `org-${newClient.organization_id}`;
+                        if (orgDataCache.current.has(cacheKey)) {
+                            const cachedData = orgDataCache.current.get(cacheKey);
+                            const updatedEntities = [...(cachedData.entities || []), newEntity];
+                            orgDataCache.current.set(cacheKey, { ...cachedData, entities: updatedEntities });
+                        }
+                    } catch (entityError) {
+                        console.error("Failed to auto-create entity:", entityError);
+                        toast({
+                            title: "Entity Creation Failed",
+                            description: "Client created, but failed to create corresponding entity.",
+                            variant: "warning"
+                        });
+                    }
+                }
+
                 if (photoFile) {
                     const photoRes = await uploadClientPhoto(newClient.id, photoFile, user.agency_id, user.access_token);
                     // Convert S3 URL to proxy endpoint URL
