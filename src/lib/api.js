@@ -13,14 +13,14 @@ import * as recurringTasks from './api/recurringTasks';
 const API_BASE_URL = import.meta.env.VITE_LOGIN_API_URL || 'http://127.0.0.1:8001';
 export const FINANCE_API_BASE_URL = import.meta.env.VITE_FINANCE_API_URL || 'http://127.0.0.1:8003';
 
-export const { 
-    refreshToken, 
-    requestPasswordReset, 
-    confirmPasswordReset, 
-    getProfile, 
-    updateName, 
-    updatePassword, 
-    toggle2FA, 
+export const {
+    refreshToken,
+    requestPasswordReset,
+    confirmPasswordReset,
+    getProfile,
+    updateName,
+    updatePassword,
+    toggle2FA,
     verify2FA,
     get2FAStatus,
     uploadProfilePicture,
@@ -118,7 +118,13 @@ export const {
     listOrgUsers,
     resendToken,
     inviteOrganizationUser,
-    deleteOrgUser
+    deleteOrgUser,
+    inviteEntityUser,
+    listEntityUsers,
+    deleteEntityUser,
+    deleteInvitedOrgUser,
+    listAllEntityUsers,
+    addEntityUsers
 } = organisation;
 
 export const {

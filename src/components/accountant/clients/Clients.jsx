@@ -4,7 +4,7 @@ import NewClientForm from '@/components/accountant/clients/NewClientForm';
 import ClientDashboard from '@/components/accountant/clients/ClientDashboard';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
-import { listClients, createClient, updateClient, listServices as fetchAllServices, deleteClient as apiDeleteClient, listOrganisations, getBusinessTypes, listClientServices, listTeamMembers, getTags, uploadClientPhoto, listOrgUsers, listEntities, createEntity } from '@/lib/api';
+import { listClients, createClient, updateClient, listServices as fetchAllServices, deleteClient as apiDeleteClient, listOrganisations, getBusinessTypes, listClientServices, listTeamMembers, getTags, uploadClientPhoto, listOrgUsers, listEntities, createEntity, listAllEntityUsers } from '@/lib/api';
 import { useToast } from '@/components/ui/use-toast';
 import { Loader2 } from 'lucide-react';
 
@@ -119,24 +119,25 @@ const Clients = ({ setActiveTab }) => {
                 }
 
                 try {
-                    const [users, entities] = await Promise.allSettled([
-                        listOrgUsers(orgId, user.access_token),
+                    const [usersMapResult, entities] = await Promise.allSettled([
+                        listAllEntityUsers(orgId, user.access_token),
                         listEntities(orgId, user.access_token)
                     ]);
 
-                    const orgUsers = users.status === 'fulfilled' && users.value && (users.value.invited_users || users.value.joined_users)
-                        ? users.value
-                        : { invited_users: [], joined_users: [] };
+                    const entityUsersMap = usersMapResult.status === 'fulfilled' && usersMapResult.value
+                        ? usersMapResult.value
+                        : {};
+
                     const orgEntities = entities.status === 'fulfilled' && Array.isArray(entities.value)
                         ? entities.value
                         : [];
 
-                    const data = { orgUsers, entities: orgEntities };
+                    const data = { entityUsersMap, entities: orgEntities };
                     orgDataCache.current.set(cacheKey, data);
                     return { orgId, data };
                 } catch (e) {
                     console.error(`Failed to fetch org data for ${orgId}:`, e);
-                    const data = { orgUsers: { invited_users: [], joined_users: [] }, entities: [] };
+                    const data = { entityUsersMap: {}, entities: [] };
                     orgDataCache.current.set(cacheKey, data);
                     return { orgId, data };
                 }
@@ -164,13 +165,18 @@ const Clients = ({ setActiveTab }) => {
 
             // Combine all data
             const clientsWithServices = clientsWithData.map(client => {
-                const orgData = orgDataMap.get(client.organization_id) || { orgUsers: { invited_users: [], joined_users: [] }, entities: [] };
+                const orgData = orgDataMap.get(client.organization_id) || { entityUsersMap: {}, entities: [] };
                 const services = clientServicesMap.get(client.id) || [];
+
+                // Use entity-specific users if available, otherwise empty
+                const clientUsers = (orgData.entityUsersMap && orgData.entityUsersMap[client.id])
+                    ? orgData.entityUsersMap[client.id]
+                    : { invited_users: [], joined_users: [] };
 
                 return {
                     ...client,
                     availedServices: services,
-                    orgUsers: orgData.orgUsers,
+                    orgUsers: clientUsers, // Populate orgUsers prop with entity-specific users
                     entities: orgData.entities
                 };
             });
@@ -405,24 +411,33 @@ const Clients = ({ setActiveTab }) => {
     };
 
     const handleClientUserInvited = async () => {
-        // Refresh organization users for the current client
-        if (selectedClient?.organization_id && user?.access_token) {
+        // Refresh users for the current client entity
+        if (selectedClient?.id && user?.access_token) {
             try {
-                const orgUsers = await listOrgUsers(selectedClient.organization_id, user.access_token);
+                const entityUsers = await listEntityUsers(selectedClient.id, user.access_token);
                 const updatedClient = {
                     ...selectedClient,
-                    orgUsers: orgUsers || { invited_users: [], joined_users: [] }
+                    orgUsers: entityUsers || { invited_users: [], joined_users: [] }
                 };
                 setSelectedClient(updatedClient);
                 setClients(prevClients => prevClients.map(c =>
                     c.id === selectedClient.id ? updatedClient : c
                 ));
-                // Update cache
-                const cacheKey = `org-${selectedClient.organization_id}`;
-                const currentOrgData = orgDataCache.current.get(cacheKey) || {};
-                orgDataCache.current.set(cacheKey, { ...currentOrgData, orgUsers });
+
+                // Update cache if possible (optional, but good for consistency)
+                if (selectedClient.organization_id) {
+                    const cacheKey = `org-${selectedClient.organization_id}`;
+                    if (orgDataCache.current.has(cacheKey)) {
+                        const currentData = orgDataCache.current.get(cacheKey);
+                        // Deep update the specific client in the map
+                        const newMap = { ...(currentData.entityUsersMap || {}) };
+                        newMap[selectedClient.id] = entityUsers;
+
+                        orgDataCache.current.set(cacheKey, { ...currentData, entityUsersMap: newMap });
+                    }
+                }
             } catch (error) {
-                console.error('Failed to refresh organization users:', error);
+                console.error('Failed to refresh client users:', error);
             }
         }
     };

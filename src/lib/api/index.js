@@ -108,7 +108,12 @@ export const {
   listOrgUsers,
   resendToken,
   inviteOrganizationUser,
-  deleteOrgUser
+  deleteOrgUser,
+  inviteEntityUser,
+  listEntityUsers,
+  deleteEntityUser,
+  deleteInvitedOrgUser,
+  listAllEntityUsers
 } = organisation;
 
 export const {

@@ -1,5 +1,4 @@
-import React, { useState, useMemo } from 'react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -7,9 +6,11 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Filter, UserPlus, Search } from 'lucide-react';
+import { Filter, UserPlus, Search, Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { resendToken, deleteOrgUser, inviteOrganizationUser, deleteInvitedOrgUser } from '@/lib/api/organisation';
+import { resendToken, inviteEntityUser, listEntityUsers, deleteEntityUser, deleteInvitedOrgUser, listOrgUsers, addEntityUsers } from '@/lib/api/organisation';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/components/ui/use-toast';
 
 const ClientUsersTab = ({ client, onUserInvited }) => {
@@ -21,34 +22,65 @@ const ClientUsersTab = ({ client, onUserInvited }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [userFilter, setUserFilter] = useState('all'); // all, joined, invited
 
-    // Use roles from backend instead of hardcoding
-    const invitedUsers = (client.orgUsers?.invited_users || []).map(user => ({
-        ...user,
+    // State to store users fetched for this entity
+    const [users, setUsers] = useState({ invited_users: [], joined_users: [] });
+    const [loadingUsers, setLoadingUsers] = useState(false);
+
+    // Add Existing Users State
+    const [showAddExistingDialog, setShowAddExistingDialog] = useState(false);
+    const [organizationUsers, setOrganizationUsers] = useState([]);
+    const [selectedUserIds, setSelectedUserIds] = useState([]);
+    const [isAddingUsers, setIsAddingUsers] = useState(false);
+    const [loadingOrgUsers, setLoadingOrgUsers] = useState(false);
+
+    // Fetch users for the current client (entity)
+    const fetchUsers = async () => {
+        if (!client.id && !client.entity_id) return;
+
+        setLoadingUsers(true);
+        try {
+            const entityId = client.id || client.entity_id;
+            const data = await listEntityUsers(entityId, user.access_token);
+            setUsers(data);
+        } catch (error) {
+            console.error("Failed to fetch entity users:", error);
+            // Fallback or just show empty if access denied or error
+        } finally {
+            setLoadingUsers(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchUsers();
+    }, [client.id, client.entity_id, user.access_token]);
+
+    // Format users for display
+    const invitedUsers = (users.invited_users || []).map(u => ({
+        ...u,
         status: 'Invited',
-        role: user.target_role || 'CLIENT_USER'
+        role: u.target_role || 'ENTITY_USER'
     }));
-    const joinedUsers = (client.orgUsers?.joined_users || []).map(user => ({
-        ...user,
+    const joinedUsers = (users.joined_users || []).map(u => ({
+        ...u,
         status: 'Joined'
-        // role already comes from backend User table
     }));
     const allUsers = [...invitedUsers, ...joinedUsers];
 
     const filteredUsers = useMemo(() => {
-        let filtered = allUsers.filter(user => {
+        let filtered = allUsers.filter(u => {
             if (userFilter === 'all') return true;
-            if (userFilter === 'joined') return user.status === 'Joined';
-            if (userFilter === 'invited') return user.status === 'Invited';
+            if (userFilter === 'joined') return u.status === 'Joined';
+            if (userFilter === 'invited') return u.status === 'Invited';
             return true;
         });
 
         // Apply search filter
         if (searchTerm.trim()) {
             const term = searchTerm.toLowerCase();
-            filtered = filtered.filter(user => {
-                const email = (user.email || '').toLowerCase();
-                const role = (user.role || '').toLowerCase();
-                const status = (user.status || '').toLowerCase();
+            filtered = filtered.filter(u => {
+                const email = (u.email || '').toLowerCase();
+                const role = (u.role || '').toLowerCase();
+                const status = (u.status || '').toLowerCase();
                 return email.includes(term) || role.includes(term) || status.includes(term);
             });
         }
@@ -72,14 +104,27 @@ const ClientUsersTab = ({ client, onUserInvited }) => {
     // Handler for Delete User
     const handleDeleteUser = async (userObj) => {
         setLoadingUserId(userObj.user_id || userObj.email);
+        const entityId = client.id || client.entity_id;
         try {
             if (userObj.status === 'Invited') {
+                // If invite, we delete the token. 
+                // Note: deleteInvitedOrgUser deletes based on email. 
+                // If inviting to entity uses same InviteToken table, this might delete invite across board if email key?
+                // InviteTokens are unique by token, but deleteInvitedOrgUser looks up by email.
+                // Depending on backend implementation, it might delete the first one it finds.
+                // But generally users are invited once.
+
+                // Ideally we should have deleteEntityInvite but for now using existing if compatible
                 await deleteInvitedOrgUser(userObj.email, user.access_token);
             } else {
-                await deleteOrgUser(client.organization_id, userObj.user_id, user.access_token);
+                // Determine if we deleting from Organization or Entity
+                // Since this tab is for Entity users, we should use deleteEntityUser
+                await deleteEntityUser(entityId, userObj.user_id, user.access_token);
             }
             toast({ title: "User deleted", description: `User ${userObj.email} deleted.` });
-            window.location.reload();
+
+            // Reload users locally
+            fetchUsers();
         } catch (err) {
             toast({ title: "Error", description: err.message, variant: "destructive" });
         } finally {
@@ -93,17 +138,81 @@ const ClientUsersTab = ({ client, onUserInvited }) => {
             toast({ title: "Error", description: "Please enter a valid email.", variant: "destructive" });
             return;
         }
+
         try {
-            await inviteOrganizationUser(client.organization_id, inviteEmail, user.agency_id, user.access_token);
+            const entityId = client.id || client.entity_id;
+            await inviteEntityUser(entityId, inviteEmail, user.access_token);
             toast({ title: "Success", description: `Invitation sent to ${inviteEmail}.` });
             setShowInviteDialog(false);
             setInviteEmail('');
-            // Refresh only the organization users data
+
+            // Refresh local list
+            fetchUsers();
+
             if (onUserInvited) {
                 onUserInvited();
             }
         } catch (error) {
             toast({ title: "Error", description: `Failed to send invite: ${error.message}`, variant: "destructive" });
+        }
+    };
+
+    const handleOpenAddExisting = async () => {
+        setShowAddExistingDialog(true);
+        setLoadingOrgUsers(true);
+        setSelectedUserIds([]);
+        try {
+            const orgId = client.organization_id;
+            if (!orgId) {
+                toast({ title: "Error", description: "Organization information missing.", variant: "destructive" });
+                return;
+            }
+            const res = await listOrgUsers(orgId, user.access_token);
+
+            // Filter out users already in the entity (either joined or invited)
+            const existingEntityUserIds = new Set([
+                ...(users.joined_users || []).map(u => u.user_id),
+                ...(users.invited_users || []).map(u => u.user_id)
+            ]);
+
+            // Allow adding any 'joined' org user who isn't already in this entity
+            // Using user_id for comparison
+            const available = (res.joined_users || []).filter(u => !existingEntityUserIds.has(u.user_id));
+            setOrganizationUsers(available);
+        } catch (e) {
+            console.error("Failed to fetch org users:", e);
+            toast({ title: "Error", description: "Failed to load organization users.", variant: "destructive" });
+        } finally {
+            setLoadingOrgUsers(false);
+        }
+    };
+
+    const handleToggleSelectUser = (userId) => {
+        setSelectedUserIds(prev =>
+            prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
+        );
+    };
+
+    const handleAddSelectedUsers = async () => {
+        if (selectedUserIds.length === 0) return;
+
+        setIsAddingUsers(true);
+        try {
+            const entityId = client.id || client.entity_id;
+            await addEntityUsers(entityId, selectedUserIds, user.access_token);
+
+            toast({ title: "Success", description: `${selectedUserIds.length} users added to client.` });
+            setShowAddExistingDialog(false);
+            fetchUsers(); // Refresh list
+
+            if (onUserInvited) {
+                onUserInvited(); // Trigger parent refresh if needed
+            }
+        } catch (error) {
+            console.error("Failed to add users:", error);
+            toast({ title: "Error", description: "Failed to add selected users.", variant: "destructive" });
+        } finally {
+            setIsAddingUsers(false);
         }
     };
 
@@ -120,7 +229,11 @@ const ClientUsersTab = ({ client, onUserInvited }) => {
                     />
                 </div>
                 <div className="flex gap-2">
-                    <Button onClick={() => setShowInviteDialog(true)}><UserPlus className="w-4 h-4 mr-2" /> Invite User</Button>
+                    <Button variant="outline" onClick={handleOpenAddExisting}>
+                        <UserPlus className="w-4 h-4 mr-2" />
+                        Add Existing
+                    </Button>
+                    <Button onClick={() => setShowInviteDialog(true)}><UserPlus className="w-4 h-4 mr-2" /> Invite New</Button>
                     <Popover>
                         <PopoverTrigger asChild>
                             <Button variant="secondary" className="flex items-center gap-2">
@@ -163,56 +276,78 @@ const ClientUsersTab = ({ client, onUserInvited }) => {
                     </Popover>
                 </div>
             </div>
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Role</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {filteredUsers.length > 0 ? (
-                        filteredUsers.map(user => (
-                            <TableRow key={user.user_id}>
-                                <TableCell>{user.email}</TableCell>
-                                <TableCell>
-                                    {user.role === 'CLIENT_USER' || user.role === 'CLIENT user'
-                                        ? 'Member'
-                                        : user.role === 'CLIENT_ADMIN'
-                                            ? 'Organization Owner'
-                                            : user.role === 'ENTITY_USER'
-                                                ? 'Entity User'
-                                                : user.role}
-                                </TableCell>
-                                <TableCell>
-                                    <Badge variant={user.status === 'Joined' ? 'success' : 'default'}>
-                                        {user.status}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell>
-                                    <div className="flex gap-2 justify-end">
-                                        {user.status === 'Invited' ? (
-                                            <>
-                                                <Button
-                                                    variant="secondary"
-                                                    size="sm"
-                                                    disabled={loadingUserId === user.user_id}
-                                                    onClick={e => {
-                                                        e.stopPropagation();
-                                                        handleResendInvite(user);
-                                                    }}
-                                                >
-                                                    {loadingUserId === user.user_id ? "Sending..." : "Resend Invite"}
-                                                </Button>
+
+            {loadingUsers ? (
+                <div className="flex justify-center py-8">
+                    <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+                </div>
+            ) : (
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Email</TableHead>
+                            <TableHead>Role</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {filteredUsers.length > 0 ? (
+                            filteredUsers.map(u => (
+                                <TableRow key={u.user_id}>
+                                    <TableCell>{u.email}</TableCell>
+                                    <TableCell>
+                                        {u.role === 'CLIENT_USER' || u.role === 'CLIENT user'
+                                            ? 'Member'
+                                            : u.role === 'CLIENT_ADMIN'
+                                                ? 'Organization Owner'
+                                                : u.role === 'ENTITY_USER'
+                                                    ? 'Entity User'
+                                                    : u.role}
+                                    </TableCell>
+                                    <TableCell>
+                                        <Badge variant={u.status === 'Joined' ? 'success' : 'default'}>
+                                            {u.status}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="flex gap-2 justify-end">
+                                            {u.status === 'Invited' ? (
+                                                <>
+                                                    <Button
+                                                        variant="secondary"
+                                                        size="sm"
+                                                        disabled={loadingUserId === u.user_id}
+                                                        onClick={e => {
+                                                            e.stopPropagation();
+                                                            handleResendInvite(u);
+                                                        }}
+                                                    >
+                                                        {loadingUserId === u.user_id ? "Sending..." : "Resend Invite"}
+                                                    </Button>
+                                                    <Button
+                                                        variant="destructive"
+                                                        size="sm"
+                                                        disabled={loadingUserId === u.user_id}
+                                                        onClick={e => {
+                                                            e.stopPropagation();
+                                                            handleDeleteUser(u);
+                                                        }}
+                                                    >
+                                                        <span className="sr-only">Delete</span>
+                                                        <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
+                                                            <path d="M6 7h12M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2m2 0v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V7h12z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                                        </svg>
+                                                    </Button>
+                                                </>
+                                            ) : (
                                                 <Button
                                                     variant="destructive"
                                                     size="sm"
-                                                    disabled={loadingUserId === user.user_id}
+                                                    disabled={loadingUserId === u.user_id}
                                                     onClick={e => {
                                                         e.stopPropagation();
-                                                        handleDeleteUser(user);
+                                                        handleDeleteUser(u);
                                                     }}
                                                 >
                                                     <span className="sr-only">Delete</span>
@@ -220,40 +355,25 @@ const ClientUsersTab = ({ client, onUserInvited }) => {
                                                         <path d="M6 7h12M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2m2 0v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V7h12z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                                                     </svg>
                                                 </Button>
-                                            </>
-                                        ) : (
-                                            <Button
-                                                variant="destructive"
-                                                size="sm"
-                                                disabled={loadingUserId === user.user_id}
-                                                onClick={e => {
-                                                    e.stopPropagation();
-                                                    handleDeleteUser(user);
-                                                }}
-                                            >
-                                                <span className="sr-only">Delete</span>
-                                                <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
-                                                    <path d="M6 7h12M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2m2 0v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V7h12z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                                </svg>
-                                            </Button>
-                                        )}
-                                    </div>
+                                            )}
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                        ) : (
+                            <TableRow>
+                                <TableCell colSpan="4" className="text-center py-8">
+                                    {searchTerm.trim() ? (
+                                        <span className="text-gray-400">No users found matching "{searchTerm}"</span>
+                                    ) : (
+                                        <span className="text-gray-400">No users found for this entity.</span>
+                                    )}
                                 </TableCell>
                             </TableRow>
-                        ))
-                    ) : (
-                        <TableRow>
-                            <TableCell colSpan="4" className="text-center py-8">
-                                {searchTerm.trim() ? (
-                                    <span className="text-gray-400">No users found matching "{searchTerm}"</span>
-                                ) : (
-                                    <span className="text-gray-400">No users found.</span>
-                                )}
-                            </TableCell>
-                        </TableRow>
-                    )}
-                </TableBody>
-            </Table>
+                        )}
+                    </TableBody>
+                </Table>
+            )}
 
             <Dialog open={showInviteDialog} onOpenChange={setShowInviteDialog}>
                 <DialogContent>
@@ -269,6 +389,47 @@ const ClientUsersTab = ({ client, onUserInvited }) => {
                     <DialogFooter>
                         <DialogClose asChild><Button variant="ghost">Cancel</Button></DialogClose>
                         <Button onClick={handleInviteUser}>Send Invite</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={showAddExistingDialog} onOpenChange={setShowAddExistingDialog}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Add Team Members to Client</DialogTitle>
+                    </DialogHeader>
+
+                    <div className="py-4 max-h-[300px] overflow-y-auto space-y-2">
+                        {loadingOrgUsers ? (
+                            <div className="flex justify-center py-4"><Loader2 className="animate-spin text-gray-400" /></div>
+                        ) : organizationUsers.length === 0 ? (
+                            <p className="text-gray-400 text-center py-4">No other organization members available.</p>
+                        ) : (
+                            organizationUsers.map(u => (
+                                <div key={u.user_id} className="flex items-center space-x-3 p-2 hover:bg-white/5 rounded-lg cursor-pointer" onClick={() => handleToggleSelectUser(u.user_id)}>
+                                    <Checkbox
+                                        checked={selectedUserIds.includes(u.user_id)}
+                                        onCheckedChange={() => handleToggleSelectUser(u.user_id)}
+                                    />
+                                    <Avatar className="w-8 h-8">
+                                        <AvatarImage src={u.photo_url || u.photo} />
+                                        <AvatarFallback>{(u.email || '?').charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                    <div className="flex flex-col">
+                                        <span className="text-sm font-medium">{u.first_name ? `${u.first_name} ${u.last_name || ''}` : u.email.split('@')[0]}</span>
+                                        <span className="text-xs text-gray-400">{u.email}</span>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+
+                    <DialogFooter>
+                        <Button variant="ghost" onClick={() => setShowAddExistingDialog(false)}>Cancel</Button>
+                        <Button onClick={handleAddSelectedUsers} disabled={selectedUserIds.length === 0 || isAddingUsers}>
+                            {isAddingUsers ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                            Add Selected ({selectedUserIds.length})
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

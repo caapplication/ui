@@ -120,8 +120,48 @@ export const inviteOrganizationUser = async (orgId, email, agencyId, token) => {
     return handleResponse(response);
 };
 
+export const inviteEntityUser = async (entityId, email, token) => {
+    const url = `${API_BASE_URL}/invites/entity-user`;
+    const headers = {
+        'accept': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/x-www-form-urlencoded'
+    };
+    const body = new URLSearchParams({
+        email,
+        entity_id: entityId
+    });
+
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: headers,
+        body: body,
+    });
+
+    return handleResponse(response);
+};
+
+export const listEntityUsers = async (entityId, token) => {
+    const response = await fetch(`${API_BASE_URL}/entities/${entityId}/users`, {
+        method: 'GET',
+        headers: getAuthHeaders(token)
+    });
+    return handleResponse(response);
+};
+
+export const deleteEntityUser = async (entityId, userId, token) => {
+    const response = await fetch(`${API_BASE_URL}/entities/${entityId}/users/${userId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(token)
+    });
+    if (response.status === 204 || response.status === 200) {
+        return { success: true };
+    }
+    return handleResponse(response);
+};
+
 export const deleteOrgUser = async (orgId, userId, token) => {
-    const response = await fetch(`${API_BASE_URL}/invites/organization/${orgId}/users/${userId}`, {
+    const response = await fetch(`${API_BASE_URL}/organizations/${orgId}/users/${userId}`, {
         method: 'DELETE',
         headers: getAuthHeaders(token)
     });
@@ -175,6 +215,24 @@ export const inviteCaTeamMember = async (email, ca_id, token) => {
             'Content-Type': 'application/x-www-form-urlencoded'
         },
         body: new URLSearchParams({ email, ca_id })
+    });
+    return handleResponse(response);
+};
+
+export const listAllEntityUsers = async (orgId, token) => {
+    const response = await fetch(`${API_BASE_URL}/entities/org/${orgId}/users`, {
+        method: 'GET',
+        headers: getAuthHeaders(token)
+    });
+    return handleResponse(response);
+    return handleResponse(response);
+};
+
+export const addEntityUsers = async (entityId, userIds, token) => {
+    const response = await fetch(`${API_BASE_URL}/entities/${entityId}/users/batch-add`, {
+        method: 'POST',
+        headers: getAuthHeaders(token, 'application/json'),
+        body: JSON.stringify({ user_ids: userIds })
     });
     return handleResponse(response);
 };
