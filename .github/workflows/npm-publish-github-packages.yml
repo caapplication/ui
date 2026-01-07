@@ -24,19 +24,12 @@ jobs:
         run: |
           ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
             set -e
-
-            source ~/.nvm/nvm.sh
-
             cd ${{ secrets.APP_DIR }}
-
             echo "📥 Pulling latest code"
             git pull origin main
-
             echo "📦 Installing dependencies"
             npm install
-
             echo "🔄 Restarting PM2 app"
             pm2 restart App
-
             pm2 save
           EOF
