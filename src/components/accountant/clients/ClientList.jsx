@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Search, Plus, Upload, Download, Phone, MessageSquare, Settings2, MoreVertical, RefreshCw, ArrowRight, ArrowLeft, Filter, Check, X, UserCheck, Trash2, Loader2, List as ListIcon, Grid as GridIcon } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -356,9 +357,7 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
                                         <TableCell>
                                             <Avatar>
                                                 <AvatarImage
-                                                    src={client.photo_url && client.photo_url.includes('.s3.amazonaws.com/')
-                                                        ? `${import.meta.env.VITE_CLIENT_API_URL || 'http://127.0.0.1:8002'}/clients/${client.id}/photo?token=${user?.access_token}`
-                                                        : (client.photo_url || client.photo)}
+                                                    src={`${import.meta.env.VITE_CLIENT_API_URL || 'http://127.0.0.1:8002'}/clients/${client.id}/photo?token=${user?.access_token}&v=${client.updated_at ? new Date(client.updated_at).getTime() : 0}`}
                                                 />
                                                 <AvatarFallback>{client.name.charAt(0)}</AvatarFallback>
                                             </Avatar>
@@ -372,11 +371,24 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
                                         <TableCell>
                                             <div className="flex -space-x-2">
                                                 {client.orgUsers &&
-                                                    [...(client.orgUsers.invited_users || []), ...(client.orgUsers.joined_users || [])].map(user => (
-                                                        <Avatar key={user.user_id} className="w-8 h-8 border-2 border-gray-800">
-                                                            <AvatarImage src={user.photo} />
-                                                            <AvatarFallback>{user.email.charAt(0)}</AvatarFallback>
-                                                        </Avatar>
+                                                    [...(client.orgUsers.invited_users || []), ...(client.orgUsers.joined_users || [])].map(orgUser => (
+                                                        <TooltipProvider key={orgUser.user_id}>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Avatar className="w-8 h-8 border-2 border-gray-800 cursor-help">
+                                                                        <AvatarImage
+                                                                            src={(orgUser.photo_url || orgUser.photo) && (orgUser.photo_url || orgUser.photo).includes('.s3.amazonaws.com/')
+                                                                                ? `${import.meta.env.VITE_LOGIN_API_URL || 'http://127.0.0.1:8001'}/profile/${orgUser.user_id}/photo?token=${user?.access_token}&v=${Date.now()}`
+                                                                                : (orgUser.photo_url || orgUser.photo)}
+                                                                        />
+                                                                        <AvatarFallback>{orgUser.email.charAt(0)}</AvatarFallback>
+                                                                    </Avatar>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    <p>{orgUser.email}</p>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
                                                     ))
                                                 }
                                             </div>
@@ -396,10 +408,23 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
                                                 return (
                                                     <div className="flex -space-x-2">
                                                         {memberDetails.slice(0, 3).map((member, idx) => (
-                                                            <Avatar key={idx} className="w-8 h-8 border-2 border-gray-800">
-                                                                <AvatarImage src={member.photo} />
-                                                                <AvatarFallback>{member.name ? member.name.charAt(0) : member.email.charAt(0)}</AvatarFallback>
-                                                            </Avatar>
+                                                            <TooltipProvider key={idx}>
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <Avatar className="w-8 h-8 border-2 border-gray-800 cursor-help">
+                                                                            <AvatarImage
+                                                                                src={(member.photo_url || member.photo) && (member.photo_url || member.photo).includes('.s3.amazonaws.com/')
+                                                                                    ? `${import.meta.env.VITE_LOGIN_API_URL || 'http://127.0.0.1:8001'}/profile/${member.id || member.user_id}/photo?token=${user?.access_token}&v=${Date.now()}`
+                                                                                    : (member.photo_url || member.photo)}
+                                                                            />
+                                                                            <AvatarFallback>{member.name ? member.name.charAt(0) : member.email.charAt(0)}</AvatarFallback>
+                                                                        </Avatar>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent>
+                                                                        <p>{member.email}</p>
+                                                                    </TooltipContent>
+                                                                </Tooltip>
+                                                            </TooltipProvider>
                                                         ))}
                                                         {memberDetails.length > 3 && (
                                                             <div className="w-8 h-8 rounded-full bg-gray-700 border-2 border-gray-800 flex items-center justify-center text-xs">
@@ -438,9 +463,7 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
                                 <div className="flex items-center gap-3">
                                     <Avatar className="w-14 h-14">
                                         <AvatarImage
-                                            src={client.photo_url && client.photo_url.includes('.s3.amazonaws.com/')
-                                                ? `${import.meta.env.VITE_CLIENT_API_URL || 'http://127.0.0.1:8002'}/clients/${client.id}/photo`
-                                                : (client.photo_url || client.photo)}
+                                            src={`${import.meta.env.VITE_CLIENT_API_URL || 'http://127.0.0.1:8002'}/clients/${client.id}/photo?token=${user?.access_token}&v=${client.updated_at ? new Date(client.updated_at).getTime() : 0}`}
                                         />
                                         <AvatarFallback>{client.name.charAt(0)}</AvatarFallback>
                                     </Avatar>

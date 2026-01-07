@@ -86,10 +86,17 @@ const Clients = ({ setActiveTab }) => {
                 // Convert S3 URLs to proxy endpoint
                 // Convert S3 URLs to proxy endpoint
                 if (photoUrl && photoUrl.includes('.s3.amazonaws.com/')) {
-                    photoUrl = `${clientApiUrl}/clients/${client.id}/photo?token=${user.access_token}`;
+                    const version = client.updated_at ? new Date(client.updated_at).getTime() : 0;
+                    photoUrl = `${clientApiUrl}/clients/${client.id}/photo?token=${user.access_token}&v=${version}`;
                 } else if (!photoUrl || !photoUrl.includes('/clients/')) {
                     // If no photo_url or it's not a proxy URL, use proxy endpoint (might not exist, but that's OK)
-                    photoUrl = client.id ? `${clientApiUrl}/clients/${client.id}/photo?token=${user.access_token}` : null;
+                    const version = client.updated_at ? new Date(client.updated_at).getTime() : 0;
+                    photoUrl = client.id ? `${clientApiUrl}/clients/${client.id}/photo?token=${user.access_token}&v=${version}` : null;
+                } else if (photoUrl && photoUrl.includes('/clients/') && !photoUrl.includes('token=')) {
+                    // If it is a proxy URL but missing the token, append it
+                    const separator = photoUrl.includes('?') ? '&' : '?';
+                    const version = client.updated_at ? new Date(client.updated_at).getTime() : 0;
+                    photoUrl = `${photoUrl}${separator}token=${user.access_token}&v=${version}`;
                 }
 
                 return {
