@@ -45,6 +45,7 @@ import UpcomingTask from './pages/UpcomingTask.jsx';
 import PublicDocumentView from './pages/PublicDocumentView.jsx';
 import PrivacyPolicy from '@/pages/PrivacyPolicy.jsx';
 import TermsOfService from '@/pages/TermsOfService.jsx';
+import ClientUsersPage from '@/pages/ClientUsersPage.jsx';
 import GlobalFAB from '@/components/common/GlobalFAB';
 
 const ProtectedContent = () => {
@@ -180,7 +181,9 @@ const ProtectedContent = () => {
             <Route path="/todos" element={<TodoPage />} />
             <Route path="/services" element={<Services />} />
             <Route path="/organisation" element={<Organisation />} />
+            <Route path="/organisation" element={<Organisation />} />
             <Route path="/team-members" element={<TeamMembers />} />
+            <Route path="/users" element={<ClientUsersPage />} />
             <Route path="/settings/*" element={<Settings />} />
             <Route path="/tasks/:taskId" element={<TaskDashboardPage />} />
             <Route path="/invoices/:invoiceId" element={<InvoiceDetailsPage />} />
