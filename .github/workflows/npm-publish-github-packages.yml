@@ -24,6 +24,7 @@ jobs:
         run: |
           ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
             set -e
+            sudo su
             cd ${{ secrets.APP_DIR }}
             echo "📥 Pulling latest code"
             git pull origin main
