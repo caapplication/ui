@@ -77,18 +77,19 @@ const Clients = ({ setActiveTab }) => {
                 // Never store blob URLs - always use proxy endpoint
                 const clientApiUrl = import.meta.env.VITE_CLIENT_API_URL || 'http://127.0.0.1:8002';
                 let photoUrl = client.photo_url || client.photo;
-                
+
                 // If it's a blob URL, ignore it and use proxy endpoint
                 if (photoUrl && photoUrl.startsWith('blob:')) {
                     photoUrl = null;
                 }
-                
+
+                // Convert S3 URLs to proxy endpoint
                 // Convert S3 URLs to proxy endpoint
                 if (photoUrl && photoUrl.includes('.s3.amazonaws.com/')) {
-                    photoUrl = `${clientApiUrl}/clients/${client.id}/photo`;
+                    photoUrl = `${clientApiUrl}/clients/${client.id}/photo?token=${user.access_token}`;
                 } else if (!photoUrl || !photoUrl.includes('/clients/')) {
                     // If no photo_url or it's not a proxy URL, use proxy endpoint (might not exist, but that's OK)
-                    photoUrl = client.id ? `${clientApiUrl}/clients/${client.id}/photo` : null;
+                    photoUrl = client.id ? `${clientApiUrl}/clients/${client.id}/photo?token=${user.access_token}` : null;
                 }
 
                 return {
@@ -272,13 +273,13 @@ const Clients = ({ setActiveTab }) => {
                 const updatedClient = await updateClient(editingClient.id, clientData, user.agency_id, user.access_token);
                 const clientApiUrl = import.meta.env.VITE_CLIENT_API_URL || 'http://127.0.0.1:8002';
                 let finalClient = updatedClient;
-                
+
                 if (photoFile) {
                     // Upload new photo
                     await uploadClientPhoto(editingClient.id, photoFile, user.agency_id, user.access_token);
                     // Always use proxy endpoint URL with cache-busting after photo upload
                     const timestamp = Date.now();
-                    const photoUrl = `${clientApiUrl}/clients/${editingClient.id}/photo?t=${timestamp}`;
+                    const photoUrl = `${clientApiUrl}/clients/${editingClient.id}/photo?t=${timestamp}&token=${user.access_token}`;
                     finalClient = { ...updatedClient, photo: photoUrl, photo_url: photoUrl };
                 } else {
                     // No new photo uploaded, but ensure existing photo_url is in proxy format
@@ -286,35 +287,35 @@ const Clients = ({ setActiveTab }) => {
                         if (updatedClient.photo_url.startsWith('blob:')) {
                             // Replace blob URL with proxy endpoint
                             const timestamp = Date.now();
-                            finalClient = { ...updatedClient, photo: `${clientApiUrl}/clients/${editingClient.id}/photo?t=${timestamp}`, photo_url: `${clientApiUrl}/clients/${editingClient.id}/photo?t=${timestamp}` };
+                            finalClient = { ...updatedClient, photo: `${clientApiUrl}/clients/${editingClient.id}/photo?t=${timestamp}&token=${user.access_token}`, photo_url: `${clientApiUrl}/clients/${editingClient.id}/photo?t=${timestamp}&token=${user.access_token}` };
                         } else if (updatedClient.photo_url.includes('.s3.amazonaws.com/')) {
                             // Convert S3 URL to proxy endpoint
                             const timestamp = Date.now();
-                            finalClient = { ...updatedClient, photo: `${clientApiUrl}/clients/${editingClient.id}/photo?t=${timestamp}`, photo_url: `${clientApiUrl}/clients/${editingClient.id}/photo?t=${timestamp}` };
+                            finalClient = { ...updatedClient, photo: `${clientApiUrl}/clients/${editingClient.id}/photo?t=${timestamp}&token=${user.access_token}`, photo_url: `${clientApiUrl}/clients/${editingClient.id}/photo?t=${timestamp}&token=${user.access_token}` };
                         } else if (!updatedClient.photo_url.includes('/clients/')) {
                             // If it's not a proxy URL, convert it
                             const timestamp = Date.now();
-                            finalClient = { ...updatedClient, photo: `${clientApiUrl}/clients/${editingClient.id}/photo?t=${timestamp}`, photo_url: `${clientApiUrl}/clients/${editingClient.id}/photo?t=${timestamp}` };
+                            finalClient = { ...updatedClient, photo: `${clientApiUrl}/clients/${editingClient.id}/photo?t=${timestamp}&token=${user.access_token}`, photo_url: `${clientApiUrl}/clients/${editingClient.id}/photo?t=${timestamp}&token=${user.access_token}` };
                         }
                     }
                 }
                 toast({ title: "✅ Client Updated", description: `Client ${updatedClient.name} has been updated.` });
-                
+
                 // Update clients list
                 const updatedClients = clients.map(c => c.id === editingClient.id ? finalClient : c);
                 setClients(updatedClients);
-                
+
                 // Update selectedClient if it's the same client
                 // Force a fresh fetch by ensuring photo_url is always the proxy URL with cache-busting
                 if (selectedClient && selectedClient.id === editingClient.id) {
                     // Create a completely new client object to force React to detect the change
                     // Use a fresh timestamp to ensure the photo reloads
                     const timestamp = Date.now();
-                    const refreshedClient = { 
+                    const refreshedClient = {
                         ...finalClient,
                         // Force photo_url to be proxy URL with fresh cache-busting
-                        photo_url: `${clientApiUrl}/clients/${editingClient.id}/photo?t=${timestamp}`,
-                        photo: `${clientApiUrl}/clients/${editingClient.id}/photo?t=${timestamp}`
+                        photo_url: `${clientApiUrl}/clients/${editingClient.id}/photo?t=${timestamp}&token=${user.access_token}`,
+                        photo: `${clientApiUrl}/clients/${editingClient.id}/photo?t=${timestamp}&token=${user.access_token}`
                     };
                     setSelectedClient(refreshedClient);
                 }
@@ -330,7 +331,7 @@ const Clients = ({ setActiveTab }) => {
             } else {
                 const newClient = await createClient(clientData, user.agency_id, user.access_token);
                 let finalClient = newClient;
-                
+
                 // Automatically create entity for the new client
                 if (newClient.organization_id) {
                     try {
