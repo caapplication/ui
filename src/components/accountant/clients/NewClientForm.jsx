@@ -588,21 +588,7 @@ const NewClientForm = ({ onBack, onSave, client, allServices, organisations, bus
 
 
 
-                    {/* Users Section */}
-                    <div className="glass-pane p-6 rounded-lg mt-6">
-                        <h2 className="text-xl font-semibold mb-4">Users</h2>
-                        {formData.users && formData.users.length > 0 ? (
-                            <ul className="list-disc pl-6">
-                                {formData.users.map((user, idx) => (
-                                    <li key={user.id || user.email || idx}>
-                                        {user.name || user.email || user.id}
-                                    </li>
-                                ))}
-                            </ul>
-                        ) : (
-                            <p className="text-gray-400">No users assigned.</p>
-                        )}
-                    </div>
+
                 </form>
             </div>
         </div>
