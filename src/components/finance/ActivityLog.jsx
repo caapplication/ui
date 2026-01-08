@@ -9,20 +9,20 @@ import { Label } from '@/components/ui/label';
 
 // Helper functions for localStorage caching
 const getCache = (key) => {
-  try {
-    const item = localStorage.getItem(key);
-    return item ? JSON.parse(item) : null;
-  } catch (e) {
-    return null;
-  }
+    try {
+        const item = localStorage.getItem(key);
+        return item ? JSON.parse(item) : null;
+    } catch (e) {
+        return null;
+    }
 };
 
 const setCache = (key, data) => {
-  try {
-    localStorage.setItem(key, JSON.stringify(data));
-  } catch (e) {
-    // ignore
-  }
+    try {
+        localStorage.setItem(key, JSON.stringify(data));
+    } catch (e) {
+        // ignore
+    }
 };
 
 const ActivityLog = ({ itemId, itemType, showFilter = true }) => {
@@ -35,13 +35,13 @@ const ActivityLog = ({ itemId, itemType, showFilter = true }) => {
 
     const fetchLogs = useCallback(async () => {
         if (!itemId || !itemType || !user?.access_token) return;
-        
+
         const CACHE_KEY = `fynivo_activity_log_${itemType}_${itemId}`;
         const cachedLogs = getCache(CACHE_KEY);
-        
+
         // Use cache only if no date filters are applied (caching filtered results is complex)
         const canUseCache = !startDate && !endDate;
-        
+
         if (canUseCache && cachedLogs) {
             setLogs(cachedLogs);
             setIsLoading(false);
@@ -55,7 +55,7 @@ const ActivityLog = ({ itemId, itemType, showFilter = true }) => {
             const endDateISO = endDate ? new Date(endDate + 'T23:59:59').toISOString() : null; // Include time to cover entire day
             const data = await getActivityLog(itemId, itemType, user.access_token, startDateISO, endDateISO);
             setLogs(data);
-            
+
             if (canUseCache) {
                 setCache(CACHE_KEY, data);
             }
@@ -85,7 +85,7 @@ const ActivityLog = ({ itemId, itemType, showFilter = true }) => {
             </div>
         );
     }
-    
+
     if (logs.length === 0) {
         return (
             <div className="text-center py-10 text-gray-400">
@@ -117,7 +117,7 @@ const ActivityLog = ({ itemId, itemType, showFilter = true }) => {
         const csvRows = [
             headers.join(','),
             ...logs.map(log => {
-                const userDisplay = log.name && log.email 
+                const userDisplay = log.name && log.email
                     ? `${log.name} (${log.email})`
                     : log.name || log.email || 'Unknown User';
                 const timestamp = new Date(log.timestamp).toLocaleString();
@@ -198,84 +198,86 @@ const ActivityLog = ({ itemId, itemType, showFilter = true }) => {
                 </div>
             )}
 
-            {logs.map(log => {
-                // Prefer top-level name/email if present (API returns these at top level)
-                let userDisplay = '';
-                if (log.name && log.email) {
-                    userDisplay = `${log.name} (${log.email})`;
-                } else if (log.name) {
-                    userDisplay = log.name;
-                } else if (log.email) {
-                    userDisplay = log.email;
-                } else if (typeof log.user === 'object' && log.user !== null) {
-                    if (log.user.name && log.user.email) {
-                        userDisplay = `${log.user.name} (${log.user.email})`;
-                    } else if (log.user.name) {
-                        userDisplay = log.user.name;
-                    } else if (log.user.email) {
-                        userDisplay = log.user.email;
+            <div className="overflow-y-auto max-h-[500px] space-y-4 pr-2 custom-scrollbar">
+                {logs.map(log => {
+                    // Prefer top-level name/email if present (API returns these at top level)
+                    let userDisplay = '';
+                    if (log.name && log.email) {
+                        userDisplay = `${log.name} (${log.email})`;
+                    } else if (log.name) {
+                        userDisplay = log.name;
+                    } else if (log.email) {
+                        userDisplay = log.email;
+                    } else if (typeof log.user === 'object' && log.user !== null) {
+                        if (log.user.name && log.user.email) {
+                            userDisplay = `${log.user.name} (${log.user.email})`;
+                        } else if (log.user.name) {
+                            userDisplay = log.user.name;
+                        } else if (log.user.email) {
+                            userDisplay = log.user.email;
+                        } else {
+                            userDisplay = 'Unknown User';
+                        }
+                    } else if (typeof log.user === 'string') {
+                        userDisplay = log.user;
                     } else {
                         userDisplay = 'Unknown User';
                     }
-                } else if (typeof log.user === 'string') {
-                    userDisplay = log.user;
-                } else {
-                    userDisplay = 'Unknown User';
-                }
 
-                // Human-readable action
-                let actionDisplay = '';
-                if (log.action) {
-                    if (log.action.toLowerCase().includes('create')) {
-                        actionDisplay = 'has created';
-                    } else if (log.action.toLowerCase().includes('update')) {
-                        actionDisplay = 'has updated';
-                    } else if (log.action.toLowerCase().includes('delete')) {
-                        actionDisplay = 'has deleted';
-                    } else {
-                        actionDisplay = log.action.toLowerCase();
+                    // Human-readable action
+                    let actionDisplay = '';
+                    if (log.action) {
+                        if (log.action.toLowerCase().includes('create')) {
+                            actionDisplay = 'has created';
+                        } else if (log.action.toLowerCase().includes('update')) {
+                            actionDisplay = 'has updated';
+                        } else if (log.action.toLowerCase().includes('delete')) {
+                            actionDisplay = 'has deleted';
+                        } else {
+                            actionDisplay = log.action.toLowerCase();
+                        }
                     }
-                }
 
-                // Human-readable item type
-                let itemTypeDisplay = '';
-                if (itemType === 'invoice') {
-                    itemTypeDisplay = 'invoice';
-                } else if (itemType === 'voucher') {
-                    itemTypeDisplay = 'voucher';
-                } else if (itemType === 'client') {
-                    itemTypeDisplay = 'client';
-                } else {
-                    itemTypeDisplay = 'item';
-                }
+                    // Human-readable item type
+                    let itemTypeDisplay = '';
+                    if (itemType === 'invoice') {
+                        itemTypeDisplay = 'invoice';
+                    } else if (itemType === 'voucher') {
+                        itemTypeDisplay = 'voucher';
+                    } else if (itemType === 'client') {
+                        itemTypeDisplay = 'client';
+                    } else {
+                        itemTypeDisplay = 'item';
+                    }
 
-                return (
-                    <div key={log.id} className="flex items-start space-x-3 p-3 rounded-lg bg-gray-800/50 border border-gray-700/50">
-                        <div className="flex-shrink-0">
-                            <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center">
-                                <History className="w-4 h-4 text-gray-300" />
+                    return (
+                        <div key={log.id} className="flex items-start space-x-3 p-3 rounded-lg bg-gray-800/50 border border-gray-700/50">
+                            <div className="flex-shrink-0">
+                                <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center">
+                                    <History className="w-4 h-4 text-gray-300" />
+                                </div>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm text-white">
+                                    <span className="font-semibold">{userDisplay}</span> {actionDisplay} {itemTypeDisplay}.
+                                </p>
+                                {log.details &&
+                                    log.details !== "Voucher created" &&
+                                    log.details !== "Voucher updated" &&
+                                    log.details !== "Invoice created" &&
+                                    log.details !== "Invoice updated" && (
+                                        <p className="text-xs text-gray-300 mt-1 ml-4 pl-2 border-l-2 border-gray-600">
+                                            {log.details}
+                                        </p>
+                                    )}
+                                <p className="text-xs text-gray-400 mt-1">
+                                    {new Date(log.timestamp).toLocaleString()}
+                                </p>
                             </div>
                         </div>
-                        <div className="flex-1 min-w-0">
-                            <p className="text-sm text-white">
-                                <span className="font-semibold">{userDisplay}</span> {actionDisplay} {itemTypeDisplay}.
-                            </p>
-                            {log.details && 
-                             log.details !== "Voucher created" && 
-                             log.details !== "Voucher updated" &&
-                             log.details !== "Invoice created" &&
-                             log.details !== "Invoice updated" && (
-                                <p className="text-xs text-gray-300 mt-1 ml-4 pl-2 border-l-2 border-gray-600">
-                                    {log.details}
-                                </p>
-                            )}
-                            <p className="text-xs text-gray-400 mt-1">
-                                {new Date(log.timestamp).toLocaleString()}
-                            </p>
-                        </div>
-                    </div>
-                );
-            })}
+                    );
+                })}
+            </div>
         </div>
     );
 };
