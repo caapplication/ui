@@ -34,6 +34,7 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
     const [photoKey, setPhotoKey] = useState(0);
     const [isPhotoLoading, setIsPhotoLoading] = useState(false);
     const [teamMemberCount, setTeamMemberCount] = useState(0);
+    const [clientUserCount, setClientUserCount] = useState(0);
 
     // Helper function to get the correct photo URL with cache-busting
     const getClientPhotoUrl = (client) => {
@@ -101,8 +102,7 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
         }
     }, [client?.id, client?.photo_url, client?.updated_at, user?.access_token, user?.agency_id]);
 
-    // Fetch team member count
-    useEffect(() => {
+    const fetchTeamMemberCount = () => {
         if (client?.id && user?.access_token) {
             getClientTeamMembers(client.id, user.agency_id, user.access_token)
                 .then(result => {
@@ -113,13 +113,41 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
                     setTeamMemberCount(0);
                 });
         }
-    }, [client?.id, user?.access_token, user?.agency_id]);
+    };
+
+    const fetchClientUserCount = () => {
+        if (user?.access_token && (client.id || client.entity_id)) {
+            const entityId = client.id || client.entity_id;
+            // Imported dynamically or handled via prop if needed, but easier to use API directly since we need it on load
+            import('@/lib/api/organisation').then(({ listEntityUsers }) => {
+                listEntityUsers(entityId, user.access_token)
+                    .then(data => {
+                        const count = (data.invited_users?.length || 0) + (data.joined_users?.length || 0);
+                        setClientUserCount(count);
+                    })
+                    .catch(err => {
+                        console.error("Failed to fetch client users for count:", err);
+                    });
+            });
+        }
+    };
+
+    // Fetch counts on mount
+    useEffect(() => {
+        fetchTeamMemberCount();
+        fetchClientUserCount();
+    }, [client?.id, client?.entity_id, user?.access_token, user?.agency_id]);
+
+    const handleClientUserInvited = () => {
+        fetchClientUserCount();
+        if (onClientUserInvited) onClientUserInvited();
+    };
 
     const tabs = [
         'Details',
         'Services',
         'Passwords',
-        `Client User (${(client.orgUsers?.invited_users?.length || 0) + (client.orgUsers?.joined_users?.length || 0)})`,
+        `Client User (${clientUserCount})`,
         `MyTeam (${teamMemberCount})`,
         'Activity Log'
     ];
@@ -180,7 +208,7 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
                 );
             default:
                 if (activeSubTab.startsWith('Client User')) {
-                    return <ClientUsersTab client={client} onUserInvited={onClientUserInvited} />;
+                    return <ClientUsersTab client={client} onUserInvited={handleClientUserInvited} />;
                 }
                 if (activeSubTab.startsWith('MyTeam')) {
                     return <ClientTeamMembersTab client={client} teamMembers={teamMembers} />;
