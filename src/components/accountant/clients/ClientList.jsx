@@ -171,16 +171,23 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
         const fetchAllClientTeamMembers = async () => {
             if (!user?.access_token || !user?.agency_id) return;
 
-            const teamMembersMap = {};
-            for (const client of clients) {
+
+            const promises = clients.map(async (client) => {
                 try {
                     const result = await getClientTeamMembers(client.id, user.agency_id, user.access_token);
-                    teamMembersMap[client.id] = result.team_members || [];
+                    return { clientId: client.id, members: result.team_members || [] };
                 } catch (error) {
                     console.error(`Failed to fetch team members for client ${client.id}:`, error);
-                    teamMembersMap[client.id] = [];
+                    return { clientId: client.id, members: [] };
                 }
-            }
+            });
+
+            const results = await Promise.all(promises);
+            const teamMembersMap = results.reduce((acc, { clientId, members }) => {
+                acc[clientId] = members;
+                return acc;
+            }, {});
+
             setClientTeamMembers(teamMembersMap);
         };
 
