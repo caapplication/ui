@@ -24,7 +24,7 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, onUpdateClient, onClientDeleted, teamMembers, onTeamMemberInvited, onClientUserInvited }) => {
+const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, onUpdateClient, onClientDeleted, teamMembers, onClientUserInvited }) => {
     const [activeSubTab, setActiveSubTab] = useState('Details');
     const [isDeleting, setIsDeleting] = useState(false);
     const { toast } = useToast();
@@ -165,7 +165,7 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
     const renderTabContent = () => {
         switch (activeSubTab) {
             case 'Details':
-                return <ClientDashboardDetails client={client} teamMembers={teamMembers} onUpdateClient={onUpdateClient} onTeamMemberInvited={onTeamMemberInvited} />;
+                return <ClientDashboardDetails client={client} teamMembers={teamMembers} onUpdateClient={onUpdateClient} />;
             case 'Services':
                 return <ClientServicesTab client={client} allServices={allServices} onUpdateClient={onUpdateClient} />;
             case 'Passwords':

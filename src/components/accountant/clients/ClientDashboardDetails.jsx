@@ -5,14 +5,14 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
-import { Phone, MessageSquare, ExternalLink, UserPlus } from 'lucide-react';
+import { Phone, MessageSquare, ExternalLink } from 'lucide-react';
 import AllowLoginDialog from './AllowLoginDialog';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/hooks/useAuth';
-import { updateClient, inviteTeamMember } from '@/lib/api';
+import { updateClient } from '@/lib/api';
 
 // Mapping between business type enum values and display names
 const businessTypeToEnum = {
@@ -59,16 +59,15 @@ const DetailItem = ({ label, value, children }) => (
     </div>
 );
 
-const ClientDashboardDetails = ({ client, teamMembers = [], onUpdateClient, onTeamMemberInvited }) => {
+const ClientDashboardDetails = ({ client, teamMembers = [], onUpdateClient }) => {
     const { toast } = useToast();
     const { user } = useAuth();
     const [showLoginDialog, setShowLoginDialog] = useState(false);
     const [showTeamMemberDialog, setShowTeamMemberDialog] = useState(false);
-    const [showInviteDialog, setShowInviteDialog] = useState(false);
+
     const [selectedTeamMemberId, setSelectedTeamMemberId] = useState('none');
     const [isUpdating, setIsUpdating] = useState(false);
-    const [inviteEmail, setInviteEmail] = useState('');
-    const [isInviting, setIsInviting] = useState(false);
+
 
     const handleNotImplemented = () => {
         toast({
@@ -132,59 +131,9 @@ const ClientDashboardDetails = ({ client, teamMembers = [], onUpdateClient, onTe
         }
     };
 
-    const handleInviteTeamMember = () => {
-        setInviteEmail('');
-        setShowInviteDialog(true);
-    };
 
-    const handleSendInvite = async () => {
-        if (!inviteEmail.trim() || !inviteEmail.includes('@')) {
-            toast({
-                title: "Error",
-                description: "Please enter a valid email.",
-                variant: "destructive",
-            });
-            return;
-        }
 
-        if (!user?.id || !user?.access_token) {
-            toast({
-                title: "Error",
-                description: "User information is not available.",
-                variant: "destructive",
-            });
-            return;
-        }
 
-        setIsInviting(true);
-        try {
-            await inviteTeamMember(inviteEmail, user.id, user.access_token);
-            toast({
-                title: "Success",
-                description: `Invitation sent to ${inviteEmail}.`,
-            });
-            setShowInviteDialog(false);
-            setInviteEmail('');
-
-            // Notify parent to refresh team members
-            if (onTeamMemberInvited) {
-                onTeamMemberInvited();
-            }
-        } catch (error) {
-            toast({
-                title: "Error",
-                description: error.message || "Failed to send invite.",
-                variant: "destructive",
-            });
-        } finally {
-            setIsInviting(false);
-        }
-    };
-
-    const assignedTeamMember = teamMembers.find(m => {
-        const memberUserId = m.user_id || m.id;
-        return memberUserId && String(memberUserId) === String(client.assigned_ca_user_id);
-    });
 
     // Update selectedTeamMemberId when client changes
     useEffect(() => {
@@ -241,20 +190,7 @@ const ClientDashboardDetails = ({ client, teamMembers = [], onUpdateClient, onTe
                         return member ? (member.name || member.email) : 'Admin';
                     })()} />
                     <DetailItem label="Created On" value={client.created_at ? format(new Date(client.created_at), 'dd MMM, yyyy') : 'N/A'} />
-                    <div>
-                        <p className="text-sm text-gray-400 mb-2">Team Members</p>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleInviteTeamMember}
-                            className="w-full justify-start gap-2"
-                        >
-                            <UserPlus className="w-4 h-4" />
-                            {assignedTeamMember
-                                ? assignedTeamMember.name || assignedTeamMember.email || 'Team Member Assigned'
-                                : 'Add Team Member'}
-                        </Button>
-                    </div>
+
                 </div>
             </div>
 
@@ -317,47 +253,6 @@ const ClientDashboardDetails = ({ client, teamMembers = [], onUpdateClient, onTe
                             className="bg-blue-600 hover:bg-blue-700 text-white"
                         >
                             {isUpdating ? 'Saving...' : 'Save'}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            {/* Invite Team Member Dialog */}
-            <Dialog open={showInviteDialog} onOpenChange={setShowInviteDialog}>
-                <DialogContent className="bg-gray-800 border-gray-700 text-white">
-                    <DialogHeader>
-                        <DialogTitle className="text-white">Invite New Team Member</DialogTitle>
-                    </DialogHeader>
-                    <div className="py-4 space-y-4">
-                        <div>
-                            <Label htmlFor="inviteEmail" className="text-gray-300">Email Address</Label>
-                            <Input
-                                id="inviteEmail"
-                                type="email"
-                                value={inviteEmail}
-                                onChange={(e) => setInviteEmail(e.target.value)}
-                                className="mt-2 bg-gray-700 border-gray-600 text-white"
-                                placeholder="user@example.com"
-                                disabled={isInviting}
-                            />
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <DialogClose asChild>
-                            <Button
-                                variant="ghost"
-                                disabled={isInviting}
-                                className="border-gray-600 text-white hover:bg-gray-700"
-                            >
-                                Cancel
-                            </Button>
-                        </DialogClose>
-                        <Button
-                            onClick={handleSendInvite}
-                            disabled={isInviting}
-                            className="bg-blue-600 hover:bg-blue-700 text-white"
-                        >
-                            {isInviting ? 'Sending...' : 'Send Invite'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
