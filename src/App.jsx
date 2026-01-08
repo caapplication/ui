@@ -183,7 +183,7 @@ const ProtectedContent = () => {
             <Route path="/organisation" element={<Organisation />} />
             <Route path="/organisation" element={<Organisation />} />
             <Route path="/team-members" element={<TeamMembers />} />
-            <Route path="/users" element={<ClientUsersPage />} />
+            <Route path="/users" element={<ClientUsersPage entityId={currentEntity} />} />
             <Route path="/settings/*" element={<Settings />} />
             <Route path="/tasks/:taskId" element={<TaskDashboardPage />} />
             <Route path="/invoices/:invoiceId" element={<InvoiceDetailsPage />} />

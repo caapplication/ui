@@ -5,16 +5,20 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Search, UserPlus, Filter, Loader2, Trash2, RefreshCw } from 'lucide-react';
+import { Search, UserPlus, Filter, Loader2, Trash2, RefreshCw, UserCheck } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/ui/use-toast';
-import { listOrgUsers, inviteOrganizationUser, deleteOrgUser, deleteInvitedOrgUser, resendToken } from '@/lib/api/organisation';
+import { listEntityUsers, inviteEntityUser, deleteEntityUser, deleteInvitedOrgUser, resendToken, listOrgUsers, addEntityUsers } from '@/lib/api/organisation';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
-const ClientUsersPage = () => {
+const ClientUsersPage = ({ entityId }) => {
     const { user } = useAuth();
     const { toast } = useToast();
-    const [users, setUsers] = useState([]);
+
+    // User Lists
+    const [users, setUsers] = useState({ invited_users: [], joined_users: [] });
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [userFilter, setUserFilter] = useState('all'); // all, joined, invited
@@ -24,30 +28,27 @@ const ClientUsersPage = () => {
     const [inviteEmail, setInviteEmail] = useState('');
     const [isInviting, setIsInviting] = useState(false);
 
+    // Add Existing Users State
+    const [showAddExistingDialog, setShowAddExistingDialog] = useState(false);
+    const [organizationUsers, setOrganizationUsers] = useState([]);
+    const [selectedUserIds, setSelectedUserIds] = useState([]);
+    const [isAddingUsers, setIsAddingUsers] = useState(false);
+
     // Action Loading States
     const [loadingUserId, setLoadingUserId] = useState(null);
 
     const fetchUsers = async () => {
-        if (!user?.organization_id || !user?.access_token) return;
+        if (!entityId || !user?.access_token) {
+            setIsLoading(false);
+            return;
+        }
 
         setIsLoading(true);
         try {
-            const data = await listOrgUsers(user.organization_id, user.access_token);
-
-            const invited = (data.invited_users || []).map(u => ({
-                ...u,
-                status: 'Invited',
-                role: u.target_role || 'CLIENT_USER'
-            }));
-
-            const joined = (data.joined_users || []).map(u => ({
-                ...u,
-                status: 'Joined'
-            }));
-
-            setUsers([...invited, ...joined]);
+            const data = await listEntityUsers(entityId, user.access_token);
+            setUsers(data || { invited_users: [], joined_users: [] });
         } catch (error) {
-            console.error("Failed to fetch users:", error);
+            console.error("Failed to fetch entity users:", error);
             toast({
                 title: "Error fetching users",
                 description: error.message,
@@ -60,10 +61,22 @@ const ClientUsersPage = () => {
 
     useEffect(() => {
         fetchUsers();
-    }, [user?.organization_id, user?.access_token]);
+    }, [entityId, user?.access_token]);
+
+    // Format users for display
+    const invitedUsers = (users.invited_users || []).map(u => ({
+        ...u,
+        status: 'Invited',
+        role: u.target_role || 'ENTITY_USER'
+    }));
+    const joinedUsers = (users.joined_users || []).map(u => ({
+        ...u,
+        status: 'Joined'
+    }));
+    const allUsers = [...invitedUsers, ...joinedUsers];
 
     const filteredUsers = useMemo(() => {
-        let filtered = users.filter(u => {
+        let filtered = allUsers.filter(u => {
             if (userFilter === 'all') return true;
             return u.status.toLowerCase() === userFilter.toLowerCase();
         });
@@ -78,7 +91,7 @@ const ClientUsersPage = () => {
         }
 
         return filtered;
-    }, [users, userFilter, searchTerm]);
+    }, [allUsers, userFilter, searchTerm]);
 
     const handleInviteUser = async () => {
         if (!inviteEmail.trim() || !inviteEmail.includes('@')) {
@@ -86,15 +99,14 @@ const ClientUsersPage = () => {
             return;
         }
 
+        if (!entityId) {
+            toast({ title: "No Entity Selected", description: "Please select an entity from the sidebar.", variant: "destructive" });
+            return;
+        }
+
         setIsInviting(true);
         try {
-            // Ensure we have agency_id. If client user doesn't have it directly, 
-            // the backend might need to infer it or we might need to get it from context.
-            // Assuming current user context has agency_id if they are a client user created by an agency.
-            // If not, we might need to rely on the backend to look it up from the organization.
-
-            await inviteOrganizationUser(user.organization_id, inviteEmail, user.agency_id, user.access_token);
-
+            await inviteEntityUser(entityId, inviteEmail, user.access_token);
             toast({ title: "Invitation Sent", description: `Invited ${inviteEmail} successfully.` });
             setShowInviteDialog(false);
             setInviteEmail('');
@@ -103,6 +115,50 @@ const ClientUsersPage = () => {
             toast({ title: "Invitation Failed", description: error.message, variant: "destructive" });
         } finally {
             setIsInviting(false);
+        }
+    };
+
+    const fetchOrganizationUsers = async () => {
+        if (!user?.organization_id || !user?.access_token) return;
+
+        try {
+            const orgData = await listOrgUsers(user.organization_id, user.access_token);
+            const joined = orgData.joined_users || [];
+
+            // Filter out users who are already in this entity
+            const currentEntityUserIds = joinedUsers.map(u => u.user_id);
+            const availableUsers = joined.filter(u => !currentEntityUserIds.includes(u.user_id));
+
+            setOrganizationUsers(availableUsers);
+        } catch (error) {
+            console.error("Failed to fetch org users:", error);
+            toast({ title: "Error", description: error.message, variant: "destructive" });
+        }
+    };
+
+    const handleAddExisting = async () => {
+        if (!showAddExistingDialog) {
+            await fetchOrganizationUsers();
+            setShowAddExistingDialog(true);
+            setSelectedUserIds([]);
+        } else {
+            if (selectedUserIds.length === 0) {
+                toast({ title: "No Users Selected", description: "Please select at least one user.", variant: "warning" });
+                return;
+            }
+
+            setIsAddingUsers(true);
+            try {
+                await addEntityUsers(entityId, selectedUserIds, user.access_token);
+                toast({ title: "Users Added", description: `${selectedUserIds.length} user(s) added successfully.` });
+                setShowAddExistingDialog(false);
+                setSelectedUserIds([]);
+                fetchUsers();
+            } catch (error) {
+                toast({ title: "Error", description: error.message, variant: "destructive" });
+            } finally {
+                setIsAddingUsers(false);
+            }
         }
     };
 
@@ -119,14 +175,14 @@ const ClientUsersPage = () => {
     };
 
     const handleDeleteUser = async (userObj) => {
-        if (!confirm(`Are you sure you want to remove ${userObj.email}?`)) return;
+        if (!confirm(`Are you sure you want to remove ${userObj.email} from this entity?`)) return;
 
         setLoadingUserId(userObj.user_id || userObj.email);
         try {
             if (userObj.status === 'Invited') {
                 await deleteInvitedOrgUser(userObj.email, user.access_token);
             } else {
-                await deleteOrgUser(user.organization_id, userObj.user_id, user.access_token);
+                await deleteEntityUser(entityId, userObj.user_id, user.access_token);
             }
             toast({ title: "User Removed", description: `${userObj.email} has been removed.` });
             fetchUsers();
@@ -137,16 +193,33 @@ const ClientUsersPage = () => {
         }
     };
 
+    if (!entityId) {
+        return (
+            <div className="p-8 h-full flex items-center justify-center text-white">
+                <div className="text-center">
+                    <UserPlus className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                    <h2 className="text-2xl font-bold mb-2">No Entity Selected</h2>
+                    <p className="text-gray-400">Please select an entity from the sidebar to manage users.</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="p-4 md:p-8 h-full flex flex-col text-white">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold">Manage Users</h1>
-                    <p className="text-gray-400 mt-1">Add and manage members of your organization.</p>
+                    <h1 className="text-3xl font-bold">Manage Team</h1>
+                    <p className="text-gray-400 mt-1">Add and manage members of your entity.</p>
                 </div>
-                <Button onClick={() => setShowInviteDialog(true)} className="bg-primary hover:bg-primary/90">
-                    <UserPlus className="w-4 h-4 mr-2" /> Invite User
-                </Button>
+                <div className="flex gap-2">
+                    <Button onClick={handleAddExisting} variant="outline" className="gap-2">
+                        <UserCheck className="w-4 h-4" /> Add Existing
+                    </Button>
+                    <Button onClick={() => setShowInviteDialog(true)} className="bg-primary hover:bg-primary/90 gap-2">
+                        <UserPlus className="w-4 h-4" /> Invite New
+                    </Button>
+                </div>
             </div>
 
             <div className="glass-pane p-4 rounded-lg flex-1 flex flex-col min-h-0">
@@ -201,7 +274,7 @@ const ClientUsersPage = () => {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {isLoading && users.length === 0 ? (
+                            {isLoading && filteredUsers.length === 0 ? (
                                 <TableRow>
                                     <TableCell colSpan={4} className="h-24 text-center">
                                         <Loader2 className="w-6 h-6 animate-spin mx-auto text-primary" />
@@ -217,7 +290,7 @@ const ClientUsersPage = () => {
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-gray-300">
-                                            {u.role === 'CLIENT_ADMIN' ? 'Admin' : 'Member'}
+                                            {u.role === 'ENTITY_ADMIN' ? 'Admin' : 'Member'}
                                         </TableCell>
                                         <TableCell>
                                             <Badge variant={u.status === 'Joined' ? 'default' : 'secondary'} className={u.status === 'Joined' ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' : 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30'}>
@@ -266,6 +339,7 @@ const ClientUsersPage = () => {
                 </div>
             </div>
 
+            {/* Invite New User Dialog */}
             <Dialog open={showInviteDialog} onOpenChange={setShowInviteDialog}>
                 <DialogContent className="glass-pane border-white/10 text-white">
                     <DialogHeader>
@@ -280,6 +354,7 @@ const ClientUsersPage = () => {
                             className="mt-2 glass-input"
                             value={inviteEmail}
                             onChange={(e) => setInviteEmail(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleInviteUser()}
                         />
                     </div>
                     <DialogFooter>
@@ -289,6 +364,64 @@ const ClientUsersPage = () => {
                         <Button onClick={handleInviteUser} disabled={isInviting}>
                             {isInviting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Send Invitation
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Add Existing Users Dialog */}
+            <Dialog open={showAddExistingDialog} onOpenChange={setShowAddExistingDialog}>
+                <DialogContent className="glass-pane border-white/10 text-white max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Add Existing Organization Users</DialogTitle>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <p className="text-sm text-gray-400 mb-4">
+                            Select users from your organization to add to this entity.
+                        </p>
+                        <div className="max-h-96 overflow-y-auto border border-white/10 rounded-md">
+                            {organizationUsers.length > 0 ? (
+                                organizationUsers.map(orgUser => (
+                                    <label
+                                        key={orgUser.user_id}
+                                        className="flex items-center gap-3 p-3 hover:bg-white/5 border-b border-white/10 last:border-0 cursor-pointer"
+                                    >
+                                        <Checkbox
+                                            checked={selectedUserIds.includes(orgUser.user_id)}
+                                            onCheckedChange={(checked) => {
+                                                if (checked) {
+                                                    setSelectedUserIds([...selectedUserIds, orgUser.user_id]);
+                                                } else {
+                                                    setSelectedUserIds(selectedUserIds.filter(id => id !== orgUser.user_id));
+                                                }
+                                            }}
+                                        />
+                                        <Avatar className="w-8 h-8">
+                                            <AvatarFallback className="bg-primary/20 text-primary text-xs">
+                                                {(orgUser.name || orgUser.email).charAt(0).toUpperCase()}
+                                            </AvatarFallback>
+                                        </Avatar>
+                                        <div>
+                                            <p className="font-medium text-sm">{orgUser.name || orgUser.email}</p>
+                                            {orgUser.name && <p className="text-xs text-gray-400">{orgUser.email}</p>}
+                                        </div>
+                                    </label>
+                                ))
+                            ) : (
+                                <div className="p-8 text-center text-gray-400">
+                                    <p>No available users to add.</p>
+                                    <p className="text-sm mt-1">All organization users are already in this entity.</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <DialogClose asChild>
+                            <Button variant="ghost" disabled={isAddingUsers}>Cancel</Button>
+                        </DialogClose>
+                        <Button onClick={handleAddExisting} disabled={isAddingUsers || selectedUserIds.length === 0}>
+                            {isAddingUsers && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Add {selectedUserIds.length > 0 ? `(${selectedUserIds.length})` : ''} Users
                         </Button>
                     </DialogFooter>
                 </DialogContent>
