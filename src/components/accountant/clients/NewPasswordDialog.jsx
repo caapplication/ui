@@ -12,17 +12,17 @@ import { Label } from '@/components/ui/label';
 import { Loader2, ChevronsUpDown, Check, PlusCircle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList
 } from "@/components/ui/command";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
 } from "@/components/ui/popover";
 import NewPortalDialog from './NewPortalDialog';
 import { cn } from '@/lib/utils';
@@ -39,7 +39,7 @@ const usePortals = (agencyId, token) => {
             const data = await getPortals(agencyId, token);
             setPortals(data || []);
         } catch (error) {
-             toast({ title: "Error fetching portals", description: error.message, variant: "destructive" });
+            toast({ title: "Error fetching portals", description: error.message, variant: "destructive" });
         }
     }, [agencyId, token, toast]);
 
@@ -76,9 +76,10 @@ const NewPasswordDialog = ({ isOpen, onClose, onSave, isMutating, passwordData }
     const [isNewPortalOpen, setIsNewPortalOpen] = useState(false);
 
     useEffect(() => {
-        if(isOpen) {
+        if (isOpen) {
             if (passwordData) {
-                setSelectedPortalId(passwordData.portal_id || '');
+                // Check both portal_id (if flat) and portal.id (if nested object)
+                setSelectedPortalId(passwordData.portal_id || passwordData.portal?.id || '');
                 setUsername(passwordData.username || '');
                 setPassword(''); // Don't pre-fill password for security
                 setNotes(passwordData.notes || '');
@@ -93,14 +94,14 @@ const NewPasswordDialog = ({ isOpen, onClose, onSave, isMutating, passwordData }
 
     const handleSave = () => {
         if (!selectedPortalId || !username) {
-            toast({title: "Missing Fields", description: "Portal and Username are required.", variant: "destructive"});
+            toast({ title: "Missing Fields", description: "Portal and Username are required.", variant: "destructive" });
             return;
         }
         if (!passwordData && !password) {
-            toast({title: "Missing Fields", description: "Password is required for new entries.", variant: "destructive"});
+            toast({ title: "Missing Fields", description: "Password is required for new entries.", variant: "destructive" });
             return;
         }
-        
+
         const dataToSave = {
             portal_id: selectedPortalId,
             username,
@@ -113,7 +114,7 @@ const NewPasswordDialog = ({ isOpen, onClose, onSave, isMutating, passwordData }
 
         onSave(dataToSave);
     };
-    
+
     const handleAddNewPortal = () => {
         setOpen(false); // Close the popover
         setIsNewPortalOpen(true);
@@ -126,7 +127,7 @@ const NewPasswordDialog = ({ isOpen, onClose, onSave, isMutating, passwordData }
             setIsNewPortalOpen(false);
         }
     };
-    
+
     const selectedPortal = portals.find(p => p.id === selectedPortalId);
 
     return (
@@ -144,15 +145,15 @@ const NewPasswordDialog = ({ isOpen, onClose, onSave, isMutating, passwordData }
                             <Popover open={open} onOpenChange={setOpen}>
                                 <PopoverTrigger asChild>
                                     <Button
-                                    variant="outline"
-                                    role="combobox"
-                                    aria-expanded={open}
-                                    className="col-span-3 justify-between glass-input"
+                                        variant="outline"
+                                        role="combobox"
+                                        aria-expanded={open}
+                                        className="col-span-3 justify-between glass-input"
                                     >
-                                    {selectedPortal
-                                        ? selectedPortal.name
-                                        : "Select portal..."}
-                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                        {selectedPortal
+                                            ? selectedPortal.name
+                                            : "Select portal..."}
+                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                     </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-[300px] p-0">
@@ -162,22 +163,22 @@ const NewPasswordDialog = ({ isOpen, onClose, onSave, isMutating, passwordData }
                                             <CommandEmpty>No portal found.</CommandEmpty>
                                             <CommandGroup>
                                                 {portals.map((portal) => (
-                                                <CommandItem
-                                                    key={portal.id}
-                                                    value={portal.name}
-                                                    onSelect={() => {
-                                                        setSelectedPortalId(portal.id)
-                                                        setOpen(false)
-                                                    }}
-                                                >
-                                                    <Check
-                                                    className={cn(
-                                                        "mr-2 h-4 w-4",
-                                                        selectedPortalId === portal.id ? "opacity-100" : "opacity-0"
-                                                    )}
-                                                    />
-                                                    {portal.name}
-                                                </CommandItem>
+                                                    <CommandItem
+                                                        key={portal.id}
+                                                        value={portal.name}
+                                                        onSelect={() => {
+                                                            setSelectedPortalId(portal.id)
+                                                            setOpen(false)
+                                                        }}
+                                                    >
+                                                        <Check
+                                                            className={cn(
+                                                                "mr-2 h-4 w-4",
+                                                                selectedPortalId === portal.id ? "opacity-100" : "opacity-0"
+                                                            )}
+                                                        />
+                                                        {portal.name}
+                                                    </CommandItem>
                                                 ))}
                                                 <CommandItem onSelect={handleAddNewPortal} className="text-primary cursor-pointer">
                                                     <PlusCircle className="mr-2 h-4 w-4" />
@@ -203,7 +204,7 @@ const NewPasswordDialog = ({ isOpen, onClose, onSave, isMutating, passwordData }
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="password" className="text-right">
-                                Password { !passwordData && <span className="text-red-500">*</span> }
+                                Password {!passwordData && <span className="text-red-500">*</span>}
                             </Label>
                             <Input
                                 id="password"
@@ -215,7 +216,7 @@ const NewPasswordDialog = ({ isOpen, onClose, onSave, isMutating, passwordData }
                                 disabled={isMutating}
                             />
                         </div>
-                         <div className="grid grid-cols-4 items-center gap-4">
+                        <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="notes" className="text-right">
                                 Notes
                             </Label>
@@ -237,7 +238,7 @@ const NewPasswordDialog = ({ isOpen, onClose, onSave, isMutating, passwordData }
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-            <NewPortalDialog 
+            <NewPortalDialog
                 isOpen={isNewPortalOpen}
                 onClose={() => setIsNewPortalOpen(false)}
                 onSave={handleSaveNewPortal}
