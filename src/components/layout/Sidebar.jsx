@@ -47,18 +47,31 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
   // Fetch clients from Clients table (NOT entities table)
   React.useEffect(() => {
     const fetchClients = async () => {
+      console.log('🔍 Sidebar fetchClients - User data:', {
+        role: user?.role,
+        agency_id: user?.agency_id,
+        organization_id: user?.organization_id,
+        hasToken: !!user?.access_token,
+        fullUser: user
+      });
+
       try {
         let fetchedClients = [];
 
         if (user?.role === 'AGENCY_ADMIN' && user?.agency_id && user?.access_token) {
+          console.log('📞 Calling listClients for AGENCY_ADMIN');
           fetchedClients = await listClients(user.agency_id, user.access_token);
         } else if (user?.role === 'CLIENT_USER' && user?.organization_id && user?.access_token) {
+          console.log('📞 Calling listClientsByOrganization for CLIENT_USER with org_id:', user.organization_id);
           fetchedClients = await listClientsByOrganization(user.organization_id, user.access_token);
+        } else {
+          console.log('⚠️ No API call - conditions not met');
         }
 
+        console.log('✅ Fetched clients:', fetchedClients);
         setClients(fetchedClients || []);
       } catch (error) {
-        console.error("Failed to fetch clients for sidebar:", error);
+        console.error("❌ Failed to fetch clients for sidebar:", error);
       }
     };
 
