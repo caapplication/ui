@@ -25,6 +25,16 @@ export const listClients = async (agencyId, token) => {
     return handleResponse(response);
 };
 
+export const listClientsByOrganization = async (organizationId, token) => {
+    console.log('📡 Fetching clients by organization:', organizationId);
+    const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/organization/${organizationId}`, {
+        method: 'GET',
+        headers: getAuthHeaders(token, 'application/json')
+    });
+    return handleResponse(response);
+};
+
+
 export const createClient = async (clientData, agencyId, token) => {
     const formData = new FormData();
 

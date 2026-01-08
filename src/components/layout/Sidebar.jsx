@@ -26,10 +26,13 @@ import {
 import { useMediaQuery } from '@/hooks/useMediaQuery.jsx';
 import { Link, useLocation } from 'react-router-dom';
 
+import { listClients, listClientsByOrganization } from '@/lib/api/clients';
+
 const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed, isOpen, setIsOpen }) => {
   const { user, logout } = useAuth();
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const location = useLocation();
+  const [clients, setClients] = React.useState([]);
 
   const menuItems = [
     { id: 'dashboard', path: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -41,10 +44,38 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
     { id: 'tasks', path: '/tasks', label: 'Tasks', icon: ListTodo },
   ];
 
+  // Fetch clients from Clients table (NOT entities table)
+  React.useEffect(() => {
+    const fetchClients = async () => {
+      try {
+        let fetchedClients = [];
+
+        if (user?.role === 'AGENCY_ADMIN' && user?.agency_id && user?.access_token) {
+          fetchedClients = await listClients(user.agency_id, user.access_token);
+        } else if (user?.role === 'CLIENT_USER' && user?.organization_id && user?.access_token) {
+          fetchedClients = await listClientsByOrganization(user.organization_id, user.access_token);
+        }
+
+        setClients(fetchedClients || []);
+      } catch (error) {
+        console.error("Failed to fetch clients for sidebar:", error);
+      }
+    };
+
+    fetchClients();
+  }, [user]);
+
   const entitiesToDisplay = useMemo(() => {
     if (!user) return [];
+
+    // Use clients from Clients table for AGENCY_ADMIN and CLIENT_USER
+    if ((user.role === 'AGENCY_ADMIN' || user.role === 'CLIENT_USER') && clients.length > 0) {
+      return clients.filter(c => c.id && c.name);
+    }
+
+    // Fallback to user.entities for other roles
     return (user.entities || []).filter(e => e.id && e.name);
-  }, [user]);
+  }, [user, clients]);
 
   const variants = {
     expanded: { width: 300 },

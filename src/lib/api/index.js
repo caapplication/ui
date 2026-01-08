@@ -118,6 +118,7 @@ export const {
 
 export const {
   listClients,
+  listClientsByOrganization,
   createClient,
   updateClient,
   uploadClientPhoto,
