@@ -13,7 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/components/ui/use-toast';
 
-const ClientUsersTab = ({ client, onUserInvited }) => {
+const ClientUsersTab = ({ client, onUserInvited, onUserDeleted }) => {
     const { user } = useAuth();
     const { toast } = useToast();
     const [loadingUserId, setLoadingUserId] = useState(null);
@@ -125,6 +125,9 @@ const ClientUsersTab = ({ client, onUserInvited }) => {
 
             // Reload users locally
             fetchUsers();
+
+            // Notify parent to update counter
+            if (onUserDeleted) onUserDeleted();
         } catch (err) {
             toast({ title: "Error", description: err.message, variant: "destructive" });
         } finally {

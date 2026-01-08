@@ -11,7 +11,7 @@ import { getClientTeamMembers, assignTeamMembers, removeTeamMember } from '@/lib
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 
-const ClientTeamMembersTab = ({ client, teamMembers = [] }) => {
+const ClientTeamMembersTab = ({ client, teamMembers = [], onTeamMemberChanged }) => {
     const { user } = useAuth();
     const { toast } = useToast();
 
@@ -77,6 +77,7 @@ const ClientTeamMembersTab = ({ client, teamMembers = [] }) => {
             setShowAddDialog(false);
             setSelectedMembers([]);
             fetchAssignedMembers();
+            if (onTeamMemberChanged) onTeamMemberChanged();
         } catch (error) {
             toast({
                 title: 'Error',
@@ -96,6 +97,7 @@ const ClientTeamMembersTab = ({ client, teamMembers = [] }) => {
                 description: 'Team member removed'
             });
             fetchAssignedMembers();
+            if (onTeamMemberChanged) onTeamMemberChanged();
         } catch (error) {
             toast({
                 title: 'Error',

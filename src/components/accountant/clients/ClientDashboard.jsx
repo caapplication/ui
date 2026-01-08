@@ -35,6 +35,8 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
     const [isPhotoLoading, setIsPhotoLoading] = useState(false);
     const [teamMemberCount, setTeamMemberCount] = useState(0);
     const [clientUserCount, setClientUserCount] = useState(0);
+    const [isLoadingTeamCount, setIsLoadingTeamCount] = useState(false);
+    const [isLoadingUserCount, setIsLoadingUserCount] = useState(false);
 
     // Helper function to get the correct photo URL with cache-busting
     const getClientPhotoUrl = (client) => {
@@ -104,6 +106,7 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
 
     const fetchTeamMemberCount = () => {
         if (client?.id && user?.access_token) {
+            setIsLoadingTeamCount(true);
             getClientTeamMembers(client.id, user.agency_id, user.access_token)
                 .then(result => {
                     setTeamMemberCount(result?.team_members?.length || 0);
@@ -111,6 +114,9 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
                 .catch(err => {
                     console.error('Failed to fetch team members:', err);
                     setTeamMemberCount(0);
+                })
+                .finally(() => {
+                    setIsLoadingTeamCount(false);
                 });
         }
     };
@@ -118,6 +124,7 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
     const fetchClientUserCount = () => {
         if (user?.access_token && (client.id || client.entity_id)) {
             const entityId = client.id || client.entity_id;
+            setIsLoadingUserCount(true);
             // Imported dynamically or handled via prop if needed, but easier to use API directly since we need it on load
             import('@/lib/api/organisation').then(({ listEntityUsers }) => {
                 listEntityUsers(entityId, user.access_token)
@@ -127,6 +134,9 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
                     })
                     .catch(err => {
                         console.error("Failed to fetch client users for count:", err);
+                    })
+                    .finally(() => {
+                        setIsLoadingUserCount(false);
                     });
             });
         }
@@ -143,12 +153,42 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
         if (onClientUserInvited) onClientUserInvited();
     };
 
+    const handleClientUserDeleted = () => {
+        fetchClientUserCount();
+    };
+
+    const handleTeamMemberChanged = () => {
+        fetchTeamMemberCount();
+    };
+
     const tabs = [
         'Details',
         'Services',
         'Passwords',
-        `Client User (${clientUserCount})`,
-        `MyTeam (${teamMemberCount})`,
+        {
+            key: 'Client User',
+            label: (
+                <>
+                    Client User {isLoadingUserCount ? (
+                        <Loader2 className="w-3 h-3 animate-spin inline-block" />
+                    ) : (
+                        `(${clientUserCount})`
+                    )}
+                </>
+            )
+        },
+        {
+            key: 'MyTeam',
+            label: (
+                <>
+                    MyTeam {isLoadingTeamCount ? (
+                        <Loader2 className="w-3 h-3 animate-spin inline-block" />
+                    ) : (
+                        `(${teamMemberCount})`
+                    )}
+                </>
+            )
+        },
         'Activity Log'
     ];
 
@@ -208,10 +248,10 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
                 );
             default:
                 if (activeSubTab.startsWith('Client User')) {
-                    return <ClientUsersTab client={client} onUserInvited={handleClientUserInvited} />;
+                    return <ClientUsersTab client={client} onUserInvited={handleClientUserInvited} onUserDeleted={handleClientUserDeleted} />;
                 }
                 if (activeSubTab.startsWith('MyTeam')) {
-                    return <ClientTeamMembersTab client={client} teamMembers={teamMembers} />;
+                    return <ClientTeamMembersTab client={client} teamMembers={teamMembers} onTeamMemberChanged={handleTeamMemberChanged} />;
                 }
                 return (
                     <div className="glass-pane p-8 rounded-lg text-center">
@@ -312,18 +352,24 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
                     <div className="lg:col-span-3">
                         <div className="border-b border-white/10 mb-4">
                             <nav className="-mb-px flex space-x-6 overflow-x-auto">
-                                {tabs.map(tab => (
-                                    <button
-                                        key={tab}
-                                        onClick={() => handleTabClick(tab)}
-                                        className={`${activeSubTab === tab
-                                            ? 'border-primary text-primary'
-                                            : 'border-transparent text-gray-400 hover:text-white hover:border-gray-300'
-                                            } whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors`}
-                                    >
-                                        {tab}
-                                    </button>
-                                ))}
+                                {tabs.map(tab => {
+                                    const tabKey = typeof tab === 'string' ? tab : tab.key;
+                                    const tabLabel = typeof tab === 'string' ? tab : tab.label;
+                                    const isActive = activeSubTab === tabKey || activeSubTab.startsWith(tabKey.split(' ')[0]);
+
+                                    return (
+                                        <button
+                                            key={tabKey}
+                                            onClick={() => handleTabClick(tabKey)}
+                                            className={`${isActive
+                                                ? 'border-primary text-primary'
+                                                : 'border-transparent text-gray-400 hover:text-white hover:border-gray-300'
+                                                } whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2`}
+                                        >
+                                            {tabLabel}
+                                        </button>
+                                    );
+                                })}
                             </nav>
                         </div>
 
