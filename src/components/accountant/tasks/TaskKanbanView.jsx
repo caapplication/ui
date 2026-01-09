@@ -66,13 +66,33 @@ const TaskKanbanView = forwardRef(({
     const [movingTaskId, setMovingTaskId] = useState(null); // Track which task is being moved
     const [localTasks, setLocalTasks] = useState(tasks || []); // Local copy of tasks for optimistic updates
 
+    // Utility function to deduplicate stages by ID
+    const deduplicateStages = useCallback((stagesList) => {
+        if (!Array.isArray(stagesList)) return [];
+
+        const stagesMap = new Map();
+        stagesList.forEach(stage => {
+            if (stage && stage.id) {
+                const stageIdStr = String(stage.id);
+                // Only add if not already present (keeps first occurrence)
+                if (!stagesMap.has(stageIdStr)) {
+                    stagesMap.set(stageIdStr, stage);
+                }
+            }
+        });
+
+        return Array.from(stagesMap.values());
+    }, []);
+
     const fetchStages = useCallback(async () => {
         if (!user?.agency_id || !user?.access_token) return;
         setIsLoadingStages(true);
         try {
             const stagesData = await listTaskStages(user.agency_id, user.access_token);
             const stagesList = Array.isArray(stagesData) ? stagesData : (stagesData?.items || []);
-            const sortedStages = stagesList.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+            // Deduplicate stages before sorting and setting state
+            const uniqueStages = deduplicateStages(stagesList);
+            const sortedStages = uniqueStages.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
             // Force update by creating a new array reference
             setStages([...sortedStages]);
         } catch (error) {
@@ -90,14 +110,16 @@ const TaskKanbanView = forwardRef(({
     useEffect(() => {
         // Use prop stages if available, otherwise fetch
         if (propStages && propStages.length > 0) {
-            const sortedStages = propStages.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+            // Deduplicate prop stages before sorting and setting state
+            const uniqueStages = deduplicateStages(propStages);
+            const sortedStages = uniqueStages.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
             // Force update by creating a new array reference
             setStages([...sortedStages]);
             setIsLoadingStages(false);
         } else {
             fetchStages();
         }
-    }, [propStages, fetchStages]);
+    }, [propStages, fetchStages, deduplicateStages]);
 
     // Update local tasks when prop tasks change
     useEffect(() => {
