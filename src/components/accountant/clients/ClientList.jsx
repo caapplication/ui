@@ -14,7 +14,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
-import { getClientTeamMembers } from '@/lib/api/clients';
+import { getClientTeamMembers, getAllClientTeamMembers } from '@/lib/api/clients';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -166,35 +166,22 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
         setSelectedClients([]);
     }, [currentPage, filters, searchTerm]);
 
-    // Fetch team members for all clients
+    // Fetch team members for all clients using batch endpoint
     useEffect(() => {
-        const fetchAllClientTeamMembers = async () => {
+        const fetchAllAssignments = async () => {
             if (!user?.access_token || !user?.agency_id) return;
-
-
-            const promises = clients.map(async (client) => {
-                try {
-                    const result = await getClientTeamMembers(client.id, user.agency_id, user.access_token);
-                    return { clientId: client.id, members: result.team_members || [] };
-                } catch (error) {
-                    console.error(`Failed to fetch team members for client ${client.id}:`, error);
-                    return { clientId: client.id, members: [] };
-                }
-            });
-
-            const results = await Promise.all(promises);
-            const teamMembersMap = results.reduce((acc, { clientId, members }) => {
-                acc[clientId] = members;
-                return acc;
-            }, {});
-
-            setClientTeamMembers(teamMembersMap);
+            try {
+                const results = await getAllClientTeamMembers(user.agency_id, user.access_token);
+                setClientTeamMembers(results || {});
+            } catch (error) {
+                console.error("Failed to fetch client team members:", error);
+            }
         };
 
-        if (clients.length > 0) {
-            fetchAllClientTeamMembers();
-        }
-    }, [clients, user?.access_token, user?.agency_id]);
+        // Fetch all assignments once when the component mounts or user changes
+        // This is much more efficient than fetching per client
+        fetchAllAssignments();
+    }, [user?.access_token, user?.agency_id]);
 
     const handleNextPage = () => {
         if (currentPage < totalPages) {

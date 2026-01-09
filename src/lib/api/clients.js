@@ -288,6 +288,14 @@ export const getClientDashboard = async (clientId, agencyId, token) => {
 
 // ==================== Team Member Management ====================
 
+export const getAllClientTeamMembers = async (agencyId, token) => {
+    const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/team-members/assignments`, {
+        method: 'GET',
+        headers: getAuthHeaders(token, 'application/json', agencyId)
+    });
+    return handleResponse(response);
+};
+
 export const getClientTeamMembers = async (clientId, agencyId, token) => {
     const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/${clientId}/team-members`, {
         method: 'GET',
