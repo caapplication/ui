@@ -14,7 +14,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
-import { getClientTeamMembers, getAllClientTeamMembers } from '@/lib/api/clients';
+import { getAllClientTeamMembers } from '@/lib/api/clients';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -246,7 +246,7 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
             <div className="flex justify-between items-center mb-4">
                 <h1 className="text-2xl font-bold text-white flex items-center gap-3">
                     <div className="w-3 h-8 bg-primary rounded-full" />
-                    Clients
+                    Client
                 </h1>
                 <div className="flex items-center gap-2">
                     <Button
