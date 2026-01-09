@@ -185,7 +185,7 @@ const ClientUsersPage = ({ entityId }) => {
                 await deleteEntityUser(entityId, userObj.user_id, user.access_token);
             }
             toast({ title: "User Removed", description: `${userObj.email} has been removed.` });
-            fetchUsers();
+            await fetchUsers();
         } catch (error) {
             toast({ title: "Error", description: error.message, variant: "destructive" });
         } finally {
