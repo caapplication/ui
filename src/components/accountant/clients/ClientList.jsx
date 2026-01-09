@@ -246,7 +246,7 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
             <div className="flex justify-between items-center mb-4">
                 <h1 className="text-2xl font-bold text-white flex items-center gap-3">
                     <div className="w-3 h-8 bg-primary rounded-full" />
-                    Client
+                    Clients
                 </h1>
                 <div className="flex items-center gap-2">
                     <Button

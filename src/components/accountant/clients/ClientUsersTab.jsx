@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Filter, UserPlus, Search, Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { resendToken, inviteEntityUser, listEntityUsers, deleteEntityUser, deleteInvitedOrgUser, listOrgUsers, addEntityUsers } from '@/lib/api/organisation';
+import { resendToken, inviteEntityUser, listEntityUsers, deleteEntityUser, deleteInvitedOrgUser, listOrgUsers, addEntityUsers, listAllAccessibleEntityUsers } from '@/lib/api/organisation';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/components/ui/use-toast';
@@ -165,12 +165,8 @@ const ClientUsersTab = ({ client, onUserInvited, onUserDeleted }) => {
         setLoadingOrgUsers(true);
         setSelectedUserIds([]);
         try {
-            const orgId = client.organization_id;
-            if (!orgId) {
-                toast({ title: "Error", description: "Organization information missing.", variant: "destructive" });
-                return;
-            }
-            const res = await listOrgUsers(orgId, user.access_token);
+            // Fetch all entity users from all accessible entities
+            const res = await listAllAccessibleEntityUsers(user.access_token);
 
             // Filter out users already in the entity (either joined or invited)
             const existingEntityUserIds = new Set([
@@ -178,13 +174,12 @@ const ClientUsersTab = ({ client, onUserInvited, onUserDeleted }) => {
                 ...(users.invited_users || []).map(u => u.user_id)
             ]);
 
-            // Allow adding any 'joined' org user who isn't already in this entity
-            // Using user_id for comparison
+            // Allow adding any entity user who isn't already in this entity
             const available = (res.joined_users || []).filter(u => !existingEntityUserIds.has(u.user_id));
             setOrganizationUsers(available);
         } catch (e) {
-            console.error("Failed to fetch org users:", e);
-            toast({ title: "Error", description: "Failed to load organization users.", variant: "destructive" });
+            console.error("Failed to fetch entity users:", e);
+            toast({ title: "Error", description: "Failed to load available users.", variant: "destructive" });
         } finally {
             setLoadingOrgUsers(false);
         }

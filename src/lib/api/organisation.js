@@ -228,6 +228,14 @@ export const listAllEntityUsers = async (orgId, token) => {
     return handleResponse(response);
 };
 
+export const listAllAccessibleEntityUsers = async (token) => {
+    const response = await fetch(`${API_BASE_URL}/entities/all-entity-users`, {
+        method: 'GET',
+        headers: getAuthHeaders(token)
+    });
+    return handleResponse(response);
+};
+
 export const addEntityUsers = async (entityId, userIds, token) => {
     const response = await fetch(`${API_BASE_URL}/entities/${entityId}/users/batch-add`, {
         method: 'POST',
