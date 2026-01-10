@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Search, UserPlus, Filter, Loader2, Trash2, RefreshCw, UserCheck } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/ui/use-toast';
-import { listEntityUsers, inviteEntityUser, deleteEntityUser, deleteInvitedOrgUser, resendToken, listOrgUsers, addEntityUsers } from '@/lib/api/organisation';
+import { listEntityUsers, inviteEntityUser, deleteEntityUser, deleteInvitedOrgUser, resendToken, listAllAccessibleEntityUsers, addEntityUsers } from '@/lib/api/organisation';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -132,23 +132,25 @@ const ClientUsersPage = ({ entityId }) => {
     };
 
     const fetchOrganizationUsers = async () => {
-        if (!user?.organization_id || !user?.access_token) return;
+        if (!user?.access_token) return;
 
         try {
-            const orgData = await listOrgUsers(user.organization_id, user.access_token);
-            const joined = orgData.joined_users || [];
+            // Using listAllAccessibleEntityUsers instead of listOrgUsers
+            // This ensures users who are not direct Organization Members but are Entity Users (like 'om') can still see/add available users
+            const data = await listAllAccessibleEntityUsers(user.access_token);
+            const joined = data.joined_users || [];
 
             // Filter out users who are already in this entity
             const currentEntityUserIds = allUsers.map(u => u.user_id);
 
-            // Deduplicate joined users from org data
+            // Deduplicate joined users returned (though API handles it, safety check)
             const uniqueJoinedUsers = Array.from(new Map(joined.map(item => [item.user_id, item])).values());
 
             const availableUsers = uniqueJoinedUsers.filter(u => !currentEntityUserIds.includes(u.user_id));
 
             setOrganizationUsers(availableUsers);
         } catch (error) {
-            console.error("Failed to fetch org users:", error);
+            console.error("Failed to fetch available users:", error);
             toast({ title: "Error", description: error.message, variant: "destructive" });
         }
     };
