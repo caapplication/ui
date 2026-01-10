@@ -12,6 +12,16 @@ import { listEntityUsers, inviteEntityUser, deleteEntityUser, deleteInvitedOrgUs
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const ClientUsersPage = ({ entityId }) => {
     const { user } = useAuth();
@@ -33,6 +43,9 @@ const ClientUsersPage = ({ entityId }) => {
     const [organizationUsers, setOrganizationUsers] = useState([]);
     const [selectedUserIds, setSelectedUserIds] = useState([]);
     const [isAddingUsers, setIsAddingUsers] = useState(false);
+
+    // Delete Confirmation State
+    const [deleteConfirmation, setDeleteConfirmation] = useState(null);
 
     // Action Loading States
     const [loadingUserId, setLoadingUserId] = useState(null);
@@ -193,9 +206,14 @@ const ClientUsersPage = ({ entityId }) => {
         }
     };
 
-    const handleDeleteUser = async (userObj) => {
-        if (!confirm(`Are you sure you want to remove ${userObj.email} from this entity?`)) return;
+    const handleDeleteUser = (userObj) => {
+        setDeleteConfirmation(userObj);
+    };
 
+    const confirmDelete = async () => {
+        if (!deleteConfirmation) return;
+
+        const userObj = deleteConfirmation;
         setLoadingUserId(userObj.user_id || userObj.email);
         try {
             if (userObj.status === 'Invited') {
@@ -209,6 +227,7 @@ const ClientUsersPage = ({ entityId }) => {
             toast({ title: "Error", description: error.message, variant: "destructive" });
         } finally {
             setLoadingUserId(null);
+            setDeleteConfirmation(null);
         }
     };
 
@@ -445,6 +464,25 @@ const ClientUsersPage = ({ entityId }) => {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* Delete Confirmation Dialog */}
+            <AlertDialog open={!!deleteConfirmation} onOpenChange={(open) => !open && setDeleteConfirmation(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to remove {deleteConfirmation?.email} from this entity?
+                            This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700">
+                            {loadingUserId ? <Loader2 className="w-4 h-4 animate-spin" /> : "Remove"}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 };
