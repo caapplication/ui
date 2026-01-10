@@ -4,7 +4,8 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { User, Plus, Trash2, UserPlus, Loader2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { User, Plus, Trash2, UserPlus, Loader2, Search } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/ui/use-toast';
 import { getClientTeamMembers, assignTeamMembers, removeTeamMember } from '@/lib/api/clients';
@@ -20,6 +21,7 @@ const ClientTeamMembersTab = ({ client, teamMembers = [], onTeamMemberChanged })
     const [isAssigning, setIsAssigning] = useState(false);
     const [showAddDialog, setShowAddDialog] = useState(false);
     const [selectedMembers, setSelectedMembers] = useState([]);
+    const [searchTerm, setSearchTerm] = useState('');
 
     // Fetch assigned team members
     const fetchAssignedMembers = async () => {
@@ -147,33 +149,61 @@ const ClientTeamMembersTab = ({ client, teamMembers = [], onTeamMemberChanged })
                                 <DialogHeader>
                                     <DialogTitle>Add Team Members</DialogTitle>
                                 </DialogHeader>
-                                <div className="max-h-[400px] overflow-y-auto space-y-2 py-4">
-                                    {availableMembers.length === 0 ? (
-                                        <p className="text-gray-400 text-center py-4">All team members are already assigned</p>
-                                    ) : (
-                                        availableMembers.map(member => (
-                                            <div key={member.user_id || member.id} className="flex items-center space-x-2 p-3 rounded hover:bg-gray-700/30">
-                                                <Checkbox
-                                                    id={`member-${member.user_id || member.id}`}
-                                                    checked={selectedMembers.includes(member.user_id || member.id)}
-                                                    onCheckedChange={() => handleSelectMember(member.user_id || member.id)}
-                                                />
-                                                <Label htmlFor={`member-${member.user_id || member.id}`} className="flex-1 cursor-pointer">
-                                                    <div className="flex items-center gap-3">
-                                                        <Avatar className="w-8 h-8">
-                                                            <AvatarFallback className="bg-gradient-to-br from-sky-500 to-indigo-600 text-white text-xs">
-                                                                {member.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'}
-                                                            </AvatarFallback>
-                                                        </Avatar>
-                                                        <div>
-                                                            <div className="font-medium">{member.name || 'Unknown'}</div>
-                                                            <div className="text-sm text-gray-400">{member.email}</div>
-                                                        </div>
+
+                                <div className="space-y-4 py-4">
+                                    <div className="relative">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                        <Input
+                                            placeholder="Search team members..."
+                                            className="pl-10"
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                        />
+                                    </div>
+
+                                    <div className="max-h-[300px] overflow-y-auto space-y-2">
+                                        {availableMembers.length === 0 ? (
+                                            <p className="text-gray-400 text-center py-4">All team members are already assigned</p>
+                                        ) : (
+                                            availableMembers
+                                                .filter(member => {
+                                                    if (!searchTerm) return true;
+                                                    const term = searchTerm.toLowerCase();
+                                                    return (member.name || '').toLowerCase().includes(term) ||
+                                                        (member.email || '').toLowerCase().includes(term);
+                                                })
+                                                .map(member => (
+                                                    <div key={member.user_id || member.id} className="flex items-center space-x-2 p-3 rounded hover:bg-gray-700/30">
+                                                        <Checkbox
+                                                            id={`member-${member.user_id || member.id}`}
+                                                            checked={selectedMembers.includes(member.user_id || member.id)}
+                                                            onCheckedChange={() => handleSelectMember(member.user_id || member.id)}
+                                                        />
+                                                        <Label htmlFor={`member-${member.user_id || member.id}`} className="flex-1 cursor-pointer">
+                                                            <div className="flex items-center gap-3">
+                                                                <Avatar className="w-8 h-8">
+                                                                    <AvatarFallback className="bg-gradient-to-br from-sky-500 to-indigo-600 text-white text-xs">
+                                                                        {member.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'}
+                                                                    </AvatarFallback>
+                                                                </Avatar>
+                                                                <div>
+                                                                    <div className="font-medium">{member.name || 'Unknown'}</div>
+                                                                    <div className="text-sm text-gray-400">{member.email}</div>
+                                                                </div>
+                                                            </div>
+                                                        </Label>
                                                     </div>
-                                                </Label>
-                                            </div>
-                                        ))
-                                    )}
+                                                ))
+                                        )}
+                                        {availableMembers.length > 0 && availableMembers.filter(member => {
+                                            if (!searchTerm) return true;
+                                            const term = searchTerm.toLowerCase();
+                                            return (member.name || '').toLowerCase().includes(term) ||
+                                                (member.email || '').toLowerCase().includes(term);
+                                        }).length === 0 && (
+                                                <p className="text-gray-400 text-center py-4">No members found matching "{searchTerm}"</p>
+                                            )}
+                                    </div>
                                 </div>
                                 <DialogFooter>
                                     <Button variant="ghost" onClick={() => setShowAddDialog(false)}>Cancel</Button>
@@ -192,10 +222,7 @@ const ClientTeamMembersTab = ({ client, teamMembers = [], onTeamMemberChanged })
                             <User className="mx-auto w-12 h-12 text-gray-400 mb-4" />
                             <h3 className="text-xl font-semibold text-white mb-2">No Team Members Assigned</h3>
                             <p className="text-gray-400 mb-4">This client has no team members assigned yet.</p>
-                            <Button onClick={() => setShowAddDialog(true)}>
-                                <Plus className="w-4 h-4 mr-2" />
-                                Add Team Members
-                            </Button>
+                            {/* Button Removed */}
                         </div>
                     ) : (
                         <Table>

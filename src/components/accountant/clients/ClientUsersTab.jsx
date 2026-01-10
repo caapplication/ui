@@ -32,6 +32,7 @@ const ClientUsersTab = ({ client, onUserInvited, onUserDeleted }) => {
     const [selectedUserIds, setSelectedUserIds] = useState([]);
     const [isAddingUsers, setIsAddingUsers] = useState(false);
     const [loadingOrgUsers, setLoadingOrgUsers] = useState(false);
+    const [existingUserSearch, setExistingUserSearch] = useState('');
 
     // Fetch users for the current client (entity)
     const fetchUsers = async () => {
@@ -397,29 +398,57 @@ const ClientUsersTab = ({ client, onUserInvited, onUserDeleted }) => {
                         <DialogTitle>Add Team Members to Client</DialogTitle>
                     </DialogHeader>
 
-                    <div className="py-4 max-h-[300px] overflow-y-auto space-y-2">
-                        {loadingOrgUsers ? (
-                            <div className="flex justify-center py-4"><Loader2 className="animate-spin text-gray-400" /></div>
-                        ) : organizationUsers.length === 0 ? (
-                            <p className="text-gray-400 text-center py-4">No other organization members available.</p>
-                        ) : (
-                            organizationUsers.map(u => (
-                                <div key={u.user_id} className="flex items-center space-x-3 p-2 hover:bg-white/5 rounded-lg cursor-pointer" onClick={() => handleToggleSelectUser(u.user_id)}>
-                                    <Checkbox
-                                        checked={selectedUserIds.includes(u.user_id)}
-                                        onCheckedChange={() => handleToggleSelectUser(u.user_id)}
-                                    />
-                                    <Avatar className="w-8 h-8">
-                                        <AvatarImage src={u.photo_url || u.photo} />
-                                        <AvatarFallback>{(u.email || '?').charAt(0)}</AvatarFallback>
-                                    </Avatar>
-                                    <div className="flex flex-col">
-                                        <span className="text-sm font-medium">{u.first_name ? `${u.first_name} ${u.last_name || ''}` : u.email.split('@')[0]}</span>
-                                        <span className="text-xs text-gray-400">{u.email}</span>
-                                    </div>
-                                </div>
-                            ))
-                        )}
+                    <div className="py-4 space-y-4">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <Input
+                                placeholder="Search users..."
+                                className="pl-10"
+                                value={existingUserSearch}
+                                onChange={(e) => setExistingUserSearch(e.target.value)}
+                            />
+                        </div>
+                        <div className="max-h-[300px] overflow-y-auto space-y-2">
+                            {loadingOrgUsers ? (
+                                <div className="flex justify-center py-4"><Loader2 className="animate-spin text-gray-400" /></div>
+                            ) : organizationUsers.length === 0 ? (
+                                <p className="text-gray-400 text-center py-4">No other organization members available.</p>
+                            ) : (
+                                organizationUsers
+                                    .filter(u => {
+                                        if (!existingUserSearch) return true;
+                                        const term = existingUserSearch.toLowerCase();
+                                        return (u.email || '').toLowerCase().includes(term) ||
+                                            (u.first_name || '').toLowerCase().includes(term) ||
+                                            (u.last_name || '').toLowerCase().includes(term);
+                                    })
+                                    .map(u => (
+                                        <div key={u.user_id} className="flex items-center space-x-3 p-2 hover:bg-white/5 rounded-lg cursor-pointer" onClick={() => handleToggleSelectUser(u.user_id)}>
+                                            <Checkbox
+                                                checked={selectedUserIds.includes(u.user_id)}
+                                                onCheckedChange={() => handleToggleSelectUser(u.user_id)}
+                                            />
+                                            <Avatar className="w-8 h-8">
+                                                <AvatarImage src={u.photo_url || u.photo} />
+                                                <AvatarFallback>{(u.email || '?').charAt(0)}</AvatarFallback>
+                                            </Avatar>
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-medium">{u.first_name ? `${u.first_name} ${u.last_name || ''}` : u.email.split('@')[0]}</span>
+                                                <span className="text-xs text-gray-400">{u.email}</span>
+                                            </div>
+                                        </div>
+                                    ))
+                            )}
+                            {organizationUsers.length > 0 && organizationUsers.filter(u => {
+                                if (!existingUserSearch) return true;
+                                const term = existingUserSearch.toLowerCase();
+                                return (u.email || '').toLowerCase().includes(term) ||
+                                    (u.first_name || '').toLowerCase().includes(term) ||
+                                    (u.last_name || '').toLowerCase().includes(term);
+                            }).length === 0 && (
+                                    <p className="text-gray-400 text-center py-4">No users found matching "{existingUserSearch}"</p>
+                                )}
+                        </div>
                     </div>
 
                     <DialogFooter>
