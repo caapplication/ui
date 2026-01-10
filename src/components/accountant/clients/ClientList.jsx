@@ -109,6 +109,7 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
     const [selectedClients, setSelectedClients] = useState([]);
     const [isBulkDeleting, setIsBulkDeleting] = useState(false);
     const [clientTeamMembers, setClientTeamMembers] = useState({});
+    const [isLoadingAssignments, setIsLoadingAssignments] = useState(true);
     const { user } = useAuth();
     const ITEMS_PER_PAGE = 10;
 
@@ -170,11 +171,14 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
     useEffect(() => {
         const fetchAllAssignments = async () => {
             if (!user?.access_token || !user?.agency_id) return;
+            setIsLoadingAssignments(true);
             try {
                 const results = await getAllClientTeamMembers(user.agency_id, user.access_token);
                 setClientTeamMembers(results || {});
             } catch (error) {
                 console.error("Failed to fetch client team members:", error);
+            } finally {
+                setIsLoadingAssignments(false);
             }
         };
 
@@ -336,7 +340,12 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
                                     <TableHead>Contact No.</TableHead>
                                     <TableHead>Mail ID</TableHead>
                                     <TableHead>Client Users</TableHead>
-                                    <TableHead>My Team</TableHead>
+                                    <TableHead>
+                                        <div className="flex items-center gap-2">
+                                            My Team
+                                            {/* {isLoadingAssignments && <Loader2 className="w-3 h-3 animate-spin text-gray-400" />} */}
+                                        </div>
+                                    </TableHead>
                                     <TableHead>Status</TableHead>
                                     <TableHead className="w-[50px]"></TableHead>
                                 </TableRow>
@@ -384,6 +393,9 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
                                         </TableCell>
                                         <TableCell>
                                             {(() => {
+                                                if (isLoadingAssignments) {
+                                                    return <Loader2 className="w-4 h-4 animate-spin text-gray-400" />;
+                                                }
                                                 const assignedTeamMembers = clientTeamMembers[client.id] || [];
                                                 if (assignedTeamMembers.length === 0) {
                                                     return '-';
