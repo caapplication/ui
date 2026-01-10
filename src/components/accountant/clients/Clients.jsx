@@ -378,8 +378,22 @@ const Clients = ({ setActiveTab }) => {
                         : photoRes.photo_url;
                     finalClient = { ...newClient, photo: photoUrl, photo_url: photoUrl };
                 }
+
+                // Lookup organization name to ensure it displays immediately
+                let orgName = null;
+                if (newClient.organization_id) {
+                    const org = organisations.find(o => o.id === newClient.organization_id);
+                    if (org) orgName = org.name;
+                }
+
                 toast({ title: "✅ Client Created", description: `Client ${newClient.name} has been added.` });
-                setClients(prev => [{ ...finalClient, availedServices: [], orgUsers: { invited_users: [], joined_users: [] }, entities: [] }, ...prev]);
+                setClients(prev => [{
+                    ...finalClient,
+                    organization_name: orgName, // Explicitly add org name
+                    availedServices: [],
+                    orgUsers: { invited_users: [], joined_users: [] },
+                    entities: []
+                }, ...prev]);
                 setView('list');
             }
             // Don't refetch - we already updated the state

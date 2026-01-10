@@ -373,7 +373,7 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
                                         <TableCell>{client.email || '-'}</TableCell>
                                         <TableCell>
                                             <div className="flex -space-x-2">
-                                                {client.orgUsers &&
+                                                {client.orgUsers && [...(client.orgUsers.invited_users || []), ...(client.orgUsers.joined_users || [])].length > 0 ? (
                                                     [...(client.orgUsers.invited_users || []), ...(client.orgUsers.joined_users || [])].map(orgUser => (
                                                         <TooltipProvider key={orgUser.user_id}>
                                                             <Tooltip>
@@ -388,7 +388,9 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
                                                             </Tooltip>
                                                         </TooltipProvider>
                                                     ))
-                                                }
+                                                ) : (
+                                                    <span>-</span>
+                                                )}
                                             </div>
                                         </TableCell>
                                         <TableCell>

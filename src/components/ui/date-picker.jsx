@@ -15,11 +15,21 @@ export function DatePicker({ value, onChange, ...props }) {
   const [date, setDate] = useState(value ? new Date(value) : null);
   const [inputValue, setInputValue] = useState(value ? format(new Date(value), 'dd/MM/yyyy') : '');
   const [popoverOpen, setPopoverOpen] = useState(false);
+  const inputRef = React.useRef(null);
 
   useEffect(() => {
     setDate(value ? new Date(value) : null);
     setInputValue(value ? format(new Date(value), 'dd/MM/yyyy') : '');
   }, [value]);
+
+  useEffect(() => {
+    if (popoverOpen && inputRef.current) {
+      // slight timeout to ensure popover rendering doesn't steal focus last minute
+      setTimeout(() => {
+        inputRef.current.focus();
+      }, 0);
+    }
+  }, [popoverOpen]);
 
   const handleInputChange = (e) => {
     let newVal = e.target.value;
@@ -69,6 +79,7 @@ export function DatePicker({ value, onChange, ...props }) {
       <PopoverTrigger asChild>
         <div className="relative">
           <Input
+            ref={inputRef}
             type="text"
             placeholder="DD/MM/YYYY"
             value={inputValue}
@@ -78,12 +89,11 @@ export function DatePicker({ value, onChange, ...props }) {
           <CalendarIcon className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         </div>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0">
+      <PopoverContent className="w-auto p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
         <Calendar
           mode="single"
           selected={date}
           onSelect={handleDateSelect}
-          initialFocus
           {...props}
         />
       </PopoverContent>
