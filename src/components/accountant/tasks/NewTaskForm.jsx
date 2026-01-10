@@ -373,49 +373,50 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
 
             {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
               <div>
-                <Label htmlFor="client_user_id" className="mb-2">Client</Label>
+                <Label htmlFor="client_id" className="mb-2">Client</Label>
                 <Combobox
-                  options={uniqueClientUsers.map(u => ({
-                    value: String(u.id),
-                    label: u.name || u.email
+                  options={clients.map(c => ({
+                    value: String(c.id),
+                    label: c.name || c.email
                   }))}
-                  value={formData.client_user_id ? String(formData.client_user_id) : ''}
+                  value={formData.client_id ? String(formData.client_id) : ''}
                   onValueChange={(value) => {
-                    // Find the user to get the inferred entity/client ID
-                    const selectedUserId = value;
-                    const inferredClientId = userEntityMap[selectedUserId] || '';
-
                     setFormData(prev => ({
                       ...prev,
-                      client_user_id: selectedUserId,
-                      client_id: inferredClientId
+                      client_id: value
                     }));
                   }}
-                  placeholder="Select a client user"
-                  searchPlaceholder="Search client users..."
-                  emptyText={loadingClientUsers ? "Loading users..." : "No client users found."}
-                  disabled={isSaving || loadingClientUsers}
+                  placeholder="Select a client"
+                  searchPlaceholder="Search clients..."
+                  emptyText="No clients found."
+                  disabled={isSaving}
                 />
-                {!formData.client_id && formData.client_user_id && (
-                  <p className="text-xs text-yellow-400 mt-1">Warning: Could not automatically detect Client Organization for this user.</p>
-                )}
               </div>
             )}
 
             <div>
               <Label htmlFor="assigned_user_id" className="mb-2">Assign To*</Label>
               <Combobox
-                options={teamUsers.map(user => {
-                  const userId = user.user_id || user.id;
-                  let displayRole = '';
-                  if (user.role) {
-                    displayRole = ` (${user.role.replace('CA_', '').replace('_', ' ')})`;
-                  }
-                  return {
-                    value: String(userId),
-                    label: `${user.name || user.email || 'Unnamed User'}${displayRole}`
-                  };
-                })}
+                options={[
+                  ...teamUsers.map(user => {
+                    const userId = user.user_id || user.id;
+                    let displayRole = '';
+                    if (user.role) {
+                      displayRole = ` (${user.role.replace('CA_', '').replace('_', ' ')})`;
+                    }
+                    return {
+                      value: String(userId),
+                      label: `${user.name || user.email || 'Unnamed User'}${displayRole}` // Team Member
+                    };
+                  }),
+                  ...uniqueClientUsers.map(user => {
+                    const userId = user.id || user.user_id;
+                    return {
+                      value: String(userId),
+                      label: `${user.name || user.email} (Client User)`
+                    };
+                  })
+                ]}
                 value={formData.assigned_user_id ? String(formData.assigned_user_id) : ''}
                 onValueChange={(value) => handleSelectChange('assigned_user_id', value)}
                 placeholder="Select a user"
