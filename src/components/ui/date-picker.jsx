@@ -22,9 +22,32 @@ export function DatePicker({ value, onChange, ...props }) {
   }, [value]);
 
   const handleInputChange = (e) => {
-    setInputValue(e.target.value);
-    const parsedDate = parse(e.target.value, 'dd/MM/yyyy', new Date());
-    if (!isNaN(parsedDate)) {
+    let newVal = e.target.value;
+
+    // Whitelist: allow only digits, /, -, .
+    if (!/^[0-9/\-.]*$/.test(newVal)) {
+      return; // Reject invalid characters
+    }
+
+    setInputValue(newVal);
+
+    // Try multiple formats
+    const formats = ['dd/MM/yyyy', 'ddMMyyyy', 'dd-MM-yyyy', 'dd.MM.yyyy'];
+    let parsedDate = null;
+
+    for (const fmt of formats) {
+      const d = parse(newVal, fmt, new Date());
+      // build-in isNaN check for Date
+      if (!isNaN(d) && d.getFullYear() > 1900 && d.getFullYear() < 2100) {
+        // Additional check for ddMMyyyy to ensure full length (avoid matching '101202' as valid date loosely)
+        if (fmt === 'ddMMyyyy' && newVal.length !== 8) continue;
+
+        parsedDate = d;
+        break;
+      }
+    }
+
+    if (parsedDate) {
       setDate(parsedDate);
       if (onChange) {
         onChange(parsedDate);
