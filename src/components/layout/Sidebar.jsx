@@ -82,7 +82,8 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
     if (!user) return [];
 
     // Use clients from Clients table for AGENCY_ADMIN and CLIENT_USER
-    if ((user.role === 'AGENCY_ADMIN' || user.role === 'CLIENT_USER') && clients.length > 0) {
+    if (user.role === 'AGENCY_ADMIN' || user.role === 'CLIENT_USER') {
+      // Return clients (even if empty initially) to avoid fallback to user.entities which causes duplicates from "first API"
       return clients.filter(c => c.id && c.name);
     }
 
