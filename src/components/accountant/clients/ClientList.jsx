@@ -370,11 +370,6 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>
                                                                     <Avatar className="w-8 h-8 border-2 border-gray-800 cursor-help">
-                                                                        <AvatarImage
-                                                                            src={(orgUser.photo_url || orgUser.photo) && (orgUser.photo_url || orgUser.photo).includes('.s3.amazonaws.com/')
-                                                                                ? `${import.meta.env.VITE_LOGIN_API_URL || 'http://127.0.0.1:8001'}/profile/${orgUser.user_id}/photo?token=${user?.access_token}&v=${Date.now()}`
-                                                                                : (orgUser.photo_url || orgUser.photo)}
-                                                                        />
                                                                         <AvatarFallback>{orgUser.email.charAt(0)}</AvatarFallback>
                                                                     </Avatar>
                                                                 </TooltipTrigger>
@@ -406,11 +401,6 @@ const ClientList = ({ clients, onAddNew, onViewClient, onEditClient, allServices
                                                                 <Tooltip>
                                                                     <TooltipTrigger asChild>
                                                                         <Avatar className="w-8 h-8 border-2 border-gray-800 cursor-help">
-                                                                            <AvatarImage
-                                                                                src={(member.photo_url || member.photo) && (member.photo_url || member.photo).includes('.s3.amazonaws.com/')
-                                                                                    ? `${import.meta.env.VITE_LOGIN_API_URL || 'http://127.0.0.1:8001'}/profile/${member.id || member.user_id}/photo?token=${user?.access_token}&v=${Date.now()}`
-                                                                                    : (member.photo_url || member.photo)}
-                                                                            />
                                                                             <AvatarFallback>{member.name ? member.name.charAt(0) : member.email.charAt(0)}</AvatarFallback>
                                                                         </Avatar>
                                                                     </TooltipTrigger>
