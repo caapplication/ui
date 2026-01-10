@@ -30,15 +30,19 @@ import {
 const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, task, stages = [], selectedOrg }) => {
   const { toast } = useToast();
   const { user } = useAuth();
-  const [allUsers, setAllUsers] = useState([]);
+  const [teamUsers, setTeamUsers] = useState([]);
+  const [uniqueClientUsers, setUniqueClientUsers] = useState([]); // All unique client users across all entities
+  const [userEntityMap, setUserEntityMap] = useState({}); // Map of user_id -> entity_id (for client_id inference)
   const [loadingUsers, setLoadingUsers] = useState(true);
+  const [loadingClientUsers, setLoadingClientUsers] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     client_id: '',
+    client_user_id: '',
     service_id: '',
     stage_id: '',
     due_date: null,
-    due_time: '12:00',  // Time for due date (HH:mm format)
+    due_time: '12:00',
     description: '',
     checklist_enabled: false,
     checklist_items: [],
@@ -46,18 +50,18 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
     priority: '',
     tag_id: '',
     is_recurring: false,
-    recurrence_frequency: 'weekly', // 'daily', 'weekly', 'monthly', 'quarterly', 'half_yearly', 'yearly'
-    recurrence_time: '09:00', // Time for daily recurrence (HH:mm format)
-    recurrence_day_of_week: null, // 0-6 (Monday-Sunday) for weekly
-    recurrence_date: null, // Full date for monthly and yearly
-    recurrence_day_of_month: null, // 1-31 for quarterly and half_yearly
+    recurrence_frequency: 'weekly',
+    recurrence_time: '09:00',
+    recurrence_day_of_week: null,
+    recurrence_date: null,
+    recurrence_day_of_month: null,
     recurrence_start_date: null
   });
   const [isSaving, setIsSaving] = useState(false);
 
-  // Fetch all users (org users, team members, CA users) for assignment
+  // Fetch CA Team Members for "Assign To"
   useEffect(() => {
-    const fetchAllUsers = async () => {
+    const fetchTeamUsers = async () => {
       if (!user?.access_token) {
         setLoadingUsers(false);
         return;
@@ -67,84 +71,104 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
       try {
         const usersList = [];
 
-        // Fetch team members
-        try {
-          const teamMembersData = await listTeamMembers(user.access_token);
-          const normalizedTeamMembers = Array.isArray(teamMembersData)
-            ? teamMembersData
-            : (teamMembersData?.members || teamMembersData?.data || []);
-
-          normalizedTeamMembers.forEach(member => {
-            const memberId = member.user_id || member.id;
-            if (memberId && !usersList.find(u => (u.user_id || u.id) === memberId)) {
-              usersList.push({
-                id: memberId,
-                user_id: memberId,
-                name: member.name || member.full_name || `${member.first_name || ''} ${member.last_name || ''}`.trim() || member.email,
-                email: member.email || member.user_email,
-                type: 'team_member',
-                role: member.role
-              });
-            }
-          });
-        } catch (error) {
-          console.warn('Failed to fetch team members:', error);
-        }
-
-        // Fetch organization users if org is selected
-        if (selectedOrg && user.role === 'CA_ACCOUNTANT') {
+        // Use props first if available, otherwise fetch
+        let membersData = teamMembers;
+        if (!membersData || membersData.length === 0) {
           try {
-            const orgUsersData = await listOrgUsers(selectedOrg, user.access_token);
-            const normalizedOrgUsers = Array.isArray(orgUsersData?.invited_users)
-              ? orgUsersData.invited_users
-              : (Array.isArray(orgUsersData?.joined_users) ? orgUsersData.joined_users : []);
-
-            normalizedOrgUsers.forEach(orgUser => {
-              const userId = orgUser.id || orgUser.user_id;
-              if (userId && !usersList.find(u => (u.user_id || u.id) === userId)) {
-                usersList.push({
-                  id: userId,
-                  user_id: userId,
-                  name: orgUser.name || orgUser.full_name || `${orgUser.first_name || ''} ${orgUser.last_name || ''}`.trim() || orgUser.email,
-                  email: orgUser.email || orgUser.user_email,
-                  type: 'org_user',
-                  role: orgUser.role
-                });
-              }
-            });
-          } catch (error) {
-            console.warn('Failed to fetch org users:', error);
+            const res = await listTeamMembers(user.access_token);
+            membersData = Array.isArray(res) ? res : (res?.members || res?.data || []);
+          } catch (e) {
+            console.warn('Failed to fetch team members', e);
+            membersData = [];
           }
         }
 
-        // Add CA users (from teamMembers prop if available)
-        if (teamMembers && Array.isArray(teamMembers)) {
-          teamMembers.forEach(member => {
+        if (Array.isArray(membersData)) {
+          membersData.forEach(member => {
             const memberId = member.user_id || member.id;
-            if (memberId && !usersList.find(u => (u.user_id || u.id) === memberId)) {
+            // Only add valid IDs
+            if (memberId && !usersList.find(u => u.id === memberId)) {
               usersList.push({
                 id: memberId,
                 user_id: memberId,
-                name: member.name || member.email,
+                name: member.name || member.full_name || member.email,
                 email: member.email,
-                type: 'ca_user',
                 role: member.role
               });
             }
           });
         }
-
-        setAllUsers(usersList);
+        setTeamUsers(usersList);
       } catch (error) {
-        console.error('Error fetching users:', error);
-        setAllUsers([]);
+        console.error('Error fetching team users:', error);
+        setTeamUsers([]);
       } finally {
         setLoadingUsers(false);
       }
     };
 
-    fetchAllUsers();
-  }, [user?.access_token, selectedOrg, teamMembers]);
+    fetchTeamUsers();
+  }, [user?.access_token, teamMembers]);
+
+  // Fetch ALL Client Users for the new "Client" dropdown logic
+  useEffect(() => {
+    const fetchAllClientUsers = async () => {
+      if (!user?.access_token || (user.role !== 'CA_ACCOUNTANT' && user.role !== 'CA_TEAM')) {
+        return;
+      }
+
+      setLoadingClientUsers(true);
+      try {
+        // Import the new API function dynamically
+        const api = await import('@/lib/api');
+
+        // Check for listAllClientUsers (new endpoint) or fallback to listAllAccessibleEntityUsers
+        const listFunc = api.listAllClientUsers || api.listAllAccessibleEntityUsers;
+
+        if (listFunc) {
+          const response = await listFunc(user.access_token);
+          // Expected response: array of objects { user_id, name, email, entity_id, organization_id, organization_name, ... }
+
+          const rawList = Array.isArray(response) ? response : (response?.users || []);
+
+          const uniqueMap = new Map();
+          const entityMap = {};
+
+          rawList.forEach(u => {
+            const uid = u.user_id || u.id;
+            // Prefer organization_id as it maps to client_id in our context
+            const entityId = u.organization_id || u.entity_id;
+
+            if (uid) {
+              // Store entity mapping
+              if (!entityMap[uid] && entityId) {
+                entityMap[uid] = entityId;
+              }
+
+              if (!uniqueMap.has(uid)) {
+                uniqueMap.set(uid, {
+                  id: uid,
+                  name: u.name || u.full_name || u.email,
+                  email: u.email,
+                  entity_name: u.organization_name || u.entity_name
+                });
+              }
+            }
+          });
+
+          setUniqueClientUsers(Array.from(uniqueMap.values()));
+          setUserEntityMap(entityMap);
+        }
+      } catch (error) {
+        console.error("Failed to fetch all client users:", error);
+        setUniqueClientUsers([]);
+      } finally {
+        setLoadingClientUsers(false);
+      }
+    };
+
+    fetchAllClientUsers();
+  }, [user?.access_token, user?.role]);
 
   useEffect(() => {
     if (task) {
@@ -293,6 +317,7 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
     const taskData = {
       title: formData.title,
       client_id: isCAUser ? formData.client_id : null,
+      client_user_id: isCAUser ? (formData.client_user_id || null) : null,
       service_id: null, // Service field removed
       stage_id: stageId || null,
       due_date: formData.due_date ? format(formData.due_date, 'yyyy-MM-dd') : null,
@@ -348,26 +373,39 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
 
             {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
               <div>
-                <Label htmlFor="client_id" className="mb-2">Client*</Label>
+                <Label htmlFor="client_user_id" className="mb-2">Client*</Label>
                 <Combobox
-                  options={(clients || []).map(client => ({
-                    value: String(client.id),
-                    label: client.name || 'Unnamed Client'
+                  options={uniqueClientUsers.map(u => ({
+                    value: String(u.id),
+                    label: u.name || u.email
                   }))}
-                  value={formData.client_id ? String(formData.client_id) : ''}
-                  onValueChange={(value) => handleSelectChange('client_id', value)}
-                  placeholder="Select a client"
-                  searchPlaceholder="Search clients..."
-                  emptyText="No clients found."
-                  disabled={isSaving}
+                  value={formData.client_user_id ? String(formData.client_user_id) : ''}
+                  onValueChange={(value) => {
+                    // Find the user to get the inferred entity/client ID
+                    const selectedUserId = value;
+                    const inferredClientId = userEntityMap[selectedUserId] || '';
+
+                    setFormData(prev => ({
+                      ...prev,
+                      client_user_id: selectedUserId,
+                      client_id: inferredClientId
+                    }));
+                  }}
+                  placeholder="Select a client user"
+                  searchPlaceholder="Search client users..."
+                  emptyText={loadingClientUsers ? "Loading users..." : "No client users found."}
+                  disabled={isSaving || loadingClientUsers}
                 />
+                {!formData.client_id && formData.client_user_id && (
+                  <p className="text-xs text-yellow-400 mt-1">Warning: Could not automatically detect Client Organization for this user.</p>
+                )}
               </div>
             )}
 
             <div>
               <Label htmlFor="assigned_user_id" className="mb-2">Assign To*</Label>
               <Combobox
-                options={allUsers.map(user => {
+                options={teamUsers.map(user => {
                   const userId = user.user_id || user.id;
                   let displayRole = '';
                   if (user.role) {
