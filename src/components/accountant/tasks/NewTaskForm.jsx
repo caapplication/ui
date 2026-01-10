@@ -373,7 +373,7 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
 
             {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
               <div>
-                <Label htmlFor="client_user_id" className="mb-2">Client*</Label>
+                <Label htmlFor="client_user_id" className="mb-2">Client</Label>
                 <Combobox
                   options={uniqueClientUsers.map(u => ({
                     value: String(u.id),
