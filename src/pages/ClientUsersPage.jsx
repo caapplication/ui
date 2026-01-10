@@ -64,16 +64,29 @@ const ClientUsersPage = ({ entityId }) => {
     }, [entityId, user?.access_token]);
 
     // Format users for display
-    const invitedUsers = (users.invited_users || []).map(u => ({
-        ...u,
-        status: 'Invited',
-        role: u.target_role || 'ENTITY_USER'
-    }));
-    const joinedUsers = (users.joined_users || []).map(u => ({
-        ...u,
-        status: 'Joined'
-    }));
-    const allUsers = [...invitedUsers, ...joinedUsers];
+    const allUsers = useMemo(() => {
+        const uniqueUsersMap = new Map();
+
+        // Process joined users first to prioritize their 'Joined' status
+        (users.joined_users || []).forEach(u => {
+            if (u.email && !uniqueUsersMap.has(u.email)) {
+                uniqueUsersMap.set(u.email, { ...u, status: 'Joined' });
+            }
+        });
+
+        // Process invited users, adding only if not already present (as Joined)
+        (users.invited_users || []).forEach(u => {
+            if (u.email && !uniqueUsersMap.has(u.email)) {
+                uniqueUsersMap.set(u.email, {
+                    ...u,
+                    status: 'Invited',
+                    role: u.target_role || 'ENTITY_USER'
+                });
+            }
+        });
+
+        return Array.from(uniqueUsersMap.values());
+    }, [users]);
 
     const filteredUsers = useMemo(() => {
         let filtered = allUsers.filter(u => {
@@ -126,8 +139,12 @@ const ClientUsersPage = ({ entityId }) => {
             const joined = orgData.joined_users || [];
 
             // Filter out users who are already in this entity
-            const currentEntityUserIds = joinedUsers.map(u => u.user_id);
-            const availableUsers = joined.filter(u => !currentEntityUserIds.includes(u.user_id));
+            const currentEntityUserIds = allUsers.map(u => u.user_id);
+
+            // Deduplicate joined users from org data
+            const uniqueJoinedUsers = Array.from(new Map(joined.map(item => [item.user_id, item])).values());
+
+            const availableUsers = uniqueJoinedUsers.filter(u => !currentEntityUserIds.includes(u.user_id));
 
             setOrganizationUsers(availableUsers);
         } catch (error) {
