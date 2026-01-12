@@ -26,7 +26,9 @@ const TeamMembers = () => {
         setLoading(true);
         try {
             const members = await listTeamMembers(user.access_token, 'joined');
-            setTeam(members);
+            // Filter out current user
+            const filteredMembers = members.filter(member => member.email !== user.email);
+            setTeam(filteredMembers);
         } catch (error) {
             toast({ title: "Error", description: `Failed to fetch team members: ${error.message}`, variant: "destructive" });
         } finally {
