@@ -480,20 +480,12 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                                         <TableRow key={task.id} className="hover:bg-white/5 cursor-pointer" onClick={() => onViewTask && onViewTask(task.id)}>
                                             {/* T.ID */}
                                             <TableCell>
-                                                <Badge
-                                                    variant="outline"
-                                                    className={`w-fit italic flex items-center gap-1.5 ${task.has_unread_messages ? 'animate-pulse' : ''}`}
-                                                    style={{
-                                                        backgroundColor: task.has_unread_messages ? '#f9731620' : '#3b82f620',
-                                                        color: task.has_unread_messages ? '#f97316' : '#3b82f6',
-                                                        borderColor: task.has_unread_messages ? '#f9731650' : '#3b82f650'
-                                                    }}
-                                                >
+                                                <div className={`flex items-center gap-1.5 font-medium ${task.has_unread_messages ? 'text-orange-400 animate-pulse' : 'text-white'}`}>
                                                     {task.has_unread_messages && (
                                                         <Bell className="w-3.5 h-3.5" />
                                                     )}
                                                     {taskId}
-                                                </Badge>
+                                                </div>
                                             </TableCell>
 
                                             {/* TASK DETAILS */}
