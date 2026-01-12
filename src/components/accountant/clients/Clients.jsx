@@ -312,6 +312,14 @@ const Clients = ({ setActiveTab }) => {
                         }
                     }
                 }
+
+                // Fix: Lookup organization name to ensure it displays immediately after update
+                let orgName = null;
+                if (updatedClient.organization_id) {
+                    const org = organisations.find(o => o.id === updatedClient.organization_id);
+                    if (org) orgName = org.name;
+                }
+                finalClient = { ...finalClient, organization_name: orgName };
                 toast({ title: "✅ Client Updated", description: `Client ${updatedClient.name} has been updated.` });
 
                 // Update clients list
