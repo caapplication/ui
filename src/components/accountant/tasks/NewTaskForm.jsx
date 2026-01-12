@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -31,8 +31,7 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
   const { toast } = useToast();
   const { user } = useAuth();
   const [teamUsers, setTeamUsers] = useState([]);
-  const [uniqueClientUsers, setUniqueClientUsers] = useState([]); // All unique client users across all entities
-  const [userEntityMap, setUserEntityMap] = useState({}); // Map of user_id -> entity_id (for client_id inference)
+  const [selectedClientUsers, setSelectedClientUsers] = useState([]); // Users for the currently selected client
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [loadingClientUsers, setLoadingClientUsers] = useState(false);
   const [formData, setFormData] = useState({
@@ -67,21 +66,44 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
         return;
       }
 
+      const isCAUser = user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM';
+      
+      // For CA users, always fetch team members to ensure we have the latest data
+      // For non-CA users, use prop if available, otherwise fetch
       setLoadingUsers(true);
       try {
         const usersList = [];
+        let membersData = [];
 
-        // Use props first if available, otherwise fetch
-        let membersData = teamMembers;
-        if (!membersData || membersData.length === 0) {
+        // For CA users, always fetch from API to ensure fresh data
+        if (isCAUser) {
           try {
-            const res = await listTeamMembers(user.access_token);
+            console.log('DEBUG: Fetching team members from API for CA user...');
+            const res = await listTeamMembers(user.access_token, 'joined');
+            console.log('DEBUG: API Response listTeamMembers:', res);
             membersData = Array.isArray(res) ? res : (res?.members || res?.data || []);
           } catch (e) {
-            console.warn('Failed to fetch team members', e);
-            membersData = [];
+            console.error('DEBUG: Error fetching team members:', e);
+            // Fallback to prop if API fails
+            membersData = Array.isArray(teamMembers) ? teamMembers : [];
+          }
+        } else {
+          // For non-CA users, use prop first if available
+          if (teamMembers && Array.isArray(teamMembers) && teamMembers.length > 0) {
+            membersData = teamMembers;
+          } else {
+            // Fetch if prop not available
+            try {
+              const res = await listTeamMembers(user.access_token, 'joined');
+              membersData = Array.isArray(res) ? res : (res?.members || res?.data || []);
+            } catch (e) {
+              console.error('DEBUG: Error fetching team members:', e);
+              membersData = [];
+            }
           }
         }
+
+        console.log('DEBUG: Processing membersData:', membersData);
 
         if (Array.isArray(membersData)) {
           membersData.forEach(member => {
@@ -98,77 +120,81 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
             }
           });
         }
+
+        console.log('DEBUG: Final teamUsers set:', usersList);
         setTeamUsers(usersList);
       } catch (error) {
-        console.error('Error fetching team users:', error);
-        setTeamUsers([]);
+        console.error("DEBUG: Failed to fetch team users:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load team members.",
+          variant: "destructive"
+        });
       } finally {
         setLoadingUsers(false);
       }
     };
 
     fetchTeamUsers();
-  }, [user?.access_token, teamMembers]);
+  }, [user?.access_token, user?.role]);
 
-  // Fetch ALL Client Users for the new "Client" dropdown logic
+  // Fetch users for the selected client when client_id changes
   useEffect(() => {
-    const fetchAllClientUsers = async () => {
+    const fetchClientUsers = async () => {
+      // Only fetch if CA user and client is selected
       if (!user?.access_token || (user.role !== 'CA_ACCOUNTANT' && user.role !== 'CA_TEAM')) {
+        return;
+      }
+
+      if (!formData.client_id) {
+        // No client selected, clear client users
+        setSelectedClientUsers([]);
         return;
       }
 
       setLoadingClientUsers(true);
       try {
-        // Import the new API function dynamically
-        const api = await import('@/lib/api');
+        // Import the API function
+        const { listEntityUsers } = await import('@/lib/api');
 
-        // Check for listAllClientUsers (new endpoint) or fallback to listAllAccessibleEntityUsers
-        const listFunc = api.listAllClientUsers || api.listAllAccessibleEntityUsers;
+        // Fetch users for this specific client/entity
+        const response = await listEntityUsers(formData.client_id, user.access_token);
 
-        if (listFunc) {
-          const response = await listFunc(user.access_token);
-          // Expected response: array of objects { user_id, name, email, entity_id, organization_id, organization_name, ... }
-
-          const rawList = Array.isArray(response) ? response : (response?.users || []);
-
-          const uniqueMap = new Map();
-          const entityMap = {};
-
-          rawList.forEach(u => {
-            const uid = u.user_id || u.id;
-            // Prefer organization_id as it maps to client_id in our context
-            const entityId = u.organization_id || u.entity_id;
-
-            if (uid) {
-              // Store entity mapping
-              if (!entityMap[uid] && entityId) {
-                entityMap[uid] = entityId;
-              }
-
-              if (!uniqueMap.has(uid)) {
-                uniqueMap.set(uid, {
-                  id: uid,
-                  name: u.name || u.full_name || u.email,
-                  email: u.email,
-                  entity_name: u.organization_name || u.entity_name
-                });
-              }
-            }
-          });
-
-          setUniqueClientUsers(Array.from(uniqueMap.values()));
-          setUserEntityMap(entityMap);
+        // API returns { invited_users: [], joined_users: [...] }
+        let usersList = [];
+        if (Array.isArray(response)) {
+          usersList = response;
+        } else if (response?.joined_users || response?.invited_users) {
+          // Combine both joined and invited users for assignment
+          usersList = [
+            ...(response.joined_users || []),
+            ...(response.invited_users || [])
+          ];
+        } else if (response?.users) {
+          usersList = response.users;
         }
+
+        console.log('Fetched client users for client', formData.client_id, ':', usersList);
+
+        // Map to a consistent format
+        const formattedUsers = usersList.map(u => ({
+          id: u.user_id || u.id,
+          name: u.name || u.full_name || u.email,
+          email: u.email,
+          role: u.role || u.target_role
+        }));
+
+        setSelectedClientUsers(formattedUsers);
       } catch (error) {
-        console.error("Failed to fetch all client users:", error);
-        setUniqueClientUsers([]);
+        console.error("Failed to fetch client users:", error);
+        setSelectedClientUsers([]);
       } finally {
         setLoadingClientUsers(false);
       }
     };
 
-    fetchAllClientUsers();
-  }, [user?.access_token, user?.role]);
+    fetchClientUsers();
+  }, [formData.client_id, user?.access_token, user?.role]);
 
   useEffect(() => {
     if (task) {
@@ -244,16 +270,12 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const isCAUser = user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM';
     const requiredFields = ['title', 'assigned_user_id'];
-    if (isCAUser) {
-      requiredFields.push('client_id');
-    }
+    // Client is now optional for CA users
 
     const missingFields = requiredFields.filter(field => !formData[field]);
     if (missingFields.length > 0) {
       const fieldNames = missingFields.map(f => {
-        if (f === 'client_id') return 'Client';
         if (f === 'assigned_user_id') return 'Assign To';
         return 'Task Title';
       });
@@ -314,9 +336,11 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
 
     setIsSaving(true);
 
+    const isCAUser = user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM';
+
     const taskData = {
       title: formData.title,
-      client_id: isCAUser ? formData.client_id : null,
+      client_id: isCAUser ? (formData.client_id || null) : null,
       client_user_id: isCAUser ? (formData.client_user_id || null) : null,
       service_id: null, // Service field removed
       stage_id: stageId || null,
@@ -345,6 +369,56 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
     await onSave(taskData, !!task);
     setIsSaving(false);
   };
+
+
+  // Compute Assign To options based on current state
+  const assignToOptions = useMemo(() => {
+    const isCAUser = user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM';
+
+    // If CA user and client is selected, show only that client's users
+    if (isCAUser && formData.client_id) {
+      return selectedClientUsers.map(clientUser => ({
+        value: String(clientUser.id),
+        label: `${clientUser.name || clientUser.email} (Client User)`
+      }));
+    }
+
+    // If CA user and no client selected, show only CA team members
+    if (isCAUser && !formData.client_id) {
+      // Return empty array if still loading to show loading state
+      if (loadingUsers) {
+        return [];
+      }
+      return teamUsers.map(teamUser => {
+        const userId = teamUser.user_id || teamUser.id;
+        let displayRole = '';
+        if (teamUser.role) {
+          displayRole = ` (${teamUser.role.replace('CA_', '').replace('_', ' ')})`;
+        }
+        return {
+          value: String(userId),
+          label: `${teamUser.name || teamUser.email || 'Unnamed User'}${displayRole}`
+        };
+      });
+    }
+
+    // For non-CA users, show only team users
+    // Return empty array if still loading to show loading state
+    if (loadingUsers) {
+      return [];
+    }
+    return teamUsers.map(teamUser => {
+      const userId = teamUser.user_id || teamUser.id;
+      let displayRole = '';
+      if (teamUser.role) {
+        displayRole = ` (${teamUser.role.replace('CA_', '').replace('_', ' ')})`;
+      }
+      return {
+        value: String(userId),
+        label: `${teamUser.name || teamUser.email || 'Unnamed User'}${displayRole}`
+      };
+    });
+  }, [formData.client_id, teamUsers, selectedClientUsers, user?.role, loadingUsers]);
 
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-8 text-white">
@@ -383,10 +457,11 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
                   onValueChange={(value) => {
                     setFormData(prev => ({
                       ...prev,
-                      client_id: value
+                      client_id: value || '', // Allow clearing the client
+                      assigned_user_id: '' // Reset assignee when client changes
                     }));
                   }}
-                  placeholder="Select a client"
+                  placeholder="Select a client (optional)"
                   searchPlaceholder="Search clients..."
                   emptyText="No clients found."
                   disabled={isSaving}
@@ -395,34 +470,20 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
             )}
 
             <div>
-              <Label htmlFor="assigned_user_id" className="mb-2">Assign To*</Label>
+              <Label htmlFor="assigned_user_id" className="mb-2 flex items-center gap-2">
+                Assign To*
+                {(loadingUsers || loadingClientUsers) && (
+                  <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                )}
+              </Label>
               <Combobox
-                options={[
-                  ...teamUsers.map(user => {
-                    const userId = user.user_id || user.id;
-                    let displayRole = '';
-                    if (user.role) {
-                      displayRole = ` (${user.role.replace('CA_', '').replace('_', ' ')})`;
-                    }
-                    return {
-                      value: String(userId),
-                      label: `${user.name || user.email || 'Unnamed User'}${displayRole}` // Team Member
-                    };
-                  }),
-                  ...uniqueClientUsers.map(user => {
-                    const userId = user.id || user.user_id;
-                    return {
-                      value: String(userId),
-                      label: `${user.name || user.email} (Client User)`
-                    };
-                  })
-                ]}
+                options={assignToOptions}
                 value={formData.assigned_user_id ? String(formData.assigned_user_id) : ''}
                 onValueChange={(value) => handleSelectChange('assigned_user_id', value)}
-                placeholder="Select a user"
+                placeholder={loadingUsers || loadingClientUsers ? "Loading users..." : "Select a user"}
                 searchPlaceholder="Search users..."
-                emptyText="No users found."
-                disabled={isSaving || loadingUsers}
+                emptyText={loadingUsers || loadingClientUsers ? "Loading users..." : "No users found."}
+                disabled={isSaving || loadingUsers || loadingClientUsers}
               />
             </div>
             <div>
