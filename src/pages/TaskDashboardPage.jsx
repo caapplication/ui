@@ -2580,9 +2580,11 @@ const TaskDashboardPage = () => {
                                         <CalendarIcon className="w-5 h-5" />
                                         Due Date
                                     </CardTitle>
-                                    <Button variant="ghost" size="sm" className="p-2" onClick={handleEditDueDate}>
-                                        <Edit2 className="w-4 h-4" />
-                                    </Button>
+                                    {isTaskCreator && (
+                                        <Button variant="ghost" size="sm" className="p-2" onClick={handleEditDueDate}>
+                                            <Edit2 className="w-4 h-4" />
+                                        </Button>
+                                    )}
                                 </div>
                                 <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
                                     {task?.due_date ? (
@@ -2626,9 +2628,11 @@ const TaskDashboardPage = () => {
                                         <Repeat className="w-5 h-5" />
                                         Recurring
                                     </CardTitle>
-                                    <Button variant="ghost" size="sm" className="p-2" onClick={handleEditRecurring}>
-                                        <Edit2 className="w-4 h-4" />
-                                    </Button>
+                                    {isTaskCreator && (
+                                        <Button variant="ghost" size="sm" className="p-2" onClick={handleEditRecurring}>
+                                            <Edit2 className="w-4 h-4" />
+                                        </Button>
+                                    )}
                                 </div>
                                 <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
                                     {(task?.is_recurring || task?.is_recurring === 1 || task?.is_recurring === '1') ? (
