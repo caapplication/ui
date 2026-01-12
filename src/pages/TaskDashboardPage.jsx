@@ -2098,7 +2098,10 @@ const TaskDashboardPage = () => {
                                     </div>
                                 ) : comments.length > 0 ? (
                                     comments.map((comment, index) => {
-                                        const isOwnComment = comment.user_id === user?.id || String(comment.user_id) === String(user?.id);
+                                        // Robust ID comparison
+                                        const currentUserId = (user?.id || user?.sub || user?.user_id) ? String(user?.id || user?.sub || user?.user_id).toLowerCase() : '';
+                                        const commentUserId = comment.user_id ? String(comment.user_id).toLowerCase() : '';
+                                        const isOwnComment = currentUserId && commentUserId && currentUserId === commentUserId;
                                         const commentUser = teamMembers.find(m =>
                                             m.user_id === comment.user_id ||
                                             String(m.user_id) === String(comment.user_id) ||
