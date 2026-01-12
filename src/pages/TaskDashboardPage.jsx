@@ -1425,42 +1425,11 @@ const TaskDashboardPage = () => {
 
     // Map stage names to display names for task detail page only
     const getDisplayStageName = (stageName) => {
-        if (!stageName) return 'Open';
-        const nameLower = stageName.toLowerCase();
-
-        // Map "In Progress" to "On Review"
-        if (nameLower === 'in progress' || nameLower === 'in-progress') {
-            return 'On Review';
-        }
-
-        // Map "Complete" or "Completed" to "Close"
-        if (nameLower === 'complete' || nameLower === 'completed') {
-            return 'Close';
-        }
-
-        // Everything else maps to "Open"
-        return 'Open';
+        return stageName || 'Open';
     };
 
     // Get actual stage name from display name (reverse mapping)
     const getActualStageName = (displayName) => {
-        if (!displayName) return null;
-        const displayLower = displayName.toLowerCase();
-
-        if (displayLower === 'on review') {
-            return 'In Progress';
-        }
-
-        if (displayLower === 'complete') {
-            return 'Complete';
-        }
-
-        if (displayLower === 'open') {
-            // For "Open", we need to find a stage that's not "In Progress" or "Complete"
-            // This will be handled by finding the matching stage
-            return null;
-        }
-
         return displayName;
     };
 
@@ -1476,30 +1445,23 @@ const TaskDashboardPage = () => {
 
         // Fallback to default colors based on status name
         const statusName = getStatusName(task);
-        const displayName = getDisplayStageName(statusName);
+        const nameLower = statusName.toLowerCase();
         let className = '';
 
-        // Use display name for color mapping on task detail page
-        switch (displayName) {
-            case 'On Review':
-                className = 'bg-blue-500/20 text-blue-300 border-blue-500/50';
-                break;
-            case 'Close':
-                className = 'bg-blue-500/20 text-blue-300 border-blue-500/50';
-                break;
-            case 'Open':
-            default:
-                // For "Open", check original status name for more specific colors
-                const nameLower = statusName.toLowerCase();
-                if (nameLower === 'to do' || nameLower === 'assigned') {
-                    className = 'bg-orange-500/20 text-orange-300 border-orange-500/50';
-                } else if (nameLower === 'blocked') {
-                    className = 'bg-red-500/20 text-red-300 border-red-500/50';
-                } else {
-                    className = 'bg-gray-500/20 text-gray-300 border-gray-500/50';
-                }
-                break;
+        if (nameLower === 'to do' || nameLower === 'open') {
+            className = 'bg-blue-500/20 text-blue-300 border-blue-500/50';
+        } else if (nameLower === 'in progress') {
+            className = 'bg-orange-500/20 text-orange-300 border-orange-500/50';
+        } else if (nameLower === 'need review' || nameLower === 'on review') {
+            className = 'bg-purple-500/20 text-purple-300 border-purple-500/50';
+        } else if (nameLower === 'on hold') {
+            className = 'bg-yellow-500/20 text-yellow-300 border-yellow-500/50';
+        } else if (nameLower === 'complete' || nameLower === 'completed' || nameLower === 'close') {
+            className = 'bg-green-500/20 text-green-300 border-green-500/50';
+        } else {
+            className = 'bg-gray-500/20 text-gray-300 border-gray-500/50';
         }
+
         return { className };
     };
 
@@ -1534,6 +1496,18 @@ const TaskDashboardPage = () => {
                     color: 'rgb(134, 239, 172)',
                     borderColor: 'rgba(34, 197, 94, 0.5)',
                 };
+            } else if (className.includes('purple')) {
+                return {
+                    backgroundColor: 'rgba(168, 85, 247, 0.2)',
+                    color: 'rgb(216, 180, 254)',
+                    borderColor: 'rgba(168, 85, 247, 0.5)',
+                };
+            } else if (className.includes('yellow')) {
+                return {
+                    backgroundColor: 'rgba(234, 179, 8, 0.2)',
+                    color: 'rgb(253, 224, 71)',
+                    borderColor: 'rgba(234, 179, 8, 0.5)',
+                };
             } else if (className.includes('red')) {
                 return {
                     backgroundColor: 'rgba(239, 68, 68, 0.2)',
@@ -1566,32 +1540,7 @@ const TaskDashboardPage = () => {
             });
         }
 
-        // Deduplicate stages by display name (group by display name, keep first occurrence)
-        const seenDisplayNames = new Set();
-        const uniqueStages = [];
-
-        for (const stage of filteredStages) {
-            const displayName = getDisplayStageName(stage.name);
-
-            // Only show: "Open", "On Review", and "Close" (mapped from Complete)
-            if (displayName !== 'Open' && displayName !== 'On Review' && displayName !== 'Close') {
-                continue;
-            }
-
-            // If we haven't seen this display name, add it
-            if (!seenDisplayNames.has(displayName)) {
-                seenDisplayNames.add(displayName);
-                uniqueStages.push(stage);
-            }
-        }
-
-        // Sort to ensure consistent order: Open, On Review, Close
-        return uniqueStages.sort((a, b) => {
-            const displayA = getDisplayStageName(a.name);
-            const displayB = getDisplayStageName(b.name);
-            const order = { 'Open': 1, 'On Review': 2, 'Close': 3 };
-            return (order[displayA] || 999) - (order[displayB] || 999);
-        });
+        return filteredStages;
     };
 
     const availableStages = getAvailableStages();
