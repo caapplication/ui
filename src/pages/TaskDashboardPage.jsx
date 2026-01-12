@@ -1532,13 +1532,11 @@ const TaskDashboardPage = () => {
 
         let filteredStages = stages;
 
-        // If user is not creator, filter out "Complete" and "Completed" stages
-        if (!isTaskCreator) {
-            filteredStages = stages.filter(stage => {
-                const stageName = (stage.name || '').toLowerCase();
-                return stageName !== 'complete' && stageName !== 'completed';
-            });
-        }
+        // Always filter out "Complete" and "Completed" stages from the dropdown
+        filteredStages = stages.filter(stage => {
+            const stageName = (stage.name || '').toLowerCase();
+            return stageName !== 'complete' && stageName !== 'completed';
+        });
 
         return filteredStages;
     };
@@ -2037,7 +2035,7 @@ const TaskDashboardPage = () => {
                                                         className="w-[180px]"
                                                         disabled={isUpdatingStage || displayStatusName === 'Close' || statusName?.toLowerCase() === 'complete' || statusName?.toLowerCase() === 'completed'}
                                                         displayValue={(option) => {
-                                                            const stage = availableStages.find(s => String(s.id) === String(option.value));
+                                                            const stage = stages.find(s => String(s.id) === String(option.value));
                                                             return getDisplayStageName(stage?.name) || option.label || 'Open';
                                                         }}
                                                         style={getStageColorStyles()}
@@ -2065,6 +2063,43 @@ const TaskDashboardPage = () => {
                                                                 Close
                                                             </Button>
                                                         )}
+                                                    {/* Creator Closure Actions - Show when stage is 'Request to Close' */}
+                                                    {isTaskCreator && (stages.find(s => String(s.id) === String(task.stage_id))?.name || '').toLowerCase() === 'request to close' && (
+                                                        <div className="flex items-center gap-1 ml-2">
+                                                            <Button
+                                                                onClick={async () => {
+                                                                    const completeStage = stages.find(s => (s.name || '').toLowerCase() === 'complete' || (s.name || '').toLowerCase() === 'completed');
+                                                                    if (completeStage) {
+                                                                        await updateStageTo(completeStage.id);
+                                                                    } else {
+                                                                        toast({ title: "Error", description: "Complete stage not found", variant: "destructive" });
+                                                                    }
+                                                                }}
+                                                                variant="outline"
+                                                                size="icon"
+                                                                className="h-8 w-8 bg-green-500/20 text-green-300 border-green-500/50 hover:bg-green-500/30"
+                                                                title="Approve & Complete"
+                                                            >
+                                                                <CheckCircle2 className="w-4 h-4" />
+                                                            </Button>
+                                                            <Button
+                                                                onClick={async () => {
+                                                                    const reviewStage = stages.find(s => (s.name || '').toLowerCase() === 'need review' || (s.name || '').toLowerCase() === 'needs review');
+                                                                    if (reviewStage) {
+                                                                        await updateStageTo(reviewStage.id);
+                                                                    } else {
+                                                                        toast({ title: "Error", description: "'Need Review' stage not found", variant: "destructive" });
+                                                                    }
+                                                                }}
+                                                                variant="outline"
+                                                                size="icon"
+                                                                className="h-8 w-8 bg-red-500/20 text-red-300 border-red-500/50 hover:bg-red-500/30"
+                                                                title="Reject & Request Review"
+                                                            >
+                                                                <XCircle className="w-4 h-4" />
+                                                            </Button>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             ) : (
                                                 <Badge
@@ -2342,6 +2377,7 @@ const TaskDashboardPage = () => {
                                                                                                 </div>
                                                                                             </div>
                                                                                         ))}
+
                                                                                     </div>
                                                                                 ) : (
                                                                                     <div className="text-xs text-gray-400 py-2">
@@ -3294,7 +3330,7 @@ const TaskDashboardPage = () => {
                     </div>
                 </DialogContent>
             </Dialog>
-        </div>
+        </div >
     );
 };
 

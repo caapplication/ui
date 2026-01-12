@@ -686,93 +686,101 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
                     </PopoverContent>
                   </Popover> */}
                 </div>
-              </div>
+              </div >
 
-              {formData.recurrence_frequency === 'daily' && (
-                <div>
-                  <Label htmlFor="recurrence_time">Time</Label>
-                  <Input
-                    id="recurrence_time"
-                    name="recurrence_time"
-                    type="time"
-                    value={formData.recurrence_time || '09:00'}
-                    onChange={(e) => handleSelectChange('recurrence_time', e.target.value)}
-                    disabled={isSaving}
-                    className="w-full"
-                  />
-                </div>
-              )}
+              {
+                formData.recurrence_frequency === 'daily' && (
+                  <div>
+                    <Label htmlFor="recurrence_time">Time</Label>
+                    <Input
+                      id="recurrence_time"
+                      name="recurrence_time"
+                      type="time"
+                      value={formData.recurrence_time || '09:00'}
+                      onChange={(e) => handleSelectChange('recurrence_time', e.target.value)}
+                      disabled={isSaving}
+                      className="w-full"
+                    />
+                  </div>
+                )
+              }
 
-              {formData.recurrence_frequency === 'weekly' && (
-                <div>
-                  <Label htmlFor="recurrence_day_of_week">Day of Week</Label>
-                  <Select
-                    name="recurrence_day_of_week"
-                    onValueChange={(v) => handleSelectChange('recurrence_day_of_week', parseInt(v))}
-                    value={formData.recurrence_day_of_week !== null ? String(formData.recurrence_day_of_week) : ''}
-                    disabled={isSaving}
-                  >
-                    <SelectTrigger><SelectValue placeholder="Select day" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="0">Monday</SelectItem>
-                      <SelectItem value="1">Tuesday</SelectItem>
-                      <SelectItem value="2">Wednesday</SelectItem>
-                      <SelectItem value="3">Thursday</SelectItem>
-                      <SelectItem value="4">Friday</SelectItem>
-                      <SelectItem value="5">Saturday</SelectItem>
-                      <SelectItem value="6">Sunday</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
+              {
+                formData.recurrence_frequency === 'weekly' && (
+                  <div>
+                    <Label htmlFor="recurrence_day_of_week">Day of Week</Label>
+                    <Select
+                      name="recurrence_day_of_week"
+                      onValueChange={(v) => handleSelectChange('recurrence_day_of_week', parseInt(v))}
+                      value={formData.recurrence_day_of_week !== null ? String(formData.recurrence_day_of_week) : ''}
+                      disabled={isSaving}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Select day" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="0">Monday</SelectItem>
+                        <SelectItem value="1">Tuesday</SelectItem>
+                        <SelectItem value="2">Wednesday</SelectItem>
+                        <SelectItem value="3">Thursday</SelectItem>
+                        <SelectItem value="4">Friday</SelectItem>
+                        <SelectItem value="5">Saturday</SelectItem>
+                        <SelectItem value="6">Sunday</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )
+              }
 
-              {['monthly', 'yearly'].includes(formData.recurrence_frequency) && (
-                <div>
-                  <Label htmlFor="recurrence_date">
-                    {formData.recurrence_frequency === 'monthly' ? 'Date (Day of Month)' : 'Date'}
-                  </Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formData.recurrence_date && "text-muted-foreground")}>
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {formData.recurrence_date ? format(formData.recurrence_date, "PPP") : <span>Pick a date</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={formData.recurrence_date}
-                        onSelect={(d) => handleDateChange('recurrence_date', d)}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-              )}
+              {
+                ['monthly', 'yearly'].includes(formData.recurrence_frequency) && (
+                  <div>
+                    <Label htmlFor="recurrence_date">
+                      {formData.recurrence_frequency === 'monthly' ? 'Date (Day of Month)' : 'Date'}
+                    </Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formData.recurrence_date && "text-muted-foreground")}>
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {formData.recurrence_date ? format(formData.recurrence_date, "PPP") : <span>Pick a date</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <Calendar
+                          mode="single"
+                          selected={formData.recurrence_date}
+                          onSelect={(d) => handleDateChange('recurrence_date', d)}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                )
+              }
 
-              {['quarterly', 'half_yearly'].includes(formData.recurrence_frequency) && (
-                <div>
-                  <Label htmlFor="recurrence_day_of_month">
-                    Day of Month (repeats every {formData.recurrence_frequency === 'quarterly' ? '3 months' : '6 months'})
-                  </Label>
-                  <Select
-                    name="recurrence_day_of_month"
-                    onValueChange={(v) => handleSelectChange('recurrence_day_of_month', parseInt(v))}
-                    value={formData.recurrence_day_of_month !== null ? String(formData.recurrence_day_of_month) : ''}
-                    disabled={isSaving}
-                  >
-                    <SelectTrigger><SelectValue placeholder="Select day" /></SelectTrigger>
-                    <SelectContent>
-                      {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
-                        <SelectItem key={day} value={String(day)}>{day}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-            </div>
+              {
+                ['quarterly', 'half_yearly'].includes(formData.recurrence_frequency) && (
+                  <div>
+                    <Label htmlFor="recurrence_day_of_month">
+                      Day of Month (repeats every {formData.recurrence_frequency === 'quarterly' ? '3 months' : '6 months'})
+                    </Label>
+                    <Select
+                      name="recurrence_day_of_month"
+                      onValueChange={(v) => handleSelectChange('recurrence_day_of_month', parseInt(v))}
+                      value={formData.recurrence_day_of_month !== null ? String(formData.recurrence_day_of_month) : ''}
+                      disabled={isSaving}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Select day" /></SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                          <SelectItem key={day} value={String(day)}>{day}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )
+              }
+            </div >
           )}
-        </div>
+        </div >
 
         <div className="flex justify-end pt-6 border-t border-white/10">
           <Button onClick={handleSubmit} disabled={isSaving} style={isSaving ? { opacity: 0.5, pointerEvents: 'none' } : {}}>
@@ -780,8 +788,8 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
             {task ? 'Save Changes' : 'Create Task'}
           </Button>
         </div>
-      </form>
-    </div>
+      </form >
+    </div >
   );
 };
 

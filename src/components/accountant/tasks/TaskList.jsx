@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { AlertDialogTrigger } from '@radix-ui/react-alert-dialog';
 
-const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew, onEditTask, onDeleteTask, onViewTask, currentUserId }) => {
+const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew, onEditTask, onDeleteTask, onViewTask, currentUserId, isHistoryView = false }) => {
     const { user } = useAuth();
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
@@ -374,32 +374,34 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                         <h2 className="text-xl font-semibold">All Tasks</h2>
                         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                            <Select value={statusFilter} onValueChange={setStatusFilter}>
-                                <SelectTrigger className="w-full sm:w-[180px]">
-                                    <SelectValue placeholder="Filter by status" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All Statuses</SelectItem>
-                                    {stages && stages.length > 0 ? (
-                                        // Dynamically populate from stages
-                                        stages
-                                            .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
-                                            .map((stage) => (
-                                                <SelectItem key={stage.id} value={stage.name?.toLowerCase() || ''}>
-                                                    {stage.name}
-                                                </SelectItem>
-                                            ))
-                                    ) : (
-                                        // Fallback to hardcoded statuses if no stages available
-                                        <>
-                                            <SelectItem value="pending">Pending</SelectItem>
-                                            <SelectItem value="in progress">In Progress</SelectItem>
-                                            <SelectItem value="completed">Completed</SelectItem>
-                                            <SelectItem value="hold">Hold</SelectItem>
-                                        </>
-                                    )}
-                                </SelectContent>
-                            </Select>
+                            {!isHistoryView && (
+                                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                                    <SelectTrigger className="w-full sm:w-[180px]">
+                                        <SelectValue placeholder="Filter by status" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Statuses</SelectItem>
+                                        {stages && stages.length > 0 ? (
+                                            // Dynamically populate from stages
+                                            stages
+                                                .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+                                                .map((stage) => (
+                                                    <SelectItem key={stage.id} value={stage.name?.toLowerCase() || ''}>
+                                                        {stage.name}
+                                                    </SelectItem>
+                                                ))
+                                        ) : (
+                                            // Fallback to hardcoded statuses if no stages available
+                                            <>
+                                                <SelectItem value="pending">Pending</SelectItem>
+                                                <SelectItem value="in progress">In Progress</SelectItem>
+                                                <SelectItem value="completed">Completed</SelectItem>
+                                                <SelectItem value="hold">Hold</SelectItem>
+                                            </>
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                            )}
                             <Select value={userFilter} onValueChange={setUserFilter}>
                                 <SelectTrigger className="w-full sm:w-[180px]">
                                     <SelectValue placeholder="Filter by user" />

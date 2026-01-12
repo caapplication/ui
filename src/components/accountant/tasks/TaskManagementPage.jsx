@@ -3,7 +3,7 @@ import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useSocket } from '@/contexts/SocketContext.jsx';
 import { useToast } from '@/components/ui/use-toast';
-import { Loader2, Repeat, LayoutGrid, List, Plus } from 'lucide-react';
+import { Loader2, Repeat, LayoutGrid, List, Plus, History } from 'lucide-react';
 import TaskList from '@/components/accountant/tasks/TaskList.jsx';
 import TaskKanbanView from '@/components/accountant/tasks/TaskKanbanView.jsx';
 import NewTaskForm from '@/components/accountant/tasks/NewTaskForm.jsx';
@@ -178,8 +178,22 @@ const TaskManagementPage = ({ entityId, entityName }) => {
 
     const filteredTasks = useMemo(() => {
         // Show all tasks for the organization, no entity filtering
-        return tasks;
+        // Filter out completed tasks from the main view
+        return tasks.filter(t => {
+            const stageName = (t.stage?.name || t.status || '').toLowerCase();
+            return stageName !== 'complete' && stageName !== 'completed';
+        });
     }, [tasks]);
+
+    const historyTasks = useMemo(() => {
+        // Show only completed tasks for history
+        return tasks.filter(t => {
+            const stageName = (t.stage?.name || t.status || '').toLowerCase();
+            return stageName === 'complete' || stageName === 'completed';
+        });
+    }, [tasks]);
+
+    const [showHistoryDialog, setShowHistoryDialog] = useState(false);
 
     const [showTaskDialog, setShowTaskDialog] = useState(false);
 
@@ -446,6 +460,14 @@ const TaskManagementPage = ({ entityId, entityName }) => {
                                 <span className="hidden sm:inline">Recurring Tasks</span>
                             </Button>
                         </Link>
+                        <Button
+                            onClick={() => setShowHistoryDialog(true)}
+                            variant="outline"
+                            className="text-white border-white/20 hover:bg-white/10 rounded-lg"
+                        >
+                            <History className="w-4 h-4 sm:mr-2" />
+                            <span className="hidden sm:inline">History</span>
+                        </Button>
                         <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1">
                             <Button
                                 variant={viewMode === 'list' ? 'default' : 'ghost'}
@@ -504,6 +526,32 @@ const TaskManagementPage = ({ entityId, entityName }) => {
                         task={editingTask}
                         selectedOrg={entityId || selectedOrg}
                     />
+                </DialogContent>
+            </Dialog>
+
+            {/* History Dialog */}
+            <Dialog open={showHistoryDialog} onOpenChange={setShowHistoryDialog}>
+                <DialogContent className="glass-pane max-w-6xl h-[85vh] overflow-hidden flex flex-col">
+                    <DialogHeader>
+                        <DialogTitle>Task History (Completed)</DialogTitle>
+                    </DialogHeader>
+                    <div className="flex-1 min-h-0 overflow-hidden mt-4">
+                        <TaskList
+                            tasks={historyTasks}
+                            clients={clients}
+                            services={services}
+                            teamMembers={teamMembers}
+                            stages={stages}
+                            tags={tags}
+                            onAddNew={() => { }} // No adding from history
+                            onEditTask={handleEditTask}
+                            onDeleteTask={handleDeleteTask}
+                            onViewTask={handleViewTask}
+                            onRefresh={fetchData}
+                            currentUserId={user?.id}
+                            isHistoryView={true}
+                        />
+                    </div>
                 </DialogContent>
             </Dialog>
         </div>

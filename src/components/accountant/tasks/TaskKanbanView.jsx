@@ -644,130 +644,132 @@ const TaskKanbanView = forwardRef(({
             >
 
                 <div className="flex gap-4 min-w-max h-full pr-4">
-                    {stages.map((stage) => {
-                        const stageTasks = getTasksForStage(stage.id);
-                        return (
-                            <div
-                                key={stage.id}
-                                className="flex-shrink-0 w-80 flex flex-col"
-                                style={{ height: 'calc(100vh)', maxHeight: 'calc(100vh - 130px)' }}
-                                onDragOver={handleDragOver}
-                                onDrop={(e) => handleDrop(e, stage.id)}
-                            >
-                                <Card className="glass-pane h-full flex flex-col  rounded-2xl ">
-                                    <CardContent className="p-4 flex-1 flex flex-col min-h-0 ">
-                                        <div
-                                            className="flex items-center justify-between mb-4 pb-3 border-b border-white/10 flex-shrink-0"
-                                            style={{ borderLeftColor: stage.color, borderLeftWidth: '4px', paddingLeft: '12px' }}
-                                        >
-                                            <div className="flex items-center gap-2">
-                                                <div
-                                                    className="w-3 h-3 rounded-full"
-                                                    style={{ backgroundColor: stage.color }}
-                                                />
-                                                <h3 className="font-semibold text-white">{stage.name}</h3>
-                                                <Badge variant="outline" className="ml-2">
-                                                    {stageTasks.length}
-                                                </Badge>
-                                            </div>
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-6 w-6">
-                                                        <MoreVertical className="w-4 h-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem onClick={() => openStageDialog(stage)}>
-                                                        <Edit className="w-4 h-4 mr-2" />
-                                                        Edit
-                                                    </DropdownMenuItem>
-                                                    {!stage.is_default && (
-                                                        <DropdownMenuItem
-                                                            onClick={() => {
-                                                                setStageToDelete(stage);
-                                                                setShowDeleteDialog(true);
-                                                            }}
-                                                            className="text-red-400"
-                                                        >
-                                                            <Trash2 className="w-4 h-4 mr-2" />
-                                                            Delete
-                                                        </DropdownMenuItem>
-                                                    )}
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </div>
-
-                                        <div className="flex-1 overflow-y-auto space-y-3 pr-2 kanban-stage-scroll min-h-0" style={{
-                                            scrollbarWidth: 'thin',
-                                            scrollbarColor: 'rgba(255, 255, 255, 0.2) rgba(255, 255, 255, 0.05)',
-                                            maxHeight: '100%'
-                                        }}>
-                                            {stageTasks.map((task, taskIndex) => {
-                                                const isMoving = movingTaskId === task.id;
-
-                                                return (
-                                                    <Card
-                                                        key={task.id}
-                                                        className={`glass-card p-3 cursor-pointer hover:bg-white/10 transition-colors relative ${isMoving ? 'opacity-50 pointer-events-none' : ''
-                                                            }`}
-                                                        draggable={!isMoving}
-                                                        onDragStart={(e) => !isMoving && handleDragStart(e, task)}
-                                                        onDragEnd={handleDragEnd}
-                                                        onDragOver={(e) => {
-                                                            e.preventDefault();
-                                                            e.stopPropagation();
-                                                        }}
-                                                        onDrop={(e) => handleTaskDrop(e, task)}
-                                                        onClick={() => !isMoving && onTaskClick && onTaskClick(task.id)}
-                                                    >
-                                                        {/* Loading overlay */}
-                                                        {isMoving && (
-                                                            <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-lg z-10">
-                                                                <Loader2 className="w-5 h-5 animate-spin text-white" />
-                                                            </div>
-                                                        )}
-
-                                                        <div className="flex items-start justify-between mb-2">
-                                                            <h4 className="font-medium text-white text-sm flex-1">{task.title}</h4>
-                                                        </div>
-                                                        {task.description && (
-                                                            <p className="text-xs text-gray-400 mb-2 line-clamp-2">
-                                                                {task.description}
-                                                            </p>
-                                                        )}
-                                                        <div className="flex items-center gap-2 flex-wrap mt-2">
-                                                            {task.priority && (
-                                                                <Badge
-                                                                    variant="outline"
-                                                                    className={`text-xs ${getPriorityColor(task.priority)}`}
-                                                                >
-                                                                    {task.priority}
-                                                                </Badge>
-                                                            )}
-                                                        </div>
-                                                        {task.created_at && (
-                                                            <div className="mt-2 flex items-center gap-2 text-xs">
-                                                                <span className="text-white">{getCreatorName(task)}</span>
-                                                                <span className={getTimestampColor(task.created_at)}>•</span>
-                                                                <span className={getTimestampColor(task.created_at)}>
-                                                                    {format(new Date(task.created_at), 'MMM dd, HH:mm')}
-                                                                </span>
-                                                            </div>
-                                                        )}
-                                                    </Card>
-                                                );
-                                            })}
-                                            {stageTasks.length === 0 && (
-                                                <div className="text-center text-gray-400 text-sm py-8">
-                                                    No tasks in this stage
+                    {stages
+                        .filter(s => (s.name || '').toLowerCase() !== 'complete' && (s.name || '').toLowerCase() !== 'completed')
+                        .map((stage) => {
+                            const stageTasks = getTasksForStage(stage.id);
+                            return (
+                                <div
+                                    key={stage.id}
+                                    className="flex-shrink-0 w-80 flex flex-col"
+                                    style={{ height: 'calc(100vh)', maxHeight: 'calc(100vh - 130px)' }}
+                                    onDragOver={handleDragOver}
+                                    onDrop={(e) => handleDrop(e, stage.id)}
+                                >
+                                    <Card className="glass-pane h-full flex flex-col  rounded-2xl ">
+                                        <CardContent className="p-4 flex-1 flex flex-col min-h-0 ">
+                                            <div
+                                                className="flex items-center justify-between mb-4 pb-3 border-b border-white/10 flex-shrink-0"
+                                                style={{ borderLeftColor: stage.color, borderLeftWidth: '4px', paddingLeft: '12px' }}
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    <div
+                                                        className="w-3 h-3 rounded-full"
+                                                        style={{ backgroundColor: stage.color }}
+                                                    />
+                                                    <h3 className="font-semibold text-white">{stage.name}</h3>
+                                                    <Badge variant="outline" className="ml-2">
+                                                        {stageTasks.length}
+                                                    </Badge>
                                                 </div>
-                                            )}
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </div>
-                        );
-                    })}
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="h-6 w-6">
+                                                            <MoreVertical className="w-4 h-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuItem onClick={() => openStageDialog(stage)}>
+                                                            <Edit className="w-4 h-4 mr-2" />
+                                                            Edit
+                                                        </DropdownMenuItem>
+                                                        {!stage.is_default && (
+                                                            <DropdownMenuItem
+                                                                onClick={() => {
+                                                                    setStageToDelete(stage);
+                                                                    setShowDeleteDialog(true);
+                                                                }}
+                                                                className="text-red-400"
+                                                            >
+                                                                <Trash2 className="w-4 h-4 mr-2" />
+                                                                Delete
+                                                            </DropdownMenuItem>
+                                                        )}
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </div>
+
+                                            <div className="flex-1 overflow-y-auto space-y-3 pr-2 kanban-stage-scroll min-h-0" style={{
+                                                scrollbarWidth: 'thin',
+                                                scrollbarColor: 'rgba(255, 255, 255, 0.2) rgba(255, 255, 255, 0.05)',
+                                                maxHeight: '100%'
+                                            }}>
+                                                {stageTasks.map((task, taskIndex) => {
+                                                    const isMoving = movingTaskId === task.id;
+
+                                                    return (
+                                                        <Card
+                                                            key={task.id}
+                                                            className={`glass-card p-3 cursor-pointer hover:bg-white/10 transition-colors relative ${isMoving ? 'opacity-50 pointer-events-none' : ''
+                                                                }`}
+                                                            draggable={!isMoving}
+                                                            onDragStart={(e) => !isMoving && handleDragStart(e, task)}
+                                                            onDragEnd={handleDragEnd}
+                                                            onDragOver={(e) => {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                            }}
+                                                            onDrop={(e) => handleTaskDrop(e, task)}
+                                                            onClick={() => !isMoving && onTaskClick && onTaskClick(task.id)}
+                                                        >
+                                                            {/* Loading overlay */}
+                                                            {isMoving && (
+                                                                <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-lg z-10">
+                                                                    <Loader2 className="w-5 h-5 animate-spin text-white" />
+                                                                </div>
+                                                            )}
+
+                                                            <div className="flex items-start justify-between mb-2">
+                                                                <h4 className="font-medium text-white text-sm flex-1">{task.title}</h4>
+                                                            </div>
+                                                            {task.description && (
+                                                                <p className="text-xs text-gray-400 mb-2 line-clamp-2">
+                                                                    {task.description}
+                                                                </p>
+                                                            )}
+                                                            <div className="flex items-center gap-2 flex-wrap mt-2">
+                                                                {task.priority && (
+                                                                    <Badge
+                                                                        variant="outline"
+                                                                        className={`text-xs ${getPriorityColor(task.priority)}`}
+                                                                    >
+                                                                        {task.priority}
+                                                                    </Badge>
+                                                                )}
+                                                            </div>
+                                                            {task.created_at && (
+                                                                <div className="mt-2 flex items-center gap-2 text-xs">
+                                                                    <span className="text-white">{getCreatorName(task)}</span>
+                                                                    <span className={getTimestampColor(task.created_at)}>•</span>
+                                                                    <span className={getTimestampColor(task.created_at)}>
+                                                                        {format(new Date(task.created_at), 'MMM dd, HH:mm')}
+                                                                    </span>
+                                                                </div>
+                                                            )}
+                                                        </Card>
+                                                    );
+                                                })}
+                                                {stageTasks.length === 0 && (
+                                                    <div className="text-center text-gray-400 text-sm py-8">
+                                                        No tasks in this stage
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                </div>
+                            );
+                        })}
                 </div>
             </div>
 
