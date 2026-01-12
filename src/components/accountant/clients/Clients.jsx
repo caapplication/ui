@@ -282,8 +282,13 @@ const Clients = ({ setActiveTab }) => {
             if (!user?.agency_id || !user?.access_token) {
                 throw new Error("User information is not available.");
             }
+
+            // Extract organization_name (if provided) to avoid sending it to API if strict, 
+            // and to use it for immediate UI update
+            const { organization_name: providedOrgName, ...apiClientData } = clientData;
+
             if (editingClient) {
-                const updatedClient = await updateClient(editingClient.id, clientData, user.agency_id, user.access_token);
+                const updatedClient = await updateClient(editingClient.id, apiClientData, user.agency_id, user.access_token);
                 const clientApiUrl = import.meta.env.VITE_CLIENT_API_URL || 'http://127.0.0.1:8002';
                 let finalClient = updatedClient;
 
@@ -315,10 +320,22 @@ const Clients = ({ setActiveTab }) => {
 
                 // Fix: Lookup organization name to ensure it displays immediately after update
                 let orgName = null;
+                // Ensure robust ID comparison (handle string vs number mismatches)
                 if (updatedClient.organization_id) {
-                    const org = organisations.find(o => o.id === updatedClient.organization_id);
-                    if (org) orgName = org.name;
+                    const org = organisations.find(o => String(o.id) === String(updatedClient.organization_id));
+                    if (org) {
+                        orgName = org.name;
+                    } else if (updatedClient.organization_name) {
+                        // Fallback if API returned it (unlikely but possible)
+                        orgName = updatedClient.organization_name;
+                    }
                 }
+
+                // Final fallback: use the name passed from the form (this solves the "newly created org" timing issue)
+                if (!orgName && providedOrgName) {
+                    orgName = providedOrgName;
+                }
+
                 finalClient = { ...finalClient, organization_name: orgName };
                 toast({ title: "✅ Client Updated", description: `Client ${updatedClient.name} has been updated.` });
 
@@ -350,7 +367,7 @@ const Clients = ({ setActiveTab }) => {
                     setEditingClient(null);
                 }
             } else {
-                const newClient = await createClient(clientData, user.agency_id, user.access_token);
+                const newClient = await createClient(apiClientData, user.agency_id, user.access_token);
                 let finalClient = newClient;
 
                 // Automatically create entity for the new client
@@ -390,7 +407,7 @@ const Clients = ({ setActiveTab }) => {
                 // Lookup organization name to ensure it displays immediately
                 let orgName = null;
                 if (newClient.organization_id) {
-                    const org = organisations.find(o => o.id === newClient.organization_id);
+                    const org = organisations.find(o => String(o.id) === String(newClient.organization_id));
                     if (org) orgName = org.name;
                 }
 
@@ -519,6 +536,7 @@ const Clients = ({ setActiveTab }) => {
                             businessTypes={businessTypes}
                             teamMembers={teamMembers}
                             tags={tags}
+                            onAddOrganisation={handleAddOrganisation}
                         />
                     </motion.div>
                 );
@@ -551,6 +569,10 @@ const Clients = ({ setActiveTab }) => {
         }
     }
 
+
+    const handleAddOrganisation = (newOrg) => {
+        setOrganisations(prev => [...prev, newOrg]);
+    };
 
     return (
         <div className="p-4 md:p-8 text-white relative overflow-hidden h-full">

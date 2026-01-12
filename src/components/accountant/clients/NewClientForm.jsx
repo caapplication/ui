@@ -274,6 +274,16 @@ const NewClientForm = ({ onBack, onSave, client, allServices, organisations, bus
             assigned_ca_user_id: (formData.assigned_ca_user_id && formData.assigned_ca_user_id !== "undefined") ? formData.assigned_ca_user_id : null,
         };
 
+        // Find organisation name to pass to parent for immediate UI update
+        // Use orgList which is correctly resolved to either props.organisations or localOrgs
+        if (formData.organization_id) {
+            const selectedOrg = orgList.find(o => String(o.id) === String(formData.organization_id));
+            if (selectedOrg) {
+                // Pass as a special property that parental component can use but should likely strip before API call if strict
+                dataToSave.organization_name = selectedOrg.name;
+            }
+        }
+
         await onSave(dataToSave, photoFile);
         setIsSaving(false);
         // Reset photo after save and cleanup blob URLs
