@@ -67,7 +67,7 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
       }
 
       const isCAUser = user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM';
-      
+
       // For CA users, always fetch team members to ensure we have the latest data
       // For non-CA users, use prop if available, otherwise fetch
       setLoadingUsers(true);
@@ -440,7 +440,7 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
                       {formData.due_date ? format(formData.due_date, "PPP") : <span>Pick a date</span>}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={formData.due_date} onSelect={(d) => handleDateChange('due_date', d)} initialFocus /></PopoverContent>
+                  <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={formData.due_date} onSelect={(d) => handleDateChange('due_date', d)} disabled={(date) => date < new Date().setHours(0, 0, 0, 0)} initialFocus /></PopoverContent>
                 </Popover>
               </div>
             </div>

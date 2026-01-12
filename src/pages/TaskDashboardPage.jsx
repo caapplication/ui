@@ -2630,14 +2630,19 @@ const TaskDashboardPage = () => {
                                         <Edit2 className="w-4 h-4" />
                                     </Button>
                                 </div>
-                                <div className="flex-1 min-h-0 overflow-y-auto">
+                                <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
                                     {(task?.is_recurring || task?.is_recurring === 1 || task?.is_recurring === '1') ? (
-                                        <div className="text-sm text-gray-300">
-                                            {formatRecurringDetails() || 'Recurring task configured'}
+                                        <div className="text-center space-y-2">
+                                            <div className="text-xl font-bold text-white">
+                                                {formatRecurringDetails() || 'Recurring'}
+                                            </div>
+                                            <div className="text-sm font-semibold text-blue-400">
+                                                Recurring Task
+                                            </div>
                                         </div>
                                     ) : (
-                                        <div className="text-sm text-gray-400">
-                                            <p>Not a recurring task</p>
+                                        <div className="text-center text-gray-400">
+                                            <p className="text-sm">Not a recurring task</p>
                                         </div>
                                     )}
                                 </div>
@@ -2810,7 +2815,13 @@ const TaskDashboardPage = () => {
                                     </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-auto p-0">
-                                    <Calendar mode="single" selected={editingDueDate} onSelect={setEditingDueDate} initialFocus />
+                                    <Calendar
+                                        mode="single"
+                                        selected={editingDueDate}
+                                        onSelect={setEditingDueDate}
+                                        disabled={(date) => date < new Date().setHours(0, 0, 0, 0)}
+                                        initialFocus
+                                    />
                                 </PopoverContent>
                             </Popover>
                         </div>
