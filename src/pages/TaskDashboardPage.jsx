@@ -1888,8 +1888,8 @@ const TaskDashboardPage = () => {
                     </h1>
                 </div>
                 {displayOrgName && (
-                    <div className="px-3 py-1.5 sm:px-4 sm:py-2 bg-blue-500/20 text-blue-300 border border-blue-500/50 rounded-lg w-full sm:w-auto text-center sm:text-left">
-                        <span className="text-base sm:text-lg font-semibold truncate block">{displayOrgName}</span>
+                    <div className="w-full sm:w-auto text-center sm:text-left">
+                        <span className="text-2xl sm:text-3xl font-bold truncate block">{displayOrgName}</span>
                     </div>
                 )}
             </header>
