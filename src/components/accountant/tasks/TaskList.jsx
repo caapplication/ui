@@ -545,10 +545,15 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                                             <TableCell className="hidden sm:table-cell">
                                                 <div className="flex flex-col gap-1">
                                                     <span className="text-sm text-white">{assignedToInfo.name}</span>
-                                                    {task.due_date && (
-                                                        <Badge variant="outline" className="bg-blue-500/20 text-blue-300 border-blue-500/50 text-xs w-fit italic">
-                                                            {formatTimeUntil(task.due_date)}
-                                                        </Badge>
+                                                    {task.created_at && (
+                                                        <>
+                                                            <span className="text-xs text-gray-400 italic">
+                                                                {format(new Date(task.created_at), 'dd-MM-yyyy hh:mm a')}
+                                                            </span>
+                                                            <Badge variant="outline" className={`${getDateBadgeColor(task.created_at)} text-xs w-fit italic`}>
+                                                                {formatTimeAgo(task.created_at)}
+                                                            </Badge>
+                                                        </>
                                                     )}
                                                 </div>
                                             </TableCell>
