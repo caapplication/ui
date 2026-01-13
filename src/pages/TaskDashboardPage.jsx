@@ -1673,44 +1673,81 @@ const TaskDashboardPage = () => {
         }
     };
 
-    // Format recurring details
+    // Format recurring details for display
     const formatRecurringDetails = () => {
-        if (!task?.is_recurring) return null;
+        if (!task || !task.is_recurring) return { main: '', sub: '' };
 
-        const frequency = task.recurrence_frequency || 'weekly';
+        let frequency = task.recurrence_frequency || 'weekly';
+        // Map backend monthly+interval to UI labels
+        if (frequency === 'monthly') {
+            if (task.recurrence_interval === 3) frequency = 'quarterly';
+            else if (task.recurrence_interval === 6) frequency = 'half_yearly';
+        }
+
         const details = [];
 
-        if (frequency === 'daily' && task.recurrence_time) {
-            details.push(`Daily at ${task.recurrence_time}`);
-        } else if (frequency === 'weekly' && task.recurrence_day_of_week !== null) {
+        // Label logic
+        if (frequency === 'daily') {
+            details.push(`Daily at ${task.recurrence_time || '09:00'}`);
+        } else if (frequency === 'weekly') {
             const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-            details.push(`Weekly on ${days[task.recurrence_day_of_week]}`);
-        } else if (['monthly', 'yearly'].includes(frequency) && task.recurrence_date) {
-            details.push(`${frequency.charAt(0).toUpperCase() + frequency.slice(1)} on ${format(new Date(task.recurrence_date), 'MMM dd')}`);
-        } else if (['quarterly', 'half_yearly'].includes(frequency) && task.recurrence_day_of_month !== null) {
-            const period = frequency === 'quarterly' ? '3 months' : '6 months';
-            details.push(`Every ${period} on day ${task.recurrence_day_of_month}`);
+            const dayName = task.recurrence_day_of_week !== null ? days[task.recurrence_day_of_week] : '';
+            details.push(dayName ? `Weekly on ${dayName}` : 'Weekly');
+        } else if (frequency === 'monthly') {
+            const label = 'Monthly';
+            if (task.recurrence_day_of_month) {
+                details.push(`${label} on day ${task.recurrence_day_of_month}`);
+            } else {
+                details.push(label);
+            }
+        } else if (frequency === 'quarterly') {
+            const label = 'Quarterly';
+            if (task.recurrence_day_of_month) {
+                details.push(`${label} on day ${task.recurrence_day_of_month}`);
+            } else {
+                details.push(label);
+            }
+        } else if (frequency === 'half_yearly') {
+            const label = 'Half Yearly';
+            if (task.recurrence_day_of_month) {
+                details.push(`${label} on day ${task.recurrence_day_of_month}`);
+            } else {
+                details.push(label);
+            }
+        } else if (frequency === 'yearly') {
+            details.push('Yearly');
         } else {
             details.push(frequency.charAt(0).toUpperCase() + frequency.slice(1));
         }
 
-        if (task.recurrence_start_date) {
-            details.push(`Starting ${format(new Date(task.recurrence_start_date), 'MMM dd, yyyy')}`);
-        }
+        const mainText = details.join(' • ');
+        const subText = task.recurrence_start_date
+            ? `Starting ${format(new Date(task.recurrence_start_date), 'MMM dd, yyyy')}`
+            : 'Recurring Task';
 
-        return details.join(' • ');
+        return { main: mainText, sub: subText };
     };
 
     // Handle recurring details edit - open edit dialog
     const handleEditRecurring = () => {
         if (!task) return;
+
+        // Determine correct frequency based on interval
+        let mappedFrequency = task.recurrence_frequency || 'weekly';
+        if (mappedFrequency === 'monthly') {
+            if (task.recurrence_interval === 3) mappedFrequency = 'quarterly';
+            else if (task.recurrence_interval === 6) mappedFrequency = 'half_yearly';
+        }
+
         setRecurringFormData({
             is_recurring: task.is_recurring || false,
-            recurrence_frequency: task.recurrence_frequency || 'weekly',
+            recurrence_frequency: mappedFrequency,
             recurrence_time: task.recurrence_time || '09:00',
             recurrence_day_of_week: task.recurrence_day_of_week ?? null,
+            recurrence_interval: task.recurrence_interval || 1,
             recurrence_date: task.recurrence_date ? new Date(task.recurrence_date) : null,
             recurrence_day_of_month: task.recurrence_day_of_month ?? null,
+            recurrence_start_month: task.recurrence_start_date ? new Date(task.recurrence_start_date).getMonth() : null,
             recurrence_start_date: task.recurrence_start_date ? new Date(task.recurrence_start_date) : null
         });
         setShowEditRecurringDialog(true);
@@ -1731,12 +1768,39 @@ const TaskDashboardPage = () => {
             const agencyId = user?.agency_id || null;
             const updateData = {
                 is_recurring: recurringFormData.is_recurring,
-                recurrence_frequency: recurringFormData.is_recurring ? recurringFormData.recurrence_frequency : null,
+                recurrence_frequency: recurringFormData.is_recurring ? (
+                    ['quarterly', 'half_yearly'].includes(recurringFormData.recurrence_frequency) ? 'monthly' : recurringFormData.recurrence_frequency
+                ) : null,
+                recurrence_interval: recurringFormData.is_recurring ? (
+                    recurringFormData.recurrence_frequency === 'quarterly' ? 3 :
+                        recurringFormData.recurrence_frequency === 'half_yearly' ? 6 :
+                            1
+                ) : 1,
                 recurrence_time: recurringFormData.is_recurring && recurringFormData.recurrence_frequency === 'daily' ? recurringFormData.recurrence_time : null,
                 recurrence_day_of_week: recurringFormData.is_recurring && recurringFormData.recurrence_frequency === 'weekly' ? recurringFormData.recurrence_day_of_week : null,
-                recurrence_date: recurringFormData.is_recurring && ['monthly', 'yearly'].includes(recurringFormData.recurrence_frequency) && recurringFormData.recurrence_date ? format(recurringFormData.recurrence_date, 'yyyy-MM-dd') : null,
-                recurrence_day_of_month: recurringFormData.is_recurring && ['quarterly', 'half_yearly'].includes(recurringFormData.recurrence_frequency) ? recurringFormData.recurrence_day_of_month : null,
-                recurrence_start_date: recurringFormData.is_recurring && recurringFormData.recurrence_start_date ? format(recurringFormData.recurrence_start_date, 'yyyy-MM-dd') : null
+                recurrence_date: null,
+                recurrence_day_of_month: recurringFormData.is_recurring && ['monthly', 'quarterly', 'half_yearly'].includes(recurringFormData.recurrence_frequency) ? recurringFormData.recurrence_day_of_month : null,
+                recurrence_start_date: (() => {
+                    if (!recurringFormData.is_recurring) return null;
+                    if (recurringFormData.recurrence_start_date) return format(recurringFormData.recurrence_start_date, 'yyyy-MM-dd');
+
+                    if (['quarterly', 'half_yearly', 'yearly'].includes(recurringFormData.recurrence_frequency)) {
+                        if (recurringFormData.recurrence_start_month !== null && recurringFormData.recurrence_day_of_month !== null) {
+                            const now = new Date();
+                            const currentYear = now.getFullYear();
+                            let candidateDate = new Date(currentYear, recurringFormData.recurrence_start_month, recurringFormData.recurrence_day_of_month);
+
+                            if (recurringFormData.recurrence_frequency === 'yearly') {
+                                if (candidateDate < now.setHours(0, 0, 0, 0)) {
+                                    candidateDate.setFullYear(currentYear + 1);
+                                }
+                                return format(candidateDate, 'yyyy-MM-dd');
+                            }
+                            return format(candidateDate, 'yyyy-MM-dd');
+                        }
+                    }
+                    return recurringFormData.recurrence_start_date ? format(recurringFormData.recurrence_start_date, 'yyyy-MM-dd') : null;
+                })()
             };
 
             await updateTask(taskId, updateData, agencyId, user.access_token);
@@ -2672,14 +2736,19 @@ const TaskDashboardPage = () => {
                                 </div>
                                 <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
                                     {(task?.is_recurring || task?.is_recurring === 1 || task?.is_recurring === '1') ? (
-                                        <div className="text-center space-y-2">
-                                            <div className="text-xl font-bold text-white">
-                                                {formatRecurringDetails() || 'Recurring'}
-                                            </div>
-                                            <div className="text-sm font-semibold text-blue-400">
-                                                Recurring Task
-                                            </div>
-                                        </div>
+                                        (() => {
+                                            const { main, sub } = formatRecurringDetails();
+                                            return (
+                                                <div className="text-center space-y-2">
+                                                    <div className="text-xl font-bold text-white">
+                                                        {main || 'Recurring'}
+                                                    </div>
+                                                    <div className="text-sm font-semibold text-blue-400">
+                                                        {sub}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()
                                     ) : (
                                         <div className="text-center text-gray-400">
                                             <p className="text-sm">Not a recurring task</p>
@@ -2951,11 +3020,16 @@ const TaskDashboardPage = () => {
                                                 if (v !== 'weekly') {
                                                     handleRecurringFormChange('recurrence_day_of_week', null);
                                                 }
-                                                if (!['monthly', 'yearly'].includes(v)) {
+                                                if (!['yearly'].includes(v)) {
                                                     handleRecurringDateChange('recurrence_date', null);
                                                 }
-                                                if (!['quarterly', 'half_yearly'].includes(v)) {
+                                                if (!['monthly', 'quarterly', 'half_yearly', 'yearly'].includes(v)) {
                                                     handleRecurringFormChange('recurrence_day_of_month', null);
+                                                }
+                                                if (!['quarterly', 'half_yearly', 'yearly'].includes(v)) {
+                                                    handleRecurringFormChange('recurrence_start_month', null); // Use state setter directly if handler doesn't support generic
+                                                    // Since handleRecurringFormChange relies on name-value, we need to ensure name matches state
+                                                    setRecurringFormData(prev => ({ ...prev, recurrence_start_month: null }));
                                                 }
                                             }}
                                             disabled={isUpdatingRecurring}
@@ -3029,11 +3103,9 @@ const TaskDashboardPage = () => {
                                     </div>
                                 )}
 
-                                {['monthly', 'yearly'].includes(recurringFormData.recurrence_frequency) && (
+                                {recurringFormData.recurrence_frequency === 'yearly' && (
                                     <div>
-                                        <Label htmlFor="recurrence_date">
-                                            {recurringFormData.recurrence_frequency === 'monthly' ? 'Date (Day of Month)' : 'Date'}
-                                        </Label>
+                                        <Label htmlFor="recurrence_date">Date</Label>
                                         <Popover>
                                             <PopoverTrigger asChild>
                                                 <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !recurringFormData.recurrence_date && "text-muted-foreground")}>
@@ -3053,11 +3125,9 @@ const TaskDashboardPage = () => {
                                     </div>
                                 )}
 
-                                {['quarterly', 'half_yearly'].includes(recurringFormData.recurrence_frequency) && (
+                                {recurringFormData.recurrence_frequency === 'monthly' && (
                                     <div>
-                                        <Label htmlFor="recurrence_day_of_month">
-                                            Day of Month (repeats every {recurringFormData.recurrence_frequency === 'quarterly' ? '3 months' : '6 months'})
-                                        </Label>
+                                        <Label htmlFor="recurrence_day_of_month">Day of Month (1-31)</Label>
                                         <Select
                                             value={recurringFormData.recurrence_day_of_month !== null ? String(recurringFormData.recurrence_day_of_month) : ''}
                                             onValueChange={(v) => handleRecurringFormChange('recurrence_day_of_month', v ? parseInt(v) : null)}
@@ -3070,6 +3140,56 @@ const TaskDashboardPage = () => {
                                                 ))}
                                             </SelectContent>
                                         </Select>
+                                    </div>
+                                )}
+
+                                {['quarterly', 'half_yearly', 'yearly'].includes(recurringFormData.recurrence_frequency) && (
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <Label htmlFor="recurrence_start_month">
+                                                {recurringFormData.recurrence_frequency === 'yearly' ? 'Month' : 'Start Month'}
+                                            </Label>
+                                            <Select
+                                                value={recurringFormData.recurrence_start_month !== null ? String(recurringFormData.recurrence_start_month) : ''}
+                                                onValueChange={(v) => handleRecurringFormChange('recurrence_start_month', v ? parseInt(v) : null)}
+                                                disabled={isUpdatingRecurring}
+                                            >
+                                                <SelectTrigger><SelectValue placeholder="Select month" /></SelectTrigger>
+                                                <SelectContent>
+                                                    {[
+                                                        { value: 0, label: 'January' },
+                                                        { value: 1, label: 'February' },
+                                                        { value: 2, label: 'March' },
+                                                        { value: 3, label: 'April' },
+                                                        { value: 4, label: 'May' },
+                                                        { value: 5, label: 'June' },
+                                                        { value: 6, label: 'July' },
+                                                        { value: 7, label: 'August' },
+                                                        { value: 8, label: 'September' },
+                                                        { value: 9, label: 'October' },
+                                                        { value: 10, label: 'November' },
+                                                        { value: 11, label: 'December' }
+                                                    ].map(month => (
+                                                        <SelectItem key={month.value} value={String(month.value)}>{month.label}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="recurrence_day_of_month">Day of Month</Label>
+                                            <Select
+                                                value={recurringFormData.recurrence_day_of_month !== null ? String(recurringFormData.recurrence_day_of_month) : ''}
+                                                onValueChange={(v) => handleRecurringFormChange('recurrence_day_of_month', v ? parseInt(v) : null)}
+                                                disabled={isUpdatingRecurring}
+                                            >
+                                                <SelectTrigger><SelectValue placeholder="Select day" /></SelectTrigger>
+                                                <SelectContent>
+                                                    {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                                                        <SelectItem key={day} value={String(day)}>{day}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
                                     </div>
                                 )}
                             </div>

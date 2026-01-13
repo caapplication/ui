@@ -56,6 +56,7 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
     recurrence_day_of_week: null,
     recurrence_date: null,
     recurrence_day_of_month: null,
+    recurrence_start_month: null,
     recurrence_start_date: null
   });
 
@@ -217,6 +218,7 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
         recurrence_day_of_week: task.recurrence_day_of_week || null,
         recurrence_date: task.recurrence_date ? new Date(task.recurrence_date) : null,
         recurrence_day_of_month: task.recurrence_day_of_month || null,
+        recurrence_start_month: task.recurrence_start_date ? new Date(task.recurrence_start_date).getMonth() : null,
         recurrence_start_date: task.recurrence_start_date ? new Date(task.recurrence_start_date) : null,
         client_user_id: task.client_user_id || '',
         due_time: task.due_time || '12:00',
@@ -348,24 +350,104 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
       assigned_to: formData.assigned_user_id || null,
 
       is_recurring: formData.is_recurring || false,
-      recurrence_frequency: formData.is_recurring ? formData.recurrence_frequency : null,
+      recurrence_frequency: formData.is_recurring ? (
+        ['quarterly', 'half_yearly'].includes(formData.recurrence_frequency) ? 'monthly' : formData.recurrence_frequency
+      ) : null,
+      recurrence_interval: formData.is_recurring ? (
+        formData.recurrence_frequency === 'quarterly' ? 3 :
+          formData.recurrence_frequency === 'half_yearly' ? 6 :
+            1 // Default interval (e.g., daily, weekly, monthly, yearly)
+      ) : 1,
       recurrence_time: formData.is_recurring && formData.recurrence_frequency === 'daily' ? formData.recurrence_time : null,
       recurrence_day_of_week: formData.is_recurring && formData.recurrence_frequency === 'weekly' ? formData.recurrence_day_of_week : null,
-      recurrence_date:
-        formData.is_recurring &&
-          ['monthly', 'yearly'].includes(formData.recurrence_frequency) &&
-          formData.recurrence_date
-          ? format(formData.recurrence_date, 'yyyy-MM-dd')
-          : null,
+      // For Yearly, we set start_date based on month/day, so recurrence_date (legacy) is not strictly needed if backend uses start_date for anchoring.
+      // However, if backend expects recurrence_date for yearly, we should populate it.
+      // Based on CRUD logic: Yearly checks: check_date.month == start_date.month && check_date.day == start_date.day.
+      // So setting start_date correctly is the KEY.
+      recurrence_date: null,
       recurrence_day_of_month:
         formData.is_recurring &&
-          ['quarterly', 'half_yearly'].includes(formData.recurrence_frequency)
+          ['monthly', 'quarterly', 'half_yearly'].includes(formData.recurrence_frequency)
           ? formData.recurrence_day_of_month
           : null,
-      recurrence_start_date:
-        formData.is_recurring && formData.recurrence_start_date
-          ? format(formData.recurrence_start_date, 'yyyy-MM-dd')
-          : null
+      recurrence_start_date: (() => {
+        if (!formData.is_recurring) return null;
+        if (formData.recurrence_start_date) return format(formData.recurrence_start_date, 'yyyy-MM-dd'); // Manual override if we keep the field (we might hide it)
+
+        // For Q/H/Y, calculate start date from Month/Day
+        if (['quarterly', 'half_yearly', 'yearly'].includes(formData.recurrence_frequency)) {
+          if (formData.recurrence_start_month !== null && formData.recurrence_day_of_month !== null) {
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            // Create candidate date for this year
+            let candidateDate = new Date(currentYear, formData.recurrence_start_month, formData.recurrence_day_of_month);
+
+            // Handle invalid dates (e.g. Feb 30 -> Mar 2), strictly speaking we want to avoid this or handle it.
+            // JS Date auto-corrects. If we want strict "Day 31", and month has 30, it goes to next month.
+            // For now, assume JS behavior is acceptable or user selects valid day.
+
+            // If candidate is in past, move to next year (for Yearly) OR next valid cycle (for Q/H)?
+            // Actually, for Q/H, the "Start Month" is just the anchor.
+            // Example: Today Feb 2024. User selects "Jan" "1" for Quarterly.
+            // We want first run: Jan 1 2024 (Past) -> Next run Apr 1 2024.
+            // IF we set start_date to Jan 1 2024, backend "days_since_start % interval" logic needs to handle it.
+            // Backend checking:
+            // Monthly (Interval 3): months_since_start % 3 == 0.
+            // If start_date = Jan 1 2024. Check Apr 1 2024.
+            // (2024-2024)*12 + (4-1) = 3. 3 % 3 == 0. Match!
+            // So setting start_date to PAST is fine for anchoring.
+
+            // However, if we set start_date to Jan 1 2024, and today is Feb 2024.
+            // The backend `should_create_task_today` checks: `if check_date < recurring_task.start_date: return False`.
+            // So if we set start_date to TODAY (or future), it works.
+            // If we set start_date to PAST, it works for future dates.
+
+            // STRATEGY: Find the *next* occurrence >= Today.
+
+            // Case 1: Yearly.
+            // Today: Feb 10. Selected: Jan 1. Next: Jan 1 NEXT YEAR.
+            // Today: Feb 10. Selected: Mar 1. Next: Mar 1 THIS YEAR.
+            if (formData.recurrence_frequency === 'yearly') {
+              if (candidateDate < now.setHours(0, 0, 0, 0)) {
+                candidateDate.setFullYear(currentYear + 1);
+              }
+              return format(candidateDate, 'yyyy-MM-dd');
+            }
+
+            // Case 2: Quarterly.
+            // Today: Feb 10. Selected: Jan 1.
+            // If we set Start Date = Jan 1 (Past).
+            // Next run logic in backend: (MonthDiff % 3 == 0).
+            // Apr 1 (Month 4). Diff vs Month 1 = 3. OK.
+            // So we can just set the "Anchor Date". 
+            // BUT, `should_create_task_today` enforces `check_date >= start_date`.
+            // So we should probably set start_date to the first *future* run?
+            // OR, set start_date to the anchor date, provided it's "close enough"?
+            // user request: "today is feb 10 2026 -> q set to apr 28" (if anchor was jan 28??)
+            // User said: "if user select back month or date from current date like in this case 1jan then show first on 1 march then may 1." -> Wait.
+            // "Example: Today Feb 10. Q set to Apr 28 [implies Q starting, say, Jan 28?]"
+            // "if user select back month ... 1 jan ... then show first on 1 march" -> This suggests Interval 2?
+            // No, Quarterly is Interval 3.
+            // If User selects "Jan 1" as start.
+            // Runs: Jan 1, Apr 1, Jul 1, Oct 1.
+            // If Today is Feb 10.
+            // Jan 1 is past. Next is Apr 1.
+            // So we should set start_date to Jan 1 (past) ?
+            // If we set start_date = Jan 1.
+            // Check Date = Apr 1. Diff = 3. 3%3==0. CREATE.
+            // Check Date = Feb 10. Diff = 1. 1%3!=0. SKIP.
+            // This works perfectly! We SHOULD set the anchor date, even if it's in the past (this year).
+
+            // EXCEPTION: If the user selects a month/day that hasn't happened yet this year, use this year.
+            // If user selects a month/day that passed, use this year's date (past) as anchor.
+            // Backend logic handles "start_date" as the "reference point".
+
+            return format(candidateDate, 'yyyy-MM-dd');
+          }
+        }
+
+        return formData.recurrence_start_date ? format(formData.recurrence_start_date, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd');
+      })()
     };
 
     try {
@@ -603,11 +685,11 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
                       if (v !== 'weekly') {
                         handleSelectChange('recurrence_day_of_week', null);
                       }
-                      if (!['monthly', 'yearly'].includes(v)) {
-                        handleDateChange('recurrence_date', null);
-                      }
-                      if (!['quarterly', 'half_yearly'].includes(v)) {
+                      if (!['monthly', 'quarterly', 'half_yearly', 'yearly'].includes(v)) {
                         handleSelectChange('recurrence_day_of_month', null);
+                      }
+                      if (!['quarterly', 'half_yearly', 'yearly'].includes(v)) {
+                        handleSelectChange('recurrence_start_month', null);
                       }
                     }}
                     value={formData.recurrence_frequency}
@@ -687,38 +769,12 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
                 )
               }
 
-              {
-                ['monthly', 'yearly'].includes(formData.recurrence_frequency) && (
-                  <div>
-                    <Label htmlFor="recurrence_date">
-                      {formData.recurrence_frequency === 'monthly' ? 'Date (Day of Month)' : 'Date'}
-                    </Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formData.recurrence_date && "text-muted-foreground")}>
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {formData.recurrence_date ? format(formData.recurrence_date, "PPP") : <span>Pick a date</span>}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <Calendar
-                          mode="single"
-                          selected={formData.recurrence_date}
-                          onSelect={(d) => handleDateChange('recurrence_date', d)}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                )
-              }
+
 
               {
-                ['quarterly', 'half_yearly'].includes(formData.recurrence_frequency) && (
+                ['monthly'].includes(formData.recurrence_frequency) && (
                   <div>
-                    <Label htmlFor="recurrence_day_of_month">
-                      Day of Month (repeats every {formData.recurrence_frequency === 'quarterly' ? '3 months' : '6 months'})
-                    </Label>
+                    <Label htmlFor="recurrence_day_of_month">Day of Month (1-31)</Label>
                     <Select
                       name="recurrence_day_of_month"
                       onValueChange={(v) => handleSelectChange('recurrence_day_of_month', parseInt(v))}
@@ -732,6 +788,60 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
                         ))}
                       </SelectContent>
                     </Select>
+                  </div>
+                )
+              }
+
+              {
+                ['quarterly', 'half_yearly', 'yearly'].includes(formData.recurrence_frequency) && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="recurrence_start_month">
+                        {formData.recurrence_frequency === 'yearly' ? 'Month' : 'Start Month'}
+                      </Label>
+                      <Select
+                        name="recurrence_start_month"
+                        onValueChange={(v) => handleSelectChange('recurrence_start_month', parseInt(v))}
+                        value={formData.recurrence_start_month !== null ? String(formData.recurrence_start_month) : ''}
+                        disabled={isSaving}
+                      >
+                        <SelectTrigger><SelectValue placeholder="Select month" /></SelectTrigger>
+                        <SelectContent>
+                          {[
+                            { value: 0, label: 'January' },
+                            { value: 1, label: 'February' },
+                            { value: 2, label: 'March' },
+                            { value: 3, label: 'April' },
+                            { value: 4, label: 'May' },
+                            { value: 5, label: 'June' },
+                            { value: 6, label: 'July' },
+                            { value: 7, label: 'August' },
+                            { value: 8, label: 'September' },
+                            { value: 9, label: 'October' },
+                            { value: 10, label: 'November' },
+                            { value: 11, label: 'December' }
+                          ].map(month => (
+                            <SelectItem key={month.value} value={String(month.value)}>{month.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="recurrence_day_of_month">Day of Month</Label>
+                      <Select
+                        name="recurrence_day_of_month"
+                        onValueChange={(v) => handleSelectChange('recurrence_day_of_month', parseInt(v))}
+                        value={formData.recurrence_day_of_month !== null ? String(formData.recurrence_day_of_month) : ''}
+                        disabled={isSaving}
+                      >
+                        <SelectTrigger><SelectValue placeholder="Select day" /></SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                            <SelectItem key={day} value={String(day)}>{day}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 )
               }
