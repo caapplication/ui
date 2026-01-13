@@ -9,6 +9,7 @@ import * as pdfjsLib from 'pdfjs-dist';
 import { useToast } from '@/components/ui/use-toast';
 import { Loader2, ArrowLeft, Paperclip, Clock, Calendar as CalendarIcon, User, Tag, Flag, CheckCircle, FileText, List, MessageSquare, Briefcase, Users, Play, Square, History, Plus, Trash2, Send, Edit2, Bell, UserPlus, X, Download, Image as ImageIcon, Eye, Maximize2, Repeat, LayoutGrid, CheckCircle2, XCircle } from 'lucide-react';
 import { Combobox } from '@/components/ui/combobox';
+import imageCompression from 'browser-image-compression';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -1112,8 +1113,50 @@ const TaskDashboardPage = () => {
             // Always use FormData (backend expects Form data)
             const formData = new FormData();
             formData.append('message', commentText || '');
+
             if (fileToSend) {
-                formData.append('attachment', fileToSend);
+                let finalFile = fileToSend;
+
+                // Image Compression Logic
+                if (fileToSend.type.startsWith('image/')) {
+                    try {
+                        const options = {
+                            maxSizeMB: 1, // Compress to max 1MB
+                            maxWidthOrHeight: 1920,
+                            useWebWorker: true,
+                        };
+
+                        console.log(`Original file size: ${(fileToSend.size / 1024 / 1024).toFixed(2)} MB`);
+                        toast({ title: "Compressing Image...", description: "Please wait while we optimize your image." });
+
+                        const compressedBlob = await imageCompression(fileToSend, options);
+
+                        // Convert Blob back to File
+                        finalFile = new File([compressedBlob], fileToSend.name, {
+                            type: fileToSend.type,
+                            lastModified: new Date().getTime()
+                        });
+
+                        console.log(`Compressed file size: ${(finalFile.size / 1024 / 1024).toFixed(2)} MB`);
+                    } catch (error) {
+                        console.error('Image compression failed:', error);
+                        // Convert error to string if it's an object to avoid [object Object]
+                        const errorMessage = error instanceof Error ? error.message : String(error);
+                        toast({
+                            title: "Compression Skipped",
+                            description: `Could not compress image: ${errorMessage}. Sending original.`,
+                            variant: "warning"
+                        });
+                        // Fallback: finalFile stays as original fileToSend
+                    }
+                } else {
+                    // For non-image files, show a similar toast to maintain UX consistency
+                    toast({ title: "Optimizing File...", description: "Please wait while we prepare your file for upload." });
+                    // Add a small artificial delay so the user sees the toast
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+
+                formData.append('attachment', finalFile);
             }
             const commentData = formData;
 
