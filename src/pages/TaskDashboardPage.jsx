@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useSocket } from '@/contexts/SocketContext.jsx';
 import { useOrganisation } from '@/hooks/useOrganisation';
-import { getTaskDetails, startTaskTimer, stopTaskTimer, getTaskHistory, /* addTaskSubtask, updateTaskSubtask, deleteTaskSubtask, */ updateTask, listClients, listServices, listTeamMembers, listTaskComments, createTaskComment, updateTaskComment, deleteTaskComment, addTaskCollaborator, removeTaskCollaborator, getTaskCollaborators, getCommentReadReceipts, requestTaskClosure, getClosureRequest, reviewClosureRequest, listTaskStages } from '@/lib/api';
+import { getTaskDetails, startTaskTimer, stopTaskTimer, getTaskHistory, /* addTaskSubtask, updateTaskSubtask, deleteTaskSubtask, */ updateTask, listClients, listServices, listTeamMembers, listTaskComments, createTaskComment, updateTaskComment, deleteTaskComment, addTaskCollaborator, removeTaskCollaborator, getTaskCollaborators, getCommentReadReceipts, requestTaskClosure, getClosureRequest, reviewClosureRequest, listTaskStages, listEntityUsers } from '@/lib/api';
 import { listOrgUsers } from '@/lib/api/organisation';
 import * as pdfjsLib from 'pdfjs-dist';
 import { useToast } from '@/components/ui/use-toast';
@@ -120,6 +120,15 @@ const TaskDashboardPage = () => {
     const [isAddingCollaborator, setIsAddingCollaborator] = useState(false);
     const [showAddCollaborator, setShowAddCollaborator] = useState(false);
     const [selectedCollaboratorId, setSelectedCollaboratorId] = useState('');
+
+    // Independent collaborator selection state
+    const [selectedCollaboratorHostClient, setSelectedCollaboratorHostClient] = useState(''); // ID of the client selected in the modal
+    const [collaboratorHostClientUsers, setCollaboratorHostClientUsers] = useState([]); // Users for the selected client
+    const [loadingCollaboratorHostUsers, setLoadingCollaboratorHostUsers] = useState(false);
+
+    // Removed taskClientUsers state as we are now using independent selection
+    // const [taskClientUsers, setTaskClientUsers] = useState([]);
+    // const [loadingClientUsers, setLoadingClientUsers] = useState(false);
     // const [showSubtaskDialog, setShowSubtaskDialog] = useState(false);
     const [showAddCollaboratorDialog, setShowAddCollaboratorDialog] = useState(false);
     const [showAddChecklistDialog, setShowAddChecklistDialog] = useState(false);
@@ -246,7 +255,57 @@ const TaskDashboardPage = () => {
         };
 
         loadRelatedData();
+        loadRelatedData();
     }, [task, user?.agency_id, user?.access_token, selectedOrg, clients.length, services.length, teamMembers.length, orgUsers.length]);
+
+    // =================================================================================================
+    // Fetch users for the INDEPENDENTLY selected client in Add Collaborator modal
+    // =================================================================================================
+    useEffect(() => {
+        const fetchHostClientUsers = async () => {
+            if (!user?.access_token || !selectedCollaboratorHostClient) {
+                setCollaboratorHostClientUsers([]);
+                return;
+            }
+
+            setLoadingCollaboratorHostUsers(true);
+            try {
+                const response = await listEntityUsers(selectedCollaboratorHostClient, user.access_token);
+
+                let usersList = [];
+                if (Array.isArray(response)) {
+                    usersList = response;
+                } else if (response?.joined_users || response?.invited_users) {
+                    usersList = [
+                        ...(response.joined_users || []),
+                        ...(response.invited_users || [])
+                    ];
+                } else if (response?.users) {
+                    usersList = response.users;
+                }
+
+                const formattedUsers = (usersList || [])
+                    .map(u => ({
+                        id: u.user_id || u.id,
+                        name: u.name || u.full_name || u.email,
+                        email: u.email,
+                        role: u.role || u.target_role,
+                        user_id: u.user_id || u.id // Ensure user_id is consistent
+                    }))
+                    .filter(u => !!u.id);
+
+                setCollaboratorHostClientUsers(formattedUsers);
+            } catch (error) {
+                console.error("[CollaboratorHostUsers] fetch failed:", error);
+                setCollaboratorHostClientUsers([]);
+            } finally {
+                setLoadingCollaboratorHostUsers(false);
+            }
+        };
+
+        fetchHostClientUsers();
+    }, [selectedCollaboratorHostClient, user?.access_token]);
+
 
     const fetchHistory = useCallback(async () => {
         if (!user?.access_token || !taskId) return;
@@ -2803,27 +2862,64 @@ const TaskDashboardPage = () => {
                                     <DialogContent className="glass-pane">
                                         <DialogHeader>
                                             <DialogTitle>Add Collaborator</DialogTitle>
-                                            <DialogDescription>Select a team member to add as a collaborator</DialogDescription>
+                                            <DialogDescription>Select a user to add as a collaborator</DialogDescription>
                                         </DialogHeader>
-                                        <div className="py-4">
-                                            <Combobox
-                                                options={teamMembers
-                                                    .filter(m => {
-                                                        // Exclude already assigned user, creator, and existing collaborators
-                                                        const userId = m.user_id || m.id;
-                                                        return userId !== task.assigned_to &&
-                                                            userId !== task.created_by &&
-                                                            !collaborators.some(c => c.user_id === userId);
-                                                    })
-                                                    .map(m => ({
-                                                        value: m.user_id || m.id,
-                                                        label: `${m.name || m.full_name || m.email} (${m.role || m.department || 'N/A'})`
+                                        <div className="py-4 space-y-4">
+                                            {/* Client Selection (Optional) */}
+                                            <div>
+                                                <Label className="mb-2 block">Client (Optional)</Label>
+                                                <Combobox
+                                                    options={clients.map(c => ({
+                                                        value: String(c.id),
+                                                        label: c.name || c.email
                                                     }))}
-                                                value={selectedCollaboratorId}
-                                                onValueChange={setSelectedCollaboratorId}
-                                                placeholder="Select a collaborator..."
-                                                className="mb-2"
-                                            />
+                                                    value={selectedCollaboratorHostClient}
+                                                    onValueChange={(val) => {
+                                                        setSelectedCollaboratorHostClient(val);
+                                                        setSelectedCollaboratorId(''); // Reset user selection when client changes
+                                                    }}
+                                                    placeholder="Select a client..."
+                                                    searchPlaceholder="Search clients..."
+                                                    emptyText="No clients found."
+                                                />
+                                            </div>
+
+                                            {/* User Selection */}
+                                            <div>
+                                                <Label className="mb-2 block flex items-center gap-2">
+                                                    Collaborator
+                                                    {loadingCollaboratorHostUsers && <Loader2 className="h-3 w-3 animate-spin text-gray-400" />}
+                                                </Label>
+                                                <Combobox
+                                                    options={(selectedCollaboratorHostClient ? collaboratorHostClientUsers : teamMembers)
+                                                        .filter(m => {
+                                                            // Exclude already assigned user, creator, and existing collaborators
+                                                            const userId = m.user_id || m.id;
+
+                                                            const isCreator = String(userId) === String(task.created_by);
+                                                            const isAssignee = String(userId) === String(task.assigned_to);
+                                                            const isAlreadyCollaborator = collaborators.some(c => String(c.user_id) === String(userId));
+
+                                                            return !isCreator && !isAssignee && !isAlreadyCollaborator;
+                                                        })
+                                                        .map(m => ({
+                                                            value: m.user_id || m.id,
+                                                            label: `${m.name || m.full_name || m.email} ${(selectedCollaboratorHostClient) ? '(Client User)' : `(${m.role || m.department || 'N/A'})`}`
+                                                        }))}
+                                                    value={selectedCollaboratorId}
+                                                    onValueChange={setSelectedCollaboratorId}
+                                                    placeholder={
+                                                        loadingCollaboratorHostUsers
+                                                            ? "Loading users..."
+                                                            : selectedCollaboratorHostClient
+                                                                ? (collaboratorHostClientUsers.length === 0 ? "No users found for this client" : "Select a client user...")
+                                                                : "Select a team member..."
+                                                    }
+                                                    searchPlaceholder="Search users..."
+                                                    emptyText={selectedCollaboratorHostClient && collaboratorHostClientUsers.length === 0 ? "No users found for this client." : "No users found."}
+                                                    disabled={loadingCollaboratorHostUsers || isAddingCollaborator || (selectedCollaboratorHostClient && collaboratorHostClientUsers.length === 0)}
+                                                />
+                                            </div>
                                         </div>
                                         <DialogFooter>
                                             <Button
@@ -2831,6 +2927,7 @@ const TaskDashboardPage = () => {
                                                 onClick={() => {
                                                     setShowAddCollaboratorDialog(false);
                                                     setSelectedCollaboratorId('');
+                                                    setSelectedCollaboratorHostClient(''); // Reset client selection on close
                                                 }}
                                                 disabled={isAddingCollaborator}
                                             >
@@ -3289,6 +3386,7 @@ const TaskDashboardPage = () => {
                     <DialogHeader>
                         <DialogTitle>Review Closure Request</DialogTitle>
                         <DialogDescription>
+
                             {closureRequest && (
                                 <div className="mt-2">
                                     <p className="text-sm text-gray-300">
