@@ -2041,66 +2041,36 @@ const TaskDashboardPage = () => {
             {task && (
                 <div className="mb-4 flex justify-end gap-2">
                     {/* Close Task Button - Show for assigned user if task is not completed and no pending request */}
-                    {(() => {
-                        // Check if user is assigned to this task
-                        const isAssignedUser = task.assigned_to && String(task.assigned_to) === String(user?.id);
-                        // Check if task is not completed (check both status and statusName)
-                        const taskStatusLower = task.status?.toLowerCase() || '';
-                        const statusNameLower = statusName?.toLowerCase() || '';
-                        const isNotCompleted = taskStatusLower !== 'completed' &&
-                            statusNameLower !== 'complete' &&
-                            statusNameLower !== 'completed';
-                        // Check if there's no pending closure request
-                        const noPendingRequest = !closureRequest || closureRequest?.status !== 'pending';
 
-                        // Debug logging
-                        console.log('Close Button Visibility Check:', {
-                            isAssignedUser,
-                            taskAssignedTo: task.assigned_to,
-                            currentUserId: user?.id,
-                            isNotCompleted,
-                            noPendingRequest,
-                            taskStatusLower,
-                            statusNameLower,
-                            closureRequestStatus: closureRequest?.status
-                        });
 
-                        return isAssignedUser && isNotCompleted && noPendingRequest;
-                    })() && (
+                    {/* Closure Request Review - Show for task creator if pending request exists */}
+                    {
+                        task.created_by && String(task.created_by) === String(user?.id) && closureRequest?.status === 'pending' && (
                             <Button
-                                onClick={() => setShowClosureRequestDialog(true)}
+                                onClick={() => setShowClosureReviewDialog(true)}
                                 variant="outline"
                                 size="default"
-                                className="bg-red-500/20 text-red-300 border-red-500/50 hover:bg-red-500/30"
+                                className="bg-yellow-500/20 text-yellow-300 border-yellow-500/50 hover:bg-yellow-500/30"
                             >
-                                <XCircle className="w-4 h-4 mr-2" />
-                                Close
+                                <CheckCircle2 className="w-4 h-4 mr-2" />
+                                Review Closure Request
                             </Button>
-                        )}
-                    {/* Closure Request Review - Show for task creator if pending request exists */}
-                    {task.created_by && String(task.created_by) === String(user?.id) && closureRequest?.status === 'pending' && (
-                        <Button
-                            onClick={() => setShowClosureReviewDialog(true)}
-                            variant="outline"
-                            size="default"
-                            className="bg-yellow-500/20 text-yellow-300 border-yellow-500/50 hover:bg-yellow-500/30"
-                        >
-                            <CheckCircle2 className="w-4 h-4 mr-2" />
-                            Review Closure Request
-                        </Button>
-                    )}
+                        )
+                    }
                     {/* Show pending status if request is pending and user is assignee */}
-                    {task.assigned_to && String(task.assigned_to) === String(user?.id) && closureRequest?.status === 'pending' && (
-                        <Button
-                            variant="outline"
-                            size="default"
-                            disabled
-                            className="bg-gray-500/20 text-gray-300 border-gray-500/50"
-                        >
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Pending Closure Request
-                        </Button>
-                    )}
+                    {
+                        task.assigned_to && String(task.assigned_to) === String(user?.id) && closureRequest?.status === 'pending' && (
+                            <Button
+                                variant="outline"
+                                size="default"
+                                disabled
+                                className="bg-gray-500/20 text-gray-300 border-gray-500/50"
+                            >
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Pending Closure Request
+                            </Button>
+                        )
+                    }
                 </div>
             )}
 
@@ -2237,28 +2207,7 @@ const TaskDashboardPage = () => {
                                                         style={getStageColorStyles()}
                                                     />
                                                     {/* Close Button - Show for assigned user if task is not completed and no pending request */}
-                                                    {(() => {
-                                                        const isAssignedUser = task.assigned_to && String(task.assigned_to) === String(user?.id);
-                                                        const taskStatusLower = task.status?.toLowerCase() || '';
-                                                        const statusNameLower = statusName?.toLowerCase() || '';
-                                                        const isNotCompleted = taskStatusLower !== 'completed' &&
-                                                            statusNameLower !== 'complete' &&
-                                                            statusNameLower !== 'completed';
-                                                        const noPendingRequest = !closureRequest || closureRequest?.status !== 'pending';
 
-                                                        return isAssignedUser && isNotCompleted && noPendingRequest;
-                                                    })() && (
-                                                            <Button
-                                                                onClick={() => setShowClosureRequestDialog(true)}
-                                                                variant="outline"
-                                                                size="sm"
-                                                                className="bg-red-500/20 text-red-300 border-red-500/50 hover:bg-red-500/30"
-                                                                title="Request to complete this task"
-                                                            >
-                                                                <XCircle className="w-4 h-4 mr-1" />
-                                                                Close
-                                                            </Button>
-                                                        )}
                                                     {/* Creator Closure Actions - Show when stage is 'Request to Close' */}
                                                     {isTaskCreator && (stages.find(s => String(s.id) === String(task.stage_id))?.name || '').toLowerCase() === 'request to close' && (
                                                         <div className="flex items-center gap-1 ml-2">
