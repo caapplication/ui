@@ -70,101 +70,93 @@ const TaskManagementPage = ({ entityId, entityName }) => {
                 if (storedAgencyId) agencyId = storedAgencyId;
             }
 
-            console.debug('TaskManagementPage - Fetching data with config:', {
+            console.debug('TaskManagementPage - Fetching data optimized:', {
                 role: user?.role,
                 userAgencyId: user?.agency_id,
-                derivedAgencyId: agencyId,
-                entityId: entityId
+                derivedAgencyId: agencyId
             });
 
-            // Use Promise.allSettled to handle individual failures gracefully
-            const results = await Promise.allSettled([
-                listTasks(agencyId, user.access_token).catch(err => {
-                    console.warn('Failed to fetch tasks:', err);
-                    return { items: [] };
-                }),
-                listClients(agencyId, user.access_token).catch(err => {
-                    console.warn('Failed to fetch clients:', err);
-                    return [];
-                }),
-                listServices(agencyId, user.access_token).catch(err => {
-                    console.warn('Failed to fetch services:', err);
-                    return [];
-                }),
-                listTeamMembers(user.access_token).catch(err => {
-                    console.warn('Failed to fetch team members:', err);
-                    return [];
-                }),
-                getTags(agencyId, user.access_token).catch(err => {
-                    console.warn('Failed to fetch tags:', err);
-                    return [];
-                }),
-                listTaskStages(agencyId, user.access_token).catch(err => {
-                    console.warn('Failed to fetch stages:', err);
-                    return [];
-                }),
-            ]);
-            // Extract data from settled promises, handling both fulfilled and rejected states
-            const tasksData = results[0].status === 'fulfilled' ? results[0].value : { items: [] };
-            const clientsData = results[1].status === 'fulfilled' ? results[1].value : [];
-            const servicesData = results[2].status === 'fulfilled' ? results[2].value : [];
-            const teamData = results[3].status === 'fulfilled' ? results[3].value : [];
-            const tagsData = results[4].status === 'fulfilled' ? results[4].value : [];
-            const stagesData = results[5].status === 'fulfilled' ? results[5].value : [];
+            // 1. Start ALL requests in parallel immediately
+            const tasksPromise = listTasks(agencyId, user.access_token).catch(err => {
+                console.warn('Failed to fetch tasks:', err);
+                return { items: [] };
+            });
+            const teamPromise = listTeamMembers(user.access_token).catch(err => {
+                console.warn('Failed to fetch team members:', err);
+                return [];
+            });
+            const clientsPromise = listClients(agencyId, user.access_token).catch(err => {
+                console.warn('Failed to fetch clients:', err);
+                return [];
+            });
+            const servicesPromise = listServices(agencyId, user.access_token).catch(err => {
+                console.warn('Failed to fetch services:', err);
+                return [];
+            });
+            const tagsPromise = getTags(agencyId, user.access_token).catch(err => {
+                console.warn('Failed to fetch tags:', err);
+                return [];
+            });
+            const stagesPromise = listTaskStages(agencyId, user.access_token).catch(err => {
+                console.warn('Failed to fetch stages:', err);
+                return [];
+            });
 
-            // Handle different response formats (direct array or { items: [...] })
+            // 2. CRITICAL PHASE: Wait ONLY for Tasks and Team Members
+            // This is the minimum required data to render the main table structure usefuly
+            const criticalResults = await Promise.allSettled([tasksPromise, teamPromise]);
+
+            // Process Critical Data
+            const tasksData = criticalResults[0].status === 'fulfilled' ? criticalResults[0].value : { items: [] };
+            const teamData = criticalResults[1].status === 'fulfilled' ? criticalResults[1].value : [];
+
             const tasksArray = Array.isArray(tasksData) ? tasksData : (tasksData?.items || []);
-            const clientsArray = Array.isArray(clientsData) ? clientsData : (clientsData?.items || []);
-            const servicesArray = Array.isArray(servicesData) ? servicesData : (servicesData?.items || []);
-            const teamMembersArray = Array.isArray(teamData) ? teamData : (teamData?.items || []);
-            const tagsArray = Array.isArray(tagsData) ? tagsData : (tagsData?.items || []);
-            const stagesArray = Array.isArray(stagesData) ? stagesData : (stagesData?.items || []);
-
-            // Debug: Log data for troubleshooting
-            console.debug('TaskManagementPage - Loaded data:', {
-                tasksCount: tasksArray.length,
-                clientsCount: clientsArray.length,
-                servicesCount: servicesArray.length,
-                teamMembersCount: teamMembersArray.length,
-                tagsCount: tagsArray.length,
-                stagesCount: stagesArray.length,
-                sampleTask: tasksArray[0] ? {
-                    id: tasksArray[0].id,
-                    client_id: tasksArray[0].client_id,
-                    assigned_to: tasksArray[0].assigned_to,
-                    assignee_id: tasksArray[0].assignee_id
-                } : null,
-                sampleClients: clientsArray.slice(0, 3).map(c => ({ id: c?.id, name: c?.name })),
-                sampleTeamMembers: teamMembersArray.slice(0, 3).map(m => ({ id: m?.id, user_id: m?.user_id, name: m?.name, email: m?.email }))
-            });
+            const teamArray = Array.isArray(teamData) ? teamData : (teamData?.items || []);
 
             setTasks(tasksArray);
-            setClients(clientsArray);
-            setServices(servicesArray);
-            setTeamMembers(teamMembersArray);
-            setTags(tagsArray);
-            // Force update by creating a new array reference
-            setStages([...stagesArray]);
+            setTeamMembers(teamArray);
+
+            // UNBLOCK UI: Stop spinner and show table immediately
+            setIsLoading(false);
+
+            // 3. PROGRESSIVE PHASE: Handle secondary data in background
+            // We use Promise.allSettled so we can handle them as a group, or we could handle them individually.
+            // Handling as a group ensures we don't cause too many re-renders, but since they are separate states,
+            // we could also just await them one by one if we wanted "streaming" updates. 
+            // Here, grouped update is fine and safer for performance.
+            Promise.allSettled([clientsPromise, servicesPromise, tagsPromise, stagesPromise])
+                .then(([clientsRes, servicesRes, tagsRes, stagesRes]) => {
+                    // Update state only if component is still mounted (React handles this mostly, but good practice)
+                    if (clientsRes.status === 'fulfilled') {
+                        setClients(Array.isArray(clientsRes.value) ? clientsRes.value : (clientsRes.value?.items || []));
+                    }
+                    if (servicesRes.status === 'fulfilled') {
+                        setServices(Array.isArray(servicesRes.value) ? servicesRes.value : (servicesRes.value?.items || []));
+                    }
+                    if (tagsRes.status === 'fulfilled') {
+                        setTags(Array.isArray(tagsRes.value) ? tagsRes.value : (tagsRes.value?.items || []));
+                    }
+                    if (stagesRes.status === 'fulfilled') {
+                        const stagesData = stagesRes.value;
+                        const stagesArray = Array.isArray(stagesData) ? stagesData : (stagesData?.items || []);
+                        setStages([...stagesArray]);
+                    }
+                })
+                .catch(err => console.warn('Background data fetch warning:', err));
 
         } catch (error) {
-            console.error('Error fetching task data:', error);
-            // Set empty arrays to allow UI to render even if API fails
+            console.error('Error in critical data fetch:', error);
+            // On critical failure, we must stop loading and show what we have (or empty)
             setTasks([]);
-            setClients([]);
-            setServices([]);
-            setTeamMembers([]);
-            setTags([]);
+            setIsLoading(false);
 
-            // Only show error toast if it's not a network error (backend might not be running)
-            if (error.message && !error.message.includes('Failed to fetch') && !error.message.includes('NetworkError')) {
+            if (error.message && !error.message.includes('Failed to fetch')) {
                 toast({
-                    title: 'Error fetching data',
+                    title: 'Error loading tasks',
                     description: error.message,
                     variant: 'destructive',
                 });
             }
-        } finally {
-            setIsLoading(false);
         }
     }, [user, entities, toast]);
 
