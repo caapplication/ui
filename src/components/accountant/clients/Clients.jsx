@@ -4,9 +4,34 @@ import NewClientForm from '@/components/accountant/clients/NewClientForm';
 import ClientDashboard from '@/components/accountant/clients/ClientDashboard';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
-import { listClients, createClient, updateClient, listServices as fetchAllServices, deleteClient as apiDeleteClient, listOrganisations, getBusinessTypes, listClientServices, listTeamMembers, getTags, uploadClientPhoto, listOrgUsers, listEntities, createEntity, listAllEntityUsers } from '@/lib/api';
+import {
+    listClients,
+    createClient,
+    updateClient,
+    listServices as fetchAllServices,
+    deleteClient as apiDeleteClient,
+    listOrganisations,
+    getBusinessTypes,
+    listClientServices,
+    listTeamMembers,
+    getTags,
+    uploadClientPhoto,
+    listEntities,
+    createEntity,
+    listAllEntityUsers,
+} from '@/lib/api';
 import { useToast } from '@/components/ui/use-toast';
 import { Loader2 } from 'lucide-react';
+
+const CLIENTS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const clientsDataCache = {
+    snapshot: null,
+    timestamp: 0,
+};
+const orgDataCacheStore = new Map();
+const clientServicesCacheStore = new Map();
+
+const isCacheValid = (timestamp = 0) => Date.now() - timestamp < CLIENTS_CACHE_TTL;
 
 const Clients = ({ setActiveTab }) => {
     const { user } = useAuth();
@@ -22,188 +47,251 @@ const Clients = ({ setActiveTab }) => {
     const [selectedClient, setSelectedClient] = useState(null);
     const [editingClient, setEditingClient] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [organizationUsers, setOrganizationUsers] = useState([]);
 
-    // Cache for organization data to avoid duplicate API calls
-    const orgDataCache = useRef(new Map());
+    const orgDataCache = useRef(orgDataCacheStore);
+    const clientServicesCache = useRef(clientServicesCacheStore);
     const isFetchingRef = useRef(false);
 
-    const fetchClientsAndServices = useCallback(async () => {
-        // Prevent concurrent calls
-        if (isFetchingRef.current) {
-            return;
-        }
+    const applySnapshot = useCallback(
+        (snapshot) => {
+            if (!snapshot) return false;
 
-        isFetchingRef.current = true;
-        setIsLoading(true);
-        try {
-            if (!user?.agency_id || !user?.access_token) {
-                throw new Error("User information is not available.");
+            setClients(snapshot.clients ? [...snapshot.clients] : []);
+            setAllServices(snapshot.services ? [...snapshot.services] : []);
+            setOrganisations(snapshot.organisations ? [...snapshot.organisations] : []);
+            setBusinessTypes(snapshot.businessTypes ? [...snapshot.businessTypes] : []);
+            setTeamMembers(snapshot.teamMembers ? [...snapshot.teamMembers] : []);
+            setTags(snapshot.tags ? [...snapshot.tags] : []);
+
+            if (snapshot.orgDataEntries) {
+                const cacheMap = orgDataCache.current;
+                cacheMap.clear();
+                snapshot.orgDataEntries.forEach(([key, value]) => cacheMap.set(key, value));
             }
 
-            // Use Promise.allSettled to handle partial failures gracefully
-            const results = await Promise.allSettled([
-                listClients(user.agency_id, user.access_token),
-                fetchAllServices(user.agency_id, user.access_token),
-                listOrganisations(user.access_token),
-                getBusinessTypes(user.agency_id, user.access_token),
-                listTeamMembers(user.access_token, 'joined'),
-                getTags(user.agency_id, user.access_token)
-            ]);
+            if (snapshot.clientServicesEntries) {
+                const servicesCache = clientServicesCache.current;
+                servicesCache.clear();
+                snapshot.clientServicesEntries.forEach(([key, value]) => servicesCache.set(key, value));
+            }
 
-            // Extract results, using empty arrays/objects for failed requests
-            const clientsData = results[0].status === 'fulfilled' ? results[0].value : [];
-            const servicesData = results[1].status === 'fulfilled' ? results[1].value : [];
-            const orgsData = results[2].status === 'fulfilled' ? results[2].value : [];
-            const businessTypesData = results[3].status === 'fulfilled' ? results[3].value : [];
-            const teamMembersData = results[4].status === 'fulfilled' ? results[4].value : [];
-            const tagsData = results[5].status === 'fulfilled' ? results[5].value : [];
+            return true;
+        },
+        [orgDataCache, clientServicesCache]
+    );
 
-            // Log any failures
-            results.forEach((result, index) => {
-                if (result.status === 'rejected') {
-                    const names = ['clients', 'services', 'organisations', 'businessTypes', 'teamMembers', 'tags'];
-                    console.error(`Failed to fetch ${names[index]}:`, result.reason);
-                }
-            });
+    const syncSnapshot = useCallback(
+        (updates = {}) => {
+            if (!clientsDataCache.snapshot) return;
 
-            const orgsMap = (orgsData || []).reduce((acc, org) => {
-                acc[org.id] = org.name;
-                return acc;
-            }, {});
+            clientsDataCache.snapshot = {
+                ...clientsDataCache.snapshot,
+                ...updates,
+            };
+            clientsDataCache.snapshot.orgDataEntries = Array.from(orgDataCache.current.entries());
+            clientsDataCache.snapshot.clientServicesEntries = Array.from(clientServicesCache.current.entries());
+            clientsDataCache.timestamp = Date.now();
+        },
+        [orgDataCache, clientServicesCache]
+    );
 
-            const clientsWithData = (clientsData || []).map(client => {
-                // Convert S3 photo URLs to proxy endpoint URLs
-                // Never store blob URLs - always use proxy endpoint
-                const clientApiUrl = import.meta.env.VITE_CLIENT_API_URL || 'http://127.0.0.1:8002';
-                let photoUrl = client.photo_url || client.photo;
+    const fetchClientsAndServices = useCallback(
+        async (forceRefresh = false) => {
+            if (isFetchingRef.current) {
+                return;
+            }
 
-                // If it's a blob URL, ignore it and use proxy endpoint
-                if (photoUrl && photoUrl.startsWith('blob:')) {
-                    photoUrl = null;
-                }
+            const canServeFromCache =
+                !forceRefresh && isCacheValid(clientsDataCache.timestamp) && clientsDataCache.snapshot;
+            if (canServeFromCache) {
+                applySnapshot(clientsDataCache.snapshot);
+                setIsLoading(false);
+                return;
+            }
 
-                // Convert S3 URLs to proxy endpoint
-                // Convert S3 URLs to proxy endpoint
-                if (photoUrl && photoUrl.includes('.s3.amazonaws.com/')) {
-                    const version = client.updated_at ? new Date(client.updated_at).getTime() : 0;
-                    photoUrl = `${clientApiUrl}/clients/${client.id}/photo?token=${user.access_token}&v=${version}`;
-                } else if (!photoUrl || !photoUrl.includes('/clients/')) {
-                    // If no photo_url or it's not a proxy URL, use proxy endpoint (might not exist, but that's OK)
-                    const version = client.updated_at ? new Date(client.updated_at).getTime() : 0;
-                    photoUrl = client.id ? `${clientApiUrl}/clients/${client.id}/photo?token=${user.access_token}&v=${version}` : null;
-                } else if (photoUrl && photoUrl.includes('/clients/') && !photoUrl.includes('token=')) {
-                    // If it is a proxy URL but missing the token, append it
-                    const separator = photoUrl.includes('?') ? '&' : '?';
-                    const version = client.updated_at ? new Date(client.updated_at).getTime() : 0;
-                    photoUrl = `${photoUrl}${separator}token=${user.access_token}&v=${version}`;
+            isFetchingRef.current = true;
+            setIsLoading(true);
+
+            const bypassEntryCaches = forceRefresh || !isCacheValid(clientsDataCache.timestamp);
+
+            try {
+                if (!user?.agency_id || !user?.access_token) {
+                    throw new Error('User information is not available.');
                 }
 
-                return {
-                    ...client,
-                    organization_name: orgsMap[client.organization_id] || null,
-                    photo_url: photoUrl,
-                    photo: photoUrl, // Also set photo for backward compatibility
-                };
-            });
+                const results = await Promise.allSettled([
+                    listClients(user.agency_id, user.access_token),
+                    fetchAllServices(user.agency_id, user.access_token),
+                    listOrganisations(user.access_token),
+                    getBusinessTypes(user.agency_id, user.access_token),
+                    listTeamMembers(user.access_token, 'joined'),
+                    getTags(user.agency_id, user.access_token),
+                ]);
 
-            // Get unique organization IDs to batch fetch organization data
-            const uniqueOrgIds = [...new Set(clientsWithData.map(c => c.organization_id).filter(Boolean))];
+                const clientsData = results[0].status === 'fulfilled' ? results[0].value : [];
+                const servicesData = results[1].status === 'fulfilled' ? results[1].value : [];
+                const orgsData = results[2].status === 'fulfilled' ? results[2].value : [];
+                const businessTypesData = results[3].status === 'fulfilled' ? results[3].value : [];
+                const teamMembersData = results[4].status === 'fulfilled' ? results[4].value : [];
+                const tagsData = results[5].status === 'fulfilled' ? results[5].value : [];
 
-            // Batch fetch organization users and entities
-            const orgDataPromises = uniqueOrgIds.map(async (orgId) => {
-                // Check cache first
-                const cacheKey = `org-${orgId}`;
-                if (orgDataCache.current.has(cacheKey)) {
-                    return { orgId, data: orgDataCache.current.get(cacheKey) };
-                }
+                results.forEach((result, index) => {
+                    if (result.status === 'rejected') {
+                        const names = ['clients', 'services', 'organisations', 'businessTypes', 'teamMembers', 'tags'];
+                        console.error(`Failed to fetch ${names[index]}:`, result.reason);
+                    }
+                });
 
-                try {
-                    const [usersMapResult, entities] = await Promise.allSettled([
-                        listAllEntityUsers(orgId, user.access_token),
-                        listEntities(orgId, user.access_token)
-                    ]);
+                const orgsMap = (orgsData || []).reduce((acc, org) => {
+                    acc[org.id] = org.name;
+                    return acc;
+                }, {});
 
-                    const entityUsersMap = usersMapResult.status === 'fulfilled' && usersMapResult.value
-                        ? usersMapResult.value
-                        : {};
+                const clientsWithData = (clientsData || []).map((client) => {
+                    const clientApiUrl = import.meta.env.VITE_CLIENT_API_URL || 'http://127.0.0.1:8002';
+                    let photoUrl = client.photo_url || client.photo;
 
-                    const orgEntities = entities.status === 'fulfilled' && Array.isArray(entities.value)
-                        ? entities.value
-                        : [];
+                    if (photoUrl && photoUrl.startsWith('blob:')) {
+                        photoUrl = null;
+                    }
 
-                    const data = { entityUsersMap, entities: orgEntities };
-                    orgDataCache.current.set(cacheKey, data);
-                    return { orgId, data };
-                } catch (e) {
-                    console.error(`Failed to fetch org data for ${orgId}:`, e);
-                    const data = { entityUsersMap: {}, entities: [] };
-                    orgDataCache.current.set(cacheKey, data);
-                    return { orgId, data };
-                }
-            });
+                    if (photoUrl && photoUrl.includes('.s3.amazonaws.com/')) {
+                        const version = client.updated_at ? new Date(client.updated_at).getTime() : 0;
+                        photoUrl = `${clientApiUrl}/clients/${client.id}/photo?token=${user.access_token}&v=${version}`;
+                    } else if (!photoUrl || !photoUrl.includes('/clients/')) {
+                        const version = client.updated_at ? new Date(client.updated_at).getTime() : 0;
+                        photoUrl = client.id
+                            ? `${clientApiUrl}/clients/${client.id}/photo?token=${user.access_token}&v=${version}`
+                            : null;
+                    } else if (photoUrl && photoUrl.includes('/clients/') && !photoUrl.includes('token=')) {
+                        const separator = photoUrl.includes('?') ? '&' : '?';
+                        const version = client.updated_at ? new Date(client.updated_at).getTime() : 0;
+                        photoUrl = `${photoUrl}${separator}token=${user.access_token}&v=${version}`;
+                    }
 
-            const orgDataResults = await Promise.all(orgDataPromises);
-            const orgDataMap = new Map(orgDataResults.map(r => [r.orgId, r.data]));
+                    return {
+                        ...client,
+                        organization_name: orgsMap[client.organization_id] || null,
+                        photo_url: photoUrl,
+                        photo: photoUrl,
+                    };
+                });
 
-            // Batch fetch client services
-            const clientServicesPromises = clientsWithData.map(async (client) => {
-                try {
-                    const clientServices = await listClientServices(client.id, user.agency_id, user.access_token);
-                    return { clientId: client.id, services: Array.isArray(clientServices) ? clientServices : [] };
-                } catch (e) {
-                    if (e.message.includes('404')) {
+                const uniqueOrgIds = [...new Set(clientsWithData.map((c) => c.organization_id).filter(Boolean))];
+
+                const orgDataPromises = uniqueOrgIds.map(async (orgId) => {
+                    const cacheKey = `org-${orgId}`;
+                    if (!bypassEntryCaches && orgDataCache.current.has(cacheKey)) {
+                        return { orgId, data: orgDataCache.current.get(cacheKey) };
+                    }
+
+                    try {
+                        const [usersMapResult, entities] = await Promise.allSettled([
+                            listAllEntityUsers(orgId, user.access_token),
+                            listEntities(orgId, user.access_token),
+                        ]);
+
+                        const entityUsersMap =
+                            usersMapResult.status === 'fulfilled' && usersMapResult.value
+                                ? usersMapResult.value
+                                : {};
+
+                        const orgEntities =
+                            entities.status === 'fulfilled' && Array.isArray(entities.value) ? entities.value : [];
+
+                        const data = { entityUsersMap, entities: orgEntities };
+                        orgDataCache.current.set(cacheKey, data);
+                        return { orgId, data };
+                    } catch (e) {
+                        console.error(`Failed to fetch org data for ${orgId}:`, e);
+                        const data = { entityUsersMap: {}, entities: [] };
+                        orgDataCache.current.set(cacheKey, data);
+                        return { orgId, data };
+                    }
+                });
+
+                const orgDataResults = await Promise.all(orgDataPromises);
+                const orgDataMap = new Map(orgDataResults.map((r) => [r.orgId, r.data]));
+
+                const clientServicesPromises = clientsWithData.map(async (client) => {
+                    const cacheKey = `client-services-${client.id}`;
+                    if (!bypassEntryCaches && clientServicesCache.current.has(cacheKey)) {
+                        return { clientId: client.id, services: clientServicesCache.current.get(cacheKey) };
+                    }
+
+                    try {
+                        const clientServices = await listClientServices(
+                            client.id,
+                            user.agency_id,
+                            user.access_token
+                        );
+                        const servicesList = Array.isArray(clientServices) ? clientServices : [];
+                        clientServicesCache.current.set(cacheKey, servicesList);
+                        return { clientId: client.id, services: servicesList };
+                    } catch (e) {
+                        if (typeof e?.message === 'string' && e.message.includes('404')) {
+                            clientServicesCache.current.set(cacheKey, []);
+                            return { clientId: client.id, services: [] };
+                        }
+                        console.error(`Failed to fetch services for client ${client.id}`, e);
+                        clientServicesCache.current.set(cacheKey, []);
                         return { clientId: client.id, services: [] };
                     }
-                    console.error(`Failed to fetch services for client ${client.id}`, e);
-                    return { clientId: client.id, services: [] };
-                }
-            });
+                });
 
-            const clientServicesResults = await Promise.all(clientServicesPromises);
-            const clientServicesMap = new Map(clientServicesResults.map(r => [r.clientId, r.services]));
+                const clientServicesResults = await Promise.all(clientServicesPromises);
+                const clientServicesMap = new Map(clientServicesResults.map((r) => [r.clientId, r.services]));
 
-            // Combine all data
-            const clientsWithServices = clientsWithData.map(client => {
-                const orgData = orgDataMap.get(client.organization_id) || { entityUsersMap: {}, entities: [] };
-                const services = clientServicesMap.get(client.id) || [];
+                const clientsWithServices = clientsWithData.map((client) => {
+                    const orgData = orgDataMap.get(client.organization_id) || { entityUsersMap: {}, entities: [] };
+                    const services = clientServicesMap.get(client.id) || [];
+                    const clientUsers =
+                        orgData.entityUsersMap && orgData.entityUsersMap[client.id]
+                            ? orgData.entityUsersMap[client.id]
+                            : { invited_users: [], joined_users: [] };
 
-                // Use entity-specific users if available, otherwise empty
-                const clientUsers = (orgData.entityUsersMap && orgData.entityUsersMap[client.id])
-                    ? orgData.entityUsersMap[client.id]
-                    : { invited_users: [], joined_users: [] };
+                    return {
+                        ...client,
+                        availedServices: services,
+                        orgUsers: clientUsers,
+                        entities: orgData.entities,
+                    };
+                });
 
-                return {
-                    ...client,
-                    availedServices: services,
-                    orgUsers: clientUsers, // Populate orgUsers prop with entity-specific users
-                    entities: orgData.entities
+                const snapshot = {
+                    clients: clientsWithServices,
+                    services: servicesData || [],
+                    organisations: orgsData || [],
+                    businessTypes: businessTypesData || [],
+                    teamMembers: teamMembersData || [],
+                    tags: tagsData || [],
+                    orgDataEntries: Array.from(orgDataCache.current.entries()),
+                    clientServicesEntries: Array.from(clientServicesCache.current.entries()),
                 };
-            });
 
-            setClients(clientsWithServices);
-            setAllServices(servicesData || []);
-            setOrganisations(orgsData || []);
-            setBusinessTypes(businessTypesData || []);
-            setTeamMembers(teamMembersData || []);
-            setTags(tagsData || []);
-        } catch (error) {
-            toast({
-                title: 'Error fetching data',
-                description: error.message,
-                variant: 'destructive',
-            });
-        } finally {
-            setIsLoading(false);
-            isFetchingRef.current = false;
-        }
-    }, [user?.agency_id, user?.access_token]);
+                clientsDataCache.snapshot = snapshot;
+                clientsDataCache.timestamp = Date.now();
+
+                applySnapshot(snapshot);
+            } catch (error) {
+                toast({
+                    title: 'Error fetching data',
+                    description: error.message,
+                    variant: 'destructive',
+                });
+            } finally {
+                setIsLoading(false);
+                isFetchingRef.current = false;
+            }
+        },
+        [applySnapshot, toast, user?.agency_id, user?.access_token]
+    );
 
     useEffect(() => {
         if (user?.agency_id && user?.access_token) {
             fetchClientsAndServices();
         }
-    }, [user?.agency_id, user?.access_token]);
+    }, [user?.agency_id, user?.access_token, fetchClientsAndServices]);
 
     const handleAddNew = () => {
         setEditingClient(null);
@@ -213,23 +301,19 @@ const Clients = ({ setActiveTab }) => {
     const handleViewClient = (client) => {
         setSelectedClient(client);
         setView('dashboard');
-    }
+    };
 
     const handleBackToList = () => {
         setView('list');
         setSelectedClient(null);
         setEditingClient(null);
-        // Don't refetch - data is already up to date
     };
 
     const handleCancelForm = () => {
         if (editingClient && selectedClient && editingClient.id === selectedClient.id) {
-            // We were editing the selected client (likely came from dashboard)
             setView('dashboard');
             setEditingClient(null);
-            // keep selectedClient as is
         } else {
-            // New client or came from list
             setView('list');
             setSelectedClient(null);
             setEditingClient(null);
@@ -239,16 +323,20 @@ const Clients = ({ setActiveTab }) => {
     const handleEditClient = (client) => {
         setEditingClient(client);
         setView('new');
-    }
+    };
 
     const handleDeleteClient = async (clientId) => {
         try {
             if (!user?.agency_id || !user?.access_token) {
-                throw new Error("User information is not available.");
+                throw new Error('User information is not available.');
             }
             await apiDeleteClient(clientId, user.agency_id, user.access_token);
-            toast({ title: "✅ Client Deleted", description: `Client has been removed.` });
-            setClients(prev => prev.filter(c => c.id !== clientId));
+            toast({ title: '✅ Client Deleted', description: `Client has been removed.` });
+            setClients((prev) => {
+                const next = prev.filter((c) => c.id !== clientId);
+                syncSnapshot({ clients: next });
+                return next;
+            });
         } catch (error) {
             toast({
                 title: 'Error deleting client',
@@ -261,13 +349,18 @@ const Clients = ({ setActiveTab }) => {
     const handleBulkDelete = async (clientIds) => {
         try {
             if (!user?.agency_id || !user?.access_token) {
-                throw new Error("User information is not available.");
+                throw new Error('User information is not available.');
             }
-            await Promise.all(
-                clientIds.map(id => apiDeleteClient(id, user.agency_id, user.access_token))
-            );
-            toast({ title: `✅ ${clientIds.length} Clients Deleted`, description: `The selected clients have been removed.` });
-            setClients(prev => prev.filter(c => !clientIds.includes(c.id)));
+            await Promise.all(clientIds.map((id) => apiDeleteClient(id, user.agency_id, user.access_token)));
+            toast({
+                title: `✅ ${clientIds.length} Clients Deleted`,
+                description: `The selected clients have been removed.`,
+            });
+            setClients((prev) => {
+                const next = prev.filter((c) => !clientIds.includes(c.id));
+                syncSnapshot({ clients: next });
+                return next;
+            });
         } catch (error) {
             toast({
                 title: 'Error deleting clients',
@@ -280,105 +373,86 @@ const Clients = ({ setActiveTab }) => {
     const handleSaveClient = async (clientData, photoFile) => {
         try {
             if (!user?.agency_id || !user?.access_token) {
-                throw new Error("User information is not available.");
+                throw new Error('User information is not available.');
             }
 
-            // Extract organization_name (if provided) to avoid sending it to API if strict, 
-            // and to use it for immediate UI update
             const { organization_name: providedOrgName, ...apiClientData } = clientData;
 
             if (editingClient) {
-                const updatedClient = await updateClient(editingClient.id, apiClientData, user.agency_id, user.access_token);
+                const updatedClient = await updateClient(
+                    editingClient.id,
+                    apiClientData,
+                    user.agency_id,
+                    user.access_token
+                );
                 const clientApiUrl = import.meta.env.VITE_CLIENT_API_URL || 'http://127.0.0.1:8002';
                 let finalClient = updatedClient;
 
                 if (photoFile) {
-                    // Upload new photo
                     await uploadClientPhoto(editingClient.id, photoFile, user.agency_id, user.access_token);
-                    // Always use proxy endpoint URL with cache-busting after photo upload
                     const timestamp = Date.now();
                     const photoUrl = `${clientApiUrl}/clients/${editingClient.id}/photo?t=${timestamp}&token=${user.access_token}`;
                     finalClient = { ...updatedClient, photo: photoUrl, photo_url: photoUrl };
-                } else {
-                    // No new photo uploaded, but ensure existing photo_url is in proxy format
-                    if (updatedClient.photo_url) {
-                        if (updatedClient.photo_url.startsWith('blob:')) {
-                            // Replace blob URL with proxy endpoint
-                            const timestamp = Date.now();
-                            finalClient = { ...updatedClient, photo: `${clientApiUrl}/clients/${editingClient.id}/photo?t=${timestamp}&token=${user.access_token}`, photo_url: `${clientApiUrl}/clients/${editingClient.id}/photo?t=${timestamp}&token=${user.access_token}` };
-                        } else if (updatedClient.photo_url.includes('.s3.amazonaws.com/')) {
-                            // Convert S3 URL to proxy endpoint
-                            const timestamp = Date.now();
-                            finalClient = { ...updatedClient, photo: `${clientApiUrl}/clients/${editingClient.id}/photo?t=${timestamp}&token=${user.access_token}`, photo_url: `${clientApiUrl}/clients/${editingClient.id}/photo?t=${timestamp}&token=${user.access_token}` };
-                        } else if (!updatedClient.photo_url.includes('/clients/')) {
-                            // If it's not a proxy URL, convert it
-                            const timestamp = Date.now();
-                            finalClient = { ...updatedClient, photo: `${clientApiUrl}/clients/${editingClient.id}/photo?t=${timestamp}&token=${user.access_token}`, photo_url: `${clientApiUrl}/clients/${editingClient.id}/photo?t=${timestamp}&token=${user.access_token}` };
-                        }
+                } else if (updatedClient.photo_url) {
+                    const timestamp = Date.now();
+                    if (updatedClient.photo_url.startsWith('blob:') ||
+                        updatedClient.photo_url.includes('.s3.amazonaws.com/') ||
+                        !updatedClient.photo_url.includes('/clients/')) {
+                        const photoUrl = `${clientApiUrl}/clients/${editingClient.id}/photo?t=${timestamp}&token=${user.access_token}`;
+                        finalClient = { ...updatedClient, photo: photoUrl, photo_url: photoUrl };
                     }
                 }
 
-                // Fix: Lookup organization name to ensure it displays immediately after update
                 let orgName = null;
-                // Ensure robust ID comparison (handle string vs number mismatches)
                 if (updatedClient.organization_id) {
-                    const org = organisations.find(o => String(o.id) === String(updatedClient.organization_id));
+                    const org = organisations.find((o) => String(o.id) === String(updatedClient.organization_id));
                     if (org) {
                         orgName = org.name;
                     } else if (updatedClient.organization_name) {
-                        // Fallback if API returned it (unlikely but possible)
                         orgName = updatedClient.organization_name;
                     }
                 }
-
-                // Final fallback: use the name passed from the form (this solves the "newly created org" timing issue)
                 if (!orgName && providedOrgName) {
                     orgName = providedOrgName;
                 }
 
                 finalClient = { ...finalClient, organization_name: orgName };
-                toast({ title: "✅ Client Updated", description: `Client ${updatedClient.name} has been updated.` });
+                toast({ title: '✅ Client Updated', description: `Client ${updatedClient.name} has been updated.` });
 
-                // Update clients list
-                const updatedClients = clients.map(c => c.id === editingClient.id ? finalClient : c);
+                const updatedClients = clients.map((c) => (c.id === editingClient.id ? finalClient : c));
                 setClients(updatedClients);
+                syncSnapshot({ clients: updatedClients });
 
-                // Update selectedClient if it's the same client
-                // Force a fresh fetch by ensuring photo_url is always the proxy URL with cache-busting
                 if (selectedClient && selectedClient.id === editingClient.id) {
-                    // Create a completely new client object to force React to detect the change
-                    // Use a fresh timestamp to ensure the photo reloads
                     const timestamp = Date.now();
                     const refreshedClient = {
                         ...finalClient,
-                        // Force photo_url to be proxy URL with fresh cache-busting
                         photo_url: `${clientApiUrl}/clients/${editingClient.id}/photo?t=${timestamp}&token=${user.access_token}`,
-                        photo: `${clientApiUrl}/clients/${editingClient.id}/photo?t=${timestamp}&token=${user.access_token}`
+                        photo: `${clientApiUrl}/clients/${editingClient.id}/photo?t=${timestamp}&token=${user.access_token}`,
                     };
                     setSelectedClient(refreshedClient);
                 }
 
-                // Go to dashboard if we have a selected client (which we should if editing)
                 if (selectedClient) {
                     setView('dashboard');
-                    setEditingClient(null); // Clear editing state
+                    setEditingClient(null);
                 } else {
-                    setView('list'); // Fallback
+                    setView('list');
                     setEditingClient(null);
                 }
             } else {
                 const newClient = await createClient(apiClientData, user.agency_id, user.access_token);
                 let finalClient = newClient;
 
-                // Automatically create entity for the new client
                 if (newClient.organization_id) {
                     try {
-                        const newEntity = await createEntity({
-                            name: newClient.name,
-                            organization_id: newClient.organization_id
-                        }, user.access_token);
-
-                        // Update organization cache with new entity
+                        const newEntity = await createEntity(
+                            {
+                                name: newClient.name,
+                                organization_id: newClient.organization_id,
+                            },
+                            user.access_token
+                        );
                         const cacheKey = `org-${newClient.organization_id}`;
                         if (orgDataCache.current.has(cacheKey)) {
                             const cachedData = orgDataCache.current.get(cacheKey);
@@ -386,42 +460,52 @@ const Clients = ({ setActiveTab }) => {
                             orgDataCache.current.set(cacheKey, { ...cachedData, entities: updatedEntities });
                         }
                     } catch (entityError) {
-                        console.error("Failed to auto-create entity:", entityError);
+                        console.error('Failed to auto-create entity:', entityError);
                         toast({
-                            title: "Entity Creation Failed",
-                            description: "Client created, but failed to create corresponding entity.",
-                            variant: "warning"
+                            title: 'Entity Creation Failed',
+                            description: 'Client created, but failed to create corresponding entity.',
+                            variant: 'warning',
                         });
                     }
                 }
 
                 if (photoFile) {
-                    const photoRes = await uploadClientPhoto(newClient.id, photoFile, user.agency_id, user.access_token);
-                    // Convert S3 URL to proxy endpoint URL
-                    const photoUrl = photoRes.photo_url && photoRes.photo_url.includes('.s3.amazonaws.com/')
-                        ? `${import.meta.env.VITE_CLIENT_API_URL || 'http://127.0.0.1:8002'}/clients/${newClient.id}/photo`
-                        : photoRes.photo_url;
+                    const photoRes = await uploadClientPhoto(
+                        newClient.id,
+                        photoFile,
+                        user.agency_id,
+                        user.access_token
+                    );
+                    const photoUrl =
+                        photoRes.photo_url && photoRes.photo_url.includes('.s3.amazonaws.com/')
+                            ? `${import.meta.env.VITE_CLIENT_API_URL || 'http://127.0.0.1:8002'}/clients/${newClient.id}/photo`
+                            : photoRes.photo_url;
                     finalClient = { ...newClient, photo: photoUrl, photo_url: photoUrl };
                 }
 
-                // Lookup organization name to ensure it displays immediately
                 let orgName = null;
                 if (newClient.organization_id) {
-                    const org = organisations.find(o => String(o.id) === String(newClient.organization_id));
+                    const org = organisations.find((o) => String(o.id) === String(newClient.organization_id));
                     if (org) orgName = org.name;
                 }
 
-                toast({ title: "✅ Client Created", description: `Client ${newClient.name} has been added.` });
-                setClients(prev => [{
-                    ...finalClient,
-                    organization_name: orgName, // Explicitly add org name
-                    availedServices: [],
-                    orgUsers: { invited_users: [], joined_users: [] },
-                    entities: []
-                }, ...prev]);
+                toast({ title: '✅ Client Created', description: `Client ${newClient.name} has been added.` });
+                setClients((prev) => {
+                    const next = [
+                        {
+                            ...finalClient,
+                            organization_name: orgName,
+                            availedServices: [],
+                            orgUsers: { invited_users: [], joined_users: [] },
+                            entities: [],
+                        },
+                        ...prev,
+                    ];
+                    syncSnapshot({ clients: next });
+                    return next;
+                });
                 setView('list');
             }
-            // Don't refetch - we already updated the state
         } catch (error) {
             toast({
                 title: 'Error saving client',
@@ -434,15 +518,20 @@ const Clients = ({ setActiveTab }) => {
     const handleUpdateClient = (updatedClientData) => {
         const updatedClient = { ...selectedClient, ...updatedClientData };
         setSelectedClient(updatedClient);
-        setClients(prevClients => prevClients.map(c => c.id === updatedClient.id ? updatedClient : c));
+        setClients((prevClients) => {
+            const next = prevClients.map((c) => (c.id === updatedClient.id ? updatedClient : c));
+            syncSnapshot({ clients: next });
+            return next;
+        });
     };
 
     const handleTeamMemberInvited = async () => {
-        // Refresh team members list after inviting
         if (user?.access_token) {
             try {
                 const members = await listTeamMembers(user.access_token, 'joined');
-                setTeamMembers(members || []);
+                const safeMembers = members || [];
+                setTeamMembers(safeMembers);
+                syncSnapshot({ teamMembers: safeMembers });
             } catch (error) {
                 console.error('Failed to refresh team members:', error);
             }
@@ -450,29 +539,29 @@ const Clients = ({ setActiveTab }) => {
     };
 
     const handleClientUserInvited = async () => {
-        // Refresh users for the current client entity
         if (selectedClient?.id && user?.access_token) {
             try {
+                const { listEntityUsers } = await import('@/lib/api/organisation');
                 const entityUsers = await listEntityUsers(selectedClient.id, user.access_token);
                 const updatedClient = {
                     ...selectedClient,
-                    orgUsers: entityUsers || { invited_users: [], joined_users: [] }
+                    orgUsers: entityUsers || { invited_users: [], joined_users: [] },
                 };
                 setSelectedClient(updatedClient);
-                setClients(prevClients => prevClients.map(c =>
-                    c.id === selectedClient.id ? updatedClient : c
-                ));
+                setClients((prevClients) => {
+                    const next = prevClients.map((c) => (c.id === selectedClient.id ? updatedClient : c));
+                    syncSnapshot({ clients: next });
+                    return next;
+                });
 
-                // Update cache if possible (optional, but good for consistency)
                 if (selectedClient.organization_id) {
                     const cacheKey = `org-${selectedClient.organization_id}`;
                     if (orgDataCache.current.has(cacheKey)) {
                         const currentData = orgDataCache.current.get(cacheKey);
-                        // Deep update the specific client in the map
                         const newMap = { ...(currentData.entityUsersMap || {}) };
                         newMap[selectedClient.id] = entityUsers;
-
                         orgDataCache.current.set(cacheKey, { ...currentData, entityUsersMap: newMap });
+                        syncSnapshot();
                     }
                 }
             } catch (error) {
@@ -482,14 +571,14 @@ const Clients = ({ setActiveTab }) => {
     };
 
     const renderContent = () => {
-        const currentClient = clients.find(c => c.id === selectedClient?.id) || selectedClient;
+        const currentClient = clients.find((c) => c.id === selectedClient?.id) || selectedClient;
 
         if (isLoading) {
             return (
                 <div className="flex items-center justify-center h-full">
                     <Loader2 className="w-12 h-12 animate-spin text-primary" />
                 </div>
-            )
+            );
         }
 
         switch (view) {
@@ -511,7 +600,7 @@ const Clients = ({ setActiveTab }) => {
                             allServices={allServices}
                             onDeleteClient={handleDeleteClient}
                             onBulkDelete={handleBulkDelete}
-                            onRefresh={fetchClientsAndServices}
+                            onRefresh={() => fetchClientsAndServices(true)}
                             businessTypes={businessTypes}
                             teamMembers={teamMembers}
                         />
@@ -536,7 +625,13 @@ const Clients = ({ setActiveTab }) => {
                             businessTypes={businessTypes}
                             teamMembers={teamMembers}
                             tags={tags}
-                            onAddOrganisation={handleAddOrganisation}
+                            onAddOrganisation={(newOrg) => {
+                                setOrganisations((prev) => {
+                                    const next = [...prev, newOrg];
+                                    syncSnapshot({ organisations: next });
+                                    return next;
+                                });
+                            }}
                         />
                     </motion.div>
                 );
@@ -567,18 +662,11 @@ const Clients = ({ setActiveTab }) => {
             default:
                 return null;
         }
-    }
-
-
-    const handleAddOrganisation = (newOrg) => {
-        setOrganisations(prev => [...prev, newOrg]);
     };
 
     return (
         <div className="p-4 md:p-8 text-white relative overflow-hidden h-full">
-            <AnimatePresence mode="wait">
-                {renderContent()}
-            </AnimatePresence>
+            <AnimatePresence mode="wait">{renderContent()}</AnimatePresence>
         </div>
     );
 };
