@@ -1721,9 +1721,10 @@ const TaskDashboardPage = () => {
         }
 
         const mainText = details.join(' • ');
-        const subText = task.recurrence_start_date
-            ? `Starting ${format(new Date(task.recurrence_start_date), 'MMM dd, yyyy')}`
-            : 'Recurring Task';
+        // const subText = task.recurrence_start_date
+        //     ? `Starting ${format(new Date(task.recurrence_start_date), 'MMM dd, yyyy')}`
+        //     : 'Recurring Task';
+        const subText = 'Recurring Task';
 
         return { main: mainText, sub: subText };
     };
