@@ -519,10 +519,22 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
                 options={assignToOptions}
                 value={formData.assigned_user_id ? String(formData.assigned_user_id) : ''}
                 onValueChange={(value) => handleSelectChange('assigned_user_id', value)}
-                placeholder={loadingUsers || loadingClientUsers ? "Loading users..." : "Select a user"}
+                placeholder={
+                  loadingUsers || loadingClientUsers
+                    ? "Loading users..."
+                    : formData.client_id
+                      ? (assignToOptions.length === 0 ? "No users found for this client" : "Select a client user")
+                      : "Select a user"
+                }
                 searchPlaceholder="Search users..."
-                emptyText={loadingUsers || loadingClientUsers ? "Loading users..." : "No users found."}
-                disabled={isSaving || loadingUsers || loadingClientUsers}
+                emptyText={
+                  loadingUsers || loadingClientUsers
+                    ? "Loading users..."
+                    : formData.client_id && assignToOptions.length === 0
+                      ? "No users found for this client."
+                      : "No users found."
+                }
+                disabled={isSaving || loadingUsers || loadingClientUsers || (formData.client_id && assignToOptions.length === 0)}
               />
             </div>
             <div>
