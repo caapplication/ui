@@ -1782,25 +1782,54 @@ const TaskDashboardPage = () => {
                 recurrence_day_of_month: recurringFormData.is_recurring && ['monthly', 'quarterly', 'half_yearly'].includes(recurringFormData.recurrence_frequency) ? recurringFormData.recurrence_day_of_month : null,
                 recurrence_start_date: (() => {
                     if (!recurringFormData.is_recurring) return null;
-                    if (recurringFormData.recurrence_start_date) return format(recurringFormData.recurrence_start_date, 'yyyy-MM-dd');
 
+                    // For Monthly, calculate next occurrence based on day of month
+                    if (recurringFormData.recurrence_frequency === 'monthly' && recurringFormData.recurrence_day_of_month !== null) {
+                        const now = new Date();
+                        let candidateDate = new Date(now.getFullYear(), now.getMonth(), recurringFormData.recurrence_day_of_month);
+
+                        // If day has passed in current month, move to next month
+                        if (candidateDate < new Date().setHours(0, 0, 0, 0)) {
+                            candidateDate.setMonth(candidateDate.getMonth() + 1);
+                        }
+                        return format(candidateDate, 'yyyy-MM-dd');
+                    }
+
+                    // For Q/H/Y, prioritize calculated date from month/day selectors
                     if (['quarterly', 'half_yearly', 'yearly'].includes(recurringFormData.recurrence_frequency)) {
                         if (recurringFormData.recurrence_start_month !== null && recurringFormData.recurrence_day_of_month !== null) {
                             const now = new Date();
                             const currentYear = now.getFullYear();
                             let candidateDate = new Date(currentYear, recurringFormData.recurrence_start_month, recurringFormData.recurrence_day_of_month);
 
-                            if (recurringFormData.recurrence_frequency === 'yearly') {
-                                if (candidateDate < now.setHours(0, 0, 0, 0)) {
+                            // Logic to ensure start date is future/today
+                            // For Yearly, if date passed, move to next year? User usually expects next occurrence.
+                            // The original logic checks < now (setHours 0). 
+                            // Let's preserve that logic or ensure it makes sense.
+                            if (candidateDate < new Date().setHours(0, 0, 0, 0)) {
+                                // Ideally for Q/H/Y we might want next occurrence logic, but standard yearly logic is +1 year.
+                                // For Q/H, maybe just use this year.
+                                if (recurringFormData.recurrence_frequency === 'yearly') {
                                     candidateDate.setFullYear(currentYear + 1);
+                                } else {
+                                    // For Q/H, if the date passed in current year, it's still the "start date" of the pattern?
+                                    // Or should it be next year? Usually recurrence start date is the anchor.
+                                    // If I say "Half Yearly starting May 9", and today is Jan 13, it's May 9 2026.
+                                    // If today is June 2026, and I say "Half Yearly starting May 9", 
+                                    // typically it means start May 9 2026 (past) or May 9 2027?
+                                    // Let's assume current year is fine, backend handles "next run".
+                                    // But user complained about seeing "Jan 13". 
+                                    // We just need to return candidateDate.
                                 }
-                                return format(candidateDate, 'yyyy-MM-dd');
                             }
                             return format(candidateDate, 'yyyy-MM-dd');
                         }
                     }
-                    return recurringFormData.recurrence_start_date ? format(recurringFormData.recurrence_start_date, 'yyyy-MM-dd') : null;
-                })()
+
+                    // Fallback to simpler start date (e.g. from picker or "today" reset)
+                    if (recurringFormData.recurrence_start_date) return format(recurringFormData.recurrence_start_date, 'yyyy-MM-dd');
+                    return null;
+                })(),
             };
 
             await updateTask(taskId, updateData, agencyId, user.access_token);
@@ -3013,6 +3042,9 @@ const TaskDashboardPage = () => {
                                             value={recurringFormData.recurrence_frequency}
                                             onValueChange={(v) => {
                                                 handleRecurringFormChange('recurrence_frequency', v);
+                                                // Reset start date to today when frequency changes to avoid stale future dates
+                                                handleRecurringDateChange('recurrence_start_date', new Date());
+
                                                 // Reset dependent fields when frequency changes
                                                 if (v !== 'daily') {
                                                     handleRecurringFormChange('recurrence_time', '09:00');
