@@ -35,6 +35,7 @@ const RecurringTaskManagementPage = () => {
     const [editingTask, setEditingTask] = useState(null);
     const [activeFilter, setActiveFilter] = useState('all'); // 'all', 'active', 'inactive'
     const [hasAttemptedFetch, setHasAttemptedFetch] = useState(false);
+    const [isLoadingClients, setIsLoadingClients] = useState(true);
 
     // Filter states
     const [searchTerm, setSearchTerm] = useState('');
@@ -83,20 +84,15 @@ const RecurringTaskManagementPage = () => {
         setIsLoading(true);
         setHasAttemptedFetch(true);
         try {
-            // Fetch ALL tasks (isActive = null) so we can filter client-side
-            const isActive = null;
-
+            // 1. Fetch Tasks & Team Members FIRST (Critical & Fast)
+            // Team Members are fast and needed for "Created By/Assigned To"
+            // We WAIT for these so the main table structure is ready.
             const results = await Promise.allSettled([
-                listRecurringTasks(agencyId, accessToken, isActive),
-                listClients(agencyId, accessToken),
-                listServices(agencyId, accessToken),
+                listRecurringTasks(agencyId, accessToken, null), // null = fetch all
                 listTeamMembers(accessToken),
-                getTags(agencyId, accessToken),
             ]);
 
-            console.log('Fetch results:', results.map(r => ({ status: r.status, hasValue: !!r.value })));
-
-            // Handle results with better error handling
+            // Recurring Tasks
             if (results[0].status === 'fulfilled') {
                 const tasks = Array.isArray(results[0].value) ? results[0].value : (results[0].value?.items || []);
                 console.log('Recurring tasks loaded:', tasks.length);
@@ -106,36 +102,29 @@ const RecurringTaskManagementPage = () => {
                 setRecurringTasks([]);
             }
 
+            // Team Members (Needed for Created By / Assigned To)
             if (results[1].status === 'fulfilled') {
-                const clientsData = Array.isArray(results[1].value) ? results[1].value : (results[1].value?.items || []);
-                setClients(clientsData);
-            } else {
-                console.warn('Error fetching clients:', results[1].reason);
-                setClients([]);
-            }
-
-            if (results[2].status === 'fulfilled') {
-                const servicesData = Array.isArray(results[2].value) ? results[2].value : (results[2].value?.items || []);
-                setServices(servicesData);
-            } else {
-                console.warn('Error fetching services:', results[2].reason);
-                setServices([]);
-            }
-
-            if (results[3].status === 'fulfilled') {
-                const membersData = Array.isArray(results[3].value) ? results[3].value : (results[3].value?.items || []);
+                const membersData = Array.isArray(results[1].value) ? results[1].value : (results[1].value?.items || []);
                 setTeamMembers(membersData);
             } else {
-                console.warn('Error fetching team members:', results[3].reason);
-                setTeamMembers([]);
+                console.warn('Error fetching team members:', results[1].reason);
             }
 
-            if (results[4].status === 'fulfilled') {
-                const tagsData = Array.isArray(results[4].value) ? results[4].value : [];
-                setTags(tagsData);
-            } else {
-                console.warn('Error fetching tags:', results[4].reason);
-                setTags([]);
+            // STOP LOADING HERE - Show the list immediately (Tasks + Team Names ready)
+            setIsLoading(false);
+
+            // 2. Fetch Clients in Background (Slow)
+            // The "Client Name" badge will show "Loading..." or ID briefly, then pop in.
+            // This prevents the 5s delay on initial load.
+            setIsLoadingClients(true); // Start client loading state
+            try {
+                const clientResult = await listClients(agencyId, accessToken);
+                const clientsData = Array.isArray(clientResult) ? clientResult : (clientResult?.items || []);
+                setClients(clientsData);
+            } catch (clientError) {
+                console.warn('Error fetching clients in background:', clientError);
+            } finally {
+                setIsLoadingClients(false); // Stop client loading state
             }
 
         } catch (error) {
@@ -145,11 +134,44 @@ const RecurringTaskManagementPage = () => {
                 description: error.message || 'Failed to load recurring tasks. Please try again.',
                 variant: 'destructive',
             });
-            setRecurringTasks([]);
+            // If main task fetch fails, ensure we stop loading
+            setIsLoading(false);
+            setIsLoadingClients(false); // Ensure this is reset on error
         } finally {
+            // Ensure loading stops if something catastrophic happens in block 1
             setIsLoading(false);
         }
-    }, [user, toast]); // Removed activeFilter from dependencies to prevent re-fetch
+    }, [user, toast]);
+
+    // Separate fetch for Form data (only when needed)
+    const fetchFormData = async () => {
+        const agencyId = user?.agency_id || localStorage.getItem('agency_id');
+        const accessToken = user?.access_token || localStorage.getItem('accessToken');
+        if (!agencyId || !accessToken) return;
+
+        try {
+            const results = await Promise.allSettled([
+                listServices(agencyId, accessToken),
+                getTags(agencyId, accessToken)
+            ]);
+
+            if (results[0].status === 'fulfilled') {
+                setServices(Array.isArray(results[0].value) ? results[0].value : (results[0].value?.items || []));
+            }
+            if (results[1].status === 'fulfilled') {
+                setTags(Array.isArray(results[1].value) ? results[1].value : []);
+            }
+        } catch (e) {
+            console.error("Error loading form data", e);
+        }
+    };
+
+    // Trigger form data fetch when entering New or Edit mode
+    useEffect(() => {
+        if (view === 'new' || view === 'edit') {
+            fetchFormData();
+        }
+    }, [view]);
 
     useEffect(() => {
         // Only fetch when user is available and auth is not loading
@@ -353,9 +375,14 @@ const RecurringTaskManagementPage = () => {
                                     />
                                 </div>
                                 <div className="w-[200px]">
-                                    <Select value={clientIdFilter} onValueChange={setClientIdFilter}>
+                                    <Select
+                                        value={clientIdFilter}
+                                        onValueChange={setClientIdFilter}
+                                        disabled={isLoadingClients}
+                                    >
                                         <SelectTrigger className="bg-white/5 border-white/10 text-white">
-                                            <SelectValue placeholder="Filter by Client" />
+                                            <SelectValue placeholder={isLoadingClients ? "Loading Clients..." : "Filter by Client"} />
+                                            {isLoadingClients && <Loader2 className="w-3 h-3 ml-2 animate-spin" />}
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="all">All Clients</SelectItem>
