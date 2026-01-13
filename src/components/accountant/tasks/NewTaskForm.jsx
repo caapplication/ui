@@ -326,6 +326,7 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
       loadingClientUsers,
       teamUsersCount: teamUsers?.length || 0,
       selectedClientUsersCount: selectedClientUsers?.length || 0,
+      currentUserId: user?.user_id,
     });
 
     // CA + client selected => client users
@@ -341,9 +342,17 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
       return options;
     }
 
-    // Otherwise => team users
+    // Otherwise => team users (exclude logged-in user)
     const options = (teamUsers || [])
-      .filter(u => (u.user_id || u.id))
+      .filter(u => {
+        const userId = u.user_id || u.id;
+        // Filter out the logged-in user
+        if (user?.user_id && String(userId) === String(user.user_id)) {
+          console.log('[AssignTo][useMemo] filtering out logged-in user:', userId);
+          return false;
+        }
+        return !!userId;
+      })
       .map(teamUser => {
         const userId = teamUser.user_id || teamUser.id;
         let displayRole = '';
@@ -363,6 +372,7 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
     teamUsers,
     selectedClientUsers,
     user?.role,
+    user?.user_id,
     loadingUsers,
     loadingClientUsers
   ]);
