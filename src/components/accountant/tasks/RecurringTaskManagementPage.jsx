@@ -55,9 +55,17 @@ const RecurringTaskManagementPage = () => {
             // Assignee Filter
             const matchesAssignee = assigneeIdFilter === 'all' || task.assigned_to === assigneeIdFilter;
 
-            return matchesSearch && matchesClient && matchesAssignee;
+            // Status Filter (Tabs) - Client-side filtering
+            let matchesStatus = true;
+            if (activeFilter === 'active') {
+                matchesStatus = task.is_active === true;
+            } else if (activeFilter === 'inactive') {
+                matchesStatus = task.is_active === false;
+            }
+
+            return matchesSearch && matchesClient && matchesAssignee && matchesStatus;
         });
-    }, [recurringTasks, searchTerm, clientIdFilter, assigneeIdFilter]);
+    }, [recurringTasks, searchTerm, clientIdFilter, assigneeIdFilter, activeFilter]);
 
     const fetchData = useCallback(async () => {
         // Get agency_id from user or localStorage
@@ -75,7 +83,8 @@ const RecurringTaskManagementPage = () => {
         setIsLoading(true);
         setHasAttemptedFetch(true);
         try {
-            const isActive = activeFilter === 'all' ? null : activeFilter === 'active';
+            // Fetch ALL tasks (isActive = null) so we can filter client-side
+            const isActive = null;
 
             const results = await Promise.allSettled([
                 listRecurringTasks(agencyId, accessToken, isActive),
@@ -140,7 +149,7 @@ const RecurringTaskManagementPage = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [user, activeFilter, toast]);
+    }, [user, toast]); // Removed activeFilter from dependencies to prevent re-fetch
 
     useEffect(() => {
         // Only fetch when user is available and auth is not loading
@@ -163,7 +172,7 @@ const RecurringTaskManagementPage = () => {
             setIsLoading(false);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [user?.agency_id, user?.access_token, authLoading, activeFilter]); // Only depend on specific values, not the whole user object or fetchData
+    }, [user?.agency_id, user?.access_token, authLoading]); // Removed activeFilter from dependencies
 
     const handleCreate = async (taskData) => {
         try {

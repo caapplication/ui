@@ -15,6 +15,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const FREQUENCY_LABELS = {
   daily: 'Daily',
@@ -109,9 +110,21 @@ const RecurringTaskList = ({ recurringTasks, onEdit, onDelete, isLoading = false
 
   if (isLoading) {
     return (
-      <div className="glass-pane rounded-lg overflow-hidden border border-white/10 p-16 flex flex-col items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
-        <p className="text-gray-400">Loading recurring tasks...</p>
+      <div className="glass-pane rounded-lg overflow-hidden border border-white/10">
+        <div className="p-4 border-b border-white/10">
+          <Skeleton className="h-8 w-full bg-white/5" />
+        </div>
+        <div className="p-4 space-y-4">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="flex gap-4">
+              <Skeleton className="h-12 w-1/4 bg-white/5" />
+              <Skeleton className="h-12 w-1/6 bg-white/5" />
+              <Skeleton className="h-12 w-1/6 bg-white/5" />
+              <Skeleton className="h-12 w-1/6 bg-white/5" />
+              <Skeleton className="h-12 w-1/6 bg-white/5" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
