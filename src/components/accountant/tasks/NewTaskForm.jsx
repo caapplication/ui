@@ -62,33 +62,11 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
   const [isSaving, setIsSaving] = useState(false);
 
   // =========================
-  // DEBUG: base render snapshot
-  // =========================
-  useEffect(() => {
-    console.log('[NewTaskForm][mount] initial', {
-      role: user?.role,
-      hasToken: !!user?.access_token,
-      clientsCount: Array.isArray(clients) ? clients.length : 'NA',
-      teamMembersPropCount: Array.isArray(teamMembers) ? teamMembers.length : 'NA',
-      selectedOrg,
-      taskMode: task ? 'edit' : 'create',
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // =========================
   // Fetch CA Team Members for "Assign To"
   // =========================
   useEffect(() => {
     const fetchTeamUsers = async () => {
-      console.log('[AssignTo][fetchTeamUsers] start', {
-        hasToken: !!user?.access_token,
-        role: user?.role,
-        teamMembersPropCount: Array.isArray(teamMembers) ? teamMembers.length : 'NA',
-      });
-
       if (!user?.access_token) {
-        console.log('[AssignTo][fetchTeamUsers] no token -> stop');
         setLoadingUsers(false);
         return;
       }
@@ -101,35 +79,25 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
 
         if (isCAUser) {
           try {
-            console.log('[AssignTo][fetchTeamUsers] CA user -> calling listTeamMembers...');
             const res = await listTeamMembers(user.access_token, 'joined');
-            console.log('[AssignTo][fetchTeamUsers] listTeamMembers raw response:', res);
             membersData = Array.isArray(res) ? res : (res?.members || res?.data || []);
           } catch (e) {
-            console.error('[AssignTo][fetchTeamUsers] API error -> fallback prop', e);
+            console.error('[AssignTo][fetchTeamUsers] API error', e);
             membersData = Array.isArray(teamMembers) ? teamMembers : [];
           }
         } else {
           if (teamMembers && Array.isArray(teamMembers) && teamMembers.length > 0) {
-            console.log('[AssignTo][fetchTeamUsers] non-CA -> using teamMembers prop');
             membersData = teamMembers;
           } else {
             try {
-              console.log('[AssignTo][fetchTeamUsers] non-CA -> calling listTeamMembers...');
               const res = await listTeamMembers(user.access_token, 'joined');
-              console.log('[AssignTo][fetchTeamUsers] listTeamMembers raw response:', res);
               membersData = Array.isArray(res) ? res : (res?.members || res?.data || []);
             } catch (e) {
-              console.error('[AssignTo][fetchTeamUsers] non-CA API error', e);
+              console.error('[AssignTo][fetchTeamUsers] API error', e);
               membersData = [];
             }
           }
         }
-
-        console.log('[AssignTo][fetchTeamUsers] membersData normalized:', {
-          count: Array.isArray(membersData) ? membersData.length : 'NA',
-          sample: Array.isArray(membersData) ? membersData.slice(0, 3) : membersData
-        });
 
         const usersList = [];
 
@@ -137,7 +105,6 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
           membersData.forEach(member => {
             const memberId = member.user_id || member.id;
             if (!memberId) {
-              console.warn('[AssignTo][fetchTeamUsers] skipped member (no id):', member);
               return;
             }
 
@@ -153,8 +120,6 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
           });
         }
 
-        console.log('[AssignTo][fetchTeamUsers] usersList mapped:', usersList.length, usersList);
-
         setTeamUsers(usersList);
       } catch (error) {
         console.error('[AssignTo][fetchTeamUsers] FAILED:', error);
@@ -165,7 +130,6 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
         });
       } finally {
         setLoadingUsers(false);
-        console.log('[AssignTo][fetchTeamUsers] done (loadingUsers=false)');
       }
     };
 
@@ -179,19 +143,11 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
     const fetchClientUsers = async () => {
       const isCAUser = user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM';
 
-      console.log('[ClientUsers][effect] triggered', {
-        isCAUser,
-        client_id: formData.client_id,
-        hasToken: !!user?.access_token
-      });
-
       if (!user?.access_token || !isCAUser) {
-        console.log('[ClientUsers][effect] skip (no token or not CA user)');
         return;
       }
 
       if (!formData.client_id) {
-        console.log('[ClientUsers][effect] no client selected -> clear selectedClientUsers');
         setSelectedClientUsers([]);
         return;
       }
@@ -200,13 +156,7 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
       try {
         const { listEntityUsers } = await import('@/lib/api');
 
-        console.log('[ClientUsers] calling listEntityUsers...', {
-          client_id: formData.client_id
-        });
-
         const response = await listEntityUsers(formData.client_id, user.access_token);
-
-        console.log('[ClientUsers] listEntityUsers raw response:', response);
 
         let usersList = [];
         if (Array.isArray(response)) {
@@ -220,11 +170,6 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
           usersList = response.users;
         }
 
-        console.log('[ClientUsers] usersList normalized:', {
-          count: Array.isArray(usersList) ? usersList.length : 'NA',
-          sample: Array.isArray(usersList) ? usersList.slice(0, 3) : usersList
-        });
-
         const formattedUsers = (usersList || [])
           .map(u => ({
             id: u.user_id || u.id,
@@ -234,15 +179,12 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
           }))
           .filter(u => !!u.id);
 
-        console.log('[ClientUsers] formattedUsers mapped:', formattedUsers.length, formattedUsers);
-
         setSelectedClientUsers(formattedUsers);
       } catch (error) {
         console.error("[ClientUsers] fetch failed:", error);
         setSelectedClientUsers([]);
       } finally {
         setLoadingClientUsers(false);
-        console.log('[ClientUsers] done (loadingClientUsers=false)');
       }
     };
 
@@ -254,7 +196,6 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
   // =========================
   useEffect(() => {
     if (task) {
-      console.log('[Prefill] edit mode -> setting formData from task', task);
       setFormData({
         title: task.title || '',
         client_id: task.client_id || '',
@@ -280,12 +221,6 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
         client_user_id: task.client_user_id || '',
         due_time: task.due_time || '12:00',
       });
-    } else if (selectedOrg) {
-      // ✅ DO NOT auto-select client for create task modal
-      // Keep client empty by default so Assign To shows team members
-      console.log('[Prefill] selectedOrg exists but NOT auto-prefilling client_id');
-    } else {
-      console.log('[Prefill] create mode + no selectedOrg');
     }
   }, [task, selectedOrg]);
 
@@ -298,36 +233,22 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
   };
 
   const handleSelectChange = (name, value) => {
-    console.log('[Form] handleSelectChange', { name, value });
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleDateChange = (name, date) => {
-    console.log('[Form] handleDateChange', { name, date });
     setFormData(prev => ({ ...prev, [name]: date }));
   };
 
   const handleSwitchChange = (name, checked) => {
-    console.log('[Form] handleSwitchChange', { name, checked });
     setFormData(prev => ({ ...prev, [name]: checked }));
   };
 
   // =========================
-  // ✅ Compute Assign To options (with debug)
+  // Compute Assign To options
   // =========================
   const assignToOptions = useMemo(() => {
     const isCAUser = user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM';
-
-    console.log('[AssignTo][useMemo] compute', {
-      role: user?.role,
-      isCAUser,
-      client_id: formData.client_id,
-      loadingUsers,
-      loadingClientUsers,
-      teamUsersCount: teamUsers?.length || 0,
-      selectedClientUsersCount: selectedClientUsers?.length || 0,
-      currentUserId: user?.user_id,
-    });
 
     // CA + client selected => client users
     if (isCAUser && formData.client_id) {
@@ -337,8 +258,6 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
           value: String(u.id),
           label: `${u.name || u.email} (Client User)`
         }));
-
-      console.log('[AssignTo][useMemo] returning CLIENT users options:', options.length, options);
       return options;
     }
 
@@ -348,7 +267,6 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
         const userId = u.user_id || u.id;
         // Filter out the logged-in user
         if (user?.user_id && String(userId) === String(user.user_id)) {
-          console.log('[AssignTo][useMemo] filtering out logged-in user:', userId);
           return false;
         }
         return !!userId;
@@ -365,7 +283,6 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
         };
       });
 
-    console.log('[AssignTo][useMemo] returning TEAM users options:', options.length, options);
     return options;
   }, [
     formData.client_id,
@@ -376,40 +293,16 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
     loadingUsers,
     loadingClientUsers
   ]);
-
-  // =========================
-  // Optional: watch state changes to catch unexpected resets
-  // =========================
-  useEffect(() => {
-    console.log('[StateWatch] teamUsers changed:', teamUsers.length, teamUsers);
-  }, [teamUsers]);
-
-  useEffect(() => {
-    console.log('[StateWatch] selectedClientUsers changed:', selectedClientUsers.length, selectedClientUsers);
-  }, [selectedClientUsers]);
-
-  useEffect(() => {
-    console.log('[StateWatch] client_id changed:', formData.client_id);
-  }, [formData.client_id]);
-
-  useEffect(() => {
-    console.log('[StateWatch] assigned_user_id changed:', formData.assigned_user_id);
-  }, [formData.assigned_user_id]);
-
   // =========================
   // Submit
   // =========================
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    console.log('[Submit] start', { formData });
-
     const requiredFields = ['title', 'assigned_user_id'];
     const missingFields = requiredFields.filter(field => !formData[field]);
 
     if (missingFields.length > 0) {
-      console.warn('[Submit] missing required fields:', missingFields);
-
       const fieldNames = missingFields.map(f => {
         if (f === 'assigned_user_id') return 'Assign To';
         return 'Task Title';
@@ -475,16 +368,12 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
           : null
     };
 
-    console.log('[Submit] payload prepared:', taskData);
-
     try {
       await onSave(taskData, !!task);
-      console.log('[Submit] onSave success');
     } catch (err) {
-      console.error('[Submit] onSave error', err);
+      console.error('[Submit] Error saving task', err);
     } finally {
       setIsSaving(false);
-      console.log('[Submit] done (isSaving=false)');
     }
   };
 
