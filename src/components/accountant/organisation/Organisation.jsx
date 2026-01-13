@@ -15,7 +15,6 @@ import {
     updateOrganisation,
     deleteOrganisation,
     listEntities,
-    listAllEntities,
     createEntity,
     updateEntity,
     deleteEntity,
@@ -24,7 +23,7 @@ import {
     inviteOrganizationUser,
     deleteOrgUser
 } from '@/lib/api';
-import { inviteCaTeamMember, deleteCaTeamMember } from '@/lib/api/organisation';
+import { deleteCaTeamMember } from '@/lib/api/organisation';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -36,6 +35,52 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+
+const ORG_LIST_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const ORG_ENTITIES_CACHE_TTL = 2 * 60 * 1000; // 2 minutes
+const ORG_USERS_CACHE_TTL = 2 * 60 * 1000; // 2 minutes
+
+const orgListCache = {
+    data: null,
+    timestamp: 0,
+};
+
+// Per-org caches to avoid re-fetching while navigating back/forth between orgs.
+const orgEntitiesCache = new Map();
+const orgUsersCache = new Map();
+
+// Request de-dupe so rapid re-renders / tab switches don’t trigger duplicate calls.
+const entitiesInFlight = new Map();
+const usersInFlight = new Map();
+
+const isCacheValid = (timestamp, ttl) => !!timestamp && Date.now() - timestamp < ttl;
+
+const getFromCache = (cache, orgId, ttl) => {
+    if (!cache.has(orgId)) return null;
+    const cached = cache.get(orgId);
+    if (isCacheValid(cached?.timestamp, ttl)) return cached?.data;
+    cache.delete(orgId);
+    return null;
+};
+
+const setCache = (cache, orgId, data) => {
+    cache.set(orgId, { data, timestamp: Date.now() });
+};
+
+const invalidateOrgDetailsCache = (orgId) => {
+    if (orgId) {
+        orgEntitiesCache.delete(orgId);
+        orgUsersCache.delete(orgId);
+    } else {
+        orgEntitiesCache.clear();
+        orgUsersCache.clear();
+    }
+};
+
+const invalidateOrgListCache = () => {
+    orgListCache.data = null;
+    orgListCache.timestamp = 0;
+};
 
 const Organisation = () => {
     const { user } = useAuth();
@@ -53,7 +98,9 @@ const Organisation = () => {
     const [showEntityForm, setShowEntityForm] = useState(false);
     const [editingEntity, setEditingEntity] = useState(null);
     const [entityName, setEntityName] = useState('');
-    const [isDetailsLoading, setIsDetailsLoading] = useState(false);
+    const [activeTab, setActiveTab] = useState('entities');
+    const [isEntitiesLoading, setIsEntitiesLoading] = useState(false);
+    const [isUsersLoading, setIsUsersLoading] = useState(false);
     const [showInviteUserDialog, setShowInviteUserDialog] = useState(false);
     const [inviteUserEmail, setInviteUserEmail] = useState('');
     const [isSendingInvite, setIsSendingInvite] = useState(false);
@@ -61,61 +108,149 @@ const Organisation = () => {
     const [statusFilter, setStatusFilter] = useState('all');
 
 
-    const fetchOrganisations = useCallback(async () => {
-        if (!user) return;
-        setIsLoading(true);
-        try {
-            const data = await listOrganisations(user.access_token);
-            setOrganisations(data || []);
-        } catch (error) {
-            toast({
-                title: 'Error fetching data',
-                description: error.message,
-                variant: 'destructive',
-            });
-        } finally {
-            setIsLoading(false);
-        }
+    const fetchOrganisations = useCallback(async (force = false) => {
+    if (!user) return;
+
+    if (!force && isCacheValid(orgListCache.timestamp, ORG_LIST_CACHE_TTL) && orgListCache.data) {
+        setOrganisations(orgListCache.data);
+        setIsLoading(false);
+        return;
+    }
+
+    setIsLoading(true);
+    try {
+        const data = await listOrganisations(user.access_token);
+        setOrganisations(data || []);
+        orgListCache.data = data || [];
+        orgListCache.timestamp = Date.now();
+    } catch (error) {
+        toast({
+            title: 'Error fetching data',
+            description: error.message,
+            variant: 'destructive',
+        });
+    } finally {
+        setIsLoading(false);
+    }
     }, [user, toast]);
 
     useEffect(() => {
         fetchOrganisations();
     }, [fetchOrganisations]);
 
-    const fetchOrgDetails = useCallback(async (orgId) => {
+    const normalizeOrgUsers = useCallback((orgUsersData) => {
+        const invited = orgUsersData?.invited_users || [];
+        const joined = orgUsersData?.joined_users || [];
+
+        // Filter out invited users who have already joined
+        const joinedEmails = new Set(joined.map(u => u.email));
+        const uniqueInvited = invited.filter(u => !joinedEmails.has(u.email));
+
+        return [...uniqueInvited, ...joined];
+    }, []);
+
+    const fetchOrgEntities = useCallback(async (orgId, { force = false } = {}) => {
         if (!orgId || !user?.access_token) return;
-        setIsDetailsLoading(true);
+
+        if (!force) {
+            const cached = getFromCache(orgEntitiesCache, orgId, ORG_ENTITIES_CACHE_TTL);
+            if (cached) {
+                setEntities(cached);
+                return;
+            }
+        }
+
+        if (entitiesInFlight.has(orgId)) {
+            setIsEntitiesLoading(true);
+            try {
+                const data = await entitiesInFlight.get(orgId);
+                setEntities(data || []);
+            } finally {
+                setIsEntitiesLoading(false);
+            }
+            return;
+        }
+
+        setIsEntitiesLoading(true);
+        const promise = listEntities(orgId, user.access_token);
+        entitiesInFlight.set(orgId, promise);
         try {
-            const [entitiesData, orgUsersData] = await Promise.all([
-                listEntities(orgId, user.access_token),
-                listOrgUsers(orgId, user.access_token)
-            ]);
-            setEntities(entitiesData || []);
-            const invited = orgUsersData?.invited_users || [];
-            const joined = orgUsersData?.joined_users || [];
-            
-            // Filter out invited users who have already joined
-            const joinedEmails = new Set(joined.map(u => u.email));
-            const uniqueInvited = invited.filter(u => !joinedEmails.has(u.email));
-            
-            const allUsers = [...uniqueInvited, ...joined];
-            setOrgUsers(allUsers || []);
+            const data = await promise;
+            const normalized = data || [];
+            setEntities(normalized);
+            setCache(orgEntitiesCache, orgId, normalized);
         } catch (error) {
             toast({
-                title: 'Error fetching details',
+                title: 'Error fetching entities',
                 description: error.message,
                 variant: 'destructive',
             });
         } finally {
-            setIsDetailsLoading(false);
+            entitiesInFlight.delete(orgId);
+            setIsEntitiesLoading(false);
         }
     }, [user, toast]);
 
-    useEffect(() => {
-        if (selectedOrg) {
-            fetchOrgDetails(selectedOrg.id);
+    const fetchOrgUsers = useCallback(async (orgId, { force = false } = {}) => {
+        if (!orgId || !user?.access_token) return;
+
+        if (!force) {
+            const cached = getFromCache(orgUsersCache, orgId, ORG_USERS_CACHE_TTL);
+            if (cached) {
+                setOrgUsers(cached);
+                return;
+            }
         }
-    }, [selectedOrg, fetchOrgDetails]);
+
+        if (usersInFlight.has(orgId)) {
+            setIsUsersLoading(true);
+            try {
+                const data = await usersInFlight.get(orgId);
+                setOrgUsers(data || []);
+            } finally {
+                setIsUsersLoading(false);
+            }
+            return;
+        }
+
+        setIsUsersLoading(true);
+        const promise = listOrgUsers(orgId, user.access_token).then(normalizeOrgUsers);
+        usersInFlight.set(orgId, promise);
+        try {
+            const data = await promise;
+            const normalized = data || [];
+            setOrgUsers(normalized);
+            setCache(orgUsersCache, orgId, normalized);
+        } catch (error) {
+            toast({
+                title: 'Error fetching users',
+                description: error.message,
+                variant: 'destructive',
+            });
+        } finally {
+            usersInFlight.delete(orgId);
+            setIsUsersLoading(false);
+        }
+    }, [user, toast, normalizeOrgUsers]);
+
+    useEffect(() => {
+        if (!selectedOrg) return;
+
+        // New org selected: reset tab to entities and fetch entities immediately.
+        setActiveTab('entities');
+        setEntities([]);
+        setOrgUsers([]);
+
+        fetchOrgEntities(selectedOrg.id);
+        // Users are lazy-loaded when user switches to the Users tab.
+    }, [selectedOrg, fetchOrgEntities]);
+
+    useEffect(() => {
+        if (!selectedOrg) return;
+        if (activeTab !== 'users') return;
+
+        fetchOrgUsers(selectedOrg.id);
+    }, [activeTab, selectedOrg, fetchOrgUsers]);
 
     const sortedAndFilteredUsers = useMemo(() => {
         let filteredUsers = [...orgUsers];
@@ -178,13 +313,19 @@ const Organisation = () => {
             if (editingOrg) {
                 await updateOrganisation(editingOrg.id, { name: orgName }, user.access_token);
                 toast({ title: "Success", description: "Organisation updated." });
+
+                // Keep details header in sync when editing the currently selected org.
+                if (selectedOrg?.id === editingOrg.id) {
+                    setSelectedOrg(prev => prev ? { ...prev, name: orgName } : prev);
+                }
             } else {
                 if (!user.id) throw new Error("CA Account ID missing.");
                 await createOrganisation({ name: orgName, ca_account_id: user.id }, user.access_token);
                 toast({ title: "Success", description: "Organisation added." });
             }
             setShowOrgForm(false);
-            fetchOrganisations();
+            invalidateOrgListCache();
+            fetchOrganisations(true);
         } catch (error) {
             toast({ title: "Error saving organisation", description: error.message, variant: "destructive" });
         } finally {
@@ -199,7 +340,9 @@ const Organisation = () => {
             await deleteOrganisation(orgToDelete.id, user.access_token);
             toast({ title: "Success", description: "Organisation deleted." });
             setOrgToDelete(null);
-            fetchOrganisations();
+            invalidateOrgDetailsCache(orgToDelete.id);
+            invalidateOrgListCache();
+            fetchOrganisations(true);
             if (selectedOrg && selectedOrg.id === orgToDelete.id) {
                 setSelectedOrg(null);
             }
@@ -237,7 +380,8 @@ const Organisation = () => {
                 toast({ title: "Success", description: "Entity created." });
             }
             setShowEntityForm(false);
-            fetchOrgDetails(selectedOrg.id);
+            invalidateOrgDetailsCache(selectedOrg.id);
+            fetchOrgEntities(selectedOrg.id, { force: true });
         } catch (error) {
             toast({ title: "Error saving entity", description: error.message, variant: "destructive" });
         } finally {
@@ -250,7 +394,8 @@ const Organisation = () => {
         try {
             await deleteEntity(entityId, user.access_token);
             toast({ title: "Success", description: "Entity deleted." });
-            fetchOrgDetails(selectedOrg.id);
+            invalidateOrgDetailsCache(selectedOrg.id);
+            fetchOrgEntities(selectedOrg.id, { force: true });
         } catch (error) {
             toast({ title: "Error deleting entity", description: error.message, variant: "destructive" });
         } finally {
@@ -287,7 +432,10 @@ const Organisation = () => {
             }
             toast({ title: "Success", description: `User ${u.email} deleted.` });
             // Always refresh the user list after deletion
-            if (selectedOrg?.id) fetchOrgDetails(selectedOrg.id);
+            if (selectedOrg?.id) {
+                orgUsersCache.delete(selectedOrg.id);
+                fetchOrgUsers(selectedOrg.id, { force: true });
+            }
         } catch (error) {
             toast({ title: "Error", description: error.message, variant: "destructive" });
         } finally {
@@ -322,7 +470,8 @@ const Organisation = () => {
                 description: `An invitation has been sent to ${inviteUserEmail}.`,
             });
             setShowInviteUserDialog(false);
-            fetchOrgDetails(selectedOrg.id);
+            orgUsersCache.delete(selectedOrg.id);
+            fetchOrgUsers(selectedOrg.id, { force: true });
         } catch (error) {
             toast({
                 title: "❌ Error",
@@ -339,7 +488,7 @@ const Organisation = () => {
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-3xl font-bold text-white">Organisations</h1>
                 <div className="flex gap-2">
-                    <Button variant="outline" onClick={fetchOrganisations} disabled={isLoading}><RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} /></Button>
+                    <Button variant="outline" onClick={() => fetchOrganisations(true)} disabled={isLoading}><RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} /></Button>
                     <Button onClick={handleAddOrg}><Plus className="w-4 h-4 mr-2" /> Add Organisation</Button>
                 </div>
             </div>
@@ -385,9 +534,25 @@ const Organisation = () => {
             <div className="flex items-center gap-4 mb-6">
                 <Button variant="outline" size="icon" onClick={() => setSelectedOrg(null)}><ArrowLeft className="w-4 h-4" /></Button>
                 <h1 className="text-3xl font-bold text-white">{selectedOrg.name}</h1>
-                <Button variant="outline" size="icon" onClick={() => fetchOrgDetails(selectedOrg.id)} disabled={isDetailsLoading}><RefreshCw className={`w-4 h-4 ${isDetailsLoading ? 'animate-spin' : ''}`} /></Button>
+                <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => {
+                        if (!selectedOrg?.id) return;
+                        if (activeTab === 'users') {
+                            orgUsersCache.delete(selectedOrg.id);
+                            fetchOrgUsers(selectedOrg.id, { force: true });
+                        } else {
+                            orgEntitiesCache.delete(selectedOrg.id);
+                            fetchOrgEntities(selectedOrg.id, { force: true });
+                        }
+                    }}
+                    disabled={activeTab === 'users' ? isUsersLoading : isEntitiesLoading}
+                >
+                    <RefreshCw className={`w-4 h-4 ${(activeTab === 'users' ? isUsersLoading : isEntitiesLoading) ? 'animate-spin' : ''}`} />
+                </Button>
             </div>
-            <Tabs defaultValue="entities">
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <TabsList className="mb-4">
                     <TabsTrigger value="entities"><Briefcase className="w-4 h-4 mr-2" />Entities ({entities.length})</TabsTrigger>
                     <TabsTrigger value="users"><Users className="w-4 h-4 mr-2" />Users ({orgUsers.length})</TabsTrigger>
@@ -395,7 +560,7 @@ const Organisation = () => {
                 <TabsContent value="entities">
                     <div className="glass-pane p-4 rounded-lg">
                         <Button onClick={handleAddEntity} className="mb-4"><Plus className="w-4 h-4 mr-2" />Add Entity</Button>
-                        {isDetailsLoading ? <div className="flex items-center justify-center h-64"><Loader2 className="w-8 h-8 animate-spin" /></div>
+                        {isEntitiesLoading ? <div className="flex items-center justify-center h-64"><Loader2 className="w-8 h-8 animate-spin" /></div>
                             : entities.length > 0 ? (
                                 <Table>
                                     <TableHeader><TableRow className="border-b-white/10"><TableHead>Name</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
@@ -449,7 +614,7 @@ const Organisation = () => {
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         </div>
-                        {isDetailsLoading ? <div className="flex items-center justify-center h-64"><Loader2 className="w-8 h-8 animate-spin" /></div>
+                        {isUsersLoading ? <div className="flex items-center justify-center h-64"><Loader2 className="w-8 h-8 animate-spin" /></div>
                             : sortedAndFilteredUsers.length > 0 ? (
                                 <Table>
                                     <TableHeader>
