@@ -30,10 +30,12 @@ import {
 const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, task, stages = [], selectedOrg }) => {
   const { toast } = useToast();
   const { user } = useAuth();
+
   const [teamUsers, setTeamUsers] = useState([]);
   const [selectedClientUsers, setSelectedClientUsers] = useState([]); // Users for the currently selected client
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [loadingClientUsers, setLoadingClientUsers] = useState(false);
+
   const [formData, setFormData] = useState({
     title: '',
     client_id: '',
@@ -56,60 +58,90 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
     recurrence_day_of_month: null,
     recurrence_start_date: null
   });
+
   const [isSaving, setIsSaving] = useState(false);
 
+  // =========================
+  // DEBUG: base render snapshot
+  // =========================
+  useEffect(() => {
+    console.log('[NewTaskForm][mount] initial', {
+      role: user?.role,
+      hasToken: !!user?.access_token,
+      clientsCount: Array.isArray(clients) ? clients.length : 'NA',
+      teamMembersPropCount: Array.isArray(teamMembers) ? teamMembers.length : 'NA',
+      selectedOrg,
+      taskMode: task ? 'edit' : 'create',
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // =========================
   // Fetch CA Team Members for "Assign To"
+  // =========================
   useEffect(() => {
     const fetchTeamUsers = async () => {
+      console.log('[AssignTo][fetchTeamUsers] start', {
+        hasToken: !!user?.access_token,
+        role: user?.role,
+        teamMembersPropCount: Array.isArray(teamMembers) ? teamMembers.length : 'NA',
+      });
+
       if (!user?.access_token) {
+        console.log('[AssignTo][fetchTeamUsers] no token -> stop');
         setLoadingUsers(false);
         return;
       }
 
       const isCAUser = user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM';
 
-      // For CA users, always fetch team members to ensure we have the latest data
-      // For non-CA users, use prop if available, otherwise fetch
       setLoadingUsers(true);
       try {
-        const usersList = [];
         let membersData = [];
 
-        // For CA users, always fetch from API to ensure fresh data
         if (isCAUser) {
           try {
-            console.log('DEBUG: Fetching team members from API for CA user...');
+            console.log('[AssignTo][fetchTeamUsers] CA user -> calling listTeamMembers...');
             const res = await listTeamMembers(user.access_token, 'joined');
-            console.log('DEBUG: API Response listTeamMembers:', res);
+            console.log('[AssignTo][fetchTeamUsers] listTeamMembers raw response:', res);
             membersData = Array.isArray(res) ? res : (res?.members || res?.data || []);
           } catch (e) {
-            console.error('DEBUG: Error fetching team members:', e);
-            // Fallback to prop if API fails
+            console.error('[AssignTo][fetchTeamUsers] API error -> fallback prop', e);
             membersData = Array.isArray(teamMembers) ? teamMembers : [];
           }
         } else {
-          // For non-CA users, use prop first if available
           if (teamMembers && Array.isArray(teamMembers) && teamMembers.length > 0) {
+            console.log('[AssignTo][fetchTeamUsers] non-CA -> using teamMembers prop');
             membersData = teamMembers;
           } else {
-            // Fetch if prop not available
             try {
+              console.log('[AssignTo][fetchTeamUsers] non-CA -> calling listTeamMembers...');
               const res = await listTeamMembers(user.access_token, 'joined');
+              console.log('[AssignTo][fetchTeamUsers] listTeamMembers raw response:', res);
               membersData = Array.isArray(res) ? res : (res?.members || res?.data || []);
             } catch (e) {
-              console.error('DEBUG: Error fetching team members:', e);
+              console.error('[AssignTo][fetchTeamUsers] non-CA API error', e);
               membersData = [];
             }
           }
         }
 
-        console.log('DEBUG: Processing membersData:', membersData);
+        console.log('[AssignTo][fetchTeamUsers] membersData normalized:', {
+          count: Array.isArray(membersData) ? membersData.length : 'NA',
+          sample: Array.isArray(membersData) ? membersData.slice(0, 3) : membersData
+        });
+
+        const usersList = [];
 
         if (Array.isArray(membersData)) {
           membersData.forEach(member => {
             const memberId = member.user_id || member.id;
-            // Only add valid IDs
-            if (memberId && !usersList.find(u => u.id === memberId)) {
+            if (!memberId) {
+              console.warn('[AssignTo][fetchTeamUsers] skipped member (no id):', member);
+              return;
+            }
+
+            if (!usersList.find(u => u.id === memberId)) {
               usersList.push({
                 id: memberId,
                 user_id: memberId,
@@ -121,10 +153,11 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
           });
         }
 
-        console.log('DEBUG: Final teamUsers set:', usersList);
+        console.log('[AssignTo][fetchTeamUsers] usersList mapped:', usersList.length, usersList);
+
         setTeamUsers(usersList);
       } catch (error) {
-        console.error("DEBUG: Failed to fetch team users:", error);
+        console.error('[AssignTo][fetchTeamUsers] FAILED:', error);
         toast({
           title: "Error",
           description: "Failed to load team members.",
@@ -132,40 +165,53 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
         });
       } finally {
         setLoadingUsers(false);
+        console.log('[AssignTo][fetchTeamUsers] done (loadingUsers=false)');
       }
     };
 
     fetchTeamUsers();
-  }, [user?.access_token, user?.role]);
+  }, [user?.access_token, user?.role]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // =========================
   // Fetch users for the selected client when client_id changes
+  // =========================
   useEffect(() => {
     const fetchClientUsers = async () => {
-      // Only fetch if CA user and client is selected
-      if (!user?.access_token || (user.role !== 'CA_ACCOUNTANT' && user.role !== 'CA_TEAM')) {
+      const isCAUser = user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM';
+
+      console.log('[ClientUsers][effect] triggered', {
+        isCAUser,
+        client_id: formData.client_id,
+        hasToken: !!user?.access_token
+      });
+
+      if (!user?.access_token || !isCAUser) {
+        console.log('[ClientUsers][effect] skip (no token or not CA user)');
         return;
       }
 
       if (!formData.client_id) {
-        // No client selected, clear client users
+        console.log('[ClientUsers][effect] no client selected -> clear selectedClientUsers');
         setSelectedClientUsers([]);
         return;
       }
 
       setLoadingClientUsers(true);
       try {
-        // Import the API function
         const { listEntityUsers } = await import('@/lib/api');
 
-        // Fetch users for this specific client/entity
+        console.log('[ClientUsers] calling listEntityUsers...', {
+          client_id: formData.client_id
+        });
+
         const response = await listEntityUsers(formData.client_id, user.access_token);
 
-        // API returns { invited_users: [], joined_users: [...] }
+        console.log('[ClientUsers] listEntityUsers raw response:', response);
+
         let usersList = [];
         if (Array.isArray(response)) {
           usersList = response;
         } else if (response?.joined_users || response?.invited_users) {
-          // Combine both joined and invited users for assignment
           usersList = [
             ...(response.joined_users || []),
             ...(response.invited_users || [])
@@ -174,30 +220,41 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
           usersList = response.users;
         }
 
-        console.log('Fetched client users for client', formData.client_id, ':', usersList);
+        console.log('[ClientUsers] usersList normalized:', {
+          count: Array.isArray(usersList) ? usersList.length : 'NA',
+          sample: Array.isArray(usersList) ? usersList.slice(0, 3) : usersList
+        });
 
-        // Map to a consistent format
-        const formattedUsers = usersList.map(u => ({
-          id: u.user_id || u.id,
-          name: u.name || u.full_name || u.email,
-          email: u.email,
-          role: u.role || u.target_role
-        }));
+        const formattedUsers = (usersList || [])
+          .map(u => ({
+            id: u.user_id || u.id,
+            name: u.name || u.full_name || u.email,
+            email: u.email,
+            role: u.role || u.target_role
+          }))
+          .filter(u => !!u.id);
+
+        console.log('[ClientUsers] formattedUsers mapped:', formattedUsers.length, formattedUsers);
 
         setSelectedClientUsers(formattedUsers);
       } catch (error) {
-        console.error("Failed to fetch client users:", error);
+        console.error("[ClientUsers] fetch failed:", error);
         setSelectedClientUsers([]);
       } finally {
         setLoadingClientUsers(false);
+        console.log('[ClientUsers] done (loadingClientUsers=false)');
       }
     };
 
     fetchClientUsers();
   }, [formData.client_id, user?.access_token, user?.role]);
 
+  // =========================
+  // Prefill for edit / selectedOrg
+  // =========================
   useEffect(() => {
     if (task) {
+      console.log('[Prefill] edit mode -> setting formData from task', task);
       setFormData({
         title: task.title || '',
         client_id: task.client_id || '',
@@ -219,66 +276,135 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
         recurrence_day_of_week: task.recurrence_day_of_week || null,
         recurrence_date: task.recurrence_date ? new Date(task.recurrence_date) : null,
         recurrence_day_of_month: task.recurrence_day_of_month || null,
-        recurrence_start_date: task.recurrence_start_date ? new Date(task.recurrence_start_date) : null
+        recurrence_start_date: task.recurrence_start_date ? new Date(task.recurrence_start_date) : null,
+        client_user_id: task.client_user_id || '',
+        due_time: task.due_time || '12:00',
       });
     } else if (selectedOrg) {
-      // If creating a new task and an entity/org is selected, pre-fill client_id
-      // Assuming selectedOrg is the client/entity ID
-      setFormData(prev => ({ ...prev, client_id: selectedOrg }));
+      // ✅ DO NOT auto-select client for create task modal
+      // Keep client empty by default so Assign To shows team members
+      console.log('[Prefill] selectedOrg exists but NOT auto-prefilling client_id');
+    } else {
+      console.log('[Prefill] create mode + no selectedOrg');
     }
   }, [task, selectedOrg]);
 
+  // =========================
+  // Simple handlers
+  // =========================
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSelectChange = (name, value) => {
+    console.log('[Form] handleSelectChange', { name, value });
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleDateChange = (name, date) => {
+    console.log('[Form] handleDateChange', { name, date });
     setFormData(prev => ({ ...prev, [name]: date }));
   };
 
   const handleSwitchChange = (name, checked) => {
+    console.log('[Form] handleSwitchChange', { name, checked });
     setFormData(prev => ({ ...prev, [name]: checked }));
   };
 
+  // =========================
+  // ✅ Compute Assign To options (with debug)
+  // =========================
+  const assignToOptions = useMemo(() => {
+    const isCAUser = user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM';
 
-  const addChecklistItem = () => {
-    setFormData(prev => ({
-      ...prev,
-      checklist_items: [...prev.checklist_items, { name: '', is_completed: false }]
-    }));
-  };
-
-  const updateChecklistItem = (index, field, value) => {
-    setFormData(prev => {
-      const items = [...prev.checklist_items];
-      items[index] = { ...items[index], [field]: value };
-      return { ...prev, checklist_items: items };
+    console.log('[AssignTo][useMemo] compute', {
+      role: user?.role,
+      isCAUser,
+      client_id: formData.client_id,
+      loadingUsers,
+      loadingClientUsers,
+      teamUsersCount: teamUsers?.length || 0,
+      selectedClientUsersCount: selectedClientUsers?.length || 0,
     });
-  };
 
-  const removeChecklistItem = (index) => {
-    setFormData(prev => ({
-      ...prev,
-      checklist_items: prev.checklist_items.filter((_, i) => i !== index)
-    }));
-  };
+    // CA + client selected => client users
+    if (isCAUser && formData.client_id) {
+      const options = (selectedClientUsers || [])
+        .filter(u => u?.id)
+        .map(u => ({
+          value: String(u.id),
+          label: `${u.name || u.email} (Client User)`
+        }));
 
+      console.log('[AssignTo][useMemo] returning CLIENT users options:', options.length, options);
+      return options;
+    }
+
+    // Otherwise => team users
+    const options = (teamUsers || [])
+      .filter(u => (u.user_id || u.id))
+      .map(teamUser => {
+        const userId = teamUser.user_id || teamUser.id;
+        let displayRole = '';
+        if (teamUser.role) {
+          displayRole = ` (${String(teamUser.role).replace('CA_', '').replaceAll('_', ' ')})`;
+        }
+        return {
+          value: String(userId),
+          label: `${teamUser.name || teamUser.email || 'Unnamed User'}${displayRole}`
+        };
+      });
+
+    console.log('[AssignTo][useMemo] returning TEAM users options:', options.length, options);
+    return options;
+  }, [
+    formData.client_id,
+    teamUsers,
+    selectedClientUsers,
+    user?.role,
+    loadingUsers,
+    loadingClientUsers
+  ]);
+
+  // =========================
+  // Optional: watch state changes to catch unexpected resets
+  // =========================
+  useEffect(() => {
+    console.log('[StateWatch] teamUsers changed:', teamUsers.length, teamUsers);
+  }, [teamUsers]);
+
+  useEffect(() => {
+    console.log('[StateWatch] selectedClientUsers changed:', selectedClientUsers.length, selectedClientUsers);
+  }, [selectedClientUsers]);
+
+  useEffect(() => {
+    console.log('[StateWatch] client_id changed:', formData.client_id);
+  }, [formData.client_id]);
+
+  useEffect(() => {
+    console.log('[StateWatch] assigned_user_id changed:', formData.assigned_user_id);
+  }, [formData.assigned_user_id]);
+
+  // =========================
+  // Submit
+  // =========================
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const requiredFields = ['title', 'assigned_user_id'];
-    // Client is now optional for CA users
 
+    console.log('[Submit] start', { formData });
+
+    const requiredFields = ['title', 'assigned_user_id'];
     const missingFields = requiredFields.filter(field => !formData[field]);
+
     if (missingFields.length > 0) {
+      console.warn('[Submit] missing required fields:', missingFields);
+
       const fieldNames = missingFields.map(f => {
         if (f === 'assigned_user_id') return 'Assign To';
         return 'Task Title';
       });
+
       toast({
         title: "Validation Error",
         description: `Please fill in all required fields: ${fieldNames.join(', ')}.`,
@@ -287,51 +413,10 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
       return;
     }
 
-    // Set default "To Do" stage if creating new task and no stage is set
     let stageId = formData.stage_id;
     if (!task && !stageId && stages.length > 0) {
       const toDoStage = stages.find(s => s.name?.toLowerCase() === 'to do' || s.name?.toLowerCase() === 'todo');
-      if (toDoStage) {
-        stageId = toDoStage.id;
-      } else if (stages.length > 0) {
-        // Fallback to first stage if "To Do" not found
-        stageId = stages[0].id;
-      }
-    }
-
-    if (formData.is_recurring) {
-      if (formData.recurrence_frequency === 'daily' && !formData.recurrence_time) {
-        toast({
-          title: "Validation Error",
-          description: "Please select a time for daily recurrence.",
-          variant: "destructive"
-        });
-        return;
-      }
-      if (formData.recurrence_frequency === 'weekly' && formData.recurrence_day_of_week === null) {
-        toast({
-          title: "Validation Error",
-          description: "Please select a day of the week for weekly recurrence.",
-          variant: "destructive"
-        });
-        return;
-      }
-      if (['monthly', 'yearly'].includes(formData.recurrence_frequency) && !formData.recurrence_date) {
-        toast({
-          title: "Validation Error",
-          description: "Please select a date for this recurrence frequency.",
-          variant: "destructive"
-        });
-        return;
-      }
-      if (['quarterly', 'half_yearly'].includes(formData.recurrence_frequency) && formData.recurrence_day_of_month === null) {
-        toast({
-          title: "Validation Error",
-          description: "Please select a day of the month for this recurrence frequency.",
-          variant: "destructive"
-        });
-        return;
-      }
+      stageId = toDoStage?.id || stages[0]?.id;
     }
 
     setIsSaving(true);
@@ -342,7 +427,7 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
       title: formData.title,
       client_id: isCAUser ? (formData.client_id || null) : null,
       client_user_id: isCAUser ? (formData.client_user_id || null) : null,
-      service_id: null, // Service field removed
+      service_id: null,
       stage_id: stageId || null,
       due_date: formData.due_date ? format(formData.due_date, 'yyyy-MM-dd') : null,
       description: formData.description,
@@ -350,75 +435,48 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
       tag_id: formData.tag_id || null,
       checklist: {
         enabled: formData.checklist_enabled,
-        items: formData.checklist_items.filter(item => item.name.trim() !== '').map(item => ({
-          name: item.name,
-          is_completed: item.is_completed || false
-        }))
+        items: formData.checklist_items
+          .filter(item => item.name.trim() !== '')
+          .map(item => ({
+            name: item.name,
+            is_completed: item.is_completed || false
+          }))
       },
       assigned_to: formData.assigned_user_id || null,
-      // Recurring task data
+
       is_recurring: formData.is_recurring || false,
       recurrence_frequency: formData.is_recurring ? formData.recurrence_frequency : null,
       recurrence_time: formData.is_recurring && formData.recurrence_frequency === 'daily' ? formData.recurrence_time : null,
       recurrence_day_of_week: formData.is_recurring && formData.recurrence_frequency === 'weekly' ? formData.recurrence_day_of_week : null,
-      recurrence_date: formData.is_recurring && ['monthly', 'yearly'].includes(formData.recurrence_frequency) && formData.recurrence_date ? format(formData.recurrence_date, 'yyyy-MM-dd') : null,
-      recurrence_day_of_month: formData.is_recurring && ['quarterly', 'half_yearly'].includes(formData.recurrence_frequency) ? formData.recurrence_day_of_month : null,
-      recurrence_start_date: formData.is_recurring && formData.recurrence_start_date ? format(formData.recurrence_start_date, 'yyyy-MM-dd') : null
+      recurrence_date:
+        formData.is_recurring &&
+          ['monthly', 'yearly'].includes(formData.recurrence_frequency) &&
+          formData.recurrence_date
+          ? format(formData.recurrence_date, 'yyyy-MM-dd')
+          : null,
+      recurrence_day_of_month:
+        formData.is_recurring &&
+          ['quarterly', 'half_yearly'].includes(formData.recurrence_frequency)
+          ? formData.recurrence_day_of_month
+          : null,
+      recurrence_start_date:
+        formData.is_recurring && formData.recurrence_start_date
+          ? format(formData.recurrence_start_date, 'yyyy-MM-dd')
+          : null
     };
 
-    await onSave(taskData, !!task);
-    setIsSaving(false);
+    console.log('[Submit] payload prepared:', taskData);
+
+    try {
+      await onSave(taskData, !!task);
+      console.log('[Submit] onSave success');
+    } catch (err) {
+      console.error('[Submit] onSave error', err);
+    } finally {
+      setIsSaving(false);
+      console.log('[Submit] done (isSaving=false)');
+    }
   };
-
-
-  // Compute Assign To options based on current state
-  const assignToOptions = useMemo(() => {
-    const isCAUser = user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM';
-
-    // If CA user and client is selected, show only that client's users
-    if (isCAUser && formData.client_id) {
-      return selectedClientUsers.map(clientUser => ({
-        value: String(clientUser.id),
-        label: `${clientUser.name || clientUser.email} (Client User)`
-      }));
-    }
-
-    // If CA user and no client selected, show only CA team members
-    if (isCAUser && !formData.client_id) {
-      // Return empty array if still loading to show loading state
-      if (loadingUsers) {
-        return [];
-      }
-      return teamUsers.map(teamUser => {
-        const userId = teamUser.user_id || teamUser.id;
-        let displayRole = '';
-        if (teamUser.role) {
-          displayRole = ` (${teamUser.role.replace('CA_', '').replace('_', ' ')})`;
-        }
-        return {
-          value: String(userId),
-          label: `${teamUser.name || teamUser.email || 'Unnamed User'}${displayRole}`
-        };
-      });
-    }
-
-    // For non-CA users, show only team users
-    // Return empty array if still loading to show loading state
-    if (loadingUsers) {
-      return [];
-    }
-    return teamUsers.map(teamUser => {
-      const userId = teamUser.user_id || teamUser.id;
-      let displayRole = '';
-      if (teamUser.role) {
-        displayRole = ` (${teamUser.role.replace('CA_', '').replace('_', ' ')})`;
-      }
-      return {
-        value: String(userId),
-        label: `${teamUser.name || teamUser.email || 'Unnamed User'}${displayRole}`
-      };
-    });
-  }, [formData.client_id, teamUsers, selectedClientUsers, user?.role, loadingUsers]);
 
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-8 text-white">
