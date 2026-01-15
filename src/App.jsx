@@ -36,7 +36,7 @@ const TaskManagementPage = lazy(() => import('@/components/accountant/tasks/Task
 const RecurringTaskManagementPage = lazy(() => import('@/components/accountant/tasks/RecurringTaskManagementPage.jsx'));
 const TodoPage = lazy(() => import('@/components/accountant/tasks/TodoPage.jsx'));
 const ClientUsersPage = lazy(() => import('@/pages/ClientUsersPage.jsx'));
-const TaskDashboardPage = lazy(() => import('@/pages/TaskDashboardPage.jsx'));
+const TaskDashboardPage = lazy(() => import('@/pages/TaskDashboardPage'));
 const InvoiceDetailsPage = lazy(() => import('@/pages/InvoiceDetailsPage.jsx'));
 const VoucherDetailsPage = lazy(() => import('@/pages/VoucherDetailsPage.jsx'));
 const VoucherDetailsCAPage = lazy(() => import('@/pages/VoucherDetailsCA.jsx'));
