@@ -17,7 +17,7 @@ const hasExpiredDocuments = (folder) => {
   if (!folder) return false;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  
+
   // Check documents in this folder
   if (folder.documents && folder.documents.length > 0) {
     const hasExpired = folder.documents.some(doc => {
@@ -28,7 +28,7 @@ const hasExpiredDocuments = (folder) => {
     });
     if (hasExpired) return true;
   }
-  
+
   // Check children (subfolders) recursively
   if (folder.children && folder.children.length > 0) {
     return folder.children.some(child => {
@@ -42,7 +42,7 @@ const hasExpiredDocuments = (folder) => {
       return false;
     });
   }
-  
+
   return false;
 };
 
@@ -52,7 +52,7 @@ const FolderIcon = ({ className = "w-20 h-20", hasExpired = false }) => {
   const folderTabColor = hasExpired ? "#EF4444" : "#5BA3F5";
   const folderHighlight = hasExpired ? "#F87171" : "#6BB6FF";
   const folderStroke = hasExpired ? "#B91C1C" : "#3A7BC8";
-  
+
   return (
     <div className={className} style={{ position: 'relative' }}>
       <svg viewBox="0 0 64 64" className="w-full h-full">
@@ -63,7 +63,7 @@ const FolderIcon = ({ className = "w-20 h-20", hasExpired = false }) => {
           stroke={folderStroke}
           strokeWidth="0.5"
         />
-        
+
         {/* Folder tab */}
         <path
           d="M 8 18 L 28 18 L 32 22 L 8 22 Z"
@@ -71,21 +71,21 @@ const FolderIcon = ({ className = "w-20 h-20", hasExpired = false }) => {
           stroke={folderColor}
           strokeWidth="0.5"
         />
-        
+
         {/* Folder highlight on tab */}
         <path
           d="M 8 18 L 18 18 L 18 20 L 8 20 Z"
           fill={folderHighlight}
           opacity="0.6"
         />
-        
+
         {/* Folder highlight on body */}
         <path
           d="M 8 22 L 8 30 L 56 30 L 56 22 L 32 22 L 28 18 L 8 18 Z"
           fill={folderHighlight}
           opacity="0.2"
         />
-        
+
         {/* Folder crease line */}
         <line
           x1="8"
@@ -130,7 +130,7 @@ const buildFileTree = (folders, documents) => {
 
   foldersArray.forEach(folder => {
     if (!folder || !folder.id) return;
-    
+
     if (folder.parent_id && allItems[folder.parent_id] && Array.isArray(allItems[folder.parent_id].children)) {
       allItems[folder.parent_id].children.push(allItems[folder.id]);
     } else {
@@ -205,7 +205,7 @@ const isFolderEmpty = (folder) => {
 
 const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   const { user } = useAuth();
-  
+
   const getInitialEntityId = () => {
     if (user?.role === 'CA_ACCOUNTANT') return 'all';
     return entityId;
@@ -296,53 +296,53 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
       setIsLoading(false);
       return;
     }
-    
+
     let entityToFetch = null;
     if (user?.role === 'CA_ACCOUNTANT') {
-        entityToFetch = selectedEntityId !== 'all' ? selectedEntityId : (currentClientId !== 'all' ? currentClientId : null);
+      entityToFetch = selectedEntityId !== 'all' ? selectedEntityId : (currentClientId !== 'all' ? currentClientId : null);
     } else {
-        // For non-CA accountants, entityId is required
-        if (!entityId) {
-            // Don't fetch if entityId is not available yet
-            setDocumentsState({ id: 'root', name: 'Root', is_folder: true, children: [] });
-            setIsLoading(false);
-            return;
-        }
-        entityToFetch = entityId;
+      // For non-CA accountants, entityId is required
+      if (!entityId) {
+        // Don't fetch if entityId is not available yet
+        setDocumentsState({ id: 'root', name: 'Root', is_folder: true, children: [] });
+        setIsLoading(false);
+        return;
+      }
+      entityToFetch = entityId;
     }
 
     if (isRefresh) {
-        setIsRefreshing(true);
+      setIsRefreshing(true);
     } else {
-        setIsLoading(true);
+      setIsLoading(true);
     }
     try {
-        const data = await getDocuments(entityToFetch, user.access_token);
-        // Ensure data has folders and documents arrays
-        const folders = Array.isArray(data?.folders) ? data.folders : [];
-        const documents = Array.isArray(data?.documents) ? data.documents : [];
-        const fileTree = buildFileTree(folders, documents);
-        setDocumentsState(fileTree);
+      const data = await getDocuments(entityToFetch, user.access_token);
+      // Ensure data has folders and documents arrays
+      const folders = Array.isArray(data?.folders) ? data.folders : [];
+      const documents = Array.isArray(data?.documents) ? data.documents : [];
+      const fileTree = buildFileTree(folders, documents);
+      setDocumentsState(fileTree);
     } catch (error) {
-        console.error('Error fetching documents:', error);
-        toast({
-            title: 'Error',
-            description: `Failed to fetch documents: ${error.message}`,
-            variant: 'destructive',
-        });
-        setDocumentsState({ id: 'root', name: 'Root', is_folder: true, children: [] });
+      console.error('Error fetching documents:', error);
+      toast({
+        title: 'Error',
+        description: `Failed to fetch documents: ${error.message}`,
+        variant: 'destructive',
+      });
+      setDocumentsState({ id: 'root', name: 'Root', is_folder: true, children: [] });
     } finally {
-        setIsLoading(false);
-        setIsRefreshing(false);
+      setIsLoading(false);
+      setIsRefreshing(false);
     }
   }, [currentClientId, selectedEntityId, user, entityId, toast]);
 
   const fetchSharedDocuments = useCallback(async (isRefresh = false) => {
     if (!user?.access_token) return;
-     if (isRefresh) {
-        setIsRefreshing(true);
+    if (isRefresh) {
+      setIsRefreshing(true);
     } else {
-        setIsLoading(true);
+      setIsLoading(true);
     }
     try {
       const data = await getSharedDocuments(user.access_token, user.role, entityId);
@@ -359,8 +359,8 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
       });
       setSharedDocuments([]);
     } finally {
-        setIsLoading(false);
-        setIsRefreshing(false);
+      setIsLoading(false);
+      setIsRefreshing(false);
     }
   }, [user?.access_token, user?.role, entityId, toast]);
 
@@ -370,7 +370,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
       setIsLoading(false);
       return;
     }
-    
+
     // Only fetch if entityId is available for non-CA accountants
     if (user?.role !== 'CA_ACCOUNTANT' && !entityId) {
       // Set loading to false if entityId is not available yet
@@ -378,7 +378,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
       setDocumentsState({ id: 'root', name: 'Root', is_folder: true, children: [] });
       return; // Don't fetch until entityId is available
     }
-    
+
     if (activeTab === 'myFiles') {
       fetchDocuments();
     } else {
@@ -388,7 +388,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
 
   const currentPath = useMemo(() => findPath(documentsState, currentFolderId), [documentsState, currentFolderId]);
   const currentFolder = currentPath[currentPath.length - 1];
-  
+
   // Check if selected folder is empty (for delete button state)
   const isSelectedFolderEmpty = useMemo(() => {
     if (!selectedFolder) return true;
@@ -398,55 +398,55 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
 
   const filteredChildren = useMemo(() => {
     if (activeTab === 'sharedWithMe') {
-        let itemsToFilter = sharedDocuments;
-        if (user?.role === 'CA_ACCOUNTANT') {
-            if (selectedEntityId !== 'all') {
-                // Assuming shared items might have an entity_id, if not this won't work
-                // The current API doesn't seem to support this, so we filter by org
-                itemsToFilter = sharedDocuments.filter(item => item.organization_id === currentClientId);
-            } else if (currentClientId !== 'all') {
-                itemsToFilter = sharedDocuments.filter(item => item.organization_id === currentClientId);
-            }
+      let itemsToFilter = sharedDocuments;
+      if (user?.role === 'CA_ACCOUNTANT') {
+        if (selectedEntityId !== 'all') {
+          // Assuming shared items might have an entity_id, if not this won't work
+          // The current API doesn't seem to support this, so we filter by org
+          itemsToFilter = sharedDocuments.filter(item => item.organization_id === currentClientId);
+        } else if (currentClientId !== 'all') {
+          itemsToFilter = sharedDocuments.filter(item => item.organization_id === currentClientId);
         }
-        if (!searchTerm) return itemsToFilter;
-        return itemsToFilter.filter(item => 
-            item.name.toLowerCase().includes(searchTerm.toLowerCase())
-        );
+      }
+      if (!searchTerm) return itemsToFilter;
+      return itemsToFilter.filter(item =>
+        item.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
     }
     if (!currentFolder || !currentFolder.children) return [];
     if (activeTab === 'myFiles') {
-        // Exclude shared documents from "My Files" for all roles
-        // In root folder, only show folders, not documents
-        let filtered = currentFolder.children.filter(item => {
-            if (user?.role === 'CA_ACCOUNTANT') {
-                return !sharedDocuments.some(shared => shared.id === item.id);
-            }
-            return !sharedDocuments.some(shared => shared.id === item.id);
-        });
-        
-        // If in root folder, only return folders
-        if (currentFolderId === 'root') {
-            filtered = filtered.filter(item => item.is_folder);
+      // Exclude shared documents from "My Files" for all roles
+      // In root folder, only show folders, not documents
+      let filtered = currentFolder.children.filter(item => {
+        if (user?.role === 'CA_ACCOUNTANT') {
+          return !sharedDocuments.some(shared => shared.id === item.id);
         }
-        
-        // Apply search filter if search term exists
-        if (searchTerm) {
-            filtered = filtered.filter(item => 
-                item.name.toLowerCase().includes(searchTerm.toLowerCase())
-            );
-        }
-        
-        return filtered;
+        return !sharedDocuments.some(shared => shared.id === item.id);
+      });
+
+      // If in root folder, only return folders
+      if (currentFolderId === 'root') {
+        filtered = filtered.filter(item => item.is_folder);
+      }
+
+      // Apply search filter if search term exists
+      if (searchTerm) {
+        filtered = filtered.filter(item =>
+          item.name.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+      }
+
+      return filtered;
     }
     // If in root folder, only show folders
     let itemsToFilter = currentFolder.children;
     if (currentFolderId === 'root') {
-        itemsToFilter = itemsToFilter.filter(item => item.is_folder);
+      itemsToFilter = itemsToFilter.filter(item => item.is_folder);
     }
-    
+
     if (!searchTerm) return itemsToFilter;
-    return itemsToFilter.filter(item => 
-        item.name.toLowerCase().includes(searchTerm.toLowerCase())
+    return itemsToFilter.filter(item =>
+      item.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [currentFolder, searchTerm, activeTab, sharedDocuments, user?.role, currentClientId, selectedEntityId, currentFolderId]);
 
@@ -479,7 +479,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
       expiry_date: withoutExpiryDate ? null : (shareExpiryDate ? shareExpiryDate.toISOString().split('T')[0] : null),
       folder_id: currentFolderId === 'root' ? null : currentFolderId
     };
-    
+
     // Update state immediately
     setDocumentsState(prev => {
       const updateFolder = (node) => {
@@ -495,55 +495,55 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
     });
 
     try {
-        let createdDocument;
-        const expiryDateToSend = withoutExpiryDate ? null : shareExpiryDate;
-        if (user?.role === 'CA_ACCOUNTANT') {
-            createdDocument = await uploadCAFile(currentFolderId, file, expiryDateToSend, user.access_token);
-        } else {
-            createdDocument = await uploadFile(currentFolderId, entityId, file, expiryDateToSend, user.access_token);
-        }
-        
-        // Replace temp document with real document from server
-        setDocumentsState(prev => {
-          const updateFolder = (node) => {
-            if (node.id === currentFolderId) {
-              return { 
-                ...node, 
-                children: node.children.map(child => 
-                  child.id === tempDocId ? { ...createdDocument, is_folder: false } : child
-                )
-              };
-            }
-            if (node.is_folder && node.children) {
-              return { ...node, children: node.children.map(updateFolder) };
-            }
-            return node;
-          };
-          return updateFolder(prev);
-        });
-        
-        toast({ title: "Document Uploaded", description: "New document has been successfully added." });
-        setShowUpload(false);
-        e.target.reset();
-        setShareExpiryDate(null);
-        setWithoutExpiryDate(false);
-        // Refresh in background (non-blocking) to sync with server
-        fetchDocuments(true).catch(err => console.error('Background refresh failed:', err));
+      let createdDocument;
+      const expiryDateToSend = withoutExpiryDate ? null : shareExpiryDate;
+      if (user?.role === 'CA_ACCOUNTANT') {
+        createdDocument = await uploadCAFile(currentFolderId, file, expiryDateToSend, user.access_token);
+      } else {
+        createdDocument = await uploadFile(currentFolderId, entityId, file, expiryDateToSend, user.access_token);
+      }
+
+      // Replace temp document with real document from server
+      setDocumentsState(prev => {
+        const updateFolder = (node) => {
+          if (node.id === currentFolderId) {
+            return {
+              ...node,
+              children: node.children.map(child =>
+                child.id === tempDocId ? { ...createdDocument, is_folder: false } : child
+              )
+            };
+          }
+          if (node.is_folder && node.children) {
+            return { ...node, children: node.children.map(updateFolder) };
+          }
+          return node;
+        };
+        return updateFolder(prev);
+      });
+
+      toast({ title: "Document Uploaded", description: "New document has been successfully added." });
+      setShowUpload(false);
+      e.target.reset();
+      setShareExpiryDate(null);
+      setWithoutExpiryDate(false);
+      // Refresh in background (non-blocking) to sync with server
+      fetchDocuments(true).catch(err => console.error('Background refresh failed:', err));
     } catch (error) {
-        // Rollback optimistic update on error
-        setDocumentsState(prev => {
-          const updateFolder = (node) => {
-            if (node.id === currentFolderId) {
-              return { ...node, children: node.children.filter(child => child.id !== tempDocId) };
-            }
-            if (node.is_folder && node.children) {
-              return { ...node, children: node.children.map(updateFolder) };
-            }
-            return node;
-          };
-          return updateFolder(prev);
-        });
-        toast({ title: "Upload Failed", description: error.message, variant: "destructive" });
+      // Rollback optimistic update on error
+      setDocumentsState(prev => {
+        const updateFolder = (node) => {
+          if (node.id === currentFolderId) {
+            return { ...node, children: node.children.filter(child => child.id !== tempDocId) };
+          }
+          if (node.is_folder && node.children) {
+            return { ...node, children: node.children.map(updateFolder) };
+          }
+          return node;
+        };
+        return updateFolder(prev);
+      });
+      toast({ title: "Upload Failed", description: error.message, variant: "destructive" });
     } finally {
       setIsMutating(false);
     }
@@ -555,7 +555,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
       return;
     }
     setIsMutating(true);
-    
+
     // Optimistic update - add folder immediately to UI
     const tempFolderId = `temp-${Date.now()}`;
     const newFolder = {
@@ -565,7 +565,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
       children: [],
       parent_id: currentFolderId === 'root' ? null : currentFolderId
     };
-    
+
     // Update state immediately
     setDocumentsState(prev => {
       const updateFolder = (node) => {
@@ -579,54 +579,54 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
       };
       return updateFolder(prev);
     });
-    
+
     try {
-        const createdFolder = user?.role === 'CA_ACCOUNTANT'
-          ? await createCAFolder(newFolderName, currentFolderId, user.access_token)
-          : await createFolder(newFolderName, entityId, currentFolderId, user.agency_id, user.access_token);
-        
-        // Replace temp folder with real folder
-        setDocumentsState(prev => {
-          const replaceTempFolder = (node) => {
-            if (node.id === currentFolderId && node.children) {
-              return {
-                ...node,
-                children: node.children.map(child =>
-                  child.id === tempFolderId ? { ...createdFolder, is_folder: true, children: [] } : child
-                )
-              };
-            }
-            if (node.is_folder && node.children) {
-              return { ...node, children: node.children.map(replaceTempFolder) };
-            }
-            return node;
-          };
-          return replaceTempFolder(prev);
-        });
-        
-        toast({ title: "Folder Created", description: `Folder "${newFolderName}" has been created.` });
-        setShowCreateFolder(false);
-        setNewFolderName('');
-        // Refresh in background (non-blocking) to ensure sync
-        fetchDocuments(true).catch(err => console.error('Background refresh failed:', err));
+      const createdFolder = user?.role === 'CA_ACCOUNTANT'
+        ? await createCAFolder(newFolderName, currentFolderId, user.access_token)
+        : await createFolder(newFolderName, entityId, currentFolderId, user.agency_id, user.access_token);
+
+      // Replace temp folder with real folder
+      setDocumentsState(prev => {
+        const replaceTempFolder = (node) => {
+          if (node.id === currentFolderId && node.children) {
+            return {
+              ...node,
+              children: node.children.map(child =>
+                child.id === tempFolderId ? { ...createdFolder, is_folder: true, children: [] } : child
+              )
+            };
+          }
+          if (node.is_folder && node.children) {
+            return { ...node, children: node.children.map(replaceTempFolder) };
+          }
+          return node;
+        };
+        return replaceTempFolder(prev);
+      });
+
+      toast({ title: "Folder Created", description: `Folder "${newFolderName}" has been created.` });
+      setShowCreateFolder(false);
+      setNewFolderName('');
+      // Refresh in background (non-blocking) to ensure sync
+      fetchDocuments(true).catch(err => console.error('Background refresh failed:', err));
     } catch (error) {
-        // Revert optimistic update on error
-        setDocumentsState(prev => {
-          const removeTempFolder = (node) => {
-            if (node.id === currentFolderId && node.children) {
-              return {
-                ...node,
-                children: node.children.filter(child => child.id !== tempFolderId)
-              };
-            }
-            if (node.is_folder && node.children) {
-              return { ...node, children: node.children.map(removeTempFolder) };
-            }
-            return node;
-          };
-          return removeTempFolder(prev);
-        });
-        toast({ title: "Creation Failed", description: error.message, variant: "destructive" });
+      // Revert optimistic update on error
+      setDocumentsState(prev => {
+        const removeTempFolder = (node) => {
+          if (node.id === currentFolderId && node.children) {
+            return {
+              ...node,
+              children: node.children.filter(child => child.id !== tempFolderId)
+            };
+          }
+          if (node.is_folder && node.children) {
+            return { ...node, children: node.children.map(removeTempFolder) };
+          }
+          return node;
+        };
+        return removeTempFolder(prev);
+      });
+      toast({ title: "Creation Failed", description: error.message, variant: "destructive" });
     } finally {
       setIsMutating(false);
     }
@@ -634,30 +634,30 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
 
   const handleDelete = async () => {
     if (!itemToDelete) return;
-    
+
     // Check if trying to delete a folder that is not empty
     if (itemToDelete.type === 'folder') {
       const folder = findFolder(documentsState, itemToDelete.id);
       if (folder && !isFolderEmpty(folder)) {
-        toast({ 
-          title: "Cannot delete folder", 
-          description: "This folder contains documents or subfolders. Please delete all items inside the folder first.", 
-          variant: "destructive" 
+        toast({
+          title: "Cannot delete folder",
+          description: "This folder contains documents or subfolders. Please delete all items inside the folder first.",
+          variant: "destructive"
         });
         setItemToDelete(null);
         return;
       }
     }
-    
+
     setIsMutating(true);
     const deletedItem = itemToDelete;
-    
+
     // If we're viewing the folder that's being deleted, navigate to parent first
     if (activeTab === 'myFiles' && currentFolderId === deletedItem.id && deletedItem.type === 'folder') {
       const parentFolder = currentPath.length > 1 ? currentPath[currentPath.length - 2] : null;
       setCurrentFolderId(parentFolder ? parentFolder.id : 'root');
     }
-    
+
     // Optimistic deletion - remove from UI immediately
     if (activeTab === 'myFiles') {
       setDocumentsState(prev => {
@@ -675,34 +675,34 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
     } else {
       setSharedDocuments(prev => prev.filter(item => item.id !== deletedItem.id));
     }
-    
+
     // Clear selected folder if it was deleted
     if (selectedFolder && selectedFolder.id === deletedItem.id) {
       setSelectedFolder(null);
     }
-    
+
     // Don't clear itemToDelete yet - keep modal open to show loader
     try {
-        await deleteDocument(deletedItem.id, deletedItem.type, user.access_token);
-        toast({ title: "Item Deleted", description: "The selected item has been removed." });
-        
-        // Clear the item to delete and close modal after successful deletion
-        setItemToDelete(null);
-        
-        // Refresh in background (non-blocking) to sync with server
-        if (activeTab === 'myFiles') {
-          fetchDocuments(true).catch(err => console.error('Background refresh failed:', err));
-        } else {
-          fetchSharedDocuments(true).catch(err => console.error('Background refresh failed:', err));
-        }
+      await deleteDocument(deletedItem.id, deletedItem.type, user.access_token);
+      toast({ title: "Item Deleted", description: "The selected item has been removed." });
+
+      // Clear the item to delete and close modal after successful deletion
+      setItemToDelete(null);
+
+      // Refresh in background (non-blocking) to sync with server
+      if (activeTab === 'myFiles') {
+        fetchDocuments(true).catch(err => console.error('Background refresh failed:', err));
+      } else {
+        fetchSharedDocuments(true).catch(err => console.error('Background refresh failed:', err));
+      }
     } catch (error) {
-        // Rollback optimistic deletion on error
-        if (activeTab === 'myFiles') {
-          fetchDocuments(true).catch(err => console.error('Rollback refresh failed:', err));
-        } else {
-          fetchSharedDocuments(true).catch(err => console.error('Rollback refresh failed:', err));
-        }
-        toast({ title: "Deletion Failed", description: error.message, variant: "destructive" });
+      // Rollback optimistic deletion on error
+      if (activeTab === 'myFiles') {
+        fetchDocuments(true).catch(err => console.error('Rollback refresh failed:', err));
+      } else {
+        fetchSharedDocuments(true).catch(err => console.error('Rollback refresh failed:', err));
+      }
+      toast({ title: "Deletion Failed", description: error.message, variant: "destructive" });
     } finally {
       setIsMutating(false);
     }
@@ -713,7 +713,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
     setLinkCopied(false);
     setShareEmails(''); // Reset emails when opening dialog
     setShareDialogOpen(true);
-    
+
     // Generate public share token and link
     try {
       let tokenData;
@@ -722,7 +722,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
       } else {
         tokenData = await createPublicShareTokenDocument(doc.id, 30, user.access_token);
       }
-      
+
       // Generate public shareable link
       const baseUrl = window.location.origin;
       if (doc.is_folder) {
@@ -748,7 +748,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
     setUserSearchTerm('');
     setLoadingUsers(true);
     setCollaborateDialogOpen(true);
-    
+
     try {
       // Get organization ID based on user role
       let orgId = null;
@@ -760,9 +760,9 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
       } else if (user?.entities && user.entities.length > 0) {
         orgId = user.entities[0].organisation_id;
       }
-      
+
       let users = [];
-      
+
       // Try to fetch users from organization
       if (orgId) {
         try {
@@ -808,7 +808,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
           throw new Error('Unable to fetch users. Please try again later.');
         }
       }
-      
+
       // Normalize user objects and filter out current user
       const normalizedUsers = users.map(u => ({
         id: u.id || u.user_id || u.email,
@@ -817,9 +817,9 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
         first_name: u.first_name,
         last_name: u.last_name
       })).filter(u => u.email && u.email !== user.email);
-      
+
       setAvailableUsers(normalizedUsers);
-      
+
       if (normalizedUsers.length === 0) {
         toast({
           title: 'No users found',
@@ -863,7 +863,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
     try {
       setIsMutating(true);
       const emails = selectedUsers.map(u => u.email);
-      
+
       if (collaborateDoc.is_folder) {
         // Share folder with each user (one at a time as per backend)
         for (const email of emails) {
@@ -873,17 +873,17 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
         // Share document with all users at once
         await shareDocument(collaborateDoc.id, emails, user.access_token);
       }
-      
+
       toast({
         title: 'Collaboration successful',
         description: `Successfully shared ${collaborateDoc.name} with ${selectedUsers.length} user(s).`
       });
-      
+
       setCollaborateDialogOpen(false);
       setSelectedUsers([]);
       setCollaborateDoc(null);
       setUserSearchTerm('');
-      
+
       // Refresh shared documents to show the updated list
       if (activeTab === 'sharedWithMe') {
         fetchSharedDocuments();
@@ -910,8 +910,8 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
     const encodedLink = encodeURIComponent(shareLink);
     const encodedName = encodeURIComponent(shareDoc?.name || 'Document');
     let shareUrl = '';
-    
-    switch(appName) {
+
+    switch (appName) {
       case 'whatsapp':
         shareUrl = `https://wa.me/?text=${encodedName}%20${encodedLink}`;
         break;
@@ -936,7 +936,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
       default:
         return;
     }
-    
+
     if (shareUrl) {
       window.open(shareUrl, '_blank', 'width=600,height=400');
     }
@@ -949,18 +949,18 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
       return;
     }
     try {
-        if (shareDoc.is_folder) {
-            // Assuming we share with one email at a time for folders as per backend
-            await shareFolder(shareDoc.id, emails[0], user.access_token);
-        } else {
-            await shareDocument(shareDoc.id, emails, user.access_token);
-        }
-        toast({ title: "Sharing Complete", description: `Successfully shared ${shareDoc.name}.` });
-        setShareDialogOpen(false);
-        setShareEmails('');
-        setShareDoc(null);
+      if (shareDoc.is_folder) {
+        // Assuming we share with one email at a time for folders as per backend
+        await shareFolder(shareDoc.id, emails[0], user.access_token);
+      } else {
+        await shareDocument(shareDoc.id, emails, user.access_token);
+      }
+      toast({ title: "Sharing Complete", description: `Successfully shared ${shareDoc.name}.` });
+      setShareDialogOpen(false);
+      setShareEmails('');
+      setShareDoc(null);
     } catch (error) {
-        toast({ title: "Share Failed", description: error.message, variant: "destructive" });
+      toast({ title: "Share Failed", description: error.message, variant: "destructive" });
     }
   };
 
@@ -971,22 +971,22 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
     }
     toast({ title: "Loading...", description: `Opening ${doc.name}.` });
     try {
-        const fileBlob = await viewFile(doc.id, user.access_token);
-        const fileURL = URL.createObjectURL(fileBlob);
-        setPreviewFile({ url: fileURL, name: doc.name });
+      const fileBlob = await viewFile(doc.id, user.access_token);
+      const fileURL = URL.createObjectURL(fileBlob);
+      setPreviewFile({ url: fileURL, name: doc.name });
     } catch (error) {
-        toast({ title: "Failed to open file", description: error.message, variant: "destructive" });
+      toast({ title: "Failed to open file", description: error.message, variant: "destructive" });
     }
   };
-  
+
   const handleRefresh = () => {
-      if (activeTab === 'myFiles') {
-          fetchDocuments(true);
-      } else {
-          fetchSharedDocuments(true);
-      }
+    if (activeTab === 'myFiles') {
+      fetchDocuments(true);
+    } else {
+      fetchSharedDocuments(true);
+    }
   };
-  
+
   const renderMyFiles = () => {
     const isSubFolder = currentPath.length > 2;
     const folders = filteredChildren.filter(item => item.is_folder);
@@ -1026,26 +1026,25 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
             {folders.map((item, index) => {
               const isSelected = selectedFolder?.id === item.id;
               return (
-                <motion.div 
-                  key={item.id} 
-                  initial={{ opacity: 0, y: 20 }} 
-                  animate={{ opacity: 1, y: 0 }} 
+                <motion.div
+                  key={item.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: index * 0.05 }}
-                  className={`flex flex-col items-center cursor-pointer group relative p-2 sm:p-3 rounded-lg transition-all ${
-                    isSelected ? 'bg-blue-500/20 border-2 border-blue-500' : 'hover:bg-gray-800/30'
-                  }`}
+                  className={`flex flex-col items-center cursor-pointer group relative p-2 sm:p-3 rounded-lg transition-all ${isSelected ? 'bg-blue-500/20 border-2 border-blue-500' : 'hover:bg-gray-800/30'
+                    }`}
                   onClick={() => {
                     // Single click opens folder
                     setCurrentFolderId(item.id);
                   }}
                 >
                   <div className="relative mb-2">
-                    <FolderIcon 
+                    <FolderIcon
                       className={`w-40 h-40 sm:w-48 sm:h-48 md:w-56 md:h-56 transition-transform ${isSelected ? 'scale-105' : 'group-hover:scale-110'}`}
                       hasExpired={hasExpiredDocuments(item)}
                     />
                     {/* Checkbox on hover - top left corner */}
-                    <div 
+                    <div
                       className="absolute top-1 left-1 sm:top-2 sm:left-2 opacity-0 group-hover:opacity-100 transition-opacity"
                       onClick={(e) => {
                         e.stopPropagation();
@@ -1062,9 +1061,8 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                     </div>
                   </div>
                   <div className="w-full text-center px-1">
-                    <p className={`text-xs sm:text-sm truncate transition-colors ${
-                      isSelected ? 'text-blue-300 font-semibold' : 'text-white group-hover:text-blue-300'
-                    }`}>{item.name}</p>
+                    <p className={`text-xs sm:text-sm truncate transition-colors ${isSelected ? 'text-blue-300 font-semibold' : 'text-white group-hover:text-blue-300'
+                      }`}>{item.name}</p>
                   </div>
                 </motion.div>
               );
@@ -1123,11 +1121,11 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                             }
                           }}>
                             <AlertDialogTrigger asChild>
-                              <DropdownMenuItem 
+                              <DropdownMenuItem
                                 className="text-red-400 focus:text-red-400 focus:bg-red-500/10"
                                 onSelect={(e) => {
                                   e.preventDefault();
-                                  setItemToDelete({id: item.id, type: 'document'});
+                                  setItemToDelete({ id: item.id, type: 'document' });
                                 }}
                               >
                                 <Trash2 className="w-4 h-4 mr-2" />
@@ -1172,10 +1170,10 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
         {!isSubFolder && documents.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-2 sm:gap-4">
             {documents.map((item, index) => (
-              <motion.div 
-                key={item.id} 
-                initial={{ opacity: 0, y: 20 }} 
-                animate={{ opacity: 1, y: 0 }} 
+              <motion.div
+                key={item.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: index * 0.05 }}
                 className="flex flex-col items-center cursor-pointer group relative"
                 onDoubleClick={() => handleView(item)}
@@ -1186,19 +1184,19 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                   </div>
                   {/* Action buttons on hover */}
                   <div className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-0.5 sm:gap-1">
-                    <Button 
-                      size="icon" 
-                      variant="secondary" 
+                    <Button
+                      size="icon"
+                      variant="secondary"
                       className="h-6 w-6 sm:h-7 sm:w-7 bg-gray-800/90 hover:bg-gray-700"
-                      onClick={(e) => {e.stopPropagation(); handleShareClick(item)}}
+                      onClick={(e) => { e.stopPropagation(); handleShareClick(item) }}
                     >
                       <Share2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                     </Button>
-                    <Button 
-                      size="icon" 
-                      variant="secondary" 
+                    <Button
+                      size="icon"
+                      variant="secondary"
                       className="h-6 w-6 sm:h-7 sm:w-7 bg-gray-800/90 hover:bg-gray-700"
-                      onClick={(e) => {e.stopPropagation(); handleView(item)}}
+                      onClick={(e) => { e.stopPropagation(); handleView(item) }}
                     >
                       <FileText className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                     </Button>
@@ -1208,11 +1206,11 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                       }
                     }}>
                       <AlertDialogTrigger asChild>
-                        <Button 
-                          size="icon" 
-                          variant="secondary" 
+                        <Button
+                          size="icon"
+                          variant="secondary"
                           className="h-6 w-6 sm:h-7 sm:w-7 bg-red-600/90 hover:bg-red-700"
-                          onClick={(e) => {e.stopPropagation(); setItemToDelete({id: item.id, type: 'document'})}}
+                          onClick={(e) => { e.stopPropagation(); setItemToDelete({ id: item.id, type: 'document' }) }}
                         >
                           <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                         </Button>
@@ -1225,7 +1223,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel onClick={(e) => {e.stopPropagation(); setItemToDelete(null)}} disabled={isMutating}>Cancel</AlertDialogCancel>
+                          <AlertDialogCancel onClick={(e) => { e.stopPropagation(); setItemToDelete(null) }} disabled={isMutating}>Cancel</AlertDialogCancel>
                           <AlertDialogAction onClick={async (e) => {
                             e.stopPropagation();
                             await handleDelete();
@@ -1266,39 +1264,39 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   const renderSharedWithMe = () => (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-2 sm:gap-4">
       {sharedDocuments.map((item, index) => (
-        <motion.div 
-          key={item.id} 
-          initial={{ opacity: 0, y: 20 }} 
-          animate={{ opacity: 1, y: 0 }} 
+        <motion.div
+          key={item.id}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: index * 0.05 }}
           className="flex flex-col items-center cursor-pointer group relative"
           onDoubleClick={() => handleView(item)}
         >
           <div className="relative mb-2">
             {item.is_folder ? (
-              <FolderIcon 
-                className="w-40 h-40 sm:w-48 sm:h-48 md:w-56 md:h-56 transition-transform group-hover:scale-110" 
+              <FolderIcon
+                className="w-40 h-40 sm:w-48 sm:h-48 md:w-56 md:h-56 transition-transform group-hover:scale-110"
                 hasExpired={hasExpiredDocuments(item)}
               />
             ) : (
               <div className="w-40 h-40 sm:w-44 sm:h-44 md:w-48 md:h-48 rounded-xl flex items-center justify-center bg-gradient-to-br from-purple-500 to-pink-500 transition-transform group-hover:scale-110">
-                    <FileText className="w-20 h-20 sm:w-22 sm:h-22 md:w-24 md:h-24 text-white" />
-                  </div>
+                <FileText className="w-20 h-20 sm:w-22 sm:h-22 md:w-24 md:h-24 text-white" />
+              </div>
             )}
             {/* Action buttons on hover */}
             <div className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-0.5 sm:gap-1">
-              <Button 
-                size="icon" 
-                variant="secondary" 
+              <Button
+                size="icon"
+                variant="secondary"
                 className="h-6 w-6 sm:h-7 sm:w-7 bg-gray-800/90 hover:bg-gray-700"
                 onClick={(e) => { e.stopPropagation(); handleView(item) }}
               >
                 <FileText className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
               </Button>
               <a href={`${FINANCE_API_BASE_URL}/api/documents/${item.id}`} download={item.name} onClick={(e) => e.stopPropagation()}>
-                <Button 
-                  size="icon" 
-                  variant="secondary" 
+                <Button
+                  size="icon"
+                  variant="secondary"
                   className="h-6 w-6 sm:h-7 sm:w-7 bg-gray-800/90 hover:bg-gray-700"
                 >
                   <Download className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
@@ -1323,18 +1321,18 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   return (
     <div className="p-4 sm:p-6 lg:p-8" onClick={() => setSelectedFolder(null)}>
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-        <div className="flex flex-col gap-4 mb-4 sm:mb-6">
+        <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 mb-6">
           <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white">Documents</h1>
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2 w-full">
-             <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-               <Button variant="outline" size="icon" onClick={handleRefresh} disabled={isRefreshing} className="h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0">
-                  <RefreshCw className={`w-4 h-4 sm:w-5 sm:h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2 w-full xl:w-auto flex-wrap justify-end">
+            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+              <Button variant="outline" size="icon" onClick={handleRefresh} disabled={isRefreshing} className="h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0">
+                <RefreshCw className={`w-4 h-4 sm:w-5 sm:h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
               </Button>
-               <div className="relative flex-1 sm:w-64">
-                  <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
-                  <Input placeholder="Search..." className="pl-9 sm:pl-12 h-9 sm:h-10 text-sm" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+              <div className="relative flex-1 sm:w-64">
+                <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+                <Input placeholder="Search..." className="pl-9 sm:pl-12 h-9 sm:h-10 text-sm" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
               </div>
-             </div>
+            </div>
             {activeTab === 'myFiles' && (
               <div className="flex items-center gap-2">
                 <Button onClick={() => setShowCreateFolder(true)} variant="outline" className="h-9 sm:h-10 text-sm sm:text-base flex-1 sm:flex-initial">
@@ -1347,157 +1345,156 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                 )}
               </div>
             )}
+            {user?.role === 'CA_ACCOUNTANT' && (
+              <>
+                <div className="w-full sm:w-48 lg:w-52">
+                  <Select value={currentClientId} onValueChange={setCurrentClientId}>
+                    <SelectTrigger className="h-9 sm:h-10">
+                      <SelectValue placeholder="Select Client" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Clients</SelectItem>
+                      {organisations.map(org => (
+                        <SelectItem key={org.id} value={org.id}>
+                          {org.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {currentClientId !== 'all' && entitiesForFilter.length > 0 && (
+                  <div className="w-full sm:w-48 lg:w-52">
+                    <Select value={selectedEntityId} onValueChange={setSelectedEntityId}>
+                      <SelectTrigger className="h-9 sm:h-10">
+                        <SelectValue placeholder="Select Entity" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Entities</SelectItem>
+                        {entitiesForFilter.map(entity => (
+                          <SelectItem key={entity.id} value={entity.id}>
+                            {entity.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </div>
 
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6 sm:mb-8">
-            <div className="flex space-x-1 bg-black/20 p-1 rounded-lg w-full sm:w-auto">
-                <Button variant={activeTab === 'myFiles' ? 'secondary' : 'ghost'} onClick={() => setActiveTab('myFiles')} className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm flex-1 sm:flex-initial">
-                    <Folder className="w-3 h-3 sm:w-4 sm:h-4" />
-                    <span>My Files</span>
-                </Button>
-                <Button variant={activeTab === 'sharedWithMe' ? 'secondary' : 'ghost'} onClick={() => setActiveTab('sharedWithMe')} className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm flex-1 sm:flex-initial">
-                    <Inbox className="w-3 h-3 sm:w-4 sm:h-4" />
-                    <span className="hidden xs:inline">Shared with me</span>
-                    <span className="xs:hidden">Shared</span>
-                </Button>
-            </div>
-            
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2 w-full lg:w-auto">
-                {/* Action buttons - Always visible, enabled when folder is selected */}
-                <div className="flex items-center gap-1 sm:gap-2 p-1.5 sm:p-2 bg-gray-800/50 rounded-lg border border-gray-700 flex-wrap" onClick={(e) => e.stopPropagation()}>
-                  <Button 
-                    size="sm" 
-                    variant="secondary" 
-                    className="bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed h-8 sm:h-9 text-xs sm:text-sm flex-1 sm:flex-initial"
-                    onClick={() => selectedFolder && handleShareClick(selectedFolder)}
-                    disabled={!selectedFolder}
+          <div className="flex space-x-1 bg-black/20 p-1 rounded-lg w-full sm:w-auto">
+            <Button variant={activeTab === 'myFiles' ? 'secondary' : 'ghost'} onClick={() => setActiveTab('myFiles')} className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm flex-1 sm:flex-initial">
+              <Folder className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span>My Files</span>
+            </Button>
+            <Button variant={activeTab === 'sharedWithMe' ? 'secondary' : 'ghost'} onClick={() => setActiveTab('sharedWithMe')} className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm flex-1 sm:flex-initial">
+              <Inbox className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="hidden xs:inline">Shared with me</span>
+              <span className="xs:hidden">Shared</span>
+            </Button>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2 w-full lg:w-auto">
+            {/* Action buttons - Always visible, enabled when folder is selected */}
+            <div className="flex items-center gap-1 sm:gap-2 p-1.5 sm:p-2 bg-gray-800/50 rounded-lg border border-gray-700 flex-wrap" onClick={(e) => e.stopPropagation()}>
+              <Button
+                size="sm"
+                variant="secondary"
+                className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed h-8 sm:h-9 text-xs sm:text-sm flex-1 sm:flex-initial"
+                onClick={() => selectedFolder && handleCollaborateClick(selectedFolder)}
+                disabled={!selectedFolder}
+              >
+                <UserPlus className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Collaborate</span>
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                className="bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed h-8 sm:h-9 text-xs sm:text-sm flex-1 sm:flex-initial"
+                onClick={() => selectedFolder && handleShareClick(selectedFolder)}
+                disabled={!selectedFolder}
+              >
+                <Share2 className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Share</span>
+              </Button>
+              <AlertDialog open={itemToDelete?.id === selectedFolder?.id && itemToDelete?.type === 'folder'} onOpenChange={(open) => {
+                if (!open && !isMutating) {
+                  setItemToDelete(null);
+                }
+              }}>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed h-8 sm:h-9 text-xs sm:text-sm flex-1 sm:flex-initial"
+                    disabled={!selectedFolder || !isSelectedFolderEmpty}
+                    title={selectedFolder && !isSelectedFolderEmpty ? "Cannot delete folder with contents" : ""}
+                    onClick={() => {
+                      if (selectedFolder) {
+                        setItemToDelete({ id: selectedFolder.id, type: 'folder' });
+                      }
+                    }}
                   >
-                    <Share2 className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
-                    <span className="hidden sm:inline">Share</span>
+                    <Trash2 className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Delete</span>
                   </Button>
-                  <Button 
-                    size="sm" 
-                    variant="secondary" 
-                    className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed h-8 sm:h-9 text-xs sm:text-sm flex-1 sm:flex-initial"
-                    onClick={() => selectedFolder && handleCollaborateClick(selectedFolder)}
-                    disabled={!selectedFolder}
-                  >
-                    <UserPlus className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
-                    <span className="hidden sm:inline">Collaborate</span>
-                  </Button>
-                  <AlertDialog open={itemToDelete?.id === selectedFolder?.id && itemToDelete?.type === 'folder'} onOpenChange={(open) => {
-                    if (!open && !isMutating) {
-                      setItemToDelete(null);
-                    }
-                  }}>
-                    <AlertDialogTrigger asChild>
-                      <Button 
-                        size="sm" 
-                        variant="secondary" 
-                        className="bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed h-8 sm:h-9 text-xs sm:text-sm flex-1 sm:flex-initial"
-                        disabled={!selectedFolder || !isSelectedFolderEmpty}
-                        title={selectedFolder && !isSelectedFolderEmpty ? "Cannot delete folder with contents" : ""}
-                        onClick={() => {
-                          if (selectedFolder) {
-                            setItemToDelete({id: selectedFolder.id, type: 'folder'});
-                          }
-                        }}
-                      >
-                        <Trash2 className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
-                        <span className="hidden sm:inline">Delete</span>
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This action cannot be undone. This will permanently delete the folder "{selectedFolder?.name || ''}".
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel onClick={() => setItemToDelete(null)} disabled={isMutating}>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={async () => {
-                          await handleDelete();
-                          setSelectedFolder(null);
-                        }} disabled={isMutating || !selectedFolder}>
-                          {isMutating ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              Deleting...
-                            </>
-                          ) : (
-                            'Delete'
-                          )}
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                  {selectedFolder && (
-                    <Button 
-                      size="sm" 
-                      variant="ghost" 
-                      className="ml-1 h-8 w-8 sm:h-9 sm:w-9 p-0"
-                      onClick={() => setSelectedFolder(null)}
-                    >
-                      <X className="w-3 h-3 sm:w-4 sm:h-4" />
-                    </Button>
-                  )}
-                </div>
-                
-                {user?.role === 'CA_ACCOUNTANT' && (
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
-                        <div className="w-full sm:w-48 lg:w-64">
-                            <Select value={currentClientId} onValueChange={setCurrentClientId}>
-                                <SelectTrigger className="h-9 sm:h-10">
-                                    <SelectValue placeholder="Select Client" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All Clients</SelectItem>
-                                    {organisations.map(org => (
-                                        <SelectItem key={org.id} value={org.id}>
-                                            {org.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        {currentClientId !== 'all' && entitiesForFilter.length > 0 && (
-                            <div className="w-full sm:w-48 lg:w-64">
-                                <Select value={selectedEntityId} onValueChange={setSelectedEntityId}>
-                                    <SelectTrigger className="h-9 sm:h-10">
-                                        <SelectValue placeholder="Select Entity" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">All Entities</SelectItem>
-                                        {entitiesForFilter.map(entity => (
-                                            <SelectItem key={entity.id} value={entity.id}>
-                                                {entity.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        )}
-                    </div>
-                )}
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete the folder "{selectedFolder?.name || ''}".
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel onClick={() => setItemToDelete(null)} disabled={isMutating}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={async () => {
+                      await handleDelete();
+                      setSelectedFolder(null);
+                    }} disabled={isMutating || !selectedFolder}>
+                      {isMutating ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Deleting...
+                        </>
+                      ) : (
+                        'Delete'
+                      )}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              {selectedFolder && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="ml-1 h-8 w-8 sm:h-9 sm:w-9 p-0"
+                  onClick={() => setSelectedFolder(null)}
+                >
+                  <X className="w-3 h-3 sm:w-4 sm:h-4" />
+                </Button>
+              )}
             </div>
+          </div>
         </div>
 
 
         <Dialog open={showCreateFolder} onOpenChange={setShowCreateFolder}>
-            <DialogContent>
-                <DialogHeader><DialogTitle>Create New Folder</DialogTitle></DialogHeader>
-                <div className="py-4">
-                    <Label htmlFor="folder-name">Folder Name</Label>
-                    <Input id="folder-name" value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)} placeholder="Enter folder name" />
-                </div>
-                <DialogFooter>
-                    <Button variant="ghost" onClick={() => setShowCreateFolder(false)} disabled={isMutating}>Cancel</Button>
-                    <Button onClick={handleCreateFolder} disabled={isMutating}>
-                      {isMutating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                      Create
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Create New Folder</DialogTitle></DialogHeader>
+            <div className="py-4">
+              <Label htmlFor="folder-name">Folder Name</Label>
+              <Input id="folder-name" value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)} placeholder="Enter folder name" />
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setShowCreateFolder(false)} disabled={isMutating}>Cancel</Button>
+              <Button onClick={handleCreateFolder} disabled={isMutating}>
+                {isMutating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                Create
+              </Button>
+            </DialogFooter>
+          </DialogContent>
         </Dialog>
 
         <Dialog open={showUpload} onOpenChange={(open) => {
@@ -1507,91 +1504,91 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
             setWithoutExpiryDate(false);
           }
         }}>
-            <DialogContent>
-                <DialogHeader><DialogTitle>Upload Document to {currentFolder?.name}</DialogTitle></DialogHeader>
-                <form onSubmit={handleUpload} className="space-y-4 py-4">
-                    <div>
-                        <Label htmlFor="file">Select File</Label>
-                        <Input id="file" name="file" type="file" required />
-                    </div>
-                    <div className="space-y-3">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="without-expiry"
-                          checked={withoutExpiryDate}
-                          onCheckedChange={(checked) => {
-                            setWithoutExpiryDate(checked);
-                            if (checked) {
-                              setShareExpiryDate(null);
-                            }
-                          }}
-                        />
-                        <Label htmlFor="without-expiry" className="text-sm font-normal cursor-pointer">
-                          Without expiry date
-                        </Label>
-                      </div>
-                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="expiry-date" className="text-right">
-                          Expiry Date <span className="text-red-500">*</span>
-                        </Label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant={"outline"}
-                              className="col-span-3 justify-start text-left font-normal"
-                              disabled={withoutExpiryDate}
-                            >
-                              <CalendarIcon className="mr-2 h-4 w-4" />
-                              {shareExpiryDate ? format(shareExpiryDate, "PPP") : <span>Pick a date</span>}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0">
-                            <Calendar
-                              mode="single"
-                              selected={shareExpiryDate}
-                              onSelect={(date) => {
-                                setShareExpiryDate(date);
-                                if (date) {
-                                  setWithoutExpiryDate(false);
-                                }
-                              }}
-                              initialFocus
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                    </div>
-                    <DialogFooter>
-                       <Button variant="ghost" type="button" onClick={() => {
-                         setShowUpload(false);
-                         setShareExpiryDate(null);
-                         setWithoutExpiryDate(false);
-                       }} disabled={isMutating}>Cancel</Button>
-                       <Button type="submit" disabled={isMutating}>
-                         {isMutating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
-                         Upload
-                       </Button>
-                    </DialogFooter>
-                </form>
-            </DialogContent>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Upload Document to {currentFolder?.name}</DialogTitle></DialogHeader>
+            <form onSubmit={handleUpload} className="space-y-4 py-4">
+              <div>
+                <Label htmlFor="file">Select File</Label>
+                <Input id="file" name="file" type="file" required />
+              </div>
+              <div className="space-y-3">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="without-expiry"
+                    checked={withoutExpiryDate}
+                    onCheckedChange={(checked) => {
+                      setWithoutExpiryDate(checked);
+                      if (checked) {
+                        setShareExpiryDate(null);
+                      }
+                    }}
+                  />
+                  <Label htmlFor="without-expiry" className="text-sm font-normal cursor-pointer">
+                    Without expiry date
+                  </Label>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="expiry-date" className="text-right">
+                    Expiry Date <span className="text-red-500">*</span>
+                  </Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={"outline"}
+                        className="col-span-3 justify-start text-left font-normal"
+                        disabled={withoutExpiryDate}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {shareExpiryDate ? format(shareExpiryDate, "PPP") : <span>Pick a date</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={shareExpiryDate}
+                        onSelect={(date) => {
+                          setShareExpiryDate(date);
+                          if (date) {
+                            setWithoutExpiryDate(false);
+                          }
+                        }}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="ghost" type="button" onClick={() => {
+                  setShowUpload(false);
+                  setShareExpiryDate(null);
+                  setWithoutExpiryDate(false);
+                }} disabled={isMutating}>Cancel</Button>
+                <Button type="submit" disabled={isMutating}>
+                  {isMutating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
+                  Upload
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
         </Dialog>
 
         {isLoading ? (
-            <div className="flex justify-center items-center h-64">
-                <Loader2 className="w-8 h-8 animate-spin text-white" />
-            </div>
+          <div className="flex justify-center items-center h-64">
+            <Loader2 className="w-8 h-8 animate-spin text-white" />
+          </div>
         ) : (
-            <div className="relative">
-                {isMutating && (
-                    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center rounded-lg">
-                        <div className="flex flex-col items-center gap-3 bg-gray-900/95 px-6 py-4 rounded-lg border border-gray-700">
-                            <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-                            <p className="text-white text-sm font-medium">Processing...</p>
-                        </div>
-                    </div>
-                )}
-                {activeTab === 'myFiles' ? renderMyFiles() : renderSharedWithMe()}
-            </div>
+          <div className="relative">
+            {isMutating && (
+              <div className="absolute inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center rounded-lg">
+                <div className="flex flex-col items-center gap-3 bg-gray-900/95 px-6 py-4 rounded-lg border border-gray-700">
+                  <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+                  <p className="text-white text-sm font-medium">Processing...</p>
+                </div>
+              </div>
+            )}
+            {activeTab === 'myFiles' ? renderMyFiles() : renderSharedWithMe()}
+          </div>
         )}
       </motion.div>
 
@@ -1814,7 +1811,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
               <Label className="text-gray-300">
                 Select users from your organization to collaborate with
               </Label>
-              
+
               {/* Search Input */}
               {!loadingUsers && availableUsers.length > 0 && (
                 <div className="relative">
@@ -1827,7 +1824,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                   />
                 </div>
               )}
-              
+
               {loadingUsers ? (
                 <div className="flex justify-center items-center py-8">
                   <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
@@ -1859,35 +1856,33 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                 return (
                   <div className="max-h-64 overflow-y-auto space-y-2 border border-gray-700 rounded-lg p-2">
                     {filteredUsers.map((userItem) => {
-                    const isSelected = selectedUsers.some(u => u.id === userItem.id || u.email === userItem.email);
-                    return (
-                      <div
-                        key={userItem.id || userItem.email}
-                        onClick={() => handleUserToggle(userItem)}
-                        className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors ${
-                          isSelected 
-                            ? 'bg-blue-500/20 border border-blue-500/50' 
-                            : 'bg-gray-800/50 hover:bg-gray-700/50 border border-gray-700'
-                        }`}
-                      >
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                          isSelected ? 'bg-blue-500' : 'bg-gray-600'
-                        }`}>
-                          {isSelected ? (
-                            <Check className="w-5 h-5 text-white" />
-                          ) : (
-                            <User className="w-5 h-5 text-gray-300" />
-                          )}
+                      const isSelected = selectedUsers.some(u => u.id === userItem.id || u.email === userItem.email);
+                      return (
+                        <div
+                          key={userItem.id || userItem.email}
+                          onClick={() => handleUserToggle(userItem)}
+                          className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors ${isSelected
+                              ? 'bg-blue-500/20 border border-blue-500/50'
+                              : 'bg-gray-800/50 hover:bg-gray-700/50 border border-gray-700'
+                            }`}
+                        >
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isSelected ? 'bg-blue-500' : 'bg-gray-600'
+                            }`}>
+                            {isSelected ? (
+                              <Check className="w-5 h-5 text-white" />
+                            ) : (
+                              <User className="w-5 h-5 text-gray-300" />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white font-medium truncate">
+                              {userItem.name || userItem.first_name || 'User'}
+                            </p>
+                            <p className="text-gray-400 text-sm truncate">{userItem.email}</p>
+                          </div>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-white font-medium truncate">
-                            {userItem.name || userItem.first_name || 'User'}
-                          </p>
-                          <p className="text-gray-400 text-sm truncate">{userItem.email}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
                   </div>
                 );
               })()}
