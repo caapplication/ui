@@ -40,12 +40,12 @@ const DAYS_OF_WEEK = [
   { value: 6, label: 'Sunday' },
 ];
 
-const NewRecurringTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, recurringTask }) => {
+const NewRecurringTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, recurringTask, fixedServiceId, isEmbedded }) => {
   const { toast } = useToast();
   const [formData, setFormData] = useState({
     title: '',
     client_id: '',
-    service_id: '',
+    service_id: fixedServiceId || '',
     description: '',
     assigned_user_id: '',
     priority: '',
@@ -68,7 +68,7 @@ const NewRecurringTaskForm = ({ onSave, onCancel, clients, services, teamMembers
       setFormData({
         title: recurringTask.title || '',
         client_id: recurringTask.client_id || '',
-        service_id: recurringTask.service_id || '',
+        service_id: recurringTask.service_id || fixedServiceId || '',
         description: recurringTask.description || '',
         assigned_user_id: recurringTask.assigned_to || '',
         priority: recurringTask.priority || '',
@@ -150,22 +150,33 @@ const NewRecurringTaskForm = ({ onSave, onCancel, clients, services, teamMembers
 
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-8 text-white">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">
-          <span className="text-gray-400 cursor-pointer hover:underline" onClick={onCancel}>Recurring Tasks / </span>
-          {recurringTask ? 'Edit Recurring Task' : 'Create New Recurring Task'}
-        </h1>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={onCancel} disabled={isSaving}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit} disabled={isSaving}>
+      {!isEmbedded && (
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold">
+            <span className="text-gray-400 cursor-pointer hover:underline" onClick={onCancel}>Recurring Tasks / </span>
+            {recurringTask ? 'Edit Recurring Task' : 'Create New Recurring Task'}
+          </h1>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={onCancel} disabled={isSaving}>
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Cancel
+            </Button>
+            <Button onClick={handleSubmit} disabled={isSaving}>
+              {isSaving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+              {recurringTask ? 'Save Changes' : 'Create Recurring Task'}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {isEmbedded && (
+        <div className="flex justify-end mb-6">
+          <Button onClick={handleSubmit} disabled={isSaving} className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white shadow-lg">
             {isSaving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-            {recurringTask ? 'Save Changes' : 'Create Recurring Task'}
+            Create Recurring Task
           </Button>
         </div>
-      </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-8">
         {/* Task Details Section - Same as NewTaskForm */}
@@ -193,7 +204,7 @@ const NewRecurringTaskForm = ({ onSave, onCancel, clients, services, teamMembers
             </div>
             <div>
               <Label htmlFor="service_id">Service*</Label>
-              <Select name="service_id" onValueChange={(v) => handleSelectChange('service_id', v)} value={formData.service_id} required disabled={isSaving}>
+              <Select name="service_id" onValueChange={(v) => handleSelectChange('service_id', v)} value={formData.service_id} required disabled={isSaving || !!fixedServiceId}>
                 <SelectTrigger><SelectValue placeholder="Select a service" /></SelectTrigger>
                 <SelectContent>
                   {services && services.length > 0 ? (
@@ -230,15 +241,15 @@ const NewRecurringTaskForm = ({ onSave, onCancel, clients, services, teamMembers
             </div>
             <div>
               <Label htmlFor="interval">Repeat Every (N {formData.frequency})*</Label>
-              <Input 
-                id="interval" 
-                name="interval" 
-                type="number" 
-                min="1" 
-                value={formData.interval} 
-                onChange={(e) => handleNumberChange('interval', e.target.value)} 
-                required 
-                disabled={isSaving} 
+              <Input
+                id="interval"
+                name="interval"
+                type="number"
+                min="1"
+                value={formData.interval}
+                onChange={(e) => handleNumberChange('interval', e.target.value)}
+                required
+                disabled={isSaving}
               />
             </div>
             <div>
@@ -291,30 +302,30 @@ const NewRecurringTaskForm = ({ onSave, onCancel, clients, services, teamMembers
               <>
                 <div>
                   <Label htmlFor="day_of_month">Day of Month (1-31, Optional)</Label>
-                  <Input 
-                    id="day_of_month" 
-                    name="day_of_month" 
-                    type="number" 
-                    min="1" 
-                    max="31" 
-                    value={formData.day_of_month !== null ? formData.day_of_month : ''} 
-                    onChange={(e) => handleSelectChange('day_of_month', e.target.value === '' ? null : parseInt(e.target.value))} 
-                    placeholder="e.g., 15" 
-                    disabled={isSaving} 
+                  <Input
+                    id="day_of_month"
+                    name="day_of_month"
+                    type="number"
+                    min="1"
+                    max="31"
+                    value={formData.day_of_month !== null ? formData.day_of_month : ''}
+                    onChange={(e) => handleSelectChange('day_of_month', e.target.value === '' ? null : parseInt(e.target.value))}
+                    placeholder="e.g., 15"
+                    disabled={isSaving}
                   />
                 </div>
                 <div>
                   <Label htmlFor="week_of_month">Week of Month (1-4, Optional)</Label>
-                  <Input 
-                    id="week_of_month" 
-                    name="week_of_month" 
-                    type="number" 
-                    min="1" 
-                    max="4" 
-                    value={formData.week_of_month !== null ? formData.week_of_month : ''} 
-                    onChange={(e) => handleSelectChange('week_of_month', e.target.value === '' ? null : parseInt(e.target.value))} 
-                    placeholder="e.g., 1 (first week)" 
-                    disabled={isSaving} 
+                  <Input
+                    id="week_of_month"
+                    name="week_of_month"
+                    type="number"
+                    min="1"
+                    max="4"
+                    value={formData.week_of_month !== null ? formData.week_of_month : ''}
+                    onChange={(e) => handleSelectChange('week_of_month', e.target.value === '' ? null : parseInt(e.target.value))}
+                    placeholder="e.g., 1 (first week)"
+                    disabled={isSaving}
                   />
                 </div>
                 {formData.week_of_month && (
@@ -336,27 +347,27 @@ const NewRecurringTaskForm = ({ onSave, onCancel, clients, services, teamMembers
 
             <div>
               <Label htmlFor="due_date_offset">Due Date Offset (Days)</Label>
-              <Input 
-                id="due_date_offset" 
-                name="due_date_offset" 
-                type="number" 
-                value={formData.due_date_offset} 
-                onChange={(e) => handleNumberChange('due_date_offset', e.target.value)} 
-                placeholder="0" 
-                disabled={isSaving} 
+              <Input
+                id="due_date_offset"
+                name="due_date_offset"
+                type="number"
+                value={formData.due_date_offset}
+                onChange={(e) => handleNumberChange('due_date_offset', e.target.value)}
+                placeholder="0"
+                disabled={isSaving}
               />
               <p className="text-xs text-gray-400 mt-1">Days to add to creation date for due date</p>
             </div>
             <div>
               <Label htmlFor="target_date_offset">Target Date Offset (Days, Optional)</Label>
-              <Input 
-                id="target_date_offset" 
-                name="target_date_offset" 
-                type="number" 
-                value={formData.target_date_offset !== null ? formData.target_date_offset : ''} 
-                onChange={(e) => handleSelectChange('target_date_offset', e.target.value === '' ? null : parseInt(e.target.value))} 
-                placeholder="Optional" 
-                disabled={isSaving} 
+              <Input
+                id="target_date_offset"
+                name="target_date_offset"
+                type="number"
+                value={formData.target_date_offset !== null ? formData.target_date_offset : ''}
+                onChange={(e) => handleSelectChange('target_date_offset', e.target.value === '' ? null : parseInt(e.target.value))}
+                placeholder="Optional"
+                disabled={isSaving}
               />
               <p className="text-xs text-gray-400 mt-1">Days to add to creation date for target date</p>
             </div>

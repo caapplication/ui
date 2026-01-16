@@ -9,8 +9,9 @@ import { deleteService as apiDeleteService } from '@/lib/api';
 
 import SettingsTab from './SettingsTab';
 import ChecklistTab from './ChecklistTab';
-import SubtasksTab from './SubtasksTab';
+
 import SupportingFilesTab from './SupportingFilesTab';
+import RecurringTaskTab from './RecurringTaskTab';
 
 const ServiceDetail = ({ service, onBack, onDelete, onUpdate }) => {
     const { toast } = useToast();
@@ -50,24 +51,24 @@ const ServiceDetail = ({ service, onBack, onDelete, onUpdate }) => {
                     </h1>
                 </div>
                 <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="destructive" disabled={isDeleting}>
-                        {isDeleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
-                        Delete
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This action cannot be undone. This will permanently delete the service.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
+                    <AlertDialogTrigger asChild>
+                        <Button variant="destructive" disabled={isDeleting}>
+                            {isDeleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                            Delete
+                        </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                This action cannot be undone. This will permanently delete the service.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
                 </AlertDialog>
             </div>
 
@@ -75,7 +76,7 @@ const ServiceDetail = ({ service, onBack, onDelete, onUpdate }) => {
                 <TabsList className="glass-tab-list mb-4 flex-shrink-0">
                     <TabsTrigger value="settings">Settings</TabsTrigger>
                     <TabsTrigger value="checklist">Checklist</TabsTrigger>
-                    <TabsTrigger value="subtasks">Subtasks</TabsTrigger>
+                    <TabsTrigger value="recurring">Recurring Tasks</TabsTrigger>
                     <TabsTrigger value="supporting_files">Supporting Files</TabsTrigger>
                 </TabsList>
                 <div className="flex-grow overflow-y-auto no-scrollbar">
@@ -85,11 +86,11 @@ const ServiceDetail = ({ service, onBack, onDelete, onUpdate }) => {
                     <TabsContent value="checklist">
                         <ChecklistTab service={service} onUpdate={onUpdate} />
                     </TabsContent>
-                    <TabsContent value="subtasks">
-                        <SubtasksTab service={service} onUpdate={onUpdate} />
+                    <TabsContent value="recurring">
+                        <RecurringTaskTab service={service} onUpdate={onUpdate} />
                     </TabsContent>
                     <TabsContent value="supporting_files">
-                        <SupportingFilesTab service={service} onUpdate={onUpdate}/>
+                        <SupportingFilesTab service={service} onUpdate={onUpdate} />
                     </TabsContent>
                 </div>
             </Tabs>
