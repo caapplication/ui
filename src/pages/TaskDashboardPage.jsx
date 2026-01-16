@@ -2960,22 +2960,27 @@ const TaskDashboardPage = () => {
                                 <div className="flex-1 min-h-0 overflow-y-auto space-y-2">
                                     {collaborators.length > 0 ? (
                                         collaborators.map((collab) => {
-                                            const collabUser = teamMembers.find(m =>
+                                            // Priority: 1. Direct from API (user_name), 2. Team Members list
+                                            const teamMember = teamMembers.find(m =>
                                                 (m.user_id || m.id) === collab.user_id
-                                            ) || { name: 'Unknown', email: 'N/A', role: 'N/A' };
+                                            );
+
+                                            const displayName = collab.user_name || teamMember?.name || teamMember?.full_name || teamMember?.email || 'Unknown';
+                                            const displayRole = collab.user_role || teamMember?.role || teamMember?.department || 'N/A';
+                                            const displayEmail = teamMember?.email || 'N/A';
 
                                             return (
                                                 <div key={collab.id} className="flex items-center justify-between p-2 rounded-md bg-white/5 hover:bg-white/10">
                                                     <div className="flex items-center gap-2">
                                                         <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-sm font-semibold">
-                                                            {(collabUser.name || collabUser.email || 'U').charAt(0).toUpperCase()}
+                                                            {(displayName).charAt(0).toUpperCase()}
                                                         </div>
                                                         <div>
                                                             <p className="text-sm font-medium text-white">
-                                                                {collabUser.name || collabUser.email || 'Unknown'}
+                                                                {displayName}
                                                             </p>
                                                             <p className="text-xs text-gray-400 italic">
-                                                                {collabUser.role || collabUser.department || 'N/A'}
+                                                                {displayRole}
                                                             </p>
                                                         </div>
                                                     </div>
@@ -2992,7 +2997,8 @@ const TaskDashboardPage = () => {
                                         })
                                     ) : (
                                         <p className="text-center text-gray-400 py-4">No collaborators yet. Add collaborators to share this task.</p>
-                                    )}
+                                    )
+                                    }
                                 </div>
                             )}
                         </CardContent>
