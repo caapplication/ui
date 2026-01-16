@@ -1596,7 +1596,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
       </motion.div>
 
       <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
-        <DialogContent className="sm:max-w-[500px] p-0 bg-gray-900 border-gray-700">
+        <DialogContent className="sm:max-w-[500px] p-0 bg-gray-900 border-gray-700 [&>button]:hidden">
           {/* Windows-style Header */}
           <div className="flex items-center justify-between p-4 border-b border-gray-700">
             <div className="flex items-center space-x-3">
@@ -1776,7 +1776,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
 
       {/* Collaborate Dialog */}
       <Dialog open={collaborateDialogOpen} onOpenChange={setCollaborateDialogOpen}>
-        <DialogContent className="sm:max-w-[600px] p-0 bg-gray-900 border-gray-700">
+        <DialogContent className="sm:max-w-[600px] p-0 bg-gray-900 border-gray-700 [&>button]:hidden">
           {/* Windows-style Header */}
           <div className="flex items-center justify-between p-4 border-b border-gray-700">
             <div className="flex items-center space-x-3">
