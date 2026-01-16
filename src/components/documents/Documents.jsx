@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
-import { FileText, Upload, Trash2, Plus, Share2, Folder, FolderPlus, ArrowLeft, Search, Loader2, RefreshCw, Inbox, CalendarIcon, Download, Copy, X, User, Link2, Grid, Phone, Mail, MessageCircle, Facebook, Twitter, MoreVertical, Users, UserPlus } from 'lucide-react';
+import { FileText, Upload, Trash2, Plus, Share2, Folder, FolderPlus, ArrowLeft, Search, Loader2, RefreshCw, Inbox, CalendarIcon, Download, Copy, X, User, Link2, Grid, Phone, Mail, MessageCircle, Facebook, Twitter, MoreVertical, Users, UserPlus, Check, ChevronsUpDown } from 'lucide-react';
 
 // Helper function to check if folder has expired documents (recursively checks subfolders)
 const hasExpiredDocuments = (folder) => {
@@ -102,10 +102,12 @@ const FolderIcon = ({ className = "w-20 h-20", hasExpired = false }) => {
 };
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth.jsx';
-import { getDocuments, createFolder, uploadFile, deleteDocument, shareDocument, viewFile, getSharedDocuments, listOrganisations, listEntities, createCAFolder, uploadCAFile, shareFolder, listOrgUsers, listTeamMembers, FINANCE_API_BASE_URL } from '@/lib/api';
+import { getDocuments, createFolder, uploadFile, deleteDocument, shareDocument, viewFile, getSharedDocuments, listClients, createCAFolder, uploadCAFile, shareFolder, listOrgUsers, listTeamMembers, FINANCE_API_BASE_URL } from '@/lib/api';
 import { createPublicShareTokenDocument, createPublicShareTokenFolder } from '@/lib/api/documents';
+import { cn } from '@/lib/utils';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { format } from 'date-fns';
 
 const buildFileTree = (folders, documents) => {
@@ -238,11 +240,12 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   const [userSearchTerm, setUserSearchTerm] = useState('');
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('myFiles'); // 'myFiles' or 'sharedWithMe'
-  const [currentClientId, setCurrentClientId] = useState(getInitialEntityId());
-  const [organisations, setOrganisations] = useState([]);
-  const [entitiesForFilter, setEntitiesForFilter] = useState([]);
-  const [selectedEntityId, setSelectedEntityId] = useState('all');
+  const [clientsForFilter, setClientsForFilter] = useState([]);
+  const [isClientsLoading, setIsClientsLoading] = useState(false);
+  const [realSelectedClientId, setRealSelectedClientId] = useState(null); // The actual client selected, or null for personal
+  const [openClientCombobox, setOpenClientCombobox] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState(null);
+  const { entities } = useAuth(); // Assuming entities are available in user or useAuth, checking logic below
 
   useEffect(() => {
     if (quickAction === 'upload-document') {
@@ -252,44 +255,40 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   }, [quickAction, clearQuickAction]);
 
   useEffect(() => {
-    const fetchOrgs = async () => {
+    const fetchClients = async () => {
       if (user?.role === 'CA_ACCOUNTANT' && user?.access_token) {
         try {
-          const orgs = await listOrganisations(user.access_token);
-          setOrganisations(orgs || []);
-        } catch (error) {
-          toast({
-            title: 'Error fetching organisations',
-            description: error.message,
-            variant: 'destructive',
-          });
-        }
-      }
-    };
-    fetchOrgs();
-  }, [user, toast]);
+          // Logic to derive agencyId matching TaskManagementPage for consistency
+          let agencyId = user?.agency_id || null;
+          if (!agencyId && user?.entities && user.entities.length > 0) {
+            agencyId = user.entities[0].agency_id;
+          }
+          if (!agencyId) {
+            const storedAgencyId = localStorage.getItem('agency_id');
+            if (storedAgencyId) agencyId = storedAgencyId;
+          }
 
-  useEffect(() => {
-    const fetchEntities = async () => {
-      if (user?.role === 'CA_ACCOUNTANT' && currentClientId !== 'all' && user?.access_token) {
-        try {
-          const allEntities = await listEntities(currentClientId, user.access_token);
-          setEntitiesForFilter(allEntities);
+          setIsClientsLoading(true);
+          const clients = await listClients(agencyId, user.access_token);
+          setClientsForFilter(clients || []);
         } catch (error) {
+          console.error('Error fetching clients:', error);
           toast({
-            title: 'Error fetching entities',
+            title: 'Error fetching clients',
             description: error.message,
             variant: 'destructive',
           });
-          setEntitiesForFilter([]);
+          setClientsForFilter([]);
+        } finally {
+          setIsClientsLoading(false);
         }
-      } else {
-        setEntitiesForFilter([]);
       }
     };
-    fetchEntities();
-    setSelectedEntityId('all');
-  }, [currentClientId, user, toast]);
+
+    if (user?.role === 'CA_ACCOUNTANT') {
+      fetchClients();
+    }
+  }, [user, toast]);
 
   const fetchDocuments = useCallback(async (isRefresh = false) => {
     if (!user?.access_token) {
@@ -299,7 +298,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
 
     let entityToFetch = null;
     if (user?.role === 'CA_ACCOUNTANT') {
-      entityToFetch = selectedEntityId !== 'all' ? selectedEntityId : (currentClientId !== 'all' ? currentClientId : null);
+      entityToFetch = realSelectedClientId || null; // If null, fetches personal docs
     } else {
       // For non-CA accountants, entityId is required
       if (!entityId) {
@@ -335,7 +334,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [currentClientId, selectedEntityId, user, entityId, toast]);
+  }, [realSelectedClientId, user, entityId, toast]);
 
   const fetchSharedDocuments = useCallback(async (isRefresh = false) => {
     if (!user?.access_token) return;
@@ -345,7 +344,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
       setIsLoading(true);
     }
     try {
-      const data = await getSharedDocuments(user.access_token, user.role, entityId);
+      const data = await getSharedDocuments(user.access_token, user.role, realSelectedClientId);
       const combinedShared = [
         ...(data.documents || []).map(d => ({ ...d, is_folder: false })),
         ...(data.folders || []).map(f => ({ ...f, is_folder: true }))
@@ -362,7 +361,16 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [user?.access_token, user?.role, entityId, toast]);
+  }, [user?.access_token, user?.role, realSelectedClientId, toast]);
+
+  useEffect(() => {
+    // Reset view to root when filtering changes
+    setCurrentFolderId('root');
+    // Assuming currentPath is derived from documentsState and currentFolderId,
+    // so no explicit reset for currentPath is needed here if findPath is reactive.
+    // If currentPath is a state variable, it would need to be reset.
+    // For now, assuming findPath will re-evaluate.
+  }, [realSelectedClientId, activeTab]);
 
   useEffect(() => {
     // Wait for user to be available
@@ -384,7 +392,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
     } else {
       fetchSharedDocuments();
     }
-  }, [fetchDocuments, fetchSharedDocuments, activeTab, currentClientId, selectedEntityId, user?.role, user?.access_token, entityId]);
+  }, [fetchDocuments, fetchSharedDocuments, activeTab, realSelectedClientId, user?.role, user?.access_token, entityId]);
 
   const currentPath = useMemo(() => findPath(documentsState, currentFolderId), [documentsState, currentFolderId]);
   const currentFolder = currentPath[currentPath.length - 1];
@@ -399,56 +407,35 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   const filteredChildren = useMemo(() => {
     if (activeTab === 'sharedWithMe') {
       let itemsToFilter = sharedDocuments;
-      if (user?.role === 'CA_ACCOUNTANT') {
-        if (selectedEntityId !== 'all') {
-          // Assuming shared items might have an entity_id, if not this won't work
-          // The current API doesn't seem to support this, so we filter by org
-          itemsToFilter = sharedDocuments.filter(item => item.organization_id === currentClientId);
-        } else if (currentClientId !== 'all') {
-          itemsToFilter = sharedDocuments.filter(item => item.organization_id === currentClientId);
-        }
-      }
+      // Filter by Search Term
       if (!searchTerm) return itemsToFilter;
       return itemsToFilter.filter(item =>
         item.name.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
+
     if (!currentFolder || !currentFolder.children) return [];
-    if (activeTab === 'myFiles') {
-      // Exclude shared documents from "My Files" for all roles
-      // In root folder, only show folders, not documents
-      let filtered = currentFolder.children.filter(item => {
-        if (user?.role === 'CA_ACCOUNTANT') {
-          return !sharedDocuments.some(shared => shared.id === item.id);
-        }
-        return !sharedDocuments.some(shared => shared.id === item.id);
-      });
 
-      // If in root folder, only return folders
-      if (currentFolderId === 'root') {
-        filtered = filtered.filter(item => item.is_folder);
-      }
+    // My Files
+    // Exclude shared documents from "My Files" for all roles
+    let filtered = currentFolder.children.filter(item => {
+      return !sharedDocuments.some(shared => shared.id === item.id);
+    });
 
-      // Apply search filter if search term exists
-      if (searchTerm) {
-        filtered = filtered.filter(item =>
-          item.name.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-      }
-
-      return filtered;
-    }
-    // If in root folder, only show folders
-    let itemsToFilter = currentFolder.children;
+    // If in root folder, only return folders
     if (currentFolderId === 'root') {
-      itemsToFilter = itemsToFilter.filter(item => item.is_folder);
+      filtered = filtered.filter(item => item.is_folder);
     }
 
-    if (!searchTerm) return itemsToFilter;
-    return itemsToFilter.filter(item =>
-      item.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [currentFolder, searchTerm, activeTab, sharedDocuments, user?.role, currentClientId, selectedEntityId, currentFolderId]);
+    // Apply search filter if search term exists
+    if (searchTerm) {
+      filtered = filtered.filter(item =>
+        item.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    return filtered;
+  }, [currentFolder, searchTerm, activeTab, sharedDocuments, currentFolderId]);
 
   const handleUpload = async (e) => {
     e.preventDefault();
@@ -497,11 +484,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
     try {
       let createdDocument;
       const expiryDateToSend = withoutExpiryDate ? null : shareExpiryDate;
-      if (user?.role === 'CA_ACCOUNTANT') {
-        createdDocument = await uploadCAFile(currentFolderId, file, expiryDateToSend, user.access_token);
-      } else {
-        createdDocument = await uploadFile(currentFolderId, entityId, file, expiryDateToSend, user.access_token);
-      }
+      createdDocument = await uploadFile(currentFolderId, user?.role === 'CA_ACCOUNTANT' ? realSelectedClientId : entityId, file, expiryDateToSend, user.access_token);
 
       // Replace temp document with real document from server
       setDocumentsState(prev => {
@@ -581,9 +564,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
     });
 
     try {
-      const createdFolder = user?.role === 'CA_ACCOUNTANT'
-        ? await createCAFolder(newFolderName, currentFolderId, user.access_token)
-        : await createFolder(newFolderName, entityId, currentFolderId, user.agency_id, user.access_token);
+      const createdFolder = await createFolder(newFolderName, user?.role === 'CA_ACCOUNTANT' ? realSelectedClientId : entityId, currentFolderId, user.agency_id, user.access_token);
 
       // Replace temp folder with real folder
       setDocumentsState(prev => {
@@ -1348,35 +1329,63 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
             {user?.role === 'CA_ACCOUNTANT' && (
               <>
                 <div className="w-full sm:w-48 lg:w-52">
-                  <Select value={currentClientId} onValueChange={setCurrentClientId}>
-                    <SelectTrigger className="h-9 sm:h-10">
-                      <SelectValue placeholder="Select Client" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Clients</SelectItem>
-                      {organisations.map(org => (
-                        <SelectItem key={org.id} value={org.id}>
-                          {org.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Popover open={openClientCombobox} onOpenChange={setOpenClientCombobox}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={openClientCombobox}
+                        className={cn(
+                          "w-full justify-between h-9 sm:h-10",
+                          !realSelectedClientId && "text-muted-foreground"
+                        )}
+                        disabled={isClientsLoading}
+                      >
+                        {isClientsLoading ? (
+                          <div className="flex items-center">
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            <span>Loading...</span>
+                          </div>
+                        ) : (
+                          <>
+                            {realSelectedClientId
+                              ? clientsForFilter.find((client) => client.id === realSelectedClientId)?.name
+                              : "Select Client"}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[200px] p-0">
+                      <Command>
+                        <CommandInput placeholder="Search client..." />
+                        <CommandList>
+                          <CommandEmpty>No client found.</CommandEmpty>
+                          <CommandGroup>
+                            {clientsForFilter.map((client) => (
+                              <CommandItem
+                                key={client.id}
+                                value={`${client.name} ${client.id}`}
+                                onSelect={() => {
+                                  setRealSelectedClientId(client.id === realSelectedClientId ? null : client.id);
+                                  setOpenClientCombobox(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    realSelectedClientId === client.id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {client.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
-                {currentClientId !== 'all' && entitiesForFilter.length > 0 && (
-                  <div className="w-full sm:w-48 lg:w-52">
-                    <Select value={selectedEntityId} onValueChange={setSelectedEntityId}>
-                      <SelectTrigger className="h-9 sm:h-10">
-                        <SelectValue placeholder="Select Entity" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Entities</SelectItem>
-                        {entitiesForFilter.map(entity => (
-                          <SelectItem key={entity.id} value={entity.id}>
-                            {entity.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
               </>
             )}
           </div>
@@ -1862,8 +1871,8 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                           key={userItem.id || userItem.email}
                           onClick={() => handleUserToggle(userItem)}
                           className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors ${isSelected
-                              ? 'bg-blue-500/20 border border-blue-500/50'
-                              : 'bg-gray-800/50 hover:bg-gray-700/50 border border-gray-700'
+                            ? 'bg-blue-500/20 border border-blue-500/50'
+                            : 'bg-gray-800/50 hover:bg-gray-700/50 border border-gray-700'
                             }`}
                         >
                           <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isSelected ? 'bg-blue-500' : 'bg-gray-600'
