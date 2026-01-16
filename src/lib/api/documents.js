@@ -6,7 +6,7 @@ export const getDocuments = async (entityId, token) => {
     // For non-CA accountants, entityId is required
     // This check prevents the API call if entityId is missing
     // Note: We allow null/undefined for CA_ACCOUNTANT role (handled by backend)
-    
+
     let url = `${FINANCE_API_BASE_URL}/api/documents/folders/`;
     const params = new URLSearchParams();
     if (entityId) {
@@ -19,7 +19,7 @@ export const getDocuments = async (entityId, token) => {
     const response = await fetch(url, {
         headers: getAuthHeaders(token),
     });
-    
+
     // Handle 400 error specifically for missing entity_id
     if (response.status === 400) {
         const errorData = await response.json().catch(() => ({}));
@@ -27,7 +27,7 @@ export const getDocuments = async (entityId, token) => {
             throw new Error('Entity ID is required. Please select an entity first.');
         }
     }
-    
+
     return handleResponse(response);
 };
 
@@ -53,9 +53,9 @@ export const uploadFile = async (folderId, entityId, file, expiryDate, token) =>
         const formattedDate = expiryDate.toISOString().split('T')[0];
         formData.append('expiry_date', formattedDate);
     }
-    
+
     const url = `${FINANCE_API_BASE_URL}/api/documents/`;
-    
+
     const response = await fetch(url, {
         method: 'POST',
         headers: getAuthHeaders(token, null),
@@ -129,9 +129,9 @@ export const createCAFolder = async (folderName, parentId, token) => {
     if (parentId && parentId !== 'root') {
         formData.append('parent_id', parentId);
     }
-    
+
     const url = `${FINANCE_API_BASE_URL}/api/ca/documents/folders/`;
-    
+
     const response = await fetch(url, {
         method: 'POST',
         headers: getAuthHeaders(token, null),
@@ -150,9 +150,9 @@ export const uploadCAFile = async (folderId, file, expiryDate, token) => {
         const formattedDate = expiryDate.toISOString().split('T')[0];
         formData.append('expiry_date', formattedDate);
     }
-    
+
     const url = `${FINANCE_API_BASE_URL}/api/ca/documents/`;
-    
+
     const response = await fetch(url, {
         method: 'POST',
         headers: getAuthHeaders(token, null),
@@ -239,4 +239,12 @@ export const viewPublicDocument = async (token) => {
         throw new Error(`HTTP error! status: ${response.status}`);
     }
     return response.blob();
+};
+
+export const listExpiringDocuments = async (token) => {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/documents/expiring`, {
+        method: 'GET',
+        headers: getAuthHeaders(token),
+    });
+    return handleResponse(response);
 };

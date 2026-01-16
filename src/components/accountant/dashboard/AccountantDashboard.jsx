@@ -9,8 +9,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Users, Briefcase, UserCheck, FileText, Loader2, FileWarning, FileCheck2, Eye } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { startOfWeek, startOfMonth, subDays, format } from 'date-fns';
+import { startOfWeek, startOfMonth, subDays, format, differenceInDays } from 'date-fns';
 import { useOrganisation } from '@/hooks/useOrganisation';
+import { listExpiringDocuments } from '@/lib/api/documents';
 
 const StatCard = ({ title, value, active, inactive, icon, color, delay }) => {
   const Icon = icon;
@@ -86,6 +87,7 @@ const AccountantDashboard = () => {
   });
   const [invoices, setInvoices] = useState([]);
   const [vouchers, setVouchers] = useState([]);
+  const [expiringDocs, setExpiringDocs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [timeFilter, setTimeFilter] = useState('all');
 
@@ -103,12 +105,26 @@ const AccountantDashboard = () => {
       { id: '2', date: subDays(new Date(), 10), bill_number: 'INV-2024-002', amount: '12500.00', is_ready: true, beneficiaryName: 'Tech Solutions Ltd.' },
     ]);
     setVouchers([
-        { id: '1', created_date: new Date(), beneficiaryName: 'Office Supplies Co.', amount: '1200.00', is_ready: false },
-        { id: '2', created_date: subDays(new Date(), 5), beneficiaryName: 'Cloud Services Provider', amount: '3500.00', is_ready: true },
+      { id: '1', created_date: new Date(), beneficiaryName: 'Office Supplies Co.', amount: '1200.00', is_ready: false },
+      { id: '2', created_date: subDays(new Date(), 5), beneficiaryName: 'Cloud Services Provider', amount: '3500.00', is_ready: true },
     ]);
+
+    // Fetch Expiring Documents
+    const fetchExpiring = async () => {
+      if (user?.access_token) {
+        try {
+          const docs = await listExpiringDocuments(user.access_token);
+          setExpiringDocs(docs || []);
+        } catch (error) {
+          console.error("Failed to fetch expiring documents:", error);
+        }
+      }
+    };
+    fetchExpiring();
+
     setIsLoading(false);
-    toast({ title: 'Dummy Dashboard Loaded', description: 'Displaying sample data.' });
-  }, [toast]);
+    toast({ title: 'Dashboard Loaded', description: 'Data refreshed successfully.' });
+  }, [toast, user]);
 
   const filterByTime = (data, filter) => {
     if (filter === 'all') return data;
@@ -177,50 +193,97 @@ const AccountantDashboard = () => {
         </motion.div>
       </div>
 
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.5 }}>
-        <Card className="glass-pane">
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <div>
-                <CardTitle className="text-2xl">Financial Overview</CardTitle>
-                <CardDescription>Track pending and closed invoices & vouchers.</CardDescription>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
+
+        {/* Financial Overview - Spanning 2 columns */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.5 }} className="lg:col-span-2">
+          <Card className="glass-pane h-full">
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle className="text-2xl">Financial Overview</CardTitle>
+                  <CardDescription>Track pending and closed invoices & vouchers.</CardDescription>
+                </div>
+                <Select value={timeFilter} onValueChange={setTimeFilter}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Filter by time" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Time</SelectItem>
+                    <SelectItem value="week">This Week</SelectItem>
+                    <SelectItem value="month">This Month</SelectItem>
+                    <SelectItem value="3months">Last 3 Months</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <Select value={timeFilter} onValueChange={setTimeFilter}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Filter by time" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Time</SelectItem>
-                  <SelectItem value="week">This Week</SelectItem>
-                  <SelectItem value="month">This Month</SelectItem>
-                  <SelectItem value="3months">Last 3 Months</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="pending" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="pending"><FileWarning className="w-4 h-4 mr-2" />Pending</TabsTrigger>
-                <TabsTrigger value="closed"><FileCheck2 className="w-4 h-4 mr-2" />Closed</TabsTrigger>
-              </TabsList>
-              <TabsContent value="pending">
-                <h3 className="text-lg font-semibold my-4">Pending Invoices</h3>
-                <FinanceTable data={pendingInvoices} type="invoices" onRowClick={(item) => handleViewItem(item, 'invoices')} />
-                <h3 className="text-lg font-semibold my-4 pt-4 border-t border-white/10">Pending Vouchers</h3>
-                <FinanceTable data={pendingVouchers} type="vouchers" onRowClick={(item) => handleViewItem(item, 'vouchers')} />
-              </TabsContent>
-              <TabsContent value="closed">
-                <h3 className="text-lg font-semibold my-4">Closed Invoices</h3>
-                <FinanceTable data={closedInvoices} type="invoices" onRowClick={(item) => handleViewItem(item, 'invoices')} />
-                <h3 className="text-lg font-semibold my-4 pt-4 border-t border-white/10">Closed Vouchers</h3>
-                <FinanceTable data={closedVouchers} type="vouchers" onRowClick={(item) => handleViewItem(item, 'vouchers')} />
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
-      </motion.div>
-    </div>
+            </CardHeader>
+            <CardContent>
+              <Tabs defaultValue="pending" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="pending"><FileWarning className="w-4 h-4 mr-2" />Pending</TabsTrigger>
+                  <TabsTrigger value="closed"><FileCheck2 className="w-4 h-4 mr-2" />Closed</TabsTrigger>
+                </TabsList>
+                <TabsContent value="pending">
+                  <h3 className="text-lg font-semibold my-4">Pending Invoices</h3>
+                  <FinanceTable data={pendingInvoices} type="invoices" onRowClick={(item) => handleViewItem(item, 'invoices')} />
+                  <h3 className="text-lg font-semibold my-4 pt-4 border-t border-white/10">Pending Vouchers</h3>
+                  <FinanceTable data={pendingVouchers} type="vouchers" onRowClick={(item) => handleViewItem(item, 'vouchers')} />
+                </TabsContent>
+                <TabsContent value="closed">
+                  <h3 className="text-lg font-semibold my-4">Closed Invoices</h3>
+                  <FinanceTable data={closedInvoices} type="invoices" onRowClick={(item) => handleViewItem(item, 'invoices')} />
+                  <h3 className="text-lg font-semibold my-4 pt-4 border-t border-white/10">Closed Vouchers</h3>
+                  <FinanceTable data={closedVouchers} type="vouchers" onRowClick={(item) => handleViewItem(item, 'vouchers')} />
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Expiring Documents Widget */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.45 }} className="lg:col-span-1">
+          <Card className="glass-pane h-full">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileWarning className="w-5 h-5 text-yellow-500" />
+                Expiring Documents
+              </CardTitle>
+              <CardDescription>Documents expiring within 30 days</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {expiringDocs.length === 0 ? (
+                <div className="text-center py-8 text-gray-400">No documents expiring soon.</div>
+              ) : (
+                <div className="space-y-4">
+                  {expiringDocs.map(doc => {
+                    const daysLeft = differenceInDays(new Date(doc.expiry_date), new Date());
+                    return (
+                      <div key={doc.id} className="flex justify-between items-center p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors group cursor-pointer"
+                        onClick={() => navigate(`/documents?folderId=${doc.folder_id || 'root'}&clientId=${doc.entity_id || ''}`)}>
+                        <div className="flex items-center gap-3 overflow-hidden">
+                          <div className="w-8 h-8 rounded bg-blue-500/20 flex items-center justify-center shrink-0">
+                            <FileText className="w-4 h-4 text-blue-400" />
+                          </div>
+                          <div className="truncate">
+                            <p className="text-sm font-medium text-white truncate">{doc.name}</p>
+                            <p className={`text-xs ${daysLeft < 5 ? 'text-red-400' : 'text-yellow-400'}`}>
+                              Expires in {daysLeft} days ({format(new Date(doc.expiry_date), 'dd MMM')})
+                            </p>
+                          </div>
+                        </div>
+                        <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Eye className="w-4 h-4 text-gray-400" />
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
+    </div >
   );
 };
 

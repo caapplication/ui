@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -249,7 +250,29 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   const [selectedFolder, setSelectedFolder] = useState(null);
   const [collabSelectedClientId, setCollabSelectedClientId] = useState(null); // 'my-team' or client ID
 
-  const { entities } = useAuth(); // Assuming entities are available in user or useAuth, checking logic below
+  const { entities } = useAuth();
+  const [searchParams] = useSearchParams();
+
+  // Handle URL parameters for navigation from Dashboard
+  useEffect(() => {
+    const folderIdParam = searchParams.get('folderId');
+    const clientIdParam = searchParams.get('clientId');
+
+    if (clientIdParam) {
+      // If empty string or 'null', it means Personal Docs (set to null)
+      // BUT, be careful. If we navigate to a Client User's doc, entityId param might be there?
+      // For CA: clientIdParam is the entity ID.
+      if (clientIdParam !== 'null' && clientIdParam !== '') {
+        setRealSelectedClientId(clientIdParam);
+      } else {
+        setRealSelectedClientId(null);
+      }
+    }
+
+    if (folderIdParam && folderIdParam !== 'null') {
+      setCurrentFolderId(folderIdParam);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (quickAction === 'upload-document') {
