@@ -1637,6 +1637,12 @@ const TaskDashboardPage = () => {
         // Always filter out "Complete" and "Completed" stages from the dropdown
         filteredStages = stages.filter(stage => {
             const stageName = (stage.name || '').toLowerCase();
+
+            // If user is creator, hide "Request To Close"
+            if (isTaskCreator && stageName === 'request to close') {
+                return false;
+            }
+
             return stageName !== 'complete' && stageName !== 'completed';
         });
 
