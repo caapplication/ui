@@ -2,12 +2,25 @@ import { getAuthHeaders, handleResponse } from './utils';
 
 const TASKS_API_BASE_URL = import.meta.env.VITE_TASK_API_URL || 'http://127.0.0.1:8005';
 
-export const listRecurringTasks = async (agencyId, token, isActive = null) => {
+export const listRecurringTasks = async (agencyId, token, isActive = null, page = 1, limit = 10) => {
     try {
         const params = new URLSearchParams();
         if (isActive !== null && isActive !== undefined) {
             params.append('is_active', String(isActive)); // Convert boolean to string
         }
+
+        // Add pagination params
+        if (page) params.append('page', String(page));
+        if (limit) params.append('limit', String(limit));
+
+        // Backend expects 'skip' and 'limit'
+        // Convert page/limit to skip/limit
+        const skip = (page - 1) * limit;
+        params.append('skip', String(skip));
+
+        // Remove 'page' and 'limit' if they were just for calculation (optional, but clean)
+        params.delete('page');
+
         const url = `${TASKS_API_BASE_URL}/recurring-tasks/${params.toString() ? '?' + params.toString() : ''}`;
         const response = await fetch(url, {
             method: 'GET',

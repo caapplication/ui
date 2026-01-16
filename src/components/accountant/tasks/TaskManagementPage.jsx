@@ -443,7 +443,7 @@ const TaskManagementPage = ({ entityId, entityName }) => {
                                 <span className="hidden sm:inline">Add Stage</span>
                             </Button>
                         )}
-                        <Link to="/recurring-tasks">
+                        <Link to="/tasks/recurring">
                             <Button
                                 variant="outline"
                                 className="text-white border-white/20 hover:bg-white/10 rounded-lg"

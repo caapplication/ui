@@ -219,7 +219,7 @@ const ProtectedContent = () => {
                       entityName={getEntityName(currentEntity)}
                       organisationBankAccounts={organisationBankAccounts}
                       quickAction={null}
-                      clearQuickAction={() => {}}
+                      clearQuickAction={() => { }}
                       entityId={currentEntity}
                       organizationName={user?.organization_name}
                     />
@@ -230,11 +230,11 @@ const ProtectedContent = () => {
               />
               <Route
                 path="/documents"
-                element={<Documents entityId={currentEntity} quickAction={null} clearQuickAction={() => {}} />}
+                element={<Documents entityId={currentEntity} quickAction={null} clearQuickAction={() => { }} />}
               />
               <Route
                 path="/beneficiaries"
-                element={<Beneficiaries quickAction={null} clearQuickAction={() => {}} />}
+                element={<Beneficiaries quickAction={null} clearQuickAction={() => { }} />}
               />
               <Route
                 path="/organisation-bank"
@@ -243,15 +243,15 @@ const ProtectedContent = () => {
                     entityId={currentEntity}
                     entityName={getEntityName(currentEntity)}
                     quickAction={null}
-                    clearQuickAction={() => {}}
+                    clearQuickAction={() => { }}
                     organisationBankAccounts={organisationBankAccounts}
                   />
                 }
               />
               <Route path="/profile" element={<Profile />} />
-              <Route path="/clients" element={<Clients setActiveTab={() => {}} />} />
+              <Route path="/clients" element={<Clients setActiveTab={() => { }} />} />
               <Route path="/tasks" element={<TaskManagementPage entityId={currentEntity} entityName={getEntityName(currentEntity)} />} />
-              <Route path="/recurring-tasks" element={<RecurringTaskManagementPage />} />
+              <Route path="/tasks/recurring" element={<RecurringTaskManagementPage />} />
               <Route path="/todos" element={<TodoPage />} />
               <Route path="/services" element={<Services />} />
               <Route path="/organisation" element={<Organisation />} />

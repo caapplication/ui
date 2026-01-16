@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useToast } from '@/components/ui/use-toast';
-import { Loader2, Plus, RefreshCw, ArrowLeft, Search } from 'lucide-react';
+import { Loader2, Plus, RefreshCw, ArrowLeft, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import RecurringTaskList from '@/components/accountant/tasks/RecurringTaskList.jsx';
 import NewRecurringTaskForm from '@/components/accountant/tasks/NewRecurringTaskForm.jsx';
 import {
@@ -37,6 +37,12 @@ const RecurringTaskManagementPage = () => {
     const [hasAttemptedFetch, setHasAttemptedFetch] = useState(false);
     const [isLoadingClients, setIsLoadingClients] = useState(true);
 
+    // Pagination states
+    const [page, setPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
+    const [totalPages, setTotalPages] = useState(0);
+    const [totalItems, setTotalItems] = useState(0);
+
     // Filter states
     const [searchTerm, setSearchTerm] = useState('');
     const [clientIdFilter, setClientIdFilter] = useState('all');
@@ -56,17 +62,11 @@ const RecurringTaskManagementPage = () => {
             // Assignee Filter
             const matchesAssignee = assigneeIdFilter === 'all' || task.assigned_to === assigneeIdFilter;
 
-            // Status Filter (Tabs) - Client-side filtering
-            let matchesStatus = true;
-            if (activeFilter === 'active') {
-                matchesStatus = task.is_active === true;
-            } else if (activeFilter === 'inactive') {
-                matchesStatus = task.is_active === false;
-            }
+            // Note: Status filtering is now backend-side, so we don't filter here.
 
-            return matchesSearch && matchesClient && matchesAssignee && matchesStatus;
+            return matchesSearch && matchesClient && matchesAssignee;
         });
-    }, [recurringTasks, searchTerm, clientIdFilter, assigneeIdFilter, activeFilter]);
+    }, [recurringTasks, searchTerm, clientIdFilter, assigneeIdFilter]);
 
     const fetchData = useCallback(async () => {
         // Get agency_id from user or localStorage
@@ -84,22 +84,39 @@ const RecurringTaskManagementPage = () => {
         setIsLoading(true);
         setHasAttemptedFetch(true);
         try {
+            let isActiveParam = null;
+            if (activeFilter === 'active') isActiveParam = true;
+            if (activeFilter === 'inactive') isActiveParam = false;
+
             // 1. Fetch Tasks & Team Members FIRST (Critical & Fast)
             // Team Members are fast and needed for "Created By/Assigned To"
             // We WAIT for these so the main table structure is ready.
             const results = await Promise.allSettled([
-                listRecurringTasks(agencyId, accessToken, null), // null = fetch all
+                listRecurringTasks(agencyId, accessToken, isActiveParam, page, itemsPerPage), // Pass pagination and status
                 listTeamMembers(accessToken),
             ]);
 
             // Recurring Tasks
             if (results[0].status === 'fulfilled') {
-                const tasks = Array.isArray(results[0].value) ? results[0].value : (results[0].value?.items || []);
+                const res = results[0].value;
+                const tasks = res.items || (Array.isArray(res) ? res : []);
                 console.log('Recurring tasks loaded:', tasks.length);
                 setRecurringTasks(tasks);
+
+                if (res.total !== undefined) {
+                    setTotalItems(res.total);
+                    setTotalPages(res.pages);
+                    // Handle edge case where page > totalPages after deletion/filtering
+                    if (res.pages > 0 && page > res.pages) {
+                        setPage(1); // Reset to first page
+                        // Optimization: We could immediately re-fetch here but next render will handle it or user will see empty
+                    }
+                }
             } else {
                 console.error('Error fetching recurring tasks:', results[0].reason);
                 setRecurringTasks([]);
+                setTotalItems(0);
+                setTotalPages(0);
             }
 
             // Team Members (Needed for Created By / Assigned To)
@@ -194,7 +211,8 @@ const RecurringTaskManagementPage = () => {
             setIsLoading(false);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [user?.agency_id, user?.access_token, authLoading]); // Removed activeFilter from dependencies
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user?.agency_id, user?.access_token, authLoading, page, activeFilter, itemsPerPage]); // Added page, activeFilter, itemsPerPage dependencies
 
     const handleCreate = async (taskData) => {
         try {
@@ -341,7 +359,14 @@ const RecurringTaskManagementPage = () => {
                         exit={{ opacity: 0, y: -20 }}
                     >
                         <div className="flex flex-col gap-4 mb-6">
-                            <Tabs value={activeFilter} onValueChange={setActiveFilter} className="w-full">
+                            <Tabs
+                                value={activeFilter}
+                                onValueChange={(val) => {
+                                    setActiveFilter(val);
+                                    setPage(1); // Reset to page 1 on filter change
+                                }}
+                                className="w-full"
+                            >
                                 <TabsList className="bg-white/10 border border-white/20">
                                     <TabsTrigger
                                         value="all"
@@ -429,6 +454,61 @@ const RecurringTaskManagementPage = () => {
                             clients={clients}
                             teamMembers={teamMembers}
                         />
+
+                        {/* Pagination Controls */}
+                        {filteredTasks.length > 0 && (
+                            <div className="flex flex-col sm:flex-row items-center justify-between mt-4 text-white gap-4">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm text-gray-400">Items per page:</span>
+                                    <div className="w-[70px]">
+                                        <Select
+                                            value={String(itemsPerPage)}
+                                            onValueChange={(val) => {
+                                                setItemsPerPage(Number(val));
+                                                setPage(1); // Reset to page 1 on size change
+                                            }}
+                                            disabled={isLoading}
+                                        >
+                                            <SelectTrigger className="h-8 bg-white/5 border-white/10 text-white text-xs">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="10">10</SelectItem>
+                                                <SelectItem value="25">25</SelectItem>
+                                                <SelectItem value="50">50</SelectItem>
+                                                <SelectItem value="100">100</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-4">
+                                    <span className="text-sm text-gray-400">
+                                        Page {page} of {totalPages} ({totalItems} total)
+                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            onClick={() => setPage(p => Math.max(1, p - 1))}
+                                            disabled={page === 1 || isLoading}
+                                            className="h-8 w-8 text-white border-white/20 hover:bg-white/10 bg-white/5 disabled:opacity-50"
+                                        >
+                                            <ChevronLeft className="w-4 h-4" />
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                                            disabled={page === totalPages || isLoading}
+                                            className="h-8 w-8 text-white border-white/20 hover:bg-white/10 bg-white/5 disabled:opacity-50"
+                                        >
+                                            <ChevronRight className="w-4 h-4" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </motion.div>
                 )}
 
