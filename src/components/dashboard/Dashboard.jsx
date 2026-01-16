@@ -222,7 +222,7 @@ const Dashboard = ({
             const [dashData, vouchersData, docs] = await Promise.all([
                 getDashboardData(entityId, user.access_token, user.agency_id),
                 getVouchersList(entityId, user.access_token),
-                listExpiringDocuments(user.access_token)
+                listExpiringDocuments(user.access_token, user.role === 'CLIENT_USER' ? entityId : null)
             ]);
             setDashboardData(dashData);
             setVouchers(Array.isArray(vouchersData) ? vouchersData : []);

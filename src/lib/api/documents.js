@@ -241,8 +241,12 @@ export const viewPublicDocument = async (token) => {
     return response.blob();
 };
 
-export const listExpiringDocuments = async (token) => {
-    const response = await fetch(`${FINANCE_API_BASE_URL}/api/documents/expiring`, {
+export const listExpiringDocuments = async (token, entityId) => {
+    let url = `${FINANCE_API_BASE_URL}/api/documents/expiring`;
+    if (entityId) {
+        url += `?entity_id=${entityId}`;
+    }
+    const response = await fetch(url, {
         method: 'GET',
         headers: getAuthHeaders(token),
     });
