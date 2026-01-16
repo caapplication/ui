@@ -1628,6 +1628,9 @@ const TaskDashboardPage = () => {
     // Check if current user is the task creator
     const isTaskCreator = task.created_by && String(task.created_by) === String(user?.id);
 
+    // Check if task is completed (read-only mode)
+    const isCompleted = task.status === 'completed' || task.stage?.name?.toLowerCase() === 'complete' || task.stage?.name?.toLowerCase() === 'completed';
+
     // Filter stages based on user role and deduplicate by display name
     const getAvailableStages = () => {
         if (!stages || stages.length === 0) return [];
@@ -2042,6 +2045,19 @@ const TaskDashboardPage = () => {
                     </div>
                 )}
             </header>
+
+            {/* Read-Only Banner */}
+            {isCompleted && (
+                <div className="mx-4 md:mx-0 mb-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3 flex items-center gap-3">
+                    <div className="p-1 rounded-full bg-yellow-500/20 text-yellow-500">
+                        <CheckCircle2 className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <p className="text-sm font-medium text-yellow-500">This task is completed</p>
+                        <p className="text-xs text-yellow-500/80">Editing and messaging are disabled for completed tasks.</p>
+                    </div>
+                </div>
+            )}
 
             {/* Task Actions - Close Task Button */}
             {task && (
@@ -2601,13 +2617,15 @@ const TaskDashboardPage = () => {
                                         }
                                     }}
                                     title="Attach file"
+                                    disabled={isCompleted}
                                 >
                                     <Paperclip className="w-5 h-5" />
                                 </Button>
                                 <Input
-                                    placeholder="Type your message..."
+                                    placeholder={isCompleted ? "Task is completed" : "Type your message..."}
                                     value={newComment}
                                     onChange={(e) => setNewComment(e.target.value)}
+                                    disabled={isCompleted}
                                     onKeyPress={(e) => {
                                         if (e.key === 'Enter' && !e.shiftKey) {
                                             e.preventDefault();
@@ -2618,8 +2636,8 @@ const TaskDashboardPage = () => {
                                 />
                                 <Button
                                     onClick={handleSendComment}
-                                    disabled={isSendingComment}
-                                    className="flex-shrink-0 h-10 w-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white p-0"
+                                    disabled={isSendingComment || isCompleted}
+                                    className={`flex-shrink-0 h-10 w-10 rounded-full p-0 ${isCompleted ? 'bg-gray-600 cursor-not-allowed text-gray-400' : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white'}`}
                                 >
                                     {isSendingComment ? (
                                         <Loader2 className="w-5 h-5 animate-spin" />
@@ -2640,11 +2658,13 @@ const TaskDashboardPage = () => {
                                     Checklists
                                 </CardTitle>
                                 <Dialog open={showAddChecklistDialog} onOpenChange={setShowAddChecklistDialog}>
-                                    <DialogTrigger asChild>
-                                        <Button variant="ghost" size="sm" className="p-2">
-                                            <Plus className="w-4 h-4" />
-                                        </Button>
-                                    </DialogTrigger>
+                                    {!isCompleted && (
+                                        <DialogTrigger asChild>
+                                            <Button variant="ghost" size="sm" className="p-2">
+                                                <Plus className="w-4 h-4" />
+                                            </Button>
+                                        </DialogTrigger>
+                                    )}
                                     <DialogContent className="glass-pane">
                                         <DialogHeader>
                                             <DialogTitle>Add New Checklist Item</DialogTitle>
@@ -2711,7 +2731,7 @@ const TaskDashboardPage = () => {
                                                 <div
                                                     key={index}
                                                     className={`flex flex-col gap-1 p-2 rounded-md bg-white/5 transition-colors hover:bg-white/10 ${isDragging ? 'opacity-50' : ''}`}
-                                                    draggable={!isUpdatingChecklist}
+                                                    draggable={!isUpdatingChecklist && !isCompleted}
                                                     onDragStart={(e) => handleChecklistDragStart(e, index)}
                                                     onDragOver={handleChecklistDragOver}
                                                     onDrop={(e) => handleChecklistDrop(e, index)}
@@ -2721,17 +2741,19 @@ const TaskDashboardPage = () => {
                                                             id={`checklist-${index}`}
                                                             checked={item.is_completed || false}
                                                             onCheckedChange={(checked) => handleToggleChecklistItem(index, checked)}
-                                                            disabled={isUpdatingChecklist}
+                                                            disabled={isUpdatingChecklist || isCompleted}
                                                         />
                                                         <label htmlFor={`checklist-${index}`} className={`flex-grow text-sm ${item.is_completed ? 'line-through text-gray-500' : 'text-white'}`}>
                                                             {item.name}
                                                         </label>
                                                         <AlertDialog>
-                                                            <AlertDialogTrigger asChild>
-                                                                <Button variant="ghost" size="icon" className="text-gray-400 hover:text-red-500 h-8 w-8">
-                                                                    <Trash2 className="w-4 h-4" />
-                                                                </Button>
-                                                            </AlertDialogTrigger>
+                                                            {!isCompleted && (
+                                                                <AlertDialogTrigger asChild>
+                                                                    <Button variant="ghost" size="icon" className="text-gray-400 hover:text-red-500 h-8 w-8">
+                                                                        <Trash2 className="w-4 h-4" />
+                                                                    </Button>
+                                                                </AlertDialogTrigger>
+                                                            )}
                                                             <AlertDialogContent className="glass-pane">
                                                                 <AlertDialogHeader>
                                                                     <AlertDialogTitle>Are you sure?</AlertDialogTitle>
@@ -2767,11 +2789,7 @@ const TaskDashboardPage = () => {
                                         <CalendarIcon className="w-5 h-5" />
                                         Due Date
                                     </CardTitle>
-                                    {isTaskCreator && (
-                                        <Button variant="ghost" size="sm" className="p-2" onClick={handleEditDueDate}>
-                                            <Edit2 className="w-4 h-4" />
-                                        </Button>
-                                    )}
+
                                 </div>
                                 <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
                                     {task?.due_date ? (
@@ -2815,7 +2833,7 @@ const TaskDashboardPage = () => {
                                         <Repeat className="w-5 h-5" />
                                         Recurring
                                     </CardTitle>
-                                    {isTaskCreator && (
+                                    {isTaskCreator && !isCompleted && (
                                         <Button variant="ghost" size="sm" className="p-2" onClick={handleEditRecurring}>
                                             <Edit2 className="w-4 h-4" />
                                         </Button>
@@ -2852,11 +2870,13 @@ const TaskDashboardPage = () => {
                             <div className="flex items-center justify-between">
                                 <CardTitle>Collaborate</CardTitle>
                                 <Dialog open={showAddCollaboratorDialog} onOpenChange={setShowAddCollaboratorDialog}>
-                                    <DialogTrigger asChild>
-                                        <Button variant="ghost" size="sm" className="p-2">
-                                            <UserPlus className="w-4 h-4" />
-                                        </Button>
-                                    </DialogTrigger>
+                                    {!isCompleted && (
+                                        <DialogTrigger asChild>
+                                            <Button variant="ghost" size="sm" className="p-2">
+                                                <UserPlus className="w-4 h-4" />
+                                            </Button>
+                                        </DialogTrigger>
+                                    )}
                                     <DialogContent className="glass-pane">
                                         <DialogHeader>
                                             <DialogTitle>Add Collaborator</DialogTitle>
@@ -2984,14 +3004,17 @@ const TaskDashboardPage = () => {
                                                             </p>
                                                         </div>
                                                     </div>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-8 w-8 text-gray-400 hover:text-red-500"
-                                                        onClick={() => handleRemoveCollaborator(collab.user_id)}
-                                                    >
-                                                        <X className="w-4 h-4" />
-                                                    </Button>
+                                                    {!isCompleted && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-8 w-8 text-gray-400 hover:text-red-500"
+                                                            onClick={() => handleRemoveCollaborator(collab.user_id)}
+                                                        >
+                                                            <X className="w-4 h-4" />
+                                                        </Button>
+                                                    )}
+
                                                 </div>
                                             );
                                         })
@@ -3002,10 +3025,10 @@ const TaskDashboardPage = () => {
                                 </div>
                             )}
                         </CardContent>
-                    </Card>
+                    </Card >
 
                     {/* Activity Log - Column 4, Row 2 (col-span-1, row-span-1) - Blue Box */}
-                    <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col md:col-span-1 lg:col-span-1 lg:row-span-1 border-2 border-blue-500/50 h-[400px] lg:h-full">
+                    < Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col md:col-span-1 lg:col-span-1 lg:row-span-1 border-2 border-blue-500/50 h-[400px] lg:h-full" >
                         <CardHeader className="flex-shrink-0">
                             <CardTitle className="flex items-center gap-2">
                                 <History className="w-5 h-5" />
@@ -3033,12 +3056,12 @@ const TaskDashboardPage = () => {
                                 );
                             })()}
                         </CardContent>
-                    </Card>
-                </div>
-            </div>
+                    </Card >
+                </div >
+            </div >
 
             {/* Edit Due Date Dialog */}
-            <Dialog open={showEditDueDateDialog} onOpenChange={setShowEditDueDateDialog}>
+            < Dialog open={showEditDueDateDialog} onOpenChange={setShowEditDueDateDialog} >
                 <DialogContent className="glass-pane">
                     <DialogHeader>
                         <DialogTitle>Edit Due Date</DialogTitle>
@@ -3085,10 +3108,10 @@ const TaskDashboardPage = () => {
                         </Button>
                     </DialogFooter>
                 </DialogContent>
-            </Dialog>
+            </Dialog >
 
             {/* Close Task Confirmation Dialog */}
-            <Dialog open={showCloseConfirmationDialog} onOpenChange={setShowCloseConfirmationDialog}>
+            < Dialog open={showCloseConfirmationDialog} onOpenChange={setShowCloseConfirmationDialog} >
                 <DialogContent className="glass-pane">
                     <DialogHeader>
                         <DialogTitle>Are You Sure You Want To Close This Task?</DialogTitle>
@@ -3115,10 +3138,10 @@ const TaskDashboardPage = () => {
                         </Button>
                     </DialogFooter>
                 </DialogContent>
-            </Dialog>
+            </Dialog >
 
             {/* Edit Recurring Details Dialog */}
-            <Dialog open={showEditRecurringDialog} onOpenChange={setShowEditRecurringDialog}>
+            < Dialog open={showEditRecurringDialog} onOpenChange={setShowEditRecurringDialog} >
                 <DialogContent className="glass-pane max-w-2xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Edit Recurring Schedule</DialogTitle>
@@ -3347,10 +3370,10 @@ const TaskDashboardPage = () => {
                         </Button>
                     </DialogFooter>
                 </DialogContent>
-            </Dialog>
+            </Dialog >
 
             {/* Closure Request Dialog */}
-            <Dialog open={showClosureRequestDialog} onOpenChange={setShowClosureRequestDialog}>
+            < Dialog open={showClosureRequestDialog} onOpenChange={setShowClosureRequestDialog} >
                 <DialogContent className="glass-pane">
                     <DialogHeader>
                         <DialogTitle>Are You Sure You Want To Complete This Task?</DialogTitle>
@@ -3382,10 +3405,10 @@ const TaskDashboardPage = () => {
                         </Button>
                     </DialogFooter>
                 </DialogContent>
-            </Dialog>
+            </Dialog >
 
             {/* Closure Review Dialog */}
-            <Dialog open={showClosureReviewDialog} onOpenChange={setShowClosureReviewDialog}>
+            < Dialog open={showClosureReviewDialog} onOpenChange={setShowClosureReviewDialog} >
                 <DialogContent className="glass-pane">
                     <DialogHeader>
                         <DialogTitle>Review Closure Request</DialogTitle>
@@ -3432,10 +3455,10 @@ const TaskDashboardPage = () => {
                         </Button>
                     </DialogFooter>
                 </DialogContent>
-            </Dialog>
+            </Dialog >
 
             {/* Attachment Preview Dialog */}
-            <Dialog open={!!previewAttachment} onOpenChange={() => {
+            < Dialog open={!!previewAttachment} onOpenChange={() => {
                 setPreviewAttachment(null);
                 // Clean up blob URL when dialog closes
                 if (pdfBlobUrlRef.current) {
@@ -3584,7 +3607,7 @@ const TaskDashboardPage = () => {
                         )}
                     </div>
                 </DialogContent>
-            </Dialog>
+            </Dialog >
         </div >
     );
 };
