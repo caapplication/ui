@@ -17,6 +17,8 @@ import {
     ArrowUpRight,
     ArrowDownRight,
     Calendar,
+    FileWarning,
+    Eye
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useMediaQuery } from "@/hooks/useMediaQuery.jsx";
@@ -41,6 +43,8 @@ import {
     LabelList,
     ReferenceLine,
 } from "recharts";
+import { listExpiringDocuments } from '@/lib/api/documents';
+import { differenceInDays, format } from 'date-fns';
 
 const StatCard = ({
     title,
@@ -196,6 +200,7 @@ const Dashboard = ({
     console.log(dashboardData, "data");
     const [isLoading, setIsLoading] = useState(true);
     const [vouchers, setVouchers] = useState([]);
+    const [expiringDocs, setExpiringDocs] = useState([]);
     const [expensePeriod, setExpensePeriod] = useState("1month"); // Default to 1 month
 
     const isMobile = useMediaQuery("(max-width: 640px)");
@@ -214,12 +219,14 @@ const Dashboard = ({
         if (!entityId || !user?.access_token) return;
         setIsLoading(true);
         try {
-            const [dashData, vouchersData] = await Promise.all([
+            const [dashData, vouchersData, docs] = await Promise.all([
                 getDashboardData(entityId, user.access_token, user.agency_id),
                 getVouchersList(entityId, user.access_token),
+                listExpiringDocuments(user.access_token)
             ]);
             setDashboardData(dashData);
             setVouchers(Array.isArray(vouchersData) ? vouchersData : []);
+            setExpiringDocs(docs || []);
         } catch (error) {
             toast({
                 title: "Error fetching dashboard data",
@@ -228,6 +235,7 @@ const Dashboard = ({
             });
             setDashboardData(null);
             setVouchers([]);
+            setExpiringDocs([]);
         } finally {
             setIsLoading(false);
         }
@@ -453,7 +461,7 @@ const Dashboard = ({
                     </div>
                 ) : (
                     <>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8 mb-6 sm:mb-8 lg:mb-10">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6 lg:gap-8 mb-6 sm:mb-8 lg:mb-10">
                             {stats.map((stat, index) => (
                                 <StatCard
                                     key={stat.title}
@@ -462,6 +470,44 @@ const Dashboard = ({
                                     delay={index * 0.1}
                                 />
                             ))}
+                            <Card className="glass-card h-full">
+                                <CardHeader className="p-4 sm:p-6 pb-2">
+                                    <CardTitle className="text-xs sm:text-sm font-medium text-gray-300 flex items-center gap-2">
+                                        <FileWarning className="w-4 h-4 text-yellow-500" />
+                                        Expiring Documents
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-4 sm:p-6 pt-2">
+                                    {expiringDocs.length === 0 ? (
+                                        <div className="text-center py-4 text-gray-400 text-xs">None expiring soon.</div>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            {expiringDocs.slice(0, 3).map(doc => {
+                                                const daysLeft = differenceInDays(new Date(doc.expiry_date), new Date());
+                                                return (
+                                                    <div key={doc.id} className="cursor-pointer group rounded bg-white/5 p-2 hover:bg-white/10 transition-colors"
+                                                        onClick={() => navigate(`/documents?folderId=${doc.folder_id || 'root'}&clientId=${doc.entity_id || ''}`)}>
+                                                        <div className="flex items-center justify-between gap-2 overflow-hidden">
+                                                            <div className="flex items-center gap-2 truncate">
+                                                                <FileText className="w-3 h-3 text-blue-400 shrink-0" />
+                                                                <span className="text-sm font-medium text-white truncate">{doc.name}</span>
+                                                            </div>
+                                                            <span className={`text-[10px] whitespace-nowrap ${daysLeft < 5 ? 'text-red-400' : 'text-yellow-400'}`}>
+                                                                {daysLeft}d left
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                            {expiringDocs.length > 3 && (
+                                                <div className="text-center pt-1">
+                                                    <span className="text-xs text-blue-400 cursor-pointer hover:underline" onClick={() => navigate('/documents')}>View All ({expiringDocs.length})</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
                         </div>
 
                         <Card className="glass-card mb-8">
@@ -664,36 +710,7 @@ const Dashboard = ({
                                 </CardContent>
                             </Card>
 
-                            {/* <Card className="glass-card">
-                                <CardHeader className="p-4 sm:p-6">
-                                    <CardTitle className="text-lg sm:text-xl">Quick Actions</CardTitle>
-                                    <CardDescription className="text-sm sm:text-base">Frequently used features</CardDescription>
-                                </CardHeader>
-                                <CardContent className="p-4 sm:p-6">
-                                    <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                                        {[
-                                            { label: 'Add Beneficiary', icon: Users, action: 'add-beneficiary' },
-                                            { label: 'Add Invoice', icon: FileText, action: 'add-invoice' },
-                                            { label: 'Add Voucher', icon: Banknote, action: 'add-voucher' },
-                                            { label: 'Add Org. Bank', icon: Landmark, action: 'add-organisation-bank' }
-                                        ].map((action) => {
-                                            const Icon = action.icon;
-                                            return (
-                                                <motion.button
-                                                    key={action.label}
-                                                    whileHover={{ scale: 1.05, backgroundColor: 'rgba(255, 255, 255, 0.15)' }}
-                                                    whileTap={{ scale: 0.95 }}
-                                                    className="p-3 sm:p-4 bg-white/10 rounded-lg border border-white/20 transition-all duration-300 text-center flex flex-col items-center justify-center space-y-2 h-24 sm:h-28"
-                                                    onClick={() => onQuickAction(action.action)}
-                                                >
-                                                    <Icon className="w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7 text-sky-400" />
-                                                    <p className="text-white text-xs sm:text-sm font-medium text-center leading-tight">{action.label}</p>
-                                                </motion.button>
-                                            );
-                                        })}
-                                    </div>
-                                </CardContent>
-                            </Card> */}
+
                         </div>
                     </>
                 )}

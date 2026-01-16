@@ -1,10 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, FileText, Banknote, Landmark, Loader2 } from 'lucide-react';
+import { Users, FileText, Banknote, Landmark, Loader2, FileWarning, Eye } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useToast } from '@/components/ui/use-toast.js';
 import { getDashboardData } from '@/lib/api.js';
+import { listExpiringDocuments } from '@/lib/api/documents';
+import { useNavigate } from 'react-router-dom';
+import { differenceInDays, format } from 'date-fns';
+import { Button } from '@/components/ui/button';
 
 const StatCard = ({ title, value, description, icon, color, delay }) => {
     const Icon = icon;
@@ -45,9 +49,11 @@ const TransactionItem = ({ transaction }) => {
 
 const Dashboard = ({ entityId, entityName, onQuickAction, organisationBankAccounts }) => {
     const [dashboardData, setDashboardData] = useState(null);
+    const [expiringDocs, setExpiringDocs] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const { user } = useAuth();
     const { toast } = useToast();
+    const navigate = useNavigate();
 
     const fetchDashboardData = useCallback(async () => {
         if (!entityId || !user?.access_token) return;
@@ -55,6 +61,10 @@ const Dashboard = ({ entityId, entityName, onQuickAction, organisationBankAccoun
         try {
             const data = await getDashboardData(entityId, user.access_token);
             setDashboardData(data);
+
+            // Fetch expiring documents
+            const docs = await listExpiringDocuments(user.access_token);
+            setExpiringDocs(docs || []);
         } catch (error) {
             toast({
                 title: 'Error fetching dashboard data',
@@ -120,33 +130,42 @@ const Dashboard = ({ entityId, entityName, onQuickAction, organisationBankAccoun
 
                             <Card className="glass-card">
                                 <CardHeader>
-                                    {/* <CardTitle>Quick Actions</CardTitle> */}
-                                    {/* <CardDescription>Frequently used features</CardDescription> */}
+                                    <CardTitle className="flex items-center gap-2">
+                                        <FileWarning className="w-5 h-5 text-yellow-500" />
+                                        Expiring Documents
+                                    </CardTitle>
+                                    <CardDescription>Documents expiring within 30 days</CardDescription>
                                 </CardHeader>
-                                {/* <CardContent>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        {[
-                                            { label: 'Add Beneficiary', icon: Users, action: 'add-beneficiary' },
-                                            { label: 'Add Invoice', icon: FileText, action: 'add-invoice' },
-                                            { label: 'Add Voucher', icon: Banknote, action: 'add-voucher' },
-                                            { label: 'Add Org. Bank', icon: Landmark, action: 'add-organisation-bank' }
-                                        ].map((action) => {
-                                            const Icon = action.icon;
-                                            return (
-                                                <motion.button
-                                                    key={action.label}
-                                                    whileHover={{ scale: 1.05, backgroundColor: 'rgba(255, 255, 255, 0.15)' }}
-                                                    whileTap={{ scale: 0.95 }}
-                                                    className="p-4 bg-white/10 rounded-lg border border-white/20 transition-all duration-300 text-center flex flex-col items-center justify-center space-y-2 h-28"
-                                                    onClick={() => onQuickAction(action.action)}
-                                                >
-                                                    <Icon className="w-7 h-7 text-sky-400" />
-                                                    <p className="text-white text-sm font-medium text-center">{action.label}</p>
-                                                </motion.button>
-                                            );
-                                        })}
-                                    </div>
-                                </CardContent> */}
+                                <CardContent>
+                                    {expiringDocs.length === 0 ? (
+                                        <div className="text-center py-8 text-gray-400">No documents expiring soon.</div>
+                                    ) : (
+                                        <div className="space-y-4">
+                                            {expiringDocs.map(doc => {
+                                                const daysLeft = differenceInDays(new Date(doc.expiry_date), new Date());
+                                                return (
+                                                    <div key={doc.id} className="flex justify-between items-center p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors group cursor-pointer"
+                                                        onClick={() => navigate(`/documents?folderId=${doc.folder_id || 'root'}&clientId=${doc.entity_id || ''}`)}>
+                                                        <div className="flex items-center gap-3 overflow-hidden">
+                                                            <div className="w-8 h-8 rounded bg-blue-500/20 flex items-center justify-center shrink-0">
+                                                                <FileText className="w-4 h-4 text-blue-400" />
+                                                            </div>
+                                                            <div className="truncate">
+                                                                <p className="text-sm font-medium text-white truncate">{doc.name}</p>
+                                                                <p className={`text-xs ${daysLeft < 5 ? 'text-red-400' : 'text-yellow-400'}`}>
+                                                                    Expires in {daysLeft} days ({format(new Date(doc.expiry_date), 'dd MMM')})
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <Eye className="w-4 h-4 text-gray-400" />
+                                                        </Button>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </CardContent>
                             </Card>
                         </div>
                     </>
