@@ -7,6 +7,9 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
+import { Combobox } from '@/components/ui/combobox';
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -106,8 +109,7 @@ import { getDocuments, createFolder, uploadFile, deleteDocument, shareDocument, 
 import { createPublicShareTokenDocument, createPublicShareTokenFolder } from '@/lib/api/documents';
 import { cn } from '@/lib/utils';
 import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+
 import { format } from 'date-fns';
 
 const buildFileTree = (folders, documents) => {
@@ -245,6 +247,8 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   const [realSelectedClientId, setRealSelectedClientId] = useState(null); // The actual client selected, or null for personal
   const [openClientCombobox, setOpenClientCombobox] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState(null);
+  const [collabSelectedClientId, setCollabSelectedClientId] = useState(null); // 'my-team' or client ID
+
   const { entities } = useAuth(); // Assuming entities are available in user or useAuth, checking logic below
 
   useEffect(() => {
@@ -722,43 +726,19 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
     }
   };
 
-  const handleCollaborateClick = async (doc) => {
-    setCollaborateDoc(doc);
-    setSelectedUsers([]);
-    setAvailableUsers([]);
-    setUserSearchTerm('');
-    setLoadingUsers(true);
-    setCollaborateDialogOpen(true);
+  // Effect to fetch users for collaborate modal based on selected client
+  useEffect(() => {
+    if (!collaborateDialogOpen) return;
 
-    try {
-      // Get organization ID based on user role
-      let orgId = null;
-      if (user?.role === 'CA_ACCOUNTANT') {
-        // For CA accountants, use the selected organization
-        orgId = currentClientId !== 'all' ? currentClientId : (organisations[0]?.id || null);
-      } else if (user?.organization_id) {
-        orgId = user.organization_id;
-      } else if (user?.entities && user.entities.length > 0) {
-        orgId = user.entities[0].organisation_id;
-      }
+    const fetchCollabUsers = async () => {
+      setLoadingUsers(true);
+      setAvailableUsers([]);
 
-      let users = [];
+      try {
+        let users = [];
 
-      // Try to fetch users from organization
-      if (orgId) {
-        try {
-          const orgUsers = await listOrgUsers(orgId, user.access_token);
-          // Backend returns { invited_users: [...], joined_users: [...] }
-          if (orgUsers && typeof orgUsers === 'object') {
-            const invited = Array.isArray(orgUsers.invited_users) ? orgUsers.invited_users : [];
-            const joined = Array.isArray(orgUsers.joined_users) ? orgUsers.joined_users : [];
-            users = [...invited, ...joined];
-          } else if (Array.isArray(orgUsers)) {
-            users = orgUsers;
-          }
-        } catch (orgError) {
-          console.warn('Failed to fetch org users, trying team members:', orgError);
-          // Fallback to team members if org users fails
+        // CASE 1: My Team (Agency) - when NO client selected
+        if (!collabSelectedClientId || collabSelectedClientId === 'my-team') {
           try {
             const teamMembers = await listTeamMembers(user.access_token);
             if (Array.isArray(teamMembers)) {
@@ -770,55 +750,69 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
             }
           } catch (teamError) {
             console.error('Failed to fetch team members:', teamError);
-            throw new Error('Unable to fetch users. Please try again later.');
+            toast({ title: 'Error', description: 'Failed to fetch team members.', variant: 'destructive' });
           }
         }
-      } else {
-        // If no org ID, try team members directly
-        try {
-          const teamMembers = await listTeamMembers(user.access_token);
-          if (Array.isArray(teamMembers)) {
-            users = teamMembers;
-          } else if (teamMembers && Array.isArray(teamMembers.members)) {
-            users = teamMembers.members;
-          } else if (teamMembers && teamMembers.data && Array.isArray(teamMembers.data)) {
-            users = teamMembers.data;
+        // CASE 2: Client Selected - fetch that client's organization users
+        else {
+          const client = clientsForFilter.find(c => c.id === collabSelectedClientId);
+          if (client && client.organization_id) {
+            try {
+              const orgUsers = await listOrgUsers(client.organization_id, user.access_token);
+              if (orgUsers && typeof orgUsers === 'object') {
+                const invited = Array.isArray(orgUsers.invited_users) ? orgUsers.invited_users : [];
+                const joined = Array.isArray(orgUsers.joined_users) ? orgUsers.joined_users : [];
+                users = [...invited, ...joined];
+              } else if (Array.isArray(orgUsers)) {
+                users = orgUsers;
+              }
+            } catch (orgError) {
+              console.error('Failed to fetch org users:', orgError);
+              toast({ title: 'Error', description: 'Failed to fetch client users.', variant: 'destructive' });
+            }
+          } else {
+            // Fallback if no org ID (shouldn't happen for valid clients usually)
+            console.warn('Selected client has no organization_id', client);
           }
-        } catch (teamError) {
-          console.error('Failed to fetch team members:', teamError);
-          throw new Error('Unable to fetch users. Please try again later.');
         }
+
+        // Normalize users
+        const normalizedUsers = users.map(u => ({
+          id: u.id || u.user_id || u.email,
+          email: u.email || u.user_email,
+          name: u.name || u.full_name || `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email,
+          first_name: u.first_name,
+          last_name: u.last_name
+        })).filter(u => u.email && u.email !== user.email);
+
+        setAvailableUsers(normalizedUsers);
+      } catch (error) {
+        console.error('Error in fetchCollabUsers:', error);
+      } finally {
+        setLoadingUsers(false);
       }
+    };
 
-      // Normalize user objects and filter out current user
-      const normalizedUsers = users.map(u => ({
-        id: u.id || u.user_id || u.email,
-        email: u.email || u.user_email,
-        name: u.name || u.full_name || `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email,
-        first_name: u.first_name,
-        last_name: u.last_name
-      })).filter(u => u.email && u.email !== user.email);
+    fetchCollabUsers();
+  }, [collabSelectedClientId, collaborateDialogOpen, user, clientsForFilter]);
 
-      setAvailableUsers(normalizedUsers);
 
-      if (normalizedUsers.length === 0) {
-        toast({
-          title: 'No users found',
-          description: 'No other users found in your organization to collaborate with.',
-          variant: 'default'
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching users:', error);
-      toast({
-        title: 'Error fetching users',
-        description: error.message || 'Failed to fetch users. Please try again.',
-        variant: 'destructive'
-      });
-      setAvailableUsers([]);
-    } finally {
-      setLoadingUsers(false);
+  const handleCollaborateClick = async (doc) => {
+    setCollaborateDoc(doc);
+    setSelectedUsers([]);
+    setAvailableUsers([]);
+    setUserSearchTerm('');
+
+    // Initialize selected client for modal
+    // If CA selected a specific client in main view, use that.
+    // Otherwise use 'my-team' (Personal Docs context) or null.
+    if (user?.role === 'CA_ACCOUNTANT' && realSelectedClientId) {
+      setCollabSelectedClientId(realSelectedClientId);
+    } else {
+      setCollabSelectedClientId('my-team');
     }
+
+    setCollaborateDialogOpen(true);
   };
 
   const handleUserToggle = (user) => {
@@ -1003,7 +997,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
 
         {/* Folders - Always in grid format with reduced gap and larger icons */}
         {folders.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-2 sm:gap-4 mb-6 sm:mb-8">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6 mb-6 sm:mb-8">
             {folders.map((item, index) => {
               const isSelected = selectedFolder?.id === item.id;
               return (
@@ -1026,7 +1020,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                     />
                     {/* Checkbox on hover - top left corner */}
                     <div
-                      className="absolute top-1 left-1 sm:top-2 sm:left-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="absolute top-2 left-2 sm:top-2 sm:left-2 opacity-0 group-hover:opacity-100 transition-opacity z-10"
                       onClick={(e) => {
                         e.stopPropagation();
                         setSelectedFolder(isSelected ? null : item);
@@ -1815,113 +1809,84 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
               </div>
             )}
 
-            {/* User Selection */}
-            <div className="space-y-3">
-              <Label className="text-gray-300">
-                Select users from your organization to collaborate with
-              </Label>
-
-              {/* Search Input */}
-              {!loadingUsers && availableUsers.length > 0 && (
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <Input
-                    placeholder="Search users by name or email..."
-                    value={userSearchTerm}
-                    onChange={(e) => setUserSearchTerm(e.target.value)}
-                    className="pl-10 bg-gray-800/50 border-gray-700 text-white"
-                  />
-                </div>
-              )}
-
-              {loadingUsers ? (
-                <div className="flex justify-center items-center py-8">
-                  <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
-                </div>
-              ) : availableUsers.length === 0 ? (
-                <div className="text-center py-8 text-gray-400">
-                  <Users className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                  <p>No users found in your organization.</p>
-                </div>
-              ) : (() => {
-                // Filter users based on search term
-                const filteredUsers = availableUsers.filter(userItem => {
-                  if (!userSearchTerm) return true;
-                  const searchLower = userSearchTerm.toLowerCase();
-                  const name = (userItem.name || userItem.first_name || '').toLowerCase();
-                  const email = (userItem.email || '').toLowerCase();
-                  return name.includes(searchLower) || email.includes(searchLower);
-                });
-
-                if (filteredUsers.length === 0) {
-                  return (
-                    <div className="text-center py-8 text-gray-400">
-                      <Users className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                      <p>No users found matching "{userSearchTerm}".</p>
-                    </div>
-                  );
+            {/* 1. Client Select */}
+            <div className="space-y-2">
+              <Label>Client (Optional)</Label>
+              <Combobox
+                options={clientsForFilter.map(client => ({
+                  value: String(client.id),
+                  label: client.name
+                }))
                 }
-
-                return (
-                  <div className="max-h-64 overflow-y-auto space-y-2 border border-gray-700 rounded-lg p-2">
-                    {filteredUsers.map((userItem) => {
-                      const isSelected = selectedUsers.some(u => u.id === userItem.id || u.email === userItem.email);
-                      return (
-                        <div
-                          key={userItem.id || userItem.email}
-                          onClick={() => handleUserToggle(userItem)}
-                          className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors ${isSelected
-                            ? 'bg-blue-500/20 border border-blue-500/50'
-                            : 'bg-gray-800/50 hover:bg-gray-700/50 border border-gray-700'
-                            }`}
-                        >
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isSelected ? 'bg-blue-500' : 'bg-gray-600'
-                            }`}>
-                            {isSelected ? (
-                              <Check className="w-5 h-5 text-white" />
-                            ) : (
-                              <User className="w-5 h-5 text-gray-300" />
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-white font-medium truncate">
-                              {userItem.name || userItem.first_name || 'User'}
-                            </p>
-                            <p className="text-gray-400 text-sm truncate">{userItem.email}</p>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })()}
-
-              {selectedUsers.length > 0 && (
-                <div className="pt-2 border-t border-gray-700">
-                  <p className="text-sm text-gray-400 mb-2">
-                    {selectedUsers.length} user{selectedUsers.length !== 1 ? 's' : ''} selected
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedUsers.map((userItem) => (
-                      <div
-                        key={userItem.id || userItem.email}
-                        className="flex items-center space-x-2 px-3 py-1 bg-blue-500/20 border border-blue-500/50 rounded-full"
-                      >
-                        <span className="text-sm text-white">
-                          {userItem.name || userItem.first_name || userItem.email}
-                        </span>
-                        <button
-                          onClick={() => handleUserToggle(userItem)}
-                          className="text-blue-400 hover:text-blue-300"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+                value={collabSelectedClientId || 'my-team'}
+                onValueChange={(val) => {
+                  setCollabSelectedClientId(val);
+                }}
+                placeholder="Select a client..."
+                searchPlaceholder="Search clients..."
+                emptyText="No clients found."
+              />
             </div>
+
+            {/* 2. User Select */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                Collaborator
+                {loadingUsers && <Loader2 className="h-3 w-3 animate-spin text-gray-400" />}
+              </Label>
+              <Combobox
+                options={availableUsers
+                  .filter(u => !selectedUsers.some(selected => selected.id === u.id || selected.email === u.email)) // Exclude already selected
+                  .map(u => ({
+                    value: String(u.id || u.email),
+                    label: `${u.name || u.first_name || u.email} ${u.email ? `(${u.email})` : ''}`
+                  }))
+                }
+                value="" // Always empty to act as a "picker"
+                onValueChange={(val) => {
+                  const userToAdd = availableUsers.find(u => String(u.id || u.email) === val);
+                  if (userToAdd) {
+                    handleUserToggle(userToAdd);
+                  }
+                }}
+                placeholder={
+                  loadingUsers
+                    ? "Loading users..."
+                    : (collabSelectedClientId && collabSelectedClientId !== 'my-team')
+                      ? (availableUsers.length === 0 ? "No users found for this client" : "Select a client user...")
+                      : "Select a team member..."
+                }
+                searchPlaceholder="Search users..."
+                emptyText={loadingUsers ? "Loading..." : "No users found."}
+                disabled={loadingUsers}
+              />
+            </div>
+
+            {selectedUsers.length > 0 && (
+              <div className="pt-2 border-t border-gray-700">
+                <p className="text-sm text-gray-400 mb-2">
+                  {selectedUsers.length} user{selectedUsers.length !== 1 ? 's' : ''} selected
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {selectedUsers.map((userItem) => (
+                    <div
+                      key={userItem.id || userItem.email}
+                      className="flex items-center space-x-2 px-3 py-1 bg-blue-500/20 border border-blue-500/50 rounded-full"
+                    >
+                      <span className="text-sm text-white">
+                        {userItem.name || userItem.first_name || userItem.email}
+                      </span>
+                      <button
+                        onClick={() => handleUserToggle(userItem)}
+                        className="text-blue-400 hover:text-blue-300"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Action Buttons */}
             <DialogFooter className="flex-row justify-end space-x-2 pt-4 border-t border-gray-700">
@@ -1958,19 +1923,21 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
         </DialogContent>
       </Dialog>
 
-      {previewFile && (
-        <Dialog open={!!previewFile} onOpenChange={() => setPreviewFile(null)}>
-          <DialogContent className="max-w-3xl w-[95vw] sm:w-full">
-            <DialogHeader>
-              <DialogTitle className="text-base sm:text-lg">{previewFile.name}</DialogTitle>
-            </DialogHeader>
-            <div className="mt-4">
-              <iframe src={previewFile.url} className="w-full h-[400px] sm:h-[500px] md:h-[600px]" title={previewFile.name} />
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
-    </div>
+      {
+        previewFile && (
+          <Dialog open={!!previewFile} onOpenChange={() => setPreviewFile(null)}>
+            <DialogContent className="max-w-3xl w-[95vw] sm:w-full">
+              <DialogHeader>
+                <DialogTitle className="text-base sm:text-lg">{previewFile.name}</DialogTitle>
+              </DialogHeader>
+              <div className="mt-4">
+                <iframe src={previewFile.url} className="w-full h-[400px] sm:h-[500px] md:h-[600px]" title={previewFile.name} />
+              </div>
+            </DialogContent>
+          </Dialog>
+        )
+      }
+    </div >
   );
 };
 
