@@ -525,7 +525,7 @@ const TaskManagementPage = ({ entityId, entityName }) => {
             <Dialog open={showHistoryDialog} onOpenChange={setShowHistoryDialog}>
                 <DialogContent className="glass-pane max-w-6xl h-[85vh] overflow-hidden flex flex-col">
                     <DialogHeader>
-                        <DialogTitle>Task History (Completed)</DialogTitle>
+                        <DialogTitle>Task History</DialogTitle>
                     </DialogHeader>
                     <div className="flex-1 min-h-0 overflow-hidden mt-4">
                         <TaskList

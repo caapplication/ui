@@ -9,6 +9,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { format, formatDistanceToNow, formatDistanceStrict } from 'date-fns';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { getTaskCollaborators } from '@/lib/api';
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { Calendar as CalendarIcon, X } from 'lucide-react';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -30,6 +34,8 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
     const [pageSize, setPageSize] = useState(25);
     const [taskCollaborators, setTaskCollaborators] = useState({}); // { taskId: [collaboratorIds] }
     const fetchedCollaboratorsRef = useRef(new Set()); // Track which tasks we've fetched collaborators for
+    const [clientIdFilter, setClientIdFilter] = useState('all');
+    const [dateRange, setDateRange] = useState(undefined);
 
     const getStatusVariant = (status) => {
         switch (status) {
@@ -264,7 +270,35 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
             const searchMatch = !searchTerm ||
                 clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 taskTitle.toLowerCase().includes(searchTerm.toLowerCase());
-            return statusMatch && userMatch && searchMatch;
+
+            // Handle Client Filter
+            let clientMatch = true;
+            if (clientIdFilter !== 'all') {
+                clientMatch = task.client_id && String(task.client_id) === String(clientIdFilter);
+            }
+
+            // Handle Date Range Filter
+            let dateMatch = true;
+            if (dateRange?.from) {
+                // Determine which date to filter by: Updated At for History, Created At/Due Date for active?
+                // Using updated_at for history view (completion time), created_at for regular view
+                const dateStr = isHistoryView ? (task.updated_at || task.created_at) : (task.created_at);
+
+                if (dateStr) {
+                    const taskDate = new Date(dateStr);
+                    const fromDate = new Date(dateRange.from);
+                    fromDate.setHours(0, 0, 0, 0); // Start of day
+
+                    const toDate = dateRange.to ? new Date(dateRange.to) : new Date(dateRange.from);
+                    toDate.setHours(23, 59, 59, 999); // End of day
+
+                    dateMatch = taskDate >= fromDate && taskDate <= toDate;
+                } else {
+                    dateMatch = false;
+                }
+            }
+
+            return statusMatch && userMatch && searchMatch && clientMatch && dateMatch;
         });
 
         // Sort: tasks with notifications first (sorted by updated_at descending), then others
@@ -288,7 +322,7 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
             const bUpdated = b.updated_at ? new Date(b.updated_at).getTime() : 0;
             return bUpdated - aUpdated;
         });
-    }, [tasks, statusFilter, userFilter, searchTerm, clients, stages, currentUserId, taskCollaborators]);
+    }, [tasks, statusFilter, userFilter, searchTerm, clients, stages, currentUserId, taskCollaborators, clientIdFilter, dateRange, isHistoryView]);
 
     // Pagination calculations
     const totalPages = Math.ceil(filteredTasks.length / pageSize);
@@ -358,7 +392,7 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
     // Reset to page 1 when filters change
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, statusFilter, userFilter]);
+    }, [searchTerm, statusFilter, userFilter, clientIdFilter, dateRange]);
 
     // Clamp current page if it exceeds total pages
     useEffect(() => {
@@ -368,12 +402,77 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
     }, [currentPage, totalPages]);
 
     return (
-        <div className="h-[calc(100vh-100px)] flex flex-col">
+        <div className="h-full flex flex-col">
             <div className="glass-pane rounded-lg flex-grow flex flex-col overflow-hidden">
                 <div className="p-4 border-b border-white/10">
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                         <h2 className="text-xl font-semibold">All Tasks</h2>
-                        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto flex-wrap items-center">
+                            {/* Client Filter */}
+                            <Select value={clientIdFilter} onValueChange={setClientIdFilter}>
+                                <SelectTrigger className="w-full sm:w-[150px]">
+                                    <SelectValue placeholder="Client" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Clients</SelectItem>
+                                    {clients.map(client => (
+                                        <SelectItem key={client.id} value={String(client.id)}>{client.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+
+                            {/* Date Range Filter */}
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant={"outline"}
+                                        className={cn(
+                                            "w-full sm:w-[240px] justify-start text-left font-normal",
+                                            !dateRange && "text-muted-foreground"
+                                        )}
+                                    >
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {dateRange?.from ? (
+                                            dateRange.to ? (
+                                                <>
+                                                    {format(dateRange.from, "LLL dd, y")} -{" "}
+                                                    {format(dateRange.to, "LLL dd, y")}
+                                                </>
+                                            ) : (
+                                                format(dateRange.from, "LLL dd, y")
+                                            )
+                                        ) : (
+                                            <span>Pick a date</span>
+                                        )}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="end">
+                                    <Calendar
+                                        initialFocus
+                                        mode="range"
+                                        defaultMonth={dateRange?.from}
+                                        selected={dateRange}
+                                        onSelect={setDateRange}
+                                        numberOfMonths={2}
+                                    />
+                                </PopoverContent>
+                            </Popover>
+
+                            {/* Clear Logic for new filters */}
+                            {(dateRange || clientIdFilter !== 'all') && (
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                        setClientIdFilter('all');
+                                        setDateRange(undefined);
+                                    }}
+                                    className="h-9 w-9 p-0"
+                                    title="Clear Date & Client Filters"
+                                >
+                                    <X className="h-4 w-4" />
+                                </Button>
+                            )}
                             {!isHistoryView && (
                                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                                     <SelectTrigger className="w-full sm:w-[180px]">
