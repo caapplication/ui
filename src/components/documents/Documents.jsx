@@ -169,7 +169,7 @@ const buildFileTree = (folders, documents) => {
 const findPath = (root, id) => {
   const path = [];
   function search(node) {
-    if (node.id === id) {
+    if (String(node.id) === String(id)) {
       path.push(node);
       return true;
     }
@@ -190,7 +190,7 @@ const findPath = (root, id) => {
 
 // Helper function to find a folder by ID in the tree
 const findFolder = (root, id) => {
-  if (root.id === id) {
+  if (String(root.id) === String(id)) {
     return root;
   }
   if (root.is_folder && root.children) {
@@ -392,12 +392,24 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
 
   useEffect(() => {
     // Reset view to root when filtering changes
-    setCurrentFolderId('root');
-    // Assuming currentPath is derived from documentsState and currentFolderId,
-    // so no explicit reset for currentPath is needed here if findPath is reactive.
-    // If currentPath is a state variable, it would need to be reset.
-    // For now, assuming findPath will re-evaluate.
-  }, [realSelectedClientId, activeTab]);
+    // UNLESS this change is consistent with the URL params (deep linking) which also specifies a folderId
+    const urlClientId = searchParams.get('clientId');
+    const urlFolderId = searchParams.get('folderId');
+
+    // Normalize urlClientId to match realSelectedClientId format (null for personal)
+    // If urlClientId is missing/empty/null string, it implies personal docs (realSelectedClientId should be null)
+    const normalizedUrlClientId = (urlClientId && urlClientId !== 'null' && urlClientId !== '') ? urlClientId : null;
+
+    // We only preserve the folderId if:
+    // 1. We are in the My Files tab (standard view)
+    // 2. The current client matches what's in the URL (meaning we are likely in the initial sync phase or the user manually navigated to this state)
+    // 3. There is actually a folderId in the URL
+    if (activeTab === 'myFiles' && realSelectedClientId === normalizedUrlClientId && urlFolderId && urlFolderId !== 'null') {
+      setCurrentFolderId(urlFolderId);
+    } else {
+      setCurrentFolderId('root');
+    }
+  }, [realSelectedClientId, activeTab, searchParams]);
 
   useEffect(() => {
     // Wait for user to be available
@@ -1252,7 +1264,27 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
         {/* Empty state */}
         {filteredChildren.length === 0 && (
           <div className="text-center py-12">
-            <p className="text-gray-400">{searchTerm ? 'No items found matching your search.' : 'This folder is empty.'}</p>
+            <p className="text-gray-400 mb-4">{searchTerm ? 'No items found matching your search.' : 'This folder is empty.'}</p>
+            {currentFolderId !== 'root' && !searchTerm && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setCurrentFolderId('root');
+                  setRealSelectedClientId(null);
+                  setSearchTerm('');
+                  setClientsForFilter([]); // Resetting clients filter might be safer or not needed? Let's just reset the ID.
+                  if (activeTab !== 'myFiles') setActiveTab('myFiles');
+
+                  // Clear URL params
+                  const newUrl = new URL(window.location);
+                  newUrl.searchParams.delete('folderId');
+                  newUrl.searchParams.delete('clientId');
+                  window.history.pushState({}, '', newUrl);
+                }}
+              >
+                Back to My Documents
+              </Button>
+            )}
           </div>
         )}
       </>
