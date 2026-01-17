@@ -102,9 +102,11 @@ export const getSharedDocuments = async (token, userRole, entityId) => {
     }
     if (entityId) {
         url += `?entity_id=${entityId}`;
-    } else if (userRole !== 'CA_ACCOUNTANT') {
-        throw new Error("Entity ID is required for this user role.");
     }
+    // Removed strict check for entityId. Let the backend handle validation if needed.
+    // else if (userRole !== 'CA_ACCOUNTANT') {
+    //    throw new Error("Entity ID is required for this user role.");
+    // }
     const response = await fetch(url, {
         headers: getAuthHeaders(token),
     });

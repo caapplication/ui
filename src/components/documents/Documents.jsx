@@ -401,7 +401,11 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
     }
   }, [realSelectedClientId, user, entityId, toast]);
 
+  /* Removed recursive function for tree building, now imported from utils */
+  // Use buildFileTree from utils
+
   const fetchSharedDocuments = useCallback(async (isRefresh = false) => {
+    console.log('fetchSharedDocuments called', { isRefresh, role: user?.role, entityId: realSelectedClientId || entityId });
     if (!user?.access_token) return;
     if (isRefresh) {
       setIsRefreshing(true);
@@ -409,13 +413,22 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
       setIsLoading(true);
     }
     try {
-      const data = await getSharedDocuments(user.access_token, user.role, realSelectedClientId);
+      // Determine what entity ID to pass.
+      // If CA Accountant, use realSelectedClientId.
+      // If Client User, use the entityId from props/auth context.
+      const targetEntityId = user?.role === 'CA_ACCOUNTANT' ? realSelectedClientId : entityId;
+      console.log('Fetching shared docs with targetEntityId:', targetEntityId);
+
+      const data = await getSharedDocuments(user.access_token, user.role, targetEntityId);
+      console.log('Shared Documents API Response:', data);
+
       const combinedShared = [
         ...(data.documents || []).map(d => ({ ...d, is_folder: false })),
         ...(data.folders || []).map(f => ({ ...f, is_folder: true }))
       ];
       setSharedDocuments(combinedShared);
     } catch (error) {
+      console.error('Error fetching shared documents:', error);
       toast({
         title: 'Error fetching shared documents',
         description: error.message,
@@ -426,7 +439,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [user?.access_token, user?.role, realSelectedClientId, toast]);
+  }, [user?.access_token, user?.role, realSelectedClientId, entityId, toast]);
 
   // REMOVED: Conflicting useEffect that was resetting folder to root
   // The state is now single-source-of-truth initialized from URL, and updates push to URL.
@@ -459,12 +472,13 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
       return;
     }
 
-    // Only fetch if entityId is available for non-CA accountants
-    if (user?.role !== 'CA_ACCOUNTANT' && !entityId) {
+    // Only fetch My Files if entityId is available for non-CA accountants
+    // Shared files are linked to the user, so we should allow fetching them even without an entity context
+    if (activeTab === 'myFiles' && user?.role !== 'CA_ACCOUNTANT' && !entityId) {
       // Set loading to false if entityId is not available yet
       setIsLoading(false);
       setDocumentsState({ id: 'root', name: 'Root', is_folder: true, children: [] });
-      return; // Don't fetch until entityId is available
+      return; // Don't fetch my files until entityId is available
     }
 
     if (activeTab === 'myFiles') {
@@ -1368,12 +1382,12 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
           <div className="relative mb-2">
             {item.is_folder ? (
               <FolderIcon
-                className="w-40 h-40 sm:w-48 sm:h-48 md:w-56 md:h-56 transition-transform group-hover:scale-110"
+                className="w-24 h-24 sm:w-32 sm:h-32 md:w-36 md:h-36 lg:w-40 lg:h-40 transition-transform group-hover:scale-110"
                 hasExpired={hasExpiredDocuments(item)}
               />
             ) : (
-              <div className="w-40 h-40 sm:w-44 sm:h-44 md:w-48 md:h-48 rounded-xl flex items-center justify-center bg-gradient-to-br from-purple-500 to-pink-500 transition-transform group-hover:scale-110">
-                <FileText className="w-20 h-20 sm:w-22 sm:h-22 md:w-24 md:h-24 text-white" />
+              <div className="w-24 h-24 sm:w-32 sm:h-32 md:w-36 md:h-36 lg:w-40 lg:h-40 rounded-xl flex items-center justify-center bg-gradient-to-br from-purple-500 to-pink-500 transition-transform group-hover:scale-110">
+                <FileText className="w-12 h-12 sm:w-16 sm:h-16 md:w-18 md:h-18 lg:w-20 lg:h-20 text-white" />
               </div>
             )}
             {/* Action buttons on hover */}
@@ -1386,20 +1400,27 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
               >
                 <FileText className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
               </Button>
-              <a href={`${FINANCE_API_BASE_URL}/api/documents/${item.id}`} download={item.name} onClick={(e) => e.stopPropagation()}>
-                <Button
-                  size="icon"
-                  variant="secondary"
-                  className="h-6 w-6 sm:h-7 sm:w-7 bg-gray-800/90 hover:bg-gray-700"
-                >
-                  <Download className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                </Button>
-              </a>
+              <Button
+                size="icon"
+                variant="secondary"
+                className="h-6 w-6 sm:h-7 sm:w-7 bg-gray-800/90 hover:bg-gray-700"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDocumentClick(item);
+                }}
+              >
+                <Download className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              </Button>
             </div>
           </div>
           <div className="w-full text-center px-1">
-            <p className="text-xs sm:text-sm text-white truncate group-hover:text-blue-300 transition-colors">{item.name}</p>
-            <p className="text-xs text-gray-400 mt-1 truncate hidden sm:block">Shared by: {item.owner_email}</p>
+            <p className="text-xs sm:text-sm text-white truncate group-hover:text-blue-300 transition-colors" title={item.name}>{item.name}</p>
+            {item.owner_email && (
+              <p className="text-xs text-gray-400 mt-1 truncate hidden sm:block">Shared by: {item.owner_email}</p>
+            )}
+            {!item.owner_email && (
+              <p className="text-xs text-gray-400 mt-1 truncate hidden sm:block italic">Shared by unknown</p>
+            )}
           </div>
         </motion.div>
       ))}
