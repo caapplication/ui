@@ -13,7 +13,7 @@ import {
     listClients,
     listServices,
     listTeamMembers,
-    getTags
+    listAllClientUsers
 } from '@/lib/api';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -120,12 +120,39 @@ const RecurringTaskManagementPage = () => {
             }
 
             // Team Members (Needed for Created By / Assigned To)
-            if (results[1].status === 'fulfilled') {
-                const membersData = Array.isArray(results[1].value) ? results[1].value : (results[1].value?.items || []);
-                setTeamMembers(membersData);
-            } else {
-                console.warn('Error fetching team members:', results[1].reason);
+            // Team Members (Needed for Created By / Assigned To)
+            // AND Entity Users (Client Users) to resolve N/A
+            const teamMembersPromise = results[1].status === 'fulfilled' ? (Array.isArray(results[1].value) ? results[1].value : (results[1].value?.items || [])) : [];
+
+            // We can fetch entity users here or separate?
+            // Since we are inside async, let's fetch entity users separately or promise.all them initially.
+            // Let's modify the initial Promise.all to include entityUsers.
+
+            // To avoid complexity of rewriting the whole block, I'll fetch entity users here concurrently if needed, 
+            // OR better, I'll just rewrite the initial Promise.all block.
+            // But wait, replace_file_content is better for small chunks.
+            // Let's do a post-fetch merge.
+
+            let allMembers = [...teamMembersPromise];
+
+            try {
+                // Quick fetch for entity users to ensure they are available
+                const entityUsersRes = await listAllClientUsers(accessToken);
+                const entityUsers = Array.isArray(entityUsersRes) ? entityUsersRes : (entityUsersRes?.items || entityUsersRes?.users || []);
+                const normalizedEntityUsers = entityUsers.map(u => ({
+                    ...u,
+                    id: u.user_id || u.id,
+                    name: u.name || u.full_name || u.email,
+                    role: u.role || 'Client User'
+                }));
+                allMembers = [...allMembers, ...normalizedEntityUsers];
+            } catch (err) {
+                console.warn('Failed to fetch entity users for recurring tasks:', err);
             }
+
+            // Deduplicate
+            const uniqueMembers = Array.from(new Map(allMembers.map(item => [item.id, item])).values());
+            setTeamMembers(uniqueMembers);
 
             // STOP LOADING HERE - Show the list immediately (Tasks + Team Names ready)
             setIsLoading(false);

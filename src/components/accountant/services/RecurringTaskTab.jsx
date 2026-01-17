@@ -20,7 +20,7 @@ import {
   listServices,
   listTeamMembers,
   getTags,
-  listAllEntityUsers
+  listAllClientUsers
 } from '@/lib/api';
 
 const RecurringTaskTab = ({ service, onUpdate }) => {
@@ -51,7 +51,7 @@ const RecurringTaskTab = ({ service, onUpdate }) => {
         listTeamMembers(user.access_token),
         getTags(user.agency_id, user.access_token),
         listRecurringTasks(user.agency_id, user.access_token, null, 1, 100, service.id), // Filter by service_id
-        listAllEntityUsers(user.agency_id, user.access_token)
+        listAllClientUsers(user.access_token)
       ]);
 
       if (results[0].status === 'fulfilled') {

@@ -7,7 +7,7 @@ import { Loader2, Repeat, LayoutGrid, List, Plus, History } from 'lucide-react';
 import TaskList from '@/components/accountant/tasks/TaskList.jsx';
 import TaskKanbanView from '@/components/accountant/tasks/TaskKanbanView.jsx';
 import NewTaskForm from '@/components/accountant/tasks/NewTaskForm.jsx';
-import { listTasks, createTask, updateTask, deleteTask as apiDeleteTask, listClients, listServices, listTeamMembers, getTags, listTaskStages } from '@/lib/api';
+import { listTasks, createTask, updateTask, deleteTask as apiDeleteTask, listClients, listServices, listTeamMembers, getTags, listTaskStages, listAllClientUsers } from '@/lib/api';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -101,6 +101,10 @@ const TaskManagementPage = ({ entityId, entityName }) => {
                 console.warn('Failed to fetch stages:', err);
                 return [];
             });
+            const entityUsersPromise = listAllClientUsers(user.access_token).catch(err => {
+                console.warn('Failed to fetch entity users:', err);
+                return [];
+            });
 
             // 2. CRITICAL PHASE: Wait ONLY for Tasks and Team Members
             // This is the minimum required data to render the main table structure usefuly
@@ -124,8 +128,8 @@ const TaskManagementPage = ({ entityId, entityName }) => {
             // Handling as a group ensures we don't cause too many re-renders, but since they are separate states,
             // we could also just await them one by one if we wanted "streaming" updates. 
             // Here, grouped update is fine and safer for performance.
-            Promise.allSettled([clientsPromise, servicesPromise, tagsPromise, stagesPromise])
-                .then(([clientsRes, servicesRes, tagsRes, stagesRes]) => {
+            Promise.allSettled([clientsPromise, servicesPromise, tagsPromise, stagesPromise, entityUsersPromise])
+                .then(([clientsRes, servicesRes, tagsRes, stagesRes, entityUsersRes]) => {
                     // Update state only if component is still mounted (React handles this mostly, but good practice)
                     if (clientsRes.status === 'fulfilled') {
                         setClients(Array.isArray(clientsRes.value) ? clientsRes.value : (clientsRes.value?.items || []));
@@ -140,6 +144,27 @@ const TaskManagementPage = ({ entityId, entityName }) => {
                         const stagesData = stagesRes.value;
                         const stagesArray = Array.isArray(stagesData) ? stagesData : (stagesData?.items || []);
                         setStages([...stagesArray]);
+                    }
+                    if (entityUsersRes.status === 'fulfilled') {
+                        const res = entityUsersRes.value;
+                        const entityUsers = Array.isArray(res) ? res : (res?.items || res?.users || []);
+
+                        // Normalize entity users
+                        const normalizedEntityUsers = entityUsers.map(u => ({
+                            ...u,
+                            id: u.user_id || u.id,
+                            name: u.name || u.full_name || u.email,
+                            role: u.role || 'Client User'
+                        }));
+
+                        // Merge with existing teamMembers (which were loaded in critical phase)
+                        // We use functional update to ensure we have latest state if needed, though here we just want to ADD to what we have.
+                        setTeamMembers(prev => {
+                            const combined = [...prev, ...normalizedEntityUsers];
+                            // Simple dedup by ID
+                            const unique = Array.from(new Map(combined.map(item => [item.id, item])).values());
+                            return unique;
+                        });
                     }
                 })
                 .catch(err => console.warn('Background data fetch warning:', err));
