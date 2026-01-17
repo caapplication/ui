@@ -3,7 +3,7 @@ import { useAuth } from '@/hooks/useAuth.jsx';
 import { useToast } from '@/components/ui/use-toast';
 import { Loader2, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import NewRecurringTaskForm from '@/components/accountant/tasks/NewRecurringTaskForm.jsx';
+import NewTaskForm from '@/components/accountant/tasks/NewTaskForm.jsx';
 import RecurringTaskList from '@/components/accountant/tasks/RecurringTaskList.jsx';
 import {
   Dialog,
@@ -86,9 +86,28 @@ const RecurringTaskTab = ({ service, onUpdate }) => {
     fetchData();
   }, [user, service.id]);
 
-  const handleCreate = async (taskData) => {
+  const handleCreate = async (taskData, isEdit) => {
     try {
-      const finalTaskData = { ...taskData, service_id: service.id };
+      // Map NewTaskForm data to Recurring Task API format
+      const finalTaskData = {
+        title: taskData.title,
+        client_id: taskData.client_id,
+        service_id: service.id,
+        description: taskData.description,
+        assigned_to: taskData.assigned_to,
+        priority: taskData.priority,
+        tag_id: taskData.tag_id,
+
+        frequency: taskData.recurrence_frequency,
+        interval: taskData.recurrence_interval,
+        start_date: taskData.recurrence_start_date,
+        day_of_week: taskData.recurrence_day_of_week,
+        day_of_month: taskData.recurrence_day_of_month,
+        due_date_offset: taskData.due_date_offset,
+        target_date_offset: taskData.target_date_offset,
+        is_active: true
+      };
+
       await createRecurringTask(finalTaskData, user.agency_id, user.access_token);
       toast({
         title: 'Recurring Task Created',
@@ -105,10 +124,31 @@ const RecurringTaskTab = ({ service, onUpdate }) => {
     }
   };
 
-  const handleUpdate = async (taskData) => {
+  const handleUpdate = async (taskData, isEdit) => {
     try {
       if (!editingTask) return;
-      const finalTaskData = { ...taskData, service_id: service.id };
+
+      const finalTaskData = {
+        title: taskData.title,
+        client_id: taskData.client_id,
+        service_id: service.id,
+        description: taskData.description,
+        assigned_to: taskData.assigned_to,
+        priority: taskData.priority,
+        tag_id: taskData.tag_id,
+
+        frequency: taskData.recurrence_frequency,
+        interval: taskData.recurrence_interval,
+        start_date: taskData.recurrence_start_date,
+        day_of_week: taskData.recurrence_day_of_week,
+        day_of_month: taskData.recurrence_day_of_month,
+        due_date_offset: taskData.due_date_offset,
+        target_date_offset: taskData.target_date_offset,
+        is_active: true // Preserve existing active state if possible, but NewTaskForm doesn't have is_active toggle? 
+        // Assuming we keep it active or need to fetch it.
+        // For now, simpler to default true or keep existing if handled elsewhere.
+      };
+
       await updateRecurringTask(editingTask.id, finalTaskData, user.agency_id, user.access_token);
       toast({
         title: 'Recurring Task Updated',
@@ -195,16 +235,28 @@ const RecurringTaskTab = ({ service, onUpdate }) => {
             </DialogTitle>
           </DialogHeader>
           <div className="p-2">
-            <NewRecurringTaskForm
+            <NewTaskForm
               onSave={editingTask ? handleUpdate : handleCreate}
               onCancel={() => setIsModalOpen(false)}
               clients={clients}
               services={services}
               teamMembers={teamMembers}
               tags={tags}
-              recurringTask={editingTask}
+              // Map existing recurring task to NewTaskForm expectation
+              task={editingTask ? {
+                ...editingTask,
+                is_recurring: true,
+                recurrence_frequency: editingTask.frequency,
+                recurrence_interval: editingTask.interval,
+                recurrence_start_date: editingTask.start_date,
+                recurrence_day_of_week: editingTask.day_of_week,
+                recurrence_day_of_month: editingTask.day_of_month,
+                // recurrence_start_month // derive?
+                due_date_offset: editingTask.due_date_offset,
+                target_date_offset: editingTask.target_date_offset
+              } : null}
+              isRecurringOnly={true}
               fixedServiceId={service.id}
-              isEmbedded={true}
             />
           </div>
         </DialogContent>

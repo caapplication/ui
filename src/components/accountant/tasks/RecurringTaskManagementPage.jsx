@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth.jsx';
 import { useToast } from '@/components/ui/use-toast';
 import { Loader2, Plus, RefreshCw, ArrowLeft, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import RecurringTaskList from '@/components/accountant/tasks/RecurringTaskList.jsx';
-import NewRecurringTaskForm from '@/components/accountant/tasks/NewRecurringTaskForm.jsx';
+import NewTaskForm from '@/components/accountant/tasks/NewTaskForm.jsx';
 import {
     listRecurringTasks,
     createRecurringTask,
@@ -214,9 +214,29 @@ const RecurringTaskManagementPage = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user?.agency_id, user?.access_token, authLoading, page, activeFilter, itemsPerPage]); // Added page, activeFilter, itemsPerPage dependencies
 
-    const handleCreate = async (taskData) => {
+    const handleCreate = async (taskData, isEdit) => {
         try {
-            await createRecurringTask(taskData, user.agency_id, user.access_token);
+            // Map NewTaskForm data to Recurring Task API format
+            const finalTaskData = {
+                title: taskData.title,
+                client_id: taskData.client_id,
+                service_id: taskData.service_id === 'none' ? null : taskData.service_id,
+                description: taskData.description,
+                assigned_to: taskData.assigned_to,
+                priority: taskData.priority,
+                tag_id: taskData.tag_id,
+
+                frequency: taskData.recurrence_frequency,
+                interval: taskData.recurrence_interval,
+                start_date: taskData.recurrence_start_date,
+                day_of_week: taskData.recurrence_day_of_week,
+                day_of_month: taskData.recurrence_day_of_month,
+                due_date_offset: taskData.due_date_offset,
+                target_date_offset: taskData.target_date_offset,
+                is_active: true
+            };
+
+            await createRecurringTask(finalTaskData, user.agency_id, user.access_token);
             toast({
                 title: 'Recurring Task Created',
                 description: 'The recurring task has been created successfully.',
@@ -232,11 +252,32 @@ const RecurringTaskManagementPage = () => {
         }
     };
 
-    const handleUpdate = async (taskId, taskData) => {
+    const handleUpdate = async (taskData, isEdit) => {
         try {
+            if (!editingTask) return;
             const agencyId = user?.agency_id || localStorage.getItem('agency_id');
             const accessToken = user?.access_token || localStorage.getItem('accessToken');
-            await updateRecurringTask(taskId, taskData, agencyId, accessToken);
+
+            const finalTaskData = {
+                title: taskData.title,
+                client_id: taskData.client_id,
+                service_id: taskData.service_id === 'none' ? null : taskData.service_id,
+                description: taskData.description,
+                assigned_to: taskData.assigned_to,
+                priority: taskData.priority,
+                tag_id: taskData.tag_id,
+
+                frequency: taskData.recurrence_frequency,
+                interval: taskData.recurrence_interval,
+                start_date: taskData.recurrence_start_date,
+                day_of_week: taskData.recurrence_day_of_week,
+                day_of_month: taskData.recurrence_day_of_month,
+                due_date_offset: taskData.due_date_offset,
+                target_date_offset: taskData.target_date_offset,
+                is_active: editingTask.is_active // Preserve existing active state
+            };
+
+            await updateRecurringTask(editingTask.id, finalTaskData, agencyId, accessToken);
             toast({
                 title: 'Recurring Task Updated',
                 description: 'The recurring task has been updated successfully.',
@@ -519,14 +560,26 @@ const RecurringTaskManagementPage = () => {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -20 }}
                     >
-                        <NewRecurringTaskForm
-                            onSave={view === 'new' ? handleCreate : (data) => handleUpdate(editingTask.id, data)}
+                        <NewTaskForm
+                            onSave={view === 'new' ? handleCreate : handleUpdate}
                             onCancel={handleCancel}
                             clients={clients}
                             services={services}
                             teamMembers={teamMembers}
                             tags={tags}
-                            recurringTask={editingTask}
+                            // Map existing recurring task to NewTaskForm expectation
+                            task={editingTask ? {
+                                ...editingTask,
+                                is_recurring: true,
+                                recurrence_frequency: editingTask.frequency,
+                                recurrence_interval: editingTask.interval,
+                                recurrence_start_date: editingTask.start_date,
+                                recurrence_day_of_week: editingTask.day_of_week,
+                                recurrence_day_of_month: editingTask.day_of_month,
+                                due_date_offset: editingTask.due_date_offset,
+                                target_date_offset: editingTask.target_date_offset
+                            } : null}
+                            isRecurringOnly={true}
                         />
                     </motion.div>
                 )}

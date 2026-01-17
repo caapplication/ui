@@ -27,7 +27,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, task, stages = [], selectedOrg }) => {
+const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, task, stages = [], selectedOrg, isRecurringOnly = false, fixedServiceId = null }) => {
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -57,7 +57,9 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
     recurrence_date: null,
     recurrence_day_of_month: null,
     recurrence_start_month: null,
-    recurrence_start_date: null
+    recurrence_start_date: null,
+    due_date_offset: 0,
+    target_date_offset: null
   });
 
   const [isSaving, setIsSaving] = useState(false);
@@ -220,11 +222,21 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
         recurrence_day_of_month: task.recurrence_day_of_month || null,
         recurrence_start_month: task.recurrence_start_date ? new Date(task.recurrence_start_date).getMonth() : null,
         recurrence_start_date: task.recurrence_start_date ? new Date(task.recurrence_start_date) : null,
+        recurrence_start_date: task.recurrence_start_date ? new Date(task.recurrence_start_date) : null,
         client_user_id: task.client_user_id || '',
         due_time: task.due_time || '12:00',
+        due_date_offset: task.due_date_offset || 0,
+        target_date_offset: task.target_date_offset || null
       });
+    } else if (isRecurringOnly) {
+      setFormData(prev => ({
+        ...prev,
+        is_recurring: true,
+        service_id: fixedServiceId || prev.service_id,
+        recurrence_frequency: 'daily' // Default for recurring only
+      }));
     }
-  }, [task, selectedOrg]);
+  }, [task, selectedOrg, isRecurringOnly, fixedServiceId]);
 
   // =========================
   // Simple handlers
@@ -447,7 +459,9 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
         }
 
         return formData.recurrence_start_date ? format(formData.recurrence_start_date, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd');
-      })()
+      })(),
+      due_date_offset: formData.is_recurring ? (formData.due_date_offset || 0) : 0,
+      target_date_offset: formData.is_recurring ? formData.target_date_offset : null
     };
 
     try {
@@ -487,8 +501,8 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
 
             <div>
               <Label htmlFor="service_id" className="mb-2">Service</Label>
-              <Select name="service_id" onValueChange={(v) => handleSelectChange('service_id', v)} value={formData.service_id || ''} disabled={isSaving}>
-                <SelectTrigger><SelectValue placeholder="Select a service" /></SelectTrigger>
+              <Select name="service_id" onValueChange={(v) => handleSelectChange('service_id', v)} value={formData.service_id || ''} disabled={isSaving || (!!fixedServiceId && isRecurringOnly)}>
+                <SelectTrigger><SelectValue placeholder="Select a service (optional)" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">None</SelectItem>
                   {services && services.length > 0 ? (
@@ -689,15 +703,17 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
 
         <div className="glass-pane p-6 rounded-lg">
           <div className="flex items-center space-x-2 mb-4">
-            <Checkbox
-              id="is_recurring"
-              checked={formData.is_recurring}
-              onCheckedChange={(c) => {
-                handleSwitchChange('is_recurring', c);
-              }}
-              disabled={isSaving}
-            />
-            <Label htmlFor="is_recurring" className="text-xl font-semibold cursor-pointer">Make this task recurring</Label>
+            {!isRecurringOnly && (
+              <Checkbox
+                id="is_recurring"
+                checked={formData.is_recurring}
+                onCheckedChange={(c) => handleSwitchChange('is_recurring', c)}
+                disabled={isSaving}
+              />
+            )}
+            <Label htmlFor="is_recurring" className="text-xl font-semibold cursor-pointer">
+              {isRecurringOnly ? 'Recurrence Configuration' : 'Make this task recurring'}
+            </Label>
           </div>
 
           {formData.is_recurring && (
@@ -756,7 +772,7 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
                     </PopoverContent>
                   </Popover> */}
                 </div>
-              </div >
+              </div>
 
               {
                 formData.recurrence_frequency === 'daily' && (
@@ -823,6 +839,9 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
                 )
               }
 
+
+
+
               {
                 ['quarterly', 'half_yearly', 'yearly'].includes(formData.recurrence_frequency) && (
                   <div className="grid grid-cols-2 gap-4">
@@ -876,9 +895,13 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
                   </div>
                 )
               }
-            </div >
-          )}
-        </div >
+
+              {/* Offset fields for Recurring Tasks */}
+
+            </div>
+          )
+          }
+        </div>
 
         <div className="flex justify-end pt-6 border-t border-white/10">
           <Button onClick={handleSubmit} disabled={isSaving} style={isSaving ? { opacity: 0.5, pointerEvents: 'none' } : {}}>
@@ -886,8 +909,8 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
             {task ? 'Save Changes' : 'Create Task'}
           </Button>
         </div>
-      </form >
-    </div >
+      </form>
+    </div>
   );
 };
 
