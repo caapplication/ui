@@ -484,6 +484,24 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
               </div>
             </div>
 
+
+            <div>
+              <Label htmlFor="service_id" className="mb-2">Service</Label>
+              <Select name="service_id" onValueChange={(v) => handleSelectChange('service_id', v)} value={formData.service_id || ''} disabled={isSaving}>
+                <SelectTrigger><SelectValue placeholder="Select a service" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {services && services.length > 0 ? (
+                    services.map(service => (
+                      <SelectItem key={service.id} value={service.id}>{service.name}</SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="no-services" disabled>No services found</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
             {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
               <div>
                 <Label htmlFor="client_id" className="mb-2">Client</Label>
@@ -507,6 +525,7 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
                 />
               </div>
             )}
+
 
             <div>
               <Label htmlFor="assigned_user_id" className="mb-2 flex items-center gap-2">
