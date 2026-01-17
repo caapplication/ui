@@ -501,7 +501,7 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
 
             <div>
               <Label htmlFor="service_id" className="mb-2">Service</Label>
-              <Select name="service_id" onValueChange={(v) => handleSelectChange('service_id', v)} value={formData.service_id || ''} disabled={isSaving || (!!fixedServiceId && isRecurringOnly)}>
+              <Select name="service_id" onValueChange={(v) => handleSelectChange('service_id', v)} value={formData.service_id || ''} disabled={isSaving || !!fixedServiceId}>
                 <SelectTrigger><SelectValue placeholder="Select a service (optional)" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">None</SelectItem>

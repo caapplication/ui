@@ -19,7 +19,8 @@ import {
   listClients,
   listServices,
   listTeamMembers,
-  getTags
+  getTags,
+  listAllEntityUsers
 } from '@/lib/api';
 
 const RecurringTaskTab = ({ service, onUpdate }) => {
@@ -49,7 +50,8 @@ const RecurringTaskTab = ({ service, onUpdate }) => {
         listServices(user.agency_id, user.access_token),
         listTeamMembers(user.access_token),
         getTags(user.agency_id, user.access_token),
-        listRecurringTasks(user.agency_id, user.access_token, null, 1, 100, service.id) // Filter by service_id
+        listRecurringTasks(user.agency_id, user.access_token, null, 1, 100, service.id), // Filter by service_id
+        listAllEntityUsers(user.agency_id, user.access_token)
       ]);
 
       if (results[0].status === 'fulfilled') {
@@ -62,6 +64,40 @@ const RecurringTaskTab = ({ service, onUpdate }) => {
         const membersData = Array.isArray(results[2].value) ? results[2].value : (results[2].value?.items || []);
         setTeamMembers(membersData);
       }
+      // Handle Entity Users (Client Users)
+      let entityUsers = [];
+      if (results[5].status === 'fulfilled') {
+        // Assuming listAllEntityUsers returns a list or { items: [] }
+        const res = results[5].value;
+        entityUsers = Array.isArray(res) ? res : (res?.items || res?.users || []);
+      }
+
+      // Combine for the list view to resolve names
+      // We store this in a separate state or merge into teamMembers for the view?
+      // RecurringTaskList uses 'teamMembers' prop to look up users. 
+      // We can just merge them into setTeamMembers, or better, keep separate and merge on render or pass merged.
+      // Merging into setTeamMembers is easiest for now given the prop name.
+      if (results[2].status === 'fulfilled' && results[5].status === 'fulfilled') {
+        const membersData = Array.isArray(results[2].value) ? results[2].value : (results[2].value?.items || []);
+        // Normalize entity users to have { id, name, ... }
+        const normalizedEntityUsers = entityUsers.map(u => ({
+          ...u,
+          id: u.user_id || u.id,
+          name: u.name || u.full_name || u.email,
+          role: u.role || 'Client User'
+        }));
+
+        // Combine and deduplicate by ID just in case
+        const combined = [...membersData, ...normalizedEntityUsers];
+        // Simple dedup
+        const unique = Array.from(new Map(combined.map(item => [item.id, item])).values());
+        setTeamMembers(unique);
+      } else if (results[2].status === 'fulfilled') {
+        // Fallback if entity fetch fails
+        const membersData = Array.isArray(results[2].value) ? results[2].value : (results[2].value?.items || []);
+        setTeamMembers(membersData);
+      }
+
       if (results[3].status === 'fulfilled') {
         setTags(Array.isArray(results[3].value) ? results[3].value : []);
       }
@@ -206,10 +242,10 @@ const RecurringTaskTab = ({ service, onUpdate }) => {
     <div className="p-6">
       <div className="space-y-4">
         <div className="flex justify-between items-center">
-          <h3 className="text-xl font-semibold text-white">Recurring Tasks for {service.name}</h3>
+          <h3 className="text-xl font-semibold text-white">Tasks for {service.name}</h3>
           <Button onClick={openNewTaskModal} className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white shadow-lg">
             <Plus className="w-4 h-4 mr-2" />
-            Create Recurring Task
+            Create Task
           </Button>
         </div>
         <RecurringTaskList
