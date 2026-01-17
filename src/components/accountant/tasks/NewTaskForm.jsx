@@ -344,7 +344,7 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
       title: formData.title,
       client_id: isCAUser ? (formData.client_id || null) : null,
       client_user_id: isCAUser ? (formData.client_user_id || null) : null,
-      service_id: null,
+      service_id: formData.service_id && formData.service_id !== 'none' ? formData.service_id : null,
       stage_id: stageId || null,
       due_date: formData.due_date ? format(formData.due_date, 'yyyy-MM-dd') : null,
       description: formData.description,
