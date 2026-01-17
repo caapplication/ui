@@ -111,6 +111,11 @@ const RecurringTaskManagementPage = () => {
                         setPage(1); // Reset to first page
                         // Optimization: We could immediately re-fetch here but next render will handle it or user will see empty
                     }
+                } else if (Array.isArray(res)) {
+                    // Fallback if API returns just an array (no pagination metadata)
+                    console.warn('API returned array directly, pagination metadata missing.');
+                    setTotalItems(res.length);
+                    setTotalPages(Math.ceil(res.length / itemsPerPage) || 1);
                 }
             } else {
                 console.error('Error fetching recurring tasks:', results[0].reason);
@@ -185,7 +190,7 @@ const RecurringTaskManagementPage = () => {
             // Ensure loading stops if something catastrophic happens in block 1
             setIsLoading(false);
         }
-    }, [user, toast]);
+    }, [user, toast, page, itemsPerPage, activeFilter]);
 
     // Separate fetch for Form data (only when needed)
     const fetchFormData = async () => {
@@ -550,7 +555,7 @@ const RecurringTaskManagementPage = () => {
                                     </div>
                                 </div>
 
-                                <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-4 mr-20">
                                     <span className="text-sm text-gray-400">
                                         Page {page} of {totalPages} ({totalItems} total)
                                     </span>
