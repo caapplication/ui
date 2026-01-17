@@ -155,12 +155,50 @@ const buildFileTree = (folders, documents) => {
     }
   });
 
-  // Don't add documents to root folder - only folders should be in root
-  // documents.forEach(doc => {
-  //   if (!doc.folder_id) {
-  //     root.children.push({ ...doc, is_folder: false });
-  //   }
-  // });
+  // Add documents to their respective folders
+  documentsArray.forEach(doc => {
+    if (doc.id) {
+      const folderId = doc.folder_id || 'root';
+      const nodeToAdd = { ...doc, is_folder: false };
+
+      if (folderId === 'root') {
+        // Only if not already present (prevent duplicates if API returns mixed structure)
+        if (!root.children.some(child => child.id === doc.id)) {
+          //   root.children.push(nodeToAdd); // Commented out based on original logic: "Don't add documents to root folder"
+        }
+      } else if (allItems[folderId]) {
+        if (!allItems[folderId].children) {
+          allItems[folderId].children = [];
+        }
+        // Prevent duplicates
+        if (!allItems[folderId].children.some(child => child.id === doc.id)) {
+          allItems[folderId].children.push(nodeToAdd);
+        }
+      } else {
+        // Fallback: If folder ID exists but folder is not in the list (e.g. parent folder missing from API)
+        // We create a virtual folder to hold these files so they are not lost.
+        // Check if we already created a virtual folder for this ID
+        if (!allItems[folderId]) {
+          const virtualFolder = {
+            id: folderId,
+            name: `Folder ${folderId}`, // Placeholder name as we don't have the real name
+            is_folder: true,
+            children: [nodeToAdd]
+          };
+          allItems[folderId] = virtualFolder;
+          // Add to root for visibility (or could try to resolve parent if known)
+          if (Array.isArray(root.children)) {
+            root.children.push(virtualFolder);
+          }
+        } else {
+          // Virtual folder already created by previous sibling document
+          if (!allItems[folderId].children.some(child => child.id === doc.id)) {
+            allItems[folderId].children.push(nodeToAdd);
+          }
+        }
+      }
+    }
+  });
 
   return root;
 };
@@ -216,9 +254,23 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
     return entityId;
   };
 
+  const { entities } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Initialize state directly from URL to prevent "flash" and race conditions
+  const [realSelectedClientId, setRealSelectedClientId] = useState(() => {
+    const param = searchParams.get('clientId');
+    return (param && param !== 'null' && param !== '') ? param : null;
+  });
+
+  const [currentFolderId, setCurrentFolderId] = useState(() => {
+    const param = searchParams.get('folderId');
+    return (param && param !== 'null') ? param : 'root';
+  });
+
   const [documentsState, setDocumentsState] = useState({ id: 'root', name: 'Root', is_folder: true, children: [] });
   const [sharedDocuments, setSharedDocuments] = useState([]);
-  const [currentFolderId, setCurrentFolderId] = useState('root');
+  // const [currentFolderId, setCurrentFolderId] = useState('root'); // Removed: Initialized above
   const [isLoading, setIsLoading] = useState(true);
   const [isMutating, setIsMutating] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -246,34 +298,13 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   const [activeTab, setActiveTab] = useState('myFiles'); // 'myFiles' or 'sharedWithMe'
   const [clientsForFilter, setClientsForFilter] = useState([]);
   const [isClientsLoading, setIsClientsLoading] = useState(false);
-  const [realSelectedClientId, setRealSelectedClientId] = useState(null); // The actual client selected, or null for personal
+  // const [realSelectedClientId, setRealSelectedClientId] = useState(null); // Removed: Initialized above
   const [openClientCombobox, setOpenClientCombobox] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState(null);
   const [collabSelectedClientId, setCollabSelectedClientId] = useState(null); // 'my-team' or client ID
 
-  const { entities } = useAuth();
-  const [searchParams] = useSearchParams();
+  // Removed redundant useEffects for URL parsing (handled in initial state)
 
-  // Handle URL parameters for navigation from Dashboard
-  useEffect(() => {
-    const folderIdParam = searchParams.get('folderId');
-    const clientIdParam = searchParams.get('clientId');
-
-    if (clientIdParam) {
-      // If empty string or 'null', it means Personal Docs (set to null)
-      // BUT, be careful. If we navigate to a Client User's doc, entityId param might be there?
-      // For CA: clientIdParam is the entity ID.
-      if (clientIdParam !== 'null' && clientIdParam !== '') {
-        setRealSelectedClientId(clientIdParam);
-      } else {
-        setRealSelectedClientId(null);
-      }
-    }
-
-    if (folderIdParam && folderIdParam !== 'null') {
-      setCurrentFolderId(folderIdParam);
-    }
-  }, [searchParams]);
 
   useEffect(() => {
     if (quickAction === 'upload-document') {
@@ -319,6 +350,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   }, [user, toast]);
 
   const fetchDocuments = useCallback(async (isRefresh = false) => {
+    console.log('fetchDocuments called', { isRefresh, realSelectedClientId, entityId: user?.role === 'CA_ACCOUNTANT' ? realSelectedClientId : entityId });
     if (!user?.access_token) {
       setIsLoading(false);
       return;
@@ -344,11 +376,16 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
       setIsLoading(true);
     }
     try {
+      console.log('Fetching from API for entity:', entityToFetch);
       const data = await getDocuments(entityToFetch, user.access_token);
+      console.log('API Response:', data);
       // Ensure data has folders and documents arrays
       const folders = Array.isArray(data?.folders) ? data.folders : [];
       const documents = Array.isArray(data?.documents) ? data.documents : [];
+      console.log('Building file tree with:', { foldersCount: folders.length, documentsCount: documents.length });
+      console.log('Folder IDs:', folders.map(f => f.id).join(', '));
       const fileTree = buildFileTree(folders, documents);
+      console.log('Built File Tree:', fileTree);
       setDocumentsState(fileTree);
     } catch (error) {
       console.error('Error fetching documents:', error);
@@ -391,26 +428,29 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
     }
   }, [user?.access_token, user?.role, realSelectedClientId, toast]);
 
+  // REMOVED: Conflicting useEffect that was resetting folder to root
+  // The state is now single-source-of-truth initialized from URL, and updates push to URL.
+  // No need to "sync back" URL -> State unless user hits Back button (handled by router re-mount or popstate if we used a listener,
+  // but react-router's useSearchParams + initial state keying usually suffices for soft navs).
+  // Actually, for Back button support without full reload, we might need a simple effect:
   useEffect(() => {
-    // Reset view to root when filtering changes
-    // UNLESS this change is consistent with the URL params (deep linking) which also specifies a folderId
+    // Listen for URL changes via popstate (Back/Forward buttons)
+    // BUT, we must NOT reset if the change came from our own `handleFolderNavigation`.
+    // Simplest way: just respect URL if it differs from state?
+    // For now, let's rely on the router. If back button triggers re-render, initial state logic runs? No, only on mount.
+    // So we DO need to listen to searchParams changes, BUT carefully.
+    const urlFolderId = searchParams.get('folderId') || 'root';
     const urlClientId = searchParams.get('clientId');
-    const urlFolderId = searchParams.get('folderId');
-
-    // Normalize urlClientId to match realSelectedClientId format (null for personal)
-    // If urlClientId is missing/empty/null string, it implies personal docs (realSelectedClientId should be null)
     const normalizedUrlClientId = (urlClientId && urlClientId !== 'null' && urlClientId !== '') ? urlClientId : null;
 
-    // We only preserve the folderId if:
-    // 1. We are in the My Files tab (standard view)
-    // 2. The current client matches what's in the URL (meaning we are likely in the initial sync phase or the user manually navigated to this state)
-    // 3. There is actually a folderId in the URL
-    if (activeTab === 'myFiles' && realSelectedClientId === normalizedUrlClientId && urlFolderId && urlFolderId !== 'null') {
+    // Only update state if URL differs from current state (handling external nav/back button)
+    if (urlFolderId !== currentFolderId) {
       setCurrentFolderId(urlFolderId);
-    } else {
-      setCurrentFolderId('root');
     }
-  }, [realSelectedClientId, activeTab, searchParams]);
+    if (normalizedUrlClientId !== realSelectedClientId) {
+      setRealSelectedClientId(normalizedUrlClientId);
+    }
+  }, [searchParams]); // Only re-run when URL params change
 
   useEffect(() => {
     // Wait for user to be available
@@ -433,6 +473,33 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
       fetchSharedDocuments();
     }
   }, [fetchDocuments, fetchSharedDocuments, activeTab, realSelectedClientId, user?.role, user?.access_token, entityId]);
+
+  // Helper to update URL params
+  const updateUrl = (targetFolderId, targetClientId) => {
+    const params = {};
+    if (targetFolderId && targetFolderId !== 'root') {
+      params.folderId = targetFolderId;
+    }
+    if (targetClientId) {
+      params.clientId = targetClientId;
+    }
+    setSearchParams(params);
+  };
+
+  // Handler for folder navigation
+  const handleFolderNavigation = (folderId) => {
+    setCurrentFolderId(folderId);
+    setSelectedFolder(null);
+    updateUrl(folderId, realSelectedClientId);
+  };
+
+  // Handler for client change
+  const handleClientChange = (clientId) => {
+    setRealSelectedClientId(clientId);
+    setCurrentFolderId('root');
+    setSelectedFolder(null);
+    updateUrl('root', clientId);
+  };
 
   const currentPath = useMemo(() => findPath(documentsState, currentFolderId), [documentsState, currentFolderId]);
   const currentFolder = currentPath[currentPath.length - 1];
@@ -676,7 +743,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
     // If we're viewing the folder that's being deleted, navigate to parent first
     if (activeTab === 'myFiles' && currentFolderId === deletedItem.id && deletedItem.type === 'folder') {
       const parentFolder = currentPath.length > 1 ? currentPath[currentPath.length - 2] : null;
-      setCurrentFolderId(parentFolder ? parentFolder.id : 'root');
+      handleFolderNavigation(parentFolder ? parentFolder.id : 'root');
     }
 
     // Optimistic deletion - remove from UI immediately
@@ -981,7 +1048,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
 
   const handleView = async (doc) => {
     if (doc.is_folder) {
-      setCurrentFolderId(doc.id);
+      handleFolderNavigation(doc.id);
       return;
     }
     toast({ title: "Loading...", description: `Opening ${doc.name}.` });
@@ -1018,8 +1085,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
         <div className="flex items-center space-x-1 sm:space-x-2 text-gray-400 mb-4 sm:mb-8 text-sm sm:text-base overflow-x-auto pb-2">
           {currentFolderId !== 'root' && currentPath.length > 1 && (
             <Button variant="ghost" size="sm" onClick={() => {
-              setSelectedFolder(null);
-              setCurrentFolderId(currentPath[currentPath.length - 2].id);
+              handleFolderNavigation(currentPath[currentPath.length - 2].id);
             }} className="h-8 sm:h-9 text-xs sm:text-sm flex-shrink-0">
               <ArrowLeft className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" /> <span className="hidden sm:inline">Back</span>
             </Button>
@@ -1027,8 +1093,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
           {currentPath.map((folder, index) => (
             <React.Fragment key={folder.id}>
               <span onClick={() => {
-                setSelectedFolder(null);
-                setCurrentFolderId(folder.id);
+                handleFolderNavigation(folder.id);
               }} className="cursor-pointer hover:text-white transition-colors whitespace-nowrap truncate max-w-[100px] sm:max-w-none">{folder.name}</span>
               {index < currentPath.length - 1 && <span className="text-gray-600 flex-shrink-0">/</span>}
             </React.Fragment>
@@ -1050,7 +1115,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                     }`}
                   onClick={() => {
                     // Single click opens folder
-                    setCurrentFolderId(item.id);
+                    handleFolderNavigation(item.id);
                   }}
                 >
                   <div className="relative mb-2">
@@ -1274,17 +1339,10 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
               <Button
                 variant="outline"
                 onClick={() => {
-                  setCurrentFolderId('root');
-                  setRealSelectedClientId(null);
+                  handleClientChange(null);
                   setSearchTerm('');
                   setClientsForFilter([]); // Resetting clients filter might be safer or not needed? Let's just reset the ID.
                   if (activeTab !== 'myFiles') setActiveTab('myFiles');
-
-                  // Clear URL params
-                  const newUrl = new URL(window.location);
-                  newUrl.searchParams.delete('folderId');
-                  newUrl.searchParams.delete('clientId');
-                  window.history.pushState({}, '', newUrl);
                 }}
               >
                 Back to My Documents
@@ -1360,9 +1418,6 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
           <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white">Documents</h1>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2 w-full xl:w-auto flex-wrap justify-end">
             <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-              <Button variant="outline" size="icon" onClick={handleRefresh} disabled={isRefreshing} className="h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0">
-                <RefreshCw className={`w-4 h-4 sm:w-5 sm:h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
-              </Button>
               <div className="relative flex-1 sm:w-64">
                 <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                 <Input placeholder="Search..." className="pl-9 sm:pl-12 h-9 sm:h-10 text-sm" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
@@ -1421,7 +1476,8 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                                 key={client.id}
                                 value={`${client.name} ${client.id}`}
                                 onSelect={() => {
-                                  setRealSelectedClientId(client.id === realSelectedClientId ? null : client.id);
+                                  const newClientId = client.id === realSelectedClientId ? null : client.id;
+                                  handleClientChange(newClientId);
                                   setOpenClientCombobox(false);
                                 }}
                               >

@@ -12,7 +12,7 @@ export const getDocuments = async (entityId, token) => {
     if (entityId) {
         params.append('entity_id', entityId);
     }
-    params.append('exclude_shared', 'true');
+    // params.append('exclude_shared', 'true');
     if (params.toString()) {
         url += `?${params.toString()}`;
     }
