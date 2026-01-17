@@ -14,7 +14,7 @@ const hasExpiredDocuments = (folder) => {
   if (!folder) return false;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  
+
   // Check documents in this folder
   if (folder.documents && folder.documents.length > 0) {
     const hasExpired = folder.documents.some(doc => {
@@ -25,14 +25,14 @@ const hasExpiredDocuments = (folder) => {
     });
     if (hasExpired) return true;
   }
-  
+
   // Check subfolders recursively
   if (folder.subfolders && folder.subfolders.length > 0) {
     return folder.subfolders.some(subfolder => {
       return hasExpiredDocuments(subfolder);
     });
   }
-  
+
   return false;
 };
 
@@ -42,7 +42,7 @@ const FolderIcon = ({ className = "w-20 h-20", hasExpired = false }) => {
   const folderTabColor = hasExpired ? "#EF4444" : "#5BA3F5";
   const folderHighlight = hasExpired ? "#F87171" : "#6BB6FF";
   const folderStroke = hasExpired ? "#B91C1C" : "#3A7BC8";
-  
+
   return (
     <div className={className} style={{ position: 'relative' }}>
       <svg viewBox="0 0 64 64" className="w-full h-full">
@@ -53,7 +53,7 @@ const FolderIcon = ({ className = "w-20 h-20", hasExpired = false }) => {
           stroke={folderStroke}
           strokeWidth="0.5"
         />
-        
+
         {/* Folder tab */}
         <path
           d="M 8 18 L 28 18 L 32 22 L 8 22 Z"
@@ -61,21 +61,21 @@ const FolderIcon = ({ className = "w-20 h-20", hasExpired = false }) => {
           stroke={folderColor}
           strokeWidth="0.5"
         />
-        
+
         {/* Folder highlight on tab */}
         <path
           d="M 8 18 L 18 18 L 18 20 L 8 20 Z"
           fill={folderHighlight}
           opacity="0.6"
         />
-        
+
         {/* Folder highlight on body */}
         <path
           d="M 8 22 L 8 30 L 56 30 L 56 22 L 32 22 L 28 18 L 8 18 Z"
           fill={folderHighlight}
           opacity="0.2"
         />
-        
+
         {/* Folder crease line */}
         <line
           x1="8"
@@ -174,9 +174,26 @@ const PublicDocumentView = () => {
     try {
       // Use the public download endpoint URL
       const downloadUrl = doc.url.startsWith('http') ? doc.url : `${FINANCE_API_BASE_URL}${doc.url}`;
-      window.open(downloadUrl, '_blank');
+
+      // Fetch as blob to force download with correct name
+      setLoading(true);
+      const response = await fetch(downloadUrl);
+      if (!response.ok) throw new Error('Download failed');
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = doc.name; // Use the name from the document object
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
     } catch (err) {
-      setError(err.message || 'Failed to open document');
+      console.error('Download error:', err);
+      setError(err.message || 'Failed to download document');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -239,7 +256,7 @@ const PublicDocumentView = () => {
           {/* Header - matching Documents.jsx style */}
           <div className="mb-4 sm:mb-6">
             <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-6">Shared Folder</h1>
-            
+
             {/* Breadcrumb - matching Documents.jsx style */}
             <div className="flex items-center space-x-1 sm:space-x-2 text-gray-400 mb-4 sm:mb-8 text-sm sm:text-base overflow-x-auto pb-2">
               {currentPath.length > 1 && (
@@ -263,16 +280,16 @@ const PublicDocumentView = () => {
                 // Check if folder has expired documents
                 const hasExpired = hasExpiredDocuments(item);
                 return (
-                  <motion.div 
-                    key={item.id} 
-                    initial={{ opacity: 0, y: 20 }} 
-                    animate={{ opacity: 1, y: 0 }} 
+                  <motion.div
+                    key={item.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: index * 0.05 }}
                     className="flex flex-col items-center cursor-pointer group relative p-2 sm:p-3 rounded-lg transition-all hover:bg-gray-800/30"
                     onClick={() => handleFolderClick(item)}
                   >
                     <div className="relative mb-2">
-                      <FolderIcon 
+                      <FolderIcon
                         className={`w-40 h-40 sm:w-48 sm:h-48 md:w-56 md:h-56 transition-transform group-hover:scale-110`}
                         hasExpired={hasExpired}
                       />
@@ -323,10 +340,7 @@ const PublicDocumentView = () => {
                               <FileText className="w-4 h-4 mr-2" />
                               View
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => {
-                              const downloadUrl = item.url.startsWith('http') ? item.url : `${FINANCE_API_BASE_URL}${item.url}`;
-                              window.open(downloadUrl, '_blank');
-                            }}>
+                            <DropdownMenuItem onClick={() => handleDocumentClick(item)}>
                               <Download className="w-4 h-4 mr-2" />
                               Download
                             </DropdownMenuItem>
@@ -344,10 +358,10 @@ const PublicDocumentView = () => {
           {!isSubFolder && documents.length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-2 sm:gap-4">
               {documents.map((item, index) => (
-                <motion.div 
-                  key={item.id} 
-                  initial={{ opacity: 0, y: 20 }} 
-                  animate={{ opacity: 1, y: 0 }} 
+                <motion.div
+                  key={item.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: index * 0.05 }}
                   className="flex flex-col items-center cursor-pointer group relative"
                   onDoubleClick={() => handleDocumentClick(item)}
@@ -358,22 +372,21 @@ const PublicDocumentView = () => {
                     </div>
                     {/* Action buttons on hover - matching Documents.jsx */}
                     <div className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-0.5 sm:gap-1">
-                      <Button 
-                        size="icon" 
-                        variant="secondary" 
+                      <Button
+                        size="icon"
+                        variant="secondary"
                         className="h-6 w-6 sm:h-7 sm:w-7 bg-gray-800/90 hover:bg-gray-700"
                         onClick={(e) => { e.stopPropagation(); handleDocumentClick(item) }}
                       >
                         <FileText className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                       </Button>
-                      <Button 
-                        size="icon" 
-                        variant="secondary" 
+                      <Button
+                        size="icon"
+                        variant="secondary"
                         className="h-6 w-6 sm:h-7 sm:w-7 bg-gray-800/90 hover:bg-gray-700"
                         onClick={(e) => {
                           e.stopPropagation();
-                          const downloadUrl = item.url.startsWith('http') ? item.url : `${FINANCE_API_BASE_URL}${item.url}`;
-                          window.open(downloadUrl, '_blank');
+                          handleDocumentClick(item);
                         }}
                       >
                         <Download className="w-3 h-3 sm:w-3.5 sm:h-3.5" />

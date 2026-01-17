@@ -231,6 +231,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   const [shareExpiryDate, setShareExpiryDate] = useState(null);
   const [withoutExpiryDate, setWithoutExpiryDate] = useState(false);
   const [shareLink, setShareLink] = useState('');
+  const [isGeneratingLink, setIsGeneratingLink] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -733,6 +734,8 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
     setLinkCopied(false);
     setShareEmails(''); // Reset emails when opening dialog
     setShareDialogOpen(true);
+    setIsGeneratingLink(true);
+    setShareLink('');
 
     // Generate public share token and link
     try {
@@ -758,6 +761,8 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
       const baseUrl = FINANCE_API_BASE_URL.replace('/api', '');
       const link = `${baseUrl}/api/documents/${doc.id}`;
       setShareLink(link);
+    } finally {
+      setIsGeneratingLink(false);
     }
   };
 
@@ -1651,7 +1656,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
       </motion.div>
 
       <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
-        <DialogContent className="sm:max-w-[500px] p-0 bg-gray-900 border-gray-700 [&>button]:hidden">
+        <DialogContent className="sm:max-w-[650px] p-0 bg-gray-900 border-gray-700 [&>button]:hidden">
           {/* Windows-style Header */}
           <div className="flex items-center justify-between p-4 border-b border-gray-700">
             <div className="flex items-center space-x-3">
@@ -1690,12 +1695,18 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
             <div className="space-y-2">
               <div className="flex items-center space-x-2 bg-gray-800/50 rounded-lg p-3 border border-gray-700">
                 <Link2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                <input
-                  type="text"
-                  value={shareLink}
-                  readOnly
-                  className="flex-1 bg-transparent text-white text-sm outline-none truncate"
-                />
+                {isGeneratingLink ? (
+                  <div className="flex-1 flex items-center gap-2 text-gray-500 text-sm">
+                    <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+                    Generating secure link...
+                  </div>
+                ) : (
+                  <Input
+                    value={shareLink}
+                    readOnly
+                    className="flex-1 bg-transparent border-none text-white text-sm focus-visible:ring-0 focus-visible:ring-offset-0 px-0"
+                  />
+                )}
                 <div className="flex items-center space-x-1">
                   <Button
                     variant="ghost"
