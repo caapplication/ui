@@ -123,6 +123,13 @@ const ProtectedContent = () => {
     }
   }, [user, currentEntity]);
 
+  // Sync currentEntity to localStorage for other components to use
+  useEffect(() => {
+    if (currentEntity) {
+      localStorage.setItem('entityId', currentEntity);
+    }
+  }, [currentEntity]);
+
   const getEntityName = (entityId) => {
     if (user.role === 'ENTITY_USER') return user.name;
     if (user.role !== 'CLIENT_USER') return user.name;

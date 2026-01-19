@@ -83,13 +83,24 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
 
     // Use clients from Clients table for AGENCY_ADMIN and CLIENT_USER
     if (user.role === 'AGENCY_ADMIN' || user.role === 'CLIENT_USER') {
-      // Return clients (even if empty initially) to avoid fallback to user.entities which causes duplicates from "first API"
-      return clients.filter(c => c.id && c.name);
+      const filteredClients = clients.filter(c => c.id && c.name);
+      if (filteredClients.length > 0) return filteredClients;
     }
 
-    // Fallback to user.entities for other roles
+    // Fallback to user.entities for other roles or if clients is empty
     return (user.entities || []).filter(e => e.id && e.name);
   }, [user, clients]);
+
+  // Auto-select first entity if none selected OR if current selection is not in the list
+  React.useEffect(() => {
+    if (entitiesToDisplay.length > 0) {
+      const isCurrentValid = currentEntity && entitiesToDisplay.some(e => String(e.id) === String(currentEntity));
+
+      if (!currentEntity || !isCurrentValid) {
+        setCurrentEntity(entitiesToDisplay[0].id);
+      }
+    }
+  }, [currentEntity, entitiesToDisplay, setCurrentEntity]);
 
   const variants = {
     expanded: { width: 300 },
@@ -148,7 +159,7 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
               className="mb-4 sm:mb-6"
             >
               {entitiesToDisplay.length > 0 && (
-                <Select onValueChange={handleEntityChange} value={currentEntity || ''}>
+                <Select onValueChange={handleEntityChange} value={currentEntity ? String(currentEntity) : ''}>
                   <SelectTrigger className="w-full text-sm sm:text-base glass-input">
                     <div className="flex items-center gap-2 sm:gap-3 truncate">
                       <Building className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 flex-shrink-0" />
@@ -157,7 +168,7 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
                   </SelectTrigger>
                   <SelectContent>
                     {entitiesToDisplay.map((entity) => (
-                      <SelectItem key={entity.id} value={entity.id}>
+                      <SelectItem key={entity.id} value={String(entity.id)}>
                         {entity.name}
                       </SelectItem>
                     ))}
