@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.jsx";
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/useAuth.jsx';
 import { useToast } from '@/components/ui/use-toast';
 import { useOrganisation } from '@/hooks/useOrganisation';
 import { getCATeamInvoices, getCATeamVouchers, updateInvoice, updateVoucher } from '@/lib/api';
+import { listClientsByOrganization } from '@/lib/api/clients';
 import Vouchers from './Vouchers';
 import Invoices from './Invoices';
 import * as XLSX from 'xlsx';
@@ -21,17 +22,17 @@ const FinancePage = () => {
     organisations,
     selectedOrg,
     setSelectedOrg,
-    entities,
-    selectedEntity,
-    setSelectedEntity,
     loading: isOrgLoading,
   } = useOrganisation();
+
+  const [clients, setClients] = useState([]);
+  const [selectedClient, setSelectedClient] = useState(null);
   const [isDataLoading, setIsDataLoading] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
 
   const [refreshKey, setRefreshKey] = useState(0);
-  
+
   const handleRefresh = () => {
     setIsDataLoading(true);
     // Trigger refresh by updating key - this will force child components to refetch
@@ -39,11 +40,63 @@ const FinancePage = () => {
     setTimeout(() => setIsDataLoading(false), 500);
   };
 
+  // Fetch clients when selectedOrg changes
+  useEffect(() => {
+    const fetchClients = async () => {
+      if (selectedOrg && user?.access_token) {
+        try {
+          // Use the specific endpoint for fetching clients by organization
+          const fetchedClients = await listClientsByOrganization(selectedOrg, user.access_token);
+          setClients(fetchedClients || []);
+
+          // Auto-select first client if available and none selected (or if switching orgs)
+          if (fetchedClients?.length > 0) {
+            // Check if previously selected client is in the new list, otherwise select first
+            // Since we allow switching orgs, it's safer to always default to first or keep if exists
+            // For simplicity and to ensure validity, let's select the first one if the current one isn't found
+            //   setSelectedClient(fetchedClients[0].id);
+            // Logic to persist selection could be added here similar to useOrganisation
+            const storedClientId = localStorage.getItem('finance_selectedClientId');
+            if (storedClientId && fetchedClients.some(c => c.id === storedClientId)) {
+              setSelectedClient(storedClientId);
+            } else {
+              setSelectedClient(fetchedClients[0].id);
+            }
+          } else {
+            setSelectedClient(null);
+          }
+        } catch (error) {
+          console.error('Failed to fetch clients:', error);
+          toast({
+            title: 'Error',
+            description: 'Failed to fetch clients for the selected organization.',
+            variant: 'destructive',
+          });
+          setClients([]);
+          setSelectedClient(null);
+        }
+      } else {
+        setClients([]);
+        setSelectedClient(null);
+      }
+    };
+
+    fetchClients();
+  }, [selectedOrg, user?.access_token, toast]);
+
+  // Update localStorage when selectedClient changes
+  useEffect(() => {
+    if (selectedClient) {
+      localStorage.setItem('finance_selectedClientId', selectedClient);
+    }
+  }, [selectedClient]);
+
+
   const handleExport = async () => {
-    if (!selectedEntity) {
+    if (!selectedClient) {
       toast({
         title: 'Error',
-        description: 'Please select an entity to export.',
+        description: 'Please select a client to export.',
         variant: 'destructive',
       });
       return;
@@ -51,8 +104,8 @@ const FinancePage = () => {
 
     try {
       const [invoices, vouchers] = await Promise.all([
-        getCATeamInvoices(selectedEntity, user.access_token),
-        getCATeamVouchers(selectedEntity, user.access_token),
+        getCATeamInvoices(selectedClient, user.access_token),
+        getCATeamVouchers(selectedClient, user.access_token),
       ]);
 
       const readyInvoices = invoices.filter(inv => inv.is_ready && !inv.is_exported);
@@ -126,14 +179,14 @@ const FinancePage = () => {
               ))}
             </SelectContent>
           </Select>
-          <Select value={selectedEntity || ''} onValueChange={setSelectedEntity} disabled={isOrgLoading || !selectedOrg}>
+          <Select value={selectedClient || ''} onValueChange={setSelectedClient} disabled={isOrgLoading || !selectedOrg}>
             <SelectTrigger className="w-full md:w-[200px]">
-              <SelectValue placeholder={isOrgLoading ? "Loading..." : "Select entity"} />
+              <SelectValue placeholder={!clients.length ? "No clients found" : "Select client"} />
             </SelectTrigger>
             <SelectContent>
-              {entities.length > 1 && <SelectItem value="all">All Entities</SelectItem>}
-              {entities.map(entity => (
-                <SelectItem key={entity.id} value={entity.id}>{entity.name}</SelectItem>
+              {clients.length > 1 && <SelectItem value="all">All Clients</SelectItem>}
+              {clients.map(client => (
+                <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -141,7 +194,7 @@ const FinancePage = () => {
             <RefreshCw className={`w-4 h-4 ${isDataLoading ? 'animate-spin' : ''}`} />
           </Button>
           {user.role === 'CA_ACCOUNTANT' && (
-            <Button onClick={handleExport} disabled={isDataLoading || !selectedEntity}>
+            <Button onClick={handleExport} disabled={isDataLoading || !selectedClient}>
               Export to Tally
             </Button>
           )}
@@ -158,18 +211,18 @@ const FinancePage = () => {
           <Vouchers
             key={`vouchers-${refreshKey}`}
             selectedOrganisation={selectedOrg}
-            selectedEntity={selectedEntity}
+            selectedEntity={selectedClient}
             isDataLoading={isDataLoading || isOrgLoading}
             onRefresh={handleRefresh}
             isActive={activeTab === 'vouchers'}
-            entities={entities}
+            entities={clients}
           />
         </TabsContent>
         <TabsContent value="invoices">
           <Invoices
             key={`invoices-${refreshKey}`}
             selectedOrganisation={selectedOrg}
-            selectedEntity={selectedEntity}
+            selectedEntity={selectedClient}
             isDataLoading={isDataLoading || isOrgLoading}
             onRefresh={handleRefresh}
             isActive={activeTab === 'invoices'}
