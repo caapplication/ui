@@ -218,30 +218,16 @@ const VoucherDetailsPage = () => {
     const [showRejectDialog, setShowRejectDialog] = useState(false);
     const [rejectionRemarks, setRejectionRemarks] = useState('');
     const [isStatusUpdating, setIsStatusUpdating] = useState(false);
-    const [clientRemarks, setClientRemarks] = useState('');
-    const [isSavingRemarks, setIsSavingRemarks] = useState(false);
 
     // Determine if the current user is a client user
-    // Debug logging to see what role we're getting
-    console.log('VoucherDetailsPage - User object:', user);
-    console.log('VoucherDetailsPage - User role:', user?.role);
-
     // CA_ACCOUNTANT and CA_TEAM should NOT be treated as client users
     const isClientUser = user?.role === 'CLIENT_USER';
     const isCaUser = user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM';
 
-    console.log('VoucherDetailsPage - isClientUser:', isClientUser);
-    console.log('VoucherDetailsPage - isCaUser:', isCaUser);
-
     const defaultTab = isClientUser ? 'details' : 'preview';
     const cols = isClientUser ? 'grid-cols-3' : 'grid-cols-4';
 
-    // Initialise client remarks from voucher
-    useEffect(() => {
-        if (voucher?.remarks) {
-            setClientRemarks(voucher.remarks);
-        }
-    }, [voucher]);
+
 
     // Hide scrollbars globally for this page
     useEffect(() => {
@@ -1245,35 +1231,7 @@ const VoucherDetailsPage = () => {
         }
     };
 
-    const handleSaveClientRemarks = async () => {
-        setIsSavingRemarks(true);
-        try {
-            const payload = {
-                remarks: clientRemarks
-            };
 
-            const entityId = voucherDetails.entity_id || localStorage.getItem('entityId');
-            const updatedVoucher = await updateVoucher(voucherId, payload, user.access_token);
-
-            if (updatedVoucher) {
-                setVoucher(updatedVoucher);
-                setEditedVoucher(updatedVoucher);
-                toast({
-                    title: 'Success',
-                    description: 'Remarks updated successfully.'
-                });
-            }
-        } catch (error) {
-            console.error('Remarks Update Error:', error);
-            toast({
-                title: 'Error',
-                description: `Failed to save remarks: ${error.message}`,
-                variant: 'destructive'
-            });
-        } finally {
-            setIsSavingRemarks(false);
-        }
-    };
 
     // Skeleton loading component
     const VoucherDetailsSkeleton = () => (
@@ -1341,10 +1299,7 @@ const VoucherDetailsPage = () => {
                 </div>
             </header>
 
-            {/* DEBUG BANNER - Remove after fixing */}
-            <div className="bg-yellow-500 text-black p-3 mb-4 rounded-md font-bold">
-                <p>DEBUG: User Role = {user?.role || 'undefined'} | isClientUser = {String(isClientUser)} | Should show buttons = {String(!isClientUser)}</p>
-            </div>
+
 
             <ResizablePanelGroup
                 direction="horizontal"
@@ -1410,7 +1365,6 @@ const VoucherDetailsPage = () => {
                                         className="max-w-full max-h-full transition-transform duration-200"
                                         style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }}
                                         onLoad={() => {
-                                            console.log("Image loaded successfully");
                                             setIsImageLoading(false);
                                         }}
                                         onError={(e) => {
@@ -1779,28 +1733,7 @@ const VoucherDetailsPage = () => {
                                                     </div>
                                                 </Card>
 
-                                                {/* Remarks Card */}
-                                                <Card className="w-full glass-pane border-none shadow-none bg-gray-800 text-white">
-                                                    <CardHeader className="p-4 sm:p-6">
-                                                        <CardTitle className="text-lg sm:text-xl">Client Remarks</CardTitle>
-                                                    </CardHeader>
-                                                    <CardContent className="p-4 sm:p-6 pt-0">
-                                                        {isClientUser ? (
-                                                            <div className="space-y-3">
-                                                                <Textarea value={clientRemarks} onChange={(e) => setClientRemarks(e.target.value)} placeholder="Add remarks for the accountant..." className="bg-black/20 border-white/10 text-white min-h-[100px]" />
-                                                                <div className="flex justify-end">
-                                                                    <Button onClick={handleSaveClientRemarks} disabled={isSavingRemarks} size="sm">
-                                                                        {isSavingRemarks && <Loader2 className="h-4 w-4 animate-spin mr-2" />} Save Remarks
-                                                                    </Button>
-                                                                </div>
-                                                            </div>
-                                                        ) : (
-                                                            <div className="p-4 rounded-md bg-black/20 border border-white/10 min-h-[60px]">
-                                                                <p className="text-sm text-white whitespace-pre-wrap">{voucherDetails.remarks || 'No remarks provided by client.'}</p>
-                                                            </div>
-                                                        )}
-                                                    </CardContent>
-                                                </Card>
+
                                             </div>
                                         </div>
                                     )}
@@ -1919,7 +1852,6 @@ const VoucherDetailsPage = () => {
                                     className="max-w-full max-h-full transition-transform duration-200"
                                     style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }}
                                     onLoad={() => {
-                                        console.log("Image loaded successfully");
                                         setIsImageLoading(false);
                                     }}
                                     onError={(e) => {
@@ -1949,10 +1881,7 @@ const VoucherDetailsPage = () => {
                             <TabsTrigger value="beneficiary" className="text-xs sm:text-sm">Beneficiary</TabsTrigger>
                         </TabsList>
                         <TabsContent value="details" className="mt-4">
-                            {/* DEBUG BANNER - Mobile View */}
-                            <div className="bg-yellow-500 text-black p-2 mb-3 rounded text-xs font-bold">
-                                DEBUG: Role={user?.role || 'undefined'} | isClientUser={String(isClientUser)} | ShowButtons={String(!isClientUser)}
-                            </div>
+
 
                             {isEditing ? (
                                 <form onSubmit={handleUpdate} className="space-y-4">
@@ -2279,28 +2208,7 @@ const VoucherDetailsPage = () => {
                                         </TooltipProvider>
                                     </div>
 
-                                    {/* Client Remarks Card */}
-                                    <Card className="w-full glass-pane border-none shadow-none bg-gray-800 text-white">
-                                        <CardHeader className="p-4">
-                                            <CardTitle className="text-lg">Client Remarks</CardTitle>
-                                        </CardHeader>
-                                        <CardContent className="p-4 pt-0">
-                                            {isClientUser ? (
-                                                <div className="space-y-3">
-                                                    <Textarea value={clientRemarks} onChange={(e) => setClientRemarks(e.target.value)} placeholder="Add remarks for the accountant..." className="bg-black/20 border-white/10 text-white min-h-[100px]" />
-                                                    <div className="flex justify-end">
-                                                        <Button onClick={handleSaveClientRemarks} disabled={isSavingRemarks} size="sm">
-                                                            {isSavingRemarks && <Loader2 className="h-4 w-4 animate-spin mr-2" />} Save Remarks
-                                                        </Button>
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <div className="p-4 rounded-md bg-black/20 border border-white/10 min-h-[60px]">
-                                                    <p className="text-sm text-white whitespace-pre-wrap">{voucherDetails.remarks || 'No remarks provided by client.'}</p>
-                                                </div>
-                                            )}
-                                        </CardContent>
-                                    </Card>
+
                                 </div>
                             )}
                         </TabsContent>
