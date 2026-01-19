@@ -11,9 +11,10 @@ import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Edit, Trash2, FileText, Loader2, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RefreshCcw } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, FileText, Loader2, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RefreshCcw, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
@@ -141,6 +142,11 @@ const VoucherDetailsCA = () => {
     const lastFetchedVoucherIdRef = useRef(null);
     const activityLogRef = useRef(null);
     const attachmentRef = useRef(null);
+
+    // Status management state
+    const [showRejectDialog, setShowRejectDialog] = useState(false);
+    const [rejectionRemarks, setRejectionRemarks] = useState('');
+    const [isStatusUpdating, setIsStatusUpdating] = useState(false);
 
     // Hide scrollbars globally for this page
     useEffect(() => {
@@ -589,6 +595,68 @@ const VoucherDetailsCA = () => {
         voucher_type: 'N/A',
         payment_type: 'N/A',
         remarks: 'No remarks available.',
+    };
+
+    // Status helper functions
+    const formatStatus = (status) => {
+        if (!status || status === 'created') return 'Pending';
+        return status.charAt(0).toUpperCase() + status.slice(1);
+    };
+
+    const getStatusColor = (status) => {
+        switch (status) {
+            case 'approved':
+                return 'bg-green-500/20 text-green-400 border-green-500/30';
+            case 'rejected':
+                return 'bg-red-500/20 text-red-400 border-red-500/30';
+            default:
+                return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+        }
+    };
+
+    // Status update handler
+    const handleStatusUpdate = async (newStatus) => {
+        if (newStatus === 'rejected' && !rejectionRemarks) {
+            setShowRejectDialog(true);
+            return;
+        }
+
+        setIsStatusUpdating(true);
+        try {
+            const payload = {
+                status: newStatus,
+                ...(newStatus === 'rejected' && rejectionRemarks && { status_remarks: rejectionRemarks })
+            };
+
+            const updatedVoucher = await updateCAVoucher(voucherId, payload, user.access_token);
+
+            // Invalidate cache
+            cache.invalidate('getCATeamVouchers');
+            const cacheKey = { voucherId, token: user.access_token };
+            cache.invalidate('getVoucher', cacheKey);
+
+            if (updatedVoucher) {
+                setVoucher(updatedVoucher);
+                setEditedVoucher(updatedVoucher);
+                cache.set('getVoucher', cacheKey, updatedVoucher);
+            }
+
+            toast({
+                title: 'Success',
+                description: `Voucher ${newStatus} successfully.`
+            });
+
+            setShowRejectDialog(false);
+            setRejectionRemarks('');
+        } catch (error) {
+            toast({
+                title: 'Error',
+                description: `Failed to update status: ${error.message}`,
+                variant: 'destructive'
+            });
+        } finally {
+            setIsStatusUpdating(false);
+        }
     };
 
     const handleExportToPDF = async () => {
@@ -1479,185 +1547,226 @@ const VoucherDetailsCA = () => {
                                             </div>
                                         </form>
                                     ) : (
-                                        <Card ref={voucherDetailsRef} className="w-full glass-pane border-none shadow-none bg-gray-800 text-white relative z-20">
-                                            <div ref={voucherDetailsPDFRef} className="w-full">
-                                                <CardHeader>
-                                                    <CardTitle>Voucher to {beneficiaryName}</CardTitle>
-                                                    <CardDescription>Created on {new Date(voucherDetails.created_date).toLocaleDateString()}</CardDescription>
-                                                </CardHeader>
-                                                <CardContent className="space-y-2 relative z-20">
-                                                    <DetailItem label="Amount" value={`₹${parseFloat(voucherDetails.amount).toFixed(2)}`} />
-                                                    <DetailItem label="Voucher Type" value={voucherDetails.voucher_type} />
-                                                    <DetailItem
-                                                        label="Payment Method"
-                                                        value={
-                                                            voucherDetails.voucher_type === 'cash'
-                                                                ? 'Cash'
-                                                                : formatPaymentMethod(
-                                                                    (voucherDetails.payment_type || '')
-                                                                        .toString()
-                                                                        .toLowerCase()
-                                                                        .replace(/\s/g, '_')
-                                                                )
-                                                        }
-                                                    />
-                                                    {(voucherDetails.payment_type === 'bank_transfer' || voucher?.payment_type === 'bank_transfer') && (
-                                                        <>
-                                                            <DetailItem
-                                                                label="From Bank Account"
-                                                                value={
-                                                                    (() => {
-                                                                        // Use voucher directly if voucherDetails doesn't have the fields
-                                                                        const source = voucher || voucherDetails;
-                                                                        const fromId = source.from_bank_account_id;
-                                                                        const fromName = source.from_bank_account_name;
-                                                                        const fromNumber = source.from_bank_account_number;
-
-                                                                        // Priority 1: Use snapshot data first (most reliable, always available after save)
-                                                                        if (fromName && fromName.trim()) {
-                                                                            return `${fromName}${fromNumber ? ' - ' + fromNumber : ''}`.trim();
-                                                                        }
-
-                                                                        // Priority 2: Try to find in fetched bank accounts array (if loaded)
-                                                                        if (fromId && fromBankAccounts?.length > 0) {
-                                                                            const fromBank = fromBankAccounts.find(
-                                                                                acc => String(acc.id) === String(fromId)
-                                                                            );
-                                                                            if (fromBank) {
-                                                                                return `${fromBank.bank_name} - ${fromBank.account_number}`;
-                                                                            }
-                                                                        }
-
-                                                                        // Priority 3: Show ID if available
-                                                                        if (fromId) {
-                                                                            return String(fromId);
-                                                                        }
-
-                                                                        return 'N/A';
-                                                                    })()
-                                                                }
-                                                            />
-                                                            <DetailItem
-                                                                label="To Bank Account"
-                                                                value={
-                                                                    (() => {
-                                                                        // Use voucher directly if voucherDetails doesn't have the fields
-                                                                        const source = voucher || voucherDetails;
-                                                                        const toId = source.to_bank_account_id;
-                                                                        const toName = source.to_bank_account_name;
-                                                                        const toNumber = source.to_bank_account_number;
-
-                                                                        // Priority 1: Use snapshot data first (most reliable, always available after save)
-                                                                        if (toName && toName.trim()) {
-                                                                            return `${toName}${toNumber ? ' - ' + toNumber : ''}`.trim();
-                                                                        }
-
-                                                                        // Priority 2: Try to find in fetched bank accounts array (if loaded)
-                                                                        if (toId && toBankAccounts?.length > 0) {
-                                                                            const toBank = toBankAccounts.find(
-                                                                                acc => String(acc.id) === String(toId)
-                                                                            );
-                                                                            if (toBank) {
-                                                                                return `${toBank.bank_name} - ${toBank.account_number}`;
-                                                                            }
-                                                                        }
-
-                                                                        // Priority 3: Show ID if available
-                                                                        if (toId) {
-                                                                            return String(toId);
-                                                                        }
-
-                                                                        return 'N/A';
-                                                                    })()
-                                                                }
-                                                            />
-                                                        </>
-                                                    )}
-                                                    <div className="pt-4">
-                                                        <p className="text-sm text-gray-400 mb-1">Remarks</p>
-                                                        <p className="text-sm text-white p-3 bg-white/5 rounded-md">{voucherDetails.remarks || 'N/A'}</p>
-                                                    </div>
-                                                    {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
-                                                        <div className="pt-4">
-                                                            <Label htmlFor="finance_header_id">Header</Label>
-                                                            <Select name="finance_header_id" defaultValue={editedVoucher.finance_header_id} onValueChange={(value) => setEditedVoucher(p => ({ ...p, finance_header_id: value }))}>
-                                                                <SelectTrigger>
-                                                                    <SelectValue placeholder="Select a header" />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                    {financeHeaders.map((h) => (
-                                                                        <SelectItem key={h.id} value={h.id}>
-                                                                            {h.name}
-                                                                        </SelectItem>
-                                                                    ))}
-                                                                </SelectContent>
-                                                            </Select>
+                                        <>
+                                            {/* Status Card */}
+                                            <Card className="w-full glass-pane border-none shadow-none bg-gray-800 text-white mb-4">
+                                                <CardContent className="p-6">
+                                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm font-medium ${getStatusColor(voucherDetails.status)}`}>
+                                                                {voucherDetails.status === 'approved' && <CheckCircle className="h-4 w-4" />}
+                                                                {voucherDetails.status === 'rejected' && <XCircle className="h-4 w-4" />}
+                                                                {(!voucherDetails.status || voucherDetails.status === 'created') && <AlertCircle className="h-4 w-4" />}
+                                                                {formatStatus(voucherDetails.status)}
+                                                            </div>
+                                                            {voucherDetails.created_date && (
+                                                                <span className="text-sm text-gray-400">
+                                                                    {new Date(voucherDetails.created_date).toLocaleDateString()}
+                                                                </span>
+                                                            )}
                                                         </div>
-                                                    )}
-                                                    <div className="flex items-center gap-2 mt-4 justify-between relative z-20">
-                                                        {/* Action buttons at bottom right */}
-                                                        <div className="flex items-center gap-2 relative z-20">
-                                                            <TooltipProvider>
-                                                                <Tooltip>
-                                                                    <TooltipTrigger asChild>
-                                                                        <Button
-                                                                            variant="destructive"
-                                                                            size="icon"
-                                                                            onClick={() => setShowDeleteDialog(true)}
-                                                                        >
-                                                                            <Trash2 className="h-4 w-4" />
-                                                                        </Button>
-                                                                    </TooltipTrigger>
-                                                                    <TooltipContent>
-                                                                        <p>Delete</p>
-                                                                    </TooltipContent>
-                                                                </Tooltip>
-                                                                <Tooltip>
-                                                                    <TooltipTrigger asChild>
-                                                                        <Button
-                                                                            variant="outline"
-                                                                            size="icon"
-                                                                            onClick={handleExportToPDF}
-                                                                            disabled={
-                                                                                voucher?.payment_type === 'bank_transfer' &&
-                                                                                (!fromBankAccounts.length || !toBankAccounts.length)
-                                                                            }
-                                                                        >
-                                                                            <FileText className="h-4 w-4" />
-                                                                        </Button>
-                                                                    </TooltipTrigger>
-                                                                    <TooltipContent>
-                                                                        <p>Export</p>
-                                                                    </TooltipContent>
-                                                                </Tooltip>
-                                                                <Tooltip>
-                                                                    <TooltipTrigger asChild>
-                                                                        <Button variant="outline" size="icon" onClick={() => setIsEditing(!isEditing)}>
-                                                                            <Edit className="h-4 w-4" />
-                                                                        </Button>
-                                                                    </TooltipTrigger>
-                                                                    <TooltipContent>
-                                                                        <p>Edit</p>
-                                                                    </TooltipContent>
-                                                                </Tooltip>
-                                                            </TooltipProvider>
-                                                            {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
-                                                                <Button onClick={() => {
-                                                                    updateCAVoucher(voucherId, { is_ready: true, finance_header_id: editedVoucher.finance_header_id }, user.access_token)
-                                                                        .then(() => {
-                                                                            toast({ title: 'Success', description: 'Voucher tagged successfully.' });
-                                                                            navigate('/finance/ca');
-                                                                        })
-                                                                        .catch(err => {
-                                                                            toast({ title: 'Error', description: `Failed to tag voucher: ${err.message}`, variant: 'destructive' });
-                                                                        });
-                                                                }}>Tag</Button>
+                                                        <div className="flex gap-2">
+                                                            {voucherDetails.status !== 'approved' && (
+                                                                <Button onClick={() => handleStatusUpdate('approved')} disabled={isStatusUpdating} className="bg-green-600 hover:bg-green-700 text-white border-none" size="sm">
+                                                                    {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />} Approve
+                                                                </Button>
+                                                            )}
+                                                            {voucherDetails.status !== 'rejected' && (
+                                                                <Button onClick={() => setShowRejectDialog(true)} disabled={isStatusUpdating} className="bg-red-600 hover:bg-red-700 text-white border-none" size="sm">
+                                                                    {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />} Reject
+                                                                </Button>
                                                             )}
                                                         </div>
                                                     </div>
+                                                    {voucherDetails.status === 'rejected' && voucherDetails.status_remarks && (
+                                                        <div className="mt-4 p-3 rounded-md bg-red-500/10 border border-red-500/20">
+                                                            <Label className="text-red-400 text-xs uppercase font-bold mb-1 block">Rejection Remarks</Label>
+                                                            <p className="text-sm text-white">{voucherDetails.status_remarks}</p>
+                                                        </div>
+                                                    )}
                                                 </CardContent>
-                                            </div>
-                                        </Card>
+                                            </Card>
+
+                                            <Card ref={voucherDetailsRef} className="w-full glass-pane border-none shadow-none bg-gray-800 text-white relative z-20">
+                                                <div ref={voucherDetailsPDFRef} className="w-full">
+                                                    <CardHeader>
+                                                        <CardTitle>Voucher to {beneficiaryName}</CardTitle>
+                                                        <CardDescription>Created on {new Date(voucherDetails.created_date).toLocaleDateString()}</CardDescription>
+                                                    </CardHeader>
+                                                    <CardContent className="space-y-2 relative z-20">
+                                                        <DetailItem label="Amount" value={`₹${parseFloat(voucherDetails.amount).toFixed(2)}`} />
+                                                        <DetailItem label="Voucher Type" value={voucherDetails.voucher_type} />
+                                                        <DetailItem
+                                                            label="Payment Method"
+                                                            value={
+                                                                voucherDetails.voucher_type === 'cash'
+                                                                    ? 'Cash'
+                                                                    : formatPaymentMethod(
+                                                                        (voucherDetails.payment_type || '')
+                                                                            .toString()
+                                                                            .toLowerCase()
+                                                                            .replace(/\s/g, '_')
+                                                                    )
+                                                            }
+                                                        />
+                                                        {(voucherDetails.payment_type === 'bank_transfer' || voucher?.payment_type === 'bank_transfer') && (
+                                                            <>
+                                                                <DetailItem
+                                                                    label="From Bank Account"
+                                                                    value={
+                                                                        (() => {
+                                                                            // Use voucher directly if voucherDetails doesn't have the fields
+                                                                            const source = voucher || voucherDetails;
+                                                                            const fromId = source.from_bank_account_id;
+                                                                            const fromName = source.from_bank_account_name;
+                                                                            const fromNumber = source.from_bank_account_number;
+
+                                                                            // Priority 1: Use snapshot data first (most reliable, always available after save)
+                                                                            if (fromName && fromName.trim()) {
+                                                                                return `${fromName}${fromNumber ? ' - ' + fromNumber : ''}`.trim();
+                                                                            }
+
+                                                                            // Priority 2: Try to find in fetched bank accounts array (if loaded)
+                                                                            if (fromId && fromBankAccounts?.length > 0) {
+                                                                                const fromBank = fromBankAccounts.find(
+                                                                                    acc => String(acc.id) === String(fromId)
+                                                                                );
+                                                                                if (fromBank) {
+                                                                                    return `${fromBank.bank_name} - ${fromBank.account_number}`;
+                                                                                }
+                                                                            }
+
+                                                                            // Priority 3: Show ID if available
+                                                                            if (fromId) {
+                                                                                return String(fromId);
+                                                                            }
+
+                                                                            return 'N/A';
+                                                                        })()
+                                                                    }
+                                                                />
+                                                                <DetailItem
+                                                                    label="To Bank Account"
+                                                                    value={
+                                                                        (() => {
+                                                                            // Use voucher directly if voucherDetails doesn't have the fields
+                                                                            const source = voucher || voucherDetails;
+                                                                            const toId = source.to_bank_account_id;
+                                                                            const toName = source.to_bank_account_name;
+                                                                            const toNumber = source.to_bank_account_number;
+
+                                                                            // Priority 1: Use snapshot data first (most reliable, always available after save)
+                                                                            if (toName && toName.trim()) {
+                                                                                return `${toName}${toNumber ? ' - ' + toNumber : ''}`.trim();
+                                                                            }
+
+                                                                            // Priority 2: Try to find in fetched bank accounts array (if loaded)
+                                                                            if (toId && toBankAccounts?.length > 0) {
+                                                                                const toBank = toBankAccounts.find(
+                                                                                    acc => String(acc.id) === String(toId)
+                                                                                );
+                                                                                if (toBank) {
+                                                                                    return `${toBank.bank_name} - ${toBank.account_number}`;
+                                                                                }
+                                                                            }
+
+                                                                            // Priority 3: Show ID if available
+                                                                            if (toId) {
+                                                                                return String(toId);
+                                                                            }
+
+                                                                            return 'N/A';
+                                                                        })()
+                                                                    }
+                                                                />
+                                                            </>
+                                                        )}
+                                                        <div className="pt-4">
+                                                            <p className="text-sm text-gray-400 mb-1">Remarks</p>
+                                                            <p className="text-sm text-white p-3 bg-white/5 rounded-md">{voucherDetails.remarks || 'N/A'}</p>
+                                                        </div>
+                                                        {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
+                                                            <div className="pt-4">
+                                                                <Label htmlFor="finance_header_id">Header</Label>
+                                                                <Select name="finance_header_id" defaultValue={editedVoucher.finance_header_id} onValueChange={(value) => setEditedVoucher(p => ({ ...p, finance_header_id: value }))}>
+                                                                    <SelectTrigger>
+                                                                        <SelectValue placeholder="Select a header" />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        {financeHeaders.map((h) => (
+                                                                            <SelectItem key={h.id} value={h.id}>
+                                                                                {h.name}
+                                                                            </SelectItem>
+                                                                        ))}
+                                                                    </SelectContent>
+                                                                </Select>
+                                                            </div>
+                                                        )}
+                                                        <div className="flex items-center gap-2 mt-4 justify-between relative z-20">
+                                                            {/* Action buttons at bottom right */}
+                                                            <div className="flex items-center gap-2 relative z-20">
+                                                                <TooltipProvider>
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger asChild>
+                                                                            <Button
+                                                                                variant="destructive"
+                                                                                size="icon"
+                                                                                onClick={() => setShowDeleteDialog(true)}
+                                                                            >
+                                                                                <Trash2 className="h-4 w-4" />
+                                                                            </Button>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent>
+                                                                            <p>Delete</p>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger asChild>
+                                                                            <Button
+                                                                                variant="outline"
+                                                                                size="icon"
+                                                                                onClick={handleExportToPDF}
+                                                                                disabled={
+                                                                                    voucher?.payment_type === 'bank_transfer' &&
+                                                                                    (!fromBankAccounts.length || !toBankAccounts.length)
+                                                                                }
+                                                                            >
+                                                                                <FileText className="h-4 w-4" />
+                                                                            </Button>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent>
+                                                                            <p>Export</p>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger asChild>
+                                                                            <Button variant="outline" size="icon" onClick={() => setIsEditing(!isEditing)}>
+                                                                                <Edit className="h-4 w-4" />
+                                                                            </Button>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent>
+                                                                            <p>Edit</p>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                </TooltipProvider>
+                                                                {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
+                                                                    <Button onClick={() => {
+                                                                        updateCAVoucher(voucherId, { is_ready: true, finance_header_id: editedVoucher.finance_header_id }, user.access_token)
+                                                                            .then(() => {
+                                                                                toast({ title: 'Success', description: 'Voucher tagged successfully.' });
+                                                                                navigate('/finance/ca');
+                                                                            })
+                                                                            .catch(err => {
+                                                                                toast({ title: 'Error', description: `Failed to tag voucher: ${err.message}`, variant: 'destructive' });
+                                                                            });
+                                                                    }}>Tag</Button>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </CardContent>
+                                                </div>
+                                            </Card>
+                                        </>
                                     )}
                                 </TabsContent>
                                 <TabsContent value="activity" className="mt-4">
@@ -1785,6 +1894,45 @@ const VoucherDetailsCA = () => {
                             style={isDeleting ? { opacity: 0.5, pointerEvents: 'none' } : {}}
                         >
                             {isDeleting ? 'Deleting...' : 'Delete'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Reject Voucher</DialogTitle>
+                        <DialogDescription>
+                            Please provide remarks for rejecting this voucher.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <Label htmlFor="rejection-remarks" className="mb-2 block">Remarks</Label>
+                        <Textarea
+                            id="rejection-remarks"
+                            placeholder="Reason for rejection..."
+                            value={rejectionRemarks}
+                            onChange={(e) => setRejectionRemarks(e.target.value)}
+                        />
+                    </div>
+                    <DialogFooter>
+                        <Button variant="ghost" onClick={() => setShowRejectDialog(false)} disabled={isStatusUpdating}>
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={() => handleStatusUpdate('rejected')}
+                            disabled={!rejectionRemarks || isStatusUpdating}
+                        >
+                            {isStatusUpdating ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Rejecting...
+                                </>
+                            ) : (
+                                'Reject'
+                            )}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
