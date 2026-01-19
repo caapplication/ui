@@ -253,7 +253,7 @@ export const deleteTaskComment = async (taskId, commentId, agencyId, token) => {
 
 // Collaborator functions
 export const addTaskCollaborator = async (taskId, userId, agencyId, token) => {
-    const response = await fetch(`${TASKS_API_BASE_URL}/tasks/${taskId}/participants/`, {
+    const response = await fetch(`${TASKS_API_BASE_URL}/tasks/${taskId}/participants`, {
         method: 'POST',
         headers: getAuthHeaders(token, 'application/json', agencyId),
         body: JSON.stringify({ user_id: userId }),
@@ -273,7 +273,7 @@ export const removeTaskCollaborator = async (taskId, userId, agencyId, token) =>
 };
 
 export const getTaskCollaborators = async (taskId, agencyId, token) => {
-    const response = await fetch(`${TASKS_API_BASE_URL}/tasks/${taskId}/participants/`, {
+    const response = await fetch(`${TASKS_API_BASE_URL}/tasks/${taskId}/participants`, {
         method: 'GET',
         headers: getAuthHeaders(token, 'application/json', agencyId),
     });
