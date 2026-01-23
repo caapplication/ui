@@ -4,7 +4,7 @@ import { getCachedAttachment, setCachedAttachment } from '../cache';
 const FINANCE_API_BASE_URL = import.meta.env.VITE_FINANCE_API_URL || 'http://127.0.0.1:8003';
 
 export const getEntities = async (token) => {
-    const response = await fetch(`${FINANCE_API_BASE_URL}/api/entities/`, {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/entities`, {
         method: 'GET',
         headers: getAuthHeaders(token)
     });
@@ -225,34 +225,34 @@ export const getInvoiceAttachment = async (attachmentId, token) => {
         const response = await fetch(`${FINANCE_API_BASE_URL}/api/attachments/${attachmentId}`, {
             headers: getAuthHeaders(token),
         });
-        
+
         if (!response.ok) {
             const errorText = await response.text();
             console.error('Invoice attachment fetch failed:', response.status, errorText);
             throw new Error(`Failed to fetch attachment: ${response.status} ${errorText}`);
         }
-        
+
         // Check if response has content
         const contentType = response.headers.get('content-type') || response.headers.get('Content-Type');
         const contentLength = response.headers.get('content-length');
         console.log('Invoice attachment response:', { contentType, contentLength, status: response.status, attachmentId });
-        
+
         let blob = await response.blob();
-        
+
         if (blob.size === 0) {
             console.error('Received empty blob for invoice attachment:', attachmentId);
             throw new Error('Received empty attachment');
         }
-        
+
         // Use blob.type if content-type header is not available
         const finalContentType = contentType || blob.type || 'application/pdf';
         console.log('Invoice attachment blob created successfully:', blob.size, 'bytes, type:', finalContentType);
-        
+
         // Ensure blob has correct MIME type for PDFs (important for iframe rendering)
         if (finalContentType.toLowerCase().includes('pdf') && blob.type !== finalContentType) {
             blob = new Blob([blob], { type: finalContentType });
         }
-        
+
         // Return both URL and content type
         return {
             url: URL.createObjectURL(blob),
@@ -378,38 +378,38 @@ export const getVoucherAttachment = async (attachmentId, token, entityId = null)
         // Use the regular attachment endpoint for all users (CA and non-CA)
         // The backend handles authorization based on the token
         let url = `${FINANCE_API_BASE_URL}/api/attachments/${attachmentId}`;
-        
+
         // Add entity_id as query param if provided (for filtering/authorization)
         if (entityId) {
             url += `?entity_id=${entityId}`;
         }
-        
+
         const response = await fetch(url, {
             headers: getAuthHeaders(token),
         });
-        
+
         if (!response.ok) {
             const errorText = await response.text();
             console.error('Attachment fetch failed:', response.status, errorText, 'URL:', url);
             throw new Error(`Failed to fetch attachment: ${response.status} ${errorText}`);
         }
-        
+
         // Check if response has content
         const contentType = response.headers.get('content-type') || response.headers.get('Content-Type');
         const contentLength = response.headers.get('content-length');
         console.log('Attachment response:', { contentType, contentLength, status: response.status });
-        
+
         let blob = await response.blob();
-        
+
         if (blob.size === 0) {
             console.error('Received empty blob for attachment:', attachmentId);
             throw new Error('Received empty attachment');
         }
-        
+
         // Use blob.type if content-type header is not available
         const finalContentType = contentType || blob.type || 'application/pdf';
         console.log('Blob created successfully:', blob.size, 'bytes, type:', finalContentType);
-        
+
         // Ensure blob has correct MIME type for PDFs (important for iframe rendering)
         if (finalContentType.toLowerCase().includes('pdf') && blob.type !== finalContentType) {
             blob = new Blob([blob], { type: finalContentType });
@@ -417,7 +417,7 @@ export const getVoucherAttachment = async (attachmentId, token, entityId = null)
 
         // Cache the blob
         await setCachedAttachment(CACHE_KEY, { blob, contentType: finalContentType });
-        
+
         // Return both URL and content type
         return {
             url: URL.createObjectURL(blob),
@@ -512,7 +512,7 @@ export const getActivityLog = async (itemId, itemType, token, startDate = null, 
     if (startDate) params.append('start_date', startDate);
     if (endDate) params.append('end_date', endDate);
     if (params.toString()) url += `?${params.toString()}`;
-    
+
     const response = await fetch(url, {
         headers: getAuthHeaders(token),
     });
