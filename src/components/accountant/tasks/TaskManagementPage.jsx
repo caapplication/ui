@@ -407,6 +407,7 @@ const TaskManagementPage = ({ entityId, entityName }) => {
                             onViewTask={handleViewTask}
                             onRefresh={fetchData}
                             currentUserId={user?.id}
+                            isLoading={isLoading}
                         />
                     </motion.div>
                 );
@@ -567,6 +568,7 @@ const TaskManagementPage = ({ entityId, entityName }) => {
                             onRefresh={fetchData}
                             currentUserId={user?.id}
                             isHistoryView={true}
+                            isLoading={isLoading}
                         />
                     </div>
                 </DialogContent>
