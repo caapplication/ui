@@ -153,7 +153,9 @@ const Dashboard = ({ entityId, entityName, onQuickAction, organisationBankAccoun
                                                             <div className="truncate">
                                                                 <p className="text-sm font-medium text-white truncate">{doc.name}</p>
                                                                 <p className={`text-xs ${daysLeft < 5 ? 'text-red-400' : 'text-yellow-400'}`}>
-                                                                    Expires in {daysLeft} days ({format(new Date(doc.expiry_date), 'dd MMM')})
+                                                                    {daysLeft < 0
+                                                                        ? `Expired ${Math.abs(daysLeft)} days ago`
+                                                                        : `Expires in ${daysLeft} days`} ({format(new Date(doc.expiry_date), 'dd MMM')})
                                                                 </p>
                                                             </div>
                                                         </div>
