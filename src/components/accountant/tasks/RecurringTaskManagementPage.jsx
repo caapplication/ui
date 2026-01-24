@@ -431,7 +431,7 @@ const RecurringTaskManagementPage = () => {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -20 }}
                     >
-                        <div className="flex flex-col gap-4 mb-6">
+                        <div className="mb-6">
                             <Tabs
                                 value={activeFilter}
                                 onValueChange={(val) => {
@@ -440,83 +440,83 @@ const RecurringTaskManagementPage = () => {
                                 }}
                                 className="w-full"
                             >
-                                <TabsList className="bg-white/10 border border-white/20">
-                                    <TabsTrigger
-                                        value="all"
-                                        className="data-[state=active]:bg-primary data-[state=active]:text-white"
-                                    >
-                                        All
-                                    </TabsTrigger>
-                                    <TabsTrigger
-                                        value="active"
-                                        className="data-[state=active]:bg-primary data-[state=active]:text-white"
-                                    >
-                                        Active
-                                    </TabsTrigger>
-                                    <TabsTrigger
-                                        value="inactive"
-                                        className="data-[state=active]:bg-primary data-[state=active]:text-white"
-                                    >
-                                        Inactive
-                                    </TabsTrigger>
-                                </TabsList>
-                            </Tabs>
+                                <div className="flex flex-wrap items-center gap-4 bg-white/5 p-4 rounded-lg border border-white/10">
+                                    <TabsList className="bg-white/10 border border-white/20">
+                                        <TabsTrigger
+                                            value="all"
+                                            className="data-[state=active]:bg-primary data-[state=active]:text-white"
+                                        >
+                                            All
+                                        </TabsTrigger>
+                                        <TabsTrigger
+                                            value="active"
+                                            className="data-[state=active]:bg-primary data-[state=active]:text-white"
+                                        >
+                                            Active
+                                        </TabsTrigger>
+                                        <TabsTrigger
+                                            value="inactive"
+                                            className="data-[state=active]:bg-primary data-[state=active]:text-white"
+                                        >
+                                            Inactive
+                                        </TabsTrigger>
+                                    </TabsList>
 
-                            <div className="flex flex-wrap items-center gap-4 bg-white/5 p-4 rounded-lg border border-white/10">
-                                <div className="relative flex-1 min-w-[200px]">
-                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                                    <Input
-                                        placeholder="Search recurring tasks..."
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                        className="pl-9 bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:bg-white/10 transition-all"
-                                    />
+                                    <div className="relative flex-1 min-w-[200px]">
+                                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                                        <Input
+                                            placeholder="Search recurring tasks..."
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                            className="pl-9 bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:bg-white/10 transition-all"
+                                        />
+                                    </div>
+                                    <div className="w-[200px]">
+                                        <Select
+                                            value={clientIdFilter}
+                                            onValueChange={setClientIdFilter}
+                                            disabled={isLoadingClients}
+                                        >
+                                            <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                                                <SelectValue placeholder={isLoadingClients ? "Loading Clients..." : "Filter by Client"} />
+                                                {isLoadingClients && <Loader2 className="w-3 h-3 ml-2 animate-spin" />}
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">All Clients</SelectItem>
+                                                {clients.map(client => (
+                                                    <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="w-[200px]">
+                                        <Select value={assigneeIdFilter} onValueChange={setAssigneeIdFilter}>
+                                            <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                                                <SelectValue placeholder="Filter by Assignee" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">All Assignees</SelectItem>
+                                                {teamMembers.map(member => (
+                                                    <SelectItem key={member.id} value={member.id}>{member.name}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    {(searchTerm || clientIdFilter !== 'all' || assigneeIdFilter !== 'all') && (
+                                        <Button
+                                            variant="ghost"
+                                            onClick={() => {
+                                                setSearchTerm('');
+                                                setClientIdFilter('all');
+                                                setAssigneeIdFilter('all');
+                                            }}
+                                            className="text-gray-400 hover:text-white"
+                                        >
+                                            Clear Filters
+                                        </Button>
+                                    )}
                                 </div>
-                                <div className="w-[200px]">
-                                    <Select
-                                        value={clientIdFilter}
-                                        onValueChange={setClientIdFilter}
-                                        disabled={isLoadingClients}
-                                    >
-                                        <SelectTrigger className="bg-white/5 border-white/10 text-white">
-                                            <SelectValue placeholder={isLoadingClients ? "Loading Clients..." : "Filter by Client"} />
-                                            {isLoadingClients && <Loader2 className="w-3 h-3 ml-2 animate-spin" />}
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">All Clients</SelectItem>
-                                            {clients.map(client => (
-                                                <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="w-[200px]">
-                                    <Select value={assigneeIdFilter} onValueChange={setAssigneeIdFilter}>
-                                        <SelectTrigger className="bg-white/5 border-white/10 text-white">
-                                            <SelectValue placeholder="Filter by Assignee" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">All Assignees</SelectItem>
-                                            {teamMembers.map(member => (
-                                                <SelectItem key={member.id} value={member.id}>{member.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                {(searchTerm || clientIdFilter !== 'all' || assigneeIdFilter !== 'all') && (
-                                    <Button
-                                        variant="ghost"
-                                        onClick={() => {
-                                            setSearchTerm('');
-                                            setClientIdFilter('all');
-                                            setAssigneeIdFilter('all');
-                                        }}
-                                        className="text-gray-400 hover:text-white"
-                                    >
-                                        Clear Filters
-                                    </Button>
-                                )}
-                            </div>
+                            </Tabs>
                         </div>
 
                         <RecurringTaskList
