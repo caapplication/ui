@@ -2311,12 +2311,10 @@ const TaskDashboardPage = () => {
                                         const currentUserId = (user?.id || user?.sub || user?.user_id) ? String(user?.id || user?.sub || user?.user_id).toLowerCase() : '';
                                         const commentUserId = comment.user_id ? String(comment.user_id).toLowerCase() : '';
                                         const isOwnComment = currentUserId && commentUserId && currentUserId === commentUserId;
-                                        const commentUser = teamMembers.find(m =>
-                                            m.user_id === comment.user_id ||
-                                            String(m.user_id) === String(comment.user_id) ||
-                                            m.id === comment.user_id ||
-                                            String(m.id) === String(comment.user_id)
-                                        ) || { name: user?.name || 'You', email: user?.email || '' };
+
+                                        // Use comment.user_name from API (already fetched from database)
+                                        const commentUserName = comment.user_name ||
+                                            (isOwnComment ? (user?.name || 'You') : 'Unknown');
 
                                         // Check if previous message is from same user to group messages
                                         const prevComment = index > 0 ? comments[index - 1] : null;
@@ -2341,7 +2339,7 @@ const TaskDashboardPage = () => {
                                                 {/* Avatar - only show if not grouped */}
                                                 {!isGrouped && (
                                                     <div className={`flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-primary/40 to-primary/60 flex items-center justify-center text-white font-semibold text-sm shadow-lg`}>
-                                                        {(commentUser.name || commentUser.email || 'U').charAt(0).toUpperCase()}
+                                                        {commentUserName.charAt(0).toUpperCase()}
                                                     </div>
                                                 )}
                                                 {isGrouped && <div className="w-10"></div>}
@@ -2351,7 +2349,7 @@ const TaskDashboardPage = () => {
                                                     {!isGrouped && (
                                                         <div className={`mb-1 ${isOwnComment ? 'text-right' : 'text-left'}`}>
                                                             <span className={`text-sm font-bold ${getUserNameColor(comment.user_id)}`}>
-                                                                {commentUser.name || commentUser.email || 'Unknown'}
+                                                                {commentUserName}
                                                             </span>
                                                         </div>
                                                     )}
