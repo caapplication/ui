@@ -1372,7 +1372,32 @@ const TaskDashboardPage = () => {
             };
         }
 
-        // Then check teamMembers if available
+        // PRIORITY: Check task for assigned_to_name, created_by_name, updated_by_name from API
+        if (task) {
+            if (task.assigned_to && String(task.assigned_to).toLowerCase() === userIdStr && task.assigned_to_name) {
+                return {
+                    name: task.assigned_to_name || 'N/A',
+                    email: 'N/A',
+                    role: task.assigned_to_role || 'N/A'
+                };
+            }
+            if (task.created_by && String(task.created_by).toLowerCase() === userIdStr && task.created_by_name) {
+                return {
+                    name: task.created_by_name || 'N/A',
+                    email: 'N/A',
+                    role: task.created_by_role || 'N/A'
+                };
+            }
+            if (task.updated_by && String(task.updated_by).toLowerCase() === userIdStr && task.updated_by_name) {
+                return {
+                    name: task.updated_by_name || 'N/A',
+                    email: 'N/A',
+                    role: task.updated_by_role || 'N/A'
+                };
+            }
+        }
+
+        // Then check teamMembers if available (fallback)
         if (Array.isArray(teamMembers) && teamMembers.length > 0) {
             const member = teamMembers.find(m => {
                 if (!m) return false;
@@ -1392,7 +1417,7 @@ const TaskDashboardPage = () => {
             }
         }
 
-        // Check organization users if available
+        // Check organization users if available (fallback)
         if (Array.isArray(orgUsers) && orgUsers.length > 0) {
             const orgUser = orgUsers.find(u => {
                 if (!u) return false;
@@ -1406,24 +1431,6 @@ const TaskDashboardPage = () => {
                     name: orgUser.name || orgUser.email || 'Unknown',
                     email: orgUser.email || 'N/A',
                     role: orgUser.role || 'N/A'
-                };
-            }
-        }
-
-        // Check task for created_by_name or updated_by_name if userId matches
-        if (task) {
-            if (task.created_by && String(task.created_by).toLowerCase() === userIdStr && task.created_by_name) {
-                return {
-                    name: task.created_by_name || 'N/A',
-                    email: 'N/A',
-                    role: task.created_by_role || 'N/A'
-                };
-            }
-            if (task.updated_by && String(task.updated_by).toLowerCase() === userIdStr && task.updated_by_name) {
-                return {
-                    name: task.updated_by_name || 'N/A',
-                    email: 'N/A',
-                    role: task.updated_by_role || 'N/A'
                 };
             }
         }

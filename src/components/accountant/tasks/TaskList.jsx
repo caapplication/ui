@@ -246,21 +246,8 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                 } else if (userFilter === 'assigned_to_me') {
                     userMatch = task.assigned_to && String(task.assigned_to) === currentUserIdStr;
                 } else if (userFilter === 'collaborates') {
-                    // Check if task has collaborators array or if current user is in collaborators
-                    if (task.collaborators && Array.isArray(task.collaborators)) {
-                        userMatch = task.collaborators.some(collab => {
-                            const collabUserId = collab.user_id || collab.id;
-                            return collabUserId && String(collabUserId) === currentUserIdStr;
-                        });
-                    } else if (taskCollaborators[task.id]) {
-                        // Check cached collaborators
-                        userMatch = taskCollaborators[task.id].some(collabId =>
-                            String(collabId) === currentUserIdStr
-                        );
-                    } else {
-                        // If no collaborator info available, don't match
-                        userMatch = false;
-                    }
+                    // Use is_collaborator field from backend (much simpler!)
+                    userMatch = task.is_collaborator === true;
                 }
             }
 

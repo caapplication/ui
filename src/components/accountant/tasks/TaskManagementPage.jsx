@@ -106,31 +106,37 @@ const TaskManagementPage = ({ entityId, entityName }) => {
                 return [];
             });
 
-            // 2. CRITICAL PHASE: Wait ONLY for Tasks and Team Members
-            // This is the minimum required data to render the main table structure usefuly
-            const criticalResults = await Promise.allSettled([tasksPromise, teamPromise]);
+            // 2. CRITICAL PHASE: Wait ONLY for Tasks
+            // This is the minimum required data to render the main table structure usefully
+            // We do NOT wait for team members here because it might fail for Client Users (403 Forbidden)
+            // and we don't want to block the UI or show an error state just because of that.
+            const criticalResults = await Promise.allSettled([tasksPromise]);
 
             // Process Critical Data
             const tasksData = criticalResults[0].status === 'fulfilled' ? criticalResults[0].value : { items: [] };
-            const teamData = criticalResults[1].status === 'fulfilled' ? criticalResults[1].value : [];
 
             const tasksArray = Array.isArray(tasksData) ? tasksData : (tasksData?.items || []);
-            const teamArray = Array.isArray(teamData) ? teamData : (teamData?.items || []);
-
             setTasks(tasksArray);
-            setTeamMembers(teamArray);
+
+            // Initialize teamMembers as empty array initially - will be populated in background
+            setTeamMembers([]);
 
             // UNBLOCK UI: Stop spinner and show table immediately
             setIsLoading(false);
 
             // 3. PROGRESSIVE PHASE: Handle secondary data in background
-            // We use Promise.allSettled so we can handle them as a group, or we could handle them individually.
-            // Handling as a group ensures we don't cause too many re-renders, but since they are separate states,
-            // we could also just await them one by one if we wanted "streaming" updates. 
-            // Here, grouped update is fine and safer for performance.
-            Promise.allSettled([clientsPromise, servicesPromise, tagsPromise, stagesPromise, entityUsersPromise])
-                .then(([clientsRes, servicesRes, tagsRes, stagesRes, entityUsersRes]) => {
-                    // Update state only if component is still mounted (React handles this mostly, but good practice)
+            // We use Promise.allSettled so we can handle them as a group.
+            // Including teamPromise here so it loads in background.
+            Promise.allSettled([teamPromise, clientsPromise, servicesPromise, tagsPromise, stagesPromise, entityUsersPromise])
+                .then(([teamRes, clientsRes, servicesRes, tagsRes, stagesRes, entityUsersRes]) => {
+                    // Update state only if component is still mounted
+
+                    // Handle Team Members (might fail for Client Users, which is expected)
+                    let fetchedTeamMembers = [];
+                    if (teamRes.status === 'fulfilled') {
+                        fetchedTeamMembers = Array.isArray(teamRes.value) ? teamRes.value : (teamRes.value?.items || []);
+                    }
+
                     if (clientsRes.status === 'fulfilled') {
                         setClients(Array.isArray(clientsRes.value) ? clientsRes.value : (clientsRes.value?.items || []));
                     }
@@ -145,26 +151,27 @@ const TaskManagementPage = ({ entityId, entityName }) => {
                         const stagesArray = Array.isArray(stagesData) ? stagesData : (stagesData?.items || []);
                         setStages([...stagesArray]);
                     }
+
+                    // Handle Entity Users and merge with Team Members
+                    let fetchedEntityUsers = [];
                     if (entityUsersRes.status === 'fulfilled') {
                         const res = entityUsersRes.value;
                         const entityUsers = Array.isArray(res) ? res : (res?.items || res?.users || []);
 
                         // Normalize entity users
-                        const normalizedEntityUsers = entityUsers.map(u => ({
+                        fetchedEntityUsers = entityUsers.map(u => ({
                             ...u,
                             id: u.user_id || u.id,
                             name: u.name || u.full_name || u.email,
                             role: u.role || 'Client User'
                         }));
+                    }
 
-                        // Merge with existing teamMembers (which were loaded in critical phase)
-                        // We use functional update to ensure we have latest state if needed, though here we just want to ADD to what we have.
-                        setTeamMembers(prev => {
-                            const combined = [...prev, ...normalizedEntityUsers];
-                            // Simple dedup by ID
-                            const unique = Array.from(new Map(combined.map(item => [item.id, item])).values());
-                            return unique;
-                        });
+                    // Combine and set Team Members
+                    const combined = [...fetchedTeamMembers, ...fetchedEntityUsers];
+                    if (combined.length > 0) {
+                        const unique = Array.from(new Map(combined.map(item => [item.id, item])).values());
+                        setTeamMembers(unique);
                     }
                 })
                 .catch(err => console.warn('Background data fetch warning:', err));
