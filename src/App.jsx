@@ -98,7 +98,7 @@ const ProtectedContent = () => {
     if (user && !currentEntity) {
       if (user.role === 'ENTITY_USER') {
         setCurrentEntity(user.id);
-      } else if (user.role === 'CLIENT_USER') {
+      } else if (user.role === 'CLIENT_USER' || user.role === 'CLIENT_ADMIN') {
         const entitiesToDisplay = user.entities || [];
         if (entitiesToDisplay.length > 0) {
           setCurrentEntity(entitiesToDisplay[0].id);
@@ -109,7 +109,7 @@ const ProtectedContent = () => {
         ) {
           setCurrentEntity(user.organization_id);
         }
-      } else if (user.role !== 'CA_ACCOUNTANT') {
+      } else if (user.role !== 'CA_ACCOUNTANT' && user.role !== 'CA_TEAM') {
         if (
           user.organization_id &&
           typeof user.organization_id === 'string' &&

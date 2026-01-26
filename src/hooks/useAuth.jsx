@@ -220,6 +220,36 @@ export const AuthProvider = ({ children }) => {
         finishLogin(fullUserData);
         return { twoFactorEnabled: false };
       }
+    } else if (data.role === 'CLIENT_ADMIN') {
+      const [profileData, twoFactorStatus] = await Promise.all([
+        apiGetProfile(data.access_token),
+        apiGet2FAStatus(data.access_token)
+      ]);
+
+      if (!profileData.is_active) {
+        logout();
+        throw new Error('Your account is inactive. Please contact support.');
+      }
+
+      // Fetch all clients for the organization
+      let entitiesData = [];
+      if (profileData.organization_id) {
+        try {
+          entitiesData = await listClientsByOrganization(profileData.organization_id, data.access_token);
+        } catch (error) {
+          console.error("Failed to fetch clients for organization:", error);
+        }
+      }
+
+      const fullUserData = { ...data, ...profileData, entities: entitiesData || [] };
+      const is2FA = twoFactorStatus?.status === 'Enabled' || twoFactorStatus?.is_2fa_enabled === true;
+
+      if (is2FA && !otp) {
+        return { twoFactorEnabled: true, loginData: fullUserData };
+      } else {
+        finishLogin(fullUserData);
+        return { twoFactorEnabled: false };
+      }
     } else if (data.role === 'CA_ACCOUNTANT') {
       const [profileData, entitiesData, twoFactorStatus] = await Promise.all([
         apiGetProfile(data.access_token, data.agency_id),
