@@ -1692,6 +1692,11 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                             setWithoutExpiryDate(false);
                           }
                         }}
+                        disabled={(date) => date < new Date().setHours(0, 0, 0, 0)}
+                        fromDate={new Date()}
+                        fromYear={new Date().getFullYear()}
+                        toYear={new Date().getFullYear() + 10}
+                        captionLayout="dropdown-buttons"
                         initialFocus
                       />
                     </PopoverContent>
