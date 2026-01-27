@@ -251,12 +251,16 @@ const ClientUsersPage = ({ entityId }) => {
                     <p className="text-gray-400 mt-1">Add and manage members of your entity.</p>
                 </div>
                 <div className="flex gap-2">
-                    <Button onClick={handleAddExisting} variant="outline" className="gap-2">
-                        <UserCheck className="w-4 h-4" /> Add Existing
-                    </Button>
-                    <Button onClick={() => setShowInviteDialog(true)} className="bg-primary hover:bg-primary/90 gap-2">
-                        <UserPlus className="w-4 h-4" /> Invite New
-                    </Button>
+                    {user?.role !== 'CLIENT_USER' && (
+                        <>
+                            <Button onClick={handleAddExisting} variant="outline" className="gap-2">
+                                <UserCheck className="w-4 h-4" /> Add Existing
+                            </Button>
+                            <Button onClick={() => setShowInviteDialog(true)} className="bg-primary hover:bg-primary/90 gap-2">
+                                <UserPlus className="w-4 h-4" /> Invite New
+                            </Button>
+                        </>
+                    )}
                 </div>
             </div>
 
@@ -308,13 +312,13 @@ const ClientUsersPage = ({ entityId }) => {
                                 <TableHead className="text-gray-300">User</TableHead>
                                 <TableHead className="text-gray-300">Role</TableHead>
                                 <TableHead className="text-gray-300">Status</TableHead>
-                                <TableHead className="text-right text-gray-300">Actions</TableHead>
+                                {user?.role !== 'CLIENT_USER' && <TableHead className="text-right text-gray-300">Actions</TableHead>}
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {isLoading && filteredUsers.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={4} className="h-24 text-center">
+                                    <TableCell colSpan={user?.role !== 'CLIENT_USER' ? 4 : 3} className="h-24 text-center">
                                         <Loader2 className="w-6 h-6 animate-spin mx-auto text-primary" />
                                     </TableCell>
                                 </TableRow>
@@ -341,39 +345,63 @@ const ClientUsersPage = ({ entityId }) => {
                                                 {u.status}
                                             </Badge>
                                         </TableCell>
-                                        <TableCell className="text-right">
-                                            <div className="flex justify-end gap-2">
-                                                {u.status === 'Invited' && (
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => handleResendInvite(u)}
-                                                        disabled={loadingUserId === (u.user_id || u.email)}
-                                                        title="Resend Invite"
-                                                    >
-                                                        <RefreshCw className={`w-4 h-4 ${loadingUserId === (u.user_id || u.email) ? 'animate-spin' : ''}`} />
-                                                    </Button>
-                                                )}
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="text-red-400 hover:text-red-300 hover:bg-red-500/20"
-                                                    onClick={() => handleDeleteUser(u)}
-                                                    disabled={loadingUserId === (u.user_id || u.email)}
-                                                >
-                                                    {loadingUserId === (u.user_id || u.email) ? (
-                                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                                    ) : (
-                                                        <Trash2 className="w-4 h-4" />
+                                        {user?.role !== 'CLIENT_USER' && (
+                                            <TableCell className="text-right">
+                                                <div className="flex justify-end gap-2">
+                                                    {/* Resend Invite - Only for Invited users and if current user has permission */}
+                                                    {u.status === 'Invited' && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => handleResendInvite(u)}
+                                                            disabled={loadingUserId === (u.user_id || u.email)}
+                                                            title="Resend Invite"
+                                                        >
+                                                            <RefreshCw className={`w-4 h-4 ${loadingUserId === (u.user_id || u.email) ? 'animate-spin' : ''}`} />
+                                                        </Button>
                                                     )}
-                                                </Button>
-                                            </div>
-                                        </TableCell>
+
+                                                    {/* Delete Button Logic 
+                                                    1. CLIENT_USER: Never show delete button (Handled by parent toggle now too, but explicit check safe)
+                                                    2. CLIENT_MASTER_ADMIN: Show for everyone EXCEPT themselves
+                                                    3. Other Roles (CA/Agency): Show based on existing logic (implied all for now)
+                                                */}
+                                                    {(() => {
+                                                        const isSelf = user?.email === u.email;
+                                                        const userRole = user?.role;
+
+                                                        if (userRole === 'CLIENT_USER') {
+                                                            return null;
+                                                        }
+
+                                                        if (userRole === 'CLIENT_MASTER_ADMIN' && isSelf) {
+                                                            return null;
+                                                        }
+
+                                                        return (
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="text-red-400 hover:text-red-300 hover:bg-red-500/20"
+                                                                onClick={() => handleDeleteUser(u)}
+                                                                disabled={loadingUserId === (u.user_id || u.email)}
+                                                            >
+                                                                {loadingUserId === (u.user_id || u.email) ? (
+                                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                                ) : (
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                )}
+                                                            </Button>
+                                                        );
+                                                    })()}
+                                                </div>
+                                            </TableCell>
+                                        )}
                                     </TableRow>
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={4} className="h-24 text-center text-gray-400">
+                                    <TableCell colSpan={user?.role !== 'CLIENT_USER' ? 4 : 3} className="h-24 text-center text-gray-400">
                                         No users found.
                                     </TableCell>
                                 </TableRow>
