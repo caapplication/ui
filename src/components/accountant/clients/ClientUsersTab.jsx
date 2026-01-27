@@ -298,11 +298,13 @@ const ClientUsersTab = ({ client, onUserInvited, onUserDeleted }) => {
                                     <TableCell>
                                         {u.role === 'CLIENT_USER' || u.role === 'CLIENT user'
                                             ? 'Member'
-                                            : u.role === 'CLIENT_ADMIN'
-                                                ? 'Organization Owner'
-                                                : u.role === 'ENTITY_USER'
-                                                    ? 'Entity User'
-                                                    : u.role}
+                                            : u.role === 'CLIENT_MASTER_ADMIN'
+                                                ? 'Client Admin'
+                                                : u.role === 'CLIENT_ADMIN'
+                                                    ? 'Organization Owner'
+                                                    : u.role === 'ENTITY_USER'
+                                                        ? 'Entity User'
+                                                        : u.role}
                                     </TableCell>
                                     <TableCell>
                                         <Badge variant={u.status === 'Joined' ? 'success' : 'default'}>

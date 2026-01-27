@@ -328,7 +328,13 @@ const ClientUsersPage = ({ entityId }) => {
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-gray-300">
-                                            {u.role === 'ENTITY_ADMIN' ? 'Admin' : 'Member'}
+                                            {u.role === 'CLIENT_MASTER_ADMIN'
+                                                ? 'Client Admin'
+                                                : u.role === 'CLIENT_ADMIN' || u.role === 'ENTITY_ADMIN'
+                                                    ? 'Organization Owner'
+                                                    : u.role === 'ENTITY_USER'
+                                                        ? 'Entity User'
+                                                        : 'Member'}
                                         </TableCell>
                                         <TableCell>
                                             <Badge variant={u.status === 'Joined' ? 'default' : 'secondary'} className={u.status === 'Joined' ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' : 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30'}>

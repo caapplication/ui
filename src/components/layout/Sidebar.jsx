@@ -61,8 +61,8 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
         if (user?.role === 'AGENCY_ADMIN' && user?.agency_id && user?.access_token) {
           console.log('📞 Calling listClients for AGENCY_ADMIN');
           fetchedClients = await listClients(user.agency_id, user.access_token);
-        } else if (user?.role === 'CLIENT_USER' && user?.organization_id && user?.access_token) {
-          console.log('📞 Calling listClientsByOrganization for CLIENT_USER with org_id:', user.organization_id);
+        } else if ((user?.role === 'CLIENT_USER' || user?.role === 'CLIENT_MASTER_ADMIN') && user?.organization_id && user?.access_token) {
+          console.log('📞 Calling listClientsByOrganization for CLIENT_USER/MASTER_ADMIN with org_id:', user.organization_id);
           fetchedClients = await listClientsByOrganization(user.organization_id, user.access_token);
         } else {
           console.log('⚠️ No API call - conditions not met');
@@ -82,7 +82,7 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
     if (!user) return [];
 
     // Use clients from Clients table for AGENCY_ADMIN and CLIENT_USER
-    if (user.role === 'AGENCY_ADMIN' || user.role === 'CLIENT_USER') {
+    if (user.role === 'AGENCY_ADMIN' || user.role === 'CLIENT_USER' || user.role === 'CLIENT_MASTER_ADMIN') {
       const filteredClients = clients.filter(c => c.id && c.name);
       if (filteredClients.length > 0) return filteredClients;
     }

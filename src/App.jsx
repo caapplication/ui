@@ -98,7 +98,7 @@ const ProtectedContent = () => {
     if (user && !currentEntity) {
       if (user.role === 'ENTITY_USER') {
         setCurrentEntity(user.id);
-      } else if (user.role === 'CLIENT_USER' || user.role === 'CLIENT_ADMIN') {
+      } else if (user.role === 'CLIENT_USER' || user.role === 'CLIENT_ADMIN' || user.role === 'CLIENT_MASTER_ADMIN') {
         const entitiesToDisplay = user.entities || [];
         if (entitiesToDisplay.length > 0) {
           setCurrentEntity(entitiesToDisplay[0].id);
@@ -132,7 +132,7 @@ const ProtectedContent = () => {
 
   const getEntityName = (entityId) => {
     if (user.role === 'ENTITY_USER') return user.name;
-    if (user.role !== 'CLIENT_USER') return user.name;
+    if (user.role !== 'CLIENT_USER' && user.role !== 'CLIENT_MASTER_ADMIN') return user.name;
     const entitiesToDisplay = user.entities || [];
     const entity = entitiesToDisplay.find((e) => e.id === entityId);
     if (entity) return entity.name;
@@ -221,7 +221,7 @@ const ProtectedContent = () => {
               <Route
                 path="/finance/*"
                 element={
-                  user.role === 'CLIENT_USER' ? (
+                  user.role === 'CLIENT_USER' || user.role === 'CLIENT_MASTER_ADMIN' ? (
                     <ClientFinance
                       entityName={getEntityName(currentEntity)}
                       organisationBankAccounts={organisationBankAccounts}

@@ -188,7 +188,7 @@ export const AuthProvider = ({ children }) => {
       throw new Error(data.detail || 'Login failed');
     }
 
-    if (data.role === 'CLIENT_USER') {
+    if (data.role === 'CLIENT_USER' || data.role === 'CLIENT_MASTER_ADMIN') {
       // First fetch profile to get organization_id
       const [profileData, twoFactorStatus] = await Promise.all([
         apiGetProfile(data.access_token),

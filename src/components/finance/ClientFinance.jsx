@@ -411,7 +411,7 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
   const handleViewVoucher = (voucher) => {
     // Get entity name from user entities if available
     let entityName = 'N/A';
-    if (user?.role === 'CLIENT_USER' && user.entities && entityId) {
+    if ((user?.role === 'CLIENT_USER' || user?.role === 'CLIENT_MASTER_ADMIN') && user.entities && entityId) {
       const entity = user.entities.find(e => e.id === entityId);
       if (entity) entityName = entity.name;
     }
