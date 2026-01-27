@@ -328,7 +328,36 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   const [selectedFolder, setSelectedFolder] = useState(null);
   const [collabSelectedClientId, setCollabSelectedClientId] = useState(null); // 'my-team' or client ID
 
-  // Removed redundant useEffects for URL parsing (handled in initial state)
+  // Initialize collabSelectedClientId when user changes
+  useEffect(() => {
+    if (user?.role === 'CA_ACCOUNTANT' && realSelectedClientId) {
+      setCollabSelectedClientId(realSelectedClientId);
+    } else if (user?.role === 'CA_ACCOUNTANT' || user?.role === 'AGENCY_ADMIN' || user?.role === 'CA_TEAM') {
+      setCollabSelectedClientId('my-team');
+    } else {
+      // For Client Users/Admins, we default to their first organization/entity if available, or 'my-org' sentinel
+      // However, listOrgUsers usually takes an Org ID. 
+      // We need to know the Org ID.
+      // Assuming user object has it or we can derive it.
+      // For now, let's leave it null to trigger a "select" state or better:
+      // If we want "show client user of its own entity", we should probably set it to the entity ID they are viewing if available?
+      // But the dropdown expects a Client ID (Entity ID).
+      // Let's set it to user.entity_id or similar if available?
+      // Wait, the hook `list_all_client_users` returns users from accessible orgs.
+      // But `Documents.jsx` uses `listOrgUsers` which takes `collabSelectedClientId` (as org ID).
+      // Let's see if we can get the org ID from `user` state.
+
+      // Strategy: If Client User, rely on the useEffect that fetches users to detect "Self Org" mode?
+      // Actually, looking at `Documents.jsx` below (I need to read more context or just logic):
+      // There is a `fetchCollabUsers` function.
+      // It checks `if (!collabSelectedClientId || collabSelectedClientId === 'my-team')`.
+      // If I set it to a special value 'self-org' maybe?
+      // Or if I just set it to `entityId` if available?
+      if (entityId) {
+        setCollabSelectedClientId(entityId);
+      }
+    }
+  }, [user, realSelectedClientId, entityId]);
 
 
   useEffect(() => {
@@ -888,18 +917,36 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
 
         // CASE 1: My Team (Agency) - when NO client selected
         if (!collabSelectedClientId || collabSelectedClientId === 'my-team') {
-          try {
-            const teamMembers = await listTeamMembers(user.access_token);
-            if (Array.isArray(teamMembers)) {
-              users = teamMembers;
-            } else if (teamMembers && Array.isArray(teamMembers.members)) {
-              users = teamMembers.members;
-            } else if (teamMembers && teamMembers.data && Array.isArray(teamMembers.data)) {
-              users = teamMembers.data;
+          if (['CLIENT_USER', 'CLIENT_MASTER_ADMIN', 'ENTITY_USER'].includes(user?.role)) {
+            // For Client Users, "My Team" means their organization users (colleagues)
+            try {
+              const clientUsers = await listAllClientUsers(user.access_token);
+              // listAllClientUsers returns { joined_users: [...] } or list?
+              // Looking at index.js/organisation.js, listAllClientUsers returns response directly via handleResponse.
+              // organisation.js: listAllClientUsers -> fetch /entities/all-client-users
+              // entities.py: list_all_client_users returns list(unique_users.values()) -> Array of user objects
+              if (Array.isArray(clientUsers)) {
+                users = clientUsers;
+              }
+            } catch (clientError) {
+              console.error('Failed to fetch client users:', clientError);
+              toast({ title: 'Error', description: 'Failed to fetch users.', variant: 'destructive' });
             }
-          } catch (teamError) {
-            console.error('Failed to fetch team members:', teamError);
-            toast({ title: 'Error', description: 'Failed to fetch team members.', variant: 'destructive' });
+          } else {
+            // For CA/Agency, fetch CA Team Members
+            try {
+              const teamMembers = await listTeamMembers(user.access_token);
+              if (Array.isArray(teamMembers)) {
+                users = teamMembers;
+              } else if (teamMembers && Array.isArray(teamMembers.members)) {
+                users = teamMembers.members;
+              } else if (teamMembers && teamMembers.data && Array.isArray(teamMembers.data)) {
+                users = teamMembers.data;
+              }
+            } catch (teamError) {
+              console.error('Failed to fetch team members:', teamError);
+              toast({ title: 'Error', description: 'Failed to fetch team members.', variant: 'destructive' });
+            }
           }
         }
         // CASE 2: Client Selected - fetch that client's organization users
