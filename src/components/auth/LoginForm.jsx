@@ -143,8 +143,8 @@ const LoginForm = () => {
           </Card>
         </motion.div>
         <div className="absolute bottom-4 left-0 w-full text-center">
-          <p className="text-base text-gray-400 font-medium">
-            ©️ 2025 Fynivo by Snolep. All rights reserved.
+          <p className="text-gray-500 text-sm mt-8 relative z-10">
+            ©️ {new Date().getFullYear()} Fynivo by Snolep. All rights reserved.
           </p>
         </div>
       </div>

@@ -63,7 +63,7 @@ const TwoFactorVerify = () => {
   };
 
   if (!loginAttemptData && !email) {
-    return null; 
+    return null;
   }
 
   return (
@@ -83,7 +83,7 @@ const TwoFactorVerify = () => {
               transition={{ delay: 0.3, type: "spring", stiffness: 150, duration: 1 }}
               className="mx-auto mb-4 w-20 h-20 bg-gradient-to-r from-sky-500 to-indigo-500 rounded-full flex items-center justify-center shadow-lg shadow-sky-500/30"
             >
-               <ShieldCheck className="w-10 h-10 text-white" />
+              <ShieldCheck className="w-10 h-10 text-white" />
             </motion.div>
             <CardTitle className="text-3xl font-bold gradient-text">Two-Factor Auth</CardTitle>
             <CardDescription className="text-gray-300">
@@ -119,19 +119,19 @@ const TwoFactorVerify = () => {
               </motion.div>
             </form>
             <div className="mt-6 flex justify-center">
-                <Button asChild variant="link" className="text-gray-300 hover:text-white">
-                  <Link to="/login">
-                    <ArrowLeft className="w-4 h-4 mr-2" />
-                    Back to Login
-                  </Link>
-                </Button>
-              </div>
+              <Button asChild variant="link" className="text-gray-300 hover:text-white">
+                <Link to="/login">
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Back to Login
+                </Link>
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </motion.div>
       <div className="absolute bottom-4 left-0 w-full text-center">
-        <p className="text-base text-gray-400 font-medium">
-          ©️ 2025 Fynivo by Snolep. All rights reserved.
+        <p className="text-gray-500 text-sm mt-8">
+          ©️ {new Date().getFullYear()} Fynivo by Snolep. All rights reserved.
         </p>
       </div>
     </div>

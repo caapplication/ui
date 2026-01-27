@@ -256,8 +256,8 @@ const VerifyToken = () => {
         </Card>
       </motion.div>
       <div className="absolute bottom-4 left-0 w-full text-center">
-        <p className="text-base text-gray-400 font-medium">
-          ©️ 2025 Fynivo by Snolep. All rights reserved.
+        <p className="text-gray-400 text-sm">
+          ©️ {new Date().getFullYear()} Fynivo by Snolep. All rights reserved.
         </p>
       </div>
     </div>

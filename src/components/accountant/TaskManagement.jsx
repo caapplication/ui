@@ -20,7 +20,7 @@ const TaskManagement = () => {
         { id: 5, client: 'Innovate Inc.', task: 'CMP-08', assignee: 'John Doe', dueDate: '2025-09-05', status: 'Hold' },
         { id: 6, client: 'Future Corp', task: 'Monthly GSTR-3B', assignee: 'Jane Smith', dueDate: '2025-09-12', status: 'Pending' },
     ];
-    
+
     const getStatusVariant = (status) => {
         switch (status) {
             case 'Pending': return 'default';
@@ -33,8 +33,8 @@ const TaskManagement = () => {
 
     const filteredTasks = tasks.filter(task => {
         const statusMatch = statusFilter === 'all' || task.status.toLowerCase() === statusFilter;
-        const searchMatch = task.client.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                            task.task.toLowerCase().includes(searchTerm.toLowerCase());
+        const searchMatch = task.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            task.task.toLowerCase().includes(searchTerm.toLowerCase());
         return statusMatch && searchMatch;
     });
 
@@ -104,7 +104,7 @@ const TaskManagement = () => {
                                 ))}
                             </TableBody>
                         </Table>
-                         {filteredTasks.length === 0 && <p className="text-center text-gray-400 py-8">No tasks found.</p>}
+                        {filteredTasks.length === 0 && <p className="text-center text-gray-400 py-8">No tasks found.</p>}
                     </CardContent>
                 </Card>
             </motion.div>
