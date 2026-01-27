@@ -312,6 +312,7 @@ const ClientUsersPage = ({ entityId }) => {
                                 <TableHead className="text-gray-300">User</TableHead>
                                 <TableHead className="text-gray-300">Role</TableHead>
                                 <TableHead className="text-gray-300">Status</TableHead>
+                                <TableHead className="text-gray-300">Last Login</TableHead>
                                 {user?.role !== 'CLIENT_USER' && <TableHead className="text-right text-gray-300">Actions</TableHead>}
                             </TableRow>
                         </TableHeader>
@@ -344,6 +345,9 @@ const ClientUsersPage = ({ entityId }) => {
                                             <Badge variant={u.status === 'Joined' ? 'default' : 'secondary'} className={u.status === 'Joined' ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' : 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30'}>
                                                 {u.status}
                                             </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-gray-400">
+                                            {u.last_login ? new Date(u.last_login).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : <span className="text-gray-500 italic">Never</span>}
                                         </TableCell>
                                         {user?.role !== 'CLIENT_USER' && (
                                             <TableCell className="text-right">

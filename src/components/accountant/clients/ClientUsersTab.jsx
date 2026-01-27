@@ -287,6 +287,7 @@ const ClientUsersTab = ({ client, onUserInvited, onUserDeleted }) => {
                             <TableHead>Email</TableHead>
                             <TableHead>Role</TableHead>
                             <TableHead>Status</TableHead>
+                            <TableHead>Last Login</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -310,6 +311,9 @@ const ClientUsersTab = ({ client, onUserInvited, onUserDeleted }) => {
                                         <Badge variant={u.status === 'Joined' ? 'success' : 'default'}>
                                             {u.status}
                                         </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-gray-400">
+                                        {u.last_login ? new Date(u.last_login).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : <span className="text-gray-500 italic">Never</span>}
                                     </TableCell>
                                     <TableCell>
                                         <div className="flex gap-2 justify-end">
