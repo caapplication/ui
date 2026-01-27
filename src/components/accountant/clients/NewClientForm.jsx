@@ -47,7 +47,7 @@ const enumToBusinessType = Object.fromEntries(
     Object.entries(businessTypeToEnum).map(([key, value]) => [value, key])
 );
 
-const NewClientForm = ({ onBack, onSave, client, allServices, organisations, businessTypes, teamMembers, tags }) => {
+const NewClientForm = ({ onBack, onSave, client, allServices, organisations, businessTypes, teamMembers, tags, onAddOrganisation }) => {
     const { toast } = useToast();
     const { user } = useAuth();
     const [formData, setFormData] = useState({
