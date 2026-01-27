@@ -114,7 +114,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 
 const buildFileTree = (folders, documents) => {
-  const root = { id: 'root', name: 'Root', is_folder: true, children: [] };
+  const root = { id: 'root', name: 'Home', is_folder: true, children: [] };
   const allItems = {};
 
   // Ensure folders and documents are arrays
@@ -293,7 +293,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
     return (decoded && decoded !== 'null') ? decoded : 'root';
   });
 
-  const [documentsState, setDocumentsState] = useState({ id: 'root', name: 'Root', is_folder: true, children: [] });
+  const [documentsState, setDocumentsState] = useState({ id: 'root', name: 'Home', is_folder: true, children: [] });
   const [sharedDocuments, setSharedDocuments] = useState([]);
   // const [currentFolderId, setCurrentFolderId] = useState('root'); // Removed: Initialized above
   const [isLoading, setIsLoading] = useState(true);
