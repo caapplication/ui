@@ -259,7 +259,7 @@ const AccountantDashboard = () => {
                     const daysLeft = differenceInDays(new Date(doc.expiry_date), new Date());
                     return (
                       <div key={doc.id} className="flex justify-between items-center p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors group cursor-pointer"
-                        onClick={() => navigate(`/documents?folderId=${doc.folder_id || 'root'}&clientId=${doc.entity_id || ''}`)}>
+                        onClick={() => navigate(`/documents?folderId=${btoa(doc.folder_id || 'root')}&clientId=${btoa(doc.entity_id || '')}`)}>
                         <div className="flex items-center gap-3 overflow-hidden">
                           <div className="w-8 h-8 rounded bg-blue-500/20 flex items-center justify-center shrink-0">
                             <FileText className="w-4 h-4 text-blue-400" />

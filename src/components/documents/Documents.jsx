@@ -257,15 +257,40 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   const { entities } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
+  // Helper functions for parameter obfuscation
+  const encodeParam = (value) => {
+    if (!value) return null;
+    try {
+      return btoa(String(value));
+    } catch (e) {
+      console.error('Encoding error:', e);
+      return value;
+    }
+  };
+
+  const decodeParam = (value) => {
+    if (!value) return null;
+    try {
+      return atob(value);
+    } catch (e) {
+      // If decoding fails, it might be an already plain value (though unlikely if we consistently encode)
+      // or invalid garbage. Return null or logical default implies failure.
+      console.warn('Decoding error/Invalid param:', e);
+      return null;
+    }
+  };
+
   // Initialize state directly from URL to prevent "flash" and race conditions
   const [realSelectedClientId, setRealSelectedClientId] = useState(() => {
     const param = searchParams.get('clientId');
-    return (param && param !== 'null' && param !== '') ? param : null;
+    const decoded = decodeParam(param);
+    return (decoded && decoded !== 'null' && decoded !== '') ? decoded : null;
   });
 
   const [currentFolderId, setCurrentFolderId] = useState(() => {
     const param = searchParams.get('folderId');
-    return (param && param !== 'null') ? param : 'root';
+    const decoded = decodeParam(param);
+    return (decoded && decoded !== 'null') ? decoded : 'root';
   });
 
   const [documentsState, setDocumentsState] = useState({ id: 'root', name: 'Root', is_folder: true, children: [] });
@@ -452,9 +477,12 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
     // Simplest way: just respect URL if it differs from state?
     // For now, let's rely on the router. If back button triggers re-render, initial state logic runs? No, only on mount.
     // So we DO need to listen to searchParams changes, BUT carefully.
-    const urlFolderId = searchParams.get('folderId') || 'root';
-    const urlClientId = searchParams.get('clientId');
-    const normalizedUrlClientId = (urlClientId && urlClientId !== 'null' && urlClientId !== '') ? urlClientId : null;
+    const urlFolderIdParam = searchParams.get('folderId');
+    const urlClientIdParam = searchParams.get('clientId');
+
+    const urlFolderId = decodeParam(urlFolderIdParam) || 'root';
+    const urlClientIdRaw = decodeParam(urlClientIdParam);
+    const normalizedUrlClientId = (urlClientIdRaw && urlClientIdRaw !== 'null' && urlClientIdRaw !== '') ? urlClientIdRaw : null;
 
     // Only update state if URL differs from current state (handling external nav/back button)
     if (urlFolderId !== currentFolderId) {
@@ -492,10 +520,10 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   const updateUrl = (targetFolderId, targetClientId) => {
     const params = {};
     if (targetFolderId && targetFolderId !== 'root') {
-      params.folderId = targetFolderId;
+      params.folderId = encodeParam(targetFolderId);
     }
     if (targetClientId) {
-      params.clientId = targetClientId;
+      params.clientId = encodeParam(targetClientId);
     }
     setSearchParams(params);
   };
