@@ -245,8 +245,12 @@ export const addEntityUsers = async (entityId, userIds, token) => {
     return handleResponse(response);
 };
 
-export const listAllClientUsers = async (token) => {
-    const response = await fetch(`${API_BASE_URL}/entities/all-client-users`, {
+export const listAllClientUsers = async (token, entityId = null) => {
+    let url = `${API_BASE_URL}/entities/all-client-users`;
+    if (entityId) {
+        url += `?entity_id=${entityId}`;
+    }
+    const response = await fetch(url, {
         method: 'GET',
         headers: getAuthHeaders(token)
     });

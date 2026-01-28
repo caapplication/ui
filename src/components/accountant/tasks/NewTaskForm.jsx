@@ -69,6 +69,20 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
   // =========================
   useEffect(() => {
     const fetchTeamUsers = async () => {
+      // If teamMembers prop is provided and valid, use it. 
+      // This is especially important for Client Users where API might fail or be restricted,
+      // and the parent (TaskManagementPage) has already fetched the correct list (combined with Entity Users).
+      if (teamMembers && Array.isArray(teamMembers) && teamMembers.length > 0) {
+        setTeamUsers(teamMembers);
+        setLoadingUsers(false);
+        // If we have prop data, we might not need to fetch, but for CA users we might want to ensure fresh data?
+        // Actually, for CA users, listTeamMembers fetches "My Team".
+        // If the prop is passed, it takes precedence in current logic?
+        // Let's refine:
+        // If CA User -> Fetch from API (listTeamMembers) to get "My Agency Team"
+        // If Client User -> Rely on `teamMembers` prop which contains "My Entity/Org Users"
+      }
+
       if (!user?.access_token) {
         setLoadingUsers(false);
         return;
@@ -76,68 +90,82 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
 
       const isCAUser = user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM';
 
-      setLoadingUsers(true);
-      try {
-        let membersData = [];
+      if (isCAUser) {
+        setLoadingUsers(true);
+        try {
+          const res = await listTeamMembers(user.access_token, 'joined');
+          const membersData = Array.isArray(res) ? res : (res?.members || res?.data || []);
 
-        if (isCAUser) {
+          const usersList = [];
+          if (Array.isArray(membersData)) {
+            membersData.forEach(member => {
+              const memberId = member.user_id || member.id;
+              if (memberId && !usersList.find(u => u.id === memberId)) {
+                usersList.push({
+                  id: memberId,
+                  user_id: memberId,
+                  name: member.name || member.full_name || member.email,
+                  email: member.email,
+                  role: member.role
+                });
+              }
+            });
+          }
+          setTeamUsers(usersList);
+        } catch (error) {
+          console.error('[AssignTo][fetchTeamUsers] CA fetch FAILED:', error);
+          // Fallback to prop if available
+          if (teamMembers && Array.isArray(teamMembers)) {
+            setTeamUsers(teamMembers);
+          }
+        } finally {
+          setLoadingUsers(false);
+        }
+      } else {
+        // For Non-CA Users (Client Admin/User)
+        // If prop is missing or empty, fetch from new API
+        if ((!teamMembers || teamMembers.length === 0)) {
+          setLoadingUsers(true);
           try {
-            const res = await listTeamMembers(user.access_token, 'joined');
-            membersData = Array.isArray(res) ? res : (res?.members || res?.data || []);
+            // Use the new API for Client Users to list their team
+            const { listAllClientUsers } = await import('@/lib/api');
+
+            // Pass selectedOrg (which acts as the current Entity ID context) to filter users
+            // selectedOrg prop is passed from TaskManagementPage as `entityId || selectedOrg`
+            const res = await listAllClientUsers(user.access_token, selectedOrg);
+
+            // Normalize data
+            const usersList = [];
+            const membersData = Array.isArray(res) ? res : (res?.users || []);
+
+            membersData.forEach(u => {
+              // Ensure we have an ID
+              const uid = u.id || u.user_id;
+              if (uid) {
+                usersList.push({
+                  id: uid,
+                  user_id: uid,
+                  name: u.name || u.full_name || u.email,
+                  email: u.email,
+                  role: u.role
+                });
+              }
+            });
+
+            setTeamUsers(usersList);
           } catch (e) {
-            console.error('[AssignTo][fetchTeamUsers] API error', e);
-            membersData = Array.isArray(teamMembers) ? teamMembers : [];
+            console.warn('[AssignTo] Client user list fetch failed', e);
+          } finally {
+            setLoadingUsers(false);
           }
         } else {
-          if (teamMembers && Array.isArray(teamMembers) && teamMembers.length > 0) {
-            membersData = teamMembers;
-          } else {
-            try {
-              const res = await listTeamMembers(user.access_token, 'joined');
-              membersData = Array.isArray(res) ? res : (res?.members || res?.data || []);
-            } catch (e) {
-              console.error('[AssignTo][fetchTeamUsers] API error', e);
-              membersData = [];
-            }
-          }
+          setLoadingUsers(false);
         }
-
-        const usersList = [];
-
-        if (Array.isArray(membersData)) {
-          membersData.forEach(member => {
-            const memberId = member.user_id || member.id;
-            if (!memberId) {
-              return;
-            }
-
-            if (!usersList.find(u => u.id === memberId)) {
-              usersList.push({
-                id: memberId,
-                user_id: memberId,
-                name: member.name || member.full_name || member.email,
-                email: member.email,
-                role: member.role
-              });
-            }
-          });
-        }
-
-        setTeamUsers(usersList);
-      } catch (error) {
-        console.error('[AssignTo][fetchTeamUsers] FAILED:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load team members.",
-          variant: "destructive"
-        });
-      } finally {
-        setLoadingUsers(false);
       }
     };
 
     fetchTeamUsers();
-  }, [user?.access_token, user?.role]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user?.access_token, user?.role, teamMembers]); // Added teamMembers to dependency
 
   // =========================
   // Fetch users for the selected client when client_id changes

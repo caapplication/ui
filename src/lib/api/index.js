@@ -113,7 +113,8 @@ export const {
   listEntityUsers,
   deleteEntityUser,
   deleteInvitedOrgUser,
-  listAllEntityUsers
+  listAllEntityUsers,
+  listAllClientUsers
 } = organisation;
 
 export const {
