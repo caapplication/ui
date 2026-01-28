@@ -14,7 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
-import { FileText, Upload, Trash2, Plus, Share2, Folder, FolderPlus, ArrowLeft, Search, Loader2, RefreshCw, Inbox, CalendarIcon, Download, Copy, X, User, Link2, Grid, Phone, Mail, MessageCircle, Facebook, Twitter, MoreVertical, Users, UserPlus, Check, ChevronsUpDown } from 'lucide-react';
+import { FileText, Upload, Trash2, Plus, Share2, Folder, FolderPlus, ArrowLeft, Search, Loader2, RefreshCw, Inbox, CalendarIcon, Download, Copy, X, User, Link2, Grid, Phone, Mail, MessageCircle, Facebook, Twitter, MoreVertical, Users, UserPlus, Check, ChevronsUpDown, History } from 'lucide-react';
 
 // Helper function to check if folder has expired documents (recursively checks subfolders)
 const hasExpiredDocuments = (folder) => {
@@ -112,6 +112,7 @@ import { cn } from '@/lib/utils';
 import { Calendar } from '@/components/ui/calendar';
 
 import { format } from 'date-fns';
+import ActivityLog from '@/components/finance/ActivityLog';
 
 const buildFileTree = (folders, documents) => {
   const root = { id: 'root', name: 'Home', is_folder: true, children: [] };
@@ -1236,209 +1237,215 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                 </motion.div>
               );
             })}
-          </div>
+          </div >
         )}
 
         {/* Documents - Table format in subfolders, grid format in main folders */}
-        {isSubFolder && documents.length > 0 && (
-          <div className="mt-4 sm:mt-8 overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-gray-400 text-xs sm:text-sm">FILE NAME</TableHead>
-                  <TableHead className="text-gray-400 text-xs sm:text-sm hidden sm:table-cell">EXPIRY DATE</TableHead>
-                  <TableHead className="text-gray-400 text-right text-xs sm:text-sm">ACTION</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {documents.map((item) => (
-                  <TableRow key={item.id} className="hover:bg-white/5">
-                    <TableCell className="text-white font-medium text-xs sm:text-sm">
-                      <div className="flex flex-col sm:block">
-                        <span className="truncate">{item.name}</span>
-                        <span className="text-gray-400 text-xs sm:hidden mt-1">
-                          {item.expiry_date ? formatDate(item.expiry_date) : <span className="text-gray-500 italic">Document not expire</span>}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-gray-300 text-xs sm:text-sm hidden sm:table-cell">
-                      {item.expiry_date ? formatDate(item.expiry_date) : <span className="text-gray-500 italic">Document not expire</span>}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 sm:h-8 sm:w-8">
-                            <MoreVertical className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleView(item)}>
-                            <FileText className="w-4 h-4 mr-2" />
-                            View
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleShareClick(item)}>
-                            <Share2 className="w-4 h-4 mr-2" />
-                            Share
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleCollaborateClick(item)}>
-                            <UserPlus className="w-4 h-4 mr-2" />
-                            Collaborate
-                          </DropdownMenuItem>
-                          <AlertDialog open={itemToDelete?.id === item.id && itemToDelete?.type === 'document'} onOpenChange={(open) => {
-                            if (!open && !isMutating) {
-                              setItemToDelete(null);
-                            }
-                          }}>
-                            <AlertDialogTrigger asChild>
-                              <DropdownMenuItem
-                                className="text-red-400 focus:text-red-400 focus:bg-red-500/10"
-                                onSelect={(e) => {
-                                  e.preventDefault();
-                                  setItemToDelete({ id: item.id, type: 'document' });
-                                }}
-                              >
-                                <Trash2 className="w-4 h-4 mr-2" />
-                                Delete
-                              </DropdownMenuItem>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  This action cannot be undone. This will permanently delete the document.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel onClick={() => setItemToDelete(null)} disabled={isMutating}>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={async () => {
-                                  await handleDelete();
-                                }} disabled={isMutating}>
-                                  {isMutating ? (
-                                    <>
-                                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                      Deleting...
-                                    </>
-                                  ) : (
-                                    'Delete'
-                                  )}
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
+        {
+          isSubFolder && documents.length > 0 && (
+            <div className="mt-4 sm:mt-8 overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-gray-400 text-xs sm:text-sm">FILE NAME</TableHead>
+                    <TableHead className="text-gray-400 text-xs sm:text-sm hidden sm:table-cell">EXPIRY DATE</TableHead>
+                    <TableHead className="text-gray-400 text-right text-xs sm:text-sm">ACTION</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
+                </TableHeader>
+                <TableBody>
+                  {documents.map((item) => (
+                    <TableRow key={item.id} className="hover:bg-white/5">
+                      <TableCell className="text-white font-medium text-xs sm:text-sm">
+                        <div className="flex flex-col sm:block">
+                          <span className="truncate">{item.name}</span>
+                          <span className="text-gray-400 text-xs sm:hidden mt-1">
+                            {item.expiry_date ? formatDate(item.expiry_date) : <span className="text-gray-500 italic">Document not expire</span>}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-gray-300 text-xs sm:text-sm hidden sm:table-cell">
+                        {item.expiry_date ? formatDate(item.expiry_date) : <span className="text-gray-500 italic">Document not expire</span>}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 sm:h-8 sm:w-8">
+                              <MoreVertical className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleView(item)}>
+                              <FileText className="w-4 h-4 mr-2" />
+                              View
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleShareClick(item)}>
+                              <Share2 className="w-4 h-4 mr-2" />
+                              Share
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleCollaborateClick(item)}>
+                              <UserPlus className="w-4 h-4 mr-2" />
+                              Collaborate
+                            </DropdownMenuItem>
+                            <AlertDialog open={itemToDelete?.id === item.id && itemToDelete?.type === 'document'} onOpenChange={(open) => {
+                              if (!open && !isMutating) {
+                                setItemToDelete(null);
+                              }
+                            }}>
+                              <AlertDialogTrigger asChild>
+                                <DropdownMenuItem
+                                  className="text-red-400 focus:text-red-400 focus:bg-red-500/10"
+                                  onSelect={(e) => {
+                                    e.preventDefault();
+                                    setItemToDelete({ id: item.id, type: 'document' });
+                                  }}
+                                >
+                                  <Trash2 className="w-4 h-4 mr-2" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    This action cannot be undone. This will permanently delete the document.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel onClick={() => setItemToDelete(null)} disabled={isMutating}>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={async () => {
+                                    await handleDelete();
+                                  }} disabled={isMutating}>
+                                    {isMutating ? (
+                                      <>
+                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                        Deleting...
+                                      </>
+                                    ) : (
+                                      'Delete'
+                                    )}
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )
+        }
 
         {/* Documents - Grid format in main folders (when not in subfolder) */}
-        {!isSubFolder && documents.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-2 sm:gap-4">
-            {documents.map((item, index) => (
-              <motion.div
-                key={item.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: index * 0.05 }}
-                className="flex flex-col items-center cursor-pointer group relative"
-                onDoubleClick={() => handleView(item)}
-              >
-                <div className="relative mb-2">
-                  <div className="w-40 h-40 sm:w-44 sm:h-44 md:w-48 md:h-48 rounded-xl flex items-center justify-center bg-gradient-to-br from-sky-500 to-indigo-500 transition-transform group-hover:scale-110">
-                    <FileText className="w-20 h-20 sm:w-22 sm:h-22 md:w-24 md:h-24 text-white" />
+        {
+          !isSubFolder && documents.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-2 sm:gap-4">
+              {documents.map((item, index) => (
+                <motion.div
+                  key={item.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: index * 0.05 }}
+                  className="flex flex-col items-center cursor-pointer group relative"
+                  onDoubleClick={() => handleView(item)}
+                >
+                  <div className="relative mb-2">
+                    <div className="w-40 h-40 sm:w-44 sm:h-44 md:w-48 md:h-48 rounded-xl flex items-center justify-center bg-gradient-to-br from-sky-500 to-indigo-500 transition-transform group-hover:scale-110">
+                      <FileText className="w-20 h-20 sm:w-22 sm:h-22 md:w-24 md:h-24 text-white" />
+                    </div>
+                    {/* Action buttons on hover */}
+                    <div className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-0.5 sm:gap-1">
+                      <Button
+                        size="icon"
+                        variant="secondary"
+                        className="h-6 w-6 sm:h-7 sm:w-7 bg-gray-800/90 hover:bg-gray-700"
+                        onClick={(e) => { e.stopPropagation(); handleShareClick(item) }}
+                      >
+                        <Share2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="secondary"
+                        className="h-6 w-6 sm:h-7 sm:w-7 bg-gray-800/90 hover:bg-gray-700"
+                        onClick={(e) => { e.stopPropagation(); handleView(item) }}
+                      >
+                        <FileText className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                      </Button>
+                      <AlertDialog open={itemToDelete?.id === item.id && itemToDelete?.type === 'document'} onOpenChange={(open) => {
+                        if (!open && !isMutating) {
+                          setItemToDelete(null);
+                        }
+                      }}>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            size="icon"
+                            variant="secondary"
+                            className="h-6 w-6 sm:h-7 sm:w-7 bg-red-600/90 hover:bg-red-700"
+                            onClick={(e) => { e.stopPropagation(); setItemToDelete({ id: item.id, type: 'document' }) }}
+                          >
+                            <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This action cannot be undone. This will permanently delete the item.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel onClick={(e) => { e.stopPropagation(); setItemToDelete(null) }} disabled={isMutating}>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={async (e) => {
+                              e.stopPropagation();
+                              await handleDelete();
+                            }} disabled={isMutating}>
+                              {isMutating ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  Deleting...
+                                </>
+                              ) : (
+                                'Delete'
+                              )}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </div>
-                  {/* Action buttons on hover */}
-                  <div className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-0.5 sm:gap-1">
-                    <Button
-                      size="icon"
-                      variant="secondary"
-                      className="h-6 w-6 sm:h-7 sm:w-7 bg-gray-800/90 hover:bg-gray-700"
-                      onClick={(e) => { e.stopPropagation(); handleShareClick(item) }}
-                    >
-                      <Share2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="secondary"
-                      className="h-6 w-6 sm:h-7 sm:w-7 bg-gray-800/90 hover:bg-gray-700"
-                      onClick={(e) => { e.stopPropagation(); handleView(item) }}
-                    >
-                      <FileText className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                    </Button>
-                    <AlertDialog open={itemToDelete?.id === item.id && itemToDelete?.type === 'document'} onOpenChange={(open) => {
-                      if (!open && !isMutating) {
-                        setItemToDelete(null);
-                      }
-                    }}>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          size="icon"
-                          variant="secondary"
-                          className="h-6 w-6 sm:h-7 sm:w-7 bg-red-600/90 hover:bg-red-700"
-                          onClick={(e) => { e.stopPropagation(); setItemToDelete({ id: item.id, type: 'document' }) }}
-                        >
-                          <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete the item.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel onClick={(e) => { e.stopPropagation(); setItemToDelete(null) }} disabled={isMutating}>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={async (e) => {
-                            e.stopPropagation();
-                            await handleDelete();
-                          }} disabled={isMutating}>
-                            {isMutating ? (
-                              <>
-                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                Deleting...
-                              </>
-                            ) : (
-                              'Delete'
-                            )}
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                  <div className="w-full text-center px-1">
+                    <p className="text-xs sm:text-sm text-white truncate group-hover:text-blue-300 transition-colors">{item.name}</p>
+                    <p className="text-xs text-gray-400 mt-1 truncate hidden sm:block">{item.file_type} • {item.size ? `${(item.size / 1024 / 1024).toFixed(2)} MB` : ''}</p>
                   </div>
-                </div>
-                <div className="w-full text-center px-1">
-                  <p className="text-xs sm:text-sm text-white truncate group-hover:text-blue-300 transition-colors">{item.name}</p>
-                  <p className="text-xs text-gray-400 mt-1 truncate hidden sm:block">{item.file_type} • {item.size ? `${(item.size / 1024 / 1024).toFixed(2)} MB` : ''}</p>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        )}
+                </motion.div>
+              ))}
+            </div>
+          )
+        }
 
         {/* Empty state */}
-        {filteredChildren.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-gray-400 mb-4">{searchTerm ? 'No items found matching your search.' : 'This folder is empty.'}</p>
-            {currentFolderId !== 'root' && !searchTerm && (
-              <Button
-                variant="outline"
-                onClick={() => {
-                  handleClientChange(null);
-                  setSearchTerm('');
-                  setClientsForFilter([]); // Resetting clients filter might be safer or not needed? Let's just reset the ID.
-                  if (activeTab !== 'myFiles') setActiveTab('myFiles');
-                }}
-              >
-                Back to My Documents
-              </Button>
-            )}
-          </div>
-        )}
+        {
+          filteredChildren.length === 0 && (
+            <div className="text-center py-12">
+              <p className="text-gray-400 mb-4">{searchTerm ? 'No items found matching your search.' : 'This folder is empty.'}</p>
+              {currentFolderId !== 'root' && !searchTerm && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    handleClientChange(null);
+                    setSearchTerm('');
+                    setClientsForFilter([]); // Resetting clients filter might be safer or not needed? Let's just reset the ID.
+                    if (activeTab !== 'myFiles') setActiveTab('myFiles');
+                  }}
+                >
+                  Back to My Documents
+                </Button>
+              )}
+            </div>
+          )
+        }
       </>
     );
   };
@@ -1607,6 +1614,10 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
               <Inbox className="w-3 h-3 sm:w-4 sm:h-4" />
               <span className="hidden xs:inline">Shared with me</span>
               <span className="xs:hidden">Shared</span>
+            </Button>
+            <Button variant={activeTab === 'activityLog' ? 'secondary' : 'ghost'} onClick={() => setActiveTab('activityLog')} className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm flex-1 sm:flex-initial">
+              <History className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span>Activity Log</span>
             </Button>
           </div>
 
@@ -1807,7 +1818,24 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                 </div>
               </div>
             )}
-            {activeTab === 'myFiles' ? renderMyFiles() : renderSharedWithMe()}
+            {activeTab === 'myFiles' ? renderMyFiles() : activeTab === 'activityLog' ? (
+              <div className="bg-gray-900/50 backdrop-blur-sm border border-gray-800 rounded-lg p-6 min-h-[500px]">
+                <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
+                  <History className="w-5 h-5 text-blue-400" />
+                  Document Activity Log
+                  {user?.role === 'CA_ACCOUNTANT' && realSelectedClientId && (
+                    <span className="text-sm font-normal text-gray-400 ml-2">
+                      for {clientsForFilter.find(c => c.id === realSelectedClientId)?.name || 'loading...'}
+                    </span>
+                  )}
+                </h2>
+                <ActivityLog
+                  key={`${activeTab}-${realSelectedClientId || 'self'}`}
+                  itemType={user?.role === 'CA_ACCOUNTANT' && !realSelectedClientId ? 'user' : 'client'}
+                  itemId={user?.role === 'CA_ACCOUNTANT' && !realSelectedClientId ? `${user?.id}/documents` : `${user?.role === 'CA_ACCOUNTANT' ? realSelectedClientId : entityId}/documents`}
+                />
+              </div>
+            ) : renderSharedWithMe()}
           </div>
         )}
       </motion.div>
@@ -2160,7 +2188,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
           </Dialog>
         )
       }
-    </div >
+    </div>
   );
 };
 

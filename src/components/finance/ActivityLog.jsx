@@ -240,7 +240,11 @@ const ActivityLog = ({ itemId, itemType, showFilter = true }) => {
 
                     // Human-readable item type
                     let itemTypeDisplay = '';
-                    if (itemType === 'invoice') {
+                    if (log.folder_id) {
+                        itemTypeDisplay = 'folder';
+                    } else if (log.document_id) {
+                        itemTypeDisplay = 'document';
+                    } else if (itemType === 'invoice') {
                         itemTypeDisplay = 'invoice';
                     } else if (itemType === 'voucher') {
                         itemTypeDisplay = 'voucher';

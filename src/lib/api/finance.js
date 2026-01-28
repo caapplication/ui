@@ -519,6 +519,19 @@ export const getActivityLog = async (itemId, itemType, token, startDate = null, 
     return handleResponse(response);
 };
 
+export const getClientDocumentActivityLogs = async (clientId, token, startDate = null, endDate = null) => {
+    let url = `${FINANCE_API_BASE_URL}/api/activity_logs/client/${clientId}/documents`;
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    if (params.toString()) url += `?${params.toString()}`;
+
+    const response = await fetch(url, {
+        headers: getAuthHeaders(token),
+    });
+    return handleResponse(response);
+};
+
 export const getAccountantDashboardStats = async (token) => {
     const response = await fetch(`${FINANCE_API_BASE_URL}/api/dashboard/`, {
         headers: getAuthHeaders(token),
