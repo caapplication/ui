@@ -667,12 +667,48 @@ const Dashboard = ({
                             <Card className="glass-card ">
                                 <CardHeader className="p-4 sm:p-6">
                                     <CardTitle className="text-lg sm:text-xl">
-                                        Top transactions
+                                        Top cost Drivers-Finance Header wise
                                     </CardTitle>
                                     <CardDescription className="text-sm sm:text-base">
                                         Highest value expenses
                                     </CardDescription>
                                 </CardHeader>
+                                <CardContent className="p-4 sm:p-6">
+                                    <div className="space-y-2">
+                                        <div className="grid grid-cols-12 text-xs text-gray-400 font-medium uppercase tracking-wider border-b border-white/10 pb-2 mb-2 pr-2">
+                                            <div className="col-span-2">S.No</div>
+                                            <div className="col-span-6">Header</div>
+                                            <div className="col-span-4 text-right">Amount</div>
+                                        </div>
+                                        <div className="max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                                            {dashboardData?.top_header_expenses && dashboardData.top_header_expenses.length > 0 ? (
+                                                dashboardData.top_header_expenses.map((expense, index) => (
+                                                    <div
+                                                        key={index}
+                                                        className="grid grid-cols-12 items-center text-sm py-2 hover:bg-white/5 transition-colors rounded px-1 cursor-default"
+                                                    >
+                                                        <div className="col-span-2 text-gray-400 font-mono">
+                                                            {String(index + 1).padStart(2, "0")}
+                                                        </div>
+                                                        <div className="col-span-6 text-white truncate pr-2">
+                                                            {expense.header_name}
+                                                        </div>
+                                                        <div className="col-span-4 text-right text-red-400 font-medium">
+                                                            ₹
+                                                            {parseFloat(expense.amount).toLocaleString(
+                                                                "en-IN"
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                <div className="text-center py-6 text-gray-400 text-sm">
+                                                    No expenses found
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </CardContent>
                             </Card>
 
                             <Card className="glass-card ">
