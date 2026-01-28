@@ -12,6 +12,8 @@ import { listEntityUsers, inviteEntityUser, deleteEntityUser, deleteInvitedOrgUs
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { getActivityLog } from '@/lib/api/finance';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -245,6 +247,8 @@ const ClientUsersPage = ({ entityId }) => {
         );
     }
 
+    const [activeTab, setActiveTab] = useState('members');
+
     return (
         <div className="p-4 md:p-8 h-full flex flex-col text-white">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
@@ -252,8 +256,10 @@ const ClientUsersPage = ({ entityId }) => {
                     <h1 className="text-3xl font-bold">Manage Team</h1>
                     <p className="text-gray-400 mt-1">Add and manage members of your entity.</p>
                 </div>
-                <div className="flex gap-2">
-                    {user?.role !== 'CLIENT_USER' && (
+
+                {/* Actions only visible when on members tab */}
+                {activeTab === 'members' && user?.role !== 'CLIENT_USER' && (
+                    <div className="flex gap-2">
                         <>
                             <Button onClick={handleAddExisting} variant="outline" className="gap-2">
                                 <UserCheck className="w-4 h-4" /> Add Existing
@@ -262,160 +268,171 @@ const ClientUsersPage = ({ entityId }) => {
                                 <UserPlus className="w-4 h-4" /> Invite New
                             </Button>
                         </>
-                    )}
-                </div>
+                    </div>
+                )}
             </div>
 
-            <div className="glass-pane p-4 rounded-lg flex-1 flex flex-col min-h-0">
-                <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-                    <div className="relative w-full sm:w-72">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <Input
-                            placeholder="Search users..."
-                            className="glass-input pl-10"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                    </div>
+            <Tabs defaultValue="members" className="flex-1 flex flex-col min-h-0 h-full" onValueChange={setActiveTab}>
+                <div className="mb-6 shrink-0">
+                    <TabsList>
+                        <TabsTrigger value="members">Team Members</TabsTrigger>
+                        <TabsTrigger value="activity">Activity Log</TabsTrigger>
+                    </TabsList>
+                </div>
 
-                    <div className="flex items-center gap-2 w-full sm:w-auto">
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button variant="outline" className="gap-2 w-full sm:w-auto">
-                                    <Filter className="w-4 h-4" />
-                                    Filter: {userFilter === 'all' ? 'All' : userFilter === 'joined' ? 'Joined' : 'Invited'}
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-48 p-0 bg-[#181C2A] border-gray-700">
-                                <div className="flex flex-col p-1">
-                                    {['all', 'joined', 'invited'].map(f => (
-                                        <Button
-                                            key={f}
-                                            variant="ghost"
-                                            className="justify-start capitalize"
-                                            onClick={() => setUserFilter(f)}
-                                        >
-                                            {f}
+                <TabsContent value="members" className="flex-1 flex flex-col min-h-0 !mt-0 h-full">
+                    <div className="glass-pane p-4 rounded-lg flex-1 flex flex-col min-h-0">
+                        <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+                            <div className="relative w-full sm:w-72">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                <Input
+                                    placeholder="Search users..."
+                                    className="glass-input pl-10"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                />
+                            </div>
+
+                            <div className="flex items-center gap-2 w-full sm:w-auto">
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" className="gap-2 w-full sm:w-auto">
+                                            <Filter className="w-4 h-4" />
+                                            Filter: {userFilter === 'all' ? 'All' : userFilter === 'joined' ? 'Joined' : 'Invited'}
                                         </Button>
-                                    ))}
-                                </div>
-                            </PopoverContent>
-                        </Popover>
-                        <Button variant="ghost" size="icon" onClick={fetchUsers} disabled={isLoading}>
-                            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-                        </Button>
-                    </div>
-                </div>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-48 p-0 bg-[#181C2A] border-gray-700">
+                                        <div className="flex flex-col p-1">
+                                            {['all', 'joined', 'invited'].map(f => (
+                                                <Button
+                                                    key={f}
+                                                    variant="ghost"
+                                                    className="justify-start capitalize"
+                                                    onClick={() => setUserFilter(f)}
+                                                >
+                                                    {f}
+                                                </Button>
+                                            ))}
+                                        </div>
+                                    </PopoverContent>
+                                </Popover>
+                                <Button variant="ghost" size="icon" onClick={fetchUsers} disabled={isLoading}>
+                                    <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                                </Button>
+                            </div>
+                        </div>
 
-                <div className="overflow-auto flex-1 no-scrollbar">
-                    <Table>
-                        <TableHeader>
-                            <TableRow className="border-white/10 hover:bg-white/5">
-                                <TableHead className="text-gray-300">User</TableHead>
-                                <TableHead className="text-gray-300">Role</TableHead>
-                                <TableHead className="text-gray-300">Status</TableHead>
-                                <TableHead className="text-gray-300">Last Login</TableHead>
-                                {user?.role !== 'CLIENT_USER' && <TableHead className="text-right text-gray-300">Actions</TableHead>}
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {isLoading && filteredUsers.length === 0 ? (
-                                <TableRow>
-                                    <TableCell colSpan={user?.role !== 'CLIENT_USER' ? 4 : 3} className="h-24 text-center">
-                                        <Loader2 className="w-6 h-6 animate-spin mx-auto text-primary" />
-                                    </TableCell>
-                                </TableRow>
-                            ) : filteredUsers.length > 0 ? (
-                                filteredUsers.map((u) => (
-                                    <TableRow key={u.user_id || u.email} className="border-white/10 hover:bg-white/5">
-                                        <TableCell>
-                                            <div className="flex flex-col">
-                                                <span className="font-medium text-white">{u.name || u.email}</span>
-                                                {u.name && <span className="text-xs text-gray-400">{u.email}</span>}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="text-gray-300">
-                                            {u.role === 'CLIENT_MASTER_ADMIN'
-                                                ? 'Client Admin'
-                                                : u.role === 'CLIENT_ADMIN' || u.role === 'ENTITY_ADMIN'
-                                                    ? 'Organization Owner'
-                                                    : u.role === 'ENTITY_USER'
-                                                        ? 'Entity User'
-                                                        : 'Member'}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant={u.status === 'Joined' ? 'default' : 'secondary'} className={u.status === 'Joined' ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' : 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30'}>
-                                                {u.status}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="text-gray-400">
-                                            {u.last_login ? new Date(u.last_login).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : <span className="text-gray-500 italic">Never</span>}
-                                        </TableCell>
-                                        {user?.role !== 'CLIENT_USER' && (
-                                            <TableCell className="text-right">
-                                                <div className="flex justify-end gap-2">
-                                                    {/* Resend Invite - Only for Invited users and if current user has permission */}
-                                                    {u.status === 'Invited' && (
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            onClick={() => handleResendInvite(u)}
-                                                            disabled={loadingUserId === (u.user_id || u.email)}
-                                                            title="Resend Invite"
-                                                        >
-                                                            <RefreshCw className={`w-4 h-4 ${loadingUserId === (u.user_id || u.email) ? 'animate-spin' : ''}`} />
-                                                        </Button>
-                                                    )}
-
-                                                    {/* Delete Button Logic 
-                                                    1. CLIENT_USER: Never show delete button (Handled by parent toggle now too, but explicit check safe)
-                                                    2. CLIENT_MASTER_ADMIN: Show for everyone EXCEPT themselves
-                                                    3. Other Roles (CA/Agency): Show based on existing logic (implied all for now)
-                                                */}
-                                                    {(() => {
-                                                        const isSelf = user?.email === u.email;
-                                                        const userRole = user?.role;
-
-                                                        if (userRole === 'CLIENT_USER') {
-                                                            return null;
-                                                        }
-
-                                                        if (userRole === 'CLIENT_MASTER_ADMIN' && isSelf) {
-                                                            return null;
-                                                        }
-
-                                                        return (
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                className="text-red-400 hover:text-red-300 hover:bg-red-500/20"
-                                                                onClick={() => handleDeleteUser(u)}
-                                                                disabled={loadingUserId === (u.user_id || u.email)}
-                                                            >
-                                                                {loadingUserId === (u.user_id || u.email) ? (
-                                                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                                                ) : (
-                                                                    <Trash2 className="w-4 h-4" />
-                                                                )}
-                                                            </Button>
-                                                        );
-                                                    })()}
-                                                </div>
-                                            </TableCell>
-                                        )}
+                        <div className="overflow-auto flex-1 no-scrollbar">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow className="border-white/10 hover:bg-white/5">
+                                        <TableHead className="text-gray-300">User</TableHead>
+                                        <TableHead className="text-gray-300">Role</TableHead>
+                                        <TableHead className="text-gray-300">Status</TableHead>
+                                        <TableHead className="text-gray-300">Last Login</TableHead>
+                                        {user?.role !== 'CLIENT_USER' && <TableHead className="text-right text-gray-300">Actions</TableHead>}
                                     </TableRow>
-                                ))
-                            ) : (
-                                <TableRow>
-                                    <TableCell colSpan={user?.role !== 'CLIENT_USER' ? 4 : 3} className="h-24 text-center text-gray-400">
-                                        No users found.
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </div>
-            </div>
+                                </TableHeader>
+                                <TableBody>
+                                    {isLoading && filteredUsers.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={user?.role !== 'CLIENT_USER' ? 4 : 3} className="h-24 text-center">
+                                                <Loader2 className="w-6 h-6 animate-spin mx-auto text-primary" />
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : filteredUsers.length > 0 ? (
+                                        filteredUsers.map((u) => (
+                                            <TableRow key={u.user_id || u.email} className="border-white/10 hover:bg-white/5">
+                                                <TableCell>
+                                                    <div className="flex flex-col">
+                                                        <span className="font-medium text-white">{u.name || u.email}</span>
+                                                        {u.name && <span className="text-xs text-gray-400">{u.email}</span>}
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="text-gray-300">
+                                                    {u.role === 'CLIENT_MASTER_ADMIN'
+                                                        ? 'Client Admin'
+                                                        : u.role === 'CLIENT_ADMIN' || u.role === 'ENTITY_ADMIN'
+                                                            ? 'Organization Owner'
+                                                            : u.role === 'ENTITY_USER'
+                                                                ? 'Entity User'
+                                                                : 'Member'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant={u.status === 'Joined' ? 'default' : 'secondary'} className={u.status === 'Joined' ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' : 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30'}>
+                                                        {u.status}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="text-gray-400">
+                                                    {u.last_login ? new Date(u.last_login).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : <span className="text-gray-500 italic">Never</span>}
+                                                </TableCell>
+                                                {user?.role !== 'CLIENT_USER' && (
+                                                    <TableCell className="text-right">
+                                                        <div className="flex justify-end gap-2">
+                                                            {/* Resend Invite */}
+                                                            {u.status === 'Invited' && (
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    onClick={() => handleResendInvite(u)}
+                                                                    disabled={loadingUserId === (u.user_id || u.email)}
+                                                                    title="Resend Invite"
+                                                                >
+                                                                    <RefreshCw className={`w-4 h-4 ${loadingUserId === (u.user_id || u.email) ? 'animate-spin' : ''}`} />
+                                                                </Button>
+                                                            )}
+
+                                                            {/* Delete Button */}
+                                                            {(() => {
+                                                                const isSelf = user?.email === u.email;
+                                                                const userRole = user?.role;
+
+                                                                if (userRole === 'CLIENT_USER') {
+                                                                    return null;
+                                                                }
+
+                                                                if (userRole === 'CLIENT_MASTER_ADMIN' && isSelf) {
+                                                                    return null;
+                                                                }
+
+                                                                return (
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        className="text-red-400 hover:text-red-300 hover:bg-red-500/20"
+                                                                        onClick={() => handleDeleteUser(u)}
+                                                                        disabled={loadingUserId === (u.user_id || u.email)}
+                                                                    >
+                                                                        {loadingUserId === (u.user_id || u.email) ? (
+                                                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                                                        ) : (
+                                                                            <Trash2 className="w-4 h-4" />
+                                                                        )}
+                                                                    </Button>
+                                                                );
+                                                            })()}
+                                                        </div>
+                                                    </TableCell>
+                                                )}
+                                            </TableRow>
+                                        ))
+                                    ) : (
+                                        <TableRow>
+                                            <TableCell colSpan={user?.role !== 'CLIENT_USER' ? 4 : 3} className="h-24 text-center text-gray-400">
+                                                No users found.
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </div>
+                </TabsContent>
+
+                <TabsContent value="activity" className="flex-1 flex flex-col min-h-0 !mt-0 h-full">
+                    <TeamActivityLog entityId={entityId} />
+                </TabsContent>
+            </Tabs>
 
             {/* Invite New User Dialog */}
             <Dialog open={showInviteDialog} onOpenChange={setShowInviteDialog}>
@@ -541,6 +558,92 @@ const ClientUsersPage = ({ entityId }) => {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+        </div>
+    );
+};
+
+// Activity Log Component
+const TeamActivityLog = ({ entityId }) => {
+    const { user } = useAuth();
+    const [logs, setLogs] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchLogs = async () => {
+            if (!entityId || !user?.access_token) return;
+
+            setIsLoading(true);
+            try {
+                // Fetch all client logs
+                const allLogs = await getActivityLog(entityId, 'client', user.access_token);
+
+                // Filter for team member activities only
+                // Keywords based on the actions we implemented: "Invited", "Revoked", "Removed", "Added", "Accepted"
+                const teamKeywords = ['invited', 'revoked', 'removed', 'added', 'accepted', 'managed', 'team'];
+                const filtered = Array.isArray(allLogs) ? allLogs.filter(log => {
+                    const actionLower = (log.action || '').toLowerCase();
+                    const detailsLower = (log.details || '').toLowerCase();
+                    return teamKeywords.some(keyword => actionLower.includes(keyword) || detailsLower.includes(keyword));
+                }) : [];
+
+                // Sort by timestamp desc
+                filtered.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                setLogs(filtered);
+            } catch (error) {
+                console.error("Failed to fetch activity logs:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchLogs();
+    }, [entityId, user?.access_token]);
+
+    if (isLoading) {
+        return (
+            <div className="flex justify-center items-center h-full glass-pane rounded-lg">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+        );
+    }
+
+    if (logs.length === 0) {
+        return (
+            <div className="flex justify-center items-center h-full glass-pane rounded-lg text-gray-400">
+                No team activity logs found.
+            </div>
+        );
+    }
+
+    return (
+        <div className="glass-pane rounded-lg h-full overflow-y-auto no-scrollbar p-4">
+            <Table>
+                <TableHeader>
+                    <TableRow className="border-white/10 hover:bg-white/5">
+                        <TableHead className="text-gray-300 w-[200px]">Date & Time</TableHead>
+                        <TableHead className="text-gray-300 w-[250px]">Action</TableHead>
+                        <TableHead className="text-gray-300">Details</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {logs.map((log) => (
+                        <TableRow key={log.id} className="border-white/10 hover:bg-white/5">
+                            <TableCell className="text-gray-400">
+                                {new Date(log.timestamp).toLocaleString('en-IN', {
+                                    day: '2-digit', month: 'short', year: 'numeric',
+                                    hour: '2-digit', minute: '2-digit'
+                                })}
+                            </TableCell>
+                            <TableCell className="font-medium text-white">
+                                {log.action}
+                            </TableCell>
+                            <TableCell className="text-gray-300">
+                                {log.details}
+                            </TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
         </div>
     );
 };
