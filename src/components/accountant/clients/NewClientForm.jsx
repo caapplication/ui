@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,7 +18,46 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { createOrganisation } from '@/lib/api/organisation';
 import { useAuth } from '@/hooks/useAuth';
+import Cropper from 'react-easy-crop';
 
+
+// Helper function to create image from URL
+const createImage = (url) =>
+    new Promise((resolve, reject) => {
+        const image = new Image();
+        image.addEventListener('load', () => resolve(image));
+        image.addEventListener('error', (error) => reject(error));
+        image.setAttribute('crossOrigin', 'anonymous');
+        image.src = url;
+    });
+
+// Helper function to get cropped image
+const getCroppedImg = async (imageSrc, pixelCrop) => {
+    const image = await createImage(imageSrc);
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    canvas.width = pixelCrop.width;
+    canvas.height = pixelCrop.height;
+
+    ctx.drawImage(
+        image,
+        pixelCrop.x,
+        pixelCrop.y,
+        pixelCrop.width,
+        pixelCrop.height,
+        0,
+        0,
+        pixelCrop.width,
+        pixelCrop.height
+    );
+
+    return new Promise((resolve) => {
+        canvas.toBlob((blob) => {
+            resolve(blob);
+        }, 'image/jpeg', 0.95);
+    });
+};
 
 // Mapping between business type display names and enum values
 const businessTypeToEnum = {
@@ -84,6 +123,13 @@ const NewClientForm = ({ onBack, onSave, client, allServices, organisations, bus
     const [isPhotoLoading, setIsPhotoLoading] = useState(false);
     const fileInputRef = useRef(null);
     const photoFileInputRef = useRef(null);
+
+    // Crop dialog states
+    const [showCropDialog, setShowCropDialog] = useState(false);
+    const [imageToCrop, setImageToCrop] = useState(null);
+    const [crop, setCrop] = useState({ x: 0, y: 0 });
+    const [zoom, setZoom] = useState(1);
+    const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
 
     // State for Add Organisation dialog
     const [showAddOrgDialog, setShowAddOrgDialog] = useState(false);
@@ -298,6 +344,41 @@ const NewClientForm = ({ onBack, onSave, client, allServices, organisations, bus
 
     const states = ["Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal", "Andaman and Nicobar Islands", "Chandigarh", "Dadra and Nagar Haveli and Daman and Diu", "Delhi", "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry"];
 
+    // Callback when crop area changes
+    const onCropComplete = useCallback((croppedArea, croppedAreaPixels) => {
+        setCroppedAreaPixels(croppedAreaPixels);
+    }, []);
+
+    // Handle saving cropped image
+    const handleSaveCrop = async () => {
+        try {
+            const croppedBlob = await getCroppedImg(imageToCrop, croppedAreaPixels);
+            const croppedFile = new File([croppedBlob], 'profile.jpg', { type: 'image/jpeg' });
+
+            setPhotoFile(croppedFile);
+            const croppedUrl = URL.createObjectURL(croppedBlob);
+            setPhotoPreview(croppedUrl);
+            setShowCropDialog(false);
+            setImageToCrop(null);
+        } catch (error) {
+            console.error('Error cropping image:', error);
+            toast({
+                title: "Error",
+                description: "Failed to crop image. Please try again.",
+                variant: "destructive",
+            });
+        }
+    };
+
+    // Handle canceling crop
+    const handleCancelCrop = () => {
+        setShowCropDialog(false);
+        setImageToCrop(null);
+        setCrop({ x: 0, y: 0 });
+        setZoom(1);
+        setCroppedAreaPixels(null);
+    };
+
     return (
         <div className="h-full flex flex-col">
             <header className="flex justify-between items-center mb-4 flex-shrink-0">
@@ -391,13 +472,15 @@ const NewClientForm = ({ onBack, onSave, client, allServices, organisations, bus
                                     onChange={(e) => {
                                         const file = e.target.files?.[0];
                                         if (file) {
-                                            setPhotoFile(file);
                                             const reader = new FileReader();
                                             reader.onloadend = () => {
-                                                setPhotoPreview(reader.result);
+                                                setImageToCrop(reader.result);
+                                                setShowCropDialog(true);
                                             };
                                             reader.readAsDataURL(file);
                                         }
+                                        // Reset input so same file can be selected again
+                                        e.target.value = '';
                                     }}
                                 />
                             </div>
@@ -601,6 +684,52 @@ const NewClientForm = ({ onBack, onSave, client, allServices, organisations, bus
 
                 </form>
             </div>
+
+            {/* Image Crop Dialog */}
+            <Dialog open={showCropDialog} onOpenChange={setShowCropDialog}>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Crop Profile Photo</DialogTitle>
+                    </DialogHeader>
+                    <div className="relative w-full h-96 bg-black rounded-lg">
+                        {imageToCrop && (
+                            <Cropper
+                                image={imageToCrop}
+                                crop={crop}
+                                zoom={zoom}
+                                aspect={1}
+                                cropShape="round"
+                                showGrid={false}
+                                onCropChange={setCrop}
+                                onZoomChange={setZoom}
+                                onCropComplete={onCropComplete}
+                            />
+                        )}
+                    </div>
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <Label>Zoom</Label>
+                            <input
+                                type="range"
+                                min="1"
+                                max="3"
+                                step="0.1"
+                                value={zoom}
+                                onChange={(e) => setZoom(parseFloat(e.target.value))}
+                                className="w-full"
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={handleCancelCrop}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleSaveCrop}>
+                            Save
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };
