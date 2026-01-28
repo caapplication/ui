@@ -1434,13 +1434,12 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                 <Button
                   variant="outline"
                   onClick={() => {
-                    handleClientChange(null);
+                    handleFolderNavigation('root');
                     setSearchTerm('');
-                    setClientsForFilter([]); // Resetting clients filter might be safer or not needed? Let's just reset the ID.
                     if (activeTab !== 'myFiles') setActiveTab('myFiles');
                   }}
                 >
-                  Back to My Documents
+                  {realSelectedClientId ? 'Back to Client Documents' : 'Back to My Documents'}
                 </Button>
               )}
             </div>
