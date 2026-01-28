@@ -352,10 +352,13 @@ const Dashboard = ({
     const expenseStats = calculateExpenseStats();
 
     const topTransactions = React.useMemo(() => {
+        if (dashboardData?.top_expenses) {
+            return dashboardData.top_expenses;
+        }
         return [...vouchers]
             .sort((a, b) => (parseFloat(b.amount) || 0) - (parseFloat(a.amount) || 0))
-            .slice(0, 50);
-    }, [vouchers]);
+            .slice(0, 10);
+    }, [vouchers, dashboardData]);
 
     const chartData = React.useMemo(() => {
         const data = [];
@@ -607,7 +610,7 @@ const Dashboard = ({
                             <Card className="glass-card ">
                                 <CardHeader className="p-4 sm:p-6">
                                     <CardTitle className="text-lg sm:text-xl">
-                                        Top transactions
+                                        Top cost Drivers-Beneficiaries wise
                                     </CardTitle>
                                     <CardDescription className="text-sm sm:text-base">
                                         Highest value expenses
@@ -625,10 +628,12 @@ const Dashboard = ({
                                                 topTransactions.map((transaction, index) => (
                                                     <div
                                                         key={transaction.id || index}
-                                                        onClick={() =>
-                                                            navigate(`/finance/vouchers/${transaction.id}`)
-                                                        }
-                                                        className="grid grid-cols-12 items-center text-sm py-2 hover:bg-white/5 transition-colors rounded px-1 cursor-pointer"
+                                                        onClick={() => {
+                                                            if (transaction.id) {
+                                                                navigate(`/finance/vouchers/${transaction.id}`);
+                                                            }
+                                                        }}
+                                                        className={`grid grid-cols-12 items-center text-sm py-2 hover:bg-white/5 transition-colors rounded px-1 ${transaction.id ? 'cursor-pointer' : 'cursor-default'}`}
                                                     >
                                                         <div className="col-span-2 text-gray-400 font-mono">
                                                             {String(index + 1).padStart(2, "0")}
@@ -638,7 +643,7 @@ const Dashboard = ({
                                                             title={transaction.remarks}
                                                         >
                                                             {transaction.beneficiary_name || transaction.beneficiary?.name}
-                                                            <div className=" text-xs text-gray-400 italic">  {transaction.remarks}</div>
+                                                            {transaction.remarks && <div className=" text-xs text-gray-400 italic">  {transaction.remarks}</div>}
                                                             {/* <div className="text-xs text-gray-400 italic">  {transaction.date}</div> */}
                                                         </div>
                                                         <div className="col-span-4 text-right text-red-400 font-medium">
