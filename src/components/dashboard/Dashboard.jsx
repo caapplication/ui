@@ -222,7 +222,7 @@ const Dashboard = ({
             const [dashData, vouchersData, docs] = await Promise.all([
                 getDashboardData(entityId, user.access_token, user.agency_id),
                 getVouchersList(entityId, user.access_token),
-                listExpiringDocuments(user.access_token, user.role === 'CLIENT_USER' ? entityId : null)
+                listExpiringDocuments(user.access_token, (user.role === 'CLIENT_USER' || user.role === 'CLIENT_MASTER_ADMIN') ? entityId : null)
             ]);
             setDashboardData(dashData);
             setVouchers(Array.isArray(vouchersData) ? vouchersData : []);
@@ -489,7 +489,7 @@ const Dashboard = ({
                                                 const daysLeft = differenceInDays(new Date(doc.expiry_date), new Date());
                                                 return (
                                                     <div key={doc.id} className="cursor-pointer group rounded bg-white/5 p-2 hover:bg-white/10 transition-colors"
-                                                        onClick={() => navigate(`/documents?folderId=${doc.folder_id || 'root'}&clientId=${doc.entity_id || ''}`)}>
+                                                        onClick={() => navigate(`/documents?folderId=${btoa(doc.folder_id || 'root')}&clientId=${btoa(doc.entity_id || '')}`)}>
                                                         <div className="flex items-center justify-between gap-2 overflow-hidden">
                                                             <div className="flex items-center gap-2 truncate">
                                                                 <FileText className="w-3 h-3 text-blue-400 shrink-0" />
