@@ -5,7 +5,8 @@ import { AuthProvider, useAuth } from '@/hooks/useAuth.jsx';
 import { Toaster } from '@/components/ui/toaster';
 import { ApiCacheProvider } from '@/contexts/ApiCacheContext.jsx';
 import { SocketProvider } from '@/contexts/SocketContext.jsx';
-import { getOrganisationBankAccounts } from '@/lib/api';
+import { getOrganisationBankAccounts } from '@/lib/api/finance';
+import { listClientsByOrganization } from '@/lib/api/clients';
 import { Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useMediaQuery } from '@/hooks/useMediaQuery.jsx';
@@ -77,6 +78,27 @@ const ProtectedContent = () => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [organisationBankAccounts, setOrganisationBankAccounts] = useState([]);
+  const [cachedClients, setCachedClients] = useState([]); // Cache for client names
+
+  // Fetch clients for name resolution (CLIENT_USER / CLIENT_MASTER_ADMIN)
+  useEffect(() => {
+    const fetchClientsForNameResolution = async () => {
+      if ((user?.role === 'CLIENT_USER' || user?.role === 'CLIENT_MASTER_ADMIN') && user?.organization_id && user?.access_token) {
+        try {
+          const clients = await listClientsByOrganization(user.organization_id, user.access_token);
+          if (Array.isArray(clients)) {
+            setCachedClients(clients);
+          }
+        } catch (error) {
+          console.error("Failed to fetch clients for name resolution", error);
+        }
+      }
+    };
+
+    if (user) {
+      fetchClientsForNameResolution();
+    }
+  }, [user]);
 
   const fetchOrganisationBankAccounts = useCallback(async () => {
     if (currentEntity && user?.access_token) {
@@ -133,9 +155,15 @@ const ProtectedContent = () => {
   const getEntityName = (entityId) => {
     if (user.role === 'ENTITY_USER') return user.name;
     if (user.role !== 'CLIENT_USER' && user.role !== 'CLIENT_MASTER_ADMIN') return user.name;
+
+    // Check cached clients first (most up-to-date)
+    const cachedClient = cachedClients.find(c => c.id === entityId);
+    if (cachedClient) return cachedClient.name;
+
     const entitiesToDisplay = user.entities || [];
     const entity = entitiesToDisplay.find((e) => e.id === entityId);
     if (entity) return entity.name;
+
     if (entityId === user.organization_id) return user.organization_name;
     return 'Select Entity';
   };
