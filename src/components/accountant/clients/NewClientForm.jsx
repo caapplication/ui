@@ -703,6 +703,7 @@ const NewClientForm = ({ onBack, onSave, client, allServices, organisations, bus
                                 onCropChange={setCrop}
                                 onZoomChange={setZoom}
                                 onCropComplete={onCropComplete}
+                                restrictPosition={false}
                             />
                         )}
                     </div>
@@ -711,7 +712,7 @@ const NewClientForm = ({ onBack, onSave, client, allServices, organisations, bus
                             <Label>Zoom</Label>
                             <input
                                 type="range"
-                                min="1"
+                                min="0.1"
                                 max="3"
                                 step="0.1"
                                 value={zoom}
