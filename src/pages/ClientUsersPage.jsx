@@ -43,6 +43,7 @@ const ClientUsersPage = ({ entityId }) => {
     const [organizationUsers, setOrganizationUsers] = useState([]);
     const [selectedUserIds, setSelectedUserIds] = useState([]);
     const [isAddingUsers, setIsAddingUsers] = useState(false);
+    const [existingUserSearchTerm, setExistingUserSearchTerm] = useState('');
 
     // Delete Confirmation State
     const [deleteConfirmation, setDeleteConfirmation] = useState(null);
@@ -173,6 +174,7 @@ const ClientUsersPage = ({ entityId }) => {
             await fetchOrganizationUsers();
             setShowAddExistingDialog(true);
             setSelectedUserIds([]);
+            setExistingUserSearchTerm('');
         } else {
             if (selectedUserIds.length === 0) {
                 toast({ title: "No Users Selected", description: "Please select at least one user.", variant: "warning" });
@@ -455,38 +457,56 @@ const ClientUsersPage = ({ entityId }) => {
                         <p className="text-sm text-gray-400 mb-4">
                             Select users from your organization to add to this entity.
                         </p>
+                        <div className="relative mb-4">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <Input
+                                placeholder="Search users by name or email..."
+                                className="glass-input pl-10"
+                                value={existingUserSearchTerm}
+                                onChange={(e) => setExistingUserSearchTerm(e.target.value)}
+                            />
+                        </div>
                         <div className="max-h-96 overflow-y-auto border border-white/10 rounded-md">
-                            {organizationUsers.length > 0 ? (
-                                organizationUsers.map(orgUser => (
-                                    <label
-                                        key={orgUser.user_id}
-                                        className="flex items-center gap-3 p-3 hover:bg-white/5 border-b border-white/10 last:border-0 cursor-pointer"
-                                    >
-                                        <Checkbox
-                                            checked={selectedUserIds.includes(orgUser.user_id)}
-                                            onCheckedChange={(checked) => {
-                                                if (checked) {
-                                                    setSelectedUserIds([...selectedUserIds, orgUser.user_id]);
-                                                } else {
-                                                    setSelectedUserIds(selectedUserIds.filter(id => id !== orgUser.user_id));
-                                                }
-                                            }}
-                                        />
-                                        <Avatar className="w-8 h-8">
-                                            <AvatarFallback className="bg-primary/20 text-primary text-xs">
-                                                {(orgUser.name || orgUser.email).charAt(0).toUpperCase()}
-                                            </AvatarFallback>
-                                        </Avatar>
-                                        <div>
-                                            <p className="font-medium text-sm">{orgUser.name || orgUser.email}</p>
-                                            {orgUser.name && <p className="text-xs text-gray-400">{orgUser.email}</p>}
-                                        </div>
-                                    </label>
-                                ))
+                            {organizationUsers
+                                .filter(u =>
+                                    (u.name || '').toLowerCase().includes(existingUserSearchTerm.toLowerCase()) ||
+                                    (u.email || '').toLowerCase().includes(existingUserSearchTerm.toLowerCase())
+                                )
+                                .length > 0 ? (
+                                organizationUsers
+                                    .filter(u =>
+                                        (u.name || '').toLowerCase().includes(existingUserSearchTerm.toLowerCase()) ||
+                                        (u.email || '').toLowerCase().includes(existingUserSearchTerm.toLowerCase())
+                                    )
+                                    .map(orgUser => (
+                                        <label
+                                            key={orgUser.user_id}
+                                            className="flex items-center gap-3 p-3 hover:bg-white/5 border-b border-white/10 last:border-0 cursor-pointer"
+                                        >
+                                            <Checkbox
+                                                checked={selectedUserIds.includes(orgUser.user_id)}
+                                                onCheckedChange={(checked) => {
+                                                    if (checked) {
+                                                        setSelectedUserIds([...selectedUserIds, orgUser.user_id]);
+                                                    } else {
+                                                        setSelectedUserIds(selectedUserIds.filter(id => id !== orgUser.user_id));
+                                                    }
+                                                }}
+                                            />
+                                            <Avatar className="w-8 h-8">
+                                                <AvatarFallback className="bg-primary/20 text-primary text-xs">
+                                                    {(orgUser.name || orgUser.email).charAt(0).toUpperCase()}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                            <div>
+                                                <p className="font-medium text-sm">{orgUser.name || orgUser.email}</p>
+                                                {orgUser.name && <p className="text-xs text-gray-400">{orgUser.email}</p>}
+                                            </div>
+                                        </label>
+                                    ))
                             ) : (
                                 <div className="p-8 text-center text-gray-400">
-                                    <p>No available users to add.</p>
-                                    <p className="text-sm mt-1">All organization users are already in this entity.</p>
+                                    <p>No available users matching your search.</p>
                                 </div>
                             )}
                         </div>
