@@ -172,9 +172,11 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
   // =========================
   useEffect(() => {
     const fetchClientUsers = async () => {
+      // Allow CA roles AND Client roles to fetch specific entity users if client_id is set
       const isCAUser = user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM';
+      const isClientUser = user?.role === 'CLIENT_MASTER_ADMIN' || user?.role === 'CLIENT_ADMIN' || user?.role === 'CLIENT_USER';
 
-      if (!user?.access_token || !isCAUser) {
+      if (!user?.access_token || (!isCAUser && !isClientUser)) {
         return;
       }
 
@@ -250,7 +252,6 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
         recurrence_day_of_month: task.recurrence_day_of_month || null,
         recurrence_start_month: task.recurrence_start_date ? new Date(task.recurrence_start_date).getMonth() : null,
         recurrence_start_date: task.recurrence_start_date ? new Date(task.recurrence_start_date) : null,
-        recurrence_start_date: task.recurrence_start_date ? new Date(task.recurrence_start_date) : null,
         client_user_id: task.client_user_id || '',
         due_time: task.due_time || '12:00',
         due_date_offset: task.due_date_offset || 0,
@@ -263,6 +264,9 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
         service_id: fixedServiceId || prev.service_id,
         recurrence_frequency: 'daily' // Default for recurring only
       }));
+    } else if (selectedOrg) {
+      // Auto-select client if we are in a client context
+      setFormData(prev => ({ ...prev, client_id: selectedOrg }));
     }
   }, [task, selectedOrg, isRecurringOnly, fixedServiceId]);
 
@@ -291,15 +295,32 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
   // =========================
   const assignToOptions = useMemo(() => {
     const isCAUser = user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM';
+    const isClientUser = user?.role === 'CLIENT_MASTER_ADMIN' || user?.role === 'CLIENT_ADMIN' || user?.role === 'CLIENT_USER';
 
     // CA + client selected => client users
-    if (isCAUser && formData.client_id) {
+    // OR Client User + client selected => client users (Strict filtering)
+    if ((isCAUser || isClientUser) && formData.client_id) {
+      const currentUserId = user?.user_id || user?.id; // Get current user ID to hide from list
+
       const options = (selectedClientUsers || [])
-        .filter(u => u?.id)
-        .map(u => ({
-          value: String(u.id),
-          label: `${u.name || u.email} (Client User)`
-        }));
+        .filter(u => {
+          if (!u?.id) return false;
+          // Hide logged-in user
+          if (currentUserId && String(u.id) === String(currentUserId)) {
+            return false;
+          }
+          return true;
+        })
+        .map(u => {
+          let roleLabel = '(Client User)';
+          if (u.role === 'CLIENT_MASTER_ADMIN') {
+            roleLabel = '(Client Admin)';
+          }
+          return {
+            value: String(u.id),
+            label: `${u.name || u.email} ${roleLabel}`
+          };
+        });
       return options;
     }
 
