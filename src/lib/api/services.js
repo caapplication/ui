@@ -5,7 +5,7 @@ const API_BASE_URL = import.meta.env.VITE_LOGIN_API_URL || 'http://127.0.0.1:800
 const SERVICES_API_URL = import.meta.env.VITE_SERVICES_API_URL || 'http://127.0.0.1:8004';
 
 export const createService = async (serviceData, agencyId, token) => {
-    const response = await fetch(`${SERVICES_API_URL}/services/`, {
+    const response = await fetch(`${SERVICES_API_URL}/services`, {
         method: 'POST',
         headers: getAuthHeaders(token, 'application/json', agencyId),
         body: JSON.stringify(serviceData)
@@ -14,7 +14,7 @@ export const createService = async (serviceData, agencyId, token) => {
 };
 
 export const listServices = async (agencyId, token) => {
-    const response = await fetch(`${SERVICES_API_URL}/services/`, {
+    const response = await fetch(`${SERVICES_API_URL}/services`, {
         method: 'GET',
         headers: getAuthHeaders(token, 'application/json', agencyId)
     });
