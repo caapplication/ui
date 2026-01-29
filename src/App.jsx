@@ -269,7 +269,7 @@ const ProtectedContent = () => {
               />
               <Route
                 path="/beneficiaries"
-                element={<Beneficiaries quickAction={null} clearQuickAction={() => { }} />}
+                element={<Beneficiaries entityId={currentEntity} quickAction={null} clearQuickAction={() => { }} />}
               />
               <Route
                 path="/organisation-bank"

@@ -42,6 +42,7 @@ import {
   exportVouchersToTallyXML,
 } from '@/lib/api';
 import { useOrganisation } from '@/hooks/useOrganisation';
+import { useCurrentOrganization } from '@/hooks/useCurrentOrganization';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
@@ -98,6 +99,7 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
   const isMountedRef = useRef(true);
 
   const { user } = useAuth();
+  const organizationId = useCurrentOrganization(entityId);
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -124,14 +126,14 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
   const fetchData = useCallback(
     async (isRefresh = false) => {
       const token = localStorage.getItem('accessToken');
-      if (!user?.organization_id || !token || !entityId) return;
+      if (!organizationId || !token || !entityId) return;
 
       // Determine what to fetch based on active tab
       const shouldFetchInvoices = activeTab === 'invoices' || isRefresh;
       const shouldFetchVouchers = activeTab === 'vouchers' || isRefresh;
 
       // Cache Keys
-      const CACHE_KEY_BENEFICIARIES = `fynivo_beneficiaries_${user.organization_id}`;
+      const CACHE_KEY_BENEFICIARIES = `fynivo_beneficiaries_${organizationId}`;
       const CACHE_KEY_INVOICES = `fynivo_invoices_${entityId}`;
       const CACHE_KEY_VOUCHERS = `fynivo_vouchers_${entityId}`;
 
@@ -164,7 +166,7 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
         }
       }
 
-      const fetchKey = `${user.organization_id}-${entityId}-${activeTab}`;
+      const fetchKey = `${organizationId}-${entityId}-${activeTab}`;
 
       // If a fetch is already in progress for this entity+tab (globally), reuse it
       if (activeFetchPromises.has(fetchKey) && !isRefresh) {
@@ -214,7 +216,7 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
 
       const fetchWork = async () => {
         const promises = [];
-        const beneficiariesPromise = getBeneficiaries(user.organization_id, token);
+        const beneficiariesPromise = getBeneficiaries(organizationId, token);
         const invoicesPromise = shouldFetchInvoices ? getInvoicesList(entityId, token) : Promise.resolve(null);
         const vouchersPromise = shouldFetchVouchers ? getVouchersList(entityId, token) : Promise.resolve(null);
 
@@ -278,7 +280,7 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
         }
       }
     },
-    [user?.organization_id, toast, entityId, activeTab, invoices.length, vouchers.length]
+    [organizationId, toast, entityId, activeTab, invoices.length, vouchers.length]
   );
 
   useEffect(() => {

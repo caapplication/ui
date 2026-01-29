@@ -21,6 +21,7 @@ import {
 } from '@/lib/api';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useCurrentOrganization } from '@/hooks/useCurrentOrganization';
 
 const BeneficiaryForm = ({ onAdd, onCancel, isEdit, beneficiary, isSaving }) => {
   const [beneficiaryType, setBeneficiaryType] = useState(beneficiary?.beneficiary_type || 'individual');
@@ -130,10 +131,11 @@ const AddBankAccountForm = ({ beneficiary, onAddBankAccount, onCancel }) => {
 };
 
 
-const Beneficiaries = ({ quickAction, clearQuickAction }) => {
+const Beneficiaries = ({ entityId, quickAction, clearQuickAction }) => {
   const PAGE_SIZE = 10;
 
   const [beneficiaries, setBeneficiaries] = useState([]);
+  const [allBeneficiaries, setAllBeneficiaries] = useState([]); // Store all fetched data
   const [isLoading, setIsLoading] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showAddAccountDialog, setShowAddAccountDialog] = useState(false);
@@ -145,8 +147,10 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [activeTab, setActiveTab] = useState('individual');
   const [isSaving, setIsSaving] = useState(false);
+
   const { toast } = useToast();
   const { user } = useAuth();
+  const organisationId = useCurrentOrganization(entityId);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -158,14 +162,9 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
   };
 
   const fetchBeneficiaries = useCallback(async () => {
-    if (!user?.access_token) return;
+    if (!user?.access_token || !organisationId) return;
     setIsLoading(true);
     try {
-      const organisationId =
-        typeof user.organization_id === 'object' && user.organization_id !== null
-          ? user.organization_id.id
-          : user.organization_id;
-
       // Fetch a larger list once, then paginate client-side (10 per page)
       const data = await getBeneficiaries(organisationId, user.access_token, 0, 1000);
 
@@ -200,7 +199,7 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.organization_id, user?.access_token, toast]);
+  }, [organisationId, user?.access_token, toast]);
 
   useEffect(() => {
     // Only fetch if user is available
@@ -208,7 +207,7 @@ const Beneficiaries = ({ quickAction, clearQuickAction }) => {
       fetchBeneficiaries();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.access_token, user?.organization_id]); // Only depend on user data, not the entire callback
+  }, [user?.access_token, organisationId]); // Only depend on user data, not the entire callback
 
   useEffect(() => {
     if (quickAction === 'add-beneficiary') {

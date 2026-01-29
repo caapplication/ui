@@ -106,6 +106,7 @@ const FolderIcon = ({ className = "w-20 h-20", hasExpired = false }) => {
 };
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth.jsx';
+import { useCurrentOrganization } from '@/hooks/useCurrentOrganization';
 import { getDocuments, createFolder, uploadFile, deleteDocument, shareDocument, viewFile, getSharedDocuments, listClients, createCAFolder, uploadCAFile, shareFolder, listOrgUsers, listTeamMembers, FINANCE_API_BASE_URL } from '@/lib/api';
 import { createPublicShareTokenDocument, createPublicShareTokenFolder } from '@/lib/api/documents';
 import { cn } from '@/lib/utils';
@@ -327,6 +328,8 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   // const [realSelectedClientId, setRealSelectedClientId] = useState(null); // Removed: Initialized above
   const [openClientCombobox, setOpenClientCombobox] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState(null);
+  // Determine the correct organization ID using our hook
+  const currentOrganizationId = useCurrentOrganization(entityId);
   const [collabSelectedClientId, setCollabSelectedClientId] = useState(null); // 'my-team' or client ID
 
   // Initialize collabSelectedClientId when user changes
@@ -336,29 +339,16 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
     } else if (user?.role === 'CA_ACCOUNTANT' || user?.role === 'AGENCY_ADMIN' || user?.role === 'CA_TEAM') {
       setCollabSelectedClientId('my-team');
     } else {
-      // For Client Users/Admins, we default to their first organization/entity if available, or 'my-org' sentinel
-      // However, listOrgUsers usually takes an Org ID. 
-      // We need to know the Org ID.
-      // Assuming user object has it or we can derive it.
-      // For now, let's leave it null to trigger a "select" state or better:
-      // If we want "show client user of its own entity", we should probably set it to the entity ID they are viewing if available?
-      // But the dropdown expects a Client ID (Entity ID).
-      // Let's set it to user.entity_id or similar if available?
-      // Wait, the hook `list_all_client_users` returns users from accessible orgs.
-      // But `Documents.jsx` uses `listOrgUsers` which takes `collabSelectedClientId` (as org ID).
-      // Let's see if we can get the org ID from `user` state.
-
-      // Strategy: If Client User, rely on the useEffect that fetches users to detect "Self Org" mode?
-      // Actually, looking at `Documents.jsx` below (I need to read more context or just logic):
-      // There is a `fetchCollabUsers` function.
-      // It checks `if (!collabSelectedClientId || collabSelectedClientId === 'my-team')`.
-      // If I set it to a special value 'self-org' maybe?
-      // Or if I just set it to `entityId` if available?
+      // For Client Users/Admins, we can use the entity ID they are viewing if available, 
+      // OR fallback to their organization ID derived from the hook.
+      // Since listOrgUsers expects an OrgID/EntityID context:
       if (entityId) {
         setCollabSelectedClientId(entityId);
+      } else if (currentOrganizationId) {
+        setCollabSelectedClientId(currentOrganizationId);
       }
     }
-  }, [user, realSelectedClientId, entityId]);
+  }, [user, realSelectedClientId, entityId, currentOrganizationId]);
 
 
   useEffect(() => {
