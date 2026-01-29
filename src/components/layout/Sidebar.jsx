@@ -61,11 +61,8 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
         if (user?.role === 'AGENCY_ADMIN' && user?.agency_id && user?.access_token) {
           console.log('📞 Calling listClients for AGENCY_ADMIN');
           fetchedClients = await listClients(user.agency_id, user.access_token);
-        } else if ((user?.role === 'CLIENT_USER' || user?.role === 'CLIENT_MASTER_ADMIN') && user?.organization_id && user?.access_token) {
-          console.log('📞 Calling listClientsByOrganization for CLIENT_USER/MASTER_ADMIN with org_id:', user.organization_id);
-          fetchedClients = await listClientsByOrganization(user.organization_id, user.access_token);
         } else {
-          console.log('⚠️ No API call - conditions not met');
+          console.log('⚠️ No API call - relying on user.entities or conditions not met');
         }
 
         console.log('✅ Fetched clients:', fetchedClients);

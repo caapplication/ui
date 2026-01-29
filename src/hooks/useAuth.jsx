@@ -200,9 +200,28 @@ export const AuthProvider = ({ children }) => {
         throw new Error('Your account is inactive. Please contact support.');
       }
 
-      // Now fetch clients using the organization_id from profile
+      // Now fetch clients using the organization_id(s) from profile
       let entitiesData = [];
-      if (profileData.organization_id) {
+
+      if (profileData.organizations && profileData.organizations.length > 0) {
+        // Fetch clients for all accessible organizations
+        try {
+          const promises = profileData.organizations.map(org =>
+            listClientsByOrganization(org.id, data.access_token)
+              .catch(e => {
+                console.error(`Failed to fetch clients for org ${org.id}:`, e);
+                return [];
+              })
+          );
+
+          const results = await Promise.all(promises);
+          // Flatten the array of arrays
+          entitiesData = results.flat();
+        } catch (error) {
+          console.error("Failed to fetch clients for organizations:", error);
+        }
+      } else if (profileData.organization_id) {
+        // Fallback for backward compatibility or single org
         try {
           entitiesData = await listClientsByOrganization(profileData.organization_id, data.access_token);
         } catch (error) {
@@ -231,9 +250,26 @@ export const AuthProvider = ({ children }) => {
         throw new Error('Your account is inactive. Please contact support.');
       }
 
-      // Fetch all clients for the organization
+      // Fetch all clients for the organization(s)
       let entitiesData = [];
-      if (profileData.organization_id) {
+
+      if (profileData.organizations && profileData.organizations.length > 0) {
+        // Fetch clients for all accessible organizations
+        try {
+          const promises = profileData.organizations.map(org =>
+            listClientsByOrganization(org.id, data.access_token)
+              .catch(e => {
+                console.error(`Failed to fetch clients for org ${org.id}:`, e);
+                return [];
+              })
+          );
+
+          const results = await Promise.all(promises);
+          entitiesData = results.flat();
+        } catch (error) {
+          console.error("Failed to fetch clients for organizations:", error);
+        }
+      } else if (profileData.organization_id) {
         try {
           entitiesData = await listClientsByOrganization(profileData.organization_id, data.access_token);
         } catch (error) {

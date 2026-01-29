@@ -119,8 +119,27 @@ const Clients = ({ setActiveTab }) => {
                     throw new Error('User information is not available.');
                 }
 
+                let clientsPromise;
+                if (user.organizations && user.organizations.length > 0) {
+                    clientsPromise = Promise.all(
+                        user.organizations.map(org =>
+                            listClientsByOrganization(org.id, user.access_token)
+                                .catch(err => {
+                                    console.error(`Failed to fetch clients for org ${org.id}`, err);
+                                    return [];
+                                })
+                        )
+                    ).then(results => results.flat());
+                } else if (user.agency_id) {
+                    clientsPromise = listClients(user.agency_id, user.access_token);
+                } else if (user.organization_id) {
+                    clientsPromise = listClientsByOrganization(user.organization_id, user.access_token);
+                } else {
+                    clientsPromise = Promise.resolve([]);
+                }
+
                 const results = await Promise.allSettled([
-                    listClients(user.agency_id, user.access_token),
+                    clientsPromise,
                     fetchAllServices(user.agency_id, user.access_token),
                     listOrganisations(user.access_token),
                     getBusinessTypes(user.agency_id, user.access_token),
