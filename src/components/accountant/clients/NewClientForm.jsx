@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { DatePicker } from '@/components/ui/date-picker';
-import { ArrowLeft, CalendarPlus as CalendarIcon, Loader2, UploadCloud, User, X, Check, Camera, Trash2 } from 'lucide-react';
+import { ArrowLeft, CalendarPlus as CalendarIcon, Loader2, UploadCloud, User, X, Check, Camera, Trash2, Edit2, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -16,7 +16,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { createOrganisation } from '@/lib/api/organisation';
+import { createOrganisation, updateOrganisation, deleteOrganisation } from '@/lib/api/organisation';
 import { useAuth } from '@/hooks/useAuth';
 import Cropper from 'react-easy-crop';
 
@@ -136,17 +136,39 @@ const NewClientForm = ({ onBack, onSave, client, allServices, organisations, bus
     const [newOrgName, setNewOrgName] = useState('');
     const [isAddingOrg, setIsAddingOrg] = useState(false);
 
+    // State for Edit Organisation dialog
+    const [showEditOrgDialog, setShowEditOrgDialog] = useState(false);
+    const [editingOrg, setEditingOrg] = useState(null);
+    const [editOrgName, setEditOrgName] = useState('');
+    const [isEditingOrg, setIsEditingOrg] = useState(false);
+
+    // State for Delete Organisation dialog
+    const [showDeleteOrgDialog, setShowDeleteOrgDialog] = useState(false);
+    const [deletingOrg, setDeletingOrg] = useState(null);
+    const [isDeletingOrg, setIsDeletingOrg] = useState(false);
+
     // State for org popover open/close
     const [orgPopoverOpen, setOrgPopoverOpen] = useState(false);
 
-    // Local org list update if onAddOrganisation not provided
+    // Local org list update
+    // We initialize localOrgs with organisations prop, but then allow local edits to override/extend it.
+    // If organisations prop changes (e.g. parent refresh), we update localOrgs unless we have unsaved local changes?
+    // For simplicity, we sync when prop changes.
     const [localOrgs, setLocalOrgs] = useState(organisations || []);
-    const orgList = typeof onAddOrganisation === 'function' ? organisations : localOrgs;
+
+    useEffect(() => {
+        if (organisations) {
+            setLocalOrgs(organisations);
+        }
+    }, [organisations]);
+
+    // Use localOrgs as the source for the dropdown to reflect immediate edits
+    const orgList = localOrgs;
+
     const addOrganisation = (org) => {
+        setLocalOrgs(prev => [...prev, org]);
         if (typeof onAddOrganisation === 'function') {
             onAddOrganisation(org);
-        } else {
-            setLocalOrgs(prev => [...prev, org]);
         }
     };
 
@@ -258,6 +280,112 @@ const NewClientForm = ({ onBack, onSave, client, allServices, organisations, bus
         setFormData(prev => ({ ...prev, [name]: checked }));
     };
 
+    const handleEditOrg = async () => {
+        if (!editOrgName.trim() || !editingOrg) return;
+        setIsEditingOrg(true);
+        try {
+            const updatedOrg = await updateOrganisation(editingOrg.id, { name: editOrgName }, user?.access_token);
+            toast({ title: "Organisation updated", description: updatedOrg.name });
+
+            // Update local list
+            setLocalOrgs(prev => prev.map(o => o.id === updatedOrg.id ? updatedOrg : o));
+
+            // If the updated org was selected, update the form data display
+            if (formData.organization_id === updatedOrg.id && typeof onAddOrganisation === 'function') {
+                // Trigger parent update if needed, or rely on local re-render
+                // Since orgList is derived, we need to ensure parent state is updated if orgList comes from props
+                // If orgList comes from props, we can't update it directly here unless parent provides a setter.
+                // However, for now, we assume localOrgs is used or parent updates. 
+                // If 'organisations' prop is passed, we might not be able to update it without a callback.
+                // But valid pattern is usually to request refresh. 
+                // For now, let's assume we can only update local state if we have control, 
+                // or maybe we should trigger a refresh callback if available?
+                // The prompt implies we should just make it work. 
+                // If organisations is passed from parent, we can't mutate it. 
+                // We'll rely on addOrganisation callback if it supports updates, or specific update callback?
+                // Current implementation of addOrganisation only adds. 
+                // Let's assume for this feature we might need to rely on parent refresh or just update local view if possible.
+                // Wait, `orgList` switches between `organisations` prop and `localOrgs` state.
+                // We should probably emit an event or call a prop if it exists.
+                // But for this task, the most robust way is to try to update `localOrgs` AND 
+                // if parent provided `organisations`, we might be out of sync unless we reload.
+                // Let's modify `onAddOrganisation` to be generic `onUpdateOrganisation`?
+                // Or we just update `localOrgs` and hope `organisations` prop isn't strictly controlled without update mechanism.
+                // Actually, `NewClientForm` seems to use `orgList` for display.
+                // If `organisations` prop is provided, `localOrgs` is ignored unless we merge/override.
+                // To properly support this, we should really be using `localOrgs` initialized from props and then managing it locally,
+                // OR asking parent to refresh.
+                // Given the constraints, I will update a local "override" or just assume `localOrgs` is the way if I can.
+                // BUT `orgList` definition: `const orgList = typeof onAddOrganisation === 'function' ? organisations : localOrgs;`
+                // This means if `onAddOrganisation` is passed (which it likely is), we work with props.
+                // So we can't update the list locally easily.
+                // I will blindly call `addOrganisation` for update? No.
+                // I'll add a check: if we are in "props mode", we might need to reload the page or `fetchUsers`.
+                // But wait, the user wants "instantly edit/delete".
+                // So I really need to update the list the UI sees.
+                // I will change `orgList` to ALWAYS combine props and local changes? 
+                // Or better: I will use a local state `effectiveOrgList` initialized from props, and keep it in sync.
+
+                // Let's simple hack: Force `localOrgs` to take over if we edit? 
+                // No, that's messy. 
+                // Correct logic: 
+                // 1. `useEffect` to sync `localOrgs` with `organisations` prop.
+                // 2. Always use `localOrgs` for rendering.
+                // 3. `onAddOrganisation` can still be called to notify parent.
+
+                // I'll rewrite the component to use `localOrgs` as the source of truth for the dropdown, initialized from props.
+            }
+            // Logic to update the list used in render:
+            // Since I can't easily change the architecture in one go, I'll modify `orgList` logic slightly 
+            // to allow local overrides if I can, OR just assume `localOrgs` is enough if I use it.
+            // Actually, lines 143-144:
+            // `const [localOrgs, setLocalOrgs] = useState(organisations || []);`
+            // `const orgList = typeof onAddOrganisation === 'function' ? organisations : localOrgs;`
+
+            // I will change this to:
+            // `const [localOrgs, setLocalOrgs] = useState(organisations || []);`
+            // `useEffect(() => { if(organisations) setLocalOrgs(organisations); }, [organisations]);`
+            // `const orgList = localOrgs;`
+            // This allows me to locally mutate the list for UI purposes while still respecting props updates.
+
+            // But I can't do that inside this `handleEditOrg` function block.
+            // So I will make a separate `replace_file_content` for that setup change.
+            // For now, I will write the handler assuming `setLocalOrgs` works and I'll fix the state sourcing in the next chunk.
+
+            setShowEditOrgDialog(false);
+            setEditingOrg(null);
+            setEditOrgName('');
+        } catch (err) {
+            toast({ title: "Error", description: err.message, variant: "destructive" });
+        } finally {
+            setIsEditingOrg(false);
+        }
+    };
+
+    const handleDeleteOrg = async () => {
+        if (!deletingOrg) return;
+        setIsDeletingOrg(true);
+        try {
+            await deleteOrganisation(deletingOrg.id, user?.access_token);
+            toast({ title: "Organisation deleted", description: deletingOrg.name });
+
+            // Update local list
+            setLocalOrgs(prev => prev.filter(o => o.id !== deletingOrg.id));
+
+            // If deleted org was selected, clear selection
+            if (formData.organization_id === deletingOrg.id) {
+                handleSelectChange('organization_id', '');
+            }
+
+            setShowDeleteOrgDialog(false);
+            setDeletingOrg(null);
+        } catch (err) {
+            toast({ title: "Error", description: err.message, variant: "destructive" });
+        } finally {
+            setIsDeletingOrg(false);
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
 
@@ -322,8 +450,10 @@ const NewClientForm = ({ onBack, onSave, client, allServices, organisations, bus
 
         // Find organisation name to pass to parent for immediate UI update
         // Use orgList which is correctly resolved to either props.organisations or localOrgs
+        // NOTE: orgList might be stale if I only updated localOrgs but used props.organisations
+        // I will fix orgList definition in next step.
         if (formData.organization_id) {
-            const selectedOrg = orgList.find(o => String(o.id) === String(formData.organization_id));
+            const selectedOrg = (organisations || localOrgs).find(o => String(o.id) === String(formData.organization_id));
             if (selectedOrg) {
                 // Pass as a special property that parental component can use but should likely strip before API call if strict
                 dataToSave.organization_name = selectedOrg.name;
@@ -552,8 +682,36 @@ const NewClientForm = ({ onBack, onSave, client, allServices, organisations, bus
                                                                     handleSelectChange('organization_id', org.id);
                                                                     setOrgPopoverOpen(false);
                                                                 }}
+                                                                className="flex items-center justify-between group"
                                                             >
-                                                                {org.name}
+                                                                <span>{org.name}</span>
+                                                                <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-6 w-6 p-0 hover:bg-white/20"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setEditingOrg(org);
+                                                                            setEditOrgName(org.name);
+                                                                            setShowEditOrgDialog(true);
+                                                                        }}
+                                                                    >
+                                                                        <Edit2 className="h-3 w-3 text-blue-400" />
+                                                                    </Button>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-6 w-6 p-0 hover:bg-white/20"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setDeletingOrg(org);
+                                                                            setShowDeleteOrgDialog(true);
+                                                                        }}
+                                                                    >
+                                                                        <Trash2 className="h-3 w-3 text-red-400" />
+                                                                    </Button>
+                                                                </div>
                                                             </CommandItem>
                                                         ))}
                                                     </CommandGroup>
@@ -590,7 +748,12 @@ const NewClientForm = ({ onBack, onSave, client, allServices, organisations, bus
                                                             const newOrg = await createOrganisation({ name: newOrgName }, user?.access_token);
                                                             toast({ title: "Organisation added", description: newOrg.name });
                                                             // Update org list and select new org
-                                                            addOrganisation(newOrg);
+                                                            // Use new implementation of addOrganisation that updates localOrgs
+                                                            setLocalOrgs(prev => [...prev, newOrg]);
+                                                            if (typeof onAddOrganisation === 'function') {
+                                                                onAddOrganisation(newOrg);
+                                                            }
+
                                                             handleSelectChange('organization_id', newOrg.id);
                                                             setShowAddOrgDialog(false);
                                                             setNewOrgName('');
@@ -604,6 +767,63 @@ const NewClientForm = ({ onBack, onSave, client, allServices, organisations, bus
                                                 >
                                                     {isAddingOrg ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                                                     Save
+                                                </Button>
+                                            </DialogFooter>
+                                        </DialogContent>
+                                    </Dialog>
+
+                                    {/* Edit Organisation Dialog */}
+                                    <Dialog open={showEditOrgDialog} onOpenChange={setShowEditOrgDialog}>
+                                        <DialogContent closeDisabled={isEditingOrg}>
+                                            <DialogHeader>
+                                                <DialogTitle>Edit Organisation</DialogTitle>
+                                            </DialogHeader>
+                                            <div className="py-4">
+                                                <Label htmlFor="edit_org_name">Organisation Name</Label>
+                                                <Input
+                                                    id="edit_org_name"
+                                                    value={editOrgName}
+                                                    onChange={e => setEditOrgName(e.target.value)}
+                                                    className="mb-4 mt-2"
+                                                    autoFocus
+                                                />
+                                            </div>
+                                            <DialogFooter>
+                                                <DialogClose asChild>
+                                                    <Button variant="outline" onClick={() => setShowEditOrgDialog(false)} disabled={isEditingOrg}>Cancel</Button>
+                                                </DialogClose>
+                                                <Button
+                                                    onClick={handleEditOrg}
+                                                    disabled={isEditingOrg || !editOrgName.trim()}
+                                                >
+                                                    {isEditingOrg ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                                                    Save Changes
+                                                </Button>
+                                            </DialogFooter>
+                                        </DialogContent>
+                                    </Dialog>
+
+                                    {/* Delete Organisation Dialog */}
+                                    <Dialog open={showDeleteOrgDialog} onOpenChange={setShowDeleteOrgDialog}>
+                                        <DialogContent closeDisabled={isDeletingOrg}>
+                                            <DialogHeader>
+                                                <DialogTitle>Delete Organisation</DialogTitle>
+                                            </DialogHeader>
+                                            <div className="py-4 text-white">
+                                                <p>Are you sure you want to delete <span className="font-bold">{deletingOrg?.name}</span>?</p>
+                                                <p className="text-sm text-gray-400 mt-2">This action cannot be undone.</p>
+                                            </div>
+                                            <DialogFooter>
+                                                <DialogClose asChild>
+                                                    <Button variant="outline" onClick={() => setShowDeleteOrgDialog(false)} disabled={isDeletingOrg}>Cancel</Button>
+                                                </DialogClose>
+                                                <Button
+                                                    variant="destructive"
+                                                    onClick={handleDeleteOrg}
+                                                    disabled={isDeletingOrg}
+                                                >
+                                                    {isDeletingOrg ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                                                    Delete
                                                 </Button>
                                             </DialogFooter>
                                         </DialogContent>
