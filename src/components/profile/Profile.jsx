@@ -10,6 +10,8 @@ import { useToast } from '@/components/ui/use-toast';
 import { User, Lock, Shield, Camera, Mail, Eye, EyeOff, Trash2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { getProfile, updateName, updatePassword, toggle2FA, verify2FA, uploadProfilePicture, deleteProfilePicture, get2FAStatus } from '@/lib/api';
+import Cropper from 'react-easy-crop';
+import { getCroppedImg } from '@/lib/imageUtils';
 
 const PasswordInput = ({ id, value, onChange, ...props }) => {
     const [showPassword, setShowPassword] = useState(false);
@@ -39,22 +41,29 @@ const PasswordInput = ({ id, value, onChange, ...props }) => {
 const Profile = () => {
     const { user, updateUser, loading: authLoading } = useAuth();
     const { toast } = useToast();
-    
+
     const [profileData, setProfileData] = useState(null);
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
     const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
-    
+
     const [is2faDialogOpen, setIs2faDialogOpen] = useState(false);
     const [qrCodeImage, setQrCodeImage] = useState(null);
     const [verificationCode, setVerificationCode] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isLoadingProfile, setIsLoadingProfile] = useState(true);
 
+    // Crop dialog states
+    const [showCropDialog, setShowCropDialog] = useState(false);
+    const [imageToCrop, setImageToCrop] = useState(null);
+    const [crop, setCrop] = useState({ x: 0, y: 0 });
+    const [zoom, setZoom] = useState(1);
+    const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+
     const fileInputRef = useRef(null);
-    
+
     const fetchProfileData = useCallback(async (token) => {
         setIsLoadingProfile(true);
         try {
@@ -86,7 +95,7 @@ const Profile = () => {
             toast({ title: "Authentication Error", description: "Could not find access token.", variant: "destructive" });
         }
     }, [user?.access_token, authLoading, fetchProfileData, toast]);
-    
+
     const handleNameUpdate = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
@@ -139,7 +148,7 @@ const Profile = () => {
             setIsSubmitting(false);
         }
     };
-    
+
     const handleVerify2FA = async () => {
         setIsSubmitting(true);
         try {
@@ -156,20 +165,51 @@ const Profile = () => {
         }
     };
 
-    const handlePictureUpload = async (event) => {
+    const handlePictureSelect = async (event) => {
         const file = event.target.files[0];
         if (!file) return;
 
-        setIsSubmitting(true);
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setImageToCrop(reader.result);
+            setShowCropDialog(true);
+        };
+        reader.readAsDataURL(file);
+
+        // Reset input so same file can be selected again
+        event.target.value = '';
+    };
+
+    const onCropComplete = useCallback((croppedArea, croppedAreaPixels) => {
+        setCroppedAreaPixels(croppedAreaPixels);
+    }, []);
+
+    const handleSaveCrop = async () => {
         try {
-            const response = await uploadProfilePicture(file, user.access_token);
+            setIsSubmitting(true);
+            const croppedBlob = await getCroppedImg(imageToCrop, croppedAreaPixels);
+            const croppedFile = new File([croppedBlob], 'profile.jpg', { type: 'image/jpeg' });
+
+            const response = await uploadProfilePicture(croppedFile, user.access_token);
             updateUser({ ...user, photo_url: response.photo_url });
             toast({ title: "Success", description: "Profile picture updated successfully." });
+
+            setShowCropDialog(false);
+            setImageToCrop(null);
         } catch (error) {
-            toast({ title: "Error", description: error.message, variant: "destructive" });
+            console.error('Error cropping/uploading image:', error);
+            toast({ title: "Error", description: "Failed to update profile picture. Please try again.", variant: "destructive" });
         } finally {
             setIsSubmitting(false);
         }
+    };
+
+    const handleCancelCrop = () => {
+        setShowCropDialog(false);
+        setImageToCrop(null);
+        setCrop({ x: 0, y: 0 });
+        setZoom(1);
+        setCroppedAreaPixels(null);
     };
 
     const handleRemovePicture = async () => {
@@ -209,10 +249,10 @@ const Profile = () => {
                             <CardContent className="pt-6 flex flex-col items-center text-center">
                                 <div className="mb-4">
                                     <Avatar className="w-32 h-32 text-4xl border-4 border-white/20">
-                                        <AvatarImage 
-                                            src={user?.photo_url} 
-                                            alt={user?.name} 
-                                            key={user?.photo_url} 
+                                        <AvatarImage
+                                            src={user?.photo_url}
+                                            alt={user?.name}
+                                            key={user?.photo_url}
                                         />
                                         <AvatarFallback className="bg-gradient-to-br from-sky-500 to-indigo-600 text-white">
                                             {user?.name?.charAt(0).toUpperCase() || user?.sub?.charAt(0).toUpperCase()}
@@ -244,10 +284,10 @@ const Profile = () => {
                                     ref={fileInputRef}
                                     className="hidden"
                                     accept="image/*"
-                                    onChange={handlePictureUpload}
+                                    onChange={handlePictureSelect}
                                 />
                                 <h2 className="text-2xl font-bold text-white">{user?.name || 'User'}</h2>
-                                <p className="text-sm text-gray-400 mt-2 flex items-center justify-center gap-2"><Mail className="w-4 h-4"/>{user?.sub}</p>
+                                <p className="text-sm text-gray-400 mt-2 flex items-center justify-center gap-2"><Mail className="w-4 h-4" />{user?.sub}</p>
                             </CardContent>
                         </Card>
                     </div>
@@ -355,6 +395,54 @@ const Profile = () => {
                         </DialogClose>
                         <Button onClick={handleVerify2FA} disabled={isSubmitting || verificationCode.length < 6}>
                             {isSubmitting ? 'Verifying...' : 'Verify & Enable'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Image Crop Dialog */}
+            <Dialog open={showCropDialog} onOpenChange={setShowCropDialog}>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Crop Profile Photo</DialogTitle>
+                    </DialogHeader>
+                    <div className="relative w-full h-96 bg-black rounded-lg">
+                        {imageToCrop && (
+                            <Cropper
+                                image={imageToCrop}
+                                crop={crop}
+                                zoom={zoom}
+                                aspect={1}
+                                cropShape="round"
+                                showGrid={false}
+                                onCropChange={setCrop}
+                                onZoomChange={setZoom}
+                                onCropComplete={onCropComplete}
+                                restrictPosition={false}
+                            />
+                        )}
+                    </div>
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <Label>Zoom</Label>
+                            <input
+                                type="range"
+                                min="0.1"
+                                max="3"
+                                step="0.1"
+                                value={zoom}
+                                onChange={(e) => setZoom(parseFloat(e.target.value))}
+                                className="w-full"
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={handleCancelCrop}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleSaveCrop} disabled={isSubmitting}>
+                            {isSubmitting ? <span className="animate-spin mr-2">⏳</span> : null}
+                            Save
                         </Button>
                     </DialogFooter>
                 </DialogContent>
