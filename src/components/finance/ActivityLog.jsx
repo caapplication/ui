@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Loader2, History, Download } from 'lucide-react';
+import { Loader2, History, Download, Folder } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { getActivityLog } from '@/lib/api';
 import { useToast } from '@/components/ui/use-toast';
@@ -257,6 +257,8 @@ const ActivityLog = ({ itemId, itemType, showFilter = true, excludeTypes = [] })
                             actionDisplay = 'has updated';
                         } else if (log.action.toLowerCase().includes('delete')) {
                             actionDisplay = 'has deleted';
+                        } else if (log.action.toLowerCase().includes('upload')) {
+                            actionDisplay = 'has uploaded';
                         } else {
                             actionDisplay = log.action.toLowerCase();
                         }
@@ -295,7 +297,7 @@ const ActivityLog = ({ itemId, itemType, showFilter = true, excludeTypes = [] })
                                     log.details !== "Invoice created" &&
                                     log.details !== "Invoice updated" && (
                                         <p className="text-xs text-gray-300 mt-1 ml-4 pl-2 border-l-2 border-gray-600">
-                                            {formatLogDetails(log.details)}
+                                            {renderLogDetails(log.details)}
                                         </p>
                                     )}
                                 <p className="text-xs text-gray-400 mt-1">
@@ -321,6 +323,39 @@ const formatLogDetails = (details) => {
         .replace(/Role.CLIENT_USER/g, 'Member')
         .replace(/Role.CA_ACCOUNTANT/g, 'Accountant')
         .replace(/Role.CA_ADMIN/g, 'Agency Admin');
+};
+
+const renderLogDetails = (details) => {
+    if (!details) return null;
+
+    // Check for "Uploaded document 'X' in Path" pattern
+    // We look for the LAST occurrence of " in " to split the path
+    const lastInIndex = details.lastIndexOf("' in ");
+
+    // Ensure we found " in " AND it looks like it follows a quoted string (the file/folder name)
+    if (lastInIndex !== -1) {
+        const prefix = details.substring(0, lastInIndex + 1); // Include the closing quote of the name
+        const path = details.substring(lastInIndex + 5); // Skip "' in " (5 chars)
+
+        // Basic validation: Prefix should start with "Uploaded document" or "Created folder"
+        const isUpload = prefix.startsWith("Uploaded document") || prefix.startsWith("Created folder");
+
+        if (isUpload && path && path.trim().length > 0) {
+            return (
+                <div className="flex flex-col gap-1.5 items-start">
+                    <span>{formatLogDetails(prefix)}</span>
+                    <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-blue-500/10 border border-blue-500/20 text-blue-400 w-fit max-w-full">
+                        <Folder className="w-3.5 h-3.5 flex-shrink-0" />
+                        <span className="font-medium truncate block max-w-[200px] sm:max-w-md" title={path}>
+                            {path}
+                        </span>
+                    </div>
+                </div>
+            );
+        }
+    }
+
+    return formatLogDetails(details);
 };
 
 export default ActivityLog;
