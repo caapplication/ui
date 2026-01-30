@@ -15,7 +15,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileText, Upload, Trash2, Plus, Share2, Folder, FolderPlus, ArrowLeft, Search, Loader2, RefreshCw, Inbox, CalendarIcon, Download, Copy, X, User, Link2, Grid, Phone, Mail, MessageCircle, Facebook, Twitter, MoreVertical, Users, UserPlus, Check, ChevronsUpDown, History } from 'lucide-react';
+import {
+  Folder, FileText, Download, Trash2, Plus, ArrowLeft, Search,
+  MoreVertical, Share2, FolderPlus, Upload, ChevronRight, Home,
+  UserPlus, X, User, Link2, Copy, Grid, Calendar as CalendarIcon,
+  Check, ChevronsUpDown, Inbox, History, FolderOpen, LayoutTemplate,
+  Loader2, Users, RefreshCw, Phone, Edit, MessageCircle, Facebook,
+  Twitter, Linkedin, Mail, Eye, UserCheck, CircleDot, FileIcon, Clock, CalendarDays
+} from 'lucide-react';
 
 // Helper function to check if folder has expired documents (recursively checks subfolders)
 const hasExpiredDocuments = (folder) => {
@@ -108,7 +115,10 @@ const FolderIcon = ({ className = "w-20 h-20", hasExpired = false }) => {
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useCurrentOrganization } from '@/hooks/useCurrentOrganization';
-import { getDocuments, createFolder, uploadFile, deleteDocument, shareDocument, viewFile, getSharedDocuments, listClients, createCAFolder, uploadCAFile, shareFolder, listOrgUsers, listTeamMembers, FINANCE_API_BASE_URL } from '@/lib/api';
+import {
+  getDocuments, createFolder, uploadFile, deleteDocument, shareDocument, viewFile, getSharedDocuments, listClients, createCAFolder, uploadCAFile, shareFolder, listAllClientUsers,
+  listTemplates, createTemplate, deleteTemplate, applyTemplate, updateTemplate
+} from '../../lib/api';
 import { createPublicShareTokenDocument, createPublicShareTokenFolder } from '@/lib/api/documents';
 import { cn } from '@/lib/utils';
 import { Calendar } from '@/components/ui/calendar';
@@ -332,6 +342,15 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   // Determine the correct organization ID using our hook
   const currentOrganizationId = useCurrentOrganization(entityId);
   const [collabSelectedClientId, setCollabSelectedClientId] = useState(null); // 'my-team' or client ID
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [activeTemplateTab, setActiveTemplateTab] = useState('manage');
+  const [templates, setTemplates] = useState([]);
+  const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
+  const [newTemplateName, setNewTemplateName] = useState('');
+  const [newTemplateFolders, setNewTemplateFolders] = useState(['']); // Start with one empty folder input
+  const [editingTemplate, setEditingTemplate] = useState(null); // { id, name, folders }
+  const [selectedTemplateForApply, setSelectedTemplateForApply] = useState(null);
+  const [selectedClientsForTemplate, setSelectedClientsForTemplate] = useState([]);
 
   // Initialize collabSelectedClientId when user changes
   useEffect(() => {
@@ -394,6 +413,113 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
       fetchClients();
     }
   }, [user, toast]);
+
+  // Fetch Templates
+  const fetchTemplates = useCallback(async () => {
+    if (user?.role !== 'CA_ACCOUNTANT' || !user?.access_token) return;
+    setIsLoadingTemplates(true);
+    try {
+      const data = await listTemplates(user.access_token);
+      setTemplates(data || []);
+    } catch (error) {
+      console.error('Error fetching templates:', error);
+      toast({ title: 'Error', description: 'Failed to load templates.', variant: 'destructive' });
+    } finally {
+      setIsLoadingTemplates(false);
+    }
+  }, [user, toast]);
+
+  useEffect(() => {
+    if (showTemplates) {
+      fetchTemplates();
+    }
+  }, [showTemplates, fetchTemplates]);
+
+  const handleCreateTemplate = async () => {
+    if (!newTemplateName.trim() || newTemplateFolders.every(f => !f.trim())) return;
+    setIsLoadingTemplates(true);
+    try {
+      const validFolders = newTemplateFolders.filter(f => f.trim());
+      await createTemplate({ name: newTemplateName, folders: validFolders }, user.access_token);
+      toast({ title: "Template Created", description: "New folder template added successfully." });
+      setNewTemplateName('');
+      setNewTemplateFolders(['']);
+      fetchTemplates(); // Refresh list
+      // Switch to manage tab if not already? It is default.
+    } catch (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setIsLoadingTemplates(false);
+    }
+  };
+
+  const handleUpdateTemplate = async () => {
+    if (!editingTemplate || !newTemplateName.trim() || newTemplateFolders.every(f => !f.trim())) return;
+    setIsLoadingTemplates(true);
+    try {
+      const validFolders = newTemplateFolders.filter(f => f.trim());
+      await updateTemplate(editingTemplate.id, { name: newTemplateName, folders: validFolders }, user.access_token);
+      toast({ title: "Template Updated", description: "Template updated successfully." });
+      setEditingTemplate(null);
+      setNewTemplateName('');
+      setNewTemplateFolders(['']);
+      fetchTemplates(); // Refresh list
+    } catch (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setIsLoadingTemplates(false);
+    }
+  };
+
+  const handleDeleteTemplate = async (id) => {
+    if (!confirm("Are you sure you want to delete this template?")) return;
+    setIsLoadingTemplates(true);
+    try {
+      await deleteTemplate(id, user.access_token);
+      toast({ title: "Template Deleted", description: "Template removed successfully." });
+      fetchTemplates();
+    } catch (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setIsLoadingTemplates(false);
+    }
+  };
+
+  const handleApplyTemplate = async () => {
+    if (!selectedTemplateForApply || selectedClientsForTemplate.length === 0) return;
+    setIsLoadingTemplates(true);
+    try {
+      const result = await applyTemplate(selectedTemplateForApply, selectedClientsForTemplate, user.access_token);
+      const successCount = result.success ? result.success.length : 0;
+      const errorCount = result.errors ? result.errors.length : 0;
+
+      if (errorCount > 0) {
+        toast({
+          title: "Applied with some errors",
+          description: `Applied to ${successCount} clients. Failed for ${errorCount} clients. Check console for details.`,
+          variant: "warning"
+        });
+        console.error("Template application errors:", result.errors);
+      } else {
+        toast({
+          title: "Templates Applied",
+          description: `Successfully started creating folders for ${successCount} clients.`,
+        });
+      }
+
+      setShowTemplates(false);
+      setSelectedClientsForTemplate([]);
+      setSelectedTemplateForApply(null);
+      // Refresh documents if current view is affected (e.g. one of the selected clients is currently open)
+      if (selectedClientsForTemplate.includes(realSelectedClientId)) {
+        fetchDocuments(true);
+      }
+    } catch (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setIsLoadingTemplates(false);
+    }
+  };
 
   const fetchDocuments = useCallback(async (isRefresh = false) => {
     console.log('fetchDocuments called', { isRefresh, realSelectedClientId, entityId: user?.role === 'CA_ACCOUNTANT' ? realSelectedClientId : entityId });
@@ -914,8 +1040,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
             try {
               const clientUsers = await listAllClientUsers(user.access_token);
               // listAllClientUsers returns { joined_users: [...] } or list?
-              // Looking at index.js/organisation.js, listAllClientUsers returns response directly via handleResponse.
-              // organisation.js: listAllClientUsers -> fetch /entities/all-client-users
+              // Looking at index.js/organisation.js, listAllClientUsers,
               // entities.py: list_all_client_users returns list(unique_users.values()) -> Array of user objects
               if (Array.isArray(clientUsers)) {
                 users = clientUsers;
@@ -1521,6 +1646,11 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                 <Button onClick={() => setShowCreateFolder(true)} variant="outline" className="h-9 sm:h-10 text-sm sm:text-base flex-1 sm:flex-initial">
                   <FolderPlus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" /> <span className="hidden sm:inline">Folder</span>
                 </Button>
+                {user?.role === 'CA_ACCOUNTANT' && currentFolderId === 'root' && (
+                  <Button onClick={() => setShowTemplates(true)} variant="outline" className="h-9 sm:h-10 text-sm sm:text-base flex-1 sm:flex-initial border-dashed border-blue-500/50 hover:border-blue-500 text-blue-400 hover:text-blue-300">
+                    <Copy className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" /> <span className="hidden sm:inline">Templates</span>
+                  </Button>
+                )}
                 {currentFolderId !== 'root' && currentPath.length > 2 && (
                   <Button onClick={() => setShowUpload(true)} className="h-9 sm:h-10 text-sm sm:text-base flex-1 sm:flex-initial">
                     <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" /> <span className="hidden sm:inline">Upload</span>
@@ -2184,8 +2314,214 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
         </DialogContent>
       </Dialog>
 
+
+      {/* Templates Dialog */}
+      <Dialog open={showTemplates} onOpenChange={setShowTemplates}>
+        <DialogContent className="sm:max-w-[800px] bg-gray-900 border-gray-800 text-white">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <LayoutTemplate className="w-6 h-6 text-blue-400" />
+              Folder Templates
+            </DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Create reusable folder structures and apply them to multiple clients at once.
+            </DialogDescription>
+          </DialogHeader>
+
+          <Tabs value={activeTemplateTab} onValueChange={setActiveTemplateTab} className="w-full mt-4">
+            <TabsList className="bg-gray-800/50 w-full sm:w-auto">
+              <TabsTrigger value="manage">Manage Templates</TabsTrigger>
+              <TabsTrigger value="apply">Apply to Clients</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="manage" className="mt-4 space-y-4">
+              {/* Create New Template Section */}
+              <div className="p-4 rounded-lg bg-gray-800/20 border border-gray-700 mb-6">
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-sm font-semibold text-gray-300">{editingTemplate ? 'Edit Template' : 'Create New Template'}</Label>
+                  {editingTemplate && (
+                    <Button variant="ghost" size="sm" onClick={() => {
+                      setEditingTemplate(null);
+                      setNewTemplateName('');
+                      setNewTemplateFolders(['']);
+                    }}>
+                      <X className="w-4 h-4 mr-1" /> Cancel
+                    </Button>
+                  )}
+                </div>
+                <div className="grid gap-4">
+                  <div>
+                    <Input
+                      placeholder="Template Name (e.g., Audit 2024)"
+                      className="bg-gray-800 border-gray-700 text-white"
+                      value={newTemplateName}
+                      onChange={(e) => setNewTemplateName(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs text-gray-400">Folder Structure</Label>
+                    {newTemplateFolders.map((folder, idx) => (
+                      <div key={idx} className="flex gap-2">
+                        <Input
+                          placeholder={`Folder Name ${idx + 1}`}
+                          className="bg-gray-800 border-gray-700 text-white"
+                          value={folder}
+                          onChange={(e) => {
+                            const newFolders = [...newTemplateFolders];
+                            newFolders[idx] = e.target.value;
+                            setNewTemplateFolders(newFolders);
+                          }}
+                        />
+                        {newTemplateFolders.length > 1 && (
+                          <Button variant="ghost" size="icon" onClick={() => {
+                            const newFolders = newTemplateFolders.filter((_, i) => i !== idx);
+                            setNewTemplateFolders(newFolders);
+                          }}>
+                            <X className="w-4 h-4 text-gray-500 hover:text-red-400" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs border-dashed text-gray-400 hover:text-white"
+                      onClick={() => setNewTemplateFolders([...newTemplateFolders, ''])}
+                    >
+                      <Plus className="w-3 h-3 mr-1" /> Add Folder
+                    </Button>
+                  </div>
+                  <Button
+                    className="w-full sm:w-auto ml-auto bg-blue-600 hover:bg-blue-700"
+                    disabled={!newTemplateName.trim() || newTemplateFolders.every(f => !f.trim()) || isLoadingTemplates}
+                    onClick={editingTemplate ? handleUpdateTemplate : handleCreateTemplate}
+                  >
+                    {isLoadingTemplates && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    {editingTemplate ? 'Update Template' : 'Create Template'}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Existing Templates - Right */}
+                {templates.map(template => (
+                  <div key={template.id} className="p-4 rounded-lg bg-gray-800 border border-gray-700 relative group flex flex-col">
+                    <h3 className="font-semibold text-lg text-white mb-2">{template.name}</h3>
+                    <div className="space-y-1 mb-4 flex-1">
+                      {(template.folders || []).slice(0, 3).map((f, i) => (
+                        <div key={i} className="flex items-center gap-2 text-sm text-gray-400">
+                          <Folder className="w-3 h-3" /> {f}
+                        </div>
+                      ))}
+                      {(template.folders || []).length > 3 && (
+                        <div className="text-xs text-gray-500 pl-5">
+                          + {(template.folders || []).length - 3} more...
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex gap-2 mt-auto pt-4 border-t border-gray-700/50">
+                      <Button size="sm" variant="destructive" className="w-10 px-0 bg-red-900/20 text-red-400 hover:bg-red-900/40 border border-red-900/50" onClick={() => handleDeleteTemplate(template.id)}>
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                      <Button size="sm" variant="outline" className="w-10 px-0 border-gray-600 hover:bg-gray-700 text-gray-300" onClick={() => {
+                        setEditingTemplate({ id: template.id, name: template.name, folders: [...(template.folders || [])] });
+                        setNewTemplateName(template.name);
+                        setNewTemplateFolders([...(template.folders || [])]);
+                      }}>
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button size="sm" className="flex-1 bg-blue-600 hover:bg-blue-700" onClick={() => {
+                        setSelectedTemplateForApply(template.id);
+                        setActiveTemplateTab('apply');
+                      }}>Use Template</Button>
+                    </div>
+                  </div>
+                ))}
+                {templates.length === 0 && !isLoadingTemplates && (
+                  <div className="col-span-1 md:col-span-2 text-center py-8 text-gray-500 italic">
+                    No templates found. Create one above.
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="apply" className="mt-4">
+              <div className="space-y-6">
+                <div className="space-y-4">
+                  <Label>1. Select Template</Label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {templates.map(template => (
+                      <div
+                        key={template.id}
+                        onClick={() => setSelectedTemplateForApply(template.id)}
+                        className={cn(
+                          "cursor-pointer p-3 rounded-md border text-center transition-all",
+                          selectedTemplateForApply === template.id
+                            ? "bg-blue-500/20 border-blue-500 text-blue-400 ring-2 ring-blue-500/30"
+                            : "bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-500"
+                        )}
+                      >
+                        <div className="font-medium">{template.name}</div>
+                        <div className="text-xs mt-1 opacity-70">{(template.folders || []).length} folders</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <Label>2. Select Clients ({selectedClientsForTemplate.length})</Label>
+                  <div className="h-[200px] overflow-y-auto border border-gray-700 rounded-md bg-gray-800/50 p-2 space-y-1 custom-scrollbar">
+                    {clientsForFilter.map(client => (
+                      <div
+                        key={client.id}
+                        className="flex items-center space-x-3 p-2 rounded hover:bg-white/5 cursor-pointer"
+                        onClick={() => {
+                          if (selectedClientsForTemplate.includes(client.id)) {
+                            setSelectedClientsForTemplate(prev => prev.filter(id => id !== client.id));
+                          } else {
+                            setSelectedClientsForTemplate(prev => [...prev, client.id]);
+                          }
+                        }}
+                      >
+                        <Checkbox
+                          id={`client-${client.id}`}
+                          checked={selectedClientsForTemplate.includes(client.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedClientsForTemplate(prev => [...prev, client.id]);
+                            } else {
+                              setSelectedClientsForTemplate(prev => prev.filter(id => id !== client.id));
+                            }
+                          }}
+                        />
+                        <label htmlFor={`client-${client.id}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1">
+                          {client.name}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex justify-between text-xs text-gray-400 px-1">
+                    <span className="cursor-pointer hover:text-white" onClick={() => setSelectedClientsForTemplate(clientsForFilter.map(c => c.id))}>Select All</span>
+                    <span className="cursor-pointer hover:text-white" onClick={() => setSelectedClientsForTemplate([])}>Clear Selection</span>
+                  </div>
+                </div>
+
+                <DialogFooter className="border-t border-gray-800 pt-4">
+                  <Button variant="ghost" onClick={() => setShowTemplates(false)}>Cancel</Button>
+                  <Button className="bg-green-600 hover:bg-green-700" disabled={!selectedTemplateForApply || selectedClientsForTemplate.length === 0 || isLoadingTemplates} onClick={handleApplyTemplate}>
+                    {isLoadingTemplates ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Check className="w-4 h-4 mr-2" />}
+                    Apply & Create Folders
+                  </Button>
+                </DialogFooter>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </DialogContent>
+      </Dialog>
       {
         previewFile && (
+
+
           <Dialog open={!!previewFile} onOpenChange={() => setPreviewFile(null)}>
             <DialogContent className="max-w-3xl w-[95vw] sm:w-full">
               <DialogHeader>
@@ -2198,7 +2534,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
           </Dialog>
         )
       }
-    </div>
+    </div >
   );
 };
 
