@@ -25,7 +25,7 @@ const setCache = (key, data) => {
     }
 };
 
-const ActivityLog = ({ itemId, itemType, showFilter = true }) => {
+const ActivityLog = ({ itemId, itemType, showFilter = true, excludeTypes = [] }) => {
     const [logs, setLogs] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [startDate, setStartDate] = useState('');
@@ -43,7 +43,16 @@ const ActivityLog = ({ itemId, itemType, showFilter = true }) => {
         const canUseCache = !startDate && !endDate;
 
         if (canUseCache && cachedLogs) {
-            setLogs(cachedLogs);
+            // Apply excludeTypes filter to cached logs
+            let filteredCachedLogs = cachedLogs;
+            if (excludeTypes.length > 0) {
+                filteredCachedLogs = cachedLogs.filter(log => {
+                    if (excludeTypes.includes('document') && log.document_id) return false;
+                    if (excludeTypes.includes('folder') && log.folder_id) return false;
+                    return true;
+                });
+            }
+            setLogs(filteredCachedLogs);
             setIsLoading(false);
         } else {
             setIsLoading(true);
@@ -54,9 +63,24 @@ const ActivityLog = ({ itemId, itemType, showFilter = true }) => {
             const startDateISO = startDate ? new Date(startDate).toISOString() : null;
             const endDateISO = endDate ? new Date(endDate + 'T23:59:59').toISOString() : null; // Include time to cover entire day
             const data = await getActivityLog(itemId, itemType, user.access_token, startDateISO, endDateISO);
-            setLogs(data);
+
+            // Apply excludeTypes filter
+            let filteredData = data;
+            if (excludeTypes.length > 0 && Array.isArray(data)) {
+                filteredData = data.filter(log => {
+                    if (excludeTypes.includes('document') && log.document_id) return false;
+                    if (excludeTypes.includes('folder') && log.folder_id) return false;
+                    return true;
+                });
+            }
+
+            setLogs(filteredData);
 
             if (canUseCache) {
+                // Cache the RAW data, not the filtered data, so other views might use it? 
+                // Actually, for simplicity and since cache key is unique to itemId/itemType, 
+                // we probably want to cache the full list and filter on retrieval if props change.
+                // But for now, let's cache the full data as before.
                 setCache(CACHE_KEY, data);
             }
         } catch (error) {
@@ -271,7 +295,7 @@ const ActivityLog = ({ itemId, itemType, showFilter = true }) => {
                                     log.details !== "Invoice created" &&
                                     log.details !== "Invoice updated" && (
                                         <p className="text-xs text-gray-300 mt-1 ml-4 pl-2 border-l-2 border-gray-600">
-                                            {log.details}
+                                            {formatLogDetails(log.details)}
                                         </p>
                                     )}
                                 <p className="text-xs text-gray-400 mt-1">
@@ -284,6 +308,19 @@ const ActivityLog = ({ itemId, itemType, showFilter = true }) => {
             </div>
         </div>
     );
+};
+
+// Helper function to format log details (e.g. replacing Role enums with friendly names)
+const formatLogDetails = (details) => {
+    if (!details) return '';
+    return details
+        .replace(/Role.CLIENT_MASTER_ADMIN/g, 'Client Admin')
+        .replace(/Role.CLIENT_ADMIN/g, 'Organization Owner')
+        .replace(/Role.ENTITY_ADMIN/g, 'Organization Owner')
+        .replace(/Role.ENTITY_USER/g, 'Entity User')
+        .replace(/Role.CLIENT_USER/g, 'Member')
+        .replace(/Role.CA_ACCOUNTANT/g, 'Accountant')
+        .replace(/Role.CA_ADMIN/g, 'Agency Admin');
 };
 
 export default ActivityLog;

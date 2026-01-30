@@ -243,7 +243,7 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
                 // For now, we'll try to fetch them - if the backend doesn't support it, it will show an error
                 return (
                     <div className="glass-pane p-6 rounded-lg">
-                        <ActivityLog itemId={client.id} itemType="client" />
+                        <ActivityLog itemId={client.id} itemType="client" excludeTypes={['document', 'folder']} />
                     </div>
                 );
             default:

@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Search, UserPlus, Filter, Loader2, Trash2, RefreshCw, UserCheck } from 'lucide-react';
+import { Search, UserPlus, Filter, Loader2, Trash2, RefreshCw, UserCheck, History } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/ui/use-toast';
 import { listEntityUsers, inviteEntityUser, deleteEntityUser, deleteInvitedOrgUser, resendToken, listAllAccessibleEntityUsers, addEntityUsers } from '@/lib/api/organisation';
@@ -616,36 +616,59 @@ const TeamActivityLog = ({ entityId }) => {
     }
 
     return (
-        <div className="glass-pane rounded-lg h-full overflow-y-auto no-scrollbar p-4">
-            <Table>
-                <TableHeader>
-                    <TableRow className="border-white/10 hover:bg-white/5">
-                        <TableHead className="text-gray-300 w-[200px]">Date & Time</TableHead>
-                        <TableHead className="text-gray-300 w-[250px]">Action</TableHead>
-                        <TableHead className="text-gray-300">Details</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {logs.map((log) => (
-                        <TableRow key={log.id} className="border-white/10 hover:bg-white/5">
-                            <TableCell className="text-gray-400">
+        <div className="glass-pane rounded-lg h-full overflow-y-auto custom-scrollbar p-4 space-y-4">
+            {logs.map((log) => {
+                // Formatting logic adapted from ActivityLog.jsx
+                let userDisplay = 'Unknown User';
+                if (log.name && log.email) {
+                    userDisplay = `${log.name} (${log.email})`;
+                } else if (log.name) {
+                    userDisplay = log.name;
+                } else if (log.email) {
+                    userDisplay = log.email;
+                }
+
+                return (
+                    <div key={log.id} className="flex items-start space-x-3 p-3 rounded-lg bg-gray-800/50 border border-gray-700/50">
+                        <div className="flex-shrink-0">
+                            <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center">
+                                <History className="w-4 h-4 text-gray-300" />
+                            </div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-sm text-white">
+                                <span className="font-semibold">{userDisplay}</span> {log.action}
+                            </p>
+                            {log.details && (
+                                <p className="text-xs text-gray-300 mt-1 ml-4 pl-2 border-l-2 border-gray-600">
+                                    {formatLogDetails(log.details)}
+                                </p>
+                            )}
+                            <p className="text-xs text-gray-400 mt-1">
                                 {new Date(log.timestamp).toLocaleString('en-IN', {
                                     day: '2-digit', month: 'short', year: 'numeric',
                                     hour: '2-digit', minute: '2-digit'
                                 })}
-                            </TableCell>
-                            <TableCell className="font-medium text-white">
-                                {log.action}
-                            </TableCell>
-                            <TableCell className="text-gray-300">
-                                {log.details}
-                            </TableCell>
-                        </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
+                            </p>
+                        </div>
+                    </div>
+                );
+            })}
         </div>
     );
+};
+
+// Helper function to format log details (duplicated from ActivityLog.jsx for now)
+const formatLogDetails = (details) => {
+    if (!details) return '';
+    return details
+        .replace(/Role.CLIENT_MASTER_ADMIN/g, 'Client Admin')
+        .replace(/Role.CLIENT_ADMIN/g, 'Organization Owner')
+        .replace(/Role.ENTITY_ADMIN/g, 'Organization Owner')
+        .replace(/Role.ENTITY_USER/g, 'Entity User')
+        .replace(/Role.CLIENT_USER/g, 'Member')
+        .replace(/Role.CA_ACCOUNTANT/g, 'Accountant')
+        .replace(/Role.CA_ADMIN/g, 'Agency Admin');
 };
 
 export default ClientUsersPage;
