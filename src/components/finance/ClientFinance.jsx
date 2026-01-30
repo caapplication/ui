@@ -484,7 +484,26 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
               {/* Removed Add Voucher and Add Invoice buttons as per user request */}
             </div>
 
-            {/* Refresh Button and Add Dropdown */}
+          </div>
+
+          {/* Subtitle */}
+          <p className="text-sm sm:text-base text-muted-foreground">
+            Review client invoices and vouchers.
+          </p>
+        </div>
+
+        <Tabs
+          value={activeTab}
+          onValueChange={(value) => navigate(`/finance/${value}`)}
+          className="w-full"
+        >
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+            <TabsList className="w-full sm:w-auto grid grid-cols-2 sm:inline-flex">
+              <TabsTrigger value="vouchers" className="text-sm sm:text-base">Vouchers</TabsTrigger>
+              <TabsTrigger value="invoices" className="text-sm sm:text-base">Invoices</TabsTrigger>
+            </TabsList>
+
+            {/* Refresh Button and Add Dropdown - Moved here */}
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -512,23 +531,6 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
               </DropdownMenu>
             </div>
           </div>
-
-          {/* Subtitle */}
-          <p className="text-sm sm:text-base text-muted-foreground">
-            Review client invoices and vouchers.
-          </p>
-        </div>
-
-        {/* 🔹 Tabs Section */}
-        <Tabs
-          value={activeTab}
-          onValueChange={(value) => navigate(`/finance/${value}`)}
-          className="w-full"
-        >
-          <TabsList className="w-full sm:w-auto grid grid-cols-2 sm:inline-flex">
-            <TabsTrigger value="vouchers" className="text-sm sm:text-base">Vouchers</TabsTrigger>
-            <TabsTrigger value="invoices" className="text-sm sm:text-base">Invoices</TabsTrigger>
-          </TabsList>
 
           <div className="mt-4 sm:mt-6">
             <Routes>

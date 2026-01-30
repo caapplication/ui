@@ -257,27 +257,27 @@ const ClientUsersPage = ({ entityId }) => {
                     <p className="text-gray-400 mt-1">Add and manage members of your entity.</p>
                 </div>
 
-                {/* Actions only visible when on members tab */}
-                {activeTab === 'members' && user?.role !== 'CLIENT_USER' && (
-                    <div className="flex gap-2">
-                        <>
+                {/* Actions moved to tabs row */}
+            </div>
+
+            <Tabs defaultValue="members" className="flex-1 flex flex-col min-h-0 h-full" onValueChange={setActiveTab}>
+                <div className="mb-6 shrink-0 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <TabsList>
+                        <TabsTrigger value="members">Team Members</TabsTrigger>
+                        <TabsTrigger value="activity">Activity Log</TabsTrigger>
+                    </TabsList>
+
+                    {/* Actions only visible when on members tab */}
+                    {activeTab === 'members' && user?.role !== 'CLIENT_USER' && (
+                        <div className="flex gap-2">
                             <Button onClick={handleAddExisting} variant="outline" className="gap-2">
                                 <UserCheck className="w-4 h-4" /> Add Existing
                             </Button>
                             <Button onClick={() => setShowInviteDialog(true)} className="bg-primary hover:bg-primary/90 gap-2">
                                 <UserPlus className="w-4 h-4" /> Invite New
                             </Button>
-                        </>
-                    </div>
-                )}
-            </div>
-
-            <Tabs defaultValue="members" className="flex-1 flex flex-col min-h-0 h-full" onValueChange={setActiveTab}>
-                <div className="mb-6 shrink-0">
-                    <TabsList>
-                        <TabsTrigger value="members">Team Members</TabsTrigger>
-                        <TabsTrigger value="activity">Activity Log</TabsTrigger>
-                    </TabsList>
+                        </div>
+                    )}
                 </div>
 
                 <TabsContent value="members" className="flex-1 flex flex-col min-h-0 !mt-0 h-full">
