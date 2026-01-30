@@ -347,7 +347,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   const [templates, setTemplates] = useState([]);
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState('');
-  const [newTemplateFolders, setNewTemplateFolders] = useState(['']); // Start with one empty folder input
+  const [newTemplateFolders, setNewTemplateFolders] = useState([{ name: '', subfolders: [] }]); // Nested: [{name, subfolders: []}]
   const [editingTemplate, setEditingTemplate] = useState(null); // { id, name, folders }
   const [selectedTemplateForApply, setSelectedTemplateForApply] = useState(null);
   const [selectedClientsForTemplate, setSelectedClientsForTemplate] = useState([]);
@@ -436,16 +436,32 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   }, [showTemplates, fetchTemplates]);
 
   const handleCreateTemplate = async () => {
-    if (!newTemplateName.trim() || newTemplateFolders.every(f => !f.trim())) return;
+    // Flatten nested structure to "Parent / Child" format
+    const flattenFolders = () => {
+      const result = [];
+      newTemplateFolders.forEach(parent => {
+        if (parent.name.trim()) {
+          result.push(parent.name.trim()); // Add parent
+          parent.subfolders.forEach(sub => {
+            if (sub.trim()) {
+              result.push(`${parent.name.trim()} / ${sub.trim()}`); // Add "Parent / Child"
+            }
+          });
+        }
+      });
+      return result;
+    };
+
+    const validFolders = flattenFolders();
+    if (!newTemplateName.trim() || validFolders.length === 0) return;
+
     setIsLoadingTemplates(true);
     try {
-      const validFolders = newTemplateFolders.filter(f => f.trim());
       await createTemplate({ name: newTemplateName, folders: validFolders }, user.access_token);
       toast({ title: "Template Created", description: "New folder template added successfully." });
       setNewTemplateName('');
-      setNewTemplateFolders(['']);
+      setNewTemplateFolders([{ name: '', subfolders: [] }]);
       fetchTemplates(); // Refresh list
-      // Switch to manage tab if not already? It is default.
     } catch (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
@@ -454,15 +470,32 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   };
 
   const handleUpdateTemplate = async () => {
-    if (!editingTemplate || !newTemplateName.trim() || newTemplateFolders.every(f => !f.trim())) return;
+    // Flatten nested structure to "Parent / Child" format
+    const flattenFolders = () => {
+      const result = [];
+      newTemplateFolders.forEach(parent => {
+        if (parent.name.trim()) {
+          result.push(parent.name.trim()); // Add parent
+          parent.subfolders.forEach(sub => {
+            if (sub.trim()) {
+              result.push(`${parent.name.trim()} / ${sub.trim()}`); // Add "Parent / Child"
+            }
+          });
+        }
+      });
+      return result;
+    };
+
+    const validFolders = flattenFolders();
+    if (!editingTemplate || !newTemplateName.trim() || validFolders.length === 0) return;
+
     setIsLoadingTemplates(true);
     try {
-      const validFolders = newTemplateFolders.filter(f => f.trim());
       await updateTemplate(editingTemplate.id, { name: newTemplateName, folders: validFolders }, user.access_token);
       toast({ title: "Template Updated", description: "Template updated successfully." });
       setEditingTemplate(null);
       setNewTemplateName('');
-      setNewTemplateFolders(['']);
+      setNewTemplateFolders([{ name: '', subfolders: [] }]);
       fetchTemplates(); // Refresh list
     } catch (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -2343,7 +2376,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                     <Button variant="ghost" size="sm" onClick={() => {
                       setEditingTemplate(null);
                       setNewTemplateName('');
-                      setNewTemplateFolders(['']);
+                      setNewTemplateFolders([{ name: '', subfolders: [] }]);
                     }}>
                       <X className="w-4 h-4 mr-1" /> Cancel
                     </Button>
@@ -2358,42 +2391,88 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                       onChange={(e) => setNewTemplateName(e.target.value)}
                     />
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <Label className="text-xs text-gray-400">Folder Structure</Label>
-                    {newTemplateFolders.map((folder, idx) => (
-                      <div key={idx} className="flex gap-2">
-                        <Input
-                          placeholder={`Folder Name ${idx + 1}`}
-                          className="bg-gray-800 border-gray-700 text-white"
-                          value={folder}
-                          onChange={(e) => {
-                            const newFolders = [...newTemplateFolders];
-                            newFolders[idx] = e.target.value;
-                            setNewTemplateFolders(newFolders);
-                          }}
-                        />
-                        {newTemplateFolders.length > 1 && (
-                          <Button variant="ghost" size="icon" onClick={() => {
-                            const newFolders = newTemplateFolders.filter((_, i) => i !== idx);
-                            setNewTemplateFolders(newFolders);
-                          }}>
-                            <X className="w-4 h-4 text-gray-500 hover:text-red-400" />
+
+                    {/* Parent folders with subfolders */}
+                    {newTemplateFolders.map((parentFolder, parentIdx) => (
+                      <div key={parentIdx} className="p-3 rounded-lg bg-gray-800/50 border border-gray-700 space-y-2">
+                        {/* Parent folder input */}
+                        <div className="flex gap-2 items-center">
+                          <Folder className="w-4 h-4 text-blue-400 shrink-0" />
+                          <Input
+                            placeholder="Parent Folder (e.g., Financial)"
+                            className="bg-gray-900 border-gray-700 text-white flex-1"
+                            value={parentFolder.name}
+                            onChange={(e) => {
+                              const updated = [...newTemplateFolders];
+                              updated[parentIdx].name = e.target.value;
+                              setNewTemplateFolders(updated);
+                            }}
+                          />
+                          {newTemplateFolders.length > 1 && (
+                            <Button variant="ghost" size="icon" onClick={() => {
+                              const updated = newTemplateFolders.filter((_, i) => i !== parentIdx);
+                              setNewTemplateFolders(updated);
+                            }}>
+                              <X className="w-4 h-4 text-gray-500 hover:text-red-400" />
+                            </Button>
+                          )}
+                        </div>
+
+                        {/* Subfolders */}
+                        <div className="ml-6 space-y-2 border-l-2 border-gray-700 pl-3">
+                          {parentFolder.subfolders.map((subfolder, subIdx) => (
+                            <div key={subIdx} className="flex gap-2 items-center">
+                              <ChevronRight className="w-3 h-3 text-gray-500 shrink-0" />
+                              <Input
+                                placeholder="Subfolder name"
+                                className="bg-gray-900 border-gray-600 text-white text-sm flex-1"
+                                value={subfolder}
+                                onChange={(e) => {
+                                  const updated = [...newTemplateFolders];
+                                  updated[parentIdx].subfolders[subIdx] = e.target.value;
+                                  setNewTemplateFolders(updated);
+                                }}
+                              />
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
+                                const updated = [...newTemplateFolders];
+                                updated[parentIdx].subfolders = updated[parentIdx].subfolders.filter((_, i) => i !== subIdx);
+                                setNewTemplateFolders(updated);
+                              }}>
+                                <X className="w-3 h-3 text-gray-500 hover:text-red-400" />
+                              </Button>
+                            </div>
+                          ))}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-xs text-gray-400 hover:text-white h-7"
+                            onClick={() => {
+                              const updated = [...newTemplateFolders];
+                              updated[parentIdx].subfolders.push('');
+                              setNewTemplateFolders(updated);
+                            }}
+                          >
+                            <Plus className="w-3 h-3 mr-1" /> Add Subfolder
                           </Button>
-                        )}
+                        </div>
                       </div>
                     ))}
+
+                    {/* Add Parent Folder button */}
                     <Button
                       variant="outline"
                       size="sm"
                       className="text-xs border-dashed text-gray-400 hover:text-white"
-                      onClick={() => setNewTemplateFolders([...newTemplateFolders, ''])}
+                      onClick={() => setNewTemplateFolders([...newTemplateFolders, { name: '', subfolders: [] }])}
                     >
-                      <Plus className="w-3 h-3 mr-1" /> Add Folder
+                      <FolderPlus className="w-3 h-3 mr-1" /> Add Parent Folder
                     </Button>
                   </div>
                   <Button
                     className="w-full sm:w-auto ml-auto bg-blue-600 hover:bg-blue-700"
-                    disabled={!newTemplateName.trim() || newTemplateFolders.every(f => !f.trim()) || isLoadingTemplates}
+                    disabled={!newTemplateName.trim() || newTemplateFolders.every(f => !f.name.trim()) || isLoadingTemplates}
                     onClick={editingTemplate ? handleUpdateTemplate : handleCreateTemplate}
                   >
                     {isLoadingTemplates && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
@@ -2408,14 +2487,15 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                   <div key={template.id} className="p-4 rounded-lg bg-gray-800 border border-gray-700 relative group flex flex-col">
                     <h3 className="font-semibold text-lg text-white mb-2">{template.name}</h3>
                     <div className="space-y-1 mb-4 flex-1">
-                      {(template.folders || []).slice(0, 3).map((f, i) => (
-                        <div key={i} className="flex items-center gap-2 text-sm text-gray-400">
-                          <Folder className="w-3 h-3" /> {f}
+                      {(template.folders || []).slice(0, 5).map((f, i) => (
+                        <div key={i} className={`flex items-center gap-2 text-sm text-gray-400 ${f.includes('/') ? 'ml-4' : ''}`}>
+                          <Folder className="w-3 h-3" /> {f.includes('/') ? f.split('/')[1].trim() : f}
+                          {f.includes('/') && <span className="text-xs text-gray-600">(in {f.split('/')[0].trim()})</span>}
                         </div>
                       ))}
-                      {(template.folders || []).length > 3 && (
+                      {(template.folders || []).length > 5 && (
                         <div className="text-xs text-gray-500 pl-5">
-                          + {(template.folders || []).length - 3} more...
+                          + {(template.folders || []).length - 5} more...
                         </div>
                       )}
                     </div>
@@ -2424,9 +2504,34 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                         <Trash2 className="w-4 h-4" />
                       </Button>
                       <Button size="sm" variant="outline" className="w-10 px-0 border-gray-600 hover:bg-gray-700 text-gray-300" onClick={() => {
+                        // Parse flat "Parent / Child" format back to nested structure
+                        const parseFoldersToNested = (folders) => {
+                          const parentMap = new Map(); // parentName -> subfolders[]
+
+                          folders.forEach(f => {
+                            if (f.includes('/')) {
+                              const [parent, child] = f.split('/').map(s => s.trim());
+                              if (!parentMap.has(parent)) {
+                                parentMap.set(parent, []);
+                              }
+                              parentMap.get(parent).push(child);
+                            } else {
+                              if (!parentMap.has(f.trim())) {
+                                parentMap.set(f.trim(), []);
+                              }
+                            }
+                          });
+
+                          return Array.from(parentMap.entries()).map(([name, subfolders]) => ({
+                            name,
+                            subfolders
+                          }));
+                        };
+
+                        const nestedFolders = parseFoldersToNested(template.folders || []);
                         setEditingTemplate({ id: template.id, name: template.name, folders: [...(template.folders || [])] });
                         setNewTemplateName(template.name);
-                        setNewTemplateFolders([...(template.folders || [])]);
+                        setNewTemplateFolders(nestedFolders.length > 0 ? nestedFolders : [{ name: '', subfolders: [] }]);
                       }}>
                         <Edit className="w-4 h-4" />
                       </Button>
@@ -2471,34 +2576,30 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                 <div className="space-y-4">
                   <Label>2. Select Clients ({selectedClientsForTemplate.length})</Label>
                   <div className="h-[200px] overflow-y-auto border border-gray-700 rounded-md bg-gray-800/50 p-2 space-y-1 custom-scrollbar">
-                    {clientsForFilter.map(client => (
-                      <div
-                        key={client.id}
-                        className="flex items-center space-x-3 p-2 rounded hover:bg-white/5 cursor-pointer"
-                        onClick={() => {
-                          if (selectedClientsForTemplate.includes(client.id)) {
-                            setSelectedClientsForTemplate(prev => prev.filter(id => id !== client.id));
-                          } else {
-                            setSelectedClientsForTemplate(prev => [...prev, client.id]);
-                          }
-                        }}
-                      >
-                        <Checkbox
-                          id={`client-${client.id}`}
-                          checked={selectedClientsForTemplate.includes(client.id)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setSelectedClientsForTemplate(prev => [...prev, client.id]);
-                            } else {
+                    {clientsForFilter.map(client => {
+                      const isSelected = selectedClientsForTemplate.includes(client.id);
+                      return (
+                        <div
+                          key={client.id}
+                          className={`flex items-center space-x-3 p-2 rounded cursor-pointer transition-colors ${isSelected ? 'bg-blue-500/10 hover:bg-blue-500/15' : 'hover:bg-white/5'}`}
+                          onClick={() => {
+                            if (isSelected) {
                               setSelectedClientsForTemplate(prev => prev.filter(id => id !== client.id));
+                            } else {
+                              setSelectedClientsForTemplate(prev => [...prev, client.id]);
                             }
                           }}
-                        />
-                        <label htmlFor={`client-${client.id}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1">
-                          {client.name}
-                        </label>
-                      </div>
-                    ))}
+                        >
+                          <Checkbox
+                            checked={isSelected}
+                            className="pointer-events-none"
+                          />
+                          <span className="text-sm font-medium leading-none flex-1">
+                            {client.name}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                   <div className="flex justify-between text-xs text-gray-400 px-1">
                     <span className="cursor-pointer hover:text-white" onClick={() => setSelectedClientsForTemplate(clientsForFilter.map(c => c.id))}>Select All</span>
