@@ -22,6 +22,7 @@ const ClientUsersTab = ({ client, onUserInvited, onUserDeleted }) => {
     const [inviteEmail, setInviteEmail] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
     const [userFilter, setUserFilter] = useState('all'); // all, joined, invited
+    const [isInviting, setIsInviting] = useState(false);
 
     // State to store users fetched for this entity
     const [users, setUsers] = useState({ invited_users: [], joined_users: [] });
@@ -144,6 +145,7 @@ const ClientUsersTab = ({ client, onUserInvited, onUserDeleted }) => {
             return;
         }
 
+        setIsInviting(true);
         try {
             const entityId = client.id || client.entity_id;
             await inviteEntityUser(entityId, inviteEmail, user.access_token);
@@ -159,6 +161,8 @@ const ClientUsersTab = ({ client, onUserInvited, onUserDeleted }) => {
             }
         } catch (error) {
             toast({ title: "Error", description: `Failed to send invite: ${error.message}`, variant: "destructive" });
+        } finally {
+            setIsInviting(false);
         }
     };
 
@@ -215,6 +219,8 @@ const ClientUsersTab = ({ client, onUserInvited, onUserDeleted }) => {
             setIsAddingUsers(false);
         }
     };
+
+
 
     return (
         <div className="glass-pane p-4 rounded-lg">
@@ -393,8 +399,11 @@ const ClientUsersTab = ({ client, onUserInvited, onUserDeleted }) => {
                         </div>
                     </div>
                     <DialogFooter>
-                        <DialogClose asChild><Button variant="ghost">Cancel</Button></DialogClose>
-                        <Button onClick={handleInviteUser}>Send Invite</Button>
+                        <DialogClose asChild><Button variant="ghost" disabled={isInviting}>Cancel</Button></DialogClose>
+                        <Button onClick={handleInviteUser} disabled={isInviting}>
+                            {isInviting && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                            Send Invite
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -459,7 +468,7 @@ const ClientUsersTab = ({ client, onUserInvited, onUserDeleted }) => {
                     </div>
 
                     <DialogFooter>
-                        <Button variant="ghost" onClick={() => setShowAddExistingDialog(false)}>Cancel</Button>
+                        <DialogClose asChild><Button variant="ghost" disabled={isAddingUsers} onClick={() => setShowAddExistingDialog(false)}>Cancel</Button></DialogClose>
                         <Button onClick={handleAddSelectedUsers} disabled={selectedUserIds.length === 0 || isAddingUsers}>
                             {isAddingUsers ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                             Add Selected ({selectedUserIds.length})
