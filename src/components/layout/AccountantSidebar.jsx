@@ -30,7 +30,6 @@ const AccountantSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) =
     { id: 'dashboard', path: '/', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'clients', path: '/clients', label: 'Clients', icon: Users },
     { id: 'finance', path: '/finance', label: 'Finance', icon: Landmark },
-    { id: 'organisation', path: '/organisation', label: 'Organisation', icon: Banknote },
     { id: 'team-members', path: '/team-members', label: 'Team Members', icon: UserPlus },
     { id: 'tasks', path: '/tasks', label: 'Tasks', icon: ListTodo },
     { id: 'documents', path: '/documents', label: 'Documents', icon: FileText },

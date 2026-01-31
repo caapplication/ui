@@ -22,6 +22,8 @@ import {
 } from '@/lib/api';
 import { useToast } from '@/components/ui/use-toast';
 import { Loader2 } from 'lucide-react';
+import Organisation from '@/components/accountant/organisation/Organisation.jsx';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const CLIENTS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 const clientsDataCache = {
@@ -38,6 +40,7 @@ const Clients = ({ setActiveTab }) => {
     const { toast } = useToast();
 
     const [view, setView] = useState('list'); // 'list', 'new', 'dashboard'
+    const [internalTab, setInternalTab] = useState('clients');
     const [clients, setClients] = useState([]);
     const [allServices, setAllServices] = useState([]);
     const [organisations, setOrganisations] = useState([]);
@@ -616,18 +619,29 @@ const Clients = ({ setActiveTab }) => {
                         transition={{ duration: 0.3, ease: 'easeInOut' }}
                         className="h-full"
                     >
-                        <ClientList
-                            clients={clients}
-                            onAddNew={handleAddNew}
-                            onViewClient={handleViewClient}
-                            onEditClient={handleEditClient}
-                            allServices={allServices}
-                            onDeleteClient={handleDeleteClient}
-                            onBulkDelete={handleBulkDelete}
-                            onRefresh={() => fetchClientsAndServices(true)}
-                            businessTypes={businessTypes}
-                            teamMembers={teamMembers}
-                        />
+                        <Tabs value={internalTab} onValueChange={setInternalTab} className="h-full flex flex-col">
+                            <TabsList className="w-fit mb-4">
+                                <TabsTrigger value="clients">Clients</TabsTrigger>
+                                <TabsTrigger value="organisations">Organisations</TabsTrigger>
+                            </TabsList>
+                            <TabsContent value="clients" className="flex-1 mt-0 h-full overflow-hidden">
+                                <ClientList
+                                    clients={clients}
+                                    onAddNew={handleAddNew}
+                                    onViewClient={handleViewClient}
+                                    onEditClient={handleEditClient}
+                                    allServices={allServices}
+                                    onDeleteClient={handleDeleteClient}
+                                    onBulkDelete={handleBulkDelete}
+                                    onRefresh={() => fetchClientsAndServices(true)}
+                                    businessTypes={businessTypes}
+                                    teamMembers={teamMembers}
+                                />
+                            </TabsContent>
+                            <TabsContent value="organisations" className="flex-1 mt-0 h-full overflow-hidden">
+                                <Organisation className="p-0" />
+                            </TabsContent>
+                        </Tabs>
                     </motion.div>
                 );
             case 'new':

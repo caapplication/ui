@@ -82,7 +82,7 @@ const invalidateOrgListCache = () => {
     orgListCache.timestamp = 0;
 };
 
-const Organisation = () => {
+const Organisation = ({ className }) => {
     const { user } = useAuth();
     const { toast } = useToast();
     const [organisations, setOrganisations] = useState([]);
@@ -109,29 +109,29 @@ const Organisation = () => {
 
 
     const fetchOrganisations = useCallback(async (force = false) => {
-    if (!user) return;
+        if (!user) return;
 
-    if (!force && isCacheValid(orgListCache.timestamp, ORG_LIST_CACHE_TTL) && orgListCache.data) {
-        setOrganisations(orgListCache.data);
-        setIsLoading(false);
-        return;
-    }
+        if (!force && isCacheValid(orgListCache.timestamp, ORG_LIST_CACHE_TTL) && orgListCache.data) {
+            setOrganisations(orgListCache.data);
+            setIsLoading(false);
+            return;
+        }
 
-    setIsLoading(true);
-    try {
-        const data = await listOrganisations(user.access_token);
-        setOrganisations(data || []);
-        orgListCache.data = data || [];
-        orgListCache.timestamp = Date.now();
-    } catch (error) {
-        toast({
-            title: 'Error fetching data',
-            description: error.message,
-            variant: 'destructive',
-        });
-    } finally {
-        setIsLoading(false);
-    }
+        setIsLoading(true);
+        try {
+            const data = await listOrganisations(user.access_token);
+            setOrganisations(data || []);
+            orgListCache.data = data || [];
+            orgListCache.timestamp = Date.now();
+        } catch (error) {
+            toast({
+                title: 'Error fetching data',
+                description: error.message,
+                variant: 'destructive',
+            });
+        } finally {
+            setIsLoading(false);
+        }
     }, [user, toast]);
 
     useEffect(() => {
@@ -671,7 +671,7 @@ const Organisation = () => {
     );
 
     return (
-        <div className="p-8 h-full">
+        <div className={`h-full ${className || 'p-8'}`}>
             <AnimatePresence mode="wait">
                 {selectedOrg ? renderOrgDetails() : renderOrgList()}
             </AnimatePresence>
