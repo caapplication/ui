@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState, useCallback, useRef } from 
 const ApiCacheContext = createContext(null);
 
 export const ApiCacheProvider = ({ children }) => {
-  const [cache, setCache] = useState(new Map());
+  const cache = useRef(new Map());
   const cacheTimestamps = useRef(new Map());
   const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
@@ -14,7 +14,7 @@ export const ApiCacheProvider = ({ children }) => {
 
   const get = useCallback((endpoint, params) => {
     const key = getCacheKey(endpoint, params);
-    const cached = cache.get(key);
+    const cached = cache.current.get(key);
     const timestamp = cacheTimestamps.current.get(key);
 
     if (cached && timestamp) {
@@ -23,49 +23,37 @@ export const ApiCacheProvider = ({ children }) => {
         return cached;
       } else {
         // Expired, remove it
-        cache.delete(key);
+        cache.current.delete(key);
         cacheTimestamps.current.delete(key);
       }
     }
     return null;
-  }, [cache]);
+  }, []);
 
   const set = useCallback((endpoint, params, data) => {
     const key = getCacheKey(endpoint, params);
-    setCache(prev => {
-      const newCache = new Map(prev);
-      newCache.set(key, data);
-      return newCache;
-    });
+    cache.current.set(key, data);
     cacheTimestamps.current.set(key, Date.now());
   }, []);
 
   const invalidate = useCallback((endpoint, params = null) => {
     if (params) {
       const key = getCacheKey(endpoint, params);
-      setCache(prev => {
-        const newCache = new Map(prev);
-        newCache.delete(key);
-        return newCache;
-      });
+      cache.current.delete(key);
       cacheTimestamps.current.delete(key);
     } else {
       // Invalidate all entries for this endpoint
-      setCache(prev => {
-        const newCache = new Map(prev);
-        for (const [key] of newCache) {
-          if (key.startsWith(`${endpoint}:`)) {
-            newCache.delete(key);
-            cacheTimestamps.current.delete(key);
-          }
+      for (const [key] of cache.current) {
+        if (key.startsWith(`${endpoint}:`)) {
+          cache.current.delete(key);
+          cacheTimestamps.current.delete(key);
         }
-        return newCache;
-      });
+      }
     }
   }, []);
 
   const clear = useCallback(() => {
-    setCache(new Map());
+    cache.current.clear();
     cacheTimestamps.current.clear();
   }, []);
 

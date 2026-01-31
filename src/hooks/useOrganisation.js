@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from './useAuth';
 import { listOrganisations, listEntities } from '@/lib/api';
 import { useApiCache } from '@/contexts/ApiCacheContext.jsx';
@@ -26,12 +26,12 @@ export const useOrganisation = () => {
         try {
           // Check cache first
           let orgs = cache.get('listOrganisations', { token: user.access_token });
-          
+
           if (!orgs) {
             orgs = await listOrganisations(user.access_token);
             cache.set('listOrganisations', { token: user.access_token }, orgs);
           }
-          
+
           setOrganisations(orgs || []);
           const storedOrgId = localStorage.getItem('organisationId');
           if (storedOrgId && orgs?.some(o => o.id === storedOrgId)) {
@@ -62,12 +62,12 @@ export const useOrganisation = () => {
         try {
           // Check cache first
           let ent = cache.get('listEntities', { orgId: selectedOrg, token: user.access_token });
-          
+
           if (!ent) {
             ent = await listEntities(selectedOrg, user.access_token);
             cache.set('listEntities', { orgId: selectedOrg, token: user.access_token }, ent);
           }
-          
+
           setEntities(ent || []);
         } catch (error) {
           console.error('Failed to fetch entities:', error);
@@ -91,16 +91,16 @@ export const useOrganisation = () => {
   }, [entities]);
 
   // Wrap setSelectedEntity to also update localStorage
-  const setSelectedEntityAndLocalStorage = (entityId) => {
+  const setSelectedEntityAndLocalStorage = useCallback((entityId) => {
     setSelectedEntity(entityId);
     if (entityId) {
       localStorage.setItem('entityId', entityId);
     } else {
       localStorage.removeItem('entityId');
     }
-  };
+  }, []);
 
-  const setSelectedOrgAndLocalStorage = (orgId) => {
+  const setSelectedOrgAndLocalStorage = useCallback((orgId) => {
     setSelectedOrg(orgId);
     if (orgId) {
       localStorage.setItem('organisationId', orgId);
@@ -109,7 +109,7 @@ export const useOrganisation = () => {
     }
     // When org changes, entity should be cleared to avoid inconsistent state
     setSelectedEntityAndLocalStorage(null);
-  };
+  }, [setSelectedEntityAndLocalStorage]);
 
   return {
     organisations,

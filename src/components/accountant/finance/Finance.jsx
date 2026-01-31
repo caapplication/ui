@@ -351,43 +351,36 @@ const AccountantFinance = () => {
             <TabsTrigger value="invoices">Invoices</TabsTrigger>
           </TabsList>
 
-          <div className="mt-6">
+          <div className="mt-6 relative">
+            {(isLoading) && (
+              <div className="absolute inset-0 z-50 flex justify-center items-center bg-black/20 backdrop-blur-[1px] rounded-lg h-64">
+                <Loader2 className="w-8 h-8 animate-spin text-white" />
+              </div>
+            )}
             <Routes>
               <Route path="/" element={<Navigate to="vouchers" replace />} />
               <Route
                 path="vouchers"
                 element={
-                  isLoading ? (
-                    <div className="flex justify-center items-center h-64">
-                      <Loader2 className="w-8 h-8 animate-spin text-white" />
-                    </div>
-                  ) : (
-                    <VoucherHistory
-                      vouchers={enrichedVouchers}
-                      onDeleteVoucher={handleDeleteVoucherClick}
-                      onViewVoucher={(voucher) => console.log(voucher)}
-                      onEditVoucher={(voucher) => console.log(voucher)}
-                      isAccountantView={true}
-                    />
-                  )
+                  <VoucherHistory
+                    vouchers={enrichedVouchers}
+                    onDeleteVoucher={handleDeleteVoucherClick}
+                    onViewVoucher={(voucher) => console.log(voucher)}
+                    onEditVoucher={(voucher) => console.log(voucher)}
+                    isAccountantView={true}
+                  />
                 }
               />
               <Route
                 path="invoices"
                 element={
-                  isLoading ? (
-                    <div className="flex justify-center items-center h-64">
-                      <Loader2 className="w-8 h-8 animate-spin text-white" />
-                    </div>
-                  ) : (
-                    <InvoiceHistory
-                      invoices={invoices}
-                      beneficiaries={beneficiaries}
-                      onDeleteInvoice={handleDeleteInvoiceClick}
-                      onEditInvoice={(invoice) => console.log(invoice)}
-                      isAccountantView={true}
-                    />
-                  )
+                  <InvoiceHistory
+                    invoices={invoices}
+                    beneficiaries={beneficiaries}
+                    onDeleteInvoice={handleDeleteInvoiceClick}
+                    onEditInvoice={(invoice) => console.log(invoice)}
+                    isAccountantView={true}
+                  />
                 }
               />
             </Routes>
