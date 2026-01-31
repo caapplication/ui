@@ -24,7 +24,7 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, onUpdateClient, onClientDeleted, teamMembers, onClientUserInvited }) => {
+const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, onUpdateClient, onClientDeleted, teamMembers, onClientUserInvited, onClientUserDeleted }) => {
     const [activeSubTab, setActiveSubTab] = useState('Details');
     const [isDeleting, setIsDeleting] = useState(false);
     const { toast } = useToast();
@@ -155,6 +155,7 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
 
     const handleClientUserDeleted = () => {
         fetchClientUserCount();
+        if (onClientUserDeleted) onClientUserDeleted();
     };
 
     const handleTeamMemberChanged = () => {

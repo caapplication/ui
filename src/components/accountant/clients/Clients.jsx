@@ -589,6 +589,11 @@ const Clients = ({ setActiveTab }) => {
         }
     };
 
+    const handleClientUserDeleted = async () => {
+        // Reuse the logic from handleClientUserInvited as it refreshes the same data
+        await handleClientUserInvited();
+    };
+
     const renderContent = () => {
         const currentClient = clients.find((c) => c.id === selectedClient?.id) || selectedClient;
 
@@ -675,6 +680,7 @@ const Clients = ({ setActiveTab }) => {
                             teamMembers={teamMembers}
                             onTeamMemberInvited={handleTeamMemberInvited}
                             onClientUserInvited={handleClientUserInvited}
+                            onClientUserDeleted={handleClientUserDeleted}
                         />
                     </motion.div>
                 );
