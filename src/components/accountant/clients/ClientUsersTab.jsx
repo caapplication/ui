@@ -12,6 +12,7 @@ import { resendToken, inviteEntityUser, listEntityUsers, deleteEntityUser, delet
 import { Checkbox } from '@/components/ui/checkbox';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/components/ui/use-toast';
+import { formatToIST } from '@/lib/dateUtils';
 
 const ClientUsersTab = ({ client, onUserInvited, onUserDeleted }) => {
     const { user } = useAuth();
@@ -313,7 +314,7 @@ const ClientUsersTab = ({ client, onUserInvited, onUserDeleted }) => {
                                         </Badge>
                                     </TableCell>
                                     <TableCell className="text-gray-400">
-                                        {u.last_login ? new Date(u.last_login).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : <span className="text-gray-500 italic">Never</span>}
+                                        {formatToIST(u.last_login)}
                                     </TableCell>
                                     <TableCell>
                                         <div className="flex gap-2 justify-end">
