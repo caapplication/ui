@@ -33,7 +33,7 @@ const ActivityLog = ({ itemId, itemType, showFilter = true, excludeTypes = [] })
     const { user } = useAuth();
     const { toast } = useToast();
 
-    const fetchLogs = useCallback(async () => {
+    const fetchLogs = useCallback(async (signal) => {
         if (!itemId || !itemType || !user?.access_token) return;
 
         const CACHE_KEY = `fynivo_activity_log_${itemType}_${itemId}`;
@@ -62,7 +62,13 @@ const ActivityLog = ({ itemId, itemType, showFilter = true, excludeTypes = [] })
             // Convert date strings to ISO format for API
             const startDateISO = startDate ? new Date(startDate).toISOString() : null;
             const endDateISO = endDate ? new Date(endDate + 'T23:59:59').toISOString() : null; // Include time to cover entire day
+
+            // Note: getActivityLog needs to be updated to accept signal if we want true network cancellation,
+            // but for now we can at least preventing state updates from race conditions.
+            // Since our api helpers don't support signal yet, we'll just handle the race condition here.
             const data = await getActivityLog(itemId, itemType, user.access_token, startDateISO, endDateISO);
+
+            if (signal.aborted) return;
 
             // Apply excludeTypes filter
             let filteredData = data;
@@ -77,13 +83,10 @@ const ActivityLog = ({ itemId, itemType, showFilter = true, excludeTypes = [] })
             setLogs(filteredData);
 
             if (canUseCache) {
-                // Cache the RAW data, not the filtered data, so other views might use it? 
-                // Actually, for simplicity and since cache key is unique to itemId/itemType, 
-                // we probably want to cache the full list and filter on retrieval if props change.
-                // But for now, let's cache the full data as before.
                 setCache(CACHE_KEY, data);
             }
         } catch (error) {
+            if (signal.aborted) return;
             // If cache exists and fetch fails, we still have data
             if (!canUseCache || !cachedLogs) {
                 const errorMessage = error?.message || (typeof error === 'string' ? error : 'An unexpected error occurred');
@@ -94,12 +97,16 @@ const ActivityLog = ({ itemId, itemType, showFilter = true, excludeTypes = [] })
                 });
             }
         } finally {
-            setIsLoading(false);
+            if (!signal.aborted) {
+                setIsLoading(false);
+            }
         }
-    }, [itemId, itemType, user?.access_token, toast, startDate, endDate]);
+    }, [itemId, itemType, user?.access_token, startDate, endDate]); // Removed toast
 
     useEffect(() => {
-        fetchLogs();
+        const controller = new AbortController();
+        fetchLogs(controller.signal);
+        return () => controller.abort();
     }, [fetchLogs]);
 
     if (isLoading) {
