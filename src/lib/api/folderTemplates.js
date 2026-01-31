@@ -2,7 +2,7 @@ import { handleResponse, getAuthHeaders } from './utils';
 import { FINANCE_API_BASE_URL } from '../api';
 
 export const listTemplates = async (token) => {
-  const response = await fetch(`${FINANCE_API_BASE_URL}/api/folder-templates`, {
+  const response = await fetch(`${FINANCE_API_BASE_URL}/api/folder-templates/`, {
     method: 'GET',
     headers: getAuthHeaders(token),
   });
@@ -10,7 +10,7 @@ export const listTemplates = async (token) => {
 };
 
 export const createTemplate = async (templateData, token) => {
-  const response = await fetch(`${FINANCE_API_BASE_URL}/api/folder-templates`, {
+  const response = await fetch(`${FINANCE_API_BASE_URL}/api/folder-templates/`, {
     method: 'POST',
     headers: getAuthHeaders(token),
     body: JSON.stringify(templateData),
