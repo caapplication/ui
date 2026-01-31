@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth.jsx';
+import { useCurrentOrganization } from '@/hooks/useCurrentOrganization';
 import {
   getBeneficiary,
   updateBeneficiary,
@@ -23,39 +24,39 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Switch } from "@/components/ui/switch";
 
 const AddBankAccountForm = ({ beneficiary, onAddBankAccount, onCancel }) => {
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        const formData = new FormData(e.target);
-        const data = Object.fromEntries(formData.entries());
-        onAddBankAccount(beneficiary.id, data);
-    };
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData.entries());
+    onAddBankAccount(beneficiary.id, data);
+  };
 
-    return (
-        <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><Label htmlFor="bank_name">Bank Name</Label><Input name="bank_name" id="bank_name" required /></div>
-                <div><Label htmlFor="branch_name">Branch Name</Label><Input name="branch_name" id="branch_name" required /></div>
-                <div><Label htmlFor="ifsc_code">IFSC</Label><Input name="ifsc_code" id="ifsc_code" required /></div>
-                <div><Label htmlFor="account_number">Account Number</Label><Input name="account_number" id="account_number" required /></div>
-                <div>
-                    <Label htmlFor="account_type">Account Type</Label>
-                    <Select name="account_type" id="account_type" required>
-                        <SelectTrigger>
-                            <SelectValue placeholder="Select account type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="savings">Savings</SelectItem>
-                            <SelectItem value="current">Current</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-            </div>
-            <DialogFooter>
-                <DialogClose asChild><Button variant="ghost" type="button" onClick={onCancel}>Cancel</Button></DialogClose>
-                <Button type="submit"><Plus className="w-4 h-4 mr-2"/> Add Account</Button>
-            </DialogFooter>
-        </form>
-    );
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div><Label htmlFor="bank_name">Bank Name</Label><Input name="bank_name" id="bank_name" required /></div>
+        <div><Label htmlFor="branch_name">Branch Name</Label><Input name="branch_name" id="branch_name" required /></div>
+        <div><Label htmlFor="ifsc_code">IFSC</Label><Input name="ifsc_code" id="ifsc_code" required /></div>
+        <div><Label htmlFor="account_number">Account Number</Label><Input name="account_number" id="account_number" required /></div>
+        <div>
+          <Label htmlFor="account_type">Account Type</Label>
+          <Select name="account_type" id="account_type" required>
+            <SelectTrigger>
+              <SelectValue placeholder="Select account type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="savings">Savings</SelectItem>
+              <SelectItem value="current">Current</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <DialogFooter>
+        <DialogClose asChild><Button variant="ghost" type="button" onClick={onCancel}>Cancel</Button></DialogClose>
+        <Button type="submit"><Plus className="w-4 h-4 mr-2" /> Add Account</Button>
+      </DialogFooter>
+    </form>
+  );
 };
 
 const BeneficiaryDetailsPage = () => {
@@ -63,6 +64,18 @@ const BeneficiaryDetailsPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
+  const actualOrganizationId = useCurrentOrganization();
+  const prevOrgIdRef = useRef(actualOrganizationId);
+
+  useEffect(() => {
+    // Check if we have a previous organization ID and it's different from the current one
+    // This implies a switch happened after the component mounted
+    if (prevOrgIdRef.current && actualOrganizationId && prevOrgIdRef.current !== actualOrganizationId) {
+      navigate('/beneficiaries');
+    }
+    prevOrgIdRef.current = actualOrganizationId;
+  }, [actualOrganizationId, navigate]);
+
   const [beneficiary, setBeneficiary] = useState(null);
   const [editableBeneficiary, setEditableBeneficiary] = useState(null);
   const [bankAccounts, setBankAccounts] = useState([]);
@@ -80,14 +93,11 @@ const BeneficiaryDetailsPage = () => {
   const [togglingBankAccountId, setTogglingBankAccountId] = useState(null);
 
   const fetchBeneficiaryData = useCallback(async () => {
-    if (!user?.access_token || !user?.organization_id) return;
+    if (!user?.access_token || !actualOrganizationId) return;
     setIsLoading(true);
     try {
-      const organizationId = typeof user.organization_id === 'object' && user.organization_id !== null
-        ? user.organization_id.id
-        : user.organization_id;
       const [beneficiaryData, bankAccountsData] = await Promise.all([
-        getBeneficiary(beneficiaryId, organizationId, user.access_token),
+        getBeneficiary(beneficiaryId, actualOrganizationId, user.access_token),
         getBankAccountsForBeneficiary(beneficiaryId, user.access_token)
       ]);
       setBeneficiary(beneficiaryData);
@@ -102,7 +112,7 @@ const BeneficiaryDetailsPage = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [beneficiaryId, user?.organization_id, user?.access_token, toast]);
+  }, [beneficiaryId, actualOrganizationId, user?.access_token, toast]);
 
   useEffect(() => {
     fetchBeneficiaryData();
@@ -137,7 +147,7 @@ const BeneficiaryDetailsPage = () => {
       setShowAddAccountDialog(false);
       fetchBeneficiaryData();
     } catch (error) {
-       toast({
+      toast({
         title: 'Error',
         description: `Failed to add bank account: ${error.message}`,
         variant: 'destructive',
@@ -277,30 +287,30 @@ const BeneficiaryDetailsPage = () => {
 
       <Card className="glass-card mb-6 sm:mb-8">
         <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 sm:p-6">
-            <div>
-                <CardTitle className="text-lg sm:text-xl md:text-2xl">{beneficiaryName}</CardTitle>
-                <CardDescription className="text-sm sm:text-base">{beneficiary.beneficiary_type === 'individual' ? 'Individual' : 'Company'}</CardDescription>
-            </div>
-            <div className="flex items-center space-x-2 w-full sm:w-auto">
-                <Label htmlFor="show-details" className="text-white text-sm sm:text-base">Show Details</Label>
-                <Switch id="show-details" checked={showDetails} onCheckedChange={setShowDetails} />
-            </div>
+          <div>
+            <CardTitle className="text-lg sm:text-xl md:text-2xl">{beneficiaryName}</CardTitle>
+            <CardDescription className="text-sm sm:text-base">{beneficiary.beneficiary_type === 'individual' ? 'Individual' : 'Company'}</CardDescription>
+          </div>
+          <div className="flex items-center space-x-2 w-full sm:w-auto">
+            <Label htmlFor="show-details" className="text-white text-sm sm:text-base">Show Details</Label>
+            <Switch id="show-details" checked={showDetails} onCheckedChange={setShowDetails} />
+          </div>
         </CardHeader>
         {showDetails && (
-            <CardContent className="p-4 sm:p-6 pt-0">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 text-sm">
-                    <div className="space-y-1"><p className="text-gray-400 text-xs sm:text-sm">Email</p><p className="text-sm sm:text-base">{beneficiary.email || 'No email'}</p></div>
-                    <div className="space-y-1"><p className="text-gray-400 text-xs sm:text-sm">Phone</p><p className="text-sm sm:text-base">{beneficiary.phone}</p></div>
-                    <div className="space-y-1"><p className="text-gray-400 text-xs sm:text-sm">PAN</p><p className="text-sm sm:text-base">{beneficiary.pan || 'N/A'}</p></div>
-                    <div className="space-y-1"><p className="text-gray-400 text-xs sm:text-sm">Aadhar</p><p className="text-sm sm:text-base">{beneficiary.aadhar || 'N/A'}</p></div>
-                    {beneficiary.beneficiary_type === 'company' && (
-                        <>
-                            <div className="space-y-1"><p className="text-gray-400 text-xs sm:text-sm">GSTIN</p><p className="text-sm sm:text-base">{beneficiary.gstin || 'N/A'}</p></div>
-                            <div className="space-y-1"><p className="text-gray-400 text-xs sm:text-sm">Proprietor Name</p><p className="text-sm sm:text-base">{beneficiary.proprietor_name || 'N/A'}</p></div>
-                        </>
-                    )}
-                </div>
-            </CardContent>
+          <CardContent className="p-4 sm:p-6 pt-0">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 text-sm">
+              <div className="space-y-1"><p className="text-gray-400 text-xs sm:text-sm">Email</p><p className="text-sm sm:text-base">{beneficiary.email || 'No email'}</p></div>
+              <div className="space-y-1"><p className="text-gray-400 text-xs sm:text-sm">Phone</p><p className="text-sm sm:text-base">{beneficiary.phone}</p></div>
+              <div className="space-y-1"><p className="text-gray-400 text-xs sm:text-sm">PAN</p><p className="text-sm sm:text-base">{beneficiary.pan || 'N/A'}</p></div>
+              <div className="space-y-1"><p className="text-gray-400 text-xs sm:text-sm">Aadhar</p><p className="text-sm sm:text-base">{beneficiary.aadhar || 'N/A'}</p></div>
+              {beneficiary.beneficiary_type === 'company' && (
+                <>
+                  <div className="space-y-1"><p className="text-gray-400 text-xs sm:text-sm">GSTIN</p><p className="text-sm sm:text-base">{beneficiary.gstin || 'N/A'}</p></div>
+                  <div className="space-y-1"><p className="text-gray-400 text-xs sm:text-sm">Proprietor Name</p><p className="text-sm sm:text-base">{beneficiary.proprietor_name || 'N/A'}</p></div>
+                </>
+              )}
+            </div>
+          </CardContent>
         )}
       </Card>
 
@@ -312,7 +322,7 @@ const BeneficiaryDetailsPage = () => {
             <CardDescription className="text-sm sm:text-base">Manage beneficiary's active bank accounts.</CardDescription>
           </div>
           <Button onClick={() => setShowAddAccountDialog(true)} className="h-9 sm:h-10 text-sm sm:text-base w-full sm:w-auto">
-            <Plus className="w-4 h-4 mr-1 sm:mr-2" /> 
+            <Plus className="w-4 h-4 mr-1 sm:mr-2" />
             <span className="hidden sm:inline">Add Bank Account</span>
             <span className="sm:hidden">Add Account</span>
           </Button>
@@ -440,50 +450,50 @@ const BeneficiaryDetailsPage = () => {
 
       <Dialog open={isEditing} onOpenChange={setIsEditing}>
         <DialogContent className="max-w-2xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-                <DialogTitle className="text-lg sm:text-xl">Edit Beneficiary</DialogTitle>
-                <DialogDescription className="text-sm">Make changes to the beneficiary details below.</DialogDescription>
-            </DialogHeader>
-            {editableBeneficiary && (
-                <form onSubmit={handleUpdate} className="space-y-4 pt-4">
-                    <div>
-                        <Label>Beneficiary Type</Label>
-                        <Select
-                        value={editableBeneficiary.beneficiary_type}
-                        onValueChange={(value) => setEditableBeneficiary({ ...editableBeneficiary, beneficiary_type: value })}
-                        >
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="individual">Individual</SelectItem>
-                            <SelectItem value="company">Company</SelectItem>
-                        </SelectContent>
-                        </Select>
-                    </div>
-                    {editableBeneficiary.beneficiary_type === 'individual' ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div><Label htmlFor="name">Name</Label><Input name="name" id="name" defaultValue={editableBeneficiary.name} required /></div>
-                        <div><Label htmlFor="phone">Phone</Label><Input name="phone" id="phone" type="tel" defaultValue={editableBeneficiary.phone} required /></div>
-                        <div className="md:col-span-2"><Label htmlFor="email">Email</Label><Input name="email" id="email" type="email" defaultValue={editableBeneficiary.email} /></div>
-                        <div><Label htmlFor="aadhar">Aadhar</Label><Input name="aadhar" id="aadhar" defaultValue={editableBeneficiary.aadhar} required /></div>
-                        <div><Label htmlFor="pan">PAN</Label><Input name="pan" id="pan" defaultValue={editableBeneficiary.pan} required /></div>
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div><Label htmlFor="company_name">Company Name</Label><Input name="company_name" id="company_name" defaultValue={editableBeneficiary.company_name} required /></div>
-                        <div><Label htmlFor="phone">Phone</Label><Input name="phone" id="phone" type="tel" defaultValue={editableBeneficiary.phone} required /></div>
-                        <div className="md:col-span-2"><Label htmlFor="email">Email Address</Label><Input name="email" id="email" type="email" defaultValue={editableBeneficiary.email} /></div>
-                        <div><Label htmlFor="gstin">GSTIN</Label><Input name="gstin" id="gstin" defaultValue={editableBeneficiary.gstin} required /></div>
-                        <div><Label htmlFor="pan">PAN</Label><Input name="pan" id="pan" defaultValue={editableBeneficiary.pan} required /></div>
-                        <div><Label htmlFor="aadhar">Aadhar (of Proprietor)</Label><Input name="aadhar" id="aadhar" defaultValue={editableBeneficiary.aadhar} required /></div>
-                        <div><Label htmlFor="proprietor_name">Proprietor Name</Label><Input name="proprietor_name" id="proprietor_name" defaultValue={editableBeneficiary.proprietor_name} required /></div>
-                        </div>
-                    )}
-                    <DialogFooter>
-                        <Button variant="ghost" type="button" onClick={() => setIsEditing(false)}>Cancel</Button>
-                        <Button type="submit"><Save className="w-4 h-4 mr-2" />Save Changes</Button>
-                    </DialogFooter>
-                </form>
-            )}
+          <DialogHeader>
+            <DialogTitle className="text-lg sm:text-xl">Edit Beneficiary</DialogTitle>
+            <DialogDescription className="text-sm">Make changes to the beneficiary details below.</DialogDescription>
+          </DialogHeader>
+          {editableBeneficiary && (
+            <form onSubmit={handleUpdate} className="space-y-4 pt-4">
+              <div>
+                <Label>Beneficiary Type</Label>
+                <Select
+                  value={editableBeneficiary.beneficiary_type}
+                  onValueChange={(value) => setEditableBeneficiary({ ...editableBeneficiary, beneficiary_type: value })}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="individual">Individual</SelectItem>
+                    <SelectItem value="company">Company</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {editableBeneficiary.beneficiary_type === 'individual' ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div><Label htmlFor="name">Name</Label><Input name="name" id="name" defaultValue={editableBeneficiary.name} required /></div>
+                  <div><Label htmlFor="phone">Phone</Label><Input name="phone" id="phone" type="tel" defaultValue={editableBeneficiary.phone} required /></div>
+                  <div className="md:col-span-2"><Label htmlFor="email">Email</Label><Input name="email" id="email" type="email" defaultValue={editableBeneficiary.email} /></div>
+                  <div><Label htmlFor="aadhar">Aadhar</Label><Input name="aadhar" id="aadhar" defaultValue={editableBeneficiary.aadhar} required /></div>
+                  <div><Label htmlFor="pan">PAN</Label><Input name="pan" id="pan" defaultValue={editableBeneficiary.pan} required /></div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div><Label htmlFor="company_name">Company Name</Label><Input name="company_name" id="company_name" defaultValue={editableBeneficiary.company_name} required /></div>
+                  <div><Label htmlFor="phone">Phone</Label><Input name="phone" id="phone" type="tel" defaultValue={editableBeneficiary.phone} required /></div>
+                  <div className="md:col-span-2"><Label htmlFor="email">Email Address</Label><Input name="email" id="email" type="email" defaultValue={editableBeneficiary.email} /></div>
+                  <div><Label htmlFor="gstin">GSTIN</Label><Input name="gstin" id="gstin" defaultValue={editableBeneficiary.gstin} required /></div>
+                  <div><Label htmlFor="pan">PAN</Label><Input name="pan" id="pan" defaultValue={editableBeneficiary.pan} required /></div>
+                  <div><Label htmlFor="aadhar">Aadhar (of Proprietor)</Label><Input name="aadhar" id="aadhar" defaultValue={editableBeneficiary.aadhar} required /></div>
+                  <div><Label htmlFor="proprietor_name">Proprietor Name</Label><Input name="proprietor_name" id="proprietor_name" defaultValue={editableBeneficiary.proprietor_name} required /></div>
+                </div>
+              )}
+              <DialogFooter>
+                <Button variant="ghost" type="button" onClick={() => setIsEditing(false)}>Cancel</Button>
+                <Button type="submit"><Save className="w-4 h-4 mr-2" />Save Changes</Button>
+              </DialogFooter>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
 
