@@ -43,10 +43,14 @@ export const getBeneficiariesForCA = async (organizationId, token, skip = 0, lim
 
 export const addBeneficiary = async (beneficiaryData, token) => {
     const { organisation_id, ...rest } = beneficiaryData;
+    const bodyParams = new URLSearchParams(rest);
+    if (organisation_id) {
+        bodyParams.append('organization_id', organisation_id);
+    }
     const response = await fetch(`${FINANCE_API_BASE_URL}/api/beneficiaries/`, {
         method: 'POST',
         headers: getAuthHeaders(token, 'application/x-www-form-urlencoded'),
-        body: new URLSearchParams(rest),
+        body: bodyParams,
     });
     return handleResponse(response);
 };

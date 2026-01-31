@@ -258,6 +258,12 @@ export const AuthProvider = ({ children }) => {
         try {
           const promises = profileData.organizations.map(org =>
             listClientsByOrganization(org.id, data.access_token)
+              .then(clients => {
+                if (Array.isArray(clients)) {
+                  return clients.map(c => ({ ...c, organization_id: org.id }));
+                }
+                return [];
+              })
               .catch(e => {
                 console.error(`Failed to fetch clients for org ${org.id}:`, e);
                 return [];
@@ -266,6 +272,7 @@ export const AuthProvider = ({ children }) => {
 
           const results = await Promise.all(promises);
           entitiesData = results.flat();
+          console.log('useAuth: fetched entitiesData with organizations:', entitiesData);
         } catch (error) {
           console.error("Failed to fetch clients for organizations:", error);
         }

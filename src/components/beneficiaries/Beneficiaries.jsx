@@ -308,7 +308,7 @@ const Beneficiaries = ({ entityId, quickAction, clearQuickAction }) => {
   const handleAdd = async (beneficiaryData) => {
     setIsSaving(true);
     try {
-      const newBeneficiary = await addBeneficiary(beneficiaryData, user.access_token);
+      const newBeneficiary = await addBeneficiary({ ...beneficiaryData, organisation_id: organisationId }, user.access_token);
       toast({ title: 'Success', description: 'Beneficiary added successfully.' });
 
       // Make sure the latest-added record is visible immediately

@@ -33,6 +33,17 @@ export const useCurrentOrganization = (providedEntityId) => {
       // But usually user.entities should be populated by useAuth with the flattened list of all clients from all orgs
     }
 
+    if (process.env.NODE_ENV === 'development') {
+      console.log('useCurrentOrganization Debug:', {
+        providedEntityId,
+        currentEntityId,
+        resolvedOrgId,
+        userOrgId: user.organization_id,
+        foundEntity: user.entities && user.entities.find(e => String(e.id) === String(currentEntityId)),
+        allEntities: user.entities
+      });
+    }
+
     return resolvedOrgId;
   }, [user, currentEntityId]);
 
