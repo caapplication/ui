@@ -38,7 +38,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { format, formatDistanceToNow } from 'date-fns';
+import { format, formatDistanceToNow, formatDistanceStrict } from 'date-fns';
 
 const TaskKanbanView = forwardRef(({
     tasks,
@@ -591,6 +591,51 @@ const TaskKanbanView = forwardRef(({
         }
     };
 
+    const getDateBadgeColor = (dateString) => {
+        if (!dateString) return 'bg-gray-500/20 text-gray-300 border-gray-500/50';
+        try {
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) {
+                return 'bg-gray-500/20 text-gray-300 border-gray-500/50';
+            }
+            const now = new Date();
+            const diffMs = now - date;
+            const diffHours = diffMs / (1000 * 60 * 60);
+            const diffDays = diffHours / 24;
+
+            if (diffHours <= 24) {
+                return 'bg-green-500/20 text-green-300 border-green-500/50'; // Green for within 24 hours
+            } else if (diffDays <= 7) {
+                return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/50'; // Yellow for 24h to 7 days
+            } else {
+                return 'bg-red-500/20 text-red-300 border-red-500/50'; // Red for more than 7 days
+            }
+        } catch {
+            return 'bg-gray-500/20 text-gray-300 border-gray-500/50';
+        }
+    };
+
+    const formatTimeUntil = (dateString) => {
+        if (!dateString) return 'N/A';
+        try {
+            const date = new Date(dateString);
+            const now = new Date();
+            const diffMs = date - now;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+
+            if (diffMins < 0) return 'Overdue';
+            if (diffMins < 1) return 'Due now';
+            if (diffMins < 60) return `In ${diffMins} ${diffMins === 1 ? 'min' : 'mins'}`;
+            if (diffHours < 24) return `In ${diffHours} ${diffHours === 1 ? 'hour' : 'hours'}`;
+            if (diffDays < 30) return `In ${diffDays} ${diffDays === 1 ? 'day' : 'days'}`;
+            return formatDistanceStrict(now, date, { addSuffix: false, unit: 'day' });
+        } catch (error) {
+            return 'N/A';
+        }
+    };
+
     if (isLoadingStages) {
         return (
             <div className="flex items-center justify-center h-64">
@@ -730,7 +775,12 @@ const TaskKanbanView = forwardRef(({
                                                             )}
 
                                                             <div className="flex items-start justify-between mb-2">
-                                                                <h4 className="font-medium text-white text-sm flex-1">{task.title}</h4>
+                                                                <h4 className="font-medium text-white text-sm flex-1 mr-2">{task.title}</h4>
+                                                                {task.due_date && (
+                                                                    <Badge variant="outline" className={`${getDateBadgeColor(task.due_date)} text-[10px] px-1.5 py-0.5 h-auto w-fit italic whitespace-nowrap`}>
+                                                                        {formatTimeUntil(task.due_date)}
+                                                                    </Badge>
+                                                                )}
                                                             </div>
                                                             {task.description && (
                                                                 <p className="text-xs text-gray-400 mb-2 line-clamp-2">

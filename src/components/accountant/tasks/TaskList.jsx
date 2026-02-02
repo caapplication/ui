@@ -515,13 +515,14 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                                 <TableHead className="hidden lg:table-cell">LAST UPDATE BY</TableHead>
                                 <TableHead className="hidden md:table-cell">CREATED BY</TableHead>
                                 <TableHead className="hidden sm:table-cell">ASSIGNED TO</TableHead>
+                                <TableHead className="hidden md:table-cell">DUE DATE</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {/* Loading State */}
                             {isLoading ? (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="h-32 text-center">
+                                    <TableCell colSpan={7} className="h-32 text-center">
                                         <div className="flex flex-col items-center justify-center gap-2">
                                             <Loader2 className="h-8 w-8 animate-spin text-primary" />
                                             <p className="text-sm text-gray-400">Loading tasks...</p>
@@ -530,7 +531,7 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                                 </TableRow>
                             ) : filteredTasks.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="text-center py-8">
+                                    <TableCell colSpan={7} className="text-center py-8">
                                         <p className="text-gray-400">No tasks found. {tasks.length === 0 ? 'Create your first task to get started!' : 'Try adjusting your filters.'}</p>
                                     </TableCell>
                                 </TableRow>
@@ -652,6 +653,28 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                                                                 {formatTimeAgo(task.created_at)}
                                                             </Badge>
                                                         </>
+                                                    )}
+                                                </div>
+                                            </TableCell>
+
+                                            {/* DUE DATE */}
+                                            <TableCell className="hidden md:table-cell">
+                                                <div className="flex flex-col gap-1">
+                                                    {task.due_date ? (
+                                                        <>
+                                                            <span className="text-sm text-white">
+                                                                {format(new Date(task.due_date), 'MMM dd, yyyy')}
+                                                            </span>
+                                                            {/* Spacer for alignment with 'Assigned To' created date row */}
+                                                            <span className="text-xs text-transparent italic select-none">
+                                                                &nbsp;
+                                                            </span>
+                                                            <Badge variant="outline" className={`${getDateBadgeColor(task.due_date)} text-xs w-fit italic`}>
+                                                                {formatTimeUntil(task.due_date)}
+                                                            </Badge>
+                                                        </>
+                                                    ) : (
+                                                        <span className="text-sm text-gray-500 italic">Not set</span>
                                                     )}
                                                 </div>
                                             </TableCell>

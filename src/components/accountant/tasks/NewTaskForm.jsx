@@ -195,10 +195,8 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
         if (Array.isArray(response)) {
           usersList = response;
         } else if (response?.joined_users || response?.invited_users) {
-          usersList = [
-            ...(response.joined_users || []),
-            ...(response.invited_users || [])
-          ];
+          // Only show joined users
+          usersList = response.joined_users || [];
         } else if (response?.users) {
           usersList = response.users;
         }
