@@ -550,22 +550,24 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
             </div>
 
 
-            <div>
-              <Label htmlFor="service_id" className="mb-2">Service</Label>
-              <Select name="service_id" onValueChange={(v) => handleSelectChange('service_id', v)} value={formData.service_id || ''} disabled={isSaving || !!fixedServiceId}>
-                <SelectTrigger><SelectValue placeholder="Select a service (optional)" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {services && services.length > 0 ? (
-                    services.map(service => (
-                      <SelectItem key={service.id} value={service.id}>{service.name}</SelectItem>
-                    ))
-                  ) : (
-                    <SelectItem value="no-services" disabled>No services found</SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
+            {user?.role === 'CA_ACCOUNTANT' && (
+              <div>
+                <Label htmlFor="service_id" className="mb-2">Service</Label>
+                <Select name="service_id" onValueChange={(v) => handleSelectChange('service_id', v)} value={formData.service_id || ''} disabled={isSaving || !!fixedServiceId}>
+                  <SelectTrigger><SelectValue placeholder="Select a service (optional)" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {services && services.length > 0 ? (
+                      services.map(service => (
+                        <SelectItem key={service.id} value={service.id}>{service.name}</SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="no-services" disabled>No services found</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
               <div>
