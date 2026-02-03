@@ -445,19 +445,8 @@ const Beneficiaries = ({ entityId, quickAction, clearQuickAction }) => {
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-        <div className="flex flex-col gap-4 mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white">Beneficiaries</h1>
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 w-full">
-            <div className="relative flex-1 sm:w-64">
-              <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
-              <Input placeholder="Search..." className="pl-9 sm:pl-12 h-9 sm:h-10 text-sm" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-            </div>
-            <Button onClick={() => setShowAddDialog(true)} className="h-9 sm:h-10 text-sm sm:text-base w-full sm:w-auto">
-              <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">Add New</span>
-              <span className="sm:hidden">Add</span>
-            </Button>
-          </div>
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4">Beneficiaries</h1>
         </div>
 
         {isLoading ? (
@@ -466,10 +455,28 @@ const Beneficiaries = ({ entityId, quickAction, clearQuickAction }) => {
           </div>
         ) : (
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 text-xs sm:text-sm">
-              <TabsTrigger value="individual" className="text-xs sm:text-sm">Individual</TabsTrigger>
-              <TabsTrigger value="company" className="text-xs sm:text-sm">Company</TabsTrigger>
-            </TabsList>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+              <TabsList className="text-xs sm:text-sm h-9 sm:h-10">
+                <TabsTrigger value="individual" className="text-xs sm:text-sm">Individual</TabsTrigger>
+                <TabsTrigger value="company" className="text-xs sm:text-sm">Company</TabsTrigger>
+              </TabsList>
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <div className="relative flex-1 sm:w-64">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input
+                    placeholder="Search..."
+                    className="pl-9 h-9 sm:h-10 text-sm"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+                <Button onClick={() => setShowAddDialog(true)} className="h-9 sm:h-10 text-sm sm:text-base whitespace-nowrap">
+                  <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+                  <span className="hidden sm:inline">Add New</span>
+                  <span className="sm:hidden">Add</span>
+                </Button>
+              </div>
+            </div>
             <TabsContent value="individual">
               <Card className="glass-card">
                 <CardHeader className="p-4 sm:p-6">

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -12,8 +12,31 @@ import {
 
 const GlobalFAB = () => {
     const [isFabOpen, setIsFabOpen] = useState(false);
+    const [placement, setPlacement] = useState({ vertical: 'top', horizontal: 'left' });
+    const containerRef = useRef(null);
+    const constraintsRef = useRef(null);
     const navigate = useNavigate();
 
+    const updatePlacement = () => {
+        if (!containerRef.current) return;
+        const rect = containerRef.current.getBoundingClientRect();
+        const windowHeight = window.innerHeight;
+        const windowWidth = window.innerWidth;
+
+        // If the button's top is in the upper half of the screen, grow downwards
+        const vertical = rect.top < windowHeight / 2 ? 'bottom' : 'top';
+        // If the button's left is in the left half of the screen, show labels on the right
+        const horizontal = rect.left < windowWidth / 2 ? 'right' : 'left';
+
+        setPlacement({ vertical, horizontal });
+    };
+
+    const toggleFab = () => {
+        if (!isFabOpen) {
+            updatePlacement();
+        }
+        setIsFabOpen(!isFabOpen);
+    };
     const fabItems = [
         { label: "Beneficiaries", icon: Users, path: "/beneficiaries", state: { quickAction: 'add-beneficiary', returnToDashboard: true } },
         { label: "Tasks", icon: Landmark, path: "/tasks", state: { quickAction: 'add-task', returnToDashboard: true } },
@@ -34,59 +57,74 @@ const GlobalFAB = () => {
                     />
                 )}
             </AnimatePresence>
-            <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-4 pointer-events-none">
-                <div className="flex flex-col items-end gap-4 pointer-events-auto">
-                    <AnimatePresence>
-                        {isFabOpen && (
-                            <motion.div
-                                initial={{ opacity: 0, scale: 0.8, y: 20 }}
-                                animate={{ opacity: 1, scale: 1, y: 0 }}
-                                exit={{ opacity: 0, scale: 0.8, y: 20 }}
-                                className="flex flex-col gap-3 mb-2"
-                            >
-                                {fabItems.map((item, index) => {
-                                    const Icon = item.icon;
-                                    return (
-                                        <motion.button
-                                            key={item.label}
-                                            initial={{ opacity: 0, x: 20 }}
-                                            animate={{ opacity: 1, x: 0 }}
-                                            transition={{ delay: index * 0.1 }}
-                                            onClick={() => {
-                                                navigate(item.path, { state: item.state });
-                                                setIsFabOpen(false);
-                                            }}
-                                            className="flex items-center gap-3 bg-white/10 backdrop-blur-md border border-white/20 p-3 rounded-full shadow-lg hover:bg-white/20 transition-all group justify-between"
-                                        >
-                                            <span className="text-sm font-medium text-white whitespace-nowrap px-2">
-                                                {item.label}
-                                            </span>
-                                            <div className="bg-white/10 p-2 rounded-full group-hover:bg-white/20 transition-colors">
-                                                <Icon className="w-5 h-5 text-white" />
-                                            </div>
-                                        </motion.button>
-                                    );
-                                })}
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+            <div ref={constraintsRef} className="fixed inset-0 pointer-events-none z-50">
+                <motion.div
+                    ref={containerRef}
+                    drag
+                    dragConstraints={constraintsRef}
+                    dragMomentum={false}
+                    onDrag={updatePlacement}
+                    className="absolute bottom-6 right-6 pointer-events-none"
+                >
+                    <div className="relative pointer-events-auto select-none">
+                        <AnimatePresence>
+                            {isFabOpen && (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.8 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.8 }}
+                                    className={`absolute flex flex-col gap-3 ${placement.horizontal === 'left' ? 'items-end' : 'items-start'}`}
+                                    style={{
+                                        bottom: placement.vertical === 'top' ? 'calc(100% + 1rem)' : 'auto',
+                                        top: placement.vertical === 'bottom' ? 'calc(100% + 1rem)' : 'auto',
+                                        right: placement.horizontal === 'left' ? 0 : 'auto',
+                                        left: placement.horizontal === 'right' ? 0 : 'auto',
+                                    }}
+                                >
+                                    {fabItems.map((item, index) => {
+                                        const Icon = item.icon;
+                                        return (
+                                            <motion.button
+                                                key={item.label}
+                                                initial={{ opacity: 0, scale: 0.5 }}
+                                                animate={{ opacity: 1, scale: 1 }}
+                                                transition={{ delay: index * 0.05 }}
+                                                onClick={() => {
+                                                    navigate(item.path, { state: item.state });
+                                                    setIsFabOpen(false);
+                                                }}
+                                                className={`flex ${placement.horizontal === 'left' ? 'flex-row' : 'flex-row-reverse'} items-center gap-3 bg-white/10 backdrop-blur-md border border-white/20 p-2 rounded-full shadow-lg hover:bg-white/20 transition-all group`}
+                                            >
+                                                <span className="text-xs font-medium text-white whitespace-nowrap px-2">
+                                                    {item.label}
+                                                </span>
+                                                <div className="bg-white/10 p-2 rounded-full group-hover:bg-white/20 transition-colors">
+                                                    <Icon className="w-4 h-4 text-white" />
+                                                </div>
+                                            </motion.button>
+                                        );
+                                    })}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
 
-                    <motion.button
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                        onClick={() => setIsFabOpen(!isFabOpen)}
-                        className={`p-4 rounded-full shadow-lg backdrop-blur-sm transition-all duration-300 ${isFabOpen
-                            ? "bg-red-500 hover:bg-red-600 rotate-90"
-                            : "bg-blue-600 hover:bg-blue-700"
-                            }`}
-                    >
-                        {isFabOpen ? (
-                            <X className="w-6 h-6 text-white" />
-                        ) : (
-                            <Plus className="w-6 h-6 text-white" />
-                        )}
-                    </motion.button>
-                </div>
+                        <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={toggleFab}
+                            className={`p-4 rounded-full shadow-lg backdrop-blur-sm transition-all duration-300 ${isFabOpen
+                                ? "bg-red-500 hover:bg-red-600 rotate-90"
+                                : "bg-blue-600 hover:bg-blue-700"
+                                }`}
+                        >
+                            {isFabOpen ? (
+                                <X className="w-6 h-6 text-white" />
+                            ) : (
+                                <Plus className="w-6 h-6 text-white" />
+                            )}
+                        </motion.button>
+                    </div>
+                </motion.div>
             </div>
         </>
     );

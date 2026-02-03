@@ -224,8 +224,8 @@ const VoucherDetailsPage = () => {
     const isClientUser = user?.role === 'CLIENT_USER';
     const isCaUser = user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM';
 
-    const defaultTab = isClientUser ? 'details' : 'preview';
-    const cols = isClientUser ? 'grid-cols-3' : 'grid-cols-4';
+    const defaultTab = 'details';
+    const cols = 'grid-cols-3';
 
 
 
@@ -1388,9 +1388,6 @@ const VoucherDetailsPage = () => {
                         <div className="flex-1 overflow-y-auto px-4 py-6 sm:p-6 hide-scrollbar" style={{ paddingBottom: hasVouchers ? '8rem' : '2rem' }}>
                             <Tabs defaultValue={defaultTab} className="w-full">
                                 <TabsList className={`grid w-full ${cols} text-xs sm:text-sm`}>
-                                    {!isClientUser && (
-                                        <TabsTrigger value="preview" className="text-xs sm:text-sm">Preview</TabsTrigger>
-                                    )}
                                     <TabsTrigger value="details" className="text-xs sm:text-sm">Details</TabsTrigger>
                                     <TabsTrigger value="activity" className="text-xs sm:text-sm">Activity Log</TabsTrigger>
                                     <TabsTrigger value="beneficiary" className="text-xs sm:text-sm">Beneficiary</TabsTrigger>
@@ -2245,19 +2242,6 @@ const VoucherDetailsPage = () => {
                                 );
                             })()}
                         </TabsContent>
-                        {!isClientUser && (
-                            <TabsContent value="preview" className="mt-4">
-                                <div className="overflow-auto hide-scrollbar" style={{ maxHeight: '60vh' }}>
-                                    <VoucherPDF
-                                        voucher={voucher}
-                                        organizationName={organizationName}
-                                        entityName={entityName}
-                                        fromBankAccounts={fromBankAccounts}
-                                        toBankAccounts={toBankAccounts}
-                                    />
-                                </div>
-                            </TabsContent>
-                        )}
                     </Tabs>
                 </div >
             </div >
