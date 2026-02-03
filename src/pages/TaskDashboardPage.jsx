@@ -1266,12 +1266,32 @@ const TaskDashboardPage = () => {
         // Customize display based on event type
         switch (item.event_type) {
             case 'task_created':
-                eventText = `Task created${item.to_value?.status ? ` with status "${item.to_value.status}"` : ''}`;
+                let statusStr = item.to_value?.status;
+                if (statusStr === 'pending') statusStr = 'To Do';
+                eventText = `Task created${statusStr ? ` with status "${statusStr}"` : ''}`;
                 eventColor = "text-blue-400";
                 break;
             case 'task_updated':
-                if (item.from_value?.status && item.to_value?.status) {
-                    eventText = `Status changed from "${item.from_value.status}" to "${item.to_value.status}"`;
+                // Check if it's a stage change (stage_id)
+                if (item.from_value?.hasOwnProperty('stage_id') || item.to_value?.hasOwnProperty('stage_id')) {
+                    const fromId = item.from_value?.stage_id;
+                    const toId = item.to_value?.stage_id;
+
+                    const fromStage = stages.find(s => s.id === fromId);
+                    const toStage = stages.find(s => s.id === toId);
+
+                    const fromName = fromStage ? fromStage.name : (fromId || 'Open');
+                    const toName = toStage ? toStage.name : (toId || 'Open');
+
+                    eventText = `Stage changed from "${fromName}" to "${toName}"`;
+                    eventColor = "text-blue-400";
+                } else if (item.from_value?.status && item.to_value?.status) {
+                    let fromStatus = item.from_value.status;
+                    let toStatus = item.to_value.status;
+                    if (fromStatus === 'pending') fromStatus = 'To Do';
+                    if (toStatus === 'pending') toStatus = 'To Do';
+
+                    eventText = `Status changed from "${fromStatus}" to "${toStatus}"`;
                 } else if (item.details) {
                     eventText = item.details;
                 }
@@ -1557,8 +1577,19 @@ const TaskDashboardPage = () => {
     };
 
     // Map stage names to display names for task detail page only
-    const getDisplayStageName = (stageName) => {
-        return stageName || 'Open';
+    const getDisplayStageName = (stageIdOrName) => {
+        if (!stageIdOrName) return 'Open';
+
+        if (stageIdOrName === 'pending') return 'To Do';
+
+        // If it looks like a UUID, try to find in stages
+        // Simple check for UUID length/format or just try to find it
+        if (typeof stageIdOrName === 'string' && stageIdOrName.length > 30) {
+            const stage = stages.find(s => s.id === stageIdOrName);
+            if (stage) return stage.name;
+        }
+
+        return stageIdOrName;
     };
 
     // Get actual stage name from display name (reverse mapping)
