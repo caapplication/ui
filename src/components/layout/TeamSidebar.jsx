@@ -20,11 +20,55 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useMediaQuery } from '@/hooks/useMediaQuery.jsx';
 import { Link, useLocation } from 'react-router-dom';
+import { useSocket } from '@/contexts/SocketContext.jsx';
+import { getUnreadNotificationCount } from '@/lib/api';
+import { Badge } from '@/components/ui/badge';
 
 const TeamSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) => {
   const { user, logout } = useAuth();
   const isDesktop = useMediaQuery("(min-width: 1024px)");
+
   const location = useLocation();
+  const { socket } = useSocket();
+  const [unreadCount, setUnreadCount] = React.useState(0);
+  const [isBlinking, setIsBlinking] = React.useState(false);
+
+  // Fetch initial unread count
+  React.useEffect(() => {
+    const fetchUnreadCount = async () => {
+      if (user?.access_token) {
+        try {
+          const count = await getUnreadNotificationCount(user.agency_id, user.access_token);
+          setUnreadCount(count);
+        } catch (error) {
+          console.error("Failed to fetch unread notification count:", error);
+        }
+      }
+    };
+
+    fetchUnreadCount();
+  }, [user]);
+
+  // Listen for socket updates
+  React.useEffect(() => {
+    if (socket) {
+      const handleUnreadUpdate = (data) => {
+        if (typeof data.count === 'number') {
+          if (data.count > unreadCount) {
+            setIsBlinking(true);
+            setTimeout(() => setIsBlinking(false), 3000);
+          }
+          setUnreadCount(data.count);
+        }
+      };
+
+      socket.on('global_unread_update', handleUnreadUpdate);
+
+      return () => {
+        socket.off('global_unread_update', handleUnreadUpdate);
+      };
+    }
+  }, [socket, unreadCount]);
 
   // Remove "organisation" and "team-members"
   const menuItems = [
@@ -32,7 +76,13 @@ const TeamSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) => {
     // Hide Clients tab for CA_TEAM role
     ...(user?.role !== 'CA_TEAM' ? [{ id: 'clients', path: '/clients', label: 'Clients', icon: Users }] : []),
     { id: 'finance', path: '/finance', label: 'Finance', icon: Landmark },
-    { id: 'tasks', path: '/tasks', label: 'Tasks', icon: ListTodo },
+    {
+      id: 'tasks',
+      path: '/tasks',
+      label: 'Tasks',
+      icon: ListTodo,
+      badge: unreadCount > 0 ? unreadCount : null
+    },
     { id: 'documents', path: '/documents', label: 'Documents', icon: FileText },
     { id: 'services', path: '/services', label: 'Services', icon: Briefcase },
     { id: 'settings', path: '/settings', label: 'Settings', icon: Settings },
@@ -109,7 +159,16 @@ const TeamSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) => {
                       <Icon className={`w-6 h-6 flex-shrink-0 z-10 ${isCollapsed ? 'mx-auto' : 'mr-4'}`} />
                       <AnimatePresence>
                         {!isCollapsed && (
-                          <motion.span variants={textVariants} initial="collapsed" animate="expanded" exit="collapsed" className="flex-1 font-medium z-10">{item.label}</motion.span>
+                          <motion.span variants={textVariants} initial="collapsed" animate="expanded" exit="collapsed" className="flex-1 font-medium z-10 flex items-center justify-between">
+                            {item.label}
+                            {item.badge && (
+                              <Badge
+                                className={`ml-auto ${isBlinking ? 'animate-pulse' : ''} bg-orange-500 hover:bg-orange-600 text-white border-0`}
+                              >
+                                {item.badge > 99 ? '99+' : item.badge}
+                              </Badge>
+                            )}
+                          </motion.span>
                         )}
                       </AnimatePresence>
                     </Button>

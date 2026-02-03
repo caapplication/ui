@@ -25,6 +25,9 @@ import {
 } from '@/components/ui/select';
 import { useMediaQuery } from '@/hooks/useMediaQuery.jsx';
 import { Link, useLocation } from 'react-router-dom';
+import { useSocket } from '@/contexts/SocketContext.jsx';
+import { getUnreadNotificationCount } from '@/lib/api';
+import { Badge } from '@/components/ui/badge';
 
 import { listClients, listClientsByOrganization } from '@/lib/api/clients';
 
@@ -33,6 +36,51 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const location = useLocation();
   const [clients, setClients] = React.useState([]);
+  const { socket } = useSocket();
+  const [unreadCount, setUnreadCount] = React.useState(0);
+  const [isBlinking, setIsBlinking] = React.useState(false);
+
+  // Fetch initial unread count
+  React.useEffect(() => {
+    const fetchUnreadCount = async () => {
+      if (user?.access_token) {
+        try {
+          // For client users, agency_id might be derived differently, but backend handles it via token user context usually
+          // However, getUnreadNotificationCount expects agencyId.
+          // If the user is a client user, they might have an agency_id property or we might need to rely on the backend finding it from the token.
+          // The current getUnreadNotificationCount takes (agencyId, token).
+          const agencyId = user.agency_id || (user.entities && user.entities[0]?.agency_id);
+          const count = await getUnreadNotificationCount(agencyId, user.access_token);
+          setUnreadCount(count);
+        } catch (error) {
+          console.error("Failed to fetch unread notification count:", error);
+        }
+      }
+    };
+
+    fetchUnreadCount();
+  }, [user]);
+
+  // Listen for socket updates
+  React.useEffect(() => {
+    if (socket) {
+      const handleUnreadUpdate = (data) => {
+        if (typeof data.count === 'number') {
+          if (data.count > unreadCount) {
+            setIsBlinking(true);
+            setTimeout(() => setIsBlinking(false), 3000);
+          }
+          setUnreadCount(data.count);
+        }
+      };
+
+      socket.on('global_unread_update', handleUnreadUpdate);
+
+      return () => {
+        socket.off('global_unread_update', handleUnreadUpdate);
+      };
+    }
+  }, [socket, unreadCount]);
 
   const menuItems = [
     { id: 'dashboard', path: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -41,7 +89,13 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
     { id: 'users', path: '/users', label: 'Manage Team', icon: UserCog, hidden: user?.role === 'CLIENT_USER' },
     { id: 'beneficiaries', path: '/beneficiaries', label: 'Beneficiaries', icon: Users },
     { id: 'organisation-bank', path: '/organisation-bank', label: 'Organisation Bank', icon: Banknote },
-    { id: 'tasks', path: '/tasks', label: 'Tasks', icon: ListTodo },
+    {
+      id: 'tasks',
+      path: '/tasks',
+      label: 'Tasks',
+      icon: ListTodo,
+      badge: unreadCount > 0 ? unreadCount : null
+    },
   ];
 
   // Fetch clients from Clients table (NOT entities table)
@@ -206,7 +260,16 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
                       <Icon className={`w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0 z-10 ${isCollapsed ? 'mx-auto' : 'mr-3 sm:mr-4'}`} />
                       <AnimatePresence>
                         {!isCollapsed && (
-                          <motion.span variants={textVariants} initial="collapsed" animate="expanded" exit="collapsed" className="flex-1 font-medium z-10">{item.label}</motion.span>
+                          <motion.span variants={textVariants} initial="collapsed" animate="expanded" exit="collapsed" className="flex-1 font-medium z-10 flex items-center justify-between">
+                            {item.label}
+                            {item.badge && (
+                              <Badge
+                                className={`ml-auto ${isBlinking ? 'animate-pulse' : ''} bg-orange-500 hover:bg-orange-600 text-white border-0`}
+                              >
+                                {item.badge > 99 ? '99+' : item.badge}
+                              </Badge>
+                            )}
+                          </motion.span>
                         )}
                       </AnimatePresence>
                     </Button>
