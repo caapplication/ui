@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
     Loader2, Plus, MoreVertical, Edit, Trash2,
-    Settings, X, Check, AlertCircle
+    Settings, X, Check, AlertCircle, Bell
 } from 'lucide-react';
 import {
     listTaskStages, createTaskStage, updateTaskStage, deleteTaskStage,
@@ -39,6 +39,17 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { format, formatDistanceToNow, formatDistanceStrict } from 'date-fns';
+
+// Blinking animation style
+const blinkStyle = `
+@keyframes blink-orange {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+.animate-blink-3s {
+  animation: blink-orange 0.5s ease-in-out 6; /* 3 seconds total */
+}
+`;
 
 const TaskKanbanView = forwardRef(({
     tasks,
@@ -854,7 +865,19 @@ const TaskKanbanView = forwardRef(({
                                                             )}
 
                                                             <div className="flex items-start justify-between mb-2">
-                                                                <h4 className="font-medium text-white text-sm flex-1 mr-2">{task.title}</h4>
+                                                                <style>{blinkStyle}</style>
+                                                                <h4
+                                                                    key={task._last_unread_update || 'static'}
+                                                                    className={`font-medium text-sm flex-1 mr-2 flex items-center gap-1.5 ${task.has_unread_messages
+                                                                        ? (task._last_unread_update ? 'text-orange-500 animate-blink-3s' : 'text-orange-500')
+                                                                        : 'text-white'
+                                                                        }`}
+                                                                >
+                                                                    {task.has_unread_messages && (
+                                                                        <Bell className="w-3.5 h-3.5 fill-current flex-shrink-0" />
+                                                                    )}
+                                                                    {task.title}
+                                                                </h4>
                                                                 {task.due_date && (
                                                                     <Badge variant="outline" className={`${getDateBadgeColor(task.due_date)} text-[10px] px-1.5 py-0.5 h-auto w-fit italic whitespace-nowrap`}>
                                                                         {formatTimeUntil(task.due_date)}

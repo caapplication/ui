@@ -19,6 +19,20 @@ export const listTasks = async (agencyId, token) => {
     }
 };
 
+export const getUnreadNotificationCount = async (agencyId, token) => {
+    try {
+        const response = await fetch(`${TASKS_API_BASE_URL}/tasks/notifications/unread-count`, {
+            method: 'GET',
+            headers: getAuthHeaders(token, 'application/json', agencyId),
+        });
+        const data = await handleResponse(response);
+        return data.count;
+    } catch (error) {
+        console.warn('Failed to fetch unread count:', error);
+        return 0;
+    }
+};
+
 export const createTask = async (taskData, agencyId, token) => {
     const response = await fetch(`${TASKS_API_BASE_URL}/tasks/`, {
         method: 'POST',

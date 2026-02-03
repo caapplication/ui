@@ -25,6 +25,7 @@ const TaskManagementPage = ({ entityId, entityName }) => {
     const navigate = useNavigate();
     const location = useLocation();
     const { selectedOrg, organisations, selectedEntity, entities } = useOrganisation();
+    const { socket } = useSocket();
     // Load view mode from localStorage on mount
     const [view, setView] = useState(() => {
         const savedView = localStorage.getItem('taskView') || 'list';
@@ -199,6 +200,35 @@ const TaskManagementPage = ({ entityId, entityName }) => {
             handleAddNew();
         }
     }, [fetchData, location.state]);
+
+    // Listen for real-time unread status updates
+    useEffect(() => {
+        if (!socket) return;
+
+        const handleUnreadUpdate = ({ task_id, has_unread }) => {
+            setTasks(prevTasks => {
+                const taskIndex = prevTasks.findIndex(t => String(t.id) === String(task_id));
+                if (taskIndex === -1) return prevTasks;
+
+                // Only update if value changed
+                if (prevTasks[taskIndex].has_unread_messages === has_unread) return prevTasks;
+
+                const newTasks = [...prevTasks];
+                newTasks[taskIndex] = {
+                    ...newTasks[taskIndex],
+                    has_unread_messages: has_unread,
+                    _last_unread_update: Date.now() // Trigger for animation
+                };
+                return newTasks;
+            });
+        };
+
+        socket.on('unread_update', handleUnreadUpdate);
+
+        return () => {
+            socket.off('unread_update', handleUnreadUpdate);
+        };
+    }, [socket]);
 
     const filteredTasks = useMemo(() => {
         // Show all tasks for the organization, no entity filtering

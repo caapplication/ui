@@ -207,7 +207,8 @@ export const {
     getCommentReadReceipts,
     requestTaskClosure,
     getClosureRequest,
-    reviewClosureRequest
+    reviewClosureRequest,
+    getUnreadNotificationCount
 } = tasks;
 
 export const {

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard,
@@ -21,18 +21,70 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useMediaQuery } from '@/hooks/useMediaQuery.jsx';
 import { Link, useLocation } from 'react-router-dom';
+import { useSocket } from '@/contexts/SocketContext.jsx';
+import { getUnreadNotificationCount } from '@/lib/api';
+import { useToast } from '@/components/ui/use-toast';
+import { Badge } from '@/components/ui/badge';
 
 const AccountantSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) => {
   const { user, logout } = useAuth();
-  const isDesktop = useMediaQuery("(min-width: 1024px)");
+  const { toast } = useToast();
+  const isMobile = useMediaQuery("(max-width: 768px)"); // Changed from isDesktop to isMobile and media query updated
   const location = useLocation();
+  const { socket } = useSocket();
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [isBlinking, setIsBlinking] = useState(false); // Added isBlinking state
+
+  // Fetch initial unread count
+  useEffect(() => {
+    const fetchUnreadCount = async () => {
+      if (user?.access_token) {
+        try {
+          const count = await getUnreadNotificationCount(user.agency_id, user.access_token);
+          setUnreadCount(count);
+        } catch (error) {
+          console.error("Failed to fetch unread notification count:", error);
+        }
+      }
+    };
+
+    fetchUnreadCount();
+  }, [user]);
+
+  // Listen for socket updates
+  useEffect(() => {
+    if (socket) {
+      const handleUnreadUpdate = (data) => {
+        if (typeof data.count === 'number') {
+          // Trigger blink if count increased
+          if (data.count > unreadCount) {
+            setIsBlinking(true);
+            setTimeout(() => setIsBlinking(false), 3000);
+          }
+          setUnreadCount(data.count);
+        }
+      };
+
+      socket.on('global_unread_update', handleUnreadUpdate);
+
+      return () => {
+        socket.off('global_unread_update', handleUnreadUpdate);
+      };
+    }
+  }, [socket]);
 
   const menuItems = [
     { id: 'dashboard', path: '/', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'clients', path: '/clients', label: 'Clients', icon: Users },
     { id: 'finance', path: '/finance', label: 'Finance', icon: Landmark },
     { id: 'team-members', path: '/team-members', label: 'Team Members', icon: UserPlus },
-    { id: 'tasks', path: '/tasks', label: 'Tasks', icon: ListTodo },
+    {
+      id: 'tasks',
+      path: '/tasks',
+      label: 'Tasks',
+      icon: ListTodo,
+      badge: unreadCount > 0 ? unreadCount : null // Add badge prop
+    },
     { id: 'documents', path: '/documents', label: 'Documents', icon: FileText },
     { id: 'notices', path: '/notices', label: 'Notices', icon: Bell },
     { id: 'services', path: '/services', label: 'Services', icon: Briefcase },
@@ -113,9 +165,20 @@ const AccountantSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) =
                       <Icon className={`w-6 h-6 flex-shrink-0 z-10 ${isCollapsed ? 'mx-auto' : 'mr-4'}`} />
                       <AnimatePresence>
                         {!isCollapsed && (
-                          <motion.span variants={textVariants} initial="collapsed" animate="expanded" exit="collapsed" className="flex-1 font-medium z-10">{item.label}</motion.span>
+                          <motion.span variants={textVariants} initial="collapsed" animate="expanded" exit="collapsed" className="flex-1 font-medium z-10 flex items-center justify-between">
+                            {item.label}
+                            {item.badge && (
+                              <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full ml-2">
+                                {item.badge > 99 ? '99+' : item.badge}
+                              </span>
+                            )}
+                          </motion.span>
                         )}
                       </AnimatePresence>
+                      {/* Badge for collapsed state */}
+                      {isCollapsed && item.badge && (
+                        <div className="absolute top-2 right-2 w-3 h-3 bg-red-500 rounded-full border-2 border-[#1e293b] z-20"></div>
+                      )}
                     </Button>
                   </Link>
                 </li>
@@ -126,7 +189,7 @@ const AccountantSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) =
       </div>
 
       <div className="mt-auto pt-4 border-t border-white/10 space-y-2">
-        {isDesktop && (
+        {!isMobile && (
           <Button
             variant="ghost"
             className="w-full justify-start text-gray-300 hover:text-white h-12"
@@ -159,7 +222,7 @@ const AccountantSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) =
     </div>
   );
 
-  if (!isDesktop) {
+  if (isMobile) {
     return (
       <AnimatePresence>
         {isOpen && (

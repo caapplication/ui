@@ -25,6 +25,17 @@ import {
 } from "@/components/ui/alert-dialog";
 import { AlertDialogTrigger } from '@radix-ui/react-alert-dialog';
 
+// Blinking animation style
+const blinkStyle = `
+@keyframes blink-orange {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+.animate-blink-3s {
+  animation: blink-orange 0.5s ease-in-out 6; /* 3 seconds total */
+}
+`;
+
 const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew, onEditTask, onDeleteTask, onViewTask, currentUserId, isHistoryView = false, isLoading = false }) => {
     const { user } = useAuth();
     const [searchTerm, setSearchTerm] = useState('');
@@ -579,9 +590,16 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                                         <TableRow key={task.id} className="hover:bg-white/5 cursor-pointer" onClick={() => onViewTask && onViewTask(task.id)}>
                                             {/* T.ID */}
                                             <TableCell>
-                                                <div className={`flex items-center gap-1.5 font-medium ${task.has_unread_messages ? 'text-orange-400 animate-pulse' : 'text-white'}`}>
+                                                <style>{blinkStyle}</style>
+                                                <div
+                                                    key={task._last_unread_update || 'static'}
+                                                    className={`flex items-center gap-1.5 font-medium ${task.has_unread_messages
+                                                            ? (task._last_unread_update ? 'text-orange-500 animate-blink-3s' : 'text-orange-500')
+                                                            : 'text-white'
+                                                        }`}
+                                                >
                                                     {task.has_unread_messages && (
-                                                        <Bell className="w-3.5 h-3.5" />
+                                                        <Bell className="w-3.5 h-3.5 fill-current" />
                                                     )}
                                                     {taskId}
                                                 </div>

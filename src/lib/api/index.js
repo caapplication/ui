@@ -191,7 +191,8 @@ export const {
   listTaskComments,
   createTaskComment,
   updateTaskComment,
-  deleteTaskComment
+  deleteTaskComment,
+  getUnreadNotificationCount
 } = tasks;
 
 export const {
