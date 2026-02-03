@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useImperativeHandle, forwardRef } from 'react';
+import React, { useState, useEffect, useCallback, useImperativeHandle, forwardRef, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useToast } from '@/components/ui/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
@@ -65,6 +65,8 @@ const TaskKanbanView = forwardRef(({
     const [stageToDelete, setStageToDelete] = useState(null);
     const [movingTaskId, setMovingTaskId] = useState(null); // Track which task is being moved
     const [localTasks, setLocalTasks] = useState(tasks || []); // Local copy of tasks for optimistic updates
+    const scrollContainerRef = useRef(null);
+    const dragInfo = useRef({ isDragging: false, clientX: 0 });
 
     // Utility function to deduplicate stages by ID
     const deduplicateStages = useCallback((stagesList) => {
@@ -121,6 +123,49 @@ const TaskKanbanView = forwardRef(({
         }
     }, [propStages, fetchStages, deduplicateStages]);
 
+    // Auto-scroll logic
+    useEffect(() => {
+        if (!isDragging) {
+            dragInfo.current.isDragging = false;
+            return;
+        }
+
+        dragInfo.current.isDragging = true;
+        let animationFrameId;
+
+        const autoScroll = () => {
+            if (!dragInfo.current.isDragging || !scrollContainerRef.current) return;
+
+            const container = scrollContainerRef.current;
+            const { left, right } = container.getBoundingClientRect();
+            const { clientX } = dragInfo.current;
+
+            const threshold = 100; // px from edge to start scrolling
+            const maxSpeed = 15; // max pixels per frame
+
+            // Scroll Right
+            if (clientX > right - threshold) {
+                const intensity = Math.min(1, (clientX - (right - threshold)) / threshold);
+                container.scrollLeft += maxSpeed * intensity;
+            }
+            // Scroll Left
+            else if (clientX < left + threshold) {
+                const intensity = Math.min(1, ((left + threshold) - clientX) / threshold);
+                container.scrollLeft -= maxSpeed * intensity;
+            }
+
+            animationFrameId = requestAnimationFrame(autoScroll);
+        };
+
+        animationFrameId = requestAnimationFrame(autoScroll);
+
+        return () => {
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+            }
+        };
+    }, [isDragging]);
+
     // Update local tasks when prop tasks change
     useEffect(() => {
         if (tasks && Array.isArray(tasks)) {
@@ -138,6 +183,7 @@ const TaskKanbanView = forwardRef(({
     const handleDragOver = (e) => {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
+        dragInfo.current.clientX = e.clientX;
     };
 
     const handleDrop = async (e, targetStageId) => {
@@ -150,6 +196,22 @@ const TaskKanbanView = forwardRef(({
             setIsDragging(false);
             setDraggedTask(null);
             return;
+        }
+
+        // Restrict moving to "Request To Close" if not assigned user
+        const targetStage = stages.find(s => s.id === targetStageId);
+        if (targetStage && targetStage.name.toLowerCase() === 'request to close') {
+            const isAssignee = String(draggedTask.assigned_to) === String(user?.id);
+            if (!isAssignee) {
+                setIsDragging(false);
+                setDraggedTask(null);
+                toast({
+                    title: "Action Not Allowed",
+                    description: "Task creator cannot request to close. Only the assigned user can request to close.",
+                    variant: "destructive"
+                });
+                return;
+            }
         }
 
         const draggedStageIdStr = draggedTask.stage_id ? String(draggedTask.stage_id) : null;
@@ -258,6 +320,22 @@ const TaskKanbanView = forwardRef(({
         }
 
         const targetStageId = targetTask.stage_id || targetTask.stage?.id;
+
+        // Restrict moving to "Request To Close" if not assigned user (same check as handleDrop)
+        const targetStage = stages.find(s => s.id === targetStageId);
+        if (targetStage && targetStage.name.toLowerCase() === 'request to close') {
+            const isAssignee = String(draggedTask.assigned_to) === String(user?.id);
+            if (!isAssignee) {
+                setIsDragging(false);
+                setDraggedTask(null);
+                toast({
+                    title: "Action Not Allowed",
+                    description: "Task creator cannot request to close. Only the assigned user can request to close.",
+                    variant: "destructive"
+                });
+                return;
+            }
+        }
 
         // Calculate new sort order
         // 1. Get all tasks in target stage
@@ -680,6 +758,7 @@ const TaskKanbanView = forwardRef(({
                 }
             `}</style>
             <div
+                ref={scrollContainerRef}
                 className="flex-1 w-full overflow-x-scroll overflow-y-hidden kanban-scroll-container min-h-0 pb-2"
                 style={{
                     scrollbarWidth: 'thin',
