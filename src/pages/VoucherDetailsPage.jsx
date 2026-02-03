@@ -2056,7 +2056,7 @@ const VoucherDetailsPage = () => {
                                     )}
 
                                     {/* Voucher Details Card */}
-                                    <Card className="w-full glass-pane border-none shadow-none bg-gray-800 text-white">
+                                    <Card className="w-full glass-pane border-none shadow-none text-white">
                                         <CardHeader className="p-4">
                                             <CardTitle className="text-lg">Voucher to {beneficiaryName}</CardTitle>
                                             <CardDescription className="text-xs">Created on {new Date(voucherDetails.created_date).toLocaleDateString()}</CardDescription>
@@ -2228,7 +2228,7 @@ const VoucherDetailsPage = () => {
                                     if (found) beneficiaryObj = found;
                                 }
                                 return (
-                                    <Card className="w-full glass-pane border-none shadow-none bg-gray-800 text-white">
+                                    <Card className="w-full glass-pane border-none shadow-none text-white">
                                         <CardHeader className="p-4">
                                             <CardTitle className="text-lg sm:text-xl">Beneficiary Details</CardTitle>
                                         </CardHeader>

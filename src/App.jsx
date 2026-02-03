@@ -42,6 +42,8 @@ const InvoiceDetailsPage = lazy(() => import('@/pages/InvoiceDetailsPage.jsx'));
 const VoucherDetailsPage = lazy(() => import('@/pages/VoucherDetailsPage.jsx'));
 const VoucherDetailsCAPage = lazy(() => import('@/pages/VoucherDetailsCA.jsx'));
 const BeneficiaryDetailsPage = lazy(() => import('@/pages/BeneficiaryDetailsPage.jsx'));
+const NoticesPage = lazy(() => import('@/pages/NoticesPage.jsx'));
+const NoticeDetailsPage = lazy(() => import('@/pages/NoticeDetailsPage.jsx'));
 const ComingSoon = lazy(() => import('./pages/ComingSoon.jsx'));
 const UpcomingTask = lazy(() => import('./pages/UpcomingTask.jsx'));
 const PublicDocumentView = lazy(() => import('./pages/PublicDocumentView.jsx'));
@@ -298,6 +300,8 @@ const ProtectedContent = () => {
               <Route path="/finance/vouchers/:voucherId" element={<VoucherDetailsPage />} />
               <Route path="/vouchers/ca/:voucherId" element={<VoucherDetailsCAPage />} />
               <Route path="/beneficiaries/:beneficiaryId" element={<BeneficiaryDetailsPage />} />
+              <Route path="/notices" element={<NoticesPage />} />
+              <Route path="/notices/:noticeId" element={<NoticeDetailsPage />} />
               <Route path="/coming-soon" element={<ComingSoon />} />
               <Route path="/upcoming/task" element={<UpcomingTask />} />
               <Route path="*" element={<Navigate to="/" replace />} />

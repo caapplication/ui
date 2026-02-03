@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
-import { Plus, Trash2, Loader2, RefreshCw, Eye, EyeOff, ToggleLeft, ToggleRight, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Trash2, Loader2, RefreshCw, Eye, EyeOff, ToggleLeft, ToggleRight, ChevronLeft, ChevronRight, FilePen } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -19,6 +19,7 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction,
   const [bankAccounts, setBankAccounts] = useState(organisationBankAccounts || []);
   const [isLoading, setIsLoading] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showToggleActiveDialog, setShowToggleActiveDialog] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState(null);
@@ -78,6 +79,27 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction,
       toast({
         title: "Error",
         description: `Failed to add bank account: ${error.message}`,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEditAccount = async (e) => {
+    e.preventDefault();
+    if (!selectedAccount) return;
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData.entries());
+    const finalData = { ...data, account_type: newAccountType };
+
+    try {
+      await updateOrganisationBankAccount(selectedAccount.id, finalData, user.access_token);
+      toast({ title: "Success", description: "Bank account updated successfully." });
+      setShowEditDialog(false);
+      fetchBankAccounts();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: `Failed to update bank account: ${error.message}`,
         variant: "destructive",
       });
     }
@@ -193,6 +215,13 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction,
                         <div className="flex items-center justify-end gap-1 sm:gap-2">
                           <Button size="icon" variant="ghost" onClick={() => {
                             setSelectedAccount(account);
+                            setNewAccountType(account.account_type);
+                            setShowEditDialog(true);
+                          }} className="h-7 w-7 sm:h-8 sm:w-8">
+                            <FilePen className="w-4 h-4 sm:w-6 sm:h-6 text-sky-400" />
+                          </Button>
+                          <Button size="icon" variant="ghost" onClick={() => {
+                            setSelectedAccount(account);
                             setShowToggleActiveDialog(true);
                           }} className="h-7 w-7 sm:h-8 sm:w-8">
                             {account.is_active ? <ToggleRight className="w-4 h-4 sm:w-6 sm:h-6 text-green-400" /> : <ToggleLeft className="w-4 h-4 sm:w-6 sm:h-6 text-gray-400" />}
@@ -239,7 +268,7 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction,
           </Button>
         </div>
       </CardFooter>
-    </Card>
+    </Card >
   );
 
   return (
@@ -320,6 +349,56 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction,
             <DialogFooter>
               <DialogClose asChild><Button variant="ghost" className="h-9 sm:h-10 text-sm sm:text-base">Cancel</Button></DialogClose>
               <Button type="submit" className="h-9 sm:h-10 text-sm sm:text-base"><Plus className="w-4 h-4 mr-2" />Add Account</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="max-w-lg w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-lg sm:text-xl">Edit Bank Account</DialogTitle>
+            <DialogDescription className="text-sm">Entity: <span className="font-semibold text-sky-400">{entityName}</span></DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleEditAccount} className="space-y-4 pt-4">
+            <div>
+              <Label htmlFor="edit_bank_name" className="text-sm sm:text-base">Bank Name</Label>
+              <Input id="edit_bank_name" name="bank_name" defaultValue={selectedAccount?.bank_name} required className="h-9 sm:h-10 text-sm" />
+            </div>
+            <div>
+              <Label htmlFor="edit_account_number" className="text-sm sm:text-base">Account Number</Label>
+              <Input id="edit_account_number" name="account_number" defaultValue={selectedAccount?.account_number} required className="h-9 sm:h-10 text-sm" />
+            </div>
+            <div>
+              <Label htmlFor="edit_ifsc_code" className="text-sm sm:text-base">IFSC Code</Label>
+              <Input id="edit_ifsc_code" name="ifsc_code" defaultValue={selectedAccount?.ifsc_code} required className="h-9 sm:h-10 text-sm" />
+            </div>
+            <div>
+              <Label htmlFor="edit_branch_name" className="text-sm sm:text-base">Branch Name</Label>
+              <Input id="edit_branch_name" name="branch_name" defaultValue={selectedAccount?.branch_name} required className="h-9 sm:h-10 text-sm" />
+            </div>
+            <div>
+              <Label htmlFor="edit_account_type" className="text-sm sm:text-base">Account Type</Label>
+              <Select onValueChange={setNewAccountType} value={newAccountType} required>
+                <SelectTrigger className="h-9 sm:h-10 text-sm">
+                  <SelectValue placeholder="Select an account type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Savings Account">Savings Account</SelectItem>
+                  <SelectItem value="Recurring Deposit Account">Recurring Deposit Account</SelectItem>
+                  <SelectItem value="Current Account">Current Account</SelectItem>
+                  <SelectItem value="Fixed Deposit Account">Fixed Deposit Account</SelectItem>
+                  <SelectItem value="NRI Account">NRI Account</SelectItem>
+                  <SelectItem value="DEMAT Account">DEMAT Account</SelectItem>
+                  <SelectItem value="Senior Citizens' Account">Senior Citizens' Account</SelectItem>
+                  <SelectItem value="Salary Account">Salary Account</SelectItem>
+                  <SelectItem value="Credit Cash">Credit Cash</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <DialogFooter>
+              <DialogClose asChild><Button variant="ghost" className="h-9 sm:h-10 text-sm sm:text-base">Cancel</Button></DialogClose>
+              <Button type="submit" className="h-9 sm:h-10 text-sm sm:text-base">Save Changes</Button>
             </DialogFooter>
           </form>
         </DialogContent>

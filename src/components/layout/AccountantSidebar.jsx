@@ -14,6 +14,7 @@ import {
   PanelLeftOpen,
   ListTodo,
   ListChecks,
+  Bell,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { Button } from '@/components/ui/button';
@@ -33,6 +34,7 @@ const AccountantSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) =
     { id: 'team-members', path: '/team-members', label: 'Team Members', icon: UserPlus },
     { id: 'tasks', path: '/tasks', label: 'Tasks', icon: ListTodo },
     { id: 'documents', path: '/documents', label: 'Documents', icon: FileText },
+    { id: 'notices', path: '/notices', label: 'Notices', icon: Bell },
     { id: 'services', path: '/services', label: 'Services', icon: Briefcase },
     { id: 'settings', path: '/settings', label: 'Settings', icon: Settings },
   ];
