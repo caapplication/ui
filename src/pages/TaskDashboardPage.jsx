@@ -601,6 +601,32 @@ const TaskDashboardPage = () => {
 
                     return updatedComments;
                 });
+
+                // Immediately mark as read since we are viewing the chat
+                if (user?.access_token) {
+                    // Use a small timeout or just fire and forget
+                    // We need to define markCommentAsRead function or use fetch directly
+                    // Importing api function would be better but for now modifying inside callback
+                    // We'll use a direct fetch to the new endpoint
+
+                    const markRead = async () => {
+                        try {
+                            const agencyId = user?.agency_id;
+                            const baseUrl = import.meta.env.VITE_TASK_API_URL;
+                            await fetch(`${baseUrl}/tasks/${taskId}/comments/${newComment.id}/read`, {
+                                method: 'POST',
+                                headers: {
+                                    'Authorization': `Bearer ${user.access_token}`,
+                                    'x-agency-id': agencyId,
+                                    'Content-Type': 'application/json'
+                                }
+                            });
+                        } catch (err) {
+                            console.error("Failed to mark new comment as read", err);
+                        }
+                    };
+                    markRead();
+                }
             }
         };
 
@@ -678,7 +704,7 @@ const TaskDashboardPage = () => {
             setIsAddingSubtask(false);
         }
     };
-
+    
     const handleToggleSubtask = async (subtaskId, completed) => {
         // Optimistically update the UI first
         if (task && task.subtasks) {
@@ -709,7 +735,7 @@ const TaskDashboardPage = () => {
             toast({ title: "Error updating subtask", description: error.message, variant: "destructive" });
         }
     };
-
+    
     const handleDeleteSubtask = async (subtaskId) => {
         // Optimistically remove from UI
         let deletedSubtask = null;
