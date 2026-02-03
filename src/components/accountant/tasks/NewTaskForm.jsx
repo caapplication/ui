@@ -264,9 +264,13 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
       }));
     } else if (selectedOrg) {
       // Auto-select client if we are in a client context
-      setFormData(prev => ({ ...prev, client_id: selectedOrg }));
+      // Validate if selectedOrg exists in clients list to avoid phantom client selection
+      const clientExists = clients && clients.some(c => String(c.id) === String(selectedOrg));
+      if (clientExists) {
+        setFormData(prev => ({ ...prev, client_id: selectedOrg }));
+      }
     }
-  }, [task, selectedOrg, isRecurringOnly, fixedServiceId]);
+  }, [task, selectedOrg, isRecurringOnly, fixedServiceId, clients]);
 
   // =========================
   // Simple handlers
