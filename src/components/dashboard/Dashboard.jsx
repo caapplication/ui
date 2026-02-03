@@ -642,7 +642,7 @@ const Dashboard = ({
                                                             className="col-span-6 text-white truncate pr-2"
                                                             title={transaction.remarks}
                                                         >
-                                                            {transaction.beneficiary_name || transaction.beneficiary?.name}
+                                                            {transaction.beneficiary_name || transaction.beneficiary?.name || transaction.beneficiary?.company_name}
                                                             {transaction.remarks && <div className=" text-xs text-gray-400 italic">  {transaction.remarks}</div>}
                                                             {/* <div className="text-xs text-gray-400 italic">  {transaction.date}</div> */}
                                                         </div>
@@ -738,7 +738,7 @@ const Dashboard = ({
                                                         onClick={() =>
                                                             navigate(`/finance/vouchers/${transaction.id}`)
                                                         }
-                                                        name={transaction.beneficiary?.name}
+                                                        name={transaction.beneficiary?.name || transaction.beneficiary?.company_name}
                                                     />
                                                 ))
                                             ) : (
