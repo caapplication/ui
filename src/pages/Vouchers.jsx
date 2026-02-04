@@ -270,48 +270,13 @@ const Vouchers = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
     }));
   }, [vouchers]);
 
-  const [viewMode, setViewMode] = useState('active');
-
-  const filteredVouchers = useMemo(() => {
-    return enrichedVouchers.filter(v => {
-      if (viewMode === 'active') {
-        return v.status !== 'verified';
-      } else {
-        return v.status === 'verified';
-      }
-    });
-  }, [enrichedVouchers, viewMode]);
-
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-      {/* <div className="flex justify-end mb-4">
-        <div className="bg-white/10 p-1 rounded-lg inline-flex">
-          <button
-            onClick={() => setViewMode('active')}
-            className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${viewMode === 'active'
-              ? 'bg-blue-600 text-white shadow-lg'
-              : 'text-gray-400 hover:text-white hover:bg-white/5'
-              }`}
-          >
-            Active
-          </button>
-          <button
-            onClick={() => setViewMode('history')}
-            className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${viewMode === 'history'
-              ? 'bg-blue-600 text-white shadow-lg'
-              : 'text-gray-400 hover:text-white hover:bg-white/5'
-              }`}
-          >
-            History
-          </button>
-        </div>
-      </div> */}
-
       {isLoading ? (
         <VoucherHistorySkeleton />
       ) : (
         <VoucherHistory
-          vouchers={filteredVouchers}
+          vouchers={enrichedVouchers}
           onDeleteVoucher={() => toast({ title: "Note", description: "Deletion from this view is not supported." })}
           onViewVoucher={handleViewVoucher}
           onRefresh={onRefresh} // Pass down the refresh handler from the parent
