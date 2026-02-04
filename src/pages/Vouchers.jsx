@@ -284,7 +284,7 @@ const Vouchers = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-      <div className="flex justify-end mb-4">
+      {/* <div className="flex justify-end mb-4">
         <div className="bg-white/10 p-1 rounded-lg inline-flex">
           <button
             onClick={() => setViewMode('active')}
@@ -305,7 +305,7 @@ const Vouchers = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
             History
           </button>
         </div>
-      </div>
+      </div> */}
 
       {isLoading ? (
         <VoucherHistorySkeleton />
