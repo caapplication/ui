@@ -1548,44 +1548,7 @@ const VoucherDetailsCA = () => {
                                         </form>
                                     ) : (
                                         <>
-                                            {/* Status Card */}
-                                            <Card className="w-full glass-pane border-none shadow-none bg-gray-800 text-white mb-4">
-                                                <CardContent className="p-6">
-                                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm font-medium ${getStatusColor(voucherDetails.status)}`}>
-                                                                {voucherDetails.status === 'approved' && <CheckCircle className="h-4 w-4" />}
-                                                                {voucherDetails.status === 'rejected' && <XCircle className="h-4 w-4" />}
-                                                                {(!voucherDetails.status || voucherDetails.status === 'created') && <AlertCircle className="h-4 w-4" />}
-                                                                {formatStatus(voucherDetails.status)}
-                                                            </div>
-                                                            {voucherDetails.created_date && (
-                                                                <span className="text-sm text-gray-400">
-                                                                    {new Date(voucherDetails.created_date).toLocaleDateString()}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                        <div className="flex gap-2">
-                                                            {voucherDetails.status !== 'approved' && (
-                                                                <Button onClick={() => handleStatusUpdate('approved')} disabled={isStatusUpdating} className="bg-green-600 hover:bg-green-700 text-white border-none" size="sm">
-                                                                    {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />} Approve
-                                                                </Button>
-                                                            )}
-                                                            {voucherDetails.status !== 'rejected' && (
-                                                                <Button onClick={() => setShowRejectDialog(true)} disabled={isStatusUpdating} className="bg-red-600 hover:bg-red-700 text-white border-none" size="sm">
-                                                                    {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />} Reject
-                                                                </Button>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                    {voucherDetails.status === 'rejected' && voucherDetails.status_remarks && (
-                                                        <div className="mt-4 p-3 rounded-md bg-red-500/10 border border-red-500/20">
-                                                            <Label className="text-red-400 text-xs uppercase font-bold mb-1 block">Rejection Remarks</Label>
-                                                            <p className="text-sm text-white">{voucherDetails.status_remarks}</p>
-                                                        </div>
-                                                    )}
-                                                </CardContent>
-                                            </Card>
+
 
                                             <Card ref={voucherDetailsRef} className="w-full glass-pane border-none shadow-none bg-gray-800 text-white relative z-20">
                                                 <div ref={voucherDetailsPDFRef} className="w-full">
@@ -1709,20 +1672,6 @@ const VoucherDetailsCA = () => {
                                                                     <Tooltip>
                                                                         <TooltipTrigger asChild>
                                                                             <Button
-                                                                                variant="destructive"
-                                                                                size="icon"
-                                                                                onClick={() => setShowDeleteDialog(true)}
-                                                                            >
-                                                                                <Trash2 className="h-4 w-4" />
-                                                                            </Button>
-                                                                        </TooltipTrigger>
-                                                                        <TooltipContent>
-                                                                            <p>Delete</p>
-                                                                        </TooltipContent>
-                                                                    </Tooltip>
-                                                                    <Tooltip>
-                                                                        <TooltipTrigger asChild>
-                                                                            <Button
                                                                                 variant="outline"
                                                                                 size="icon"
                                                                                 onClick={handleExportToPDF}
@@ -1738,28 +1687,25 @@ const VoucherDetailsCA = () => {
                                                                             <p>Export</p>
                                                                         </TooltipContent>
                                                                     </Tooltip>
-                                                                    <Tooltip>
-                                                                        <TooltipTrigger asChild>
-                                                                            <Button variant="outline" size="icon" onClick={() => setIsEditing(!isEditing)}>
-                                                                                <Edit className="h-4 w-4" />
-                                                                            </Button>
-                                                                        </TooltipTrigger>
-                                                                        <TooltipContent>
-                                                                            <p>Edit</p>
-                                                                        </TooltipContent>
-                                                                    </Tooltip>
                                                                 </TooltipProvider>
                                                                 {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
-                                                                    <Button onClick={() => {
-                                                                        updateCAVoucher(voucherId, { is_ready: true, finance_header_id: editedVoucher.finance_header_id }, user.access_token)
-                                                                            .then(() => {
-                                                                                toast({ title: 'Success', description: 'Voucher tagged successfully.' });
-                                                                                navigate('/finance/ca');
-                                                                            })
-                                                                            .catch(err => {
-                                                                                toast({ title: 'Error', description: `Failed to tag voucher: ${err.message}`, variant: 'destructive' });
-                                                                            });
-                                                                    }}>Tag</Button>
+                                                                    <>
+                                                                        {voucherDetails.status !== 'rejected' && (
+                                                                            <Button onClick={() => setShowRejectDialog(true)} disabled={isStatusUpdating} variant="destructive" size="icon">
+                                                                                {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
+                                                                            </Button>
+                                                                        )}
+                                                                        <Button onClick={() => {
+                                                                            updateCAVoucher(voucherId, { is_ready: true, finance_header_id: editedVoucher.finance_header_id }, user.access_token)
+                                                                                .then(() => {
+                                                                                    toast({ title: 'Success', description: 'Voucher tagged successfully.' });
+                                                                                    navigate('/finance/ca');
+                                                                                })
+                                                                                .catch(err => {
+                                                                                    toast({ title: 'Error', description: `Failed to tag voucher: ${err.message}`, variant: 'destructive' });
+                                                                                });
+                                                                        }}>Tag</Button>
+                                                                    </>
                                                                 )}
                                                             </div>
                                                         </div>
@@ -1806,45 +1752,14 @@ const VoucherDetailsCA = () => {
                             </Tabs>
                         </div>
                     </div>
-                </ResizablePanel>
-            </ResizablePanelGroup>
+                </ResizablePanel >
+            </ResizablePanelGroup >
 
             {/* Fixed navigation buttons at bottom corners - aligned on same line */}
-            {hasVouchers && (
-                <>
-                    {/* Previous button at bottom left (after sidebar) */}
-                    <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleNavigate(1);
-                        }}
-                        disabled={currentIndex === voucherList.length - 1}
-                        className="hidden md:flex fixed bottom-4 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg z-[50]"
-                        style={{
-                            left: sidebarWidth <= 150 ? `${sidebarWidth + 16}px` : '20rem' // Dynamic positioning when collapsed (sidebar width + 16px margin), left-80 (20rem) when expanded
-                        }}
-                    >
-                        <ChevronLeft className="h-5 w-5" />
-                    </Button>
-                    {/* Next button at bottom right corner */}
-                    <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleNavigate(-1);
-                        }}
-                        disabled={currentIndex === 0 || currentIndex === -1}
-                        className="hidden md:flex fixed bottom-4 right-4 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg z-[50]"
-                    >
-                        <ChevronRight className="h-5 w-5" />
-                    </Button>
-                    {/* Mobile navigation buttons */}
-                    <div className="flex md:hidden fixed bottom-4 left-4 right-4 justify-between z-[50] gap-2 pointer-events-none">
+            {
+                hasVouchers && (
+                    <>
+                        {/* Previous button at bottom left (after sidebar) */}
                         <Button
                             variant="outline"
                             size="icon"
@@ -1854,10 +1769,14 @@ const VoucherDetailsCA = () => {
                                 handleNavigate(1);
                             }}
                             disabled={currentIndex === voucherList.length - 1}
-                            className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg flex-1 pointer-events-auto"
+                            className="hidden md:flex fixed bottom-4 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg z-[50]"
+                            style={{
+                                left: sidebarWidth <= 150 ? `${sidebarWidth + 16}px` : '20rem' // Dynamic positioning when collapsed (sidebar width + 16px margin), left-80 (20rem) when expanded
+                            }}
                         >
-                            <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
+                            <ChevronLeft className="h-5 w-5" />
                         </Button>
+                        {/* Next button at bottom right corner */}
                         <Button
                             variant="outline"
                             size="icon"
@@ -1867,13 +1786,42 @@ const VoucherDetailsCA = () => {
                                 handleNavigate(-1);
                             }}
                             disabled={currentIndex === 0 || currentIndex === -1}
-                            className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg flex-1 pointer-events-auto"
+                            className="hidden md:flex fixed bottom-4 right-4 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg z-[50]"
                         >
-                            <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
+                            <ChevronRight className="h-5 w-5" />
                         </Button>
-                    </div>
-                </>
-            )}
+                        {/* Mobile navigation buttons */}
+                        <div className="flex md:hidden fixed bottom-4 left-4 right-4 justify-between z-[50] gap-2 pointer-events-none">
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleNavigate(1);
+                                }}
+                                disabled={currentIndex === voucherList.length - 1}
+                                className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg flex-1 pointer-events-auto"
+                            >
+                                <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleNavigate(-1);
+                                }}
+                                disabled={currentIndex === 0 || currentIndex === -1}
+                                className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg flex-1 pointer-events-auto"
+                            >
+                                <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
+                            </Button>
+                        </div>
+                    </>
+                )
+            }
 
             <Dialog open={showDeleteDialog} onOpenChange={isDeleting ? undefined : setShowDeleteDialog}>
                 <DialogContent>
@@ -1938,7 +1886,7 @@ const VoucherDetailsCA = () => {
                 </DialogContent>
             </Dialog>
 
-        </div>
+        </div >
     );
 };
 
