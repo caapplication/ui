@@ -216,7 +216,7 @@ const VoucherDetailsPage = () => {
     const { user, loading: authLoading } = useAuth();
     const { toast } = useToast();
     const cache = useApiCache();
-    const { voucher: initialVoucher, vouchers, startInEditMode, organizationName, entityName, organisationId } = location.state || {};
+    const { voucher: initialVoucher, vouchers, startInEditMode, organizationName, entityName, organisationId, isReadOnly } = location.state || {};
     const [voucher, setVoucher] = useState(initialVoucher);
     const [currentIndex, setCurrentIndex] = useState(vouchers ? vouchers.findIndex(v => v.id === initialVoucher.id) : -1);
     const voucherDetailsRef = useRef(null);
@@ -1713,21 +1713,23 @@ const VoucherDetailsPage = () => {
                                                                 </>
                                                             )}
                                                             <TooltipProvider>
-                                                                <Tooltip>
-                                                                    <TooltipTrigger asChild>
-                                                                        <Button
-                                                                            variant="destructive"
-                                                                            size="icon"
-                                                                            onClick={() => setShowDeleteDialog(true)}
-                                                                            className="h-9 w-9 sm:h-10 sm:w-10"
-                                                                        >
-                                                                            <Trash2 className="h-4 w-4" />
-                                                                        </Button>
-                                                                    </TooltipTrigger>
-                                                                    <TooltipContent>
-                                                                        <p>Delete</p>
-                                                                    </TooltipContent>
-                                                                </Tooltip>
+                                                                {!isReadOnly && (
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger asChild>
+                                                                            <Button
+                                                                                variant="destructive"
+                                                                                size="icon"
+                                                                                onClick={() => setShowDeleteDialog(true)}
+                                                                                className="h-9 w-9 sm:h-10 sm:w-10"
+                                                                            >
+                                                                                <Trash2 className="h-4 w-4" />
+                                                                            </Button>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent>
+                                                                            <p>Delete</p>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                )}
                                                                 <Tooltip>
                                                                     <TooltipTrigger asChild>
                                                                         <Button
@@ -1747,21 +1749,23 @@ const VoucherDetailsPage = () => {
                                                                         <p>Export</p>
                                                                     </TooltipContent>
                                                                 </Tooltip>
-                                                                <Tooltip>
-                                                                    <TooltipTrigger asChild>
-                                                                        <Button
-                                                                            variant="outline"
-                                                                            size="icon"
-                                                                            onClick={() => setIsEditing(!isEditing)}
-                                                                            className="h-9 w-9 sm:h-10 sm:w-10"
-                                                                        >
-                                                                            <Edit className="h-4 w-4" />
-                                                                        </Button>
-                                                                    </TooltipTrigger>
-                                                                    <TooltipContent>
-                                                                        <p>Edit</p>
-                                                                    </TooltipContent>
-                                                                </Tooltip>
+                                                                {!isReadOnly && (
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger asChild>
+                                                                            <Button
+                                                                                variant="outline"
+                                                                                size="icon"
+                                                                                onClick={() => setIsEditing(!isEditing)}
+                                                                                className="h-9 w-9 sm:h-10 sm:w-10"
+                                                                            >
+                                                                                <Edit className="h-4 w-4" />
+                                                                            </Button>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent>
+                                                                            <p>Edit</p>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                )}
                                                             </TooltipProvider>
                                                         </div>
                                                     </div>
@@ -2168,21 +2172,23 @@ const VoucherDetailsPage = () => {
                                         {/* Left Side: Icon Actions (Delete, Export, Edit) */}
                                         <div className="flex items-center gap-2">
                                             <TooltipProvider>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button
-                                                            variant="destructive"
-                                                            size="icon"
-                                                            onClick={(e) => { e.stopPropagation(); setShowDeleteDialog(true); }}
-                                                            className="h-9 w-9"
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>
-                                                        <p>Delete</p>
-                                                    </TooltipContent>
-                                                </Tooltip>
+                                                {!isReadOnly && (
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button
+                                                                variant="destructive"
+                                                                size="icon"
+                                                                onClick={(e) => { e.stopPropagation(); setShowDeleteDialog(true); }}
+                                                                className="h-9 w-9"
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p>Delete</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                )}
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
                                                         <Button
@@ -2202,21 +2208,23 @@ const VoucherDetailsPage = () => {
                                                         <p>Export</p>
                                                     </TooltipContent>
                                                 </Tooltip>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button
-                                                            variant="outline"
-                                                            size="icon"
-                                                            onClick={(e) => { e.stopPropagation(); setIsEditing(!isEditing); }}
-                                                            className="h-9 w-9"
-                                                        >
-                                                            <Edit className="h-4 w-4" />
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>
-                                                        <p>Edit</p>
-                                                    </TooltipContent>
-                                                </Tooltip>
+                                                {!isReadOnly && (
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="icon"
+                                                                onClick={(e) => { e.stopPropagation(); setIsEditing(!isEditing); }}
+                                                                className="h-9 w-9"
+                                                            >
+                                                                <Edit className="h-4 w-4" />
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p>Edit</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                )}
                                             </TooltipProvider>
                                         </div>
 

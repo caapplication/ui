@@ -110,7 +110,7 @@ const VoucherDetailsCA = () => {
     const { organisationId, selectedEntity, entities, loading: orgLoading } = useOrganisation();
     const { toast } = useToast();
     const cache = useApiCache();
-    const { voucher: initialVoucher, vouchers, startInEditMode, organizationName, entityName } = location.state || {};
+    const { voucher: initialVoucher, vouchers, startInEditMode, organizationName, entityName, isReadOnly } = location.state || {};
     const [voucher, setVoucher] = useState(initialVoucher);
     const [voucherList, setVoucherList] = useState(vouchers || []);
     const [currentIndex, setCurrentIndex] = useState(-1);
@@ -1704,21 +1704,23 @@ const VoucherDetailsCA = () => {
                                                                 </TooltipProvider>
                                                                 {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
                                                                     <>
-                                                                        {voucherDetails.status !== 'rejected' && (
+                                                                        {voucherDetails.status !== 'rejected' && !isReadOnly && (
                                                                             <Button onClick={() => setShowRejectDialog(true)} disabled={isStatusUpdating} variant="destructive" size="icon">
                                                                                 {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
                                                                             </Button>
                                                                         )}
-                                                                        <Button onClick={() => {
-                                                                            updateCAVoucher(voucherId, { is_ready: true, finance_header_id: editedVoucher.finance_header_id }, user.access_token)
-                                                                                .then(() => {
-                                                                                    toast({ title: 'Success', description: 'Voucher tagged successfully.' });
-                                                                                    navigate('/finance/ca');
-                                                                                })
-                                                                                .catch(err => {
-                                                                                    toast({ title: 'Error', description: `Failed to tag voucher: ${err.message}`, variant: 'destructive' });
-                                                                                });
-                                                                        }}>Tag</Button>
+                                                                        {!isReadOnly && (
+                                                                            <Button onClick={() => {
+                                                                                updateCAVoucher(voucherId, { is_ready: true, finance_header_id: editedVoucher.finance_header_id, status: 'verified' }, user.access_token)
+                                                                                    .then(() => {
+                                                                                        toast({ title: 'Success', description: 'Voucher tagged and verified successfully.' });
+                                                                                        navigate('/finance/ca');
+                                                                                    })
+                                                                                    .catch(err => {
+                                                                                        toast({ title: 'Error', description: `Failed to tag voucher: ${err.message}`, variant: 'destructive' });
+                                                                                    });
+                                                                            }}>Tag</Button>
+                                                                        )}
                                                                     </>
                                                                 )}
                                                             </div>

@@ -59,14 +59,23 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
 
     const [readyLoadingId, setReadyLoadingId] = useState(null);
 
+    const [viewMode, setViewMode] = useState('active');
+
     const sortedAndFilteredVouchers = useMemo(() => {
         let sortableVouchers = [...(vouchers || [])];
         sortableVouchers.sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
-        const unexportedVouchers = sortableVouchers.filter(v => !v.is_exported);
-        // Filter out vouchers that have tags (finance_header_id is set)
-        const untaggedVouchers = unexportedVouchers.filter(v => !v.finance_header_id);
 
-        return untaggedVouchers.filter(v => {
+        // Filter based on View Mode (Active vs History)
+        let modeFilteredVouchers;
+        if (viewMode === 'active') {
+            // Active: Not exported AND Not tagged (finance_header_id)
+            modeFilteredVouchers = sortableVouchers.filter(v => !v.is_exported && !v.finance_header_id);
+        } else {
+            // History: Exported OR Tagged (finance_header_id)
+            modeFilteredVouchers = sortableVouchers.filter(v => v.is_exported || v.finance_header_id);
+        }
+
+        return modeFilteredVouchers.filter(v => {
             let match = true;
             for (const filter of activeFilters) {
                 if (filter === 'beneficiary') {
@@ -103,7 +112,7 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
             }
             return match;
         });
-    }, [vouchers, activeFilters, filterValues]);
+    }, [vouchers, activeFilters, filterValues, viewMode]);
 
     const totalPages = Math.ceil(sortedAndFilteredVouchers.length / ITEMS_PER_PAGE);
     const paginatedVouchers = sortedAndFilteredVouchers.slice(
@@ -133,109 +142,132 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
         <Card className="glass-card mt-4">
             <CardHeader className="p-4 sm:p-6">
                 <div className="flex flex-col gap-4">
-                    <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-                        <Select
-                            value=""
-                            onValueChange={filter => {
-                                if (!activeFilters.includes(filter)) {
-                                    setActiveFilters([...activeFilters, filter]);
-                                }
-                            }}
-                        >
-                            <SelectTrigger className="w-full sm:w-[180px] text-sm sm:text-base">
-                                <SelectValue placeholder="Add Filter" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {!activeFilters.includes('beneficiary') && <SelectItem value="beneficiary">Beneficiary Name</SelectItem>}
-                                {!activeFilters.includes('voucher_id') && <SelectItem value="voucher_id">Voucher ID</SelectItem>}
-                                {!activeFilters.includes('type') && <SelectItem value="type">Type</SelectItem>}
-                                {!activeFilters.includes('date') && <SelectItem value="date">Date</SelectItem>}
-                                {!activeFilters.includes('remarks') && <SelectItem value="remarks">Remarks</SelectItem>}
-                            </SelectContent>
-                        </Select>
-                        {activeFilters.map(filter => (
-                            <div key={filter} className="flex items-center gap-2 flex-wrap">
-                                {filter === 'beneficiary' && (
-                                    <Input
-                                        placeholder="Search by beneficiary..."
-                                        value={filterValues.beneficiary || ''}
-                                        onChange={e => setFilterValues(fv => ({ ...fv, beneficiary: e.target.value }))}
-                                        className="w-full sm:max-w-xs text-sm sm:text-base"
-                                    />
-                                )}
-                                {filter === 'voucher_id' && (
-                                    <Input
-                                        placeholder="Search by voucher ID..."
-                                        value={filterValues.voucher_id || ''}
-                                        onChange={e => setFilterValues(fv => ({ ...fv, voucher_id: e.target.value }))}
-                                        className="w-full sm:max-w-xs text-sm sm:text-base"
-                                    />
-                                )}
-                                {filter === 'type' && (
-                                    <Select
-                                        value={filterValues.type || 'all'}
-                                        onValueChange={val => setFilterValues(fv => ({ ...fv, type: val }))}
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-4 justify-between w-full">
+                        <div className="bg-secondary/20 p-1 rounded-lg inline-flex">
+                            <button
+                                onClick={() => setViewMode('active')}
+                                className={`px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-all ${viewMode === 'active'
+                                    ? 'bg-primary text-primary-foreground shadow-sm'
+                                    : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40'
+                                    }`}
+                            >
+                                Active
+                            </button>
+                            <button
+                                onClick={() => setViewMode('history')}
+                                className={`px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-all ${viewMode === 'history'
+                                    ? 'bg-primary text-primary-foreground shadow-sm'
+                                    : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40'
+                                    }`}
+                            >
+                                History
+                            </button>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-4 flex-1 justify-end">
+                            <Select
+                                value=""
+                                onValueChange={filter => {
+                                    if (!activeFilters.includes(filter)) {
+                                        setActiveFilters([...activeFilters, filter]);
+                                    }
+                                }}
+                            >
+                                <SelectTrigger className="w-full sm:w-[180px] text-sm sm:text-base">
+                                    <SelectValue placeholder="Add Filter" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {!activeFilters.includes('beneficiary') && <SelectItem value="beneficiary">Beneficiary Name</SelectItem>}
+                                    {!activeFilters.includes('voucher_id') && <SelectItem value="voucher_id">Voucher ID</SelectItem>}
+                                    {!activeFilters.includes('type') && <SelectItem value="type">Type</SelectItem>}
+                                    {!activeFilters.includes('date') && <SelectItem value="date">Date</SelectItem>}
+                                    {!activeFilters.includes('remarks') && <SelectItem value="remarks">Remarks</SelectItem>}
+                                </SelectContent>
+                            </Select>
+                            {activeFilters.map(filter => (
+                                <div key={filter} className="flex items-center gap-2 flex-wrap">
+                                    {filter === 'beneficiary' && (
+                                        <Input
+                                            placeholder="Search by beneficiary..."
+                                            value={filterValues.beneficiary || ''}
+                                            onChange={e => setFilterValues(fv => ({ ...fv, beneficiary: e.target.value }))}
+                                            className="w-full sm:max-w-xs text-sm sm:text-base"
+                                        />
+                                    )}
+                                    {filter === 'voucher_id' && (
+                                        <Input
+                                            placeholder="Search by voucher ID..."
+                                            value={filterValues.voucher_id || ''}
+                                            onChange={e => setFilterValues(fv => ({ ...fv, voucher_id: e.target.value }))}
+                                            className="w-full sm:max-w-xs text-sm sm:text-base"
+                                        />
+                                    )}
+                                    {filter === 'type' && (
+                                        <Select
+                                            value={filterValues.type || 'all'}
+                                            onValueChange={val => setFilterValues(fv => ({ ...fv, type: val }))}
+                                        >
+                                            <SelectTrigger className="w-full sm:w-[180px] text-sm sm:text-base">
+                                                <SelectValue placeholder="All Types" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">All Types</SelectItem>
+                                                <SelectItem value="debit">Debit</SelectItem>
+                                                <SelectItem value="cash">Cash</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    )}
+                                    {filter === 'date' && (
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <Input
+                                                type="date"
+                                                value={filterValues.dateFrom || ''}
+                                                onChange={e => setFilterValues(fv => ({ ...fv, dateFrom: e.target.value }))}
+                                                className="w-full sm:max-w-xs text-sm sm:text-base"
+                                                placeholder="From"
+                                            />
+                                            <span className="text-gray-400 text-sm">to</span>
+                                            <Input
+                                                type="date"
+                                                value={filterValues.dateTo || ''}
+                                                onChange={e => setFilterValues(fv => ({ ...fv, dateTo: e.target.value }))}
+                                                className="w-full sm:max-w-xs text-sm sm:text-base"
+                                                placeholder="To"
+                                            />
+                                        </div>
+                                    )}
+                                    {filter === 'remarks' && (
+                                        <Input
+                                            placeholder="Search by remarks..."
+                                            value={filterValues.remarks || ''}
+                                            onChange={e => setFilterValues(fv => ({ ...fv, remarks: e.target.value }))}
+                                            className="w-full sm:max-w-xs text-sm sm:text-base"
+                                        />
+                                    )}
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => {
+                                            setActiveFilters(activeFilters.filter(f => f !== filter));
+                                            setFilterValues(fv => {
+                                                const newFv = { ...fv };
+                                                if (filter === 'date') {
+                                                    delete newFv.dateFrom;
+                                                    delete newFv.dateTo;
+                                                } else {
+                                                    delete newFv[filter];
+                                                }
+                                                return newFv;
+                                            });
+                                        }}
+                                        title="Remove filter"
+                                        className="h-8 w-8 sm:h-10 sm:w-10"
                                     >
-                                        <SelectTrigger className="w-full sm:w-[180px] text-sm sm:text-base">
-                                            <SelectValue placeholder="All Types" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">All Types</SelectItem>
-                                            <SelectItem value="debit">Debit</SelectItem>
-                                            <SelectItem value="cash">Cash</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                )}
-                                {filter === 'date' && (
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                        <Input
-                                            type="date"
-                                            value={filterValues.dateFrom || ''}
-                                            onChange={e => setFilterValues(fv => ({ ...fv, dateFrom: e.target.value }))}
-                                            className="w-full sm:max-w-xs text-sm sm:text-base"
-                                            placeholder="From"
-                                        />
-                                        <span className="text-gray-400 text-sm">to</span>
-                                        <Input
-                                            type="date"
-                                            value={filterValues.dateTo || ''}
-                                            onChange={e => setFilterValues(fv => ({ ...fv, dateTo: e.target.value }))}
-                                            className="w-full sm:max-w-xs text-sm sm:text-base"
-                                            placeholder="To"
-                                        />
-                                    </div>
-                                )}
-                                {filter === 'remarks' && (
-                                    <Input
-                                        placeholder="Search by remarks..."
-                                        value={filterValues.remarks || ''}
-                                        onChange={e => setFilterValues(fv => ({ ...fv, remarks: e.target.value }))}
-                                        className="w-full sm:max-w-xs text-sm sm:text-base"
-                                    />
-                                )}
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => {
-                                        setActiveFilters(activeFilters.filter(f => f !== filter));
-                                        setFilterValues(fv => {
-                                            const newFv = { ...fv };
-                                            if (filter === 'date') {
-                                                delete newFv.dateFrom;
-                                                delete newFv.dateTo;
-                                            } else {
-                                                delete newFv[filter];
-                                            }
-                                            return newFv;
-                                        });
-                                    }}
-                                    title="Remove filter"
-                                    className="h-8 w-8 sm:h-10 sm:w-10"
-                                >
-                                    ×
-                                </Button>
-                            </div>
-                        ))}
+                                        ×
+                                    </Button>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
             </CardHeader>
@@ -257,7 +289,7 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                             {paginatedVouchers.map(voucher => {
                                 const { date, time } = formatDate(voucher.created_date);
                                 return (
-                                    <TableRow key={voucher.id} onClick={() => onViewVoucher(voucher)} className={`transition-colors cursor-pointer ${voucher.is_ready ? 'bg-green-500/10' : ''}`}>
+                                    <TableRow key={voucher.id} onClick={() => onViewVoucher({ ...voucher, isReadOnly: viewMode === 'history' })} className={`transition-colors cursor-pointer ${voucher.is_ready ? 'bg-green-500/10' : ''}`}>
                                         <TableCell className="text-xs sm:text-sm">
                                             <div>{date}</div>
                                             <div className="text-xs text-gray-400">{time}</div>
@@ -272,10 +304,10 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                                         <TableCell className="text-xs sm:text-sm">₹{parseFloat(voucher.amount).toFixed(2)}</TableCell>
                                         <TableCell className="text-xs sm:text-sm">
                                             <span className={`px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-medium capitalize ${voucher.status === 'approved'
-                                                    ? 'bg-green-500/20 text-green-300'
-                                                    : voucher.status === 'rejected'
-                                                        ? 'bg-red-500/20 text-red-300'
-                                                        : 'bg-blue-500/20 text-blue-300'
+                                                ? 'bg-green-500/20 text-green-300'
+                                                : voucher.status === 'rejected'
+                                                    ? 'bg-red-500/20 text-red-300'
+                                                    : 'bg-blue-500/20 text-blue-300'
                                                 }`}>
                                                 {voucher.status || 'created'}
                                             </span>

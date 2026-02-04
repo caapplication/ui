@@ -365,7 +365,16 @@ const AccountantFinance = () => {
                   <VoucherHistory
                     vouchers={enrichedVouchers}
                     onDeleteVoucher={handleDeleteVoucherClick}
-                    onViewVoucher={(voucher) => console.log(voucher)}
+                    onViewVoucher={(voucher) => {
+                      console.log("Navigating to voucher:", voucher);
+                      navigate(`/vouchers/ca/${voucher.id}`, {
+                        state: {
+                          voucher: voucher,
+                          vouchers: enrichedVouchers,
+                          isReadOnly: voucher.isReadOnly // Passed from VoucherHistory
+                        }
+                      });
+                    }}
                     onEditVoucher={(voucher) => console.log(voucher)}
                     isAccountantView={true}
                   />
