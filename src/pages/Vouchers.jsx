@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { motion } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useToast } from '@/components/ui/use-toast';
-import { getCATeamVouchers, getCATeamVouchersBulk, listEntities } from '@/lib/api';
+import { getVouchersList, getCATeamVouchersBulk, listEntities } from '@/lib/api';
 import VoucherHistory from '@/components/finance/VoucherHistory';
 import { VoucherHistorySkeleton } from '@/components/finance/VoucherHistorySkeleton';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -82,7 +82,7 @@ const Vouchers = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
     // OPTIMIZATION: Check cache first and show immediately, then refresh in background
     if (entityToFetch !== 'all') {
       const cacheKey = { entityId: entityToFetch, token: user.access_token };
-      const cached = cache.get('getCATeamVouchers', cacheKey);
+      const cached = cache.get('getVouchersList', cacheKey);
       if (cached) {
         // Show cached data immediately for instant UI response
         setVouchers(cached);
@@ -181,13 +181,13 @@ const Vouchers = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
         const allVouchers = await requestPromise;
         setVouchers(allVouchers);
       } else {
-        // Single entity - use regular endpoint
+        // Single entity - use list endpoint (more efficient)
         const id = entityIdsToFetch[0];
         const cacheKey = { entityId: id, token: user.access_token };
-        const requestKey = `getCATeamVouchers-${id}-${user.access_token}`;
+        const requestKey = `getVouchersList-${id}-${user.access_token}`;
 
         // Check cache first
-        let cached = cache.get('getCATeamVouchers', cacheKey);
+        let cached = cache.get('getVouchersList', cacheKey);
         if (cached) {
           setVouchers(cached);
           setIsLoading(false);
@@ -203,9 +203,9 @@ const Vouchers = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
         }
 
         // Create request
-        const requestPromise = getCATeamVouchers(id, user.access_token)
+        const requestPromise = getVouchersList(id, user.access_token)
           .then(data => {
-            cache.set('getCATeamVouchers', cacheKey, data);
+            cache.set('getVouchersList', cacheKey, data);
             pendingRequestsRef.current.delete(requestKey);
             return data;
           })
@@ -247,7 +247,7 @@ const Vouchers = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
       if (wasOnDetailPage && isActive) {
         // Invalidate cache and refetch
         if (selectedEntity && selectedEntity !== 'all') {
-          cache.invalidate('getCATeamVouchers', { entityId: selectedEntity, token: user?.access_token });
+          cache.invalidate('getVouchersList', { entityId: selectedEntity, token: user?.access_token });
         }
         // Reset fetch key to force refresh
         lastFetchKey.current = null;
@@ -289,8 +289,8 @@ const Vouchers = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
           <button
             onClick={() => setViewMode('active')}
             className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${viewMode === 'active'
-                ? 'bg-blue-600 text-white shadow-lg'
-                : 'text-gray-400 hover:text-white hover:bg-white/5'
+              ? 'bg-blue-600 text-white shadow-lg'
+              : 'text-gray-400 hover:text-white hover:bg-white/5'
               }`}
           >
             Active
@@ -298,8 +298,8 @@ const Vouchers = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
           <button
             onClick={() => setViewMode('history')}
             className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${viewMode === 'history'
-                ? 'bg-blue-600 text-white shadow-lg'
-                : 'text-gray-400 hover:text-white hover:bg-white/5'
+              ? 'bg-blue-600 text-white shadow-lg'
+              : 'text-gray-400 hover:text-white hover:bg-white/5'
               }`}
           >
             History

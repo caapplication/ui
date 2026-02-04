@@ -69,7 +69,21 @@ const getStatusColor = (status) => {
 
 function formatStatus(status) {
     if (!status) return 'Created';
-    return status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    // Map new two-tier approval statuses to friendly names
+    const statusMap = {
+        pending_master_admin_approval: 'Pending Approval',
+        rejected_by_master_admin: 'Rejected',
+        pending_ca_approval: 'Pending CA Verification',
+        rejected_by_ca: 'Rejected by CA',
+        verified: 'Verified',
+        // Legacy statuses
+        created: 'Created',
+        pending_approval: 'Pending Approval',
+        rejected_by_admin: 'Rejected',
+        approved: 'Approved',
+        rejected: 'Rejected'
+    };
+    return statusMap[status] || status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
 // ... unchanged formatPaymentMethod ...
@@ -1172,12 +1186,12 @@ const VoucherDetailsPage = () => {
         };
 
         // Auto-transition status for Client User re-submission
-        if (isClientUser && editedVoucher.status === 'rejected_by_admin') {
-            payload.status = 'pending_approval';
+        if (isClientUser && (editedVoucher.status === 'rejected_by_master_admin' || editedVoucher.status === 'rejected_by_admin')) {
+            payload.status = 'pending_master_admin_approval';
         }
-        // Auto-transition status for Admin re-submission (from CA rejection)
-        else if (user?.role === 'CLIENT_MASTER_ADMIN' && editedVoucher.status === 'rejected_by_ca') {
-            payload.status = 'created';
+        // Auto-transition status for Client Master Admin re-submission (from CA rejection)
+        else if (user?.role === 'CLIENT_MASTER_ADMIN' && (editedVoucher.status === 'rejected_by_ca' || editedVoucher.status === 'rejected')) {
+            payload.status = 'pending_ca_approval';
         }
 
         try {
@@ -1653,6 +1667,20 @@ const VoucherDetailsPage = () => {
                                                             <p className="text-sm text-gray-400 mb-1">Remarks</p>
                                                             <p className="text-sm text-white p-3 bg-white/5 rounded-md">{voucherDetails.remarks && voucherDetails.remarks.trim() ? voucherDetails.remarks : 'N/A'}</p>
                                                         </div>
+                                                        {voucherDetails.status_remarks && (voucherDetails.status === 'rejected_by_master_admin' || voucherDetails.status === 'rejected_by_ca' || voucherDetails.status === 'rejected_by_admin' || voucherDetails.status === 'rejected') && (
+                                                            <div className="pt-3">
+                                                                <div className="flex items-center gap-2 mb-1">
+                                                                    <AlertCircle className="h-4 w-4 text-red-400" />
+                                                                    <p className="text-sm text-red-300 font-medium">
+                                                                        {voucherDetails.status === 'rejected_by_ca' ? 'Rejected Remarks' : 'Rejected Remarks'}
+                                                                    </p>
+                                                                </div>
+                                                                <p className="text-sm text-white p-3 bg-red-500/10 border border-red-500/30 rounded-md">{voucherDetails.status_remarks}</p>
+                                                                {user?.role === 'CLIENT_MASTER_ADMIN' && (voucherDetails.status === 'rejected_by_ca' || voucherDetails.status === 'rejected') && (
+                                                                    <p className="text-xs text-gray-400 mt-1">Click Edit to make changes and resubmit to CA for review.</p>
+                                                                )}
+                                                            </div>
+                                                        )}
                                                     </CardContent>
 
                                                     <div className="flex items-center gap-3 pb-4 mb-20 sm:mb-16 md:mb-4 justify-end relative z-[100] px-4 sm:px-6 action-buttons-container">
@@ -1674,9 +1702,9 @@ const VoucherDetailsPage = () => {
                                                                 </>
                                                             )}
                                                             {/* Client Admin Actions for Pending Vouchers Only */}
-                                                            {user?.role === 'CLIENT_MASTER_ADMIN' && voucherDetails.status === 'pending_approval' && (
+                                                            {user?.role === 'CLIENT_MASTER_ADMIN' && (voucherDetails.status === 'pending_master_admin_approval' || voucherDetails.status === 'pending_approval') && (
                                                                 <>
-                                                                    <Button onClick={() => handleStatusUpdate('created')} disabled={isStatusUpdating} className="bg-green-600 hover:bg-green-700 text-white border-none h-9 sm:h-10" size="sm">
+                                                                    <Button onClick={() => handleStatusUpdate('pending_ca_approval')} disabled={isStatusUpdating} className="bg-green-600 hover:bg-green-700 text-white border-none h-9 sm:h-10" size="sm">
                                                                         {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />} Approve
                                                                     </Button>
                                                                     <Button onClick={() => setShowRejectDialog(true)} disabled={isStatusUpdating} className="bg-red-600 hover:bg-red-700 text-white border-none h-9 sm:h-10" size="sm">
@@ -2026,7 +2054,6 @@ const VoucherDetailsPage = () => {
                             ) : (
                                 <div className="w-full space-y-4">
 
-
                                     {/* Voucher Details Card */}
                                     <Card className="w-full glass-pane border-none shadow-none text-white">
                                         <CardHeader className="p-4">
@@ -2119,88 +2146,111 @@ const VoucherDetailsPage = () => {
                                                 <p className="text-xs text-gray-400 mb-1">Remarks</p>
                                                 <p className="text-xs text-white p-3 bg-white/5 rounded-md">{voucherDetails.remarks && voucherDetails.remarks.trim() ? voucherDetails.remarks : 'N/A'}</p>
                                             </div>
+                                            {voucherDetails.status_remarks && (voucherDetails.status === 'rejected_by_master_admin' || voucherDetails.status === 'rejected_by_ca' || voucherDetails.status === 'rejected_by_admin' || voucherDetails.status === 'rejected') && (
+                                                <div className="pt-3">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <AlertCircle className="h-3 w-3 text-red-400" />
+                                                        <p className="text-xs text-red-300 font-medium">
+                                                            {voucherDetails.status === 'rejected_by_ca' ? 'Rejected Remarks' : 'Rejected Remarks'}
+                                                        </p>
+                                                    </div>
+                                                    <p className="text-xs text-white p-3 bg-red-500/10 border border-red-500/30 rounded-md">{voucherDetails.status_remarks}</p>
+                                                    {user?.role === 'CLIENT_MASTER_ADMIN' && (voucherDetails.status === 'rejected_by_ca' || voucherDetails.status === 'rejected') && (
+                                                        <p className="text-xs text-gray-400 mt-1">Click Edit to make changes and resubmit to CA for review.</p>
+                                                    )}
+                                                </div>
+                                            )}
                                         </CardContent>
                                     </Card>
 
                                     {/* Action buttons */}
-                                    <div className="flex items-center gap-3 justify-end">
-                                        {/* CA/Team Actions */}
-                                        {!isClientUser && user?.role !== 'CLIENT_MASTER_ADMIN' && (
-                                            <>
-                                                {voucherDetails.status !== 'approved' && (
-                                                    <Button onClick={() => handleStatusUpdate('approved')} disabled={isStatusUpdating} className="bg-green-600 hover:bg-green-700 text-white border-none h-9 w-9" size="icon">
+                                    <div className="flex items-center justify-between gap-3 w-full">
+                                        {/* Left Side: Icon Actions (Delete, Export, Edit) */}
+                                        <div className="flex items-center gap-2">
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            variant="destructive"
+                                                            size="icon"
+                                                            onClick={(e) => { e.stopPropagation(); setShowDeleteDialog(true); }}
+                                                            className="h-9 w-9"
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Delete</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="icon"
+                                                            onClick={(e) => { e.stopPropagation(); handleExportToPDF(); }}
+                                                            disabled={
+                                                                voucher?.payment_type === 'bank_transfer' &&
+                                                                (!fromBankAccounts.length || !toBankAccounts.length)
+                                                            }
+                                                            className="h-9 w-9"
+                                                        >
+                                                            <FileText className="h-4 w-4" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Export</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="icon"
+                                                            onClick={(e) => { e.stopPropagation(); setIsEditing(!isEditing); }}
+                                                            className="h-9 w-9"
+                                                        >
+                                                            <Edit className="h-4 w-4" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Edit</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        </div>
+
+                                        {/* Right Side: Primary Actions (Approve/Reject) */}
+                                        <div className="flex items-center gap-2">
+                                            {/* CA/Team Actions */}
+                                            {!isClientUser && user?.role !== 'CLIENT_MASTER_ADMIN' && (
+                                                <>
+                                                    {voucherDetails.status !== 'approved' && (
+                                                        <Button onClick={() => handleStatusUpdate('approved')} disabled={isStatusUpdating} className="bg-green-600 hover:bg-green-700 text-white border-none h-9 w-9" size="icon">
+                                                            {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                                                        </Button>
+                                                    )}
+                                                    {voucherDetails.status !== 'rejected' && (
+                                                        <Button onClick={() => setShowRejectDialog(true)} disabled={isStatusUpdating} className="bg-red-600 hover:bg-red-700 text-white border-none h-9 w-9" size="icon">
+                                                            {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
+                                                        </Button>
+                                                    )}
+                                                </>
+                                            )}
+                                            {/* Client Admin Actions for Pending Vouchers Only */}
+                                            {user?.role === 'CLIENT_MASTER_ADMIN' && (voucherDetails.status === 'pending_master_admin_approval' || voucherDetails.status === 'pending_approval') && (
+                                                <>
+                                                    <Button onClick={() => handleStatusUpdate('pending_ca_approval')} disabled={isStatusUpdating} className="bg-green-600 hover:bg-green-700 text-white border-none h-9 px-3 gap-1">
                                                         {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                                                        <span>Approve</span>
                                                     </Button>
-                                                )}
-                                                {voucherDetails.status !== 'rejected' && (
-                                                    <Button onClick={() => setShowRejectDialog(true)} disabled={isStatusUpdating} className="bg-red-600 hover:bg-red-700 text-white border-none h-9 w-9" size="icon">
+                                                    <Button onClick={() => setShowRejectDialog(true)} disabled={isStatusUpdating} className="bg-red-600 hover:bg-red-700 text-white border-none h-9 px-3 gap-1">
                                                         {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
+                                                        <span>Reject</span>
                                                     </Button>
-                                                )}
-                                            </>
-                                        )}
-                                        {/* Client Admin Actions for Pending Vouchers Only */}
-                                        {user?.role === 'CLIENT_MASTER_ADMIN' && voucherDetails.status === 'pending_approval' && (
-                                            <>
-                                                <Button onClick={() => handleStatusUpdate('created')} disabled={isStatusUpdating} className="bg-green-600 hover:bg-green-700 text-white border-none h-9 w-9" size="icon">
-                                                    {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
-                                                </Button>
-                                                <Button onClick={() => setShowRejectDialog(true)} disabled={isStatusUpdating} className="bg-red-600 hover:bg-red-700 text-white border-none h-9 w-9" size="icon">
-                                                    {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
-                                                </Button>
-                                            </>
-                                        )}
-                                        <TooltipProvider>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button
-                                                        variant="destructive"
-                                                        size="icon"
-                                                        onClick={() => setShowDeleteDialog(true)}
-                                                        className="h-9 w-9"
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>Delete</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="icon"
-                                                        onClick={handleExportToPDF}
-                                                        disabled={
-                                                            voucher?.payment_type === 'bank_transfer' &&
-                                                            (!fromBankAccounts.length || !toBankAccounts.length)
-                                                        }
-                                                        className="h-9 w-9"
-                                                    >
-                                                        <FileText className="h-4 w-4" />
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>Export</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="icon"
-                                                        onClick={() => setIsEditing(!isEditing)}
-                                                        className="h-9 w-9"
-                                                    >
-                                                        <Edit className="h-4 w-4" />
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>Edit</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
+                                                </>
+                                            )}
+                                        </div>
                                     </div>
 
 
@@ -2359,7 +2409,7 @@ const VoucherDetailsPage = () => {
                         <Button
                             variant="destructive"
                             onClick={() => handleStatusUpdate(
-                                user?.role === 'CLIENT_MASTER_ADMIN' ? 'rejected_by_admin' : 'rejected_by_ca',
+                                user?.role === 'CLIENT_MASTER_ADMIN' ? 'rejected_by_master_admin' : 'rejected_by_ca',
                                 rejectionRemarks
                             )}
                             disabled={isStatusUpdating || !rejectionRemarks.trim()}

@@ -600,7 +600,21 @@ const VoucherDetailsCA = () => {
     // Status helper functions
     const formatStatus = (status) => {
         if (!status || status === 'created') return 'Pending';
-        return status.charAt(0).toUpperCase() + status.slice(1);
+        // Map new two-tier approval statuses to friendly names
+        const statusMap = {
+            pending_master_admin_approval: 'Pending Client Approval',
+            rejected_by_master_admin: 'Rejected by Client',
+            pending_ca_approval: 'Pending Verification',
+            rejected_by_ca: 'Rejected',
+            verified: 'Verified',
+            // Legacy statuses
+            created: 'Pending',
+            pending_approval: 'Pending Client Approval',
+            rejected_by_admin: 'Rejected by Client',
+            approved: 'Approved',
+            rejected: 'Rejected'
+        };
+        return statusMap[status] || status.charAt(0).toUpperCase() + status.slice(1);
     };
 
     const getStatusColor = (status) => {
