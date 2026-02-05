@@ -102,17 +102,22 @@ const InvoiceDetailsPage = () => {
     // Get entity name from user entities
     const getEntityName = () => {
         if (!user) return 'N/A';
+        // Priority 1: Check if entityId is in localStorage (most reliable for client context)
         const entityId = localStorage.getItem('entityId') || invoice?.entity_id;
-        if (!entityId) return 'N/A';
 
-        // For CLIENT_USER, check user.entities
-        if (user.role === 'CLIENT_USER' && user.entities) {
-            const entity = user.entities.find(e => e.id === entityId);
+        // Priority 2: Check user.entities if available
+        if (entityId && user.entities && Array.isArray(user.entities)) {
+            const entity = user.entities.find(e => String(e.id) === String(entityId));
             if (entity) return entity.name;
         }
 
-        // Fallback to entityName from location state
-        return entityName || 'N/A';
+        // Priority 3: Check location state
+        if (entityName) return entityName;
+
+        // Priority 4: If invoice has entity_name (sometimes populated)
+        if (invoice?.entity_name) return invoice.entity_name;
+
+        return 'N/A';
     };
 
 
@@ -1148,7 +1153,7 @@ const InvoiceDetailsPage = () => {
         <div className="h-screen w-full flex flex-col text-white bg-transparent p-3 sm:p-4 md:p-6" style={{ paddingBottom: hasInvoices ? '6rem' : '1.5rem' }}>
             <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 pb-3 sm:pb-4 border-b border-white/10 mb-3 sm:mb-4">
                 <div className="flex items-center gap-3 sm:gap-4">
-                    <Button variant="ghost" size="icon" onClick={() => user.role === 'CLIENT_USER' ? navigate('/finance?tab=invoices') : navigate('/finance/ca?tab=invoices')} className="h-9 w-9 sm:h-10 sm:w-10">
+                    <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="h-9 w-9 sm:h-10 sm:w-10">
                         <ArrowLeft className="h-5 w-5 sm:h-6 sm:w-6" />
                     </Button>
                     <div>
@@ -1394,59 +1399,11 @@ const InvoiceDetailsPage = () => {
                                                 {/* Action buttons on right */}
                                                 <div className="flex items-center gap-3 relative z-[100]">
                                                     <TooltipProvider delayDuration={0}>
-                                                        {/* Client Admin Approval Actions */}
-                                                        {user?.role === 'CLIENT_MASTER_ADMIN' && !isReadOnly && (invoiceDetails.status === 'pending_master_admin_approval' || invoiceDetails.status === 'pending_approval' || invoiceDetails.status === 'created') && (
-                                                            <div className="flex items-center gap-2 mr-2">
-                                                                <Button onClick={() => handleStatusUpdate('pending_ca_approval')} disabled={isStatusUpdating} className="bg-green-600 hover:bg-green-700 text-white border-none h-9 px-3 gap-1 shadow-sm text-xs font-medium">
-                                                                    {isStatusUpdating ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
-                                                                    <span>Approve</span>
-                                                                </Button>
-                                                                <Button onClick={() => setShowRejectDialog(true)} disabled={isStatusUpdating} className="bg-red-600 hover:bg-red-700 text-white border-none h-9 px-3 gap-1 shadow-sm text-xs font-medium">
-                                                                    {isStatusUpdating ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="h-3 w-3" />}
-                                                                    <span>Reject</span>
-                                                                </Button>
-                                                            </div>
-                                                        )}
-
-                                                        {/* Export (Icon) - Visible to all */}
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <Button variant="outline" size="icon" onClick={handleExportToPDF} className="h-9 w-9 bg-white/5 border-white/10 hover:bg-white/10">
-                                                                    <FileText className="h-4 w-4" />
-                                                                </Button>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent><p>Export PDF</p></TooltipContent>
-                                                        </Tooltip>
-
-                                                        {/* CA Reject (Icon Red Circle) */}
-                                                        {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && !isReadOnly && (invoiceDetails.status === 'pending_ca_approval' || invoiceDetails.status === 'pending_approval' || invoiceDetails.status === 'created') && (
-                                                            <Tooltip>
-                                                                <TooltipTrigger asChild>
-                                                                    <Button
-                                                                        onClick={() => setShowRejectDialog(true)}
-                                                                        disabled={isStatusUpdating}
-                                                                        className="h-9 w-9 bg-red-600 hover:bg-red-700 text-white rounded-full border-none shadow-lg"
-                                                                        size="icon"
-                                                                    >
-                                                                        {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
-                                                                    </Button>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent><p>Reject Invoice</p></TooltipContent>
-                                                            </Tooltip>
-                                                        )}
-
-                                                        {/* Tag Button (Blue Text Button) */}
-                                                        {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && !isReadOnly && (
-                                                            <Button onClick={handleTag} className="bg-blue-600 text-white hover:bg-blue-700 h-9 px-6 text-xs font-bold rounded-md shadow-lg transition-all active:scale-95 ml-1">
-                                                                Tag
-                                                            </Button>
-                                                        )}
-
-                                                        {/* Delete (Icon) - Restricted for CA */}
+                                                        {/* 1. Delete (Icon) - Restricted for CA */}
                                                         {isEditable && !isReadOnly && user?.role !== 'CA_ACCOUNTANT' && user?.role !== 'CA_TEAM' && (
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>
-                                                                    <Button variant="destructive" size="icon" onClick={() => setShowDeleteDialog(true)} className="h-9 w-9">
+                                                                    <Button variant="destructive" size="icon" onClick={() => setShowDeleteDialog(true)} className="h-9 w-9 sm:h-10 sm:w-10">
                                                                         <Trash2 className="h-4 w-4" />
                                                                     </Button>
                                                                 </TooltipTrigger>
@@ -1454,19 +1411,55 @@ const InvoiceDetailsPage = () => {
                                                             </Tooltip>
                                                         )}
 
-                                                        {/* Edit (Icon) - Restricted for CA */}
+                                                        {/* 2. Edit (Icon) - Restricted for CA */}
                                                         {isEditable && !isReadOnly && user?.role !== 'CA_ACCOUNTANT' && user?.role !== 'CA_TEAM' && (
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>
-                                                                    <Button variant="outline" size="icon" onClick={() => setIsEditing(!isEditing)} className="h-9 w-9 bg-white/5 border-white/10">
+                                                                    <Button variant="outline" size="icon" onClick={() => setIsEditing(!isEditing)} className="h-9 w-9 sm:h-10 sm:w-10 bg-white/5 border-white/10">
                                                                         <Edit className="h-4 w-4" />
                                                                     </Button>
                                                                 </TooltipTrigger>
                                                                 <TooltipContent><p>Edit</p></TooltipContent>
                                                             </Tooltip>
                                                         )}
+
+                                                        {/* 3. Export (Icon) - Visible to all */}
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <Button variant="outline" size="icon" onClick={handleExportToPDF} className="h-9 w-9 sm:h-10 sm:w-10 bg-white/5 border-white/10 hover:bg-white/10">
+                                                                    <FileText className="h-4 w-4" />
+                                                                </Button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent><p>Export PDF</p></TooltipContent>
+                                                        </Tooltip>
                                                     </TooltipProvider>
+
+                                                    {/* 4. Approve/Reject Actions */}
+                                                    {/* Client Admin Approval Actions */}
+                                                    {user?.role === 'CLIENT_MASTER_ADMIN' && !isReadOnly && (invoiceDetails.status === 'pending_master_admin_approval' || invoiceDetails.status === 'pending_approval' || invoiceDetails.status === 'created') && (
+                                                        <>
+                                                            <Button onClick={() => handleStatusUpdate('pending_ca_approval')} disabled={isStatusUpdating} className="bg-green-600 hover:bg-green-700 text-white border-none h-9 sm:h-10" size="sm">
+                                                                {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />} Approve
+                                                            </Button>
+                                                            <Button onClick={() => setShowRejectDialog(true)} disabled={isStatusUpdating} className="bg-red-600 hover:bg-red-700 text-white border-none h-9 sm:h-10" size="sm">
+                                                                {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />} Reject
+                                                            </Button>
+                                                        </>
+                                                    )}
+
+                                                    {/* CA/Team Actions */}
+                                                    {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && !isReadOnly && (invoiceDetails.status === 'pending_ca_approval' || invoiceDetails.status === 'pending_approval' || invoiceDetails.status === 'created') && (
+                                                        <>
+                                                            <Button onClick={handleTag} className="bg-green-600 hover:bg-green-700 text-white border-none h-9 sm:h-10" size="sm">
+                                                                {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />} Approve
+                                                            </Button>
+                                                            <Button onClick={() => setShowRejectDialog(true)} disabled={isStatusUpdating} className="bg-red-600 hover:bg-red-700 text-white border-none h-9 sm:h-10" size="sm">
+                                                                {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />} Reject
+                                                            </Button>
+                                                        </>
+                                                    )}
                                                 </div>
+
                                             </div>
                                         </Card>
                                     )}
@@ -1764,21 +1757,31 @@ const InvoiceDetailsPage = () => {
                                         {/* Action buttons on right */}
                                         <div className="flex items-center gap-3 relative z-[100]">
                                             <TooltipProvider delayDuration={0}>
-                                                {/* Client Admin Approval Actions */}
-                                                {user?.role === 'CLIENT_MASTER_ADMIN' && !isReadOnly && (invoiceDetails.status === 'pending_master_admin_approval' || invoiceDetails.status === 'pending_approval' || invoiceDetails.status === 'created') && (
-                                                    <div className="flex items-center gap-2 mr-2">
-                                                        <Button onClick={() => handleStatusUpdate('pending_ca_approval')} disabled={isStatusUpdating} className="bg-green-600 hover:bg-green-700 text-white border-none h-9 px-3 gap-1 shadow-sm text-xs font-medium">
-                                                            {isStatusUpdating ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
-                                                            <span>Approve</span>
-                                                        </Button>
-                                                        <Button onClick={() => setShowRejectDialog(true)} disabled={isStatusUpdating} className="bg-red-600 hover:bg-red-700 text-white border-none h-9 px-3 gap-1 shadow-sm text-xs font-medium">
-                                                            {isStatusUpdating ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="h-3 w-3" />}
-                                                            <span>Reject</span>
-                                                        </Button>
-                                                    </div>
+                                                {/* 1. Delete (Icon) */}
+                                                {isEditable && !isReadOnly && user?.role !== 'CA_ACCOUNTANT' && user?.role !== 'CA_TEAM' && (
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button variant="destructive" size="icon" onClick={() => setShowDeleteDialog(true)} className="h-9 w-9 sm:h-10 sm:w-10">
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent><p>Delete</p></TooltipContent>
+                                                    </Tooltip>
                                                 )}
 
-                                                {/* Export (Icon) - Visible to all */}
+                                                {/* 2. Edit (Icon) */}
+                                                {isEditable && !isReadOnly && user?.role !== 'CA_ACCOUNTANT' && user?.role !== 'CA_TEAM' && (
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button variant="outline" size="icon" onClick={() => setIsEditing(!isEditing)} className="h-9 w-9 sm:h-10 sm:w-10 bg-white/5 border-white/10">
+                                                                <Edit className="h-4 w-4" />
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent><p>Edit</p></TooltipContent>
+                                                    </Tooltip>
+                                                )}
+
+                                                {/* 3. Export (Icon) */}
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
                                                         <Button variant="outline" size="icon" onClick={handleExportToPDF} className="h-9 w-9 bg-white/5 border-white/10 hover:bg-white/10">
@@ -1787,55 +1790,32 @@ const InvoiceDetailsPage = () => {
                                                     </TooltipTrigger>
                                                     <TooltipContent><p>Export PDF</p></TooltipContent>
                                                 </Tooltip>
-
-                                                {/* CA Reject (Icon Red Circle) */}
-                                                {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && !isReadOnly && (invoiceDetails.status === 'pending_ca_approval' || invoiceDetails.status === 'pending_approval' || invoiceDetails.status === 'created') && (
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <Button
-                                                                onClick={() => setShowRejectDialog(true)}
-                                                                disabled={isStatusUpdating}
-                                                                className="h-9 w-9 bg-red-600 hover:bg-red-700 text-white rounded-full border-none shadow-lg"
-                                                                size="icon"
-                                                            >
-                                                                {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
-                                                            </Button>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent><p>Reject Invoice</p></TooltipContent>
-                                                    </Tooltip>
-                                                )}
-
-                                                {/* Tag Button (Blue Text Button) */}
-                                                {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && !isReadOnly && (
-                                                    <Button onClick={handleTag} className="bg-blue-600 text-white hover:bg-blue-700 h-9 px-6 text-xs font-bold rounded-md shadow-lg transition-all active:scale-95 ml-1">
-                                                        Tag
-                                                    </Button>
-                                                )}
-
-                                                {/* Delete (Icon) - Restricted for CA */}
-                                                {isEditable && !isReadOnly && user?.role !== 'CA_ACCOUNTANT' && user?.role !== 'CA_TEAM' && (
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <Button variant="destructive" size="icon" onClick={() => setShowDeleteDialog(true)} className="h-9 w-9">
-                                                                <Trash2 className="h-4 w-4" />
-                                                            </Button>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent><p>Delete</p></TooltipContent>
-                                                    </Tooltip>
-                                                )}
-
-                                                {/* Edit (Icon) - Restricted for CA */}
-                                                {isEditable && !isReadOnly && user?.role !== 'CA_ACCOUNTANT' && user?.role !== 'CA_TEAM' && (
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <Button variant="outline" size="icon" onClick={() => setIsEditing(!isEditing)} className="h-9 w-9 bg-white/5 border-white/10">
-                                                                <Edit className="h-4 w-4" />
-                                                            </Button>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent><p>Edit</p></TooltipContent>
-                                                    </Tooltip>
-                                                )}
                                             </TooltipProvider>
+
+                                            {/* 4. Approve/Reject Actions */}
+                                            {/* Client Master Admin Approval Actions */}
+                                            {user?.role === 'CLIENT_MASTER_ADMIN' && !isReadOnly && (invoiceDetails.status === 'pending_master_admin_approval' || invoiceDetails.status === 'pending_approval' || invoiceDetails.status === 'created') && (
+                                                <>
+                                                    <Button onClick={() => handleStatusUpdate('pending_ca_approval')} disabled={isStatusUpdating} className="bg-green-600 hover:bg-green-700 text-white border-none h-9 sm:h-10" size="sm">
+                                                        {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />} Approve
+                                                    </Button>
+                                                    <Button onClick={() => setShowRejectDialog(true)} disabled={isStatusUpdating} className="bg-red-600 hover:bg-red-700 text-white border-none h-9 sm:h-10" size="sm">
+                                                        {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />} Reject
+                                                    </Button>
+                                                </>
+                                            )}
+
+                                            {/* CA/Team Actions */}
+                                            {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && !isReadOnly && (invoiceDetails.status === 'pending_ca_approval' || invoiceDetails.status === 'pending_approval' || invoiceDetails.status === 'created') && (
+                                                <>
+                                                    <Button onClick={handleTag} className="bg-green-600 hover:bg-green-700 text-white border-none h-9 sm:h-10" size="sm">
+                                                        {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />} Approve
+                                                    </Button>
+                                                    <Button onClick={() => setShowRejectDialog(true)} disabled={isStatusUpdating} className="bg-red-600 hover:bg-red-700 text-white border-none h-9 sm:h-10" size="sm">
+                                                        {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />} Reject
+                                                    </Button>
+                                                </>
+                                            )}
                                         </div>
                                     </div>
                                 </Card>
