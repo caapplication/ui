@@ -216,6 +216,19 @@ const VoucherDetailsPage = () => {
     const isClientUser = user?.role === 'CLIENT_USER';
     const isCaUser = user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM';
 
+    // Debug the values to understand why buttons aren't hiding
+    const hideClientActions = (isClientUser || user?.role === 'client_user') && (voucher?.status === 'pending_ca_approval');
+
+    console.log('Visibility Logic:', {
+        role: user?.role,
+        isClientUser,
+        status: voucher?.status,
+        hideClientActions
+    });
+
+    // Keeping shouldHideActions as alias if used elsewhere, though we updated main buttons
+    const shouldHideActions = hideClientActions;
+
     const defaultTab = 'details';
     const cols = 'grid-cols-3';
 
@@ -1691,7 +1704,7 @@ const VoucherDetailsPage = () => {
                                                         {/* Action buttons on right */}
                                                         <div className="flex items-center gap-3 relative z-[100]">
                                                             <TooltipProvider>
-                                                                {!isReadOnly && !(user?.role === 'CLIENT_MASTER_ADMIN' && voucher?.status === 'verified') && (
+                                                                {!isReadOnly && !hideClientActions && !(user?.role === 'CLIENT_MASTER_ADMIN' && voucher?.status === 'verified') && (
                                                                     <Tooltip>
                                                                         <TooltipTrigger asChild>
                                                                             <Button
@@ -1708,7 +1721,7 @@ const VoucherDetailsPage = () => {
                                                                         </TooltipContent>
                                                                     </Tooltip>
                                                                 )}
-                                                                {!isReadOnly && !(user?.role === 'CLIENT_MASTER_ADMIN' && voucher?.status === 'verified') && (
+                                                                {!isReadOnly && !hideClientActions && !(user?.role === 'CLIENT_MASTER_ADMIN' && voucher?.status === 'verified') && (
                                                                     <Tooltip>
                                                                         <TooltipTrigger asChild>
                                                                             <Button
@@ -2177,7 +2190,7 @@ const VoucherDetailsPage = () => {
                                         {/* Left Side: Icon Actions (Delete, Edit, Export) */}
                                         <div className="flex items-center gap-2">
                                             <TooltipProvider>
-                                                {!isReadOnly && (
+                                                {!isReadOnly && !hideClientActions && (
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
                                                             <Button
@@ -2194,7 +2207,7 @@ const VoucherDetailsPage = () => {
                                                         </TooltipContent>
                                                     </Tooltip>
                                                 )}
-                                                {!isReadOnly && (
+                                                {!isReadOnly && !hideClientActions && (
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
                                                             <Button
