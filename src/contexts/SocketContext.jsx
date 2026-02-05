@@ -37,7 +37,7 @@ export const SocketProvider = ({ children }) => {
                 user_id: user.id,
                 token: user.access_token
             },
-            transports: ['websocket', 'polling'], // Try websocket first, fallback to polling
+            transports: ['polling', 'websocket'], // Try polling first (most reliable), then upgrade to websocket
             secure: true, // Force secure connection
             reconnection: true,
             reconnectionDelay: 1000,
