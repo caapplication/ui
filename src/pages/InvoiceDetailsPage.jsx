@@ -8,10 +8,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ArrowLeft, Edit, Trash2, FileText, Loader2, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RefreshCcw } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, FileText, Loader2, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RefreshCcw, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import * as pdfjsLib from 'pdfjs-dist';
@@ -24,9 +25,9 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
 ).toString();
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import {
-  ResizablePanelGroup,
-  ResizablePanel,
-  ResizableHandle,
+    ResizablePanelGroup,
+    ResizablePanel,
+    ResizableHandle,
 } from "@/components/ui/resizable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.jsx";
 import ActivityLog from '@/components/finance/ActivityLog';
@@ -44,8 +45,9 @@ const InvoiceDetailsPage = () => {
     const navigate = useNavigate();
     const { user, loading: authLoading } = useAuth();
     const { selectedEntity } = useOrganisation();
+    const cache = useApiCache();
     const { toast } = useToast();
-    const { attachmentUrl, invoice: initialInvoice, beneficiaryName, organisationId, invoices: invoicesFromState, currentIndex: currentIndexFromState, entityName, organizationName } = location.state || {};
+    const { attachmentUrl, invoice: initialInvoice, beneficiaryName, organisationId, invoices: invoicesFromState, currentIndex: currentIndexFromState, entityName, organizationName, isReadOnly } = location.state || {};
     const [invoice, setInvoice] = useState(initialInvoice);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
@@ -68,7 +70,15 @@ const InvoiceDetailsPage = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [isImageLoading, setIsImageLoading] = useState(false);
     const [sidebarWidth, setSidebarWidth] = useState(320); // Default to expanded width (300px + padding)
-    
+
+    // Status and Remarks State
+    const [showRejectDialog, setShowRejectDialog] = useState(false);
+    const [rejectionRemarks, setRejectionRemarks] = useState('');
+    const [isStatusUpdating, setIsStatusUpdating] = useState(false);
+
+    // Determine if the current user is a client user
+    const isClientUser = user?.role === 'CLIENT_USER' || user?.role === 'CLIENT_MASTER_ADMIN';
+
     // Hide scrollbars globally for this page
     useEffect(() => {
         const style = document.createElement('style');
@@ -94,13 +104,13 @@ const InvoiceDetailsPage = () => {
         if (!user) return 'N/A';
         const entityId = localStorage.getItem('entityId') || invoice?.entity_id;
         if (!entityId) return 'N/A';
-        
+
         // For CLIENT_USER, check user.entities
         if (user.role === 'CLIENT_USER' && user.entities) {
             const entity = user.entities.find(e => e.id === entityId);
             if (entity) return entity.name;
         }
-        
+
         // Fallback to entityName from location state
         return entityName || 'N/A';
     };
@@ -155,17 +165,17 @@ const InvoiceDetailsPage = () => {
                 const entityIdFromStorage = localStorage.getItem('entityId');
                 const entityIdFromInvoice = initialInvoice?.entity_id || invoice?.entity_id;
                 const entityId = selectedEntity || entityIdFromInvoice || entityIdFromStorage;
-                
+
                 // Use initialInvoice if available, otherwise fetch from list
                 let currentInvoice = initialInvoice;
-                
+
                 // Fetch invoices if not passed in state (needed for navigation)
                 let invoicesToUse = invoices && Array.isArray(invoices) && invoices.length > 0 ? invoices : null;
                 if (!invoicesToUse && entityId) {
                     invoicesToUse = await getInvoices(entityId, user.access_token);
                     setInvoices(invoicesToUse || []);
                 }
-                
+
                 // Always fetch full invoice object to ensure we have attachment data
                 // The list might return InvoiceListItem which doesn't include attachment_id
                 let fullInvoice = null;
@@ -189,14 +199,14 @@ const InvoiceDetailsPage = () => {
                 } catch (err) {
                     console.error("Error fetching full invoice:", err);
                 }
-                
+
                 // Use full invoice if available, otherwise fall back to list item
                 if (fullInvoice) {
                     currentInvoice = fullInvoice;
                 } else if (!currentInvoice || currentInvoice.id !== invoiceId) {
                     // Try to get from invoices list first
                     currentInvoice = invoicesToUse.find(i => String(i.id) === String(invoiceId));
-                    
+
                     // If still not found, try fetching all invoices
                     if (!currentInvoice && invoicesToUse.length > 0) {
                         try {
@@ -223,7 +233,7 @@ const InvoiceDetailsPage = () => {
                         setCurrentIndex(index >= 0 ? index : -1);
                     }
                     setIsLoading(false);
-                    
+
                     // Collect all attachment IDs (primary + additional)
                     // Log the invoice object to debug attachment structure
                     console.log("Invoice object for attachment detection:", {
@@ -232,10 +242,10 @@ const InvoiceDetailsPage = () => {
                         additional_attachment_ids: currentInvoice.additional_attachment_ids,
                         fullInvoice: currentInvoice
                     });
-                    
+
                     // Try multiple ways to get the primary attachment ID
                     let primaryAttachmentId = null;
-                    
+
                     // First, try direct attachment_id field
                     if (currentInvoice.attachment_id) {
                         primaryAttachmentId = currentInvoice.attachment_id;
@@ -248,7 +258,7 @@ const InvoiceDetailsPage = () => {
                             primaryAttachmentId = currentInvoice.attachment;
                         }
                     }
-                    
+
                     const additionalIds = currentInvoice.additional_attachment_ids || [];
                     const allIds = [];
                     if (primaryAttachmentId) {
@@ -263,10 +273,10 @@ const InvoiceDetailsPage = () => {
                     console.log("Collected attachment IDs:", { primaryAttachmentId, additionalIds, allIds });
                     setAllAttachmentIds(allIds);
                     setCurrentAttachmentIndex(0); // Reset to first attachment
-                    
+
                     // Load attachment and finance headers in parallel (non-blocking)
                     const promises = [];
-                    
+
                     // Always reset attachment state when invoice changes
                     // Load first attachment
                     if (allIds.length > 0) {
@@ -280,7 +290,7 @@ const InvoiceDetailsPage = () => {
                                     // Handle both old format (string URL) and new format (object with url and contentType)
                                     const url = typeof result === 'string' ? result : result?.url;
                                     const contentType = typeof result === 'object' ? result?.contentType : null;
-                                    
+
                                     console.log("Invoice attachment URL received:", url ? "Yes" : "No", url, "Content-Type:", contentType);
                                     if (url) {
                                         setAttachmentToDisplay(url);
@@ -316,7 +326,7 @@ const InvoiceDetailsPage = () => {
                         setAttachmentToDisplay(null);
                         setIsImageLoading(false);
                     }
-                    
+
                     if (user && (user.role === 'CA_ACCOUNTANT' || user.role === 'CA_TEAM')) {
                         promises.push(
                             getFinanceHeaders(user.agency_id, user.access_token)
@@ -324,7 +334,7 @@ const InvoiceDetailsPage = () => {
                                 .catch(err => console.error("Failed to fetch finance headers:", err))
                         );
                     }
-                    
+
                     // Fetch beneficiaries
                     const orgIdToFetch = organisationId || user.organization_id;
                     if (orgIdToFetch) {
@@ -334,7 +344,7 @@ const InvoiceDetailsPage = () => {
                                 .catch(err => console.error("Failed to fetch beneficiaries:", err))
                         );
                     }
-                    
+
                     // Don't wait for these - they load in background
                     Promise.all(promises).catch(err => console.error("Background fetch error:", err));
                 }
@@ -347,7 +357,7 @@ const InvoiceDetailsPage = () => {
         fetchData();
         return () => { isMounted = false; };
     }, [invoiceId, authLoading, user?.access_token]);
-    
+
     const invoiceDetails = invoice || {
         id: invoiceId,
         bill_number: 'N/A',
@@ -360,12 +370,54 @@ const InvoiceDetailsPage = () => {
         roundoff: 0,
         remarks: 'No remarks available.',
     };
-    
+
+    // Status helper functions
+    const formatStatus = (status) => {
+        if (!status || status === 'created') return 'Pending';
+        // Map new two-tier approval statuses to friendly names
+        const statusMap = {
+            pending_master_admin_approval: 'Pending Client Approval',
+            rejected_by_master_admin: 'Rejected by Client',
+            pending_ca_approval: 'Pending Verification',
+            rejected_by_ca: 'Rejected',
+            verified: 'Verified',
+            // Legacy statuses
+            created: 'Pending',
+            pending_approval: 'Pending Client Approval',
+            rejected_by_admin: 'Rejected by Client',
+            approved: 'Approved',
+            rejected: 'Rejected'
+        };
+        return statusMap[status] || status.charAt(0).toUpperCase() + status.slice(1);
+    };
+
+    const getStatusColor = (status) => {
+        switch (status) {
+            case 'verified':
+            case 'approved':
+                return 'bg-green-500/20 text-green-400 border-green-500/30';
+            case 'rejected':
+            case 'rejected_by_master_admin':
+            case 'rejected_by_admin':
+            case 'rejected_by_ca':
+                return 'bg-red-500/20 text-red-400 border-red-500/30';
+            case 'pending_ca_approval':
+            case 'pending_approval':
+            case 'pending_master_admin_approval':
+                return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+            default:
+                return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+        }
+    };
+
+    // Determine if invoice can be edited/deleted
+    const isEditable = !['verified', 'approved', 'pending_ca_approval'].includes(invoiceDetails.status);
+
     const totalAmount = (
-        parseFloat(invoiceDetails.amount || 0) + 
-        parseFloat(invoiceDetails.cgst || 0) + 
-        parseFloat(invoiceDetails.sgst || 0) + 
-        parseFloat(invoiceDetails.igst || 0) + 
+        parseFloat(invoiceDetails.amount || 0) +
+        parseFloat(invoiceDetails.cgst || 0) +
+        parseFloat(invoiceDetails.sgst || 0) +
+        parseFloat(invoiceDetails.igst || 0) +
         parseFloat(invoiceDetails.roundoff || 0)
     ).toFixed(2);
 
@@ -403,17 +455,17 @@ const InvoiceDetailsPage = () => {
         e.preventDefault();
         const formData = new FormData(e.target);
         const data = Object.fromEntries(formData.entries());
-        
+
         // Get remarks value - convert empty string to null for API
         let remarksValue = null;
         if ('remarks' in data) {
-            remarksValue = data.remarks && typeof data.remarks === 'string' && data.remarks.trim() 
-                ? data.remarks.trim() 
+            remarksValue = data.remarks && typeof data.remarks === 'string' && data.remarks.trim()
+                ? data.remarks.trim()
                 : null;
         } else {
             remarksValue = editedInvoice?.remarks || null;
         }
-        
+
         // Get beneficiary_id - ensure it's a valid UUID string
         const beneficiaryId = editedInvoice?.beneficiary_id || invoice?.beneficiary_id || invoice?.beneficiary?.id;
         if (!beneficiaryId) {
@@ -424,7 +476,7 @@ const InvoiceDetailsPage = () => {
             });
             return;
         }
-        
+
         // Build payload with proper type conversions - always include essential fields
         // Ensure all numeric values are valid numbers (not NaN)
         const amount = data.amount ? parseFloat(data.amount) : (editedInvoice?.amount || 0);
@@ -432,10 +484,10 @@ const InvoiceDetailsPage = () => {
         const sgst = data.sgst ? parseFloat(data.sgst) : (editedInvoice?.sgst || 0);
         const igst = data.igst ? parseFloat(data.igst) : (editedInvoice?.igst || 0);
         const roundoff = data.roundoff ? parseFloat(data.roundoff) : (editedInvoice?.roundoff || 0);
-        
+
         // Build payload object - ensure no duplicate keys
         const payload = {};
-        
+
         // Add fields in a specific order to avoid duplicates
         if (beneficiaryId) {
             payload.beneficiary_id = beneficiaryId;
@@ -461,16 +513,25 @@ const InvoiceDetailsPage = () => {
         if ('remarks' in data || editedInvoice?.remarks !== undefined) {
             payload.remarks = remarksValue;
         }
-        
+
+        // Auto-transition status for Client User re-submission
+        if (user?.role === 'CLIENT_USER' && (editedInvoice.status === 'rejected_by_master_admin' || editedInvoice.status === 'rejected_by_admin')) {
+            payload.status = 'pending_master_admin_approval';
+        }
+        // Auto-transition status for Client Master Admin re-submission (from CA rejection)
+        else if (user?.role === 'CLIENT_MASTER_ADMIN' && (editedInvoice.status === 'rejected_by_ca' || editedInvoice.status === 'rejected')) {
+            payload.status = 'pending_ca_approval';
+        }
+
         // Remove undefined and null values (except remarks which can be null)
         Object.keys(payload).forEach(key => {
             if (payload[key] === undefined || (payload[key] === null && key !== 'remarks')) {
                 delete payload[key];
             }
         });
-        
+
         console.log('Updating invoice with payload:', payload);
-        
+
         try {
             const entityId = selectedEntity || localStorage.getItem('entityId');
             const updatedInvoice = await updateInvoice(invoiceId, entityId, payload, user.access_token);
@@ -531,7 +592,7 @@ const InvoiceDetailsPage = () => {
 
                 let displayWidth = contentWidth;
                 let displayHeight = displayWidth / ratio;
-                
+
                 // If content is taller than page, scale it down to fit
                 if (displayHeight > contentHeight) {
                     displayHeight = contentHeight;
@@ -543,7 +604,7 @@ const InvoiceDetailsPage = () => {
                     console.warn('Invalid display dimensions:', { displayWidth, displayHeight });
                     return false;
                 }
-                
+
                 // Center the image on the page
                 const xPos = margin + (contentWidth - displayWidth) / 2;
                 const yPos = margin + (contentHeight - displayHeight) / 2;
@@ -553,7 +614,7 @@ const InvoiceDetailsPage = () => {
                     console.warn('Invalid coordinates:', { xPos, yPos });
                     return false;
                 }
-                
+
                 try {
                     pdf.addImage(imgData, 'PNG', xPos, yPos, displayWidth, displayHeight);
                     return true;
@@ -568,41 +629,41 @@ const InvoiceDetailsPage = () => {
             // Page 1: Invoice Details - Create formatted table with dark theme
             if (invoiceDetails) {
                 try {
-                    
+
                     // Set background to dark
                     pdf.setFillColor(...darkBg);
                     pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
-                    
+
                     // Header section
                     let yPos = margin + 5;
                     pdf.setTextColor(...lightText);
                     pdf.setFontSize(20);
                     pdf.setFont(undefined, 'bold');
                     pdf.text('Invoice Details', margin + 5, yPos);
-                    
+
                     yPos += 8;
                     pdf.setFontSize(12);
                     pdf.setFont(undefined, 'normal');
                     pdf.setTextColor(...grayText);
                     const beneficiaryName = invoiceDetails.beneficiary
-                        ? (invoiceDetails.beneficiary.beneficiary_type === 'individual' 
-                            ? invoiceDetails.beneficiary.name 
+                        ? (invoiceDetails.beneficiary.beneficiary_type === 'individual'
+                            ? invoiceDetails.beneficiary.name
                             : invoiceDetails.beneficiary.company_name)
                         : invoiceDetails.beneficiary_name || beneficiaryName || 'N/A';
                     pdf.text(`Invoice to ${beneficiaryName}`, margin + 5, yPos);
-                    
+
                     yPos += 5;
                     pdf.setFontSize(10);
                     pdf.text(`Created on ${new Date(invoiceDetails.created_date || invoiceDetails.created_at || invoiceDetails.date).toLocaleDateString()}`, margin + 5, yPos);
-                    
+
                     yPos += 10;
-                    
+
                     // Create table with dark theme
                     const tableStartY = yPos;
                     const rowHeight = 8;
                     const col1Width = contentWidth * 0.4;
                     const col2Width = contentWidth * 0.6;
-                    
+
                     // Table header
                     pdf.setFillColor(...darkCard);
                     pdf.rect(margin, tableStartY, contentWidth, rowHeight, 'F');
@@ -611,13 +672,13 @@ const InvoiceDetailsPage = () => {
                     pdf.setFont(undefined, 'bold');
                     pdf.text('Field', margin + 3, tableStartY + 5);
                     pdf.text('Value', margin + col1Width + 3, tableStartY + 5);
-                    
+
                     // Draw border
                     pdf.setDrawColor(...borderColor);
                     pdf.rect(margin, tableStartY, contentWidth, rowHeight);
-                    
+
                     yPos = tableStartY + rowHeight;
-                    
+
                     // Table rows
                     // Use "Rs." instead of rupee symbol since jsPDF default font doesn't support ₹
                     const rows = [
@@ -629,11 +690,11 @@ const InvoiceDetailsPage = () => {
                         ['Roundoff', `Rs. ${parseFloat(invoiceDetails.roundoff || 0).toFixed(2)}`],
                         ['Total Amount', `Rs. ${totalAmount}`]
                     ];
-                    
+
                     // Draw table rows
                     pdf.setFontSize(10);
                     pdf.setFont(undefined, 'normal');
-                    
+
                     rows.forEach((row, index) => {
                         // Check if we need a new page
                         if (yPos + rowHeight > pdfHeight - margin - 10) {
@@ -642,18 +703,18 @@ const InvoiceDetailsPage = () => {
                             pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
                             yPos = margin + 5;
                         }
-                        
+
                         // Use same background as page for all rows except header
                         pdf.setFillColor(...darkBg);
                         pdf.rect(margin, yPos, contentWidth, rowHeight, 'F');
-                        
+
                         // Draw row border
                         pdf.setDrawColor(...borderColor);
                         pdf.rect(margin, yPos, contentWidth, rowHeight);
-                        
+
                         // Draw column separator
                         pdf.line(margin + col1Width, yPos, margin + col1Width, yPos + rowHeight);
-                        
+
                         // Add text
                         pdf.setTextColor(...grayText);
                         pdf.text(row[0], margin + 3, yPos + 5);
@@ -663,10 +724,10 @@ const InvoiceDetailsPage = () => {
                         const valueText = pdf.splitTextToSize(row[1], col2Width - 6);
                         pdf.text(valueText, margin + col1Width + 3, yPos + 5);
                         pdf.setFont(undefined, 'normal');
-                        
+
                         yPos += rowHeight;
                     });
-                    
+
                     // Remarks section - no gap between title and content
                     if (yPos + 20 > pdfHeight - margin - 10) {
                         pdf.addPage();
@@ -674,42 +735,42 @@ const InvoiceDetailsPage = () => {
                         pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
                         yPos = margin + 5;
                     }
-                    
+
                     // Remarks title row - similar to table rows
                     const remarksTitleY = yPos;
                     const remarksTitleHeight = rowHeight;
                     pdf.setFillColor(...darkBg);
                     pdf.rect(margin, remarksTitleY, contentWidth, remarksTitleHeight, 'F');
-                    
+
                     // Draw border around remarks title row
                     pdf.setDrawColor(...borderColor);
                     pdf.rect(margin, remarksTitleY, contentWidth, remarksTitleHeight);
-                    
+
                     pdf.setFontSize(11);
                     pdf.setFont(undefined, 'bold');
                     pdf.setTextColor(...grayText);
                     pdf.text('Remarks', margin + 3, remarksTitleY + 5);
-                    
+
                     // Remarks content box - directly below title, no gap
                     yPos = remarksTitleY + remarksTitleHeight;
                     pdf.setFillColor(...darkBg);
                     const remarksHeight = 12;
                     const remarksBoxY = yPos;
                     pdf.rect(margin, remarksBoxY, contentWidth, remarksHeight, 'F');
-                    
+
                     // Draw border around remarks box - use same color as table rows
                     pdf.setDrawColor(...borderColor);
                     pdf.rect(margin, remarksBoxY, contentWidth, remarksHeight);
-                    
+
                     pdf.setFontSize(10);
                     pdf.setFont(undefined, 'normal');
                     pdf.setTextColor(...lightText);
-                    const remarksText = invoiceDetails.remarks && invoiceDetails.remarks.trim() 
-                        ? invoiceDetails.remarks 
+                    const remarksText = invoiceDetails.remarks && invoiceDetails.remarks.trim()
+                        ? invoiceDetails.remarks
                         : 'N/A';
                     const wrappedRemarks = pdf.splitTextToSize(remarksText, contentWidth - 6);
                     pdf.text(wrappedRemarks, margin + 3, remarksBoxY + 5);
-                    
+
                     hasContent = true;
                 } catch (error) {
                     console.error('Error creating invoice details PDF:', error);
@@ -719,21 +780,21 @@ const InvoiceDetailsPage = () => {
             // Page 2: Attachment (image only - PDFs will be merged separately)
             if (attachmentToDisplay) {
                 const isPdfAttachment = attachmentContentType?.toLowerCase().includes('pdf') || attachmentToDisplay?.toLowerCase().endsWith('.pdf');
-                
+
                 if (!isPdfAttachment) {
                     // For image attachments only, add them to jsPDF
                     // For image attachments, use the existing logic
                     try {
                         pdf.addPage();
-                        
+
                         // Set background to dark for attachment page
                         pdf.setFillColor(...darkBg);
                         pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
-                        
+
                         // Load the image directly from URL
                         const img = new Image();
                         img.crossOrigin = 'anonymous';
-                        
+
                         await new Promise((resolve, reject) => {
                             img.onload = () => resolve();
                             img.onerror = (err) => {
@@ -741,7 +802,7 @@ const InvoiceDetailsPage = () => {
                                 reject(err);
                             };
                             img.src = attachmentToDisplay;
-                            
+
                             // Timeout after 10 seconds
                             setTimeout(() => {
                                 if (!img.complete) {
@@ -749,25 +810,25 @@ const InvoiceDetailsPage = () => {
                                 }
                             }, 10000);
                         });
-                        
+
                         // Calculate dimensions to fit the page
                         const imgWidth = img.width;
                         const imgHeight = img.height;
                         const ratio = imgWidth / imgHeight;
-                        
+
                         let displayWidth = contentWidth;
                         let displayHeight = displayWidth / ratio;
-                        
+
                         // If image is taller than page, scale it down
                         if (displayHeight > contentHeight) {
                             displayHeight = contentHeight;
                             displayWidth = displayHeight * ratio;
                         }
-                        
+
                         // Center the image on the page
                         const xPos = margin + (contentWidth - displayWidth) / 2;
                         const yPos = margin + (contentHeight - displayHeight) / 2;
-                        
+
                         // Add image to PDF
                         pdf.addImage(attachmentToDisplay, 'PNG', xPos, yPos, displayWidth, displayHeight);
                     } catch (error) {
@@ -775,14 +836,14 @@ const InvoiceDetailsPage = () => {
                         // Fallback: try using html2canvas if direct image load fails
                         if (attachmentRef.current) {
                             try {
-                                const attachmentCanvas = await html2canvas(attachmentRef.current, { 
+                                const attachmentCanvas = await html2canvas(attachmentRef.current, {
                                     useCORS: true,
                                     scale: 2,
                                     backgroundColor: '#1e293b',
                                     logging: false,
                                     allowTaint: true
                                 });
-                                
+
                                 if (attachmentCanvas && attachmentCanvas.width > 0 && attachmentCanvas.height > 0) {
                                     const attachmentImgData = attachmentCanvas.toDataURL('image/png');
                                     addImageToPDF(attachmentImgData, attachmentCanvas.width, attachmentCanvas.height);
@@ -799,14 +860,14 @@ const InvoiceDetailsPage = () => {
             if (activityLogRef.current) {
                 try {
                     pdf.addPage();
-                    const activityCanvas = await html2canvas(activityLogRef.current, { 
+                    const activityCanvas = await html2canvas(activityLogRef.current, {
                         useCORS: true,
                         scale: 2,
                         backgroundColor: '#1e293b',
                         logging: false,
                         allowTaint: true
                     });
-                    
+
                     if (activityCanvas && activityCanvas.width > 0 && activityCanvas.height > 0) {
                         const activityImgData = activityCanvas.toDataURL('image/png');
                         addImageToPDF(activityImgData, activityCanvas.width, activityCanvas.height);
@@ -822,22 +883,22 @@ const InvoiceDetailsPage = () => {
 
             // Convert jsPDF to arrayBuffer for merging
             const detailsPdfBytes = pdf.output('arraybuffer');
-            
+
             // Now merge PDFs if there's a PDF attachment
             const isPdfAttachment = attachmentToDisplay && (attachmentContentType?.toLowerCase().includes('pdf') || attachmentToDisplay?.toLowerCase().endsWith('.pdf'));
-            
+
             if (isPdfAttachment) {
                 try {
                     // Dynamically import pdf-lib only when needed
                     const { PDFDocument } = await import('pdf-lib');
-                    
+
                     // Get attachment ID from invoice or allAttachmentIds
                     const attachmentId = invoice?.attachment_id || (invoice?.attachment && invoice?.attachment.id) || allAttachmentIds[0];
-                    
+
                     if (!attachmentId) {
                         throw new Error('No attachment ID available');
                     }
-                    
+
                     // Fetch the PDF directly from the API endpoint
                     const FINANCE_API_BASE_URL = import.meta.env.VITE_FINANCE_API_URL || 'http://127.0.0.1:8003';
                     const response = await fetch(`${FINANCE_API_BASE_URL}/api/attachments/${attachmentId}`, {
@@ -846,27 +907,27 @@ const InvoiceDetailsPage = () => {
                             'Content-Type': 'application/json'
                         }
                     });
-                    
+
                     if (!response.ok) {
                         throw new Error(`Failed to fetch attachment: ${response.status}`);
                     }
-                    
+
                     const attachmentBlob = await response.blob();
                     const attachmentPdfBytes = await attachmentBlob.arrayBuffer();
-                    
+
                     // Create a new PDF document to merge
                     const mergedPdf = await PDFDocument.create();
-                    
+
                     // Load the details PDF
                     const detailsPdf = await PDFDocument.load(detailsPdfBytes);
                     const detailsPages = await mergedPdf.copyPages(detailsPdf, detailsPdf.getPageIndices());
                     detailsPages.forEach((page) => mergedPdf.addPage(page));
-                    
+
                     // Load and merge the attachment PDF
                     const attachmentPdf = await PDFDocument.load(attachmentPdfBytes);
                     const attachmentPages = await mergedPdf.copyPages(attachmentPdf, attachmentPdf.getPageIndices());
                     attachmentPages.forEach((page) => mergedPdf.addPage(page));
-                    
+
                     // Save the merged PDF
                     const mergedPdfBytes = await mergedPdf.save();
                     const blob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
@@ -876,16 +937,16 @@ const InvoiceDetailsPage = () => {
                     link.download = `invoice-${invoiceDetails.bill_number || invoiceId}.pdf`;
                     link.click();
                     URL.revokeObjectURL(url);
-                    
+
                     toast({ title: 'Export Successful', description: 'Invoice exported to PDF with details, attachment, and activity log.' });
                 } catch (error) {
                     console.error('Error merging PDF attachment:', error);
                     // Fallback to saving jsPDF if merging fails
                     pdf.save(`invoice-${invoiceDetails.bill_number || invoiceId}.pdf`);
-                    toast({ 
-                        title: 'Export Warning', 
-                        description: 'PDF exported but attachment could not be merged. Details only.', 
-                        variant: 'default' 
+                    toast({
+                        title: 'Export Warning',
+                        description: 'PDF exported but attachment could not be merged. Details only.',
+                        variant: 'default'
                     });
                 }
             } else {
@@ -904,21 +965,21 @@ const InvoiceDetailsPage = () => {
     // Handle attachment navigation
     const handleAttachmentNavigate = async (direction) => {
         if (allAttachmentIds.length <= 1 || !user?.access_token) return; // No navigation if only one or no attachments, or no auth token
-        
+
         const newIndex = currentAttachmentIndex + direction;
         if (newIndex >= 0 && newIndex < allAttachmentIds.length) {
             setIsImageLoading(true);
             setAttachmentToDisplay(null);
             setAttachmentContentType(null);
             setCurrentAttachmentIndex(newIndex);
-            
+
             try {
                 const attachmentId = allAttachmentIds[newIndex];
                 const result = await getInvoiceAttachment(attachmentId, user.access_token);
                 // Handle both old format (string URL) and new format (object with url and contentType)
                 const url = typeof result === 'string' ? result : result?.url;
                 const contentType = typeof result === 'object' ? result?.contentType : null;
-                
+
                 if (url) {
                     setAttachmentToDisplay(url);
                     setAttachmentContentType(contentType);
@@ -949,29 +1010,44 @@ const InvoiceDetailsPage = () => {
             const nextInvoice = invoices[newIndex];
             console.log("Navigating to invoice:", nextInvoice.id);
             setCurrentIndex(newIndex);
-            navigate(`/invoices/${nextInvoice.id}`, { 
-                state: { 
-                    invoice: nextInvoice, 
-                    invoices, 
-                    organisationId, 
-                    entityName, 
-                    organizationName 
-                } 
+            navigate(`/invoices/${nextInvoice.id}`, {
+                state: {
+                    invoice: nextInvoice,
+                    invoices,
+                    organisationId,
+                    entityName,
+                    organizationName,
+                    isReadOnly
+                }
             });
         } else {
             console.warn("Navigation out of bounds:", { newIndex, invoicesLength: invoices.length });
         }
     };
-    
+
     // Check if we have invoices to navigate - show arrows if we have multiple invoices
     const hasInvoices = invoices && Array.isArray(invoices) && invoices.length > 1;
 
     // Tag logic
     const handleTag = async () => {
+        if (!editedInvoice.finance_header_id) {
+            toast({
+                title: 'Validation Error',
+                description: 'Please select a header before tagging the invoice.',
+                variant: 'destructive',
+            });
+            return;
+        }
+
         try {
             const entityId = selectedEntity || localStorage.getItem('entityId');
-            await updateInvoice(invoiceId, entityId, { is_ready: true, finance_header_id: editedInvoice.finance_header_id }, user.access_token);
-            toast({ title: 'Success', description: 'Invoice tagged successfully.' });
+            // When tagging, we also mark as verified
+            await updateInvoice(invoiceId, entityId, {
+                is_ready: true,
+                finance_header_id: editedInvoice.finance_header_id,
+                status: 'verified'
+            }, user.access_token);
+            toast({ title: 'Success', description: 'Invoice tagged and verified successfully.' });
             navigate(-1);
         } catch (error) {
             toast({
@@ -1025,11 +1101,46 @@ const InvoiceDetailsPage = () => {
         </div>
     );
 
+    const handleStatusUpdate = async (status, remarks = null) => {
+        setIsStatusUpdating(true);
+        try {
+            const payload = {
+                status: status,
+                ...(remarks && { status_remarks: remarks })
+            };
+
+            // Use updateInvoice from api.js with correct signature: (id, entityId, payload, token)
+            // Get entityId from invoiceDetails or localStorage
+            const entityId = invoiceDetails.entity_id || localStorage.getItem('entityId');
+            const updatedInvoice = await updateInvoice(invoiceId, entityId, payload, user.access_token);
+
+            if (updatedInvoice) {
+                setInvoice(updatedInvoice);
+                setEditedInvoice(updatedInvoice);
+                toast({
+                    title: 'Status Updated',
+                    description: `Invoice marked as ${formatStatus(status)}.`,
+                });
+                setShowRejectDialog(false);
+                setRejectionRemarks('');
+            }
+        } catch (error) {
+            console.error('Status Update Error:', error);
+            toast({
+                title: 'Error',
+                description: `Failed to update status: ${error.message}`,
+                variant: 'destructive',
+            });
+        } finally {
+            setIsStatusUpdating(false);
+        }
+    };
+
     if (isLoading) {
         return <InvoiceDetailsSkeleton />;
     }
 
-    const isClientUser = user?.role === 'CLIENT_USER';
+
     const defaultTab = isClientUser ? 'details' : 'details';
     const cols = isClientUser ? 'grid-cols-3' : 'grid-cols-3';
 
@@ -1041,7 +1152,12 @@ const InvoiceDetailsPage = () => {
                         <ArrowLeft className="h-5 w-5 sm:h-6 sm:w-6" />
                     </Button>
                     <div>
-                        <h1 className="text-xl sm:text-2xl font-bold">Invoice Details</h1>
+                        <div className="flex items-center gap-3">
+                            <h1 className="text-xl sm:text-2xl font-bold">Invoice Details</h1>
+                            <span className={`px-3 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(invoiceDetails.status)}`}>
+                                {formatStatus(invoiceDetails.status)}
+                            </span>
+                        </div>
                         <p className="text-xs sm:text-sm text-gray-400">Review all invoice transactions.</p>
                     </div>
                 </div>
@@ -1138,261 +1254,275 @@ const InvoiceDetailsPage = () => {
                     <div className="relative flex h-full flex-col">
                         <div className="flex-1 overflow-y-auto px-4 py-6 sm:p-6 hide-scrollbar" style={{ paddingBottom: hasInvoices ? '8rem' : '2rem' }}>
                             <Tabs defaultValue={defaultTab} className="w-full">
-                            <TabsList className={`grid w-full ${cols} text-xs sm:text-sm`}>
-                                <TabsTrigger value="details" className="text-xs sm:text-sm">Details</TabsTrigger>
-                                <TabsTrigger value="activity" className="text-xs sm:text-sm">Activity Log</TabsTrigger>
-                                <TabsTrigger value="beneficiary" className="text-xs sm:text-sm">Beneficiary</TabsTrigger>
-                            </TabsList>
-                            <TabsContent value="details" className="mt-4">
-                                {isEditing ? (
-                                    <form onSubmit={handleUpdate} className="space-y-4">
-                                        <div>
-                                            <Label htmlFor="beneficiary_id" className="text-sm">Beneficiary</Label>
-                                            <Select 
-                                                value={editedInvoice?.beneficiary_id ? String(editedInvoice.beneficiary_id) : ''}
-                                                onValueChange={(val) => setEditedInvoice(p => ({ ...p, beneficiary_id: val }))}
-                                                disabled={true}
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Select a beneficiary" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {beneficiaries.map((b) => (
-                                                        <SelectItem key={b.id} value={String(b.id)}>
-                                                            {b.beneficiary_type === 'individual' ? b.name : b.company_name}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                        <div>
-                                            <Label htmlFor="bill_number">Bill Number</Label>
-                                            <Input name="bill_number" defaultValue={editedInvoice.bill_number} />
-                                        </div>
-                                        <div>
-                                            <Label htmlFor="date">Date</Label>
-                                            <Input name="date" type="date" defaultValue={new Date(editedInvoice.date).toISOString().split('T')[0]} />
-                                        </div>
-                                        <div>
-                                            <Label htmlFor="amount">Amount</Label>
-                                            <Input name="amount" type="number" step="0.01" defaultValue={editedInvoice.amount} />
-                                        </div>
-                                        <div>
-                                            <Label htmlFor="cgst">CGST</Label>
-                                            <Input name="cgst" type="number" step="0.01" defaultValue={editedInvoice.cgst} onChange={(e) => setEditedInvoice(p => ({ ...p, cgst: e.target.value, sgst: e.target.value }))} />
-                                        </div>
-                                        <div>
-                                            <Label htmlFor="sgst">SGST</Label>
-                                            <Input name="sgst" type="number" step="0.01" value={editedInvoice.sgst} onChange={(e) => setEditedInvoice(p => ({ ...p, sgst: e.target.value, cgst: e.target.value }))} />
-                                        </div>
-                                        <div>
-                                            <Label htmlFor="igst">IGST</Label>
-                                            <Input name="igst" type="number" step="0.01" defaultValue={editedInvoice.igst} />
-                                        </div>
-                                        <div>
-                                            <Label htmlFor="roundoff">Roundoff</Label>
-                                            <Input name="roundoff" type="number" step="0.01" defaultValue={editedInvoice.roundoff || 0} onChange={(e) => setEditedInvoice(p => ({ ...p, roundoff: e.target.value }))} />
-                                        </div>
-                                        <div>
-                                            <Label htmlFor="remarks">Remarks</Label>
-                                            <Input name="remarks" defaultValue={editedInvoice.remarks} />
-                                        </div>
-                                        {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
+                                <TabsList className={`grid w-full ${cols} text-xs sm:text-sm`}>
+                                    <TabsTrigger value="details" className="text-xs sm:text-sm">Details</TabsTrigger>
+                                    <TabsTrigger value="history" className="text-xs sm:text-sm">History</TabsTrigger>
+                                    <TabsTrigger value="beneficiary" className="text-xs sm:text-sm">Beneficiary</TabsTrigger>
+                                </TabsList>
+                                <TabsContent value="details" className="mt-4">
+                                    {isEditing ? (
+                                        <form onSubmit={handleUpdate} className="space-y-4">
                                             <div>
-                                                <Label htmlFor="finance_header_id">Header</Label>
-                                                <Select 
-                                                    name="finance_header_id" 
-                                                    value={editedInvoice?.finance_header_id ? String(editedInvoice.finance_header_id) : ''}
-                                                    onValueChange={(val) => setEditedInvoice(p => ({ ...p, finance_header_id: val ? Number(val) : null }))}
+                                                <Label htmlFor="beneficiary_id" className="text-sm">Beneficiary</Label>
+                                                <Select
+                                                    value={editedInvoice?.beneficiary_id ? String(editedInvoice.beneficiary_id) : ''}
+                                                    onValueChange={(val) => setEditedInvoice(p => ({ ...p, beneficiary_id: val }))}
+                                                    disabled={true}
                                                 >
-                                                    <SelectTrigger>
-                                                        <SelectValue placeholder="Select a header" />
+                                                    <SelectTrigger className="text-sm text-white">
+                                                        <SelectValue placeholder="Select a beneficiary" />
                                                     </SelectTrigger>
                                                     <SelectContent>
-                                                        {financeHeaders.map((h) => (
-                                                            <SelectItem key={h.id} value={String(h.id)}>
-                                                                {h.name}
+                                                        {beneficiaries.map((b) => (
+                                                            <SelectItem key={b.id} value={String(b.id)}>
+                                                                {b.beneficiary_type === 'individual' ? b.name : b.company_name}
                                                             </SelectItem>
                                                         ))}
                                                     </SelectContent>
                                                 </Select>
                                             </div>
-                                        )}
-                                        {/* Hidden inputs to ensure beneficiary_id and finance_header_id are in FormData */}
-                                        <input type="hidden" name="beneficiary_id" value={editedInvoice?.beneficiary_id || ''} />
-                                        {user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM' ? (
-                                            <input type="hidden" name="finance_header_id" value={editedInvoice?.finance_header_id || ''} />
-                                        ) : null}
-                                        <div className="flex justify-end gap-2">
-                                            <Button variant="ghost" onClick={() => setIsEditing(false)} disabled={isDeleting}>Cancel</Button>
-                                            <Button type="submit" disabled={isDeleting}>
-                                                {isDeleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                                                Save Changes
-                                            </Button>
-                                        </div>
-                                    </form>
-                                ) : (
-                                    <Card ref={invoiceDetailsRef} className="w-full glass-pane border-none shadow-none bg-gray-800 text-white relative z-20">
-                                        <div ref={invoiceDetailsPDFRef} className="w-full">
-                                            <CardHeader className="p-4 sm:p-6">
-                                                <CardTitle className="text-lg sm:text-xl">{invoiceDetails.bill_number || 'N/A'}</CardTitle>
-                                                <CardDescription className="text-xs sm:text-sm">Created on {invoiceDetails.created_date || invoiceDetails.created_at ? new Date(invoiceDetails.created_date || invoiceDetails.created_at).toLocaleDateString() : 'N/A'}</CardDescription>
-                                            </CardHeader>
-                                            <CardContent className="space-y-2 relative z-20 p-4 sm:p-6 pt-0">
-                                                <DetailItem label="Date" value={new Date(invoiceDetails.date).toLocaleDateString()} />
-                                                <DetailItem label="Base Amount" value={`₹${parseFloat(invoiceDetails.amount || 0).toFixed(2)}`} />
-                                                <DetailItem label="CGST" value={`₹${parseFloat(invoiceDetails.cgst || 0).toFixed(2)}`} />
-                                                <DetailItem label="SGST" value={`₹${parseFloat(invoiceDetails.sgst || 0).toFixed(2)}`} />
-                                                <DetailItem label="IGST" value={`₹${parseFloat(invoiceDetails.igst || 0).toFixed(2)}`} />
-                                                <div className="pt-4">
-                                                    <DetailItem label="Total Amount" value={`₹${totalAmount}`} />
+                                            <div>
+                                                <Label htmlFor="bill_number">Bill Number</Label>
+                                                <Input name="bill_number" defaultValue={editedInvoice.bill_number} />
+                                            </div>
+                                            <div>
+                                                <Label htmlFor="date">Date</Label>
+                                                <Input name="date" type="date" defaultValue={new Date(editedInvoice.date).toISOString().split('T')[0]} />
+                                            </div>
+                                            <div>
+                                                <Label htmlFor="amount">Amount</Label>
+                                                <Input name="amount" type="number" step="0.01" defaultValue={editedInvoice.amount} />
+                                            </div>
+                                            <div>
+                                                <Label htmlFor="cgst">CGST</Label>
+                                                <Input name="cgst" type="number" step="0.01" defaultValue={editedInvoice.cgst} onChange={(e) => setEditedInvoice(p => ({ ...p, cgst: e.target.value, sgst: e.target.value }))} />
+                                            </div>
+                                            <div>
+                                                <Label htmlFor="sgst">SGST</Label>
+                                                <Input name="sgst" type="number" step="0.01" value={editedInvoice.sgst} onChange={(e) => setEditedInvoice(p => ({ ...p, sgst: e.target.value, cgst: e.target.value }))} />
+                                            </div>
+                                            <div>
+                                                <Label htmlFor="igst">IGST</Label>
+                                                <Input name="igst" type="number" step="0.01" defaultValue={editedInvoice.igst} />
+                                            </div>
+                                            <div>
+                                                <Label htmlFor="roundoff">Roundoff</Label>
+                                                <Input name="roundoff" type="number" step="0.01" defaultValue={editedInvoice.roundoff || 0} onChange={(e) => setEditedInvoice(p => ({ ...p, roundoff: e.target.value }))} />
+                                            </div>
+                                            <div>
+                                                <Label htmlFor="remarks">Remarks</Label>
+                                                <Input name="remarks" defaultValue={editedInvoice.remarks} />
+                                            </div>
+                                            {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
+                                                <div>
+                                                    <Label htmlFor="finance_header_id">Header</Label>
+                                                    <Select
+                                                        name="finance_header_id"
+                                                        value={editedInvoice?.finance_header_id ? String(editedInvoice.finance_header_id) : ''}
+                                                        onValueChange={(val) => setEditedInvoice(p => ({ ...p, finance_header_id: val ? Number(val) : null }))}
+                                                    >
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Select a header" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {financeHeaders.map((h) => (
+                                                                <SelectItem key={h.id} value={String(h.id)}>
+                                                                    {h.name}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
                                                 </div>
-                                                <div className="pt-4">
-                                                    <p className="text-sm text-gray-400 mb-1">Remarks</p>
-                                                    <p className="text-sm text-white p-3 bg-white/5 rounded-md">{invoiceDetails.remarks && invoiceDetails.remarks.trim() ? invoiceDetails.remarks : 'N/A'}</p>
-                                                </div>
-                                                {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
+                                            )}
+                                            {/* Hidden inputs to ensure beneficiary_id and finance_header_id are in FormData */}
+                                            <input type="hidden" name="beneficiary_id" value={editedInvoice?.beneficiary_id || ''} />
+                                            {user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM' ? (
+                                                <input type="hidden" name="finance_header_id" value={editedInvoice?.finance_header_id || ''} />
+                                            ) : null}
+                                            <div className="flex justify-end gap-2">
+                                                <Button variant="ghost" onClick={() => setIsEditing(false)} disabled={isDeleting}>Cancel</Button>
+                                                <Button type="submit" disabled={isDeleting}>
+                                                    {isDeleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                                                    Save Changes
+                                                </Button>
+                                            </div>
+                                        </form>
+                                    ) : (
+                                        <Card ref={invoiceDetailsRef} className="w-full glass-pane border-none shadow-none bg-gray-800 text-white relative z-20">
+                                            <div ref={invoiceDetailsPDFRef} className="w-full">
+                                                <CardHeader className="p-4 sm:p-6">
+                                                    <CardTitle className="text-lg sm:text-xl">{invoiceDetails.bill_number || 'N/A'}</CardTitle>
+                                                    <CardDescription className="text-xs sm:text-sm">Created on {invoiceDetails.created_date || invoiceDetails.created_at ? new Date(invoiceDetails.created_date || invoiceDetails.created_at).toLocaleDateString() : 'N/A'}</CardDescription>
+                                                </CardHeader>
+                                                <CardContent className="space-y-2 relative z-20 p-4 sm:p-6 pt-0">
+                                                    <DetailItem label="Date" value={new Date(invoiceDetails.date).toLocaleDateString()} />
+                                                    <DetailItem label="Base Amount" value={`₹${parseFloat(invoiceDetails.amount || 0).toFixed(2)}`} />
+                                                    <DetailItem label="CGST" value={`₹${parseFloat(invoiceDetails.cgst || 0).toFixed(2)}`} />
+                                                    <DetailItem label="SGST" value={`₹${parseFloat(invoiceDetails.sgst || 0).toFixed(2)}`} />
+                                                    <DetailItem label="IGST" value={`₹${parseFloat(invoiceDetails.igst || 0).toFixed(2)}`} />
                                                     <div className="pt-4">
-                                                        <Label htmlFor="finance_header_id">Header</Label>
-                                                        <Select
-                                                            name="finance_header_id"
-                                                            value={editedInvoice.finance_header_id || ""}
-                                                            onValueChange={(value) => setEditedInvoice(p => ({ ...p, finance_header_id: value }))}
-                                                        >
-                                                            <SelectTrigger>
-                                                                <SelectValue placeholder="Select a header" />
-                                                            </SelectTrigger>
-                                                            <SelectContent>
-                                                                {financeHeaders.map((h) => (
-                                                                    <SelectItem key={h.id} value={h.id}>
-                                                                        {h.name}
-                                                                    </SelectItem>
-                                                                ))}
-                                                            </SelectContent>
-                                                        </Select>
+                                                        <DetailItem label="Total Amount" value={`₹${totalAmount}`} />
                                                     </div>
-                                                )}
-                                            </CardContent>
-                                        </div>
-                                        <div className="flex items-center gap-3 pb-10 mb-20 sm:mb-16 md:mb-4 justify-end relative z-[100] px-4 sm:px-6 action-buttons-container">
-                                            {/* Action buttons on right */}
-                                            <div className="flex items-center gap-3 relative z-[100]">
-                                                <TooltipProvider>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <Button
-                                                                variant="destructive"
-                                                                size="icon"
-                                                                onClick={() => setShowDeleteDialog(true)}
-                                                                className="h-9 w-9 sm:h-10 sm:w-10"
-                                                            >
-                                                                <Trash2 className="h-4 w-4" />
-                                                            </Button>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>
-                                                            <p>Delete</p>
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <Button
-                                                                variant="outline"
-                                                                size="icon"
-                                                                onClick={handleExportToPDF}
-                                                                className="h-9 w-9 sm:h-10 sm:w-10"
-                                                            >
-                                                                <FileText className="h-4 w-4" />
-                                                            </Button>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>
-                                                            <p>Export</p>
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <Button
-                                                                variant="outline"
-                                                                size="icon"
-                                                                onClick={() => setIsEditing(!isEditing)}
-                                                                className="h-9 w-9 sm:h-10 sm:w-10"
-                                                            >
-                                                                <Edit className="h-4 w-4" />
-                                                            </Button>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>
-                                                            <p>Edit</p>
-                                                        </TooltipContent>
-                                                    </Tooltip>
+                                                    <div className="pt-4">
+                                                        <p className="text-sm text-gray-400 mb-1">Remarks</p>
+                                                        <p className="text-sm text-white p-3 bg-white/5 rounded-md">{invoiceDetails.remarks && invoiceDetails.remarks.trim() ? invoiceDetails.remarks : 'N/A'}</p>
+                                                    </div>
                                                     {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
+                                                        <div className="pt-4">
+                                                            <Label htmlFor="finance_header_id">Header</Label>
+                                                            <Select
+                                                                name="finance_header_id"
+                                                                value={editedInvoice.finance_header_id || ""}
+                                                                onValueChange={(value) => setEditedInvoice(p => ({ ...p, finance_header_id: value }))}
+                                                            >
+                                                                <SelectTrigger>
+                                                                    <SelectValue placeholder="Select a header" />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {financeHeaders.map((h) => (
+                                                                        <SelectItem key={h.id} value={h.id}>
+                                                                            {h.name}
+                                                                        </SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+                                                    )}
+                                                </CardContent>
+                                            </div>
+                                            <div className="flex items-center gap-3 pb-10 mb-20 sm:mb-16 md:mb-4 justify-end relative z-[100] px-4 sm:px-6 action-buttons-container">
+                                                {/* Action buttons on right */}
+                                                <div className="flex items-center gap-3 relative z-[100]">
+                                                    <TooltipProvider delayDuration={0}>
+                                                        {/* Client Admin Approval Actions */}
+                                                        {user?.role === 'CLIENT_MASTER_ADMIN' && !isReadOnly && (invoiceDetails.status === 'pending_master_admin_approval' || invoiceDetails.status === 'pending_approval' || invoiceDetails.status === 'created') && (
+                                                            <div className="flex items-center gap-2 mr-2">
+                                                                <Button onClick={() => handleStatusUpdate('pending_ca_approval')} disabled={isStatusUpdating} className="bg-green-600 hover:bg-green-700 text-white border-none h-9 px-3 gap-1 shadow-sm text-xs font-medium">
+                                                                    {isStatusUpdating ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
+                                                                    <span>Approve</span>
+                                                                </Button>
+                                                                <Button onClick={() => setShowRejectDialog(true)} disabled={isStatusUpdating} className="bg-red-600 hover:bg-red-700 text-white border-none h-9 px-3 gap-1 shadow-sm text-xs font-medium">
+                                                                    {isStatusUpdating ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="h-3 w-3" />}
+                                                                    <span>Reject</span>
+                                                                </Button>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Export (Icon) - Visible to all */}
                                                         <Tooltip>
                                                             <TooltipTrigger asChild>
-                                                                <Button onClick={handleTag} className="bg-blue-600 text-white hover:bg-blue-700 text-sm h-9 sm:h-10">
-                                                                    Tag
+                                                                <Button variant="outline" size="icon" onClick={handleExportToPDF} className="h-9 w-9 bg-white/5 border-white/10 hover:bg-white/10">
+                                                                    <FileText className="h-4 w-4" />
                                                                 </Button>
                                                             </TooltipTrigger>
-                                                            <TooltipContent>
-                                                                <p>Tag Invoice</p>
-                                                            </TooltipContent>
+                                                            <TooltipContent><p>Export PDF</p></TooltipContent>
                                                         </Tooltip>
-                                                    )}
-                                                </TooltipProvider>
+
+                                                        {/* CA Reject (Icon Red Circle) */}
+                                                        {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && !isReadOnly && (invoiceDetails.status === 'pending_ca_approval' || invoiceDetails.status === 'pending_approval' || invoiceDetails.status === 'created') && (
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Button
+                                                                        onClick={() => setShowRejectDialog(true)}
+                                                                        disabled={isStatusUpdating}
+                                                                        className="h-9 w-9 bg-red-600 hover:bg-red-700 text-white rounded-full border-none shadow-lg"
+                                                                        size="icon"
+                                                                    >
+                                                                        {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
+                                                                    </Button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent><p>Reject Invoice</p></TooltipContent>
+                                                            </Tooltip>
+                                                        )}
+
+                                                        {/* Tag Button (Blue Text Button) */}
+                                                        {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && !isReadOnly && (
+                                                            <Button onClick={handleTag} className="bg-blue-600 text-white hover:bg-blue-700 h-9 px-6 text-xs font-bold rounded-md shadow-lg transition-all active:scale-95 ml-1">
+                                                                Tag
+                                                            </Button>
+                                                        )}
+
+                                                        {/* Delete (Icon) - Restricted for CA */}
+                                                        {isEditable && !isReadOnly && user?.role !== 'CA_ACCOUNTANT' && user?.role !== 'CA_TEAM' && (
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Button variant="destructive" size="icon" onClick={() => setShowDeleteDialog(true)} className="h-9 w-9">
+                                                                        <Trash2 className="h-4 w-4" />
+                                                                    </Button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent><p>Delete</p></TooltipContent>
+                                                            </Tooltip>
+                                                        )}
+
+                                                        {/* Edit (Icon) - Restricted for CA */}
+                                                        {isEditable && !isReadOnly && user?.role !== 'CA_ACCOUNTANT' && user?.role !== 'CA_TEAM' && (
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Button variant="outline" size="icon" onClick={() => setIsEditing(!isEditing)} className="h-9 w-9 bg-white/5 border-white/10">
+                                                                        <Edit className="h-4 w-4" />
+                                                                    </Button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent><p>Edit</p></TooltipContent>
+                                                            </Tooltip>
+                                                        )}
+                                                    </TooltipProvider>
+                                                </div>
                                             </div>
-                                        </div>
-                                    </Card>
-                                )}
-                            </TabsContent>
-                            <TabsContent value="activity" className="mt-4">
-                                <div className="p-2 sm:p-4" ref={activityLogRef}>
-                                    <ActivityLog itemId={invoice?.id || invoiceId} itemType="invoice" showFilter={false} />
-                                </div>
-                            </TabsContent>
-                            <TabsContent value="beneficiary" className="mt-4">
-                                {(() => {
-                                    // Try to resolve the full beneficiary object
-                                    let beneficiaryObj = invoiceDetails.beneficiary || invoice?.beneficiary;
-                                    
-                                    // If we have beneficiary_id but not a complete beneficiary object, try to find it in the beneficiaries list
-                                    if (invoiceDetails.beneficiary_id && (!beneficiaryObj || !beneficiaryObj.name && !beneficiaryObj.company_name)) {
-                                        if (beneficiaries && beneficiaries.length > 0) {
-                                            const found = beneficiaries.find(
-                                                b => String(b.id) === String(invoiceDetails.beneficiary_id)
-                                            );
-                                            if (found) beneficiaryObj = found;
-                                        }
-                                    }
-                                    
-                                    // Resolve beneficiary name with multiple fallbacks
-                                    let resolvedBeneficiaryName = 'N/A';
-                                    if (beneficiaryObj) {
-                                        if (beneficiaryObj.beneficiary_type === 'individual') {
-                                            resolvedBeneficiaryName = beneficiaryObj.name || 'N/A';
-                                        } else {
-                                            resolvedBeneficiaryName = beneficiaryObj.company_name || beneficiaryObj.name || 'N/A';
-                                        }
-                                    } else if (invoiceDetails.beneficiary_name) {
-                                        resolvedBeneficiaryName = invoiceDetails.beneficiary_name;
-                                    } else if (invoice?.beneficiary_name) {
-                                        resolvedBeneficiaryName = invoice.beneficiary_name;
-                                    } else if (beneficiaryName) {
-                                        resolvedBeneficiaryName = beneficiaryName; // from location state
-                                    }
-                                    
-                                    return (
-                                        <Card className="w-full glass-pane border-none shadow-none bg-gray-800 text-white">
-                                            <CardHeader className="p-4 sm:p-6">
-                                                <CardTitle className="text-lg sm:text-xl">Beneficiary Details</CardTitle>
-                                            </CardHeader>
-                                            <CardContent className="space-y-2 p-4 sm:p-6 pt-0">
-                                                <DetailItem label="Name" value={resolvedBeneficiaryName} />
-                                                <DetailItem label="PAN" value={beneficiaryObj?.pan || 'N/A'} />
-                                                <DetailItem label="Email" value={beneficiaryObj?.email || 'N/A'} />
-                                                <DetailItem label="Phone" value={beneficiaryObj?.phone || beneficiaryObj?.phone_number || 'N/A'} />
-                                            </CardContent>
                                         </Card>
-                                    );
-                                })()}
-                            </TabsContent>
-                        </Tabs>
+                                    )}
+                                </TabsContent>
+                                <TabsContent value="activity" className="mt-4">
+                                    <div className="p-2 sm:p-4" ref={activityLogRef}>
+                                        <ActivityLog itemId={invoice?.id || invoiceId} itemType="invoice" showFilter={false} />
+                                    </div>
+                                </TabsContent>
+                                <TabsContent value="beneficiary" className="mt-4">
+                                    {(() => {
+                                        // Try to resolve the full beneficiary object
+                                        let beneficiaryObj = invoiceDetails.beneficiary || invoice?.beneficiary;
+
+                                        // If we have beneficiary_id but not a complete beneficiary object, try to find it in the beneficiaries list
+                                        if (invoiceDetails.beneficiary_id && (!beneficiaryObj || !beneficiaryObj.name && !beneficiaryObj.company_name)) {
+                                            if (beneficiaries && beneficiaries.length > 0) {
+                                                const found = beneficiaries.find(
+                                                    b => String(b.id) === String(invoiceDetails.beneficiary_id)
+                                                );
+                                                if (found) beneficiaryObj = found;
+                                            }
+                                        }
+
+                                        // Resolve beneficiary name with multiple fallbacks
+                                        let resolvedBeneficiaryName = 'N/A';
+                                        if (beneficiaryObj) {
+                                            if (beneficiaryObj.beneficiary_type === 'individual') {
+                                                resolvedBeneficiaryName = beneficiaryObj.name || 'N/A';
+                                            } else {
+                                                resolvedBeneficiaryName = beneficiaryObj.company_name || beneficiaryObj.name || 'N/A';
+                                            }
+                                        } else if (invoiceDetails.beneficiary_name) {
+                                            resolvedBeneficiaryName = invoiceDetails.beneficiary_name;
+                                        } else if (invoice?.beneficiary_name) {
+                                            resolvedBeneficiaryName = invoice.beneficiary_name;
+                                        } else if (beneficiaryName) {
+                                            resolvedBeneficiaryName = beneficiaryName; // from location state
+                                        }
+
+                                        return (
+                                            <Card className="w-full glass-pane border-none shadow-none bg-gray-800 text-white">
+                                                <CardHeader className="p-4 sm:p-6">
+                                                    <CardTitle className="text-lg sm:text-xl">Beneficiary Details</CardTitle>
+                                                </CardHeader>
+                                                <CardContent className="space-y-2 p-4 sm:p-6 pt-0">
+                                                    <DetailItem label="Name" value={resolvedBeneficiaryName} />
+                                                    <DetailItem label="PAN" value={beneficiaryObj?.pan || 'N/A'} />
+                                                    <DetailItem label="Email" value={beneficiaryObj?.email || 'N/A'} />
+                                                    <DetailItem label="Phone" value={beneficiaryObj?.phone || beneficiaryObj?.phone_number || 'N/A'} />
+                                                </CardContent>
+                                            </Card>
+                                        );
+                                    })()}
+                                </TabsContent>
+                            </Tabs>
                         </div>
                     </div>
                 </ResizablePanel>
@@ -1477,12 +1607,12 @@ const InvoiceDetailsPage = () => {
                     </div>
                 </div>
 
-                {/* Details Section */}
-                <div className="flex-1 overflow-y-auto border border-white/10 rounded-lg p-4 hide-scrollbar" style={{ paddingBottom: hasInvoices ? '6rem' : '2rem' }}>
+                {/* Details Section (Mobile View) */}
+                <div className="flex-1 overflow-y-auto border border-white/10 rounded-lg p-4 hide-scrollbar md:hidden" style={{ paddingBottom: hasInvoices ? '6rem' : '2rem' }}>
                     <Tabs defaultValue={defaultTab} className="w-full">
                         <TabsList className={`grid w-full ${cols} text-xs sm:text-sm`}>
                             <TabsTrigger value="details" className="text-xs sm:text-sm">Details</TabsTrigger>
-                            <TabsTrigger value="activity" className="text-xs sm:text-sm">Activity</TabsTrigger>
+                            <TabsTrigger value="history" className="text-xs sm:text-sm">History</TabsTrigger>
                             <TabsTrigger value="beneficiary" className="text-xs sm:text-sm">Beneficiary</TabsTrigger>
                         </TabsList>
                         <TabsContent value="details" className="mt-4">
@@ -1490,7 +1620,7 @@ const InvoiceDetailsPage = () => {
                                 <form onSubmit={handleUpdate} className="space-y-4">
                                     <div>
                                         <Label htmlFor="beneficiary_id" className="text-sm">Beneficiary</Label>
-                                        <Select 
+                                        <Select
                                             value={editedInvoice?.beneficiary_id ? String(editedInvoice.beneficiary_id) : ''}
                                             onValueChange={(val) => setEditedInvoice(p => ({ ...p, beneficiary_id: val }))}
                                             disabled={true}
@@ -1542,8 +1672,8 @@ const InvoiceDetailsPage = () => {
                                     {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
                                         <div>
                                             <Label htmlFor="finance_header_id" className="text-sm">Header</Label>
-                                            <Select 
-                                                name="finance_header_id" 
+                                            <Select
+                                                name="finance_header_id"
                                                 value={editedInvoice?.finance_header_id ? String(editedInvoice.finance_header_id) : ''}
                                                 onValueChange={(val) => setEditedInvoice(p => ({ ...p, finance_header_id: val ? Number(val) : null }))}
                                             >
@@ -1594,6 +1724,19 @@ const InvoiceDetailsPage = () => {
                                                 <p className="text-xs sm:text-sm text-gray-400 mb-1">Remarks</p>
                                                 <p className="text-xs sm:text-sm text-white p-3 bg-white/5 rounded-md">{invoiceDetails.remarks && invoiceDetails.remarks.trim() ? invoiceDetails.remarks : 'N/A'}</p>
                                             </div>
+
+                                            {/* Rejection Remarks - separate section if rejected */}
+                                            {(['rejected', 'rejected_by_ca', 'rejected_by_master_admin', 'rejected_by_admin'].includes(invoiceDetails.status) || invoiceDetails.status?.toLowerCase().includes('reject')) && (
+                                                <div className="pt-4">
+                                                    <div className="flex items-center gap-2 text-red-400 mb-1">
+                                                        <AlertCircle className="w-4 h-4" />
+                                                        <p className="text-xs sm:text-sm font-medium">Rejection Reason</p>
+                                                    </div>
+                                                    <p className="text-xs sm:text-sm text-red-200 p-3 bg-red-500/10 border border-red-500/20 rounded-md">
+                                                        {invoiceDetails.status_remarks || 'No rejection remarks provided.'}
+                                                    </p>
+                                                </div>
+                                            )}
                                             {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
                                                 <div className="pt-4">
                                                     <Label htmlFor="finance_header_id" className="text-sm">Header</Label>
@@ -1620,62 +1763,76 @@ const InvoiceDetailsPage = () => {
                                     <div className="flex items-center gap-3 mt-4 mb-20 sm:mb-16 md:mb-4 justify-end relative z-[100] px-4 action-buttons-container">
                                         {/* Action buttons on right */}
                                         <div className="flex items-center gap-3 relative z-[100]">
-                                            <TooltipProvider>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button
-                                                            variant="destructive"
-                                                            size="icon"
-                                                            onClick={() => setShowDeleteDialog(true)}
-                                                            className="h-9 w-9 sm:h-10 sm:w-10"
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
+                                            <TooltipProvider delayDuration={0}>
+                                                {/* Client Admin Approval Actions */}
+                                                {user?.role === 'CLIENT_MASTER_ADMIN' && !isReadOnly && (invoiceDetails.status === 'pending_master_admin_approval' || invoiceDetails.status === 'pending_approval' || invoiceDetails.status === 'created') && (
+                                                    <div className="flex items-center gap-2 mr-2">
+                                                        <Button onClick={() => handleStatusUpdate('pending_ca_approval')} disabled={isStatusUpdating} className="bg-green-600 hover:bg-green-700 text-white border-none h-9 px-3 gap-1 shadow-sm text-xs font-medium">
+                                                            {isStatusUpdating ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
+                                                            <span>Approve</span>
                                                         </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>
-                                                        <p>Delete</p>
-                                                    </TooltipContent>
-                                                </Tooltip>
+                                                        <Button onClick={() => setShowRejectDialog(true)} disabled={isStatusUpdating} className="bg-red-600 hover:bg-red-700 text-white border-none h-9 px-3 gap-1 shadow-sm text-xs font-medium">
+                                                            {isStatusUpdating ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="h-3 w-3" />}
+                                                            <span>Reject</span>
+                                                        </Button>
+                                                    </div>
+                                                )}
+
+                                                {/* Export (Icon) - Visible to all */}
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
-                                                        <Button
-                                                            variant="outline"
-                                                            size="icon"
-                                                            onClick={handleExportToPDF}
-                                                            className="h-9 w-9 sm:h-10 sm:w-10"
-                                                        >
+                                                        <Button variant="outline" size="icon" onClick={handleExportToPDF} className="h-9 w-9 bg-white/5 border-white/10 hover:bg-white/10">
                                                             <FileText className="h-4 w-4" />
                                                         </Button>
                                                     </TooltipTrigger>
-                                                    <TooltipContent>
-                                                        <p>Export</p>
-                                                    </TooltipContent>
+                                                    <TooltipContent><p>Export PDF</p></TooltipContent>
                                                 </Tooltip>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button
-                                                            variant="outline"
-                                                            size="icon"
-                                                            onClick={() => setIsEditing(!isEditing)}
-                                                            className="h-9 w-9 sm:h-10 sm:w-10"
-                                                        >
-                                                            <Edit className="h-4 w-4" />
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>
-                                                        <p>Edit</p>
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                                {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
+
+                                                {/* CA Reject (Icon Red Circle) */}
+                                                {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && !isReadOnly && (invoiceDetails.status === 'pending_ca_approval' || invoiceDetails.status === 'pending_approval' || invoiceDetails.status === 'created') && (
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
-                                                            <Button onClick={handleTag} className="bg-blue-600 text-white hover:bg-blue-700 text-sm h-9 sm:h-10">
-                                                                Tag
+                                                            <Button
+                                                                onClick={() => setShowRejectDialog(true)}
+                                                                disabled={isStatusUpdating}
+                                                                className="h-9 w-9 bg-red-600 hover:bg-red-700 text-white rounded-full border-none shadow-lg"
+                                                                size="icon"
+                                                            >
+                                                                {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
                                                             </Button>
                                                         </TooltipTrigger>
-                                                        <TooltipContent>
-                                                            <p>Tag Invoice</p>
-                                                        </TooltipContent>
+                                                        <TooltipContent><p>Reject Invoice</p></TooltipContent>
+                                                    </Tooltip>
+                                                )}
+
+                                                {/* Tag Button (Blue Text Button) */}
+                                                {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && !isReadOnly && (
+                                                    <Button onClick={handleTag} className="bg-blue-600 text-white hover:bg-blue-700 h-9 px-6 text-xs font-bold rounded-md shadow-lg transition-all active:scale-95 ml-1">
+                                                        Tag
+                                                    </Button>
+                                                )}
+
+                                                {/* Delete (Icon) - Restricted for CA */}
+                                                {isEditable && !isReadOnly && user?.role !== 'CA_ACCOUNTANT' && user?.role !== 'CA_TEAM' && (
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button variant="destructive" size="icon" onClick={() => setShowDeleteDialog(true)} className="h-9 w-9">
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent><p>Delete</p></TooltipContent>
+                                                    </Tooltip>
+                                                )}
+
+                                                {/* Edit (Icon) - Restricted for CA */}
+                                                {isEditable && !isReadOnly && user?.role !== 'CA_ACCOUNTANT' && user?.role !== 'CA_TEAM' && (
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button variant="outline" size="icon" onClick={() => setIsEditing(!isEditing)} className="h-9 w-9 bg-white/5 border-white/10">
+                                                                <Edit className="h-4 w-4" />
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent><p>Edit</p></TooltipContent>
                                                     </Tooltip>
                                                 )}
                                             </TooltipProvider>
@@ -1684,7 +1841,7 @@ const InvoiceDetailsPage = () => {
                                 </Card>
                             )}
                         </TabsContent>
-                        <TabsContent value="activity" className="mt-4">
+                        <TabsContent value="history" className="mt-4">
                             <div className="p-2 sm:p-4" ref={activityLogRef}>
                                 <ActivityLog itemId={invoice?.id || invoiceId} itemType="invoice" showFilter={false} />
                             </div>
@@ -1692,7 +1849,7 @@ const InvoiceDetailsPage = () => {
                         <TabsContent value="beneficiary" className="mt-4">
                             {(() => {
                                 let beneficiaryObj = invoiceDetails.beneficiary || invoice?.beneficiary;
-                                
+
                                 if (invoiceDetails.beneficiary_id && (!beneficiaryObj || !beneficiaryObj.name && !beneficiaryObj.company_name)) {
                                     if (beneficiaries && beneficiaries.length > 0) {
                                         const found = beneficiaries.find(
@@ -1701,7 +1858,7 @@ const InvoiceDetailsPage = () => {
                                         if (found) beneficiaryObj = found;
                                     }
                                 }
-                                
+
                                 let resolvedBeneficiaryName = 'N/A';
                                 if (beneficiaryObj) {
                                     if (beneficiaryObj.beneficiary_type === 'individual') {
@@ -1716,7 +1873,7 @@ const InvoiceDetailsPage = () => {
                                 } else if (beneficiaryName) {
                                     resolvedBeneficiaryName = beneficiaryName;
                                 }
-                                
+
                                 return (
                                     <Card className="w-full glass-pane border-none shadow-none bg-gray-800 text-white">
                                         <CardHeader className="p-4">
@@ -1737,70 +1894,72 @@ const InvoiceDetailsPage = () => {
             </div>
 
             {/* Fixed navigation buttons at bottom corners - aligned on same line */}
-            {hasInvoices && (
-                <>
-                    {/* Previous button at bottom left (after sidebar) */}
-                    <Button 
-                        variant="outline" 
-                        size="icon"
-                        onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleNavigate(-1);
-                        }} 
-                        disabled={currentIndex === 0 || currentIndex === -1}
-                        className="hidden md:flex fixed bottom-4 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg z-[50]"
-                        style={{ 
-                            left: sidebarWidth <= 150 ? `${sidebarWidth + 16}px` : '20rem' // Dynamic positioning when collapsed (sidebar width + 16px margin), left-80 (20rem) when expanded
-                        }}
-                    >
-                        <ChevronLeft className="h-5 w-5" />
-                    </Button>
-                    {/* Next button at bottom right corner */}
-                    <Button 
-                        variant="outline" 
-                        size="icon"
-                        onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleNavigate(1);
-                        }} 
-                        disabled={currentIndex === invoices.length - 1}
-                        className="hidden md:flex fixed bottom-4 right-4 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg z-[50]"
-                    >
-                        <ChevronRight className="h-5 w-5" />
-                    </Button>
-                    {/* Mobile navigation buttons */}
-                    <div className="flex md:hidden fixed bottom-4 left-4 right-4 justify-between z-[50] gap-2 pointer-events-none">
-                        <Button 
-                            variant="outline" 
+            {
+                hasInvoices && (
+                    <>
+                        {/* Previous button at bottom left (after sidebar) */}
+                        <Button
+                            variant="outline"
                             size="icon"
                             onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
                                 handleNavigate(-1);
-                            }} 
+                            }}
                             disabled={currentIndex === 0 || currentIndex === -1}
-                            className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg flex-1 pointer-events-auto"
+                            className="hidden md:flex fixed bottom-4 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg z-[50]"
+                            style={{
+                                left: sidebarWidth <= 150 ? `${sidebarWidth + 16}px` : '20rem' // Dynamic positioning when collapsed (sidebar width + 16px margin), left-80 (20rem) when expanded
+                            }}
                         >
-                            <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
+                            <ChevronLeft className="h-5 w-5" />
                         </Button>
-                        <Button 
-                            variant="outline" 
+                        {/* Next button at bottom right corner */}
+                        <Button
+                            variant="outline"
                             size="icon"
                             onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
                                 handleNavigate(1);
-                            }} 
+                            }}
                             disabled={currentIndex === invoices.length - 1}
-                            className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg flex-1 pointer-events-auto"
+                            className="hidden md:flex fixed bottom-4 right-4 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg z-[50]"
                         >
-                            <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
+                            <ChevronRight className="h-5 w-5" />
                         </Button>
-                    </div>
-                </>
-            )}
+                        {/* Mobile navigation buttons */}
+                        <div className="flex md:hidden fixed bottom-4 left-4 right-4 justify-between z-[50] gap-2 pointer-events-none">
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleNavigate(-1);
+                                }}
+                                disabled={currentIndex === 0 || currentIndex === -1}
+                                className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg flex-1 pointer-events-auto"
+                            >
+                                <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleNavigate(1);
+                                }}
+                                disabled={currentIndex === invoices.length - 1}
+                                className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg flex-1 pointer-events-auto"
+                            >
+                                <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
+                            </Button>
+                        </div>
+                    </>
+                )
+            }
             <Dialog open={showDeleteDialog} onOpenChange={isDeleting ? undefined : setShowDeleteDialog}>
                 <DialogContent>
                     <DialogHeader>
@@ -1824,7 +1983,40 @@ const InvoiceDetailsPage = () => {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </div>
+
+            <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
+                <DialogContent className="bg-slate-900 border-white/10 text-white">
+                    <DialogHeader>
+                        <DialogTitle>Reject Invoice</DialogTitle>
+                        <DialogDescription className="text-gray-400">
+                            Please provide a reason for rejection. This will be visible to the user.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <Label htmlFor="rejection-remarks" className="mb-2 block">Rejection Reason</Label>
+                        <Textarea
+                            id="rejection-remarks"
+                            value={rejectionRemarks}
+                            onChange={(e) => setRejectionRemarks(e.target.value)}
+                            placeholder="Enter rejection remarks..."
+                            className="min-h-[100px] bg-slate-800 border-slate-700"
+                        />
+                    </div>
+                    <DialogFooter>
+                        <Button variant="ghost" onClick={() => setShowRejectDialog(false)} disabled={isStatusUpdating} className="text-white hover:bg-white/10">
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={() => handleStatusUpdate(user?.role === 'CLIENT_MASTER_ADMIN' ? 'rejected_by_master_admin' : 'rejected_by_ca', rejectionRemarks)}
+                            disabled={isStatusUpdating || !rejectionRemarks.trim()}
+                        >
+                            {isStatusUpdating ? 'Rejecting...' : 'Reject Invoice'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </div >
     );
 };
 

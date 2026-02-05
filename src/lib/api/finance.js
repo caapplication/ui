@@ -187,7 +187,11 @@ export const getInvoicesList = async (entityId, token) => {
 };
 
 export const getInvoices = async (entityId, token) => {
-    const response = await fetch(`${FINANCE_API_BASE_URL}/api/invoices/?entity_id=${entityId}`, {
+    let url = `${FINANCE_API_BASE_URL}/api/invoices/`;
+    if (entityId) {
+        url += `?entity_id=${entityId}`;
+    }
+    const response = await fetch(url, {
         headers: getAuthHeaders(token),
     });
     const invoices = await handleResponse(response);
@@ -208,7 +212,12 @@ export const addInvoice = async (invoiceFormData, token) => {
 
 export const updateInvoice = async (invoiceId, entityId, invoiceFormData, token) => {
     const isFormData = invoiceFormData instanceof FormData;
-    const response = await fetch(`${FINANCE_API_BASE_URL}/api/invoices/${invoiceId}?entity_id=${entityId}`, {
+    let url = `${FINANCE_API_BASE_URL}/api/invoices/${invoiceId}`;
+    if (entityId) {
+        url += `?entity_id=${entityId}`;
+    }
+
+    const response = await fetch(url, {
         method: 'PATCH',
         headers: getAuthHeaders(token, isFormData ? null : 'application/json'),
         body: isFormData ? invoiceFormData : JSON.stringify(invoiceFormData),
@@ -217,7 +226,11 @@ export const updateInvoice = async (invoiceId, entityId, invoiceFormData, token)
 };
 
 export const deleteInvoice = async (entityId, invoiceId, token) => {
-    const response = await fetch(`${FINANCE_API_BASE_URL}/api/invoices/${invoiceId}?entity_id=${entityId}`, {
+    let url = `${FINANCE_API_BASE_URL}/api/invoices/${invoiceId}`;
+    if (entityId) {
+        url += `?entity_id=${entityId}`;
+    }
+    const response = await fetch(url, {
         method: 'DELETE',
         headers: getAuthHeaders(token),
     });
@@ -278,7 +291,11 @@ export const getVouchersList = async (entityId, token) => {
 };
 
 export const getVouchers = async (entityId, token) => {
-    const response = await fetch(`${FINANCE_API_BASE_URL}/api/vouchers/?entity_id=${entityId}`, {
+    let url = `${FINANCE_API_BASE_URL}/api/vouchers/`;
+    if (entityId) {
+        url += `?entity_id=${entityId}`;
+    }
+    const response = await fetch(url, {
         headers: getAuthHeaders(token),
     });
     const vouchers = await handleResponse(response);
