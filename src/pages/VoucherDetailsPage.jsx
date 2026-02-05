@@ -1591,7 +1591,7 @@ const VoucherDetailsPage = () => {
                                                         <CardDescription className="text-xs sm:text-sm">Created on {new Date(voucherDetails.created_date).toLocaleDateString()}</CardDescription>
                                                     </CardHeader>
                                                     <CardContent className="space-y-2 relative z-20 p-4 sm:p-6 pt-0">
-                                                        <DetailItem label="Invoice ID" value={voucherDetails.invoice_id || 'N/A'} />
+
                                                         <DetailItem label="Voucher ID" value={voucherDetails.voucher_id || 'N/A'} />
                                                         <DetailItem label="Amount" value={`₹${parseFloat(voucherDetails.amount).toFixed(2)}`} />
                                                         <DetailItem label="Voucher Type" value={voucherDetails.voucher_type} />
@@ -2083,7 +2083,7 @@ const VoucherDetailsPage = () => {
                                             <CardDescription className="text-xs">Created on {new Date(voucherDetails.created_date).toLocaleDateString()}</CardDescription>
                                         </CardHeader>
                                         <CardContent className="space-y-2 p-4 pt-0">
-                                            <DetailItem label="Invoice ID" value={voucherDetails.invoice_id || 'N/A'} />
+
                                             <DetailItem label="Voucher ID" value={voucherDetails.voucher_id || 'N/A'} />
                                             <DetailItem label="Amount" value={`₹${parseFloat(voucherDetails.amount).toFixed(2)}`} />
                                             <DetailItem label="Voucher Type" value={voucherDetails.voucher_type} />

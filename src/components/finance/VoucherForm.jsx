@@ -304,7 +304,7 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
                         {isEditing && voucher?.attachment_id && <p className="text-xs text-gray-400 mt-1">Leave empty to keep existing attachments.</p>}
                     </div>
 
-                    {user?.role !== 'CLIENT_USER' && (
+                    {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
                         <div>
                             <Label htmlFor="finance_header_id" className="mb-2">Finance Header</Label>
                             <Select name="finance_header_id" defaultValue={voucher?.finance_header_id} disabled={isLoading}>
