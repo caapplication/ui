@@ -28,8 +28,6 @@ export const SocketProvider = ({ children }) => {
             import.meta.env.VITE_TASK_API_URL ||
             'http://localhost:8005';
 
-        console.log('🔌 Initializing Socket.IO connection to:', socketUrl);
-
         // Create Socket.IO connection with authentication
         const newSocket = io(socketUrl, {
             path: '/socket.io',
@@ -54,13 +52,13 @@ export const SocketProvider = ({ children }) => {
         });
 
         newSocket.on('disconnect', (reason) => {
-            console.log('⚠️ Socket.IO disconnected:', reason);
+            // console.log('⚠️ Socket.IO disconnected:', reason);
             setIsConnected(false);
         });
 
         newSocket.on('connect_error', (error) => {
-            console.error('❌ Socket.IO connection error:', error.message);
-            console.error('Full Error:', error);
+            // console.error('❌ Socket.IO connection error:', error.message);
+            // console.error('Full Error:', error);
             setIsConnected(false);
         });
 
