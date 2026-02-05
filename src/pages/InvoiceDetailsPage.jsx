@@ -392,16 +392,16 @@ const InvoiceDetailsPage = () => {
     const getStatusColor = (status) => {
         switch (status) {
             case 'verified':
-                return 'bg-green-500/20 text-green-400 border-green-500/30';
+                return 'bg-green-500/20 text-green-400 border-green-500/50';
             case 'rejected_by_ca':
             case 'rejected_by_master_admin':
-                return 'bg-red-500/20 text-red-400 border-red-500/30';
+                return 'bg-red-500/20 text-red-400 border-red-500/50';
             case 'pending_ca_approval':
-                return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+                return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50';
             case 'pending_master_admin_approval':
-                return 'bg-orange-500/20 text-orange-400 border-orange-500/30';
+                return 'bg-orange-500/20 text-orange-400 border-orange-500/50';
             default:
-                return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+                return 'bg-gray-500/20 text-gray-400 border-gray-500/50';
         }
     };
 
@@ -1385,7 +1385,7 @@ const InvoiceDetailsPage = () => {
                                                     )}
                                                 </CardContent>
                                             </div>
-                                            <div className="flex items-center gap-3 pb-10 mb-20 sm:mb-16 md:mb-4 justify-end relative z-[100] px-4 sm:px-6 action-buttons-container">
+                                            <div className="flex items-center gap-3 pb-10 mb-20 sm:mb-16 md:mb-4 justify-center relative z-[100] px-4 sm:px-6 action-buttons-container">
                                                 {/* Action buttons on right */}
                                                 <div className="flex items-center gap-3 relative z-[100]">
                                                     <TooltipProvider delayDuration={0}>
@@ -1428,10 +1428,10 @@ const InvoiceDetailsPage = () => {
                                                     {/* Client Admin Approval Actions */}
                                                     {user?.role === 'CLIENT_MASTER_ADMIN' && !isReadOnly && (invoiceDetails.status === 'pending_master_admin_approval' || invoiceDetails.status === 'pending_approval' || invoiceDetails.status === 'created') && (
                                                         <>
-                                                            <Button onClick={() => handleStatusUpdate('pending_ca_approval')} disabled={isStatusUpdating} className="bg-green-600 hover:bg-green-700 text-white border-none h-9 sm:h-10" size="sm">
+                                                            <Button onClick={() => handleStatusUpdate('pending_ca_approval')} disabled={isStatusUpdating} variant="approve" className="h-9 sm:h-10" size="sm">
                                                                 {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />} Approve
                                                             </Button>
-                                                            <Button onClick={() => setShowRejectDialog(true)} disabled={isStatusUpdating} className="bg-red-600 hover:bg-red-700 text-white border-none h-9 sm:h-10" size="sm">
+                                                            <Button onClick={() => setShowRejectDialog(true)} disabled={isStatusUpdating} variant="reject" className="h-9 sm:h-10" size="sm">
                                                                 {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />} Reject
                                                             </Button>
                                                         </>
@@ -1440,10 +1440,10 @@ const InvoiceDetailsPage = () => {
                                                     {/* CA/Team Actions */}
                                                     {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && !isReadOnly && (invoiceDetails.status === 'pending_ca_approval' || invoiceDetails.status === 'pending_approval' || invoiceDetails.status === 'created') && (
                                                         <>
-                                                            <Button onClick={handleTag} className="bg-green-600 hover:bg-green-700 text-white border-none h-9 sm:h-10" size="sm">
+                                                            <Button onClick={handleTag} variant="approve" className="h-9 sm:h-10" size="sm">
                                                                 {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />} Approve
                                                             </Button>
-                                                            <Button onClick={() => setShowRejectDialog(true)} disabled={isStatusUpdating} className="bg-red-600 hover:bg-red-700 text-white border-none h-9 sm:h-10" size="sm">
+                                                            <Button onClick={() => setShowRejectDialog(true)} disabled={isStatusUpdating} variant="reject" className="h-9 sm:h-10" size="sm">
                                                                 {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />} Reject
                                                             </Button>
                                                         </>

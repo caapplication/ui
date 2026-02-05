@@ -72,16 +72,16 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onRefresh, i
   const getStatusColor = (status) => {
     switch (status) {
       case 'verified':
-        return 'bg-green-500/20 text-green-300';
+        return 'bg-green-500/20 text-green-400 border-green-500/50';
       case 'rejected_by_ca':
       case 'rejected_by_master_admin':
-        return 'bg-red-500/20 text-red-300';
+        return 'bg-red-500/20 text-red-400 border-red-500/50';
       case 'pending_ca_approval':
-        return 'bg-yellow-500/20 text-yellow-300';
+        return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50';
       case 'pending_master_admin_approval':
-        return 'bg-orange-500/20 text-orange-300';
+        return 'bg-orange-500/20 text-orange-400 border-orange-500/50';
       default:
-        return 'bg-gray-500/20 text-gray-300';
+        return 'bg-gray-500/20 text-gray-400 border-gray-500/50';
     }
   };
 
@@ -391,7 +391,7 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onRefresh, i
                   <TableCell className="text-xs sm:text-sm truncate max-w-[120px] sm:max-w-none">{getBeneficiaryName(invoice)}</TableCell>
                   <TableCell className="text-xs sm:text-sm">₹{(parseFloat(invoice.amount) + parseFloat(invoice.cgst) + parseFloat(invoice.sgst) + parseFloat(invoice.igst)).toFixed(2)}</TableCell>
                   <TableCell className="text-xs sm:text-sm">
-                    <span className={`px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-medium capitalize ${getStatusColor(invoice.status)}`}>
+                    <span className={`px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-medium capitalize border ${getStatusColor(invoice.status)}`}>
                       {formatStatus(invoice.status)}
                     </span>
                   </TableCell>
