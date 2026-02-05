@@ -1440,11 +1440,11 @@ const InvoiceDetailsPage = () => {
                                                     {/* CA/Team Actions */}
                                                     {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && !isReadOnly && (invoiceDetails.status === 'pending_ca_approval' || invoiceDetails.status === 'pending_approval' || invoiceDetails.status === 'created') && (
                                                         <>
-                                                            <Button onClick={handleTag} variant="approve" className="h-9 sm:h-10" size="sm">
-                                                                {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />} Approve
-                                                            </Button>
                                                             <Button onClick={() => setShowRejectDialog(true)} disabled={isStatusUpdating} variant="reject" className="h-9 sm:h-10" size="sm">
                                                                 {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />} Reject
+                                                            </Button>
+                                                            <Button onClick={handleTag} className="h-9 sm:h-10" size="sm">
+                                                                {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />} Tag
                                                             </Button>
                                                         </>
                                                     )}
@@ -1798,11 +1798,11 @@ const InvoiceDetailsPage = () => {
                                             {/* CA/Team Actions */}
                                             {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && !isReadOnly && (invoiceDetails.status === 'pending_ca_approval' || invoiceDetails.status === 'pending_approval' || invoiceDetails.status === 'created') && (
                                                 <>
-                                                    <Button onClick={handleTag} className="bg-green-600 hover:bg-green-700 text-white border-none h-9 sm:h-10" size="sm">
-                                                        {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />} Approve
-                                                    </Button>
                                                     <Button onClick={() => setShowRejectDialog(true)} disabled={isStatusUpdating} className="bg-red-600 hover:bg-red-700 text-white border-none h-9 sm:h-10" size="sm">
                                                         {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />} Reject
+                                                    </Button>
+                                                    <Button onClick={handleTag} className="h-9 sm:h-10" size="sm">
+                                                        {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />} Tag
                                                     </Button>
                                                 </>
                                             )}
