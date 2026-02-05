@@ -10,11 +10,15 @@ const buttonVariants = cva(
 			variant: {
 				default: 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg hover:shadow-glow-primary',
 				destructive:
-          'bg-red-500 text-destructive-foreground shadow-lg hover:bg-red-600',
+					'bg-red-500 text-destructive-foreground shadow-lg hover:bg-red-600',
+				approve:
+					'!bg-green-600 text-white shadow-lg hover:!bg-green-700 !border-none',
+				reject:
+					'!bg-red-600 text-white shadow-lg hover:!bg-red-700 !border-none',
 				outline:
-          'border border-white/30 bg-white/10 hover:bg-white/20 text-white',
+					'border border-white/30 bg-white/10 hover:bg-white/20 text-white',
 				secondary:
-          'bg-white/10 text-secondary-foreground hover:bg-white/20',
+					'bg-white/10 text-secondary-foreground hover:bg-white/20',
 				ghost: 'hover:bg-white/10 text-gray-300 hover:text-white',
 				link: 'text-primary underline-offset-4 hover:underline',
 			},

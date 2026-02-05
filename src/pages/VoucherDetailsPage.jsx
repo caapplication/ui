@@ -50,33 +50,6 @@ const setCache = (key, data) => {
     }
 };
 
-const getStatusColor = (status) => {
-    switch (status?.toLowerCase()) {
-        case 'verified':
-            return 'bg-green-500/20 text-green-400 border-green-500/50';
-        case 'rejected_by_ca':
-        case 'rejected_by_master_admin':
-            return 'bg-red-500/20 text-red-400 border-red-500/50';
-        case 'pending_ca_approval':
-            return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50';
-        case 'pending_master_admin_approval':
-            return 'bg-orange-500/20 text-orange-400 border-orange-500/50';
-        default:
-            return 'bg-gray-500/20 text-gray-400 border-gray-500/50';
-    }
-};
-
-function formatStatus(status) {
-    if (!status) return 'Unknown';
-    const statusMap = {
-        verified: 'Verified',
-        pending_ca_approval: 'Pending Audit',
-        rejected_by_ca: 'Rejected',
-        rejected_by_master_admin: 'Rejected',
-        pending_master_admin_approval: 'Pending Approval'
-    };
-    return statusMap[status] || status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-}
 
 // ... unchanged formatPaymentMethod ...
 
@@ -1714,7 +1687,7 @@ const VoucherDetailsPage = () => {
                                                         </div>
                                                     </CardContent>
 
-                                                    <div className="flex items-center gap-3 pb-4 mb-20 sm:mb-16 md:mb-4 justify-end relative z-[100] px-4 sm:px-6 action-buttons-container">
+                                                    <div className="flex items-center gap-3 pb-4 mb-20 sm:mb-16 md:mb-4 justify-center relative z-[100] px-4 sm:px-6 action-buttons-container">
                                                         {/* Action buttons on right */}
                                                         <div className="flex items-center gap-3 relative z-[100]">
                                                             <TooltipProvider>
@@ -1777,12 +1750,12 @@ const VoucherDetailsPage = () => {
                                                             {!isClientUser && user?.role !== 'CLIENT_MASTER_ADMIN' && (
                                                                 <>
                                                                     {voucherDetails.status !== 'approved' && (
-                                                                        <Button onClick={() => handleStatusUpdate('approved')} disabled={isStatusUpdating} className="bg-green-600 hover:bg-green-700 text-white border-none h-9 sm:h-10" size="sm">
+                                                                        <Button onClick={() => handleStatusUpdate('approved')} disabled={isStatusUpdating} variant="approve" className="h-9 sm:h-10" size="sm">
                                                                             {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />} Approve
                                                                         </Button>
                                                                     )}
                                                                     {voucherDetails.status !== 'rejected' && (
-                                                                        <Button onClick={() => setShowRejectDialog(true)} disabled={isStatusUpdating} className="bg-red-600 hover:bg-red-700 text-white border-none h-9 sm:h-10" size="sm">
+                                                                        <Button onClick={() => setShowRejectDialog(true)} disabled={isStatusUpdating} variant="reject" className="h-9 sm:h-10" size="sm">
                                                                             {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />} Reject
                                                                         </Button>
                                                                     )}
@@ -1791,10 +1764,10 @@ const VoucherDetailsPage = () => {
                                                             {/* Client Admin Actions for Pending Vouchers Only */}
                                                             {user?.role === 'CLIENT_MASTER_ADMIN' && (voucherDetails.status === 'pending_master_admin_approval' || voucherDetails.status === 'pending_approval') && (
                                                                 <>
-                                                                    <Button onClick={() => handleStatusUpdate('pending_ca_approval')} disabled={isStatusUpdating} className="bg-green-600 hover:bg-green-700 text-white border-none h-9 sm:h-10" size="sm">
+                                                                    <Button onClick={() => handleStatusUpdate('pending_ca_approval')} disabled={isStatusUpdating} variant="approve" className="h-9 sm:h-10" size="sm">
                                                                         {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />} Approve
                                                                     </Button>
-                                                                    <Button onClick={() => setShowRejectDialog(true)} disabled={isStatusUpdating} className="bg-red-600 hover:bg-red-700 text-white border-none h-9 sm:h-10" size="sm">
+                                                                    <Button onClick={() => setShowRejectDialog(true)} disabled={isStatusUpdating} variant="reject" className="h-9 sm:h-10" size="sm">
                                                                         {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />} Reject
                                                                     </Button>
                                                                 </>
