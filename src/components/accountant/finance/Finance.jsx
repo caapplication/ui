@@ -227,7 +227,7 @@ const AccountantFinance = () => {
     //    we can safely fetch the data.
     fetchData();
 
-  }, [organisationId, entities, selectedEntity, setSelectedEntity, fetchData]);
+  }, [organisationId, entities, selectedEntity, setSelectedEntity, fetchData, activeTab]); // Added activeTab dependency
 
   const enrichedVouchers = useMemo(() => {
     return (vouchers || []).map((v) => {

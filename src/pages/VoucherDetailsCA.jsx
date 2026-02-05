@@ -1709,8 +1709,16 @@ const VoucherDetailsCA = () => {
                                                                                 {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
                                                                             </Button>
                                                                         )}
-                                                                        {!isReadOnly && (
+                                                                        {!isReadOnly && voucherDetails.status !== 'verified' && (
                                                                             <Button onClick={() => {
+                                                                                if (!editedVoucher.finance_header_id) {
+                                                                                    toast({
+                                                                                        title: 'Validation Error',
+                                                                                        description: 'Please select a header before tagging the voucher.',
+                                                                                        variant: 'destructive',
+                                                                                    });
+                                                                                    return;
+                                                                                }
                                                                                 updateCAVoucher(voucherId, { is_ready: true, finance_header_id: editedVoucher.finance_header_id, status: 'verified' }, user.access_token)
                                                                                     .then(() => {
                                                                                         toast({ title: 'Success', description: 'Voucher tagged and verified successfully.' });

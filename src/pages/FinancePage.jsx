@@ -91,6 +91,16 @@ const FinancePage = () => {
     }
   }, [selectedClient]);
 
+  // Refresh when returning from detail page
+  useEffect(() => {
+    // If we are on the finance page
+    if (location.pathname === '/finance' || location.pathname === '/finance/ca') {
+      // We can trigger a refresh. Since Vouchers component now ignores cache (due to my previous edit), 
+      // simply remounting or passing a new key is enough.
+      // The handleRefresh updates 'refreshKey', which is passed to Vouchers key.
+      handleRefresh();
+    }
+  }, [location.pathname]); // Run when pathname changes (e.g. back navigation)
 
   const handleExport = async () => {
     if (!selectedClient) {
@@ -209,7 +219,7 @@ const FinancePage = () => {
         </div>
         <TabsContent value="vouchers">
           <Vouchers
-            key={`vouchers-${refreshKey}`}
+            key={`vouchers-${refreshKey}-${activeTab}`}
             selectedOrganisation={selectedOrg}
             selectedEntity={selectedClient}
             isDataLoading={isDataLoading || isOrgLoading}

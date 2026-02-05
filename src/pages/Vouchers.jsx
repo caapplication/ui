@@ -80,6 +80,7 @@ const Vouchers = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
     }
 
     // OPTIMIZATION: Check cache first and show immediately, then refresh in background
+    /* Cache check disabled to ensure fresh data always
     if (entityToFetch !== 'all') {
       const cacheKey = { entityId: entityToFetch, token: user.access_token };
       const cached = cache.get('getVouchersList', cacheKey);
@@ -93,6 +94,7 @@ const Vouchers = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
         }
       }
     }
+    */
 
     // Prevent concurrent fetches - if we already have data for this exact fetch key, skip
     if (lastFetchKey.current === fetchKey && vouchers.length > 0) {
@@ -148,12 +150,14 @@ const Vouchers = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
         const requestKey = `getCATeamVouchersBulk-${cacheKey.entityIds}-${user.access_token}`;
 
         // Check cache first
+        /*
         let cached = cache.get('getCATeamVouchersBulk', cacheKey);
         if (cached) {
           setVouchers(cached);
           setIsLoading(false);
           return;
         }
+        */
 
         // Check if there's already a pending request
         if (pendingRequestsRef.current.has(requestKey)) {
@@ -187,12 +191,14 @@ const Vouchers = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
         const requestKey = `getVouchersList-${id}-${user.access_token}`;
 
         // Check cache first
+        /*
         let cached = cache.get('getVouchersList', cacheKey);
         if (cached) {
           setVouchers(cached);
           setIsLoading(false);
           return;
         }
+        */
 
         // Check if there's already a pending request
         if (pendingRequestsRef.current.has(requestKey)) {
@@ -234,12 +240,14 @@ const Vouchers = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
   useEffect(() => {
     // Only fetch if tab is active and entity or organization changes
     if (isActive) {
+      lastFetchKey.current = null; // Force refresh always when active
       fetchDataForClient();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedOrganisation, selectedEntity, user?.access_token, isActive]); // Only fetch when tab is active
 
   // Refresh when navigating back from detail page
+  /* Redundant refresh logic removed
   useEffect(() => {
     // If we're on the finance page and were previously on a detail page, refresh
     if (location.pathname.includes('/finance') && !location.pathname.includes('/vouchers/ca/') && !location.pathname.includes('/vouchers/')) {
@@ -256,6 +264,7 @@ const Vouchers = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
     }
     lastLocationRef.current = location.pathname;
   }, [location.pathname, isActive, selectedEntity, user?.access_token, cache, fetchDataForClient]);
+  */
 
   const handleViewVoucher = (voucher) => {
     navigate(`/vouchers/ca/${voucher.id}`, { state: { voucher, vouchers: enrichedVouchers, organisationId: selectedOrganisation } });
