@@ -685,6 +685,44 @@ const VoucherDetailsPage = () => {
         };
     }, [voucher, voucherId]);
 
+    // Status helper functions
+    const formatStatus = (status) => {
+        if (!status || status === 'created') return 'Pending';
+        const statusMap = {
+            pending_master_admin_approval: 'Pending Client Approval',
+            rejected_by_master_admin: 'Rejected by Client',
+            pending_ca_approval: 'Pending Verification',
+            rejected_by_ca: 'Rejected',
+            verified: 'Verified',
+            // Legacy statuses
+            created: 'Pending',
+            pending_approval: 'Pending Client Approval',
+            rejected_by_admin: 'Rejected by Client',
+            approved: 'Approved',
+            rejected: 'Rejected'
+        };
+        return statusMap[status] || status.charAt(0).toUpperCase() + status.slice(1);
+    };
+
+    const getStatusColor = (status) => {
+        switch (status) {
+            case 'verified':
+            case 'approved':
+                return 'bg-green-500/20 text-green-400 border-green-500/30';
+            case 'rejected':
+            case 'rejected_by_master_admin':
+            case 'rejected_by_admin':
+            case 'rejected_by_ca':
+                return 'bg-red-500/20 text-red-400 border-red-500/30';
+            case 'pending_ca_approval':
+            case 'pending_approval':
+            case 'pending_master_admin_approval':
+                return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+            default:
+                return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+        }
+    };
+
     const handleExportToPDF = async () => {
         // For bank transfers, ensure bank account details are loaded
         if (
@@ -1326,11 +1364,16 @@ const VoucherDetailsPage = () => {
         <div className="h-screen w-full flex flex-col text-white bg-transparent p-3 sm:p-4 md:p-6" style={{ paddingBottom: hasVouchers ? '6rem' : '1.5rem' }}>
             <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 pb-3 sm:pb-4 border-b border-white/10 mb-3 sm:mb-4">
                 <div className="flex items-center gap-3 sm:gap-4">
-                    <Button variant="ghost" size="icon" onClick={() => (user.role === 'CLIENT_USER' || user.role === 'CLIENT_MASTER_ADMIN') ? navigate('/finance') : navigate('/finance/ca')} className="h-9 w-9 sm:h-10 sm:w-10">
+                    <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="h-9 w-9 sm:h-10 sm:w-10">
                         <ArrowLeft className="h-5 w-5 sm:h-6 sm:w-6" />
                     </Button>
                     <div>
-                        <h1 className="text-xl sm:text-2xl font-bold">Voucher Details</h1>
+                        <div className="flex items-center gap-3">
+                            <h1 className="text-xl sm:text-2xl font-bold">Voucher Details</h1>
+                            <span className={`px-3 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(voucherDetails.status)}`}>
+                                {formatStatus(voucherDetails.status)}
+                            </span>
+                        </div>
                         <p className="text-xs sm:text-sm text-gray-400">Review all cash and debit transactions.</p>
                     </div>
                 </div>

@@ -27,6 +27,43 @@ const formatDate = (dateString) => {
     };
 };
 
+const formatStatus = (status) => {
+    if (!status || status === 'created') return 'Pending';
+    const statusMap = {
+        pending_master_admin_approval: 'Pending Client Approval',
+        rejected_by_master_admin: 'Rejected by Client',
+        pending_ca_approval: 'Pending Verification',
+        rejected_by_ca: 'Rejected',
+        verified: 'Verified',
+        // Legacy statuses
+        created: 'Pending',
+        pending_approval: 'Pending Client Approval',
+        rejected_by_admin: 'Rejected by Client',
+        approved: 'Approved',
+        rejected: 'Rejected'
+    };
+    return statusMap[status] || status.charAt(0).toUpperCase() + status.slice(1);
+};
+
+const getStatusColor = (status) => {
+    switch (status) {
+        case 'verified':
+        case 'approved':
+            return 'bg-green-500/20 text-green-400 border-green-500/30';
+        case 'rejected':
+        case 'rejected_by_master_admin':
+        case 'rejected_by_admin':
+        case 'rejected_by_ca':
+            return 'bg-red-500/20 text-red-400 border-red-500/30';
+        case 'pending_ca_approval':
+        case 'pending_approval':
+        case 'pending_master_admin_approval':
+            return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+        default:
+            return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+    }
+};
+
 import { Check } from 'lucide-react';
 
 const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVoucher, isAccountantView, onRefresh }) => {
@@ -303,13 +340,8 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                                         <TableCell className="text-xs sm:text-sm truncate max-w-[120px] sm:max-w-none">{voucher.beneficiaryName}</TableCell>
                                         <TableCell className="text-xs sm:text-sm">₹{parseFloat(voucher.amount).toFixed(2)}</TableCell>
                                         <TableCell className="text-xs sm:text-sm">
-                                            <span className={`px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-medium capitalize ${voucher.status === 'approved'
-                                                ? 'bg-green-500/20 text-green-300'
-                                                : voucher.status === 'rejected'
-                                                    ? 'bg-red-500/20 text-red-300'
-                                                    : 'bg-blue-500/20 text-blue-300'
-                                                }`}>
-                                                {voucher.status || 'created'}
+                                            <span className={`px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-medium border ${getStatusColor(voucher.status)}`}>
+                                                {formatStatus(voucher.status)}
                                             </span>
                                         </TableCell>
                                         <TableCell className="text-xs sm:text-sm truncate max-w-[100px] sm:max-w-none">{voucher.remarks && voucher.remarks.trim() ? voucher.remarks : 'N/A'}</TableCell>
