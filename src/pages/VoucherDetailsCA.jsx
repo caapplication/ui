@@ -599,19 +599,13 @@ const VoucherDetailsCA = () => {
 
     // Status helper functions
     const formatStatus = (status) => {
-        if (!status || status === 'created') return 'Pending';
+        if (!status) return 'Unknown';
         const statusMap = {
-            pending_master_admin_approval: 'Pending Client Approval',
-            rejected_by_master_admin: 'Rejected by Client',
-            pending_ca_approval: 'Pending Verification',
-            rejected_by_ca: 'Rejected',
             verified: 'Verified',
-            // Legacy statuses
-            created: 'Pending',
-            pending_approval: 'Pending Client Approval',
-            rejected_by_admin: 'Rejected by Client',
-            approved: 'Approved',
-            rejected: 'Rejected'
+            pending_ca_approval: 'Pending Audit',
+            rejected_by_ca: 'Rejected',
+            rejected_by_master_admin: 'Rejected',
+            pending_master_admin_approval: 'Pending Approval'
         };
         return statusMap[status] || status.charAt(0).toUpperCase() + status.slice(1);
     };
@@ -619,19 +613,16 @@ const VoucherDetailsCA = () => {
     const getStatusColor = (status) => {
         switch (status) {
             case 'verified':
-            case 'approved':
                 return 'bg-green-500/20 text-green-400 border-green-500/30';
-            case 'rejected':
-            case 'rejected_by_master_admin':
-            case 'rejected_by_admin':
             case 'rejected_by_ca':
+            case 'rejected_by_master_admin':
                 return 'bg-red-500/20 text-red-400 border-red-500/30';
             case 'pending_ca_approval':
-            case 'pending_approval':
-            case 'pending_master_admin_approval':
-                return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
-            default:
                 return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+            case 'pending_master_admin_approval':
+                return 'bg-orange-500/20 text-orange-400 border-orange-500/30';
+            default:
+                return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
         }
     };
 
