@@ -389,13 +389,24 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onRefresh, i
                     </div>
                   </TableCell>
                   <TableCell className="text-xs sm:text-sm truncate max-w-[120px] sm:max-w-none">{getBeneficiaryName(invoice)}</TableCell>
-                  <TableCell className="text-xs sm:text-sm">₹{(parseFloat(invoice.amount) + parseFloat(invoice.cgst) + parseFloat(invoice.sgst) + parseFloat(invoice.igst)).toFixed(2)}</TableCell>
                   <TableCell className="text-xs sm:text-sm">
-                    <span className={`px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-medium capitalize border ${getStatusColor(invoice.status)}`}>
+                    ₹{(() => {
+                      const val = parseFloat(invoice.amount) + parseFloat(invoice.cgst || 0) + parseFloat(invoice.sgst || 0) + parseFloat(invoice.igst || 0);
+                      return val % 1 === 0
+                        ? val.toLocaleString('en-IN', { maximumFractionDigits: 0 })
+                        : val.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    })()}
+                  </TableCell>
+                  <TableCell className="text-xs sm:text-sm">
+                    <span className={`inline-flex items-center justify-center text-center px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-medium capitalize border h-auto min-h-[1.5rem] whitespace-normal leading-tight ${getStatusColor(invoice.status)}`}>
                       {formatStatus(invoice.status)}
                     </span>
                   </TableCell>
-                  <TableCell className="text-xs sm:text-sm truncate max-w-[100px] sm:max-w-none">{invoice.remarks || 'N/A'}</TableCell>
+                  <TableCell className="text-xs sm:text-sm max-w-[200px]">
+                    <div className="line-clamp-2 whitespace-normal break-words overflow-hidden" title={invoice.remarks || 'N/A'}>
+                      {invoice.remarks || 'N/A'}
+                    </div>
+                  </TableCell>
                   {isAccountantView && (
                     <TableCell className="text-xs sm:text-sm">
                       <span className={`px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-medium ${invoice.is_ready ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'}`}>

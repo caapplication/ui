@@ -329,13 +329,24 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                                             </span>
                                         </TableCell>
                                         <TableCell className="text-xs sm:text-sm truncate max-w-[120px] sm:max-w-none">{voucher.beneficiaryName}</TableCell>
-                                        <TableCell className="text-xs sm:text-sm">₹{parseFloat(voucher.amount).toFixed(2)}</TableCell>
                                         <TableCell className="text-xs sm:text-sm">
-                                            <span className={`px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-medium border ${getStatusColor(voucher.status)}`}>
+                                            ₹{(() => {
+                                                const val = parseFloat(voucher.amount);
+                                                return val % 1 === 0
+                                                    ? val.toLocaleString('en-IN', { maximumFractionDigits: 0 })
+                                                    : val.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                                            })()}
+                                        </TableCell>
+                                        <TableCell className="text-xs sm:text-sm">
+                                            <span className={`inline-flex items-center justify-center text-center px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-medium border h-auto min-h-[1.5rem] whitespace-normal leading-tight ${getStatusColor(voucher.status)}`}>
                                                 {formatStatus(voucher.status)}
                                             </span>
                                         </TableCell>
-                                        <TableCell className="text-xs sm:text-sm truncate max-w-[100px] sm:max-w-none">{voucher.remarks && voucher.remarks.trim() ? voucher.remarks : 'N/A'}</TableCell>
+                                        <TableCell className="text-xs sm:text-sm max-w-[200px]">
+                                            <div className="line-clamp-2 whitespace-normal break-words overflow-hidden" title={voucher.remarks}>
+                                                {voucher.remarks && voucher.remarks.trim() ? voucher.remarks : 'N/A'}
+                                            </div>
+                                        </TableCell>
                                     </TableRow>
                                 );
                             })}
