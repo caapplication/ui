@@ -37,11 +37,12 @@ export const SocketProvider = ({ children }) => {
                 user_id: user.id,
                 token: user.access_token
             },
-            transports: ['websocket'], // Force websocket to avoid polling issues
+            transports: ['websocket', 'polling'], // Try websocket first, fallback to polling
+            secure: true, // Force secure connection
             reconnection: true,
             reconnectionDelay: 1000,
-            reconnectionAttempts: 10,
-            timeout: 20000,
+            reconnectionAttempts: 20,
+            timeout: 60000, // Increase timeout further
         });
 
         newSocket.on('connect', () => {
