@@ -24,37 +24,42 @@ export const SocketProvider = ({ children }) => {
         }
 
         // Get Socket.IO server URL from environment or default
-        const socketUrl = import.meta.env.VITE_TASK_API_URL?.replace('/tasks', '') || 
-                         import.meta.env.VITE_TASK_API_URL || 
-                         'http://localhost:8005';
+        const socketUrl = import.meta.env.VITE_TASK_API_URL?.replace('/tasks', '') ||
+            import.meta.env.VITE_TASK_API_URL ||
+            'http://localhost:8005';
+
+        console.log('🔌 Initializing Socket.IO connection to:', socketUrl);
 
         // Create Socket.IO connection with authentication
         const newSocket = io(socketUrl, {
+            path: '/socket.io',
             auth: {
                 user_id: user.id,
                 token: user.access_token
             },
-            transports: ['websocket', 'polling'],
+            transports: ['websocket'], // Force websocket to avoid polling issues
             reconnection: true,
             reconnectionDelay: 1000,
-            reconnectionAttempts: 5,
+            reconnectionAttempts: 10,
+            timeout: 20000,
         });
 
         newSocket.on('connect', () => {
-            console.log('Socket.IO connected');
+            console.log('✅ Socket.IO connected successfully via ' + newSocket.io.engine.transport.name);
             setIsConnected(true);
-            
+
             // Join task rooms if needed
             // This will be called from components that need to listen to specific tasks
         });
 
-        newSocket.on('disconnect', () => {
-            console.log('Socket.IO disconnected');
+        newSocket.on('disconnect', (reason) => {
+            console.log('⚠️ Socket.IO disconnected:', reason);
             setIsConnected(false);
         });
 
         newSocket.on('connect_error', (error) => {
-            console.error('Socket.IO connection error:', error);
+            console.error('❌ Socket.IO connection error:', error.message);
+            console.error('Full Error:', error);
             setIsConnected(false);
         });
 
