@@ -406,7 +406,7 @@ const InvoiceDetailsPage = () => {
     };
 
     // Determine if invoice can be edited/deleted
-    const isEditable = !['verified', 'approved', 'pending_ca_approval'].includes(invoiceDetails.status);
+    const isEditable = !['verified', 'approved'].includes(invoiceDetails.status);
 
     const totalAmount = (
         parseFloat(invoiceDetails.amount || 0) +

@@ -1691,7 +1691,7 @@ const VoucherDetailsPage = () => {
                                                         {/* Action buttons on right */}
                                                         <div className="flex items-center gap-3 relative z-[100]">
                                                             <TooltipProvider>
-                                                                {!isReadOnly && (
+                                                                {!isReadOnly && !(user?.role === 'CLIENT_MASTER_ADMIN' && voucher?.status === 'verified') && (
                                                                     <Tooltip>
                                                                         <TooltipTrigger asChild>
                                                                             <Button
@@ -1708,7 +1708,7 @@ const VoucherDetailsPage = () => {
                                                                         </TooltipContent>
                                                                     </Tooltip>
                                                                 )}
-                                                                {!isReadOnly && (
+                                                                {!isReadOnly && !(user?.role === 'CLIENT_MASTER_ADMIN' && voucher?.status === 'verified') && (
                                                                     <Tooltip>
                                                                         <TooltipTrigger asChild>
                                                                             <Button

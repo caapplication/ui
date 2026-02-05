@@ -1683,7 +1683,7 @@ const VoucherDetailsCA = () => {
                                                                 </Select>
                                                             </div>
                                                         )}
-                                                        <div className="flex items-center gap-2 mt-4 justify-between relative z-20">
+                                                        <div className="flex items-center gap-2 mt-4 justify-center relative z-20">
                                                             {/* Action buttons at bottom right */}
                                                             <div className="flex items-center gap-2 relative z-20">
                                                                 <TooltipProvider>
@@ -1708,9 +1708,9 @@ const VoucherDetailsCA = () => {
                                                                 </TooltipProvider>
                                                                 {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
                                                                     <>
-                                                                        {voucherDetails.status !== 'rejected' && !isReadOnly && (
-                                                                            <Button onClick={() => setShowRejectDialog(true)} disabled={isStatusUpdating} variant="destructive" size="icon">
-                                                                                {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
+                                                                        {voucherDetails.status !== 'rejected' && voucherDetails.status !== 'verified' && !isReadOnly && (
+                                                                            <Button onClick={() => setShowRejectDialog(true)} disabled={isStatusUpdating} variant="reject" className="h-9 sm:h-10" size="sm">
+                                                                                {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />} Reject
                                                                             </Button>
                                                                         )}
                                                                         {!isReadOnly && voucherDetails.status !== 'verified' && (
