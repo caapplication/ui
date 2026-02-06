@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/resizable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.jsx";
 import ActivityLog from '@/components/finance/ActivityLog';
+import { Combobox } from '@/components/ui/combobox';
 
 function formatPaymentMethod(method) {
     if (!method) return 'N/A';
@@ -597,6 +598,15 @@ const VoucherDetailsCA = () => {
         remarks: 'No remarks available.',
     };
 
+    // Auto-navigation helper
+    const handleAutoNext = () => {
+        if (currentIndex + 1 < voucherList.length) {
+            handleNavigate(1);
+        } else {
+            navigate('/finance/ca');
+        }
+    };
+
     // Status helper functions
     const formatStatus = (status) => {
         if (!status) return 'Unknown';
@@ -661,6 +671,7 @@ const VoucherDetailsCA = () => {
 
             setShowRejectDialog(false);
             setRejectionRemarks('');
+            handleAutoNext();
         } catch (error) {
             toast({
                 title: 'Error',
@@ -1669,18 +1680,14 @@ const VoucherDetailsCA = () => {
                                                         {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
                                                             <div className="pt-4">
                                                                 <Label htmlFor="finance_header_id">Header</Label>
-                                                                <Select name="finance_header_id" defaultValue={editedVoucher.finance_header_id} onValueChange={(value) => setEditedVoucher(p => ({ ...p, finance_header_id: value }))}>
-                                                                    <SelectTrigger>
-                                                                        <SelectValue placeholder="Select a header" />
-                                                                    </SelectTrigger>
-                                                                    <SelectContent>
-                                                                        {financeHeaders.map((h) => (
-                                                                            <SelectItem key={h.id} value={h.id}>
-                                                                                {h.name}
-                                                                            </SelectItem>
-                                                                        ))}
-                                                                    </SelectContent>
-                                                                </Select>
+                                                                <Combobox
+                                                                    options={financeHeaders.map(h => ({ value: String(h.id), label: h.name }))}
+                                                                    value={editedVoucher.finance_header_id}
+                                                                    onValueChange={(value) => setEditedVoucher(p => ({ ...p, finance_header_id: value }))}
+                                                                    placeholder="Select a header"
+                                                                    searchPlaceholder="Search headers..."
+                                                                    className="w-full h-11 bg-white/10 border-white/20 text-white hover:bg-white/20"
+                                                                />
                                                             </div>
                                                         )}
                                                         <div className="flex items-center gap-2 mt-4 justify-center relative z-20">
@@ -1713,8 +1720,9 @@ const VoucherDetailsCA = () => {
                                                                                 {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />} Reject
                                                                             </Button>
                                                                         )}
-                                                                        {!isReadOnly && voucherDetails.status !== 'verified' && (
-                                                                            <Button onClick={() => {
+                                                                        <Button
+                                                                            variant="approve"
+                                                                            onClick={() => {
                                                                                 if (!editedVoucher.finance_header_id) {
                                                                                     toast({
                                                                                         title: 'Validation Error',
@@ -1726,13 +1734,12 @@ const VoucherDetailsCA = () => {
                                                                                 updateCAVoucher(voucherId, { is_ready: true, finance_header_id: editedVoucher.finance_header_id, status: 'verified' }, user.access_token)
                                                                                     .then(() => {
                                                                                         toast({ title: 'Success', description: 'Voucher tagged and verified successfully.' });
-                                                                                        navigate('/finance/ca');
+                                                                                        handleAutoNext();
                                                                                     })
                                                                                     .catch(err => {
                                                                                         toast({ title: 'Error', description: `Failed to tag voucher: ${err.message}`, variant: 'destructive' });
                                                                                     });
                                                                             }}>Tag</Button>
-                                                                        )}
                                                                     </>
                                                                 )}
                                                             </div>

@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/resizable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.jsx";
 import ActivityLog from '@/components/finance/ActivityLog';
+import { Combobox } from '@/components/ui/combobox';
 
 const DetailItem = ({ label, value }) => (
     <div className="flex justify-between items-center py-2 border-b border-white/10">
@@ -1023,6 +1024,15 @@ const InvoiceDetailsPage = () => {
     // Check if we have invoices to navigate - show arrows if we have multiple invoices
     const hasInvoices = invoices && Array.isArray(invoices) && invoices.length > 1;
 
+    // Auto-navigation helper
+    const handleAutoNext = () => {
+        if (currentIndex + 1 < invoices.length) {
+            handleNavigation(1);
+        } else {
+            navigate(-1);
+        }
+    };
+
     // Tag logic
     const handleTag = async () => {
         if (!editedInvoice.finance_header_id) {
@@ -1037,13 +1047,13 @@ const InvoiceDetailsPage = () => {
         try {
             const entityId = selectedEntity || localStorage.getItem('entityId');
             // When tagging, we also mark as verified
-            await updateInvoice(invoiceId, entityId, {
+            updateInvoice(invoiceId, entityId, {
                 is_ready: true,
                 finance_header_id: editedInvoice.finance_header_id,
                 status: 'verified'
             }, user.access_token);
             toast({ title: 'Success', description: 'Invoice tagged and verified successfully.' });
-            navigate(-1);
+            handleAutoNext();
         } catch (error) {
             toast({
                 title: 'Error',
@@ -1118,6 +1128,7 @@ const InvoiceDetailsPage = () => {
                 });
                 setShowRejectDialog(false);
                 setRejectionRemarks('');
+                handleAutoNext();
             }
         } catch (error) {
             console.error('Status Update Error:', error);
@@ -1311,22 +1322,14 @@ const InvoiceDetailsPage = () => {
                                             {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
                                                 <div>
                                                     <Label htmlFor="finance_header_id">Header</Label>
-                                                    <Select
-                                                        name="finance_header_id"
+                                                    <Combobox
+                                                        options={financeHeaders.map(h => ({ value: String(h.id), label: h.name }))}
                                                         value={editedInvoice?.finance_header_id ? String(editedInvoice.finance_header_id) : ''}
                                                         onValueChange={(val) => setEditedInvoice(p => ({ ...p, finance_header_id: val ? Number(val) : null }))}
-                                                    >
-                                                        <SelectTrigger>
-                                                            <SelectValue placeholder="Select a header" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            {financeHeaders.map((h) => (
-                                                                <SelectItem key={h.id} value={String(h.id)}>
-                                                                    {h.name}
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
+                                                        placeholder="Select a header"
+                                                        searchPlaceholder="Search headers..."
+                                                        className="w-full h-11 bg-white/10 border-white/20 text-white hover:bg-white/20"
+                                                    />
                                                 </div>
                                             )}
                                             {/* Hidden inputs to ensure beneficiary_id and finance_header_id are in FormData */}
@@ -1365,22 +1368,14 @@ const InvoiceDetailsPage = () => {
                                                     {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
                                                         <div className="pt-4">
                                                             <Label htmlFor="finance_header_id">Header</Label>
-                                                            <Select
-                                                                name="finance_header_id"
+                                                            <Combobox
+                                                                options={financeHeaders.map(h => ({ value: String(h.id), label: h.name }))}
                                                                 value={editedInvoice.finance_header_id || ""}
                                                                 onValueChange={(value) => setEditedInvoice(p => ({ ...p, finance_header_id: value }))}
-                                                            >
-                                                                <SelectTrigger>
-                                                                    <SelectValue placeholder="Select a header" />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                    {financeHeaders.map((h) => (
-                                                                        <SelectItem key={h.id} value={h.id}>
-                                                                            {h.name}
-                                                                        </SelectItem>
-                                                                    ))}
-                                                                </SelectContent>
-                                                            </Select>
+                                                                placeholder="Select a header"
+                                                                searchPlaceholder="Search headers..."
+                                                                className="w-full h-11 bg-white/10 border-white/20 text-white hover:bg-white/20"
+                                                            />
                                                         </div>
                                                     )}
                                                 </CardContent>
@@ -1443,7 +1438,7 @@ const InvoiceDetailsPage = () => {
                                                             <Button onClick={() => setShowRejectDialog(true)} disabled={isStatusUpdating} variant="reject" className="h-9 sm:h-10" size="sm">
                                                                 {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />} Reject
                                                             </Button>
-                                                            <Button onClick={handleTag} className="h-9 sm:h-10" size="sm">
+                                                            <Button onClick={handleTag} variant="approve" className="h-9 sm:h-10" size="sm">
                                                                 {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />} Tag
                                                             </Button>
                                                         </>
@@ -1786,10 +1781,10 @@ const InvoiceDetailsPage = () => {
                                             {/* Client Master Admin Approval Actions */}
                                             {user?.role === 'CLIENT_MASTER_ADMIN' && !isReadOnly && (invoiceDetails.status === 'pending_master_admin_approval' || invoiceDetails.status === 'pending_approval' || invoiceDetails.status === 'created') && (
                                                 <>
-                                                    <Button onClick={() => handleStatusUpdate('pending_ca_approval')} disabled={isStatusUpdating} className="bg-green-600 hover:bg-green-700 text-white border-none h-9 sm:h-10" size="sm">
+                                                    <Button onClick={() => handleStatusUpdate('pending_ca_approval')} disabled={isStatusUpdating} variant="approve" className="h-9 sm:h-10" size="sm">
                                                         {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />} Approve
                                                     </Button>
-                                                    <Button onClick={() => setShowRejectDialog(true)} disabled={isStatusUpdating} className="bg-red-600 hover:bg-red-700 text-white border-none h-9 sm:h-10" size="sm">
+                                                    <Button onClick={() => setShowRejectDialog(true)} disabled={isStatusUpdating} variant="reject" className="h-9 sm:h-10" size="sm">
                                                         {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />} Reject
                                                     </Button>
                                                 </>
@@ -1798,10 +1793,10 @@ const InvoiceDetailsPage = () => {
                                             {/* CA/Team Actions */}
                                             {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && !isReadOnly && (invoiceDetails.status === 'pending_ca_approval' || invoiceDetails.status === 'pending_approval' || invoiceDetails.status === 'created') && (
                                                 <>
-                                                    <Button onClick={() => setShowRejectDialog(true)} disabled={isStatusUpdating} className="bg-red-600 hover:bg-red-700 text-white border-none h-9 sm:h-10" size="sm">
+                                                    <Button onClick={() => setShowRejectDialog(true)} disabled={isStatusUpdating} variant="reject" className="h-9 sm:h-10" size="sm">
                                                         {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />} Reject
                                                     </Button>
-                                                    <Button onClick={handleTag} className="h-9 sm:h-10" size="sm">
+                                                    <Button onClick={handleTag} variant="approve" className="h-9 sm:h-10" size="sm">
                                                         {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />} Tag
                                                     </Button>
                                                 </>

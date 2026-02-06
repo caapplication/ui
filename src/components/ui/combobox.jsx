@@ -31,7 +31,7 @@ export function Combobox({
   const [open, setOpen] = React.useState(false)
 
   const selectedOption = options.find(option => String(option.value) === String(value))
-  const displayText = selectedOption 
+  const displayText = selectedOption
     ? (displayValue ? displayValue(selectedOption) : selectedOption.label)
     : placeholder
 
@@ -53,9 +53,9 @@ export function Combobox({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-        <Command>
-          <CommandInput placeholder={searchPlaceholder} />
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 border-white/20 bg-slate-950 shadow-2xl z-[200]" align="start">
+        <Command className="bg-slate-950/95 backdrop-blur-xl border-white/10">
+          <CommandInput placeholder={searchPlaceholder} className="border-white/10" />
           <CommandList>
             <CommandEmpty>{emptyText}</CommandEmpty>
             <CommandGroup>
