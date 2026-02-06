@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -8,67 +8,176 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Search, Filter, Plus, FileText, Eye, Trash2, Loader2, UploadCloud } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
+import { listClients, listClientsByOrganization } from '@/lib/api/clients';
+import { getNotices, uploadNotice } from '@/lib/api/notices';
+import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/components/ui/use-toast';
 
 const NoticesPage = () => {
     const navigate = useNavigate();
+    const { user } = useAuth();
+    const token = user?.access_token;
+    const { toast } = useToast();
+
     const [searchTerm, setSearchTerm] = useState('');
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
 
-    // Mock Data
-    const [notices, setNotices] = useState([
-        { id: 1, clientName: 'The Abduz Group', title: 'GST Notice - Q3', date: '2025-01-15', status: 'Pending', type: 'Tax' },
-        { id: 2, clientName: 'Tech Solutions Inc.', title: 'Income Tax Demand', date: '2025-01-10', status: 'Reviewed', type: 'Compliance' },
-        { id: 3, clientName: 'Global Ventures', title: 'Assessment Order', date: '2025-01-05', status: 'Closed', type: 'Legal' },
-    ]);
+    const [notices, setNotices] = useState([]);
+    const [clients, setClients] = useState([]);
 
-    const [selectedClient, setSelectedClient] = useState('');
+    // Filters
+    const [selectedClient, setSelectedClient] = useState('all'); // Default to All
     const [noticeTitle, setNoticeTitle] = useState('');
+    const [selectedFile, setSelectedFile] = useState(null);
 
-    // Mock Clients for Dropdown
-    const clients = [
-        { id: '1', name: 'The Abduz Group' },
-        { id: '2', name: 'Tech Solutions Inc.' },
-        { id: '3', name: 'Global Ventures' },
-        { id: '4', name: 'Alpha Traders' },
-    ];
+    // Fetch Clients (using Client Service)
+    useEffect(() => {
+        const fetchClients = async () => {
+            if (!token) return;
+            try {
+                let clientsData = [];
+                if (user.organizations && user.organizations.length > 0) {
+                    clientsData = await Promise.all(
+                        user.organizations.map(org =>
+                            listClientsByOrganization(org.id, token)
+                                .catch(err => {
+                                    console.error(`Failed to fetch clients for org ${org.id}`, err);
+                                    return [];
+                                })
+                        )
+                    ).then(results => results.flat());
+                } else if (user.agency_id) {
+                    clientsData = await listClients(user.agency_id, token);
+                } else if (user.organization_id) {
+                    clientsData = await listClientsByOrganization(user.organization_id, token);
+                }
 
-    const handleUpload = (e) => {
+                console.log("Fetched Clients for Notices:", clientsData);
+                const safeClients = Array.isArray(clientsData) ? clientsData : (clientsData.results || []);
+                setClients(safeClients);
+
+            } catch (error) {
+                console.error("Failed to fetch clients", error);
+                toast({ title: "Error", description: "Failed to load clients", variant: "destructive" });
+            }
+        };
+        fetchClients();
+    }, [token, user]);
+
+    useEffect(() => {
+        if (!token) {
+            setNotices([]);
+            return;
+        }
+
+        const fetchNotices = async () => {
+            setIsLoading(true);
+            try {
+                // Pass 'all' or specific ID. ensure api handles 'all' or empty
+                const data = await getNotices(selectedClient, token);
+                setNotices(data);
+            } catch (error) {
+                console.error("Failed to fetch notices", error);
+                toast({ title: "Error", description: "Failed to load notices", variant: "destructive" });
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchNotices();
+    }, [selectedClient, token]);
+
+
+    const handleFileChange = (e) => {
+        if (e.target.files && e.target.files[0]) {
+            setSelectedFile(e.target.files[0]);
+        }
+    };
+
+    const handleUpload = async (e) => {
         e.preventDefault();
+        // Prevent upload if 'all' is selected
+        if (!selectedClient || selectedClient === 'all' || !selectedFile || !noticeTitle) {
+            toast({ title: "Error", description: "Please select a specific client to upload", variant: "destructive" });
+            return;
+        }
+
         setIsUploading(true);
+        try {
+            const formData = new FormData();
+            formData.append('entity_id', selectedClient);
+            formData.append('title', noticeTitle);
+            // Defaut notice_type -> other, date_received -> null handled by backend
+            formData.append('file', selectedFile);
 
-        // Simulate API call
-        setTimeout(() => {
-            const newNotice = {
-                id: notices.length + 1,
-                clientName: clients.find(c => c.id === selectedClient)?.name || 'Unknown',
-                title: noticeTitle,
-                date: new Date().toISOString().split('T')[0],
-                status: 'Pending',
-                type: 'General'
-            };
+            await uploadNotice(formData, token);
 
-            setNotices([newNotice, ...notices]);
-            setIsUploading(false);
+            toast({ title: "Success", description: "Notice uploaded successfully" });
+
+            // Refund/Refresh list
+            const updatedNotices = await getNotices(selectedClient, token);
+            setNotices(updatedNotices);
+
             setIsUploadModalOpen(false);
             setNoticeTitle('');
-            setSelectedClient('');
-        }, 1500);
+            setSelectedFile(null);
+            // Don't reset selectedClient to keep the view active
+        } catch (error) {
+            console.error("Upload failed", error);
+            toast({ title: "Failed", description: "Failed to upload notice", variant: "destructive" });
+        } finally {
+            setIsUploading(false);
+        }
     };
 
     const filteredNotices = notices.filter(notice =>
-        notice.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        notice.title.toLowerCase().includes(searchTerm.toLowerCase())
+        // Client filtering logic (already filtered by API if selectedClient is set)
+        // Search filter for title/type
+        filterNotice(notice, searchTerm)
     );
+
+    function filterNotice(notice, term) {
+        if (!term) return true;
+        const lowerTerm = term.toLowerCase();
+        // Client name matching might be tricky if notice doesn't contain it directly, check backend response schema
+        // NoticeResponse has 'entity_id', we might need to lookup name from 'clients' map
+        const clientName = clients.find(c => c.id === notice.entity_id)?.name || '';
+
+        return (
+            (notice.title && notice.title.toLowerCase().includes(lowerTerm)) ||
+            (clientName && clientName.toLowerCase().includes(lowerTerm)) ||
+            (notice.notice_type && notice.notice_type.toLowerCase().includes(lowerTerm))
+        );
+    }
+
+    // Helper to get client name
+    const getClientName = (entityId) => {
+        return clients.find(c => c.id === entityId)?.name || 'Unknown Client';
+    };
 
     return (
         <div className="p-4 md:p-8 text-white relative overflow-hidden h-full flex flex-col pt-20 lg:pt-8">
-            {/* Top Page Header - Matching TaskManagementPage */}
+            {/* Top Page Header */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
                 <h1 className="text-2xl sm:text-3xl font-bold">
                     Notices
                 </h1>
                 <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                    {/* Filter Dropdown for Main View if needed, or just Upload */}
+                    <Select value={selectedClient} onValueChange={setSelectedClient}>
+                        <SelectTrigger className="w-[200px] glass-input border-white/10 bg-black/20 text-white">
+                            <SelectValue placeholder="Filter by Client" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Clients</SelectItem>
+                            {clients.map(client => (
+                                <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
                     <Button onClick={() => setIsUploadModalOpen(true)} className="rounded-lg flex-1 sm:flex-initial bg-blue-600 hover:bg-blue-700 text-white">
                         <Plus className="w-4 h-4 sm:mr-2" />
                         <span className="hidden sm:inline">Upload Notice</span>
@@ -76,12 +185,18 @@ const NoticesPage = () => {
                 </div>
             </div>
 
-            {/* Main Content Card - Matching TaskList structure */}
+            {/* Main Content Card */}
             <div className="glass-pane rounded-lg flex-grow flex flex-col overflow-hidden">
                 {/* Card Header */}
                 <div className="p-4 border-b border-white/10">
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                        <h2 className="text-xl font-semibold">All Notices</h2>
+                        <h2 className="text-xl font-semibold">
+                            {selectedClient === 'all'
+                                ? 'All Clients - Notices'
+                                : selectedClient
+                                    ? `${getClientName(selectedClient)} - Notices`
+                                    : 'Select a Client to View Notices'}
+                        </h2>
                         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto flex-wrap items-center">
                             <div className="relative w-full sm:w-auto sm:max-w-xs">
                                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -102,32 +217,57 @@ const NoticesPage = () => {
                         <TableHeader className="sticky top-0 z-10 border-b border-white/10">
                             <TableRow className="border-white/10 hover:bg-white/5">
                                 <TableHead className="text-gray-300 w-[25%]">Client</TableHead>
-                                <TableHead className="text-gray-300 w-[25%]">Notice Title</TableHead>
-                                <TableHead className="text-gray-300 w-[15%]">Type</TableHead>
-                                <TableHead className="text-gray-300 w-[15%]">Date Received</TableHead>
-                                <TableHead className="text-gray-300 w-[10%]">Status</TableHead>
+                                <TableHead className="text-gray-300 w-[40%]">Notice Title</TableHead>
+                                <TableHead className="text-gray-300 w-[20%]">Received At</TableHead>
+                                <TableHead className="text-gray-300 w-[15%]">Status</TableHead>
                                 <TableHead className="text-right text-gray-300 w-[10%]">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {filteredNotices.length > 0 ? (
+                            {isLoading ? (
+                                <TableRow>
+                                    <TableCell colSpan={5} className="text-center py-8 text-gray-400">
+                                        <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />
+                                        Loading notices...
+                                    </TableCell>
+                                </TableRow>
+                            ) : filteredNotices.length > 0 ? (
                                 filteredNotices.map((notice) => (
                                     <TableRow key={notice.id} className="border-white/5 hover:bg-white/5 transition-colors group cursor-pointer" onClick={() => navigate(`/notices/${notice.id}`)}>
-                                        <TableCell className="font-medium text-white">{notice.clientName}</TableCell>
+                                        <TableCell className="font-medium text-white">{getClientName(notice.entity_id)}</TableCell>
                                         <TableCell className="text-gray-300">
                                             <div className="flex items-center">
                                                 <FileText className="w-4 h-4 mr-2 text-blue-400" />
                                                 {notice.title}
                                             </div>
                                         </TableCell>
-                                        <TableCell className="text-gray-300">{notice.type}</TableCell>
-                                        <TableCell className="text-gray-300">{notice.date}</TableCell>
+                                        <TableCell className="text-gray-300">
+                                            {(() => {
+                                                if (!notice.created_at) return 'N/A';
+                                                const dateObj = new Date(notice.created_at);
+                                                // Format similar to VoucherHistory
+                                                const datePart = dateObj.toLocaleDateString('en-IN', {
+                                                    day: 'numeric', month: 'numeric', year: 'numeric'
+                                                });
+                                                const timePart = dateObj.toLocaleTimeString('en-IN', {
+                                                    hour: '2-digit', minute: '2-digit', hour12: true
+                                                });
+                                                return (
+                                                    <div className="flex flex-col">
+                                                        <span className="font-semibold text-white">{datePart}</span>
+                                                        <span className="text-xs text-gray-400">{timePart}</span>
+                                                    </div>
+                                                );
+                                            })()}
+                                        </TableCell>
                                         <TableCell>
                                             <Badge variant={
-                                                notice.status === 'Pending' ? 'destructive' :
-                                                    notice.status === 'Reviewed' ? 'warning' : 'success'
-                                            } className="capitalize">
-                                                {notice.status}
+                                                notice.status === 'pending' ? 'destructive' :
+                                                    notice.status === 'closure_requested' ? 'warning' :
+                                                        notice.status === 'closed' ? 'success' : 'secondary'
+                                            } className="capitalize relative">
+                                                {notice.status === 'pending' && <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse" />}
+                                                {notice.status?.replace('_', ' ')}
                                             </Badge>
                                         </TableCell>
                                         <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
@@ -144,7 +284,7 @@ const NoticesPage = () => {
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="text-center py-8 text-gray-400">
+                                    <TableCell colSpan={5} className="text-center py-8 text-gray-400">
                                         No notices found based on your search.
                                     </TableCell>
                                 </TableRow>
@@ -176,26 +316,34 @@ const NoticesPage = () => {
                                 </SelectContent>
                             </Select>
                         </div>
-
                         <div className="space-y-2">
                             <Label htmlFor="title">Notice Title</Label>
                             <Input
                                 id="title"
-                                placeholder="e.g. GST Demand Notice"
-                                className="glass-input border-white/10 bg-black/20"
+                                placeholder="Enter notice title"
                                 value={noticeTitle}
                                 onChange={(e) => setNoticeTitle(e.target.value)}
+                                className="glass-input border-white/10 bg-black/20"
                                 required
                             />
                         </div>
-
                         <div className="space-y-2">
                             <Label htmlFor="file">Document</Label>
-                            <div className="border-2 border-dashed border-white/10 rounded-lg p-6 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition-colors">
-                                <UploadCloud className="w-8 h-8 text-gray-400 mb-2" />
-                                <span className="text-sm text-gray-400">Click to upload or drag and drop</span>
-                                <span className="text-xs text-gray-500 mt-1">PDF, JPG, PNG up to 10MB</span>
-                                <Input id="file" type="file" className="hidden" required />
+                            <div className="border-2 border-dashed border-white/10 rounded-lg p-6 text-center hover:bg-white/5 transition-colors cursor-pointer relative">
+                                <input
+                                    type="file"
+                                    id="file"
+                                    onChange={handleFileChange}
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    accept=".pdf,.jpg,.jpeg,.png"
+                                    required
+                                />
+                                <div className="flex flex-col items-center gap-2 pointer-events-none">
+                                    <UploadCloud className="w-8 h-8 text-blue-400" />
+                                    <span className="text-sm text-gray-400">
+                                        {selectedFile ? selectedFile.name : "Click to upload file (PDF, Images)"}
+                                    </span>
+                                </div>
                             </div>
                         </div>
 

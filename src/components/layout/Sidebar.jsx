@@ -11,7 +11,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   ListTodo,
-  UserCog
+  UserCog,
+  Bell
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { Button } from '@/components/ui/button';
@@ -89,6 +90,7 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
     { id: 'users', path: '/users', label: 'Manage Team', icon: UserCog, hidden: user?.role === 'CLIENT_USER' },
     { id: 'beneficiaries', path: '/beneficiaries', label: 'Beneficiaries', icon: Users },
     { id: 'organisation-bank', path: '/organisation-bank', label: 'Organisation Bank', icon: Banknote },
+    { id: 'notices', path: '/notices', label: 'Notices', icon: Bell, badge: null },
     {
       id: 'tasks',
       path: '/tasks',

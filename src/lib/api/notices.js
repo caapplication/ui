@@ -1,0 +1,121 @@
+import { FINANCE_API_BASE_URL } from '../api';
+import { getAuthHeaders, handleResponse } from './utils';
+
+export const getNotices = async (entityId, token) => {
+  let url = `${FINANCE_API_BASE_URL}/api/notices`;
+  if (entityId && entityId !== 'all') {
+    url += `?entity_id=${entityId}`;
+  }
+  const response = await fetch(url, {
+    headers: getAuthHeaders(token),
+  });
+  return handleResponse(response);
+};
+
+export const getNotice = async (noticeId, token) => {
+  const response = await fetch(`${FINANCE_API_BASE_URL}/api/notices/${noticeId}`, {
+    headers: getAuthHeaders(token),
+  });
+  return handleResponse(response);
+};
+
+export const createNotice = async (formData, token) => {
+  const response = await fetch(`${FINANCE_API_BASE_URL}/api/notices/`, {
+    method: 'POST',
+    headers: {
+      ...getAuthHeaders(token),
+      'Content-Type': undefined
+    },
+    body: formData,
+  });
+};
+
+export const uploadNotice = async (formData, token) => {
+  const headers = getAuthHeaders(token);
+  delete headers['Content-Type'];
+
+  const response = await fetch(`${FINANCE_API_BASE_URL}/api/notices/`, {
+    method: 'POST',
+    headers: headers,
+    body: formData,
+  });
+  return handleResponse(response);
+};
+
+export const requestNoticeClosure = async (noticeId, reason, token) => {
+  const formData = new FormData();
+  if (reason) formData.append('reason', reason);
+
+  const headers = getAuthHeaders(token);
+  delete headers['Content-Type'];
+
+  const response = await fetch(`${FINANCE_API_BASE_URL}/api/notices/${noticeId}/request-close`, {
+    method: 'POST',
+    headers: headers,
+    body: formData
+  });
+  return handleResponse(response);
+};
+
+export const approveNoticeClosure = async (noticeId, token) => {
+  const response = await fetch(`${FINANCE_API_BASE_URL}/api/notices/${noticeId}/approve-close`, {
+    method: 'POST',
+    headers: getAuthHeaders(token),
+  });
+  return handleResponse(response);
+};
+
+export const rejectNoticeClosure = async (noticeId, reason, token) => {
+  const formData = new FormData();
+  if (reason) formData.append('reason', reason);
+
+  const headers = getAuthHeaders(token);
+  delete headers['Content-Type'];
+
+  const response = await fetch(`${FINANCE_API_BASE_URL}/api/notices/${noticeId}/reject-close`, {
+    method: 'POST',
+    headers: headers,
+    body: formData
+  });
+  return handleResponse(response);
+};
+
+export const getNoticeComments = async (noticeId, token) => {
+  const response = await fetch(`${FINANCE_API_BASE_URL}/api/notices/${noticeId}/comments`, {
+    headers: getAuthHeaders(token),
+  });
+  return handleResponse(response);
+};
+
+export const addNoticeComment = async (noticeId, message, file, token) => {
+  const formData = new FormData();
+  formData.append('message', message);
+  if (file) {
+    formData.append('file', file);
+  }
+
+  const headers = getAuthHeaders(token);
+  delete headers['Content-Type'];
+
+  const response = await fetch(`${FINANCE_API_BASE_URL}/api/notices/${noticeId}/comments`, {
+    method: 'POST',
+    headers: headers,
+    body: formData,
+  });
+  return handleResponse(response);
+};
+
+export const addNoticeCollaborator = async (noticeId, userId, token) => {
+  const formData = new FormData();
+  formData.append('user_id', userId);
+
+  const headers = getAuthHeaders(token);
+  delete headers['Content-Type'];
+
+  const response = await fetch(`${FINANCE_API_BASE_URL}/api/notices/${noticeId}/collaborators`, {
+    method: 'POST',
+    headers: headers,
+    body: formData,
+  });
+  return handleResponse(response);
+};

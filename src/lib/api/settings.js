@@ -141,7 +141,7 @@ export const createFinanceHeader = async (data, agencyId, token) => {
 };
 
 export const updateFinanceHeader = async (id, data, agencyId, token) => {
-    const response = await fetch(`${FINANCE_API_BASE_URL}/api/finance-headers${id}`, {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/finance-headers/${id}`, {
         method: 'PATCH',
         headers: getAuthHeaders(token, 'application/json', agencyId),
         body: JSON.stringify(data),
@@ -150,7 +150,7 @@ export const updateFinanceHeader = async (id, data, agencyId, token) => {
 };
 
 export const deleteFinanceHeader = async (id, agencyId, token) => {
-    const response = await fetch(`${FINANCE_API_BASE_URL}/api/finance-headers${id}`, {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/finance-headers/${id}`, {
         method: 'DELETE',
         headers: getAuthHeaders(token, 'application/json', agencyId),
     });
