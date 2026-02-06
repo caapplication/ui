@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from '@/components/ui/use-toast';
-import { Plus, Search, Trash2, Edit, MoreVertical } from 'lucide-react';
+import { Plus, Search, Trash2, Edit, MoreVertical, Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { getFinanceHeaders, createFinanceHeader, updateFinanceHeader, deleteFinanceHeader } from '@/lib/api';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -19,6 +19,7 @@ const FinanceHeadersContent = () => {
     const [searchTerm, setSearchTerm] = useState("");
     const [financeHeaders, setFinanceHeaders] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const fetchFinanceHeaders = useCallback(async () => {
         if (!user) return;
@@ -42,7 +43,8 @@ const FinanceHeadersContent = () => {
             toast({ variant: "destructive", title: "Validation Error", description: "Header name cannot be empty." });
             return;
         }
-        
+
+        setIsSubmitting(true);
         const data = { name, value: name, agency_id: user.agency_id };
 
         try {
@@ -59,9 +61,11 @@ const FinanceHeadersContent = () => {
             setName("");
         } catch (error) {
             toast({ variant: "destructive", title: "Error", description: `Failed to ${editingHeader ? 'update' : 'create'} finance header.` });
+        } finally {
+            setIsSubmitting(false);
         }
     };
-    
+
     const handleOpenNew = () => {
         setEditingHeader(null);
         setName("");
@@ -73,7 +77,7 @@ const FinanceHeadersContent = () => {
         setName(header.name);
         setOpenDialog(true);
     };
-    
+
     const handleDelete = async (headerId) => {
         try {
             await deleteFinanceHeader(headerId, user.agency_id, user.access_token);
@@ -119,29 +123,29 @@ const FinanceHeadersContent = () => {
                                     <Edit className="mr-2 h-4 w-4" /> Edit
                                 </DropdownMenuItem>
                                 <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-400 focus:text-red-400 focus:bg-red-400/10">
-                                        <Trash2 className="mr-2 h-4 w-4" /> Delete
-                                    </DropdownMenuItem>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        This action cannot be undone. This will permanently delete the finance header.
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                      <AlertDialogAction onClick={() => handleDelete(header.id)}>Delete</AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
+                                    <AlertDialogTrigger asChild>
+                                        <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-400 focus:text-red-400 focus:bg-red-400/10">
+                                            <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                        </DropdownMenuItem>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                This action cannot be undone. This will permanently delete the finance header.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => handleDelete(header.id)}>Delete</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
                                 </AlertDialog>
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </div>
                 ))}
-                 {!isLoading && filteredHeaders.length === 0 && (
+                {!isLoading && filteredHeaders.length === 0 && (
                     <div className="text-center py-10 text-gray-400">No finance headers found.</div>
                 )}
             </div>
@@ -161,7 +165,10 @@ const FinanceHeadersContent = () => {
                         <DialogClose asChild>
                             <Button variant="outline" className="text-white">Cancel</Button>
                         </DialogClose>
-                        <Button onClick={handleSave} className="bg-primary hover:bg-primary/90">Save</Button>
+                        <Button onClick={handleSave} className="bg-primary hover:bg-primary/90" disabled={isSubmitting}>
+                            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            Save
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
