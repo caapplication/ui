@@ -28,7 +28,10 @@ import {
 } from "@/components/ui/select";
 import InvoiceHistory from "@/components/finance/InvoiceHistory";
 import VoucherHistory from "@/components/finance/VoucherHistory";
+import InvoiceHistory from "@/components/finance/InvoiceHistory";
+import VoucherHistory from "@/components/finance/VoucherHistory";
 import { useNavigate, Routes, Route, useLocation, Navigate } from "react-router-dom";
+import ExportTallyModal from "@/components/finance/ExportTallyModal";
 
 const AccountantFinance = () => {
   const [beneficiaries, setBeneficiaries] = useState([]);
@@ -36,6 +39,7 @@ const AccountantFinance = () => {
   const [vouchers, setVouchers] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   const {
     organisations,
@@ -57,71 +61,7 @@ const AccountantFinance = () => {
     setSelectedEntity(null);
   };
 
-  const handleExport = async () => {
-    if (!selectedEntity) {
-      toast({
-        title: 'Error',
-        description: 'Please select an entity to export.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    try {
-      const readyInvoices = invoices.filter(inv => inv.is_ready && !inv.is_exported);
-      const readyVouchers = vouchers.filter(v => v.is_ready && !v.is_exported);
-
-      if (readyInvoices.length === 0 && readyVouchers.length === 0) {
-        toast({
-          title: 'No Data to Export',
-          description: 'There are no ready invoices or vouchers to export.',
-        });
-        return;
-      }
-
-      const exportData = [
-        [
-          'Voucher Date', 'Voucher Type Name', 'Voucher Number', 'Party A/c Name', 'Sales Ledger',
-          'Item Amount', 'Total Invoice Value', 'Payment(Cash/UPI/Wallet)', 'Payment(Lakmo Coins)',
-          'Balance', 'Other Ledger', 'Other Ledger Amount', 'CGST Ledger', 'CSGST Rate', 'CGST Amount',
-          'UTST Ledger', 'UTGST Rate', 'UTGST Amount', 'Dr', 'Cr', 'Narataion', 'Place of Supply',
-          'State', 'Country', 'Registration Type', 'GSTIN'
-        ],
-        ...readyInvoices.map(inv => [
-          new Date(inv.date).toLocaleDateString(), 'Sales', inv.bill_number, inv.beneficiary.name, 'Sales',
-          inv.amount, inv.amount + inv.cgst + inv.sgst + inv.igst, '', '', '', '', '', 'CGST', 9, inv.cgst,
-          'UTGST', 9, inv.sgst, 'Dr', 'Cr', inv.remarks, '', '', 'India', 'Regular', ''
-        ]),
-        ...readyVouchers.map(v => [
-          new Date(v.created_date).toLocaleDateString(), v.voucher_type, '', v.beneficiaryName, '',
-          v.amount, v.amount, '', '', '', '', '', '', '', '', '', '', '', 'Dr', 'Cr', v.remarks, '', '', 'India', 'Regular', ''
-        ])
-      ];
-
-      const ws = XLSX.utils.aoa_to_sheet(exportData);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Accounting Voucher');
-      XLSX.writeFile(wb, 'Sales Format.xlsx');
-
-      await Promise.all([
-        ...readyInvoices.map(inv => updateInvoice(inv.id, { is_exported: true }, user.access_token)),
-        ...readyVouchers.map(v => updateVoucher(v.id, { is_exported: true }, user.access_token))
-      ]);
-
-      toast({
-        title: 'Success',
-        description: 'Data exported successfully.',
-      });
-
-      fetchData(true);
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: `Failed to export data: ${error.message}`,
-        variant: 'destructive',
-      });
-    }
-  };
+  // handleExport logic removed as it's now handled by the modal
 
   const activeTab = location.pathname.includes("/invoices")
     ? "invoices"
@@ -320,7 +260,7 @@ const AccountantFinance = () => {
               />
             </Button>
             {user.role === 'CA_ACCOUNTANT' && (
-              <Button onClick={handleExport} disabled={isLoading || !selectedEntity}>
+              <Button onClick={() => setIsExportModalOpen(true)} disabled={isLoading || !selectedEntity || selectedEntity === 'all'}>
                 Export to Tally
               </Button>
             )}
@@ -339,6 +279,14 @@ const AccountantFinance = () => {
             Review client invoices and vouchers.
           </p>
         </div>
+
+        {/* Export Modal */}
+        <ExportTallyModal
+          isOpen={isExportModalOpen}
+          onClose={() => setIsExportModalOpen(false)}
+          entityId={selectedEntity}
+          entityName={entities.find(e => e.id === selectedEntity)?.name}
+        />
 
         {/* Tabs Section */}
         <Tabs

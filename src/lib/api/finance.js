@@ -526,6 +526,78 @@ export const exportVouchersToTallyXML = async (entityId, token) => {
     window.URL.revokeObjectURL(url);
 };
 
+export const exportVouchers = async (entityId, token, fromDate, toDate) => {
+    let url = `${FINANCE_API_BASE_URL}/api/vouchers/export?entity_id=${entityId}`;
+    if (fromDate) url += `&from_date=${fromDate}`;
+    if (toDate) url += `&to_date=${toDate}`;
+
+    const response = await fetch(url, {
+        headers: getAuthHeaders(token),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to export vouchers');
+    }
+
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+
+    // Extract filename from Content-Disposition header if available
+    const contentDisposition = response.headers.get('Content-Disposition');
+    let filename = `Vouchers_Export_${entityId}.xlsx`;
+    if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+        if (filenameMatch && filenameMatch[1]) {
+            filename = filenameMatch[1];
+        }
+    }
+
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(downloadUrl);
+};
+
+export const exportInvoices = async (entityId, token, fromDate, toDate) => {
+    let url = `${FINANCE_API_BASE_URL}/api/invoices/export?entity_id=${entityId}`;
+    if (fromDate) url += `&from_date=${fromDate}`;
+    if (toDate) url += `&to_date=${toDate}`;
+
+    const response = await fetch(url, {
+        headers: getAuthHeaders(token),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to export invoices');
+    }
+
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+
+    // Extract filename from Content-Disposition header if available
+    const contentDisposition = response.headers.get('Content-Disposition');
+    let filename = `Invoices_Export_${entityId}.xlsx`;
+    if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+        if (filenameMatch && filenameMatch[1]) {
+            filename = filenameMatch[1];
+        }
+    }
+
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(downloadUrl);
+};
+
 export const getActivityLog = async (itemId, itemType, token, startDate = null, endDate = null) => {
     // Call the real backend API for activity logs (plural endpoint)
     let url = `${FINANCE_API_BASE_URL}/api/activity_logs/${itemType}/${itemId}`;
