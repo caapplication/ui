@@ -103,19 +103,25 @@ const InvoiceDetailsPage = () => {
     // Get entity name from user entities
     const getEntityName = () => {
         if (!user) return 'N/A';
-        // Priority 1: Check if entityId is in localStorage (most reliable for client context)
-        const entityId = localStorage.getItem('entityId') || invoice?.entity_id;
 
-        // Priority 2: Check user.entities if available
+        // Priority 1: Entity name from invoice API response
+        if (invoice?.entity?.name) {
+            return invoice.entity.name;
+        }
+
+        // Priority 2: Check if entityId is in localStorage (most reliable for client context)
+        const entityId = localStorage.getItem('entityId') || invoice?.entity?.id;
+
+        // Priority 3: Check user.entities if available
         if (entityId && user.entities && Array.isArray(user.entities)) {
             const entity = user.entities.find(e => String(e.id) === String(entityId));
             if (entity) return entity.name;
         }
 
-        // Priority 3: Check location state
+        // Priority 4: Check location state
         if (entityName) return entityName;
 
-        // Priority 4: If invoice has entity_name (sometimes populated)
+        // Priority 5: If invoice has entity_name (sometimes populated)
         if (invoice?.entity_name) return invoice.entity_name;
 
         return 'N/A';
@@ -1027,7 +1033,7 @@ const InvoiceDetailsPage = () => {
     // Auto-navigation helper
     const handleAutoNext = () => {
         if (currentIndex + 1 < invoices.length) {
-            handleNavigation(1);
+            handleNavigate(1);
         } else {
             navigate(-1);
         }
@@ -1154,7 +1160,7 @@ const InvoiceDetailsPage = () => {
         <div className="h-screen w-full flex flex-col text-white bg-transparent p-3 sm:p-4 md:p-6" style={{ paddingBottom: hasInvoices ? '6rem' : '1.5rem' }}>
             <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 pb-3 sm:pb-4 border-b border-white/10 mb-3 sm:mb-4">
                 <div className="flex items-center gap-3 sm:gap-4">
-                    <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="h-9 w-9 sm:h-10 sm:w-10">
+                    <Button variant="ghost" size="icon" onClick={() => navigate('/finance')} className="h-9 w-9 sm:h-10 sm:w-10">
                         <ArrowLeft className="h-5 w-5 sm:h-6 sm:w-6" />
                     </Button>
                     <div>
@@ -1366,6 +1372,24 @@ const InvoiceDetailsPage = () => {
                                                         <p className="text-sm text-gray-400 mb-1">Remarks</p>
                                                         <p className="text-sm text-white p-3 bg-white/5 rounded-md">{invoiceDetails.remarks && invoiceDetails.remarks.trim() ? invoiceDetails.remarks : 'N/A'}</p>
                                                     </div>
+                                                    {invoiceDetails.status_remarks && invoiceDetails.status_remarks.trim() && (
+                                                        <div className="pt-4">
+                                                            <div className="flex items-center gap-2 mb-2">
+                                                                <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                                </svg>
+                                                                <p className="text-sm font-semibold text-red-400">
+                                                                    {invoiceDetails.status === 'rejected_by_ca' || invoiceDetails.status === 'rejected_by_master_admin' ? 'Rejected Remarks' : 'Status Remarks'}
+                                                                </p>
+                                                            </div>
+                                                            <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-md">
+                                                                <p className="text-sm text-white">{invoiceDetails.status_remarks}</p>
+                                                            </div>
+                                                            {(invoiceDetails.status === 'rejected_by_ca' || invoiceDetails.status === 'rejected_by_master_admin') && (
+                                                                <p className="text-xs text-gray-400 mt-2">Click Edit to make changes and resubmit to CA for review.</p>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                     {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
                                                         <div className="pt-4">
                                                             <Label htmlFor="finance_header_id">Header</Label>
