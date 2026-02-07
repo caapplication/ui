@@ -97,6 +97,10 @@ const InvoiceDetailsCA = () => {
   // Get entity name from user entities
   const getEntityName = () => {
     if (!user) return 'N/A';
+    // Priority: invoice entity, selected entity from context, location state
+    if (invoiceDetails?.entity?.name) {
+      return invoiceDetails.entity.name;
+    }
     if (selectedEntity && selectedEntity !== "all" && entities.length > 0) {
       const entity = entities.find(e => String(e.id) === String(selectedEntity));
       if (entity) return entity.name;
@@ -207,6 +211,9 @@ const InvoiceDetailsCA = () => {
         }
 
         if (isMounted) {
+          console.log("=== Invoice fetched ===");
+          console.log("Entity data:", currentInvoice.entity);
+          console.log("Entity name:", currentInvoice.entity?.name);
           setInvoice(currentInvoice);
           setEditedInvoice(currentInvoice);
           setIsLoading(false);
@@ -609,7 +616,7 @@ const InvoiceDetailsCA = () => {
               Invoice #{invoiceDetails.bill_number || invoiceDetails.id}
             </h1>
             <p className="text-sm text-gray-400 flex items-center gap-2">
-              <span>{getEntityName()}</span>
+              <span>{invoiceDetails?.entity?.name || 'N/A'}</span>
               <span className="w-1 h-1 bg-gray-600 rounded-full"></span>
               <span>{new Date(invoiceDetails.date).toLocaleDateString()}</span>
             </p>
@@ -718,6 +725,24 @@ const InvoiceDetailsCA = () => {
                         {invoiceDetails.remarks || 'N/A'}
                       </p>
                     </div>
+                    {invoiceDetails.status_remarks && invoiceDetails.status_remarks.trim() && (
+                      <div className="pt-3 px-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <p className="text-sm font-semibold text-red-400">
+                            {invoiceDetails.status === 'rejected_by_ca' || invoiceDetails.status === 'rejected_by_master_admin' ? 'Rejected Remarks' : 'Status Remarks'}
+                          </p>
+                        </div>
+                        <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-md">
+                          <p className="text-sm text-white">{invoiceDetails.status_remarks}</p>
+                        </div>
+                        {(invoiceDetails.status === 'rejected_by_ca' || invoiceDetails.status === 'rejected_by_master_admin') && (
+                          <p className="text-xs text-gray-400 mt-2">Click Edit to make changes and resubmit to CA for review.</p>
+                        )}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 
