@@ -43,6 +43,8 @@ const VoucherDetailsPage = lazy(() => import('@/pages/VoucherDetailsPage.jsx'));
 const VoucherDetailsCAPage = lazy(() => import('@/pages/VoucherDetailsCA.jsx'));
 const InvoiceDetailsCAPage = lazy(() => import('@/pages/InvoiceDetailsCA.jsx'));
 const BeneficiaryDetailsPage = lazy(() => import('@/pages/BeneficiaryDetailsPage.jsx'));
+const BeneficiaryLedger = lazy(() => import('@/components/beneficiaries/BeneficiaryLedger.jsx'));
+const BeneficiaryIndividualLedger = lazy(() => import('@/components/beneficiaries/BeneficiaryIndividualLedger.jsx'));
 const NoticesPage = lazy(() => import('@/pages/NoticesPage.jsx'));
 const NoticeDetailsPage = lazy(() => import('@/pages/NoticeDetailsPage.jsx'));
 const ComingSoon = lazy(() => import('./pages/ComingSoon.jsx'));
@@ -273,6 +275,14 @@ const ProtectedContent = () => {
               <Route
                 path="/beneficiaries"
                 element={<Beneficiaries entityId={currentEntity} quickAction={null} clearQuickAction={() => { }} />}
+              />
+              <Route
+                path="/beneficiaries/ledger"
+                element={<BeneficiaryLedger entityId={currentEntity} />}
+              />
+              <Route
+                path="/beneficiaries/:beneficiaryId/ledger"
+                element={<BeneficiaryIndividualLedger entityId={currentEntity} />}
               />
               <Route
                 path="/organisation-bank"
