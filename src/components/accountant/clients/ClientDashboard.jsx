@@ -10,7 +10,6 @@ import ClientTeamMembersTab from './ClientTeamMembersTab';
 import ActivityLog from '@/components/finance/ActivityLog';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { deleteClient } from '@/lib/api';
 import { getClientTeamMembers } from '@/lib/api/clients';
 import {
     AlertDialog,
@@ -204,22 +203,14 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
     const handleDeleteClient = async () => {
         setIsDeleting(true);
         try {
-            if (!user?.agency_id || !user?.access_token) {
-                throw new Error("User information is not available.");
+            // Delegate deletion to parent component
+            if (onClientDeleted) {
+                await onClientDeleted(client.id);
             }
-            await deleteClient(client.id, user.agency_id, user.access_token);
-            toast({
-                title: '✅ Client Deleted',
-                description: `${client.name} has been successfully deleted.`,
-            });
-            onClientDeleted(client.id);
             onBack();
         } catch (error) {
-            toast({
-                title: 'Error deleting client',
-                description: error.message,
-                variant: 'destructive',
-            });
+            console.error("Error invoking delete callback:", error);
+            // Parent handles its own errors, but we catch here just in case specific logic is needed
         } finally {
             setIsDeleting(false);
         }
