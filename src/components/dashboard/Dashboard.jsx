@@ -626,11 +626,15 @@ const Dashboard = ({
                                                     <div
                                                         key={transaction.id || index}
                                                         onClick={() => {
-                                                            if (transaction.id) {
-                                                                navigate(`/finance/vouchers/${transaction.id}`);
+                                                            const bId = transaction.beneficiary?.id ||
+                                                                transaction.beneficiary_id ||
+                                                                (typeof transaction.beneficiary === 'string' ? transaction.beneficiary : null) ||
+                                                                transaction.id;
+                                                            if (bId && bId !== 'undefined') {
+                                                                navigate(`/beneficiaries/${bId}/ledger`);
                                                             }
                                                         }}
-                                                        className={`grid grid-cols-12 items-center text-sm py-2 hover:bg-white/10 transition-all rounded px-1 group ${transaction.id ? 'cursor-pointer' : 'cursor-default'}`}
+                                                        className="grid grid-cols-12 items-center text-sm py-2 hover:bg-white/10 transition-all rounded px-1 group cursor-pointer"
                                                     >
                                                         <div className="col-span-2 text-gray-400 font-mono">
                                                             {String(index + 1).padStart(2, "0")}
@@ -662,7 +666,7 @@ const Dashboard = ({
                                         <Button
                                             variant="ghost"
                                             className="w-full text-blue-400 hover:text-blue-300 hover:bg-blue-400/10 rounded-xl group transition-all text-sm py-2"
-                                            onClick={() => navigate('/beneficiaries')}
+                                            onClick={() => navigate('/beneficiaries/ledger')}
                                         >
                                             View more
                                             <TrendingUp className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
