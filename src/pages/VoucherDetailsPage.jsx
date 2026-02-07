@@ -1337,12 +1337,7 @@ const VoucherDetailsPage = () => {
                         <ArrowLeft className="h-5 w-5 sm:h-6 sm:w-6" />
                     </Button>
                     <div>
-                        <div className="flex items-center gap-3">
-                            <h1 className="text-xl sm:text-2xl font-bold">Voucher Details</h1>
-                            <span className={`px-3 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(voucherDetails.status)}`}>
-                                {formatStatus(voucherDetails.status)}
-                            </span>
-                        </div>
+                        <h1 className="text-xl sm:text-2xl font-bold">Voucher Details</h1>
                         <p className="text-xs sm:text-sm text-gray-400">Review all cash and debit transactions.</p>
                     </div>
                 </div>

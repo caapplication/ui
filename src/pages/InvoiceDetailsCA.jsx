@@ -605,14 +605,9 @@ const InvoiceDetailsCA = () => {
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
-                Invoice #{invoiceDetails.bill_number || invoiceDetails.id}
-              </h1>
-              <span className={`px-3 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(invoiceDetails.status)}`}>
-                {formatStatus(invoiceDetails.status)}
-              </span>
-            </div>
+            <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
+              Invoice #{invoiceDetails.bill_number || invoiceDetails.id}
+            </h1>
             <p className="text-sm text-gray-400 flex items-center gap-2">
               <span>{getEntityName()}</span>
               <span className="w-1 h-1 bg-gray-600 rounded-full"></span>
@@ -688,16 +683,17 @@ const InvoiceDetailsCA = () => {
               <TabsContent value="details" className="flex-1 overflow-y-auto p-4 space-y-6 hide-scrollbar">
                 <Card className="glass-card border-white/5 bg-slate-900/40">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-lg font-medium text-white">Beneficiary Information</CardTitle>
+                    <CardTitle className="text-lg font-medium text-white">{getBeneficiaryName()}</CardTitle>
+                    <CardDescription className="text-sm text-gray-400 flex items-center gap-2">
+                      <span>Created on {invoiceDetails.created_date || invoiceDetails.created_at ? new Date(invoiceDetails.created_date || invoiceDetails.created_at).toLocaleDateString() : new Date(invoiceDetails.date).toLocaleDateString()}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(invoiceDetails.status)}`}>
+                        {formatStatus(invoiceDetails.status)}
+                      </span>
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-1">
-                    <DetailItem label="Name" value={getBeneficiaryName()} />
-                    {invoiceDetails.beneficiary && (
-                      <>
-                        <DetailItem label="PAN" value={invoiceDetails.beneficiary.pan || 'N/A'} />
-                        <DetailItem label="GSTIN" value={invoiceDetails.beneficiary.gstin || 'N/A'} />
-                      </>
-                    )}
+                    <DetailItem label="PAN" value={invoiceDetails.beneficiary?.pan || 'N/A'} />
+                    <DetailItem label="GSTIN" value={invoiceDetails.beneficiary?.gstin || 'N/A'} />
                   </CardContent>
                 </Card>
 
@@ -706,28 +702,22 @@ const InvoiceDetailsCA = () => {
                     <CardTitle className="text-lg font-medium text-white">Invoice Details</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-1">
-                    <DetailItem label="Bill Number" value={invoiceDetails.bill_number || 'N/A'} />
                     <DetailItem label="Invoice Date" value={new Date(invoiceDetails.date).toLocaleDateString() || 'N/A'} />
-                    <DetailItem label="Base Amount" value={`₹${parseFloat(invoiceDetails.amount || 0).toFixed(2)}`} />
-                    <DetailItem label="CGST" value={`₹${parseFloat(invoiceDetails.cgst || 0).toFixed(2)}`} />
-                    <DetailItem label="SGST" value={`₹${parseFloat(invoiceDetails.sgst || 0).toFixed(2)}`} />
-                    <DetailItem label="IGST" value={`₹${parseFloat(invoiceDetails.igst || 0).toFixed(2)}`} />
-                    <DetailItem label="Roundoff" value={`₹${parseFloat(invoiceDetails.roundoff || 0).toFixed(2)}`} />
+                    <DetailItem label="Invoice Number" value={invoiceDetails.bill_number || 'N/A'} />
+                    <DetailItem label="Base Amount" value={`₹${parseFloat(invoiceDetails.amount || 0) % 1 === 0 ? parseFloat(invoiceDetails.amount || 0).toFixed(0) : parseFloat(invoiceDetails.amount || 0).toFixed(2)}`} />
+                    <DetailItem label="CGST" value={`₹${parseFloat(invoiceDetails.cgst || 0) % 1 === 0 ? parseFloat(invoiceDetails.cgst || 0).toFixed(0) : parseFloat(invoiceDetails.cgst || 0).toFixed(2)}`} />
+                    <DetailItem label="SGST" value={`₹${parseFloat(invoiceDetails.sgst || 0) % 1 === 0 ? parseFloat(invoiceDetails.sgst || 0).toFixed(0) : parseFloat(invoiceDetails.sgst || 0).toFixed(2)}`} />
+                    <DetailItem label="IGST" value={`₹${parseFloat(invoiceDetails.igst || 0) % 1 === 0 ? parseFloat(invoiceDetails.igst || 0).toFixed(0) : parseFloat(invoiceDetails.igst || 0).toFixed(2)}`} />
                     <div className="flex justify-between items-center py-3 mt-2 border-t border-white/10">
                       <p className="text-base font-medium text-white">Total Amount</p>
-                      <p className="text-xl font-bold text-emerald-400">₹{totalAmount}</p>
+                      <p className="text-xl font-bold text-emerald-400">₹{parseFloat(totalAmount) % 1 === 0 ? parseFloat(totalAmount).toFixed(0) : parseFloat(totalAmount).toFixed(2)}</p>
                     </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="glass-card border-white/5 bg-slate-900/40">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg font-medium text-white">Remarks</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-gray-300 leading-relaxed">
-                      {invoiceDetails.remarks || 'No remarks provided.'}
-                    </p>
+                    <div className="flex justify-between items-start py-2 border-t border-white/10">
+                      <p className="text-sm text-gray-400">Remarks</p>
+                      <p className="text-sm font-semibold text-white text-right max-w-[60%]">
+                        {invoiceDetails.remarks || 'N/A'}
+                      </p>
+                    </div>
                   </CardContent>
                 </Card>
 
