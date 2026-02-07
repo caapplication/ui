@@ -419,8 +419,8 @@ const AccountantDashboard = () => {
         </Card>
       </motion.div>
 
-      {/* Row 3: 3 Detail Blocks */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-6">
+      {/* Row 3: 4 Detail Blocks */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 pb-6">
         <DetailBlock
           title="Today's Progress"
           subtitle="Recent activities recorded today"
@@ -441,14 +441,23 @@ const AccountantDashboard = () => {
         />
         <DetailBlock
           title="Ongoing Tasks"
-          subtitle="Open tasks and active notices"
-          count={detailBlocks.ongoingTasks.reduce((acc, curr) => acc + curr.col2, 0) + detailBlocks.ongoingNotices.reduce((acc, curr) => acc + curr.col2, 0)}
-          data={[...detailBlocks.ongoingTasks, ...detailBlocks.ongoingNotices]}
-          columns={['S.No', 'Entity', 'Activity']}
+          subtitle="Open and active tasks"
+          count={detailBlocks.ongoingTasks.reduce((acc, curr) => acc + curr.col2, 0)}
+          data={detailBlocks.ongoingTasks}
+          columns={['S.No', 'Entity', 'Tasks']}
           onViewMore={() => navigate('/tasks')}
           delay={0.9}
         />
-      </div >
+        <DetailBlock
+          title="Ongoing Notices"
+          subtitle="Pending and active notices"
+          count={detailBlocks.ongoingNotices.reduce((acc, curr) => acc + curr.col2, 0)}
+          data={detailBlocks.ongoingNotices}
+          columns={['S.No', 'Entity', 'Notices']}
+          onViewMore={() => navigate('/notices')}
+          delay={1.0}
+        />
+      </div>
     </div >
   );
 };
