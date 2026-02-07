@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search, Filter, Plus, FileText, Eye, Trash2, Loader2, UploadCloud } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { listClients, listClientsByOrganization } from '@/lib/api/clients';
 import { getNotices, uploadNotice } from '@/lib/api/notices';
@@ -15,6 +15,7 @@ import { useToast } from '@/components/ui/use-toast';
 
 const NoticesPage = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const { user } = useAuth();
     const token = user?.access_token;
     const { toast } = useToast();
@@ -31,6 +32,15 @@ const NoticesPage = () => {
     const [selectedClient, setSelectedClient] = useState('all'); // Default to All
     const [noticeTitle, setNoticeTitle] = useState('');
     const [selectedFile, setSelectedFile] = useState(null);
+
+    // Handle Quick Action from Global FAB
+    useEffect(() => {
+        if (location.state?.quickAction === 'add-notice') {
+            setIsUploadModalOpen(true);
+            // Clear state after handling
+            navigate(location.pathname, { replace: true, state: {} });
+        }
+    }, [location.state, navigate, location.pathname]);
 
     // Fetch Clients (using Client Service)
     useEffect(() => {
