@@ -427,7 +427,7 @@ const AccountantDashboard = () => {
           count={detailBlocks.todayProgress.reduce((acc, curr) => acc + curr.col2, 0)}
           data={detailBlocks.todayProgress}
           columns={['S.No', 'Team Member', 'Items']}
-          onViewMore={() => navigate('/team-members')}
+          onViewMore={() => navigate('/dashboard/today-progress')}
           delay={0.7}
         />
         <DetailBlock
@@ -436,7 +436,7 @@ const AccountantDashboard = () => {
           count={detailBlocks.pendingVerification.reduce((acc, curr) => acc + curr.col2, 0)}
           data={detailBlocks.pendingVerification}
           columns={['S.No', 'Entity', 'Pending']}
-          onViewMore={() => navigate('/finance/approvals')}
+          onViewMore={() => navigate('/dashboard/pending-verification')}
           delay={0.8}
         />
         <DetailBlock
@@ -445,7 +445,7 @@ const AccountantDashboard = () => {
           count={detailBlocks.ongoingTasks.reduce((acc, curr) => acc + curr.col2, 0)}
           data={detailBlocks.ongoingTasks}
           columns={['S.No', 'Entity', 'Tasks']}
-          onViewMore={() => navigate('/tasks')}
+          onViewMore={() => navigate('/dashboard/ongoing-tasks')}
           delay={0.9}
         />
         <DetailBlock
@@ -454,7 +454,7 @@ const AccountantDashboard = () => {
           count={detailBlocks.ongoingNotices.reduce((acc, curr) => acc + curr.col2, 0)}
           data={detailBlocks.ongoingNotices}
           columns={['S.No', 'Entity', 'Notices']}
-          onViewMore={() => navigate('/notices')}
+          onViewMore={() => navigate('/dashboard/ongoing-notices')}
           delay={1.0}
         />
       </div>

@@ -53,6 +53,10 @@ const PublicDocumentView = lazy(() => import('./pages/PublicDocumentView.jsx'));
 const PrivacyPolicy = lazy(() => import('@/pages/PrivacyPolicy.jsx'));
 const TermsOfService = lazy(() => import('@/pages/TermsOfService.jsx'));
 const GlobalFAB = lazy(() => import('@/components/common/GlobalFAB'));
+const TodayProgressExpanded = lazy(() => import('@/components/accountant/dashboard/TodayProgressExpanded.jsx'));
+const PendingVerificationExpanded = lazy(() => import('@/components/accountant/dashboard/PendingVerificationExpanded.jsx'));
+const OngoingTasksExpanded = lazy(() => import('@/components/accountant/dashboard/OngoingTasksExpanded.jsx'));
+const OngoingNoticesExpanded = lazy(() => import('@/components/accountant/dashboard/OngoingNoticesExpanded.jsx'));
 
 const FullScreenLoader = () => (
   <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden">
@@ -251,6 +255,10 @@ const ProtectedContent = () => {
                   )
                 }
               />
+              <Route path="/dashboard/today-progress" element={<TodayProgressExpanded />} />
+              <Route path="/dashboard/pending-verification" element={<PendingVerificationExpanded />} />
+              <Route path="/dashboard/ongoing-tasks" element={<OngoingTasksExpanded />} />
+              <Route path="/dashboard/ongoing-notices" element={<OngoingNoticesExpanded />} />
               <Route
                 path="/finance/*"
                 element={
