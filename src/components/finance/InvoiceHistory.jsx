@@ -104,11 +104,11 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onRefresh, i
     // Filter based on View Mode (Active vs History)
     let modeFilteredInvoices;
     if (viewMode === 'active') {
-      // Active: Anything NOT verified
-      modeFilteredInvoices = sortedInvoices.filter(inv => inv.status !== 'verified' && inv.status !== 'approved');
+      // Active: (Not verified AND Not approved) AND Not deleted
+      modeFilteredInvoices = sortedInvoices.filter(inv => inv.status !== 'verified' && inv.status !== 'approved' && !inv.is_deleted);
     } else {
-      // History: Only verified or approved
-      modeFilteredInvoices = sortedInvoices.filter(inv => inv.status === 'verified' || inv.status === 'approved');
+      // History: Verified OR Approved OR Deleted
+      modeFilteredInvoices = sortedInvoices.filter(inv => inv.status === 'verified' || inv.status === 'approved' || inv.is_deleted);
     }
 
     return modeFilteredInvoices.filter(inv => {
@@ -398,8 +398,8 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onRefresh, i
                     })()}
                   </TableCell>
                   <TableCell className="text-xs sm:text-sm">
-                    <span className={`inline-flex items-center justify-center text-center px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-medium capitalize border h-auto min-h-[1.5rem] whitespace-normal leading-tight ${getStatusColor(invoice.status)}`}>
-                      {formatStatus(invoice.status)}
+                    <span className={`inline-flex items-center justify-center text-center px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-medium capitalize border h-auto min-h-[1.5rem] whitespace-normal leading-tight ${invoice.is_deleted ? 'bg-gray-500/20 text-gray-400 border-gray-500/50' : getStatusColor(invoice.status)}`}>
+                      {invoice.is_deleted ? 'Deleted' : formatStatus(invoice.status)}
                     </span>
                   </TableCell>
                   <TableCell className="text-xs sm:text-sm max-w-[200px]">

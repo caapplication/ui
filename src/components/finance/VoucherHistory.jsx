@@ -96,11 +96,11 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
         // Filter based on View Mode (Active vs History)
         let modeFilteredVouchers;
         if (viewMode === 'active') {
-            // Active: Not exported AND Not tagged (finance_header_id)
-            modeFilteredVouchers = sortableVouchers.filter(v => !v.is_exported && !v.finance_header_id);
+            // Active: Not exported AND Not tagged (finance_header_id) AND Not deleted
+            modeFilteredVouchers = sortableVouchers.filter(v => !v.is_exported && !v.finance_header_id && !v.is_deleted);
         } else {
-            // History: Exported OR Tagged (finance_header_id)
-            modeFilteredVouchers = sortableVouchers.filter(v => v.is_exported || v.finance_header_id);
+            // History: Exported OR Tagged (finance_header_id) OR Deleted
+            modeFilteredVouchers = sortableVouchers.filter(v => v.is_exported || v.finance_header_id || v.is_deleted);
         }
 
         return modeFilteredVouchers.filter(v => {
@@ -338,8 +338,8 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                                             })()}
                                         </TableCell>
                                         <TableCell className="text-xs sm:text-sm">
-                                            <span className={`inline-flex items-center justify-center text-center px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-medium border h-auto min-h-[1.5rem] whitespace-normal leading-tight ${getStatusColor(voucher.status)}`}>
-                                                {formatStatus(voucher.status)}
+                                            <span className={`inline-flex items-center justify-center text-center px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-medium border h-auto min-h-[1.5rem] whitespace-normal leading-tight ${voucher.is_deleted ? 'bg-gray-500/20 text-gray-400 border-gray-500/30' : getStatusColor(voucher.status)}`}>
+                                                {voucher.is_deleted ? 'Deleted' : formatStatus(voucher.status)}
                                             </span>
                                         </TableCell>
                                         <TableCell className="text-xs sm:text-sm max-w-[200px]">
