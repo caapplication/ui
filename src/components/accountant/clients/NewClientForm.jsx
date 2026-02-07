@@ -59,32 +59,7 @@ const getCroppedImg = async (imageSrc, pixelCrop) => {
     });
 };
 
-// Mapping between business type display names and enum values
-const businessTypeToEnum = {
-    'Individual': 'individual',
-    'Sole Proprietorship': 'sole_proprietorship',
-    'Partnership': 'partnership',
-    'LLP': 'llp',
-    'HUF': 'huf',
-    'Private Limited Company': 'private_limited',
-    'Public Limited Company': 'limited_company',
-    'Joint Venture': 'joint_venture',
-    'One Person Company': 'one_person_company',
-    'NGO\'s': 'ngo',
-    'NGO': 'ngo',
-    'Trust': 'trust',
-    'Section 8 Company': 'section_8_company',
-    'Government Entity': 'government_entity',
-    'Cooperative Society': 'cooperative_society',
-    'Branch Office': 'branch_office',
-    'AOP': 'aop',
-    'Society': 'society',
-};
 
-// Reverse mapping: enum value to display name
-const enumToBusinessType = Object.fromEntries(
-    Object.entries(businessTypeToEnum).map(([key, value]) => [value, key])
-);
 
 const NewClientForm = ({ onBack, onSave, client, allServices, organisations, businessTypes, teamMembers, tags, onAddOrganisation }) => {
     const { toast } = useToast();
@@ -177,7 +152,7 @@ const NewClientForm = ({ onBack, onSave, client, allServices, organisations, bus
             setFormData({
                 is_active: client.is_active ?? true,
                 name: client.name || '',
-                client_type: enumToBusinessType[client.client_type] || client.client_type || '', // Convert enum to display name
+                client_type: client.client_type || '',
                 organization_id: client.organization_id || '',
                 pan: client.pan || '',
                 gstin: client.gstin || '',
@@ -420,14 +395,11 @@ const NewClientForm = ({ onBack, onSave, client, allServices, organisations, bus
 
         setIsSaving(true);
 
-        // Convert business type display name to enum value
-        const clientTypeEnum = businessTypeToEnum[formData.client_type] || formData.client_type;
-
         // Flatten contact and opening_balance fields to match backend expectations
         const dataToSave = {
             is_active: formData.is_active,
             name: formData.name,
-            client_type: clientTypeEnum, // Use mapped enum value
+            client_type: formData.client_type,
             organization_id: formData.organization_id,
             pan: formData.pan,
             gstin: formData.gstin,
@@ -644,7 +616,7 @@ const NewClientForm = ({ onBack, onSave, client, allServices, organisations, bus
                                         <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
                                         <SelectContent>
                                             {businessTypes && businessTypes.length > 0 ? (
-                                                businessTypes.map(type => <SelectItem key={type.id} value={type.name}>{type.name}</SelectItem>)
+                                                businessTypes.map(type => <SelectItem key={type.id} value={String(type.id)}>{type.name}</SelectItem>)
                                             ) : (
                                                 <SelectItem value="no-types" disabled>No business types available. Please add one in Settings.</SelectItem>
                                             )}

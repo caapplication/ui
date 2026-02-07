@@ -14,32 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/hooks/useAuth';
 import { updateClient } from '@/lib/api';
 
-// Mapping between business type enum values and display names
-const businessTypeToEnum = {
-    'Individual': 'individual',
-    'Sole Proprietorship': 'sole_proprietorship',
-    'Partnership': 'partnership',
-    'LLP': 'llp',
-    'HUF': 'huf',
-    'Private Limited Company': 'private_limited',
-    'Public Limited Company': 'limited_company',
-    'Joint Venture': 'joint_venture',
-    'One Person Company': 'one_person_company',
-    'NGO\'s': 'ngo',
-    'NGO': 'ngo',
-    'Trust': 'trust',
-    'Section 8 Company': 'section_8_company',
-    'Government Entity': 'government_entity',
-    'Cooperative Society': 'cooperative_society',
-    'Branch Office': 'branch_office',
-    'AOP': 'aop',
-    'Society': 'society',
-};
 
-// Reverse mapping: enum value to display name
-const enumToBusinessType = Object.fromEntries(
-    Object.entries(businessTypeToEnum).map(([key, value]) => [value, key])
-);
 
 const StatCard = ({ title, value, valueClassName }) => (
     <Card className="bg-white/5 border-white/10 text-white">
@@ -151,7 +126,7 @@ const ClientDashboardDetails = ({ client, teamMembers = [], onUpdateClient }) =>
                     <DetailItem label="Status">
                         <Badge variant={client.is_active ? 'success' : 'destructive'}>{client.is_active ? 'Active' : 'Inactive'}</Badge>
                     </DetailItem>
-                    <DetailItem label="Type" value={enumToBusinessType[client.client_type] || client.client_type || 'N/A'} />
+                    <DetailItem label="Type" value={client.business_type?.name || client.client_type || 'N/A'} />
                     <DetailItem label="Contact Person" value={client.contact_person_name || 'N/A'} />
                     <DetailItem label="Date of Establishment" value={client.dob || client.date_of_birth ? format(new Date(client.dob || client.date_of_birth), 'dd-MM-yyyy') : 'N/A'} />
                     <DetailItem label="PAN" value={client.pan || 'N/A'} />

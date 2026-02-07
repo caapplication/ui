@@ -27,30 +27,7 @@ import {
     Grid as GridIcon,
 } from 'lucide-react';
 
-const businessTypeToEnum = {
-    Individual: 'individual',
-    'Sole Proprietorship': 'sole_proprietorship',
-    Partnership: 'partnership',
-    LLP: 'llp',
-    HUF: 'huf',
-    'Private Limited Company': 'private_limited',
-    'Public Limited Company': 'limited_company',
-    'Joint Venture': 'joint_venture',
-    'One Person Company': 'one_person_company',
-    "NGO's": 'ngo',
-    NGO: 'ngo',
-    Trust: 'trust',
-    'Section 8 Company': 'section_8_company',
-    'Government Entity': 'government_entity',
-    'Cooperative Society': 'cooperative_society',
-    'Branch Office': 'branch_office',
-    AOP: 'aop',
-    Society: 'society',
-};
 
-const enumToBusinessType = Object.fromEntries(
-    Object.entries(businessTypeToEnum).map(([key, value]) => [value, key])
-);
 
 const FilterPopover = ({ title, options, selectedValue, onSelect, children }) => {
     const [open, setOpen] = useState(false);
@@ -137,7 +114,7 @@ const ClientList = ({
             const matchesService =
                 !filters.service || client.availedServices?.some((s) => String(s.id) === String(filters.service));
 
-            const clientTypeDisplay = enumToBusinessType[client.client_type] || client.client_type;
+            const clientTypeDisplay = client.business_type?.name || client.client_type;
             const matchesType =
                 !filters.type || clientTypeDisplay?.toLowerCase() === filters.type.toLowerCase();
 
@@ -296,9 +273,8 @@ const ClientList = ({
                         <TableCell>
                             <Avatar>
                                 <AvatarImage
-                                    src={`${
-                                        import.meta.env.VITE_CLIENT_API_URL || 'http://127.0.0.1:8002'
-                                    }/clients/${client.id}/photo?token=${user?.access_token}&v=$
+                                    src={`${import.meta.env.VITE_CLIENT_API_URL || 'http://127.0.0.1:8002'
+                                        }/clients/${client.id}/photo?token=${user?.access_token}&v=$
 {client.updated_at ? new Date(client.updated_at).getTime() : 0}`}
                                 />
                                 <AvatarFallback>{client.name?.charAt(0)}</AvatarFallback>
@@ -338,9 +314,8 @@ const ClientList = ({
                     <div className="flex items-center gap-3">
                         <Avatar className="w-14 h-14">
                             <AvatarImage
-                                src={`${
-                                    import.meta.env.VITE_CLIENT_API_URL || 'http://127.0.0.1:8002'
-                                }/clients/${client.id}/photo?token=${user?.access_token}&v=$
+                                src={`${import.meta.env.VITE_CLIENT_API_URL || 'http://127.0.0.1:8002'
+                                    }/clients/${client.id}/photo?token=${user?.access_token}&v=$
 {client.updated_at ? new Date(client.updated_at).getTime() : 0}`}
                             />
                             <AvatarFallback>{client.name?.charAt(0)}</AvatarFallback>
@@ -352,7 +327,7 @@ const ClientList = ({
                     </div>
                     <div className="flex flex-wrap gap-2">
                         <Badge variant="outline">
-                            {enumToBusinessType[client.client_type] || client.client_type || 'N/A'}
+                            {client.business_type?.name || client.client_type || 'N/A'}
                         </Badge>
                         {client.is_active ? (
                             <Badge variant="success">Active</Badge>
