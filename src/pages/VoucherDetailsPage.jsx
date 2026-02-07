@@ -1705,7 +1705,7 @@ const VoucherDetailsPage = () => {
                                                         {/* Action buttons on right */}
                                                         <div className="flex items-center gap-3 relative z-[100]">
                                                             <TooltipProvider>
-                                                                {!isReadOnly && !hideClientActions && !(user?.role === 'CLIENT_MASTER_ADMIN' && voucher?.status === 'verified') && (
+                                                                {!isReadOnly && !hideClientActions && !(user?.role === 'CLIENT_MASTER_ADMIN' && voucher?.status === 'verified') && !voucherDetails.is_deleted && (
                                                                     <Tooltip>
                                                                         <TooltipTrigger asChild>
                                                                             <Button
@@ -1722,7 +1722,7 @@ const VoucherDetailsPage = () => {
                                                                         </TooltipContent>
                                                                     </Tooltip>
                                                                 )}
-                                                                {!isReadOnly && !hideClientActions && !(user?.role === 'CLIENT_MASTER_ADMIN' && voucher?.status === 'verified') && (
+                                                                {!isReadOnly && !hideClientActions && !(user?.role === 'CLIENT_MASTER_ADMIN' && voucher?.status === 'verified') && !voucherDetails.is_deleted && (
                                                                     <Tooltip>
                                                                         <TooltipTrigger asChild>
                                                                             <Button
@@ -2196,7 +2196,7 @@ const VoucherDetailsPage = () => {
                                         {/* Left Side: Icon Actions (Delete, Edit, Export) */}
                                         <div className="flex items-center gap-2">
                                             <TooltipProvider>
-                                                {!isReadOnly && !hideClientActions && (
+                                                {!isReadOnly && !hideClientActions && !voucherDetails.is_deleted && (
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
                                                             <Button
@@ -2213,7 +2213,7 @@ const VoucherDetailsPage = () => {
                                                         </TooltipContent>
                                                     </Tooltip>
                                                 )}
-                                                {!isReadOnly && !hideClientActions && (
+                                                {!isReadOnly && !hideClientActions && !voucherDetails.is_deleted && (
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
                                                             <Button

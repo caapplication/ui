@@ -1410,7 +1410,7 @@ const InvoiceDetailsPage = () => {
                                                 <div className="flex items-center gap-3 relative z-[100]">
                                                     <TooltipProvider delayDuration={0}>
                                                         {/* 1. Delete (Icon) - Restricted for CA */}
-                                                        {isEditable && !isReadOnly && user?.role !== 'CA_ACCOUNTANT' && user?.role !== 'CA_TEAM' && (
+                                                        {isEditable && !isReadOnly && user?.role !== 'CA_ACCOUNTANT' && user?.role !== 'CA_TEAM' && !invoiceDetails.is_deleted && (
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>
                                                                     <Button variant="destructive" size="icon" onClick={() => setShowDeleteDialog(true)} className="h-9 w-9 sm:h-10 sm:w-10">
@@ -1422,7 +1422,7 @@ const InvoiceDetailsPage = () => {
                                                         )}
 
                                                         {/* 2. Edit (Icon) - Restricted for CA */}
-                                                        {isEditable && !isReadOnly && user?.role !== 'CA_ACCOUNTANT' && user?.role !== 'CA_TEAM' && (
+                                                        {isEditable && !isReadOnly && user?.role !== 'CA_ACCOUNTANT' && user?.role !== 'CA_TEAM' && !invoiceDetails.is_deleted && (
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>
                                                                     <Button variant="outline" size="icon" onClick={() => setIsEditing(!isEditing)} className="h-9 w-9 sm:h-10 sm:w-10 bg-white/5 border-white/10">
@@ -1446,7 +1446,7 @@ const InvoiceDetailsPage = () => {
 
                                                     {/* 4. Approve/Reject Actions */}
                                                     {/* Client Admin Approval Actions */}
-                                                    {user?.role === 'CLIENT_MASTER_ADMIN' && !isReadOnly && (invoiceDetails.status === 'pending_master_admin_approval' || invoiceDetails.status === 'pending_approval' || invoiceDetails.status === 'created') && (
+                                                    {user?.role === 'CLIENT_MASTER_ADMIN' && !isReadOnly && !invoiceDetails.is_deleted && (invoiceDetails.status === 'pending_master_admin_approval' || invoiceDetails.status === 'pending_approval' || invoiceDetails.status === 'created') && (
                                                         <>
                                                             <Button onClick={() => handleStatusUpdate('pending_ca_approval')} disabled={isStatusUpdating} variant="approve" className="h-9 sm:h-10" size="sm">
                                                                 {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />} Approve
@@ -1458,7 +1458,7 @@ const InvoiceDetailsPage = () => {
                                                     )}
 
                                                     {/* CA/Team Actions */}
-                                                    {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && !isReadOnly && (invoiceDetails.status === 'pending_ca_approval' || invoiceDetails.status === 'pending_approval' || invoiceDetails.status === 'created') && (
+                                                    {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && !isReadOnly && !invoiceDetails.is_deleted && (invoiceDetails.status === 'pending_ca_approval' || invoiceDetails.status === 'pending_approval' || invoiceDetails.status === 'created') && (
                                                         <>
                                                             <Button onClick={() => setShowRejectDialog(true)} disabled={isStatusUpdating} variant="reject" className="h-9 sm:h-10" size="sm">
                                                                 {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />} Reject
@@ -1768,7 +1768,7 @@ const InvoiceDetailsPage = () => {
                                         <div className="flex items-center gap-3 relative z-[100]">
                                             <TooltipProvider delayDuration={0}>
                                                 {/* 1. Delete (Icon) */}
-                                                {isEditable && !isReadOnly && user?.role !== 'CA_ACCOUNTANT' && user?.role !== 'CA_TEAM' && (
+                                                {isEditable && !isReadOnly && user?.role !== 'CA_ACCOUNTANT' && user?.role !== 'CA_TEAM' && !invoiceDetails.is_deleted && (
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
                                                             <Button variant="destructive" size="icon" onClick={() => setShowDeleteDialog(true)} className="h-9 w-9 sm:h-10 sm:w-10">
@@ -1780,7 +1780,7 @@ const InvoiceDetailsPage = () => {
                                                 )}
 
                                                 {/* 2. Edit (Icon) */}
-                                                {isEditable && !isReadOnly && user?.role !== 'CA_ACCOUNTANT' && user?.role !== 'CA_TEAM' && (
+                                                {isEditable && !isReadOnly && user?.role !== 'CA_ACCOUNTANT' && user?.role !== 'CA_TEAM' && !invoiceDetails.is_deleted && (
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
                                                             <Button variant="outline" size="icon" onClick={() => setIsEditing(!isEditing)} className="h-9 w-9 sm:h-10 sm:w-10 bg-white/5 border-white/10">
@@ -1804,7 +1804,7 @@ const InvoiceDetailsPage = () => {
 
                                             {/* 4. Approve/Reject Actions */}
                                             {/* Client Master Admin Approval Actions */}
-                                            {user?.role === 'CLIENT_MASTER_ADMIN' && !isReadOnly && (invoiceDetails.status === 'pending_master_admin_approval' || invoiceDetails.status === 'pending_approval' || invoiceDetails.status === 'created') && (
+                                            {user?.role === 'CLIENT_MASTER_ADMIN' && !isReadOnly && !invoiceDetails.is_deleted && (invoiceDetails.status === 'pending_master_admin_approval' || invoiceDetails.status === 'pending_approval' || invoiceDetails.status === 'created') && (
                                                 <>
                                                     <Button onClick={() => handleStatusUpdate('pending_ca_approval')} disabled={isStatusUpdating} variant="approve" className="h-9 sm:h-10" size="sm">
                                                         {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />} Approve
@@ -1816,7 +1816,7 @@ const InvoiceDetailsPage = () => {
                                             )}
 
                                             {/* CA/Team Actions */}
-                                            {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && !isReadOnly && (invoiceDetails.status === 'pending_ca_approval' || invoiceDetails.status === 'pending_approval' || invoiceDetails.status === 'created') && (
+                                            {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && !isReadOnly && !invoiceDetails.is_deleted && (invoiceDetails.status === 'pending_ca_approval' || invoiceDetails.status === 'pending_approval' || invoiceDetails.status === 'created') && (
                                                 <>
                                                     <Button onClick={() => setShowRejectDialog(true)} disabled={isStatusUpdating} variant="reject" className="h-9 sm:h-10" size="sm">
                                                         {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />} Reject
