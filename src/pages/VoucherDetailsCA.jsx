@@ -1755,7 +1755,7 @@ const VoucherDetailsCA = () => {
                                                                         </TooltipContent>
                                                                     </Tooltip>
                                                                 </TooltipProvider>
-                                                                {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
+                                                                {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && !voucherDetails.is_deleted && (
                                                                     <>
                                                                         {voucherDetails.status !== 'rejected' && voucherDetails.status !== 'verified' && !isReadOnly && (
                                                                             <Button onClick={() => setShowRejectDialog(true)} disabled={isStatusUpdating} variant="reject" className="h-9 sm:h-10" size="sm">
