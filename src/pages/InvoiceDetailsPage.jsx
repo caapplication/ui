@@ -1158,12 +1158,7 @@ const InvoiceDetailsPage = () => {
                         <ArrowLeft className="h-5 w-5 sm:h-6 sm:w-6" />
                     </Button>
                     <div>
-                        <div className="flex items-center gap-3">
-                            <h1 className="text-xl sm:text-2xl font-bold">Invoice Details</h1>
-                            <span className={`px-3 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(invoiceDetails.status)}`}>
-                                {formatStatus(invoiceDetails.status)}
-                            </span>
-                        </div>
+                        <h1 className="text-xl sm:text-2xl font-bold">Invoice Details</h1>
                         <p className="text-xs sm:text-sm text-gray-400">Review all invoice transactions.</p>
                     </div>
                 </div>
@@ -1349,17 +1344,23 @@ const InvoiceDetailsPage = () => {
                                         <Card ref={invoiceDetailsRef} className="w-full glass-pane border-none shadow-none bg-gray-800 text-white relative z-20">
                                             <div ref={invoiceDetailsPDFRef} className="w-full">
                                                 <CardHeader className="p-4 sm:p-6">
-                                                    <CardTitle className="text-lg sm:text-xl">{invoiceDetails.bill_number || 'N/A'}</CardTitle>
-                                                    <CardDescription className="text-xs sm:text-sm">Created on {invoiceDetails.created_date || invoiceDetails.created_at ? new Date(invoiceDetails.created_date || invoiceDetails.created_at).toLocaleDateString() : 'N/A'}</CardDescription>
+                                                    <CardTitle className="text-lg sm:text-xl">{invoiceDetails.beneficiary?.name || invoiceDetails.beneficiary?.company_name || invoiceDetails.beneficiary_name || 'N/A'}</CardTitle>
+                                                    <CardDescription className="text-xs sm:text-sm flex items-center gap-2">
+                                                        <span>Created on {invoiceDetails.created_date || invoiceDetails.created_at ? new Date(invoiceDetails.created_date || invoiceDetails.created_at).toLocaleDateString() : 'N/A'}</span>
+                                                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(invoiceDetails.status)}`}>
+                                                            {formatStatus(invoiceDetails.status)}
+                                                        </span>
+                                                    </CardDescription>
                                                 </CardHeader>
                                                 <CardContent className="space-y-2 relative z-20 p-4 sm:p-6 pt-0">
-                                                    <DetailItem label="Date" value={new Date(invoiceDetails.date).toLocaleDateString()} />
-                                                    <DetailItem label="Base Amount" value={`₹${parseFloat(invoiceDetails.amount || 0).toFixed(2)}`} />
-                                                    <DetailItem label="CGST" value={`₹${parseFloat(invoiceDetails.cgst || 0).toFixed(2)}`} />
-                                                    <DetailItem label="SGST" value={`₹${parseFloat(invoiceDetails.sgst || 0).toFixed(2)}`} />
-                                                    <DetailItem label="IGST" value={`₹${parseFloat(invoiceDetails.igst || 0).toFixed(2)}`} />
+                                                    <DetailItem label="Invoice Date" value={new Date(invoiceDetails.date).toLocaleDateString()} />
+                                                    <DetailItem label="Invoice Number" value={invoiceDetails.bill_number || 'N/A'} />
+                                                    <DetailItem label="Base Amount" value={`₹${parseFloat(invoiceDetails.amount || 0) % 1 === 0 ? parseFloat(invoiceDetails.amount || 0).toFixed(0) : parseFloat(invoiceDetails.amount || 0).toFixed(2)}`} />
+                                                    <DetailItem label="CGST" value={`₹${parseFloat(invoiceDetails.cgst || 0) % 1 === 0 ? parseFloat(invoiceDetails.cgst || 0).toFixed(0) : parseFloat(invoiceDetails.cgst || 0).toFixed(2)}`} />
+                                                    <DetailItem label="SGST" value={`₹${parseFloat(invoiceDetails.sgst || 0) % 1 === 0 ? parseFloat(invoiceDetails.sgst || 0).toFixed(0) : parseFloat(invoiceDetails.sgst || 0).toFixed(2)}`} />
+                                                    <DetailItem label="IGST" value={`₹${parseFloat(invoiceDetails.igst || 0) % 1 === 0 ? parseFloat(invoiceDetails.igst || 0).toFixed(0) : parseFloat(invoiceDetails.igst || 0).toFixed(2)}`} />
                                                     <div className="pt-4">
-                                                        <DetailItem label="Total Amount" value={`₹${totalAmount}`} />
+                                                        <DetailItem label="Total Amount" value={`₹${parseFloat(totalAmount) % 1 === 0 ? parseFloat(totalAmount).toFixed(0) : parseFloat(totalAmount).toFixed(2)}`} />
                                                     </div>
                                                     <div className="pt-4">
                                                         <p className="text-sm text-gray-400 mb-1">Remarks</p>

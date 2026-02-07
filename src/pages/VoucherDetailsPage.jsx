@@ -1337,12 +1337,7 @@ const VoucherDetailsPage = () => {
                         <ArrowLeft className="h-5 w-5 sm:h-6 sm:w-6" />
                     </Button>
                     <div>
-                        <div className="flex items-center gap-3">
-                            <h1 className="text-xl sm:text-2xl font-bold">Voucher Details</h1>
-                            <span className={`px-3 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(voucherDetails.status)}`}>
-                                {formatStatus(voucherDetails.status)}
-                            </span>
-                        </div>
+                        <h1 className="text-xl sm:text-2xl font-bold">Voucher Details</h1>
                         <p className="text-xs sm:text-sm text-gray-400">Review all cash and debit transactions.</p>
                     </div>
                 </div>
@@ -1587,13 +1582,18 @@ const VoucherDetailsPage = () => {
                                                 {/* Voucher Details Card */}
                                                 <Card className="w-full glass-pane border-none shadow-none bg-gray-800 text-white">
                                                     <CardHeader className="p-4 sm:p-6">
-                                                        <CardTitle className="text-lg sm:text-xl">Voucher to {beneficiaryName}</CardTitle>
-                                                        <CardDescription className="text-xs sm:text-sm">Created on {new Date(voucherDetails.created_date).toLocaleDateString()}</CardDescription>
+                                                        <CardTitle className="text-lg sm:text-xl">{beneficiaryName}</CardTitle>
+                                                        <CardDescription className="text-xs sm:text-sm flex items-center gap-2">
+                                                            <span>Created on {new Date(voucherDetails.created_date).toLocaleDateString()}</span>
+                                                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(voucherDetails.status)}`}>
+                                                                {formatStatus(voucherDetails.status)}
+                                                            </span>
+                                                        </CardDescription>
                                                     </CardHeader>
                                                     <CardContent className="space-y-2 relative z-20 p-4 sm:p-6 pt-0">
 
+                                                        <DetailItem label="Amount" value={`₹${parseFloat(voucherDetails.amount) % 1 === 0 ? parseFloat(voucherDetails.amount).toFixed(0) : parseFloat(voucherDetails.amount).toFixed(2)}`} />
                                                         <DetailItem label="Voucher ID" value={voucherDetails.voucher_id || 'N/A'} />
-                                                        <DetailItem label="Amount" value={`₹${parseFloat(voucherDetails.amount).toFixed(2)}`} />
                                                         <DetailItem label="Voucher Type" value={voucherDetails.voucher_type} />
                                                         <DetailItem
                                                             label="Payment Method"
@@ -2079,13 +2079,18 @@ const VoucherDetailsPage = () => {
                                     {/* Voucher Details Card */}
                                     <Card className="w-full glass-pane border-none shadow-none text-white">
                                         <CardHeader className="p-4">
-                                            <CardTitle className="text-lg">Voucher to {beneficiaryName}</CardTitle>
-                                            <CardDescription className="text-xs">Created on {new Date(voucherDetails.created_date).toLocaleDateString()}</CardDescription>
+                                            <CardTitle className="text-lg">{beneficiaryName}</CardTitle>
+                                            <CardDescription className="text-xs flex items-center gap-2">
+                                                <span>Created on {new Date(voucherDetails.created_date).toLocaleDateString()}</span>
+                                                <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(voucherDetails.status)}`}>
+                                                    {formatStatus(voucherDetails.status)}
+                                                </span>
+                                            </CardDescription>
                                         </CardHeader>
                                         <CardContent className="space-y-2 p-4 pt-0">
 
+                                            <DetailItem label="Amount" value={`₹${parseFloat(voucherDetails.amount) % 1 === 0 ? parseFloat(voucherDetails.amount).toFixed(0) : parseFloat(voucherDetails.amount).toFixed(2)}`} />
                                             <DetailItem label="Voucher ID" value={voucherDetails.voucher_id || 'N/A'} />
-                                            <DetailItem label="Amount" value={`₹${parseFloat(voucherDetails.amount).toFixed(2)}`} />
                                             <DetailItem label="Voucher Type" value={voucherDetails.voucher_type} />
                                             <DetailItem
                                                 label="Payment Method"
