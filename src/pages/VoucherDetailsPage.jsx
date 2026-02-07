@@ -1680,6 +1680,10 @@ const VoucherDetailsPage = () => {
                                                                 />
                                                             </>
                                                         )}
+                                                        <div className="pt-4">
+                                                            <p className="text-sm text-gray-400 mb-1">Remarks</p>
+                                                            <p className="text-sm text-white p-3 bg-white/5 rounded-md">{voucherDetails.remarks && voucherDetails.remarks.trim() ? voucherDetails.remarks : 'N/A'}</p>
+                                                        </div>
                                                         {voucherDetails.status_remarks && (voucherDetails.status === 'rejected_by_master_admin' || voucherDetails.status === 'rejected_by_ca' || voucherDetails.status === 'rejected_by_admin' || voucherDetails.status === 'rejected') && (
                                                             <div className="pt-3">
                                                                 <div className="flex items-center gap-2 mb-1">
@@ -1694,10 +1698,7 @@ const VoucherDetailsPage = () => {
                                                                 )}
                                                             </div>
                                                         )}
-                                                        <div className="pt-4">
-                                                            <p className="text-sm text-gray-400 mb-1">Remarks</p>
-                                                            <p className="text-sm text-white p-3 bg-white/5 rounded-md">{voucherDetails.remarks && voucherDetails.remarks.trim() ? voucherDetails.remarks : 'N/A'}</p>
-                                                        </div>
+
                                                     </CardContent>
 
                                                     <div className="flex items-center gap-3 pb-4 mb-20 sm:mb-16 md:mb-4 justify-center relative z-[100] px-4 sm:px-6 action-buttons-container">
