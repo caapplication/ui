@@ -1306,6 +1306,21 @@ const VoucherDetailsPage = () => {
                 });
                 setShowRejectDialog(false);
                 setRejectionRemarks('');
+
+                // Auto-navigate to next voucher if available
+                // This mimics the CA panel behavior
+                if (status !== 'rejected') { // Don't auto-next on reject if we want them to see the modal? No, user said "do same navigation thing"
+                    // Actually CA panel auto-nexts on both approve and reject.
+                    // The requirement is "if pending_master_admin_approval status show that only in the navigation list if all completed then show model"
+                    // So we should auto-next.
+                    setTimeout(() => {
+                        handleAutoNext();
+                    }, 500);
+                } else {
+                    setTimeout(() => {
+                        handleAutoNext();
+                    }, 500);
+                }
             }
         } catch (error) {
             console.error('Status Update Error:', error);
@@ -2512,7 +2527,7 @@ const VoucherDetailsPage = () => {
                         </DialogHeader>
                         <div className="mt-8">
                             <Button
-                                onClick={() => navigate('/finance')}
+                                onClick={() => navigate('/')}
                                 className="bg-blue-600 hover:bg-blue-700 text-white min-w-[200px]"
                             >
                                 Go to Dashboard
