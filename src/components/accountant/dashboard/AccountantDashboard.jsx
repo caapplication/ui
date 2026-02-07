@@ -4,7 +4,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/ui/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader2, Users, UserCheck, Briefcase, Landmark, Banknote, ListTodo, Bell, FileWarning, Eye, TrendingUp, CheckCircle2, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend, ReferenceLine, LabelList } from 'recharts';
@@ -50,11 +49,11 @@ const StatCard = ({ title, value, icon, color, delay, suffix = "" }) => {
 const DetailBlock = ({ title, subtitle, count, data, columns, onViewMore, delay }) => {
   return (
     <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5, delay }}>
-      <Card className="glass-pane h-full flex flex-col relative overflow-hidden rounded-3xl">
-        <CardHeader className="pb-2">
+      <Card className="glass-card flex flex-col h-full rounded-3xl">
+        <CardHeader className="p-4 sm:p-6 pb-2 sm:pb-3">
           <div className="flex justify-between items-start">
             <div>
-              <CardTitle className="text-xl font-bold text-white">{title}</CardTitle>
+              <CardTitle className="text-lg sm:text-xl font-bold text-white">{title}</CardTitle>
               <CardDescription className="text-gray-400 text-xs mt-1">{subtitle}</CardDescription>
             </div>
             <div className="bg-primary/20 text-primary px-3 py-1 rounded-full text-xs font-bold border border-primary/30">
@@ -62,44 +61,47 @@ const DetailBlock = ({ title, subtitle, count, data, columns, onViewMore, delay 
             </div>
           </div>
         </CardHeader>
-        <CardContent className="flex-1 overflow-auto">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent border-white/5">
-                {columns.map((col, idx) => (
-                  <TableHead key={idx} className={`text-gray-400 text-xs py-2 ${idx === columns.length - 1 ? 'text-right pr-6' : 'pl-6'}`}>
-                    {col}
-                  </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+        <CardContent className="p-4 sm:p-6 flex-1 flex flex-col">
+          <div className="space-y-2 flex-1">
+            <div className="grid grid-cols-12 text-xs text-gray-400 font-medium uppercase tracking-wider border-b border-white/10 pb-2 mb-2 pr-2">
+              <div className="col-span-2">{columns[0]}</div>
+              <div className="col-span-6">{columns[1]}</div>
+              <div className="col-span-4 text-right">{columns[2]}</div>
+            </div>
+            <div className="max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
               {data.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={columns.length} className="text-center py-4 text-gray-500 text-sm">No records found</TableCell>
-                </TableRow>
+                <div className="text-center py-6 text-gray-500 text-sm">No records found</div>
               ) : (
                 data.slice(0, 5).map((row, idx) => (
-                  <TableRow key={idx} className="hover:bg-white/5 border-white/5 transition-colors group">
-                    <TableCell className="py-2 text-white text-sm font-medium pl-6">
-                      <span className="text-gray-500 mr-2">{idx + 1}.</span>
+                  <div
+                    key={idx}
+                    className="grid grid-cols-12 items-center text-sm py-2 hover:bg-white/10 transition-all rounded px-1 group cursor-default"
+                  >
+                    <div className="col-span-2 text-gray-400 font-mono">
+                      {String(idx + 1).padStart(2, "0")}
+                    </div>
+                    <div className="col-span-6 text-white truncate pr-2 group-hover:scale-[1.02] transition-transform origin-left">
                       {row.col1}
-                    </TableCell>
-                    <TableCell className="py-2 text-right pr-6">
-                      <span className="text-white font-bold">{row.col2}</span>
-                    </TableCell>
-                  </TableRow>
+                    </div>
+                    <div className="col-span-4 text-right text-white font-bold">
+                      {row.col2}
+                    </div>
+                  </div>
                 ))
               )}
-            </TableBody>
-          </Table>
+            </div>
+          </div>
+          <div className="pt-4 mt-auto border-t border-white/5">
+            <Button
+              variant="ghost"
+              className="w-full text-primary hover:text-primary/80 hover:bg-primary/10 rounded-xl group transition-all text-sm py-2"
+              onClick={onViewMore}
+            >
+              View more
+              <TrendingUp className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+            </Button>
+          </div>
         </CardContent>
-        <div className="p-4 pt-2 mt-auto border-t border-white/5">
-          <Button variant="ghost" className="w-full text-primary hover:text-primary/80 hover:bg-primary/10 rounded-xl group transition-all" onClick={onViewMore}>
-            View more
-            <TrendingUp className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-          </Button>
-        </div>
       </Card>
     </motion.div>
   );
@@ -367,7 +369,7 @@ const AccountantDashboard = () => {
           subtitle="Sum of completed activities in a day"
           count={detailBlocks.todayProgress.reduce((acc, curr) => acc + curr.col2, 0)}
           data={detailBlocks.todayProgress}
-          columns={['# Team Member', 'Completed']}
+          columns={['S.No', 'Team Member', 'Completed']}
           onViewMore={() => navigate('/team-members')}
           delay={0.8}
         />
@@ -376,7 +378,7 @@ const AccountantDashboard = () => {
           subtitle="Bills & Vouchers pending review"
           count={detailBlocks.pendingVerification.reduce((acc, curr) => acc + curr.col2, 0)}
           data={detailBlocks.pendingVerification}
-          columns={['# Entity', 'Pending']}
+          columns={['S.No', 'Entity', 'Pending']}
           onViewMore={() => navigate('/finance/approvals')}
           delay={0.9}
         />
@@ -385,7 +387,7 @@ const AccountantDashboard = () => {
           subtitle="Open tasks currently in progress"
           count={detailBlocks.ongoingTasks.reduce((acc, curr) => acc + curr.col2, 0)}
           data={detailBlocks.ongoingTasks}
-          columns={['# Entity', 'Task']}
+          columns={['S.No', 'Entity', 'Task']}
           onViewMore={() => navigate('/tasks')}
           delay={1.0}
         />
@@ -394,7 +396,7 @@ const AccountantDashboard = () => {
           subtitle="Unresolved notices across entities"
           count={detailBlocks.ongoingNotices.reduce((acc, curr) => acc + curr.col2, 0)}
           data={detailBlocks.ongoingNotices}
-          columns={['# Entity', 'Notice']}
+          columns={['S.No', 'Entity', 'Notice']}
           onViewMore={() => navigate('/notices')}
           delay={1.1}
         />

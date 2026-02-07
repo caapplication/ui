@@ -18,7 +18,8 @@ import {
     ArrowDownRight,
     Calendar,
     FileWarning,
-    Eye
+    Eye,
+    TrendingUp
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useMediaQuery } from "@/hooks/useMediaQuery.jsx";
@@ -161,16 +162,16 @@ const StatCard = ({
 
 const TransactionItem = ({ transaction, remarks, onClick, index, name }) => {
 
-    const amount = parseFloat(transaction.amount).toFixed(2);
+    const amount = Math.round(parseFloat(transaction.amount));
     return (
         <div
             onClick={onClick}
-            className="grid grid-cols-12 items-center text-sm py-2 hover:bg-white/5 transition-colors rounded px-1 cursor-pointer"
+            className="grid grid-cols-12 items-center text-sm py-2 hover:bg-white/10 transition-all rounded px-1 cursor-pointer group"
         >
             <div className="col-span-2 text-gray-400 font-mono">
                 {String(index + 1).padStart(2, "0")}
             </div>
-            <div className="col-span-6 text-white truncate pr-2">
+            <div className="col-span-6 text-white truncate pr-2 group-hover:scale-[1.02] transition-transform origin-left">
                 {name || transaction.beneficiary?.name}
                 <div className="text-gray-400 text-xs sm:text-sm italic truncate">
                     {remarks}
@@ -181,8 +182,7 @@ const TransactionItem = ({ transaction, remarks, onClick, index, name }) => {
             </div>
             <div className="col-span-4 text-right text-red-400 font-medium">
                 ₹{amount}
-                <div className={`text-xs font-normal mt-1 capitalize ${transaction.voucher_type === 'cash' ? 'text-green-400' : 'text-red-400'
-                    }`}>
+                <div className={`text-xs font-normal mt-1 capitalize text-red-400`}>
                     {transaction.voucher_type}
                 </div>
             </div>
@@ -607,17 +607,14 @@ const Dashboard = ({
                         </Card>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-                            <Card className="glass-card ">
-                                <CardHeader className="p-4 sm:p-6">
+                            <Card className="glass-card flex flex-col">
+                                <CardHeader className="p-4 sm:p-6 pb-2 sm:pb-3">
                                     <CardTitle className="text-lg sm:text-xl">
                                         Top cost Drivers-Beneficiaries wise
                                     </CardTitle>
-                                    <CardDescription className="text-sm sm:text-base">
-                                        Highest value expenses
-                                    </CardDescription>
                                 </CardHeader>
-                                <CardContent className="p-4 sm:p-6">
-                                    <div className="space-y-2">
+                                <CardContent className="p-4 sm:p-6 flex-1 flex flex-col">
+                                    <div className="space-y-2 flex-1">
                                         <div className="grid grid-cols-12 text-xs text-gray-400 font-medium uppercase tracking-wider border-b border-white/10 pb-2 mb-2 pr-2">
                                             <div className="col-span-2">S.No</div>
                                             <div className="col-span-6">Beneficiaries</div>
@@ -633,13 +630,13 @@ const Dashboard = ({
                                                                 navigate(`/finance/vouchers/${transaction.id}`);
                                                             }
                                                         }}
-                                                        className={`grid grid-cols-12 items-center text-sm py-2 hover:bg-white/5 transition-colors rounded px-1 ${transaction.id ? 'cursor-pointer' : 'cursor-default'}`}
+                                                        className={`grid grid-cols-12 items-center text-sm py-2 hover:bg-white/10 transition-all rounded px-1 group ${transaction.id ? 'cursor-pointer' : 'cursor-default'}`}
                                                     >
                                                         <div className="col-span-2 text-gray-400 font-mono">
                                                             {String(index + 1).padStart(2, "0")}
                                                         </div>
                                                         <div
-                                                            className="col-span-6 text-white truncate pr-2"
+                                                            className="col-span-6 text-white truncate pr-2 group-hover:scale-[1.02] transition-transform origin-left"
                                                             title={transaction.remarks}
                                                         >
                                                             {transaction.beneficiary_name || transaction.beneficiary?.name || transaction.beneficiary?.company_name}
@@ -648,7 +645,7 @@ const Dashboard = ({
                                                         </div>
                                                         <div className="col-span-4 text-right text-red-400 font-medium">
                                                             ₹
-                                                            {parseFloat(transaction.amount).toLocaleString(
+                                                            {Math.round(parseFloat(transaction.amount)).toLocaleString(
                                                                 "en-IN"
                                                             )}
                                                         </div>
@@ -661,20 +658,27 @@ const Dashboard = ({
                                             )}
                                         </div>
                                     </div>
+                                    <div className="pt-4 mt-auto border-t border-white/5">
+                                        <Button
+                                            variant="ghost"
+                                            className="w-full text-blue-400 hover:text-blue-300 hover:bg-blue-400/10 rounded-xl group transition-all text-sm py-2"
+                                            onClick={() => navigate('/beneficiaries')}
+                                        >
+                                            View more
+                                            <TrendingUp className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                                        </Button>
+                                    </div>
                                 </CardContent>
                             </Card>
 
-                            <Card className="glass-card ">
-                                <CardHeader className="p-4 sm:p-6">
+                            <Card className="glass-card flex flex-col">
+                                <CardHeader className="p-4 sm:p-6 pb-2 sm:pb-3">
                                     <CardTitle className="text-lg sm:text-xl">
                                         Top cost Drivers-Finance Header wise
                                     </CardTitle>
-                                    <CardDescription className="text-sm sm:text-base">
-                                        Highest value expenses
-                                    </CardDescription>
                                 </CardHeader>
-                                <CardContent className="p-4 sm:p-6">
-                                    <div className="space-y-2">
+                                <CardContent className="p-4 sm:p-6 flex-1 flex flex-col">
+                                    <div className="space-y-2 flex-1">
                                         <div className="grid grid-cols-12 text-xs text-gray-400 font-medium uppercase tracking-wider border-b border-white/10 pb-2 mb-2 pr-2">
                                             <div className="col-span-2">S.No</div>
                                             <div className="col-span-6">Header</div>
@@ -685,17 +689,17 @@ const Dashboard = ({
                                                 dashboardData.top_header_expenses.map((expense, index) => (
                                                     <div
                                                         key={index}
-                                                        className="grid grid-cols-12 items-center text-sm py-2 hover:bg-white/5 transition-colors rounded px-1 cursor-default"
+                                                        className="grid grid-cols-12 items-center text-sm py-2 hover:bg-white/10 transition-all rounded px-1 cursor-default group"
                                                     >
                                                         <div className="col-span-2 text-gray-400 font-mono">
                                                             {String(index + 1).padStart(2, "0")}
                                                         </div>
-                                                        <div className="col-span-6 text-white truncate pr-2">
+                                                        <div className="col-span-6 text-white truncate pr-2 group-hover:scale-[1.02] transition-transform origin-left">
                                                             {expense.header_name}
                                                         </div>
                                                         <div className="col-span-4 text-right text-red-400 font-medium">
                                                             ₹
-                                                            {parseFloat(expense.amount).toLocaleString(
+                                                            {Math.round(parseFloat(expense.amount)).toLocaleString(
                                                                 "en-IN"
                                                             )}
                                                         </div>
@@ -708,20 +712,27 @@ const Dashboard = ({
                                             )}
                                         </div>
                                     </div>
+                                    <div className="pt-4 mt-auto border-t border-white/5">
+                                        <Button
+                                            variant="ghost"
+                                            className="w-full text-blue-400 hover:text-blue-300 hover:bg-blue-400/10 rounded-xl group transition-all text-sm py-2"
+                                            onClick={() => navigate('/finance')}
+                                        >
+                                            View more
+                                            <TrendingUp className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                                        </Button>
+                                    </div>
                                 </CardContent>
                             </Card>
 
-                            <Card className="glass-card ">
-                                <CardHeader className="p-4 sm:p-6">
+                            <Card className="glass-card flex flex-col">
+                                <CardHeader className="p-4 sm:p-6 pb-2 sm:pb-3">
                                     <CardTitle className="text-lg sm:text-xl">
                                         Recent Transactions
                                     </CardTitle>
-                                    <CardDescription className="text-sm sm:text-base">
-                                        Your latest financial activities for {entityName}
-                                    </CardDescription>
                                 </CardHeader>
-                                <CardContent className="p-4 sm:p-6">
-                                    <div className="space-y-2">
+                                <CardContent className="p-4 sm:p-6 flex-1 flex flex-col">
+                                    <div className="space-y-2 flex-1">
                                         <div className="grid grid-cols-12 text-xs text-gray-400 font-medium uppercase tracking-wider border-b border-white/10 pb-2 mb-2 pr-2">
                                             <div className="col-span-2">S.No</div>
                                             <div className="col-span-6">Beneficiaries</div>
@@ -747,6 +758,16 @@ const Dashboard = ({
                                                 </div>
                                             )}
                                         </div>
+                                    </div>
+                                    <div className="pt-4 mt-auto border-t border-white/5">
+                                        <Button
+                                            variant="ghost"
+                                            className="w-full text-blue-400 hover:text-blue-300 hover:bg-blue-400/10 rounded-xl group transition-all text-sm py-2"
+                                            onClick={() => navigate('/finance/vouchers')}
+                                        >
+                                            View more
+                                            <TrendingUp className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                                        </Button>
                                     </div>
                                 </CardContent>
                             </Card>
