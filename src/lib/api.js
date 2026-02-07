@@ -8,6 +8,7 @@ import * as clients from './api/clients';
 import * as settings from './api/settings';
 import * as team from './api/team';
 import * as tasks from './api/tasks';
+import * as notices from './api/notices';
 import * as recurringTasks from './api/recurringTasks';
 import * as folderTemplates from './api/folderTemplates';
 
@@ -74,7 +75,8 @@ export const {
     exportVouchersToTallyXML,
     getActivityLog,
     getNoticeAttachment,
-    getUnreadNoticeCount
+    getUnreadNoticeCount,
+    getAccountantDashboardStats
 } = finance;
 
 export const {
@@ -146,7 +148,8 @@ export const {
     listClientServices,
     addServicesToClient,
     removeServicesFromClient,
-    getClientDashboard
+    getClientDashboard,
+    listClientsByOrganization
 } = clients;
 
 export const {
@@ -221,6 +224,20 @@ export const {
     deleteRecurringTask,
     triggerRecurringTaskScheduler
 } = recurringTasks;
+
+export const {
+    getNotices,
+    getNotice,
+    createNotice,
+    uploadNotice,
+    requestNoticeClosure,
+    approveNoticeClosure,
+    rejectNoticeClosure,
+    getNoticeComments,
+    addNoticeComment,
+    addNoticeCollaborator,
+    getUnreadNoticeCount: getUnreadNoticeCountDirect
+} = notices;
 
 export const {
     listTemplates,
