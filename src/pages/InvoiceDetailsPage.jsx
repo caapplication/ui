@@ -1102,6 +1102,14 @@ const InvoiceDetailsPage = () => {
                 status: 'verified'
             }, user.access_token);
             toast({ title: 'Success', description: 'Invoice tagged and verified successfully.' });
+
+            // Update the local invoices list state to reflect the change immediately
+            setInvoices(prevInvoices => prevInvoices.map(inv =>
+                inv.id === invoiceId
+                    ? { ...inv, status: 'verified', is_ready: true, finance_header_id: Number(editedInvoice.finance_header_id) }
+                    : inv
+            ));
+
             handleAutoNext();
         } catch (error) {
             toast({
@@ -1177,6 +1185,12 @@ const InvoiceDetailsPage = () => {
                 });
                 setShowRejectDialog(false);
                 setRejectionRemarks('');
+
+                // Update the local invoices list state
+                setInvoices(prevInvoices => prevInvoices.map(inv =>
+                    inv.id === invoiceId ? updatedInvoice : inv
+                ));
+
                 handleAutoNext();
             }
         } catch (error) {
@@ -2052,7 +2066,10 @@ const InvoiceDetailsPage = () => {
 
             {/* Completion Modal */}
             <Dialog open={showCompletionModal} onOpenChange={setShowCompletionModal}>
-                <DialogContent className="bg-slate-900 border-white/10 text-white sm:max-w-[425px]">
+                <DialogContent
+                    className="bg-slate-900 border-white/10 text-white sm:max-w-[425px] [&>button]:hidden"
+                    onInteractOutside={(e) => e.preventDefault()}
+                >
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             <CheckCircle className="w-6 h-6 text-green-500" />
