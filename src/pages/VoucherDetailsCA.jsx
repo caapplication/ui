@@ -4,7 +4,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useOrganisation } from '@/hooks/useOrganisation';
-import { deleteCAVoucher, updateCAVoucher, getBeneficiariesForCA, getVoucherAttachment, getCAVoucher, getBankAccountsForBeneficiary, getOrganisationBankAccountsForCA, getFinanceHeaders, getCATeamVouchers } from '@/lib/api.js';
+import { deleteCAVoucher, updateCAVoucher, getBeneficiariesForCA, getVoucherAttachment, getCAVoucher, getBankAccountsForBeneficiary, getOrganisationBankAccountsForCA, getFinanceHeaders, getCATeamVouchers, FINANCE_API_BASE_URL } from '@/lib/api.js';
 import { useApiCache } from '@/contexts/ApiCacheContext.jsx';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/use-toast';
@@ -218,14 +218,21 @@ const VoucherDetailsCA = () => {
     useEffect(() => {
         if (authLoading || !user?.access_token) return;
 
+        console.log("=== useEffect triggered ===");
+        console.log("voucherId:", voucherId);
+        console.log("lastFetchedVoucherIdRef.current:", lastFetchedVoucherIdRef.current);
+        console.log("fetchingVoucherRef.current:", fetchingVoucherRef.current);
+
         // Reset refs when voucherId changes
         if (lastFetchedVoucherIdRef.current !== voucherId) {
+            console.log("VoucherId changed - resetting refs");
             fetchingVoucherRef.current = false;
             fetchingAttachmentRef.current = null;
         }
 
         // Prevent duplicate fetches for the same voucher
         if (fetchingVoucherRef.current || lastFetchedVoucherIdRef.current === voucherId) {
+            console.log("Early return - fetchingVoucherRef.current:", fetchingVoucherRef.current, "lastFetchedVoucherIdRef === voucherId:", lastFetchedVoucherIdRef.current === voucherId);
             return;
         }
 
@@ -236,20 +243,54 @@ const VoucherDetailsCA = () => {
                 if (fetchingVoucherRef.current) return;
                 fetchingVoucherRef.current = true;
 
-                // Use initialVoucher if available, otherwise fetch
-                let currentVoucher = initialVoucher;
+                console.log("=== VoucherDetailsCA Fetch Debug ===");
+                console.log("voucherId:", voucherId);
+                console.log("selectedEntity:", selectedEntity);
 
-                // Only fetch if we don't have initial voucher or if voucherId changed
-                if (!currentVoucher || String(currentVoucher.id) !== String(voucherId)) {
-                    // Check cache first
-                    const cacheKey = { voucherId, token: user.access_token };
-                    currentVoucher = cache.get('getVoucher', cacheKey);
+                // Always fetch fresh data from API (don't use initialVoucher)
+                let currentVoucher = null;
 
-                    if (!currentVoucher) {
-                        // Use CA-specific endpoint - no entity_id required
-                        currentVoucher = await getCAVoucher(voucherId, user.access_token);
-                        cache.set('getVoucher', cacheKey, currentVoucher);
+                // Check cache first
+                const cacheKey = { voucherId, token: user.access_token };
+                currentVoucher = cache.get('getVoucher', cacheKey);
+
+                if (!currentVoucher) {
+                    console.log("No cached voucher, making API call...");
+                    // Get entityId from multiple sources with priority
+                    const entityIdFromStorage = localStorage.getItem('entityId');
+                    const entityIdFromVoucher = initialVoucher?.entity_id || voucher?.entity_id;
+                    // Use selectedEntity if available and not 'all', otherwise check voucher/storage
+                    const entityId = (selectedEntity && selectedEntity !== "all")
+                        ? selectedEntity
+                        : (entityIdFromVoucher || entityIdFromStorage);
+
+                    console.log("Entity resolution:", { selectedEntity, entityIdFromStorage, entityIdFromVoucher, finalEntityId: entityId });
+
+                    // Use standard voucher endpoint with entity_id if available
+                    let url = `${FINANCE_API_BASE_URL}/api/vouchers/${voucherId}`;
+                    if (entityId) {
+                        url += `?entity_id=${entityId}`;
                     }
+
+                    console.log("Fetching from URL:", url);
+
+                    const response = await fetch(url, {
+                        headers: {
+                            'Authorization': `Bearer ${user.access_token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    if (response.ok) {
+                        currentVoucher = await response.json();
+                        console.log("Voucher fetched successfully:", currentVoucher);
+                        cache.set('getVoucher', cacheKey, currentVoucher);
+                    } else {
+                        console.error("Failed to fetch voucher:", response.status);
+                        throw new Error(`Failed to fetch voucher: ${response.status}`);
+                    }
+                } else {
+                    console.log("Using cached voucher");
                 }
 
                 if (!currentVoucher) {
