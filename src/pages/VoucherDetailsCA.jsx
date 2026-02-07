@@ -1372,12 +1372,7 @@ const VoucherDetailsCA = () => {
                         <ArrowLeft className="h-6 w-6" />
                     </Button>
                     <div>
-                        <div className="flex items-center gap-3">
-                            <h1 className="text-2xl font-bold">Voucher Details</h1>
-                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(voucherDetails.status)}`}>
-                                {formatStatus(voucherDetails.status)}
-                            </span>
-                        </div>
+                        <h1 className="text-2xl font-bold">Voucher Details</h1>
                         <p className="text-sm text-gray-400">Review all cash and debit transactions.</p>
                     </div>
                 </div>
@@ -1623,11 +1618,17 @@ const VoucherDetailsCA = () => {
                                             <Card ref={voucherDetailsRef} className="w-full glass-pane border-none shadow-none bg-gray-800 text-white relative z-20">
                                                 <div ref={voucherDetailsPDFRef} className="w-full">
                                                     <CardHeader>
-                                                        <CardTitle>Voucher to {beneficiaryName}</CardTitle>
-                                                        <CardDescription>Created on {new Date(voucherDetails.created_date).toLocaleDateString()}</CardDescription>
+                                                        <CardTitle>{beneficiaryName}</CardTitle>
+                                                        <CardDescription className="flex items-center gap-2">
+                                                            <span>Created on {new Date(voucherDetails.created_date).toLocaleDateString()}</span>
+                                                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(voucherDetails.status)}`}>
+                                                                {formatStatus(voucherDetails.status)}
+                                                            </span>
+                                                        </CardDescription>
                                                     </CardHeader>
                                                     <CardContent className="space-y-2 relative z-20">
-                                                        <DetailItem label="Amount" value={`₹${parseFloat(voucherDetails.amount).toFixed(2)}`} />
+                                                        <DetailItem label="Amount" value={`₹${parseFloat(voucherDetails.amount) % 1 === 0 ? parseFloat(voucherDetails.amount).toFixed(0) : parseFloat(voucherDetails.amount).toFixed(2)}`} />
+                                                        <DetailItem label="Voucher ID" value={voucherDetails.voucher_id || 'N/A'} />
                                                         <DetailItem label="Voucher Type" value={voucherDetails.voucher_type} />
                                                         <DetailItem
                                                             label="Payment Method"
