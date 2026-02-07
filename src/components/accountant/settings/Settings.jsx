@@ -14,11 +14,11 @@ import BusinessTypesContent from './BusinessTypesContent';
 import FinanceHeadersContent from './FinanceHeadersContent';
 
 const settingsNav = [
-  { path: 'tags', name: 'Tags', icon: Tag, component: TagsContent },
-  { path: 'client-settings', name: 'Client Settings', icon: Users, component: ClientSettingsContent },
-  { path: 'portals', name: 'Portals', icon: Globe, component: PortalsContent },
-  { path: 'business-types', name: 'Business Types', icon: Briefcase, component: BusinessTypesContent },
-  { path: 'finance-headers', name: 'Finance Headers', icon: FileText, component: FinanceHeadersContent },
+    { path: 'tags', name: 'Tags', icon: Tag, component: TagsContent },
+    { path: 'client-settings', name: 'Client Settings', icon: Users, component: ClientSettingsContent },
+    { path: 'portals', name: 'Portals', icon: Globe, component: PortalsContent },
+    { path: 'business-types', name: 'Business Types', icon: Briefcase, component: BusinessTypesContent },
+    { path: 'finance-headers', name: 'Finance Headers', icon: FileText, component: FinanceHeadersContent },
 ];
 
 const Settings = () => {
@@ -26,6 +26,13 @@ const Settings = () => {
     const { user } = useAuth();
     const [settingsData, setSettingsData] = useState({ clientSettings: null });
     const [isLoading, setIsLoading] = useState(true);
+
+    const filteredNav = settingsNav.filter(item => {
+        if (user?.role === 'CA_ACCOUNTANT') {
+            return item.path !== 'tags' && item.path !== 'client-settings';
+        }
+        return true;
+    });
 
     const fetchAllSettings = useCallback(async () => {
         if (!user) return;
@@ -50,19 +57,19 @@ const Settings = () => {
 
     return (
         <Routes>
-            <Route path="/" element={<SettingsDashboard />} />
-            {settingsNav.map(item => (
-                <Route 
-                    key={item.path} 
-                    path={`${item.path}`} 
-                    element={<SettingsPageWrapper item={item} settingsData={settingsData} />} 
+            <Route path="/" element={<SettingsDashboard navItems={filteredNav} />} />
+            {filteredNav.map(item => (
+                <Route
+                    key={item.path}
+                    path={`${item.path}`}
+                    element={<SettingsPageWrapper item={item} settingsData={settingsData} />}
                 />
             ))}
         </Routes>
     );
 };
 
-const SettingsDashboard = () => (
+const SettingsDashboard = ({ navItems }) => (
     <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -72,7 +79,7 @@ const SettingsDashboard = () => (
         <div className="max-w-7xl mx-auto">
             <h1 className="text-3xl font-bold text-white mb-6 flex items-center gap-3"><SettingsIcon /> Settings</h1>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {settingsNav.map(item => {
+                {navItems.map(item => {
                     const Icon = item.icon;
                     return (
                         <Link to={item.path} key={item.path}>

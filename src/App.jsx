@@ -226,7 +226,7 @@ const ProtectedContent = () => {
               <Menu className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
             </Button>
             <div className="text-white font-bold text-base sm:text-lg truncate px-2 flex-1 text-center">
-              {user?.name || user?.agency_name}
+              {user?.name}
             </div>
             <div className="w-9 sm:w-10"></div>
           </header>
