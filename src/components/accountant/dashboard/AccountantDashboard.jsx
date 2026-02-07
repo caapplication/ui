@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/ui/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Users, UserCheck, Briefcase, Landmark, Banknote, ListTodo, Bell, FileWarning, Eye, TrendingUp, CheckCircle2, Clock } from 'lucide-react';
+import { Loader2, Users, UserCheck, Briefcase, Landmark, Building2, Banknote, ListTodo, Bell, FileWarning, Eye, TrendingUp, CheckCircle2, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend, ReferenceLine, LabelList } from 'recharts';
 import { format, subDays, startOfDay } from 'date-fns';
@@ -22,25 +22,49 @@ import {
   getNotices
 } from '@/lib/api';
 
-const StatCard = ({ title, value, icon, color, delay, suffix = "" }) => {
+const StatCard = ({ title, value, description, icon, color, delay, trend, meta, hideValue, suffix = "" }) => {
   const Icon = icon;
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay }}>
-      <Card className="glass-card card-hover overflow-hidden h-full relative group rounded-3xl">
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider">{title}</h3>
-            <div className="w-8 h-8 rounded-full flex items-center justify-center bg-white/10 group-hover:scale-110 transition-transform">
-              <Icon className="w-4 h-4 text-white" />
+      <Card className="glass-card card-hover overflow-hidden h-full relative group rounded-3xl border-white/5">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 sm:p-6">
+          <CardTitle className="text-xs sm:text-sm font-medium text-gray-400 uppercase tracking-wider">
+            {title}
+          </CardTitle>
+          <div className={`w-10 h-10 bg-gradient-to-r ${color} rounded-xl flex items-center justify-center shadow-lg shadow-black/20 shrink-0 group-hover:scale-110 transition-transform`}>
+            <Icon className="w-5 h-5 text-white" />
+          </div>
+        </CardHeader>
+        <CardContent className="p-4 sm:p-6 pt-0">
+          {!hideValue && (
+            <div className="flex items-center gap-3 mb-1">
+              <div className="text-2xl sm:text-3xl font-bold text-white">
+                {suffix && <span className="text-xl mr-1">{suffix}</span>}
+                {typeof value === 'number' ? value.toLocaleString() : value}
+              </div>
+              {trend && (
+                <div className={`${trend.isBad ? 'text-red-500' : 'text-green-500'}`}>
+                  {trend.isUp ? <TrendingUp className="w-5 h-5" /> : <TrendingUp className="w-5 h-5 rotate-180" />}
+                </div>
+              )}
             </div>
-          </div>
-          <div className="flex items-baseline gap-1">
-            <span className="text-3xl font-bold text-white">
-              {suffix && <span className="text-xl mr-1">{suffix}</span>}
-              {typeof value === 'number' ? value.toLocaleString() : value}
-            </span>
-          </div>
-        </div>
+          )}
+          {description && (
+            <p className={`text-xs mt-1 ${trend ? (trend.isBad ? 'text-red-500' : 'text-green-500') : 'text-gray-400'}`}>
+              {description}
+            </p>
+          )}
+          {meta && (
+            <div className={`${hideValue ? "mt-2" : "mt-4 pt-3 border-t border-white/10"} space-y-2 text-sm text-gray-400`}>
+              {Object.entries(meta).map(([key, val]) => (
+                <div key={key} className="flex justify-between items-center text-xs">
+                  <span className="capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
+                  <span className="text-white font-medium">{val}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
       </Card>
     </motion.div>
   );
@@ -49,56 +73,51 @@ const StatCard = ({ title, value, icon, color, delay, suffix = "" }) => {
 const DetailBlock = ({ title, subtitle, count, data, columns, onViewMore, delay }) => {
   return (
     <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5, delay }}>
-      <Card className="glass-card flex flex-col h-full rounded-3xl">
-        <CardHeader className="p-4 sm:p-6 pb-2 sm:pb-3">
-          <div className="flex justify-between items-start">
-            <div>
-              <CardTitle className="text-lg sm:text-xl font-bold text-white">{title}</CardTitle>
-              <CardDescription className="text-gray-400 text-xs mt-1">{subtitle}</CardDescription>
-            </div>
-            <div className="bg-primary/20 text-primary px-3 py-1 rounded-full text-xs font-bold border border-primary/30">
-              {count}
-            </div>
-          </div>
+      <Card className="glass-card flex flex-col h-full rounded-2xl border-white/5">
+        <CardHeader className="p-4 sm:p-5 pb-2 sm:pb-3">
+          <CardTitle className="text-lg font-bold text-white">{title}</CardTitle>
+          {subtitle && <CardDescription className="text-gray-400 text-xs mt-0.5">{subtitle}</CardDescription>}
         </CardHeader>
-        <CardContent className="p-4 sm:p-6 flex-1 flex flex-col">
+        <CardContent className="p-4 sm:p-5 flex-1 flex flex-col">
           <div className="space-y-2 flex-1">
-            <div className="grid grid-cols-12 text-xs text-gray-400 font-medium uppercase tracking-wider border-b border-white/10 pb-2 mb-2 pr-2">
+            <div className="grid grid-cols-12 text-[10px] text-gray-400 font-medium uppercase tracking-wider border-b border-white/10 pb-2 mb-2 pr-2">
               <div className="col-span-2">{columns[0]}</div>
               <div className="col-span-6">{columns[1]}</div>
               <div className="col-span-4 text-right">{columns[2]}</div>
             </div>
-            <div className="max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+            <div className="min-h-[320px] overflow-y-auto pr-2 custom-scrollbar">
               {data.length === 0 ? (
-                <div className="text-center py-6 text-gray-500 text-sm">No records found</div>
+                <div className="flex flex-col items-center justify-center min-h-[320px] text-gray-500 text-xs italic">
+                  No records found
+                </div>
               ) : (
-                data.slice(0, 5).map((row, idx) => (
+                data.slice(0, 8).map((row, idx) => (
                   <div
                     key={idx}
-                    className="grid grid-cols-12 items-center text-sm py-2 hover:bg-white/10 transition-all rounded px-1 group cursor-default"
+                    className="grid grid-cols-12 items-center text-sm py-2 hover:bg-white/5 transition-all rounded px-1 group cursor-default border-b border-white/5 last:border-0"
                   >
-                    <div className="col-span-2 text-gray-400 font-mono">
+                    <div className="col-span-2 text-gray-400 font-mono text-xs">
                       {String(idx + 1).padStart(2, "0")}
                     </div>
-                    <div className="col-span-6 text-white truncate pr-2 group-hover:scale-[1.02] transition-transform origin-left">
+                    <div className="col-span-6 text-white truncate pr-2 group-hover:scale-[1.01] transition-transform origin-left text-xs sm:text-sm">
                       {row.col1}
                     </div>
-                    <div className="col-span-4 text-right text-white font-bold">
-                      {row.col2}
+                    <div className="col-span-4 text-right text-red-100 font-semibold text-xs sm:text-sm">
+                      {typeof row.col2 === 'number' ? `₹${row.col2.toLocaleString()}` : row.col2}
                     </div>
                   </div>
                 ))
               )}
             </div>
           </div>
-          <div className="pt-4 mt-auto border-t border-white/5">
+          <div className="pt-3 mt-auto border-t border-white/5">
             <Button
               variant="ghost"
-              className="w-full text-primary hover:text-primary/80 hover:bg-primary/10 rounded-xl group transition-all text-sm py-2"
+              className="w-full text-blue-400 hover:text-blue-300 hover:bg-blue-400/10 rounded-xl group transition-all text-xs py-1.5 h-auto"
               onClick={onViewMore}
             >
               View more
-              <TrendingUp className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+              <TrendingUp className="w-3.5 h-3.5 ml-1.5 group-hover:translate-x-1 transition-transform" />
             </Button>
           </div>
         </CardContent>
@@ -169,7 +188,7 @@ const AccountantDashboard = () => {
         due: financeStats?.total_due || 0
       });
 
-      // 2. Fetch Historical Trend Data (Last 7 Days)
+      // 2. Fetch Historical Trend Data (Last 15 Days)
       const entities = await listAllEntities(token).catch(() => []);
       const entityIds = entities.map(e => e.id);
 
@@ -184,10 +203,10 @@ const AccountantDashboard = () => {
       const noticesList = notices || [];
 
       // Process Trend Data
-      const last7Days = [];
-      for (let i = 6; i >= 0; i--) {
+      const last15Days = [];
+      for (let i = 14; i >= 0; i--) {
         const date = subDays(startOfDay(new Date()), i);
-        last7Days.push({
+        last15Days.push({
           date,
           name: format(date, 'MMM dd'),
           tasks: 0,
@@ -201,7 +220,7 @@ const AccountantDashboard = () => {
       const processItems = (items, key, dateKey = 'created_at') => {
         items.forEach(item => {
           const itemDate = startOfDay(new Date(item[dateKey] || item.created_date));
-          const day = last7Days.find(d => d.date.getTime() === itemDate.getTime());
+          const day = last15Days.find(d => d.date.getTime() === itemDate.getTime());
           if (day) {
             day[key]++;
             day.total++;
@@ -214,9 +233,9 @@ const AccountantDashboard = () => {
       processItems(invoices, 'invoices');
       processItems(noticesList, 'notices');
 
-      setChartData(last7Days);
-      const totalActivity = last7Days.reduce((sum, day) => sum + day.total, 0);
-      setAverageActivity(totalActivity / 7);
+      setChartData(last15Days);
+      const totalActivity = last15Days.reduce((sum, day) => sum + day.total, 0);
+      setAverageActivity(totalActivity / 15);
 
       // 3. Process Detail Blocks
       const entityMap = entities.reduce((acc, e) => ({ ...acc, [e.id]: e.name, [String(e.id)]: e.name }), {});
@@ -285,74 +304,112 @@ const AccountantDashboard = () => {
   }
 
   return (
-    <div className="p-6 md:p-8 space-y-10">
+    <div className="p-4 sm:p-6 lg:p-8">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
-          <h1 className="text-4xl font-bold text-white tracking-tight">Welcome, {user?.full_name || user?.name || 'Area'}</h1>
-          <p className="text-gray-400 mt-1">Real-time overview of your accounting consultancy performance.</p>
-        </motion.div>
-      </div>
+      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-6 lg:mb-8">
+        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white tracking-tight">
+          Welcome, {user?.full_name || user?.name || 'Accountant'}
+        </h1>
+        <p className="text-gray-400 mt-1">Real-time overview of your consultancy activity.</p>
+      </motion.div>
 
       {/* Row 1: 6 Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
-        <StatCard title="My Clients" value={stats.myClients} icon={Landmark} color="from-sky-500 to-indigo-500" delay={0.1} />
-        <StatCard title="Client Users" value={stats.clientUsers} icon={Users} color="from-emerald-500 to-teal-500" delay={0.2} />
-        <StatCard title="My Team" value={stats.myTeam} icon={UserCheck} color="from-violet-500 to-purple-500" delay={0.3} />
-        <StatCard title="Services" value={stats.services} icon={Briefcase} color="from-amber-500 to-orange-500" delay={0.4} />
-        <StatCard title="Revenue" value={stats.revenue} suffix="₹" icon={Banknote} color="from-rose-500 to-pink-500" delay={0.5} />
-        <StatCard title="Due" value={stats.due} suffix="₹" icon={Clock} color="from-gray-500 to-slate-500" delay={0.6} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 sm:gap-4 lg:gap-4 mb-6 lg:mb-8">
+        <StatCard
+          title="MY CLIENTS"
+          value={stats.myClients}
+          icon={Building2}
+          color="from-blue-500 to-indigo-600"
+          delay={0.1}
+        />
+        <StatCard
+          title="CLIENT USERS"
+          value={stats.clientUsers}
+          icon={Users}
+          color="from-sky-400 to-blue-500"
+          delay={0.15}
+        />
+        <StatCard
+          title="MY TEAM"
+          value={stats.myTeam}
+          icon={UserCheck}
+          color="from-violet-500 to-purple-600"
+          delay={0.2}
+        />
+        <StatCard
+          title="SERVICES"
+          value={stats.services}
+          icon={Briefcase}
+          color="from-indigo-500 to-blue-600"
+          delay={0.25}
+        />
+        <StatCard
+          title="REVENUE"
+          value={stats.revenue}
+          suffix="₹"
+          icon={Banknote}
+          color="from-blue-600 to-indigo-700"
+          delay={0.3}
+        />
+        <StatCard
+          title="DUE"
+          value={stats.due}
+          suffix="₹"
+          icon={Clock}
+          color="from-slate-600 to-gray-700"
+          delay={0.35}
+        />
       </div>
 
       {/* Row 2: Chart Section */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.7 }}>
-        <Card className="glass-pane overflow-hidden border-white/5 rounded-3xl">
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold flex items-center gap-2">
-              <TrendingUp className="text-primary w-6 h-6" />
-              Daily Activity Completion
-            </CardTitle>
-            <CardDescription className="text-gray-400">Sum of Tasks, Vouchers, Invoices, and Notices completed per day.</CardDescription>
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.6 }} className="mb-6">
+        <Card className="glass-card overflow-hidden border-white/5 rounded-3xl">
+          <CardHeader className="p-4 sm:px-6 py-3 pb-0">
+            <CardTitle className="text-lg font-bold">Activity Trend</CardTitle>
+            <CardDescription className="text-xs">Daily items processed (Invoices + Vouchers + Tasks)</CardDescription>
           </CardHeader>
-          <CardContent className="h-[400px]">
+          <CardContent className="h-[250px] px-4 sm:px-4 pt-2 pl-0">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 30, right: 30, left: 20, bottom: 5 }}>
+              <BarChart data={chartData} margin={{ top: 5, right: 20, left: 20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                 <XAxis
                   dataKey="name"
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fill: '#9ca3af', fontSize: 12 }}
+                  tick={{ fill: '#9ca3af', fontSize: 10 }}
                 />
                 <YAxis
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fill: '#9ca3af', fontSize: 12 }}
+                  tick={{ fill: '#9ca3af', fontSize: 10 }}
+                  width={40}
                 />
                 <Tooltip
-                  contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff' }}
-                  itemStyle={{ fontSize: '13px' }}
+                  contentStyle={{ backgroundColor: 'rgba(0, 0, 0, 0.8)', border: 'none', borderRadius: '12px', color: '#fff' }}
+                  itemStyle={{ fontSize: '12px' }}
                   cursor={{ fill: 'rgba(255,255,255,0.05)' }}
                 />
-                <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
-
+                <Legend
+                  verticalAlign="top"
+                  align="right"
+                  iconType="circle"
+                  wrapperStyle={{ paddingBottom: '20px', fontSize: '10px', top: -10, right: 10 }}
+                />
                 {averageActivity > 0 && (
                   <ReferenceLine
                     y={averageActivity}
                     stroke="#f59e0b"
                     strokeDasharray="3 3"
-                    label={{ position: 'right', value: 'Avg', fill: '#f59e0b', fontSize: 10 }}
                   />
                 )}
-
-                <Bar dataKey="tasks" stackId="a" fill="#6366f1" radius={[0, 0, 0, 0]} barSize={32} name="Tasks" />
-                <Bar dataKey="vouchers" stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} barSize={32} name="Vouchers" />
-                <Bar dataKey="invoices" stackId="a" fill="#f43f5e" radius={[0, 0, 0, 0]} barSize={32} name="Invoices" />
-                <Bar dataKey="notices" stackId="a" fill="#f59e0b" radius={[4, 4, 0, 0]} barSize={32} name="Notices">
+                <Bar dataKey="tasks" stackId="a" fill="#6366f1" fillOpacity={0.9} radius={[4, 4, 0, 0]} barSize={32} maxBarSize={40} name="Tasks" />
+                <Bar dataKey="vouchers" stackId="a" fill="#10b981" fillOpacity={0.9} radius={[4, 4, 0, 0]} barSize={32} maxBarSize={40} name="Vouchers" />
+                <Bar dataKey="invoices" stackId="a" fill="#f43f5e" fillOpacity={0.9} radius={[4, 4, 0, 0]} barSize={32} maxBarSize={40} name="Invoices" />
+                <Bar dataKey="notices" stackId="a" fill="#f59e0b" fillOpacity={0.9} radius={[4, 4, 0, 0]} barSize={32} maxBarSize={40} name="Notices">
                   <LabelList
                     dataKey="total"
                     position="top"
-                    style={{ fill: '#9ca3af', fontSize: '12px', fontWeight: 'bold' }}
+                    style={{ fill: '#9ca3af', fontSize: '10px' }}
                     formatter={(val) => val > 0 ? val : ''}
                   />
                 </Bar>
@@ -362,43 +419,34 @@ const AccountantDashboard = () => {
         </Card>
       </motion.div>
 
-      {/* Row 3: 4 Detail Blocks */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pb-8">
+      {/* Row 3: 3 Detail Blocks */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-6">
         <DetailBlock
           title="Today's Progress"
-          subtitle="Sum of completed activities in a day"
+          subtitle="Recent activities recorded today"
           count={detailBlocks.todayProgress.reduce((acc, curr) => acc + curr.col2, 0)}
           data={detailBlocks.todayProgress}
-          columns={['S.No', 'Team Member', 'Completed']}
+          columns={['S.No', 'Team Member', 'Items']}
           onViewMore={() => navigate('/team-members')}
-          delay={0.8}
+          delay={0.7}
         />
         <DetailBlock
           title="Pending Verification"
-          subtitle="Bills & Vouchers pending review"
+          subtitle="Items awaiting your approval"
           count={detailBlocks.pendingVerification.reduce((acc, curr) => acc + curr.col2, 0)}
           data={detailBlocks.pendingVerification}
           columns={['S.No', 'Entity', 'Pending']}
           onViewMore={() => navigate('/finance/approvals')}
-          delay={0.9}
+          delay={0.8}
         />
         <DetailBlock
           title="Ongoing Tasks"
-          subtitle="Open tasks currently in progress"
-          count={detailBlocks.ongoingTasks.reduce((acc, curr) => acc + curr.col2, 0)}
-          data={detailBlocks.ongoingTasks}
-          columns={['S.No', 'Entity', 'Task']}
+          subtitle="Open tasks and active notices"
+          count={detailBlocks.ongoingTasks.reduce((acc, curr) => acc + curr.col2, 0) + detailBlocks.ongoingNotices.reduce((acc, curr) => acc + curr.col2, 0)}
+          data={[...detailBlocks.ongoingTasks, ...detailBlocks.ongoingNotices]}
+          columns={['S.No', 'Entity', 'Activity']}
           onViewMore={() => navigate('/tasks')}
-          delay={1.0}
-        />
-        <DetailBlock
-          title="Ongoing Notices"
-          subtitle="Unresolved notices across entities"
-          count={detailBlocks.ongoingNotices.reduce((acc, curr) => acc + curr.col2, 0)}
-          data={detailBlocks.ongoingNotices}
-          columns={['S.No', 'Entity', 'Notice']}
-          onViewMore={() => navigate('/notices')}
-          delay={1.1}
+          delay={0.9}
         />
       </div >
     </div >
