@@ -303,7 +303,7 @@ export const AuthProvider = ({ children }) => {
         logout();
         throw new Error('Your account is inactive. Please contact support.');
       }
-      const fullUserData = { ...data, ...profileData, name: data.agency_name, entities: entitiesData || [] };
+      const fullUserData = { ...data, ...profileData, entities: entitiesData || [] };
       const is2FA = twoFactorStatus?.status === 'Enabled' || twoFactorStatus?.is_2fa_enabled === true;
 
       if (is2FA && !otp) {

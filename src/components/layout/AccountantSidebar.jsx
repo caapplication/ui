@@ -148,7 +148,7 @@ const AccountantSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) =
                 {!isCollapsed && (
                   <motion.div variants={textVariants} initial="collapsed" animate="expanded" exit="collapsed" className="min-w-0 flex-1">
                     <p className="text-white font-semibold truncate">{user?.name}</p>
-                    <p className="text-gray-400 text-sm truncate">{user?.sub}</p>
+                    <p className="text-gray-400 text-sm truncate">{user?.email}</p>
                   </motion.div>
                 )}
               </AnimatePresence>
