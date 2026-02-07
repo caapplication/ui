@@ -46,9 +46,9 @@ const ExportTallyModal = ({ isOpen, onClose, entityId, entityName }) => {
       const formattedToDate = toDate ? format(toDate, 'yyyy-MM-dd') : null;
 
       if (exportType === 'vouchers') {
-        await exportVouchers(entityId, user.access_token, formattedFromDate, formattedToDate);
+        await exportVouchers(entityId, user.access_token, formattedFromDate, formattedToDate, entityName);
       } else {
-        await exportInvoices(entityId, user.access_token, formattedFromDate, formattedToDate);
+        await exportInvoices(entityId, user.access_token, formattedFromDate, formattedToDate, entityName);
       }
 
       toast({

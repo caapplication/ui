@@ -526,7 +526,7 @@ export const exportVouchersToTallyXML = async (entityId, token) => {
     window.URL.revokeObjectURL(url);
 };
 
-export const exportVouchers = async (entityId, token, fromDate, toDate) => {
+export const exportVouchers = async (entityId, token, fromDate, toDate, entityName) => {
     let url = `${FINANCE_API_BASE_URL}/api/vouchers/export?entity_id=${entityId}`;
     if (fromDate) url += `&from_date=${fromDate}`;
     if (toDate) url += `&to_date=${toDate}`;
@@ -545,13 +545,18 @@ export const exportVouchers = async (entityId, token, fromDate, toDate) => {
     const a = document.createElement('a');
     a.href = downloadUrl;
 
-    // Extract filename from Content-Disposition header if available
-    const contentDisposition = response.headers.get('Content-Disposition');
-    let filename = `Vouchers_Export_${entityId}.xlsx`;
-    if (contentDisposition) {
-        const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
-        if (filenameMatch && filenameMatch[1]) {
-            filename = filenameMatch[1];
+    // Use entity name for filename if available, otherwise fallback to default or backend header
+    let filename = entityName ? `${entityName} - Vouchers.xlsx` : `Vouchers_Export_${entityId}.xlsx`;
+
+    // Only check content disposition if we don't have an entity name (or maybe just ignore backend filename to enforce user preference?)
+    // User explicitly asked for "entity name and invoice or voucher", so we prioritize that.
+    if (!entityName) {
+        const contentDisposition = response.headers.get('Content-Disposition');
+        if (contentDisposition) {
+            const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+            if (filenameMatch && filenameMatch[1]) {
+                filename = filenameMatch[1];
+            }
         }
     }
 
@@ -562,7 +567,7 @@ export const exportVouchers = async (entityId, token, fromDate, toDate) => {
     window.URL.revokeObjectURL(downloadUrl);
 };
 
-export const exportInvoices = async (entityId, token, fromDate, toDate) => {
+export const exportInvoices = async (entityId, token, fromDate, toDate, entityName) => {
     let url = `${FINANCE_API_BASE_URL}/api/invoices/export?entity_id=${entityId}`;
     if (fromDate) url += `&from_date=${fromDate}`;
     if (toDate) url += `&to_date=${toDate}`;
@@ -581,13 +586,16 @@ export const exportInvoices = async (entityId, token, fromDate, toDate) => {
     const a = document.createElement('a');
     a.href = downloadUrl;
 
-    // Extract filename from Content-Disposition header if available
-    const contentDisposition = response.headers.get('Content-Disposition');
-    let filename = `Invoices_Export_${entityId}.xlsx`;
-    if (contentDisposition) {
-        const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
-        if (filenameMatch && filenameMatch[1]) {
-            filename = filenameMatch[1];
+    // Use entity name for filename if available
+    let filename = entityName ? `${entityName} - Invoices.xlsx` : `Invoices_Export_${entityId}.xlsx`;
+
+    if (!entityName) {
+        const contentDisposition = response.headers.get('Content-Disposition');
+        if (contentDisposition) {
+            const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+            if (filenameMatch && filenameMatch[1]) {
+                filename = filenameMatch[1];
+            }
         }
     }
 
