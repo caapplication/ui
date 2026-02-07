@@ -3,7 +3,7 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useOrganisation } from '@/hooks/useOrganisation';
 import { useApiCache } from '@/contexts/ApiCacheContext.jsx';
-import { deleteInvoice, updateInvoice, getBeneficiaries, getInvoiceAttachment, getFinanceHeaders, getInvoices } from '@/lib/api';
+import { deleteInvoice, updateInvoice, getBeneficiaries, getInvoiceAttachment, getFinanceHeaders, getInvoices, FINANCE_API_BASE_URL } from '@/lib/api';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -190,7 +190,7 @@ const InvoiceDetailsPage = () => {
                     // Only include entity_id if it's not null or undefined
                     // For CA users, entity_id might be optional, but for others it's required
                     const entityIdParam = entityId ? `?entity_id=${entityId}` : '';
-                    const response = await fetch(`http://localhost:8003/api/invoices/${invoiceId}${entityIdParam}`, {
+                    const response = await fetch(`${FINANCE_API_BASE_URL}/api/invoices/${invoiceId}${entityIdParam}`, {
                         headers: {
                             'Authorization': `Bearer ${user.access_token}`,
                             'Content-Type': 'application/json'
