@@ -210,6 +210,7 @@ const VoucherDetailsPage = () => {
     const [showRejectDialog, setShowRejectDialog] = useState(false);
     const [rejectionRemarks, setRejectionRemarks] = useState('');
     const [isStatusUpdating, setIsStatusUpdating] = useState(false);
+    const [showCompletionModal, setShowCompletionModal] = useState(false);
 
     // Determine if the current user is a client user
     // CA_ACCOUNTANT and CA_TEAM should NOT be treated as client users
@@ -608,34 +609,73 @@ const VoucherDetailsPage = () => {
         }
     };
 
+    // Filter vouchers based on role to ensure consistent navigation
+    const filteredVouchers = useMemo(() => {
+        if (!vouchers || !Array.isArray(vouchers)) return [];
+
+        return vouchers.filter(v => {
+            // CA Team/Accountant should only see pending_ca_approval
+            if (user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') {
+                return v.status === 'pending_ca_approval';
+            }
+            // Client Master Admin should only see pending_master_admin_approval
+            if (user?.role === 'CLIENT_MASTER_ADMIN') {
+                return v.status === 'pending_master_admin_approval';
+            }
+            return true;
+        });
+    }, [vouchers, user?.role]);
+
+    // Update currentIndex when filteredVouchers changes
+    useEffect(() => {
+        if (filteredVouchers.length > 0) {
+            const newIndex = filteredVouchers.findIndex(v => String(v.id) === String(voucherId));
+            if (newIndex >= 0) {
+                setCurrentIndex(newIndex);
+            }
+        }
+    }, [filteredVouchers, voucherId]);
+
     const handleNavigate = (direction) => {
-        if (!vouchers || vouchers.length === 0) {
+        if (!filteredVouchers || filteredVouchers.length === 0) {
             console.warn("No vouchers available for navigation");
             return;
         }
         const newIndex = currentIndex + direction;
-        console.log("Navigating:", { currentIndex, newIndex, direction, vouchersLength: vouchers.length });
-        if (newIndex >= 0 && newIndex < vouchers.length) {
-            const nextVoucher = vouchers[newIndex];
+        console.log("Navigating:", { currentIndex, newIndex, direction, vouchersLength: filteredVouchers.length });
+
+        if (newIndex >= 0 && newIndex < filteredVouchers.length) {
+            const nextVoucher = filteredVouchers[newIndex];
             console.log("Navigating to voucher:", nextVoucher.id);
             // Update currentIndex immediately
             setCurrentIndex(newIndex);
             navigate(`/finance/vouchers/${nextVoucher.id}`, {
                 state: {
                     voucher: nextVoucher,
-                    vouchers,
+                    vouchers: filteredVouchers,
                     organisationId,
                     entityName,
                     organizationName
                 }
             });
         } else {
-            console.warn("Navigation out of bounds:", { newIndex, vouchersLength: vouchers.length });
+            console.warn("Navigation out of bounds:", { newIndex, vouchersLength: filteredVouchers.length });
+        }
+    };
+
+    // Auto-navigation helper
+    const handleAutoNext = () => {
+        // Use currentFilteredIndex to find next
+        if (currentIndex !== -1 && currentIndex + 1 < filteredVouchers.length) {
+            handleNavigate(1);
+        } else {
+            // No more vouchers in the filtered list
+            setShowCompletionModal(true);
         }
     };
 
     // Check if we have vouchers to navigate - show arrows if we have multiple vouchers
-    const hasVouchers = vouchers && Array.isArray(vouchers) && vouchers.length > 1;
+    const hasVouchers = filteredVouchers && Array.isArray(filteredVouchers) && filteredVouchers.length > 1;
 
     // Use useMemo to ensure voucherDetails updates when voucher changes
     const voucherDetails = useMemo(() => {
@@ -2339,7 +2379,7 @@ const VoucherDetailsPage = () => {
                                 e.stopPropagation();
                                 handleNavigate(1);
                             }}
-                            disabled={currentIndex === vouchers.length - 1}
+                            disabled={currentIndex === filteredVouchers.length - 1}
                             className="hidden md:flex fixed bottom-4 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg z-[50]"
                             style={{
                                 left: sidebarWidth <= 150 ? `${sidebarWidth + 16}px` : '20rem' // Dynamic positioning when collapsed (sidebar width + 16px margin), left-80 (20rem) when expanded
@@ -2371,7 +2411,7 @@ const VoucherDetailsPage = () => {
                                     e.stopPropagation();
                                     handleNavigate(1);
                                 }}
-                                disabled={currentIndex === vouchers.length - 1}
+                                disabled={currentIndex === filteredVouchers.length - 1}
                                 className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg flex-1 pointer-events-auto"
                             >
                                 <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -2450,6 +2490,35 @@ const VoucherDetailsPage = () => {
                             Reject Voucher
                         </Button>
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={showCompletionModal} onOpenChange={setShowCompletionModal}>
+                <DialogContent
+                    className="[&>button]:hidden text-white border-white/10 bg-[#0f172a] sm:max-w-[425px]"
+                    onInteractOutside={(e) => {
+                        e.preventDefault();
+                    }}
+                >
+                    <div className="flex flex-col items-center justify-center py-6 text-center">
+                        <div className="mb-4 rounded-full bg-green-500/20 p-3">
+                            <CheckCircle className="h-12 w-12 text-green-500" />
+                        </div>
+                        <DialogHeader>
+                            <DialogTitle className="text-xl mb-2 text-center">All Caught Up!</DialogTitle>
+                            <DialogDescription className="text-center text-gray-400">
+                                You have processed all pending vouchers.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="mt-8">
+                            <Button
+                                onClick={() => navigate('/finance')}
+                                className="bg-blue-600 hover:bg-blue-700 text-white min-w-[200px]"
+                            >
+                                Go to Dashboard
+                            </Button>
+                        </div>
+                    </div>
                 </DialogContent>
             </Dialog>
 
