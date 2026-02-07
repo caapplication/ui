@@ -8,9 +8,13 @@ import {
     Landmark,
     Plus,
     X,
+    Bell,
 } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 const GlobalFAB = () => {
+    const { user } = useAuth();
+    const role = user?.role;
     const [isFabOpen, setIsFabOpen] = useState(false);
     const [placement, setPlacement] = useState({ vertical: 'top', horizontal: 'left' });
     const containerRef = useRef(null);
@@ -37,12 +41,16 @@ const GlobalFAB = () => {
         }
         setIsFabOpen(!isFabOpen);
     };
-    const fabItems = [
-        { label: "Beneficiaries", icon: Users, path: "/beneficiaries", state: { quickAction: 'add-beneficiary', returnToDashboard: true } },
-        { label: "Tasks", icon: Landmark, path: "/tasks", state: { quickAction: 'add-task', returnToDashboard: true } },
-        { label: "Invoices", icon: FileText, path: "/finance/invoices", state: { quickAction: 'add-invoice', returnToDashboard: true } },
-        { label: "Vouchers", icon: Banknote, path: "/finance/vouchers", state: { quickAction: 'add-voucher', returnToDashboard: true } },
+
+    const allItems = [
+        { label: "Beneficiaries", icon: Users, path: "/beneficiaries", state: { quickAction: 'add-beneficiary', returnToDashboard: true }, roles: ['CLIENT_MASTER_ADMIN', 'CLIENT_USER'] },
+        { label: "Tasks", icon: Landmark, path: "/tasks", state: { quickAction: 'add-task', returnToDashboard: true }, roles: ['CA_ACCOUNTANT', 'CLIENT_MASTER_ADMIN', 'CLIENT_USER'] },
+        { label: "Invoices", icon: FileText, path: "/finance/invoices", state: { quickAction: 'add-invoice', returnToDashboard: true }, roles: ['CLIENT_MASTER_ADMIN', 'CLIENT_USER'] },
+        { label: "Vouchers", icon: Banknote, path: "/finance/vouchers", state: { quickAction: 'add-voucher', returnToDashboard: true }, roles: ['CLIENT_MASTER_ADMIN', 'CLIENT_USER'] },
+        { label: "Notices", icon: Bell, path: "/notices", state: { quickAction: 'add-notice', returnToDashboard: true }, roles: ['CA_ACCOUNTANT'] },
     ];
+
+    const fabItems = allItems.filter(item => item.roles.includes(role));
 
     return (
         <>
