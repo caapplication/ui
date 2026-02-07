@@ -9,6 +9,7 @@ import { Plus, Search, Trash2, Edit, MoreVertical, Loader2 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { getFinanceHeaders, createFinanceHeader, updateFinanceHeader, deleteFinanceHeader } from '@/lib/api';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import * as XLSX from 'xlsx';
 
 const FinanceHeadersContent = () => {
     const { toast } = useToast();
@@ -90,6 +91,31 @@ const FinanceHeadersContent = () => {
 
     const filteredHeaders = financeHeaders.filter(header => header.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
+    const handleExport = () => {
+        if (financeHeaders.length === 0) {
+            toast({ variant: "destructive", title: "Export Error", description: "No data to export." });
+            return;
+        }
+
+        // Prepare data for export - simple 'Name' column
+        const exportData = financeHeaders.map(header => ({
+            Name: header.name
+        }));
+
+        // Create a new workbook
+        const wb = XLSX.utils.book_new();
+        // Create a new worksheet
+        const ws = XLSX.utils.json_to_sheet(exportData);
+
+        // Add worksheet to workbook
+        XLSX.utils.book_append_sheet(wb, ws, "Finance Headers");
+
+        // Generate Excel file and trigger download
+        XLSX.writeFile(wb, "Finance_Headers.xlsx");
+
+        toast({ title: "Success", description: "Finance headers exported successfully." });
+    };
+
     return (
         <div className='text-white'>
             <div className="flex justify-between items-center mb-6">
@@ -99,6 +125,9 @@ const FinanceHeadersContent = () => {
                 </div>
                 <Button onClick={handleOpenNew} className="bg-primary hover:bg-primary/90 text-white">
                     <Plus className="mr-2 h-4 w-4" /> New Finance Header
+                </Button>
+                <Button onClick={handleExport} variant="outline" className="ml-2 bg-transparent text-white border-white/20 hover:bg-white/10">
+                    Export to Excel
                 </Button>
             </div>
             <div className="glass-card p-4">
