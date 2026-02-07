@@ -132,11 +132,17 @@ const NoticesPage = () => {
         }
     };
 
-    const filteredNotices = notices.filter(notice =>
-        // Client filtering logic (already filtered by API if selectedClient is set)
-        // Search filter for title/type
-        filterNotice(notice, searchTerm)
-    );
+    const [viewMode, setViewMode] = useState('active'); // 'active' or 'history'
+
+    const filteredNotices = notices.filter(notice => {
+        // Status Filtering
+        const isClosed = notice.status === 'closed';
+        if (viewMode === 'active' && isClosed) return false;
+        if (viewMode === 'history' && !isClosed) return false;
+
+        // Search and Client Filtering (Client already filtered by API if specific, but double check for 'all')
+        return filterNotice(notice, searchTerm);
+    });
 
     function filterNotice(notice, term) {
         if (!term) return true;
@@ -178,25 +184,52 @@ const NoticesPage = () => {
                         </SelectContent>
                     </Select>
 
-                    <Button onClick={() => setIsUploadModalOpen(true)} className="rounded-lg flex-1 sm:flex-initial bg-blue-600 hover:bg-blue-700 text-white">
-                        <Plus className="w-4 h-4 sm:mr-2" />
-                        <span className="hidden sm:inline">Upload Notice</span>
-                    </Button>
+                    {user?.role === 'CA_ACCOUNTANT' && (
+                        <Button onClick={() => setIsUploadModalOpen(true)} className="rounded-lg flex-1 sm:flex-initial bg-blue-600 hover:bg-blue-700 text-white">
+                            <Plus className="w-4 h-4 sm:mr-2" />
+                            <span className="hidden sm:inline">Upload Notice</span>
+                        </Button>
+                    )}
                 </div>
             </div>
 
             {/* Main Content Card */}
             <div className="glass-pane rounded-lg flex-grow flex flex-col overflow-hidden">
                 {/* Card Header */}
+                {/* Content Header with Toggle */}
                 <div className="p-4 border-b border-white/10">
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                        <h2 className="text-xl font-semibold">
-                            {selectedClient === 'all'
-                                ? 'All Clients - Notices'
-                                : selectedClient
-                                    ? `${getClientName(selectedClient)} - Notices`
-                                    : 'Select a Client to View Notices'}
-                        </h2>
+                        <div className="flex items-center gap-4">
+                            <h2 className="text-xl font-semibold">
+                                {selectedClient === 'all'
+                                    ? 'All Clients - Notices'
+                                    : selectedClient
+                                        ? `${getClientName(selectedClient)} - Notices`
+                                        : 'Select a Client to View Notices'}
+                            </h2>
+                            {/* Toggle Button Group */}
+                            <div className="flex p-1 bg-black/20 rounded-lg border border-white/10 backdrop-blur-sm">
+                                <button
+                                    onClick={() => setViewMode('active')}
+                                    className={`px-3 py-1 text-sm font-medium rounded-md transition-all ${viewMode === 'active'
+                                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
+                                        : 'text-gray-400 hover:text-white hover:bg-white/5'
+                                        }`}
+                                >
+                                    Active
+                                </button>
+                                <button
+                                    onClick={() => setViewMode('history')}
+                                    className={`px-3 py-1 text-sm font-medium rounded-md transition-all ${viewMode === 'history'
+                                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
+                                        : 'text-gray-400 hover:text-white hover:bg-white/5'
+                                        }`}
+                                >
+                                    History
+                                </button>
+                            </div>
+                        </div>
+
                         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto flex-wrap items-center">
                             <div className="relative w-full sm:w-auto sm:max-w-xs">
                                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -265,9 +298,8 @@ const NoticesPage = () => {
                                                 notice.status === 'pending' ? 'destructive' :
                                                     notice.status === 'closure_requested' ? 'warning' :
                                                         notice.status === 'closed' ? 'success' : 'secondary'
-                                            } className="capitalize relative">
-                                                {notice.status === 'pending' && <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse" />}
-                                                {notice.status?.replace('_', ' ')}
+                                            } className="capitalize relative max-w-fit">
+                                                {notice.status === 'closed' ? 'Verified' : notice.status?.replace('_', ' ')}
                                             </Badge>
                                         </TableCell>
                                         <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>

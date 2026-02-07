@@ -559,3 +559,48 @@ export const getAccountantDashboardStats = async (token) => {
     });
     return handleResponse(response);
 };
+
+export const getNoticeAttachment = async (noticeId, token) => {
+    // Similar logic to getVoucherAttachment but for Notices
+    // No caching implemented yet for simplicity, but can add if needed
+    try {
+        let url = `${FINANCE_API_BASE_URL}/api/notices/${noticeId}/attachment`;
+
+        const response = await fetch(url, {
+            headers: getAuthHeaders(token),
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Notice attachment fetch failed:', response.status, errorText, 'URL:', url);
+            throw new Error(`Failed to fetch attachment: ${response.status} ${errorText}`);
+        }
+
+        // Check if response has content
+        const contentType = response.headers.get('content-type') || response.headers.get('Content-Type');
+
+        let blob = await response.blob();
+
+        if (blob.size === 0) {
+            console.error('Received empty blob for notice attachment:', noticeId);
+            throw new Error('Received empty attachment');
+        }
+
+        // Use blob.type if content-type header is not available
+        const finalContentType = contentType || blob.type || 'application/pdf';
+
+        // Ensure blob has correct MIME type for PDFs (important for iframe rendering)
+        if (finalContentType.toLowerCase().includes('pdf') && blob.type !== finalContentType) {
+            blob = new Blob([blob], { type: finalContentType });
+        }
+
+        // Return both URL and content type
+        return {
+            url: URL.createObjectURL(blob),
+            contentType: finalContentType
+        };
+    } catch (error) {
+        console.error('Error in getNoticeAttachment:', error);
+        throw error;
+    }
+};

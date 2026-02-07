@@ -33,30 +33,39 @@ const AccountantSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) =
   const location = useLocation();
   const { socket } = useSocket();
   const [unreadCount, setUnreadCount] = useState(0);
-  const [isBlinking, setIsBlinking] = useState(false); // Added isBlinking state
+  const [unreadNoticeCount, setUnreadNoticeCount] = useState(0); // Add state for notice count
+  const [isBlinking, setIsBlinking] = useState(false);
+  const [isNoticeBlinking, setIsNoticeBlinking] = useState(false); // Add blinking for notices
 
-  // Fetch initial unread count
+  // Fetch initial unread counts
   useEffect(() => {
-    const fetchUnreadCount = async () => {
+    const fetchUnreadCounts = async () => {
       if (user?.access_token) {
         try {
-          const count = await getUnreadNotificationCount(user.agency_id, user.access_token);
-          setUnreadCount(count);
+          const taskCount = await getUnreadNotificationCount(user.agency_id, user.access_token);
+          setUnreadCount(taskCount);
+
+          // Fetch notice count
+          const noticeCount = await getUnreadNoticeCount(user.access_token);
+          setUnreadNoticeCount(noticeCount);
         } catch (error) {
-          console.error("Failed to fetch unread notification count:", error);
+          console.error("Failed to fetch unread notification counts:", error);
         }
       }
     };
 
-    fetchUnreadCount();
+    fetchUnreadCounts();
+
+    // Poll for updates every 30 seconds as fallback/update mechanism
+    const interval = setInterval(fetchUnreadCounts, 30000);
+    return () => clearInterval(interval);
   }, [user]);
 
-  // Listen for socket updates
+  // Listen for socket updates (for tasks)
   useEffect(() => {
     if (socket) {
       const handleUnreadUpdate = (data) => {
         if (typeof data.count === 'number') {
-          // Trigger blink if count increased
           if (data.count > unreadCount) {
             setIsBlinking(true);
             setTimeout(() => setIsBlinking(false), 3000);
@@ -65,13 +74,16 @@ const AccountantSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) =
         }
       };
 
+      // If we had a socket event for notices, we'd listen here too. 
+      // For now, polling handles it.
+
       socket.on('global_unread_update', handleUnreadUpdate);
 
       return () => {
         socket.off('global_unread_update', handleUnreadUpdate);
       };
     }
-  }, [socket]);
+  }, [socket, unreadCount]);
 
   const menuItems = [
     { id: 'dashboard', path: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -83,10 +95,16 @@ const AccountantSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) =
       path: '/tasks',
       label: 'Tasks',
       icon: ListTodo,
-      badge: unreadCount > 0 ? unreadCount : null // Add badge prop
+      badge: unreadCount > 0 ? unreadCount : null
     },
     { id: 'documents', path: '/documents', label: 'Documents', icon: FileText },
-    { id: 'notices', path: '/notices', label: 'Notices', icon: Bell },
+    {
+      id: 'notices',
+      path: '/notices',
+      label: 'Notices',
+      icon: Bell,
+      badge: unreadNoticeCount > 0 ? unreadNoticeCount : null // Add badge logic
+    },
     { id: 'services', path: '/services', label: 'Services', icon: Briefcase },
     { id: 'settings', path: '/settings', label: 'Settings', icon: Settings },
   ];

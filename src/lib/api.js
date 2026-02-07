@@ -72,7 +72,9 @@ export const {
     getCATeamInvoicesBulk,
     getCATeamInvoiceAttachment,
     exportVouchersToTallyXML,
-    getActivityLog
+    getActivityLog,
+    getNoticeAttachment,
+    getUnreadNoticeCount
 } = finance;
 
 export const {

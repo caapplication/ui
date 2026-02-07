@@ -1681,7 +1681,7 @@ const VoucherDetailsCA = () => {
                                                             <div className="pt-4">
                                                                 <Label htmlFor="finance_header_id">Header</Label>
                                                                 <Combobox
-                                                                    options={financeHeaders.map(h => ({ value: String(h.id), label: h.name }))}
+                                                                    options={[...financeHeaders].sort((a, b) => a.name.localeCompare(b.name)).map(h => ({ value: String(h.id), label: h.name }))}
                                                                     value={editedVoucher.finance_header_id}
                                                                     onValueChange={(value) => setEditedVoucher(p => ({ ...p, finance_header_id: value }))}
                                                                     placeholder="Select a header"

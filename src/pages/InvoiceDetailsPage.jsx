@@ -1323,7 +1323,7 @@ const InvoiceDetailsPage = () => {
                                                 <div>
                                                     <Label htmlFor="finance_header_id">Header</Label>
                                                     <Combobox
-                                                        options={financeHeaders.map(h => ({ value: String(h.id), label: h.name }))}
+                                                        options={[...financeHeaders].sort((a, b) => a.name.localeCompare(b.name)).map(h => ({ value: String(h.id), label: h.name }))}
                                                         value={editedInvoice?.finance_header_id ? String(editedInvoice.finance_header_id) : ''}
                                                         onValueChange={(val) => setEditedInvoice(p => ({ ...p, finance_header_id: val ? Number(val) : null }))}
                                                         placeholder="Select a header"
@@ -1369,7 +1369,7 @@ const InvoiceDetailsPage = () => {
                                                         <div className="pt-4">
                                                             <Label htmlFor="finance_header_id">Header</Label>
                                                             <Combobox
-                                                                options={financeHeaders.map(h => ({ value: String(h.id), label: h.name }))}
+                                                                options={[...financeHeaders].sort((a, b) => a.name.localeCompare(b.name)).map(h => ({ value: String(h.id), label: h.name }))}
                                                                 value={editedInvoice.finance_header_id || ""}
                                                                 onValueChange={(value) => setEditedInvoice(p => ({ ...p, finance_header_id: value }))}
                                                                 placeholder="Select a header"

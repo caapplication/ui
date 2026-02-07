@@ -119,3 +119,11 @@ export const addNoticeCollaborator = async (noticeId, userId, token) => {
   });
   return handleResponse(response);
 };
+
+export const getUnreadNoticeCount = async (token) => {
+  const response = await fetch(`${FINANCE_API_BASE_URL}/api/notices/unread-count`, {
+    headers: getAuthHeaders(token),
+  });
+  const data = await handleResponse(response);
+  return data.count;
+};

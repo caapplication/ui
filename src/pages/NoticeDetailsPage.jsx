@@ -4,15 +4,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ArrowLeft, Send, Paperclip, MoreVertical, FileText, UserPlus, X, Download, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RefreshCcw, Share2, Trash2, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Send, Paperclip, MoreVertical, FileText, UserPlus, X, Download, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RefreshCcw, Share2, Trash2, CheckCircle, XCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Search } from 'lucide-react';
 
 import { getNotice, getNoticeComments, addNoticeComment, requestNoticeClosure, approveNoticeClosure, rejectNoticeClosure, addNoticeCollaborator } from '@/lib/api/notices';
+import { getNoticeAttachment } from '@/lib/api';
 import { listAllClientUsers } from '@/lib/api/organisation';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/ui/use-toast';
@@ -29,9 +32,20 @@ const NoticeDetailsPage = () => {
     const [newMessage, setNewMessage] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [isSending, setIsSending] = useState(false);
+    const [isAttachmentLoading, setIsAttachmentLoading] = useState(true);
+
+    // Collaboration
+    const [isCollaborateOpen, setIsCollaborateOpen] = useState(false);
+    const [clientUsers, setClientUsers] = useState([]);
+    const [isFetchingUsers, setIsFetchingUsers] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
 
     // Zoom for preview
     const [zoom, setZoom] = useState(1);
+
+    // Secure Attachment
+    const [attachmentUrl, setAttachmentUrl] = useState(null);
+    const [attachmentContentType, setAttachmentContentType] = useState(null);
 
     // Workflow Modals
     const [isRequestCloseOpen, setIsRequestCloseOpen] = useState(false);
@@ -58,6 +72,17 @@ const NoticeDetailsPage = () => {
         try {
             const noticeData = await getNotice(noticeId, token);
             setNotice(noticeData);
+
+            // Fetch secure attachment URL (Blob)
+            if (noticeData.id) {
+                try {
+                    const result = await getNoticeAttachment(noticeData.id, token);
+                    setAttachmentUrl(result.url);
+                    setAttachmentContentType(result.contentType);
+                } catch (e) {
+                    console.error("Failed to load secure attachment", e);
+                }
+            }
 
             const commentsData = await getNoticeComments(noticeId, token);
             // Map comments to UI message format if needed, or stick to backend structure
@@ -137,8 +162,8 @@ const NoticeDetailsPage = () => {
         }
     }
 
-    if (isLoading) return <div className="p-8 text-center text-white">Loading notice details...</div>;
-    if (!notice) return <div className="p-8 text-center text-white">Notice not found</div>;
+    if (isLoading && !notice) return <div className="p-8 text-center text-white">Loading notice details...</div>;
+    if (!isLoading && !notice) return <div className="p-8 text-center text-white">Notice not found</div>;
 
     const canRequestClose = (user?.role === 'CLIENT_MASTER_ADMIN' || user?.role === 'CLIENT_USER') &&
         (notice.status === 'pending' || notice.status === 'rejected');
@@ -189,9 +214,11 @@ const NoticeDetailsPage = () => {
                         </>
                     )}
 
-                    {/* <Button className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-4 h-9 text-sm font-medium">
-                        <UserPlus className="w-4 h-4 mr-2" /> Collaborate
-                    </Button> */}
+                    {user?.role === 'CLIENT_MASTER_ADMIN' && (
+                        <Button onClick={() => setIsCollaborateOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white h-9 text-sm font-medium">
+                            <UserPlus className="w-4 h-4 mr-2" /> Collaborate
+                        </Button>
+                    )}
                 </div>
             </header>
 
@@ -213,15 +240,47 @@ const NoticeDetailsPage = () => {
                             </Button>
                         </div>
 
-                        {notice.file_url ? (
-                            <iframe
-                                src={notice.file_url}
-                                className="w-full h-full border-0 bg-white"
-                                style={{ transform: `scale(${zoom})`, transformOrigin: 'center top', transition: 'transform 0.2s' }}
-                                title="Notice Document"
-                            />
+                        {(isAttachmentLoading || (!attachmentUrl && !notice.file_url)) && (
+                            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-8 bg-black/40">
+                                <Skeleton className="w-full h-full rounded-lg" />
+                                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                    <FileText className="w-12 h-12 text-blue-400 mb-4 animate-pulse" />
+                                    <p className="text-gray-400 animate-pulse text-lg font-medium">Loading Document...</p>
+                                </div>
+                            </div>
+                        )}
+
+                        {(attachmentUrl || notice.file_url) ? (
+                            (() => {
+                                const urlToUse = attachmentUrl || notice.file_url;
+                                const isPdf = (attachmentContentType && attachmentContentType.includes('pdf')) ||
+                                    notice.file_name?.toLowerCase().endsWith('.pdf') ||
+                                    urlToUse.toLowerCase().includes('.pdf');
+
+                                if (isPdf) {
+                                    return (
+                                        <iframe
+                                            src={urlToUse}
+                                            className={`w-full h-full border-0 bg-white transition-opacity duration-300 ${isAttachmentLoading ? 'opacity-0' : 'opacity-100'}`}
+                                            style={{ transform: `scale(${zoom})`, transformOrigin: 'center top', transition: 'transform 0.2s' }}
+                                            title="Notice Document"
+                                            onLoad={() => setIsAttachmentLoading(false)}
+                                        />
+                                    );
+                                } else {
+                                    return (
+                                        <img
+                                            src={urlToUse}
+                                            alt="Notice Document"
+                                            className={`max-w-full max-h-full object-contain transition-all duration-300 ${isAttachmentLoading ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}
+                                            style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }}
+                                            onLoad={() => setIsAttachmentLoading(false)}
+                                        />
+                                    );
+                                }
+                            })()
                         ) : (
-                            <div className="text-gray-500">No document attached</div>
+                            !isAttachmentLoading && <div className="text-gray-500">No document attached</div>
                         )}
 
                     </div>
@@ -351,7 +410,121 @@ const NoticeDetailsPage = () => {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <CollaboratorsDialog
+                isOpen={isCollaborateOpen}
+                onClose={() => setIsCollaborateOpen(false)}
+                noticeId={noticeId}
+                token={token}
+                toast={toast}
+            />
         </div>
+    );
+};
+
+const CollaboratorsDialog = ({ isOpen, onClose, noticeId, token, toast }) => {
+    const [users, setUsers] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [search, setSearch] = useState('');
+    const [processing, setProcessing] = useState(null);
+
+    useEffect(() => {
+        if (isOpen) {
+            fetchUsers();
+        }
+    }, [isOpen]);
+
+    const fetchUsers = async () => {
+        setLoading(true);
+        try {
+            const data = await listAllClientUsers(token);
+            setUsers(Array.isArray(data) ? data : []);
+        } catch (error) {
+            console.error("Failed to fetch users", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleAdd = async (userId) => {
+        setProcessing(userId);
+        try {
+            await addNoticeCollaborator(noticeId, userId, token);
+            toast({ title: "Success", description: "Collaborator added successfully" });
+        } catch (error) {
+            console.error("Failed to add collaborator", error);
+            toast({ title: "Error", description: "This user is already a collaborator or error occurred", variant: "destructive" });
+        } finally {
+            setProcessing(null);
+        }
+    };
+
+    const filteredUsers = users.filter(u =>
+        u.name?.toLowerCase().includes(search.toLowerCase()) ||
+        u.email?.toLowerCase().includes(search.toLowerCase())
+    );
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent className="glass-card border-white/10 text-white sm:max-w-[450px]">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                        <UserPlus className="w-5 h-5 text-indigo-400" />
+                        Manage Collaborators
+                    </DialogTitle>
+                    <DialogDescription className="text-gray-400">
+                        Add team members to this notice so they can see it and join the discussion.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-4 py-4">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                        <Input
+                            placeholder="Search team members..."
+                            className="pl-10 glass-input border-white/10 bg-black/20"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                        />
+                    </div>
+
+                    <div className="max-h-[300px] overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                        {loading ? (
+                            <div className="py-8 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-blue-400" /></div>
+                        ) : filteredUsers.length > 0 ? (
+                            filteredUsers.map(u => (
+                                <div key={u.id} className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/5 hover:border-indigo-500/30 transition-colors">
+                                    <div className="flex items-center gap-3">
+                                        <Avatar className="w-8 h-8">
+                                            <AvatarFallback className="bg-indigo-600 text-xs">{(u.name || 'U')[0]}</AvatarFallback>
+                                        </Avatar>
+                                        <div className="flex flex-col">
+                                            <span className="text-sm font-medium">{u.name}</span>
+                                            <span className="text-[10px] text-gray-500 uppercase tracking-wider">{u.role?.replace('_', ' ')}</span>
+                                        </div>
+                                    </div>
+                                    <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-8 text-xs text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10"
+                                        onClick={() => handleAdd(u.id)}
+                                        disabled={processing === u.id}
+                                    >
+                                        {processing === u.id ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Add'}
+                                    </Button>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="py-8 text-center text-gray-500 text-sm italic">No members found</div>
+                        )}
+                    </div>
+                </div>
+
+                <DialogFooter>
+                    <Button variant="ghost" onClick={onClose} className="hover:bg-white/10 border-white/10">Close</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 };
 
