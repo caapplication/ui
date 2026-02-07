@@ -217,14 +217,16 @@ const AccountantDashboard = () => {
       setAverageActivity(totalActivity / 7);
 
       // 3. Process Detail Blocks
-      const entityMap = entities.reduce((acc, e) => ({ ...acc, [e.id]: e.name }), {});
+      const entityMap = entities.reduce((acc, e) => ({ ...acc, [e.id]: e.name, [String(e.id)]: e.name }), {});
       const teamMap = teamData.reduce((acc, t) => ({ ...acc, [t.user_id || t.id]: t.full_name || t.name || 'Unknown' }), {});
-      const todayStr = startOfDay(new Date()).getTime();
+      const today = startOfDay(new Date());
 
       const getEntityCounts = (items, filterFn = () => true) => {
         const counts = items.filter(filterFn).reduce((acc, item) => {
-          const eId = item.entity_id;
-          acc[eId] = (acc[eId] || 0) + 1;
+          const eId = item.entity_id || item.entity;
+          if (eId && eId !== 'undefined' && eId !== 'null') {
+            acc[eId] = (acc[eId] || 0) + 1;
+          }
           return acc;
         }, {});
         return Object.entries(counts)
@@ -235,7 +237,10 @@ const AccountantDashboard = () => {
       const getTodayUserProgress = () => {
         const allItems = [...tasksList, ...vouchers, ...invoices, ...noticesList];
         const counts = allItems
-          .filter(item => startOfDay(new Date(item.created_at || item.created_date)).getTime() === todayStr)
+          .filter(item => {
+            const date = item.created_at || item.created_date || item.date;
+            return date && startOfDay(new Date(date)).getTime() === today.getTime();
+          })
           .reduce((acc, item) => {
             const userId = item.created_by_id || item.created_by;
             if (userId) acc[userId] = (acc[userId] || 0) + 1;
@@ -282,7 +287,7 @@ const AccountantDashboard = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
-          <h1 className="text-4xl font-bold text-white tracking-tight">Welcome Area</h1>
+          <h1 className="text-4xl font-bold text-white tracking-tight">Welcome, {user?.full_name || user?.name || 'Area'}</h1>
           <p className="text-gray-400 mt-1">Real-time overview of your accounting consultancy performance.</p>
         </motion.div>
       </div>
