@@ -76,7 +76,9 @@ export const {
     getActivityLog,
     getNoticeAttachment,
     getUnreadNoticeCount,
-    getAccountantDashboardStats
+    getAccountantDashboardStats,
+    exportVouchers,
+    exportInvoices
 } = finance;
 
 export const {

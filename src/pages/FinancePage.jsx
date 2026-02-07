@@ -11,6 +11,7 @@ import { getCATeamInvoices, getCATeamVouchers, updateInvoice, updateVoucher } fr
 import { listClientsByOrganization } from '@/lib/api/clients';
 import Vouchers from './Vouchers';
 import Invoices from './Invoices';
+import ExportTallyModal from '@/components/finance/ExportTallyModal';
 import * as XLSX from 'xlsx';
 
 const FinancePage = () => {
@@ -32,6 +33,8 @@ const FinancePage = () => {
   const { toast } = useToast();
 
   const [refreshKey, setRefreshKey] = useState(0);
+
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   const handleRefresh = () => {
     setIsDataLoading(true);
@@ -102,76 +105,8 @@ const FinancePage = () => {
     }
   }, [location.pathname]); // Run when pathname changes (e.g. back navigation)
 
-  const handleExport = async () => {
-    if (!selectedClient) {
-      toast({
-        title: 'Error',
-        description: 'Please select a client to export.',
-        variant: 'destructive',
-      });
-      return;
-    }
+  // handleExport logic removed as it's now handled by the modal
 
-    try {
-      const [invoices, vouchers] = await Promise.all([
-        getCATeamInvoices(selectedClient, user.access_token),
-        getCATeamVouchers(selectedClient, user.access_token),
-      ]);
-
-      const readyInvoices = invoices.filter(inv => inv.is_ready && !inv.is_exported);
-      const readyVouchers = vouchers.filter(v => v.is_ready && !v.is_exported);
-
-      if (readyInvoices.length === 0 && readyVouchers.length === 0) {
-        toast({
-          title: 'No Data to Export',
-          description: 'There are no ready invoices or vouchers to export.',
-        });
-        return;
-      }
-
-      const exportData = [
-        [
-          'Voucher Date', 'Voucher Type Name', 'Voucher Number', 'Party A/c Name', 'Sales Ledger',
-          'Item Amount', 'Total Invoice Value', 'Payment(Cash/UPI/Wallet)', 'Payment(Lakmo Coins)',
-          'Balance', 'Other Ledger', 'Other Ledger Amount', 'CGST Ledger', 'CSGST Rate', 'CGST Amount',
-          'UTST Ledger', 'UTGST Rate', 'UTGST Amount', 'Dr', 'Cr', 'Narataion', 'Place of Supply',
-          'State', 'Country', 'Registration Type', 'GSTIN'
-        ],
-        ...readyInvoices.map(inv => [
-          new Date(inv.date).toLocaleDateString(), 'Sales', inv.bill_number, inv.beneficiary.name, 'Sales',
-          inv.amount, inv.amount + inv.cgst + inv.sgst + inv.igst, '', '', '', '', '', 'CGST', 9, inv.cgst,
-          'UTGST', 9, inv.sgst, 'Dr', 'Cr', inv.remarks, '', '', 'India', 'Regular', ''
-        ]),
-        ...readyVouchers.map(v => [
-          new Date(v.created_date).toLocaleDateString(), v.voucher_type, '', v.beneficiaryName, '',
-          v.amount, v.amount, '', '', '', '', '', '', '', '', '', '', '', 'Dr', 'Cr', v.remarks, '', '', 'India', 'Regular', ''
-        ])
-      ];
-
-      const ws = XLSX.utils.aoa_to_sheet(exportData);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Accounting Voucher');
-      XLSX.writeFile(wb, 'Sales Format.xlsx');
-
-      await Promise.all([
-        ...readyInvoices.map(inv => updateInvoice(inv.id, { is_exported: true }, user.access_token)),
-        ...readyVouchers.map(v => updateVoucher(v.id, { is_exported: true }, user.access_token))
-      ]);
-
-      toast({
-        title: 'Success',
-        description: 'Data exported successfully.',
-      });
-
-      handleRefresh();
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: `Failed to export data: ${error.message}`,
-        variant: 'destructive',
-      });
-    }
-  };
 
   return (
     <div className="p-4 sm:p-8">
@@ -204,12 +139,21 @@ const FinancePage = () => {
             <RefreshCw className={`w-4 h-4 ${isDataLoading ? 'animate-spin' : ''}`} />
           </Button>
           {user.role === 'CA_ACCOUNTANT' && (
-            <Button onClick={handleExport} disabled={isDataLoading || !selectedClient}>
+            <Button onClick={() => setIsExportModalOpen(true)} disabled={isDataLoading || !selectedClient}>
               Export to Tally
             </Button>
           )}
         </div>
       </div>
+
+      {/* Export Modal */}
+      <ExportTallyModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        entityId={selectedClient}
+        entityName={clients.find(c => c.id === selectedClient)?.name}
+      />
+
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="flex items-center justify-between mb-8">
           <TabsList className="inline-flex items-center justify-center gap-4 text-lg">

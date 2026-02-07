@@ -76,6 +76,7 @@ const InvoiceDetailsPage = () => {
     const [showRejectDialog, setShowRejectDialog] = useState(false);
     const [rejectionRemarks, setRejectionRemarks] = useState('');
     const [isStatusUpdating, setIsStatusUpdating] = useState(false);
+    const [showCompletionModal, setShowCompletionModal] = useState(false);
 
     // Determine if the current user is a client user
     const isClientUser = user?.role === 'CLIENT_USER' || user?.role === 'CLIENT_MASTER_ADMIN';
@@ -1001,17 +1002,54 @@ const InvoiceDetailsPage = () => {
         }
     };
 
+    // Filter invoices based on user role for navigation
+    const filteredInvoices = React.useMemo(() => {
+        if (!invoices || !Array.isArray(invoices)) return [];
+
+        return invoices.filter(inv => {
+            if (user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') {
+                return inv.status === 'pending_ca_approval';
+            }
+            if (user?.role === 'CLIENT_MASTER_ADMIN') {
+                return inv.status === 'pending_master_admin_approval';
+            }
+            return true;
+        });
+    }, [invoices, user?.role]);
+
+    // Check if we have invoices to navigate - show arrows if we have multiple invoices
+    const hasInvoices = filteredInvoices && Array.isArray(filteredInvoices) && filteredInvoices.length > 1;
+
+    // Determine current index based on filtered list
+    const currentFilteredIndex = React.useMemo(() => {
+        if (!filteredInvoices || !invoiceId) return -1;
+        return filteredInvoices.findIndex(i => String(i.id) === String(invoiceId));
+    }, [filteredInvoices, invoiceId]);
+
+    // Override currentIndex for UI controls to reflect filtered list position
+    useEffect(() => {
+        if (currentFilteredIndex !== -1) {
+            setCurrentIndex(currentFilteredIndex);
+        }
+    }, [currentFilteredIndex]);
+
+    // Navigation logic updated to use filtered list
     const handleNavigate = (direction) => {
-        if (!invoices || invoices.length === 0) {
+        if (!filteredInvoices || filteredInvoices.length === 0) {
             console.warn("No invoices available for navigation");
             return;
         }
-        const newIndex = currentIndex + direction;
-        console.log("Navigating:", { currentIndex, newIndex, direction, invoicesLength: invoices.length });
-        if (newIndex >= 0 && newIndex < invoices.length) {
-            const nextInvoice = invoices[newIndex];
+
+        // Use currentFilteredIndex as the base
+        const newIndex = currentFilteredIndex + direction;
+        console.log("Navigating:", { currentFilteredIndex, newIndex, direction, invoicesLength: filteredInvoices.length });
+
+        if (newIndex >= 0 && newIndex < filteredInvoices.length) {
+            const nextInvoice = filteredInvoices[newIndex];
             console.log("Navigating to invoice:", nextInvoice.id);
             setCurrentIndex(newIndex);
+
+            // Navigate with state - keep the full list in state but filtered logic applies
             navigate(`/invoices/${nextInvoice.id}`, {
                 state: {
                     invoice: nextInvoice,
@@ -1027,15 +1065,20 @@ const InvoiceDetailsPage = () => {
         }
     };
 
-    // Check if we have invoices to navigate - show arrows if we have multiple invoices
-    const hasInvoices = invoices && Array.isArray(invoices) && invoices.length > 1;
-
     // Auto-navigation helper
     const handleAutoNext = () => {
-        if (currentIndex + 1 < invoices.length) {
+        // Upon approval/rejection, the current invoice status changes.
+        // It might be removed from filteredInvoices in the next render cycle.
+        // If we are at index i, and i gets removed, the item at i+1 becomes the new i.
+        // So effectively, we want to go to the item that is *currently* at index + 1 relative to the OLD list?
+        // Or simpler: If there is a next item in the verified list, go to it.
+
+        // Use currentFilteredIndex to find next
+        if (currentFilteredIndex !== -1 && currentFilteredIndex + 1 < filteredInvoices.length) {
             handleNavigate(1);
         } else {
-            navigate(-1);
+            // No more invoices in the filtered list
+            setShowCompletionModal(true);
         }
     };
 
@@ -1055,7 +1098,7 @@ const InvoiceDetailsPage = () => {
             // When tagging, we also mark as verified
             updateInvoice(invoiceId, entityId, {
                 is_ready: true,
-                finance_header_id: editedInvoice.finance_header_id,
+                finance_header_id: Number(editedInvoice.finance_header_id),
                 status: 'verified'
             }, user.access_token);
             toast({ title: 'Success', description: 'Invoice tagged and verified successfully.' });
@@ -1395,8 +1438,8 @@ const InvoiceDetailsPage = () => {
                                                             <Label htmlFor="finance_header_id">Header</Label>
                                                             <Combobox
                                                                 options={[...financeHeaders].sort((a, b) => a.name.localeCompare(b.name)).map(h => ({ value: String(h.id), label: h.name }))}
-                                                                value={editedInvoice.finance_header_id || ""}
-                                                                onValueChange={(value) => setEditedInvoice(p => ({ ...p, finance_header_id: value }))}
+                                                                value={editedInvoice?.finance_header_id ? String(editedInvoice.finance_header_id) : ""}
+                                                                onValueChange={(val) => setEditedInvoice(p => ({ ...p, finance_header_id: val ? Number(val) : null }))}
                                                                 placeholder="Select a header"
                                                                 searchPlaceholder="Search headers..."
                                                                 className="w-full h-11 bg-white/10 border-white/20 text-white hover:bg-white/20"
@@ -2002,6 +2045,29 @@ const InvoiceDetailsPage = () => {
                             disabled={isStatusUpdating || !rejectionRemarks.trim()}
                         >
                             {isStatusUpdating ? 'Rejecting...' : 'Reject Invoice'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Completion Modal */}
+            <Dialog open={showCompletionModal} onOpenChange={setShowCompletionModal}>
+                <DialogContent className="bg-slate-900 border-white/10 text-white sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <CheckCircle className="w-6 h-6 text-green-500" />
+                            All Done!
+                        </DialogTitle>
+                        <DialogDescription className="text-gray-400 pt-2">
+                            There are no more invoices pending for your review.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="mt-4">
+                        <Button
+                            onClick={() => navigate('/')}
+                            className="w-full bg-primary hover:bg-primary/90 text-white"
+                        >
+                            Go to Dashboard
                         </Button>
                     </DialogFooter>
                 </DialogContent>
