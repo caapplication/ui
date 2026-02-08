@@ -63,6 +63,7 @@ const FinancePage = () => {
             if (storedClientId && fetchedClients.some(c => c.id === storedClientId)) {
               setSelectedClient(storedClientId);
             } else {
+              // Always default to first client, never 'all' or null if clients exist
               setSelectedClient(fetchedClients[0].id);
             }
           } else {
@@ -129,7 +130,7 @@ const FinancePage = () => {
               <SelectValue placeholder={!clients.length ? "No clients found" : "Select client"} />
             </SelectTrigger>
             <SelectContent>
-              {clients.length > 1 && <SelectItem value="all">All Clients</SelectItem>}
+
               {clients.map(client => (
                 <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>
               ))}
