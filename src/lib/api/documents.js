@@ -142,6 +142,18 @@ export const createCAFolder = async (folderName, parentId, token) => {
     return handleResponse(response);
 };
 
+export const renameFolder = async (folderId, name, token) => {
+    const formData = new FormData();
+    formData.append('name', name);
+
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/documents/folders/${folderId}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(token, null),
+        body: formData,
+    });
+    return handleResponse(response);
+};
+
 export const uploadCAFile = async (folderId, file, expiryDate, token) => {
     const formData = new FormData();
     formData.append('file', file);

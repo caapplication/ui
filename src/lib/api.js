@@ -91,7 +91,8 @@ export const {
     getSharedDocuments,
     createCAFolder,
     uploadCAFile,
-    shareFolder
+    shareFolder,
+    renameFolder
 } = documents;
 
 export const {
@@ -280,6 +281,8 @@ function trackApiCall(apiFunction) {
         return apiFunction(...args);
     };
 }
+
+
 
 // Example: Wrapping an API call
 export const trackedGetVouchers = trackApiCall(getVouchers);

@@ -21,7 +21,7 @@ import {
   UserPlus, X, User, Link2, Copy, Grid, Calendar as CalendarIcon,
   Check, ChevronsUpDown, Inbox, History, FolderOpen, LayoutTemplate,
   Loader2, Users, RefreshCw, Phone, Edit, MessageCircle, Facebook,
-  Twitter, Linkedin, Mail, Eye, UserCheck, CircleDot, FileIcon, Clock, CalendarDays
+  Twitter, Linkedin, Mail, Info, Pencil, Eye, UserCheck, CircleDot, FileIcon, Clock, CalendarDays
 } from 'lucide-react';
 
 // Helper function to check if folder has expired documents (recursively checks subfolders)
@@ -117,7 +117,7 @@ import { useAuth } from '@/hooks/useAuth.jsx';
 import { useCurrentOrganization } from '@/hooks/useCurrentOrganization';
 import {
   getDocuments, createFolder, uploadFile, deleteDocument, shareDocument, viewFile, getSharedDocuments, listClients, createCAFolder, uploadCAFile, shareFolder, listAllClientUsers,
-  listTemplates, createTemplate, deleteTemplate, applyTemplate, updateTemplate
+  listTemplates, createTemplate, deleteTemplate, applyTemplate, updateTemplate, renameFolder
 } from '../../lib/api';
 import { createPublicShareTokenDocument, createPublicShareTokenFolder } from '@/lib/api/documents';
 import { cn } from '@/lib/utils';
@@ -259,6 +259,18 @@ const isFolderEmpty = (folder) => {
   return !folder.children || folder.children.length === 0;
 };
 
+// Helper function to recursively check if a folder or its subfolders contain documents
+const folderHasDocumentsRecursive = (folder) => {
+  if (!folder || !folder.is_folder) return false;
+  if (!folder.children || folder.children.length === 0) return false;
+  
+  for (const child of folder.children) {
+    if (!child.is_folder) return true; // Found a document
+    if (child.is_folder && folderHasDocumentsRecursive(child)) return true;
+  }
+  return false;
+};
+
 const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   const { user } = useAuth();
 
@@ -315,6 +327,9 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   const [showUpload, setShowUpload] = useState(false);
   const [showCreateFolder, setShowCreateFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
+  const [showRenameFolder, setShowRenameFolder] = useState(false);
+  const [folderToRename, setFolderToRename] = useState(null);
+  const [renameFolderName, setRenameFolderName] = useState('');
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [shareDoc, setShareDoc] = useState(null);
   const [shareEmails, setShareEmails] = useState('');
@@ -496,7 +511,9 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
       setEditingTemplate(null);
       setNewTemplateName('');
       setNewTemplateFolders([{ name: '', subfolders: [] }]);
-      fetchTemplates(); // Refresh list
+      fetchTemplates(); // Refresh template list
+      // Refresh the documents/folders tree so renamed template folders reflect immediately
+      fetchDocuments(true).catch(err => console.error('Background refresh after template update failed:', err));
     } catch (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
@@ -726,11 +743,21 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   const currentPath = useMemo(() => findPath(documentsState, currentFolderId), [documentsState, currentFolderId]);
   const currentFolder = currentPath[currentPath.length - 1];
 
-  // Check if selected folder is empty (for delete button state)
-  const isSelectedFolderEmpty = useMemo(() => {
+  // Check if selected folder can be deleted
+  // For template folders: block if any documents exist (recursively) 
+  // For regular folders: block if folder has any children
+  const isSelectedFolderDeletable = useMemo(() => {
     if (!selectedFolder) return true;
     const folder = findFolder(documentsState, selectedFolder.id);
-    return folder ? isFolderEmpty(folder) : true;
+    if (!folder) return true;
+    
+    // Template folders: only block if documents exist (even in subfolders)
+    if (folder.template_id) {
+      return !folderHasDocumentsRecursive(folder);
+    }
+    
+    // Regular folders: block if not empty
+    return isFolderEmpty(folder);
   }, [selectedFolder, documentsState]);
 
   const filteredChildren = useMemo(() => {
@@ -917,17 +944,12 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
       toast({ title: "Folder Created", description: `Folder "${newFolderName}" has been created.` });
       setShowCreateFolder(false);
       setNewFolderName('');
-      // Refresh in background (non-blocking) to ensure sync
-      fetchDocuments(true).catch(err => console.error('Background refresh failed:', err));
     } catch (error) {
-      // Revert optimistic update on error
+      // Rollback
       setDocumentsState(prev => {
         const removeTempFolder = (node) => {
           if (node.id === currentFolderId && node.children) {
-            return {
-              ...node,
-              children: node.children.filter(child => child.id !== tempFolderId)
-            };
+            return { ...node, children: node.children.filter(child => child.id !== tempFolderId) };
           }
           if (node.is_folder && node.children) {
             return { ...node, children: node.children.map(removeTempFolder) };
@@ -936,19 +958,78 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
         };
         return removeTempFolder(prev);
       });
-      toast({ title: "Creation Failed", description: error.message, variant: "destructive" });
+      toast({ title: "Error creating folder", description: error.message, variant: "destructive" });
     } finally {
       setIsMutating(false);
     }
   };
 
+  const handleRenameFolder = async () => {
+    if (!folderToRename || !renameFolderName.trim()) return;
+    setIsMutating(true);
+    const oldName = folderToRename.name;
+
+    // Optimistic update
+    setDocumentsState(prev => {
+      const updateName = (node) => {
+        if (node.id === folderToRename.id) {
+          return { ...node, name: renameFolderName };
+        }
+        if (node.is_folder && node.children) {
+          return { ...node, children: node.children.map(updateName) };
+        }
+        return node;
+      };
+      return updateName(prev);
+    });
+
+    try {
+      await renameFolder(folderToRename.id, renameFolderName, user.access_token);
+      toast({ title: "Folder Renamed", description: "Folder has been successfully renamed." });
+      setShowRenameFolder(false);
+      setFolderToRename(null);
+      setRenameFolderName('');
+    } catch (error) {
+      // Rollback
+      setDocumentsState(prev => {
+        const revertName = (node) => {
+          if (node.id === folderToRename.id) {
+            return { ...node, name: oldName };
+          }
+          if (node.is_folder && node.children) {
+            return { ...node, children: node.children.map(revertName) };
+          }
+          return node;
+        };
+        return revertName(prev);
+      });
+      toast({ title: "Error renaming folder", description: error.message, variant: "destructive" });
+    } finally {
+      setIsMutating(false);
+    }
+  };
+
+
   const handleDelete = async () => {
     if (!itemToDelete) return;
 
-    // Check if trying to delete a folder that is not empty
+    // Check if trying to delete a folder
     if (itemToDelete.type === 'folder') {
       const folder = findFolder(documentsState, itemToDelete.id);
-      if (folder && !isFolderEmpty(folder)) {
+      
+      // Template folders: block if documents exist anywhere in the hierarchy
+      if (folder && folder.template_id && folderHasDocumentsRecursive(folder)) {
+        toast({
+          title: "Cannot delete template folder",
+          description: "This template folder contains documents. Please remove all documents first before deleting.",
+          variant: "destructive"
+        });
+        setItemToDelete(null);
+        return;
+      }
+      
+      // Regular folders: block if not empty
+      if (folder && !folder.template_id && !isFolderEmpty(folder)) {
         toast({
           title: "Cannot delete folder",
           description: "This folder contains documents or subfolders. Please delete all items inside the folder first.",
@@ -1518,6 +1599,14 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                         size="icon"
                         variant="secondary"
                         className="h-6 w-6 sm:h-7 sm:w-7 bg-gray-800/90 hover:bg-gray-700"
+                        onClick={(e) => { e.stopPropagation(); setFolderToRename(item); setRenameFolderName(item.name); setShowRenameFolder(true); }}
+                      >
+                        <Pencil className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="secondary"
+                        className="h-6 w-6 sm:h-7 sm:w-7 bg-gray-800/90 hover:bg-gray-700"
                         onClick={(e) => { e.stopPropagation(); handleView(item) }}
                       >
                         <FileText className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
@@ -1818,8 +1907,8 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                       size="sm"
                       variant="secondary"
                       className="bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed h-8 sm:h-9 text-xs sm:text-sm flex-1 sm:flex-initial"
-                      disabled={!selectedFolder || !isSelectedFolderEmpty}
-                      title={selectedFolder && !isSelectedFolderEmpty ? "Cannot delete folder with contents" : ""}
+                      disabled={!selectedFolder || !isSelectedFolderDeletable}
+                      title={selectedFolder && !isSelectedFolderDeletable ? (selectedFolder.template_id ? "Cannot delete template folder with documents. Remove all documents first." : "Cannot delete folder with contents") : ""}
                       onClick={() => {
                         if (selectedFolder) {
                           setItemToDelete({ id: selectedFolder.id, type: 'folder' });
@@ -1835,6 +1924,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                       <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                       <AlertDialogDescription>
                         This action cannot be undone. This will permanently delete the folder "{selectedFolder?.name || ''}".
+                        {selectedFolder?.template_id && " This is a template folder. It cannot be deleted if it contains any documents."}
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -1882,6 +1972,23 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                 <Button onClick={handleCreateFolder} disabled={isMutating}>
                   {isMutating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
                   Create
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={showRenameFolder} onOpenChange={setShowRenameFolder}>
+            <DialogContent>
+              <DialogHeader><DialogTitle>Rename Folder</DialogTitle></DialogHeader>
+              <div className="py-4">
+                <Label htmlFor="rename-folder-name">New Name</Label>
+                <Input id="rename-folder-name" value={renameFolderName} onChange={(e) => setRenameFolderName(e.target.value)} placeholder="Enter new folder name" />
+              </div>
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setShowRenameFolder(false)} disabled={isMutating}>Cancel</Button>
+                <Button onClick={handleRenameFolder} disabled={isMutating}>
+                  {isMutating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                  Rename
                 </Button>
               </DialogFooter>
             </DialogContent>
