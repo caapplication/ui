@@ -19,7 +19,8 @@ import {
     Calendar,
     FileWarning,
     Eye,
-    TrendingUp
+    TrendingUp,
+    CreditCard
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useMediaQuery } from "@/hooks/useMediaQuery.jsx";
@@ -64,7 +65,6 @@ const StatCard = ({
     const Icon = icon;
 
 
-    console.log(trend);
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -197,7 +197,6 @@ const Dashboard = ({
     organisationBankAccounts,
 }) => {
     const [dashboardData, setDashboardData] = useState(null);
-    console.log(dashboardData, "data");
     const [isLoading, setIsLoading] = useState(true);
     const [vouchers, setVouchers] = useState([]);
     const [expiringDocs, setExpiringDocs] = useState([]);
@@ -416,30 +415,24 @@ const Dashboard = ({
             },
 
             {
-                title: "Tasks",
-                value: dashboardData.beneficiary_count,
-                hideValue: true,
-                // description: 'Active beneficiaries',
-                icon: Users,
-                color: "from-sky-500 to-cyan-500",
-                meta: {
-                    createdByMe: 24,
-                    lastYear: 18,
-                    collaboration: 7,
-                },
-            },
-            {
-                title: "Beneficiaries",
+                title: "Invoices",
                 value: dashboardData.invoice_count,
                 description: "Total invoices",
                 icon: FileText,
+                color: "from-sky-500 to-cyan-500",
+            },
+            {
+                title: "Vouchers",
+                value: dashboardData.voucher_count,
+                description: "Total vouchers",
+                icon: CreditCard,
                 color: "from-violet-500 to-fuchsia-500",
             },
             {
-                title: "Approvals",
-                value: organisationBankAccounts.length,
-                description: "Organization bank accounts",
-                icon: Landmark,
+                title: "Beneficiaries",
+                value: dashboardData.beneficiary_count,
+                description: "Active beneficiaries",
+                icon: Users,
                 color: "from-amber-500 to-orange-500",
             },
         ]

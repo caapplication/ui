@@ -4,6 +4,13 @@ import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useToast } from '@/components/ui/use-toast';
 import {
@@ -15,7 +22,6 @@ import {
 import {
     Search,
     Download,
-    Filter,
     ChevronLeft,
     ChevronRight,
     ArrowLeft,
@@ -24,9 +30,74 @@ import {
     Users,
     FileText,
     CreditCard,
-    Banknote
+    Banknote,
+    ArrowUpDown,
+    ArrowUp,
+    ArrowDown,
+    Calendar
 } from 'lucide-react';
 import { useCurrentOrganization } from '@/hooks/useCurrentOrganization';
+import {
+    startOfDay,
+    endOfDay,
+    subDays,
+    startOfMonth,
+    endOfMonth,
+    subMonths,
+    addDays,
+    addMonths
+} from 'date-fns';
+
+// --- Time Frame Presets ---
+const TIME_FRAME_PRESETS = [
+    { key: 'today', label: 'Today' },
+    { key: 'yesterday', label: 'Yesterday' },
+    { key: 'last7', label: 'Last 7 Days' },
+    { key: 'last30', label: 'Last 30 Days' },
+    { key: 'thisMonth', label: 'This Month' },
+    { key: 'lastMonth', label: 'Last Month' },
+    { key: 'last3Months', label: 'Last 3 Months' },
+    { key: 'tomorrow', label: 'Tomorrow' },
+    { key: 'next7', label: 'Next 7 Days' },
+    { key: 'next30', label: 'Next 30 Days' },
+    { key: 'nextMonth', label: 'Next Month' },
+    { key: 'next3Months', label: 'Next 3 Months' },
+];
+
+function getDateRange(preset) {
+    const now = new Date();
+    const todayStart = startOfDay(now);
+    const todayEnd = endOfDay(now);
+
+    switch (preset) {
+        case 'today':
+            return { from: todayStart, to: todayEnd };
+        case 'yesterday':
+            return { from: startOfDay(subDays(now, 1)), to: endOfDay(subDays(now, 1)) };
+        case 'last7':
+            return { from: startOfDay(subDays(now, 6)), to: todayEnd };
+        case 'last30':
+            return { from: startOfDay(subDays(now, 29)), to: todayEnd };
+        case 'thisMonth':
+            return { from: startOfMonth(now), to: endOfMonth(now) };
+        case 'lastMonth':
+            return { from: startOfMonth(subMonths(now, 1)), to: endOfMonth(subMonths(now, 1)) };
+        case 'last3Months':
+            return { from: startOfDay(subMonths(now, 3)), to: todayEnd };
+        case 'tomorrow':
+            return { from: startOfDay(addDays(now, 1)), to: endOfDay(addDays(now, 1)) };
+        case 'next7':
+            return { from: todayStart, to: endOfDay(addDays(now, 7)) };
+        case 'next30':
+            return { from: todayStart, to: endOfDay(addDays(now, 30)) };
+        case 'nextMonth':
+            return { from: startOfMonth(addMonths(now, 1)), to: endOfMonth(addMonths(now, 1)) };
+        case 'next3Months':
+            return { from: todayStart, to: endOfDay(addMonths(now, 3)) };
+        default:
+            return null; // custom or 'all'
+    }
+}
 
 const StatBox = ({ title, value, icon: Icon, delay }) => (
     <motion.div
@@ -51,6 +122,13 @@ const StatBox = ({ title, value, icon: Icon, delay }) => (
     </motion.div>
 );
 
+const SortIcon = ({ column, sortColumn, sortDirection }) => {
+    if (sortColumn !== column) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-40" />;
+    return sortDirection === 'asc'
+        ? <ArrowUp className="w-3 h-3 ml-1 text-blue-400" />
+        : <ArrowDown className="w-3 h-3 ml-1 text-blue-400" />;
+};
+
 const BeneficiaryLedger = ({ entityId }) => {
     const navigate = useNavigate();
     const { user } = useAuth();
@@ -65,6 +143,13 @@ const BeneficiaryLedger = ({ entityId }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const pageSize = 10;
+
+    // Sort state
+    const [sortColumn, setSortColumn] = useState('name');
+    const [sortDirection, setSortDirection] = useState('asc');
+
+    // Time frame filter state
+    const [timeFrame, setTimeFrame] = useState('last30');
 
     const fetchData = useCallback(async () => {
         if (!user?.access_token || !organizationId || !entityId) return;
@@ -95,6 +180,43 @@ const BeneficiaryLedger = ({ entityId }) => {
         fetchData();
     }, [fetchData]);
 
+    // Compute active date range
+    const dateRange = useMemo(() => {
+        return getDateRange(timeFrame);
+    }, [timeFrame]);
+
+    // Filter invoices and vouchers by date range
+    const filteredInvoices = useMemo(() => {
+        if (!dateRange) return invoices;
+        return invoices.filter(inv => {
+            const d = new Date(inv.created_at || inv.date);
+            return d >= dateRange.from && d <= dateRange.to;
+        });
+    }, [invoices, dateRange]);
+
+    const filteredVouchers = useMemo(() => {
+        if (!dateRange) return vouchers;
+        return vouchers.filter(v => {
+            const d = new Date(v.created_date || v.created_at);
+            return d >= dateRange.from && d <= dateRange.to;
+        });
+    }, [vouchers, dateRange]);
+
+    const handleSort = (column) => {
+        if (sortColumn === column) {
+            setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortColumn(column);
+            setSortDirection(column === 'name' ? 'asc' : 'desc');
+        }
+        setCurrentPage(1);
+    };
+
+    const handleTimeFrameSelect = (key) => {
+        setTimeFrame(key);
+        setCurrentPage(1);
+    };
+
     const ledgerData = useMemo(() => {
         const map = new Map();
 
@@ -110,8 +232,8 @@ const BeneficiaryLedger = ({ entityId }) => {
             });
         });
 
-        // Add invoice totals
-        invoices.forEach(inv => {
+        // Add invoice totals (filtered by date)
+        filteredInvoices.forEach(inv => {
             const bId = inv.beneficiary?.id || inv.beneficiary;
             if (bId && map.has(bId)) {
                 const entry = map.get(bId);
@@ -119,8 +241,8 @@ const BeneficiaryLedger = ({ entityId }) => {
             }
         });
 
-        // Add payment totals
-        vouchers.forEach(v => {
+        // Add payment totals (filtered by date)
+        filteredVouchers.forEach(v => {
             const bId = v.beneficiary?.id || v.beneficiary;
             if (bId && map.has(bId)) {
                 const entry = map.get(bId);
@@ -135,11 +257,39 @@ const BeneficiaryLedger = ({ entityId }) => {
             }
         });
 
-        return Array.from(map.values()).filter(item =>
+        let result = Array.from(map.values()).filter(item =>
             item.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
             (item.invoiceTotal > 0 || item.paymentTotal > 0)
-        ).sort((a, b) => b.invoiceTotal - a.invoiceTotal);
-    }, [beneficiaries, invoices, vouchers, searchTerm]);
+        );
+
+        // Sort
+        result.sort((a, b) => {
+            let valA, valB;
+            switch (sortColumn) {
+                case 'name':
+                    valA = (a.name || '').toLowerCase();
+                    valB = (b.name || '').toLowerCase();
+                    return sortDirection === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                case 'invoiceTotal':
+                    valA = a.invoiceTotal; valB = b.invoiceTotal;
+                    break;
+                case 'paymentTotal':
+                    valA = a.paymentTotal; valB = b.paymentTotal;
+                    break;
+                case 'cashTotal':
+                    valA = a.cashTotal; valB = b.cashTotal;
+                    break;
+                case 'debitTotal':
+                    valA = a.debitTotal; valB = b.debitTotal;
+                    break;
+                default:
+                    return 0;
+            }
+            return sortDirection === 'asc' ? valA - valB : valB - valA;
+        });
+
+        return result;
+    }, [beneficiaries, filteredInvoices, filteredVouchers, searchTerm, sortColumn, sortDirection]);
 
     const totals = useMemo(() => {
         return ledgerData.reduce((acc, curr) => ({
@@ -162,11 +312,10 @@ const BeneficiaryLedger = ({ entityId }) => {
     const paginatedData = ledgerData.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
     const handleExport = () => {
-        // Basic CSV export
         const headers = ['Sr No', 'Beneficiary', 'Invoice', 'Payment', 'By Cash', 'By Debit'];
         const rows = ledgerData.map((item, index) => [
             index + 1,
-            item.name,
+            `"${item.name}"`,
             item.invoiceTotal,
             item.paymentTotal,
             item.cashTotal,
@@ -226,17 +375,24 @@ const BeneficiaryLedger = ({ entityId }) => {
                             placeholder="Search beneficiary..."
                             className="pl-9 h-9 sm:h-10 border-white/10 bg-white/5 focus:bg-white/10 text-white placeholder:text-gray-500 rounded-xl text-xs sm:text-sm"
                             value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
+                            onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                         />
                     </div>
 
-                    <Button
-                        variant="outline"
-                        size="icon"
-                        className="border-white/10 bg-white/5 hover:bg-white/10 text-white rounded-xl h-9 w-9 sm:h-10 sm:w-10"
-                    >
-                        <Filter className="w-4 h-4" />
-                    </Button>
+                    {/* Time Frame Filter */}
+                    <Select value={timeFrame} onValueChange={handleTimeFrameSelect}>
+                        <SelectTrigger className="w-[140px] sm:w-[170px] h-9 sm:h-10 rounded-xl text-xs sm:text-sm border-white/10 bg-white/5">
+                            <Calendar className="w-4 h-4 mr-2 opacity-50 shrink-0" />
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {TIME_FRAME_PRESETS.map(preset => (
+                                <SelectItem key={preset.key} value={preset.key}>
+                                    {preset.label}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                 </div>
             </div>
 
@@ -260,11 +416,51 @@ const BeneficiaryLedger = ({ entityId }) => {
                                 <thead>
                                     <tr className="border-b border-white/5 text-gray-400 text-[10px] sm:text-xs font-medium uppercase tracking-wider">
                                         <td className="py-4 pl-6 w-16">S.No</td>
-                                        <td className="py-4 px-4">Beneficiary</td>
-                                        <td className="py-4 px-4">Invoice</td>
-                                        <td className="py-4 px-4">Payment</td>
-                                        <td className="py-4 px-4">By Cash</td>
-                                        <td className="py-4 pr-6 text-right">By Debit</td>
+                                        <td
+                                            className="py-4 px-4 cursor-pointer select-none hover:text-white transition-colors"
+                                            onClick={() => handleSort('name')}
+                                        >
+                                            <span className="inline-flex items-center">
+                                                Beneficiary
+                                                <SortIcon column="name" sortColumn={sortColumn} sortDirection={sortDirection} />
+                                            </span>
+                                        </td>
+                                        <td
+                                            className="py-4 px-4 cursor-pointer select-none hover:text-white transition-colors"
+                                            onClick={() => handleSort('invoiceTotal')}
+                                        >
+                                            <span className="inline-flex items-center">
+                                                Invoice
+                                                <SortIcon column="invoiceTotal" sortColumn={sortColumn} sortDirection={sortDirection} />
+                                            </span>
+                                        </td>
+                                        <td
+                                            className="py-4 px-4 cursor-pointer select-none hover:text-white transition-colors"
+                                            onClick={() => handleSort('paymentTotal')}
+                                        >
+                                            <span className="inline-flex items-center">
+                                                Payment
+                                                <SortIcon column="paymentTotal" sortColumn={sortColumn} sortDirection={sortDirection} />
+                                            </span>
+                                        </td>
+                                        <td
+                                            className="py-4 px-4 cursor-pointer select-none hover:text-white transition-colors"
+                                            onClick={() => handleSort('cashTotal')}
+                                        >
+                                            <span className="inline-flex items-center">
+                                                By Cash
+                                                <SortIcon column="cashTotal" sortColumn={sortColumn} sortDirection={sortDirection} />
+                                            </span>
+                                        </td>
+                                        <td
+                                            className="py-4 pr-6 text-right cursor-pointer select-none hover:text-white transition-colors"
+                                            onClick={() => handleSort('debitTotal')}
+                                        >
+                                            <span className="inline-flex items-center justify-end w-full">
+                                                By Debit
+                                                <SortIcon column="debitTotal" sortColumn={sortColumn} sortDirection={sortDirection} />
+                                            </span>
+                                        </td>
                                     </tr>
                                 </thead>
                                 <tbody className="text-sm">
@@ -276,8 +472,8 @@ const BeneficiaryLedger = ({ entityId }) => {
                                                 </td>
                                                 <td className="py-4 px-4">
                                                     <span
-                                                        className="text-white font-medium cursor-pointer hover:text-primary transition-colors inline-block group-hover:scale-[1.02] transform transition-transform origin-left"
-                                                        onClick={() => navigate(`/beneficiaries/${item.id}`)}
+                                                        className="text-white font-medium cursor-pointer hover:text-primary inline-block group-hover:scale-[1.02] transition-all origin-left"
+                                                        onClick={() => navigate(`/beneficiaries/${item.id}/ledger`)}
                                                     >
                                                         {item.name}
                                                     </span>

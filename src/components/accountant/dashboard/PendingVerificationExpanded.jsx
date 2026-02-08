@@ -56,7 +56,7 @@ const PendingVerificationExpanded = () => {
                 entityIds.length > 0 ? getCATeamVouchersBulk(entityIds, token).catch(() => []) : Promise.resolve([])
             ]);
 
-            const teamMap = teamMembers.reduce((acc, t) => ({ ...acc, [t.user_id || t.id]: t.full_name || t.name || 'Unknown' }), {});
+            const teamMap = teamMembers.reduce((acc, t) => ({ ...acc, [t.user_id || t.id]: t.full_name || t.name || '-' }), {});
 
             // Filter for Pending Approval (pending_ca_approval or pending_master_admin_approval)
             const pendingInvoices = invoices.filter(i => i.status === 'pending_ca_approval' || i.status === 'pending_master_admin_approval');
@@ -81,7 +81,7 @@ const PendingVerificationExpanded = () => {
 
                 // Find associated team members
                 const creatorIds = [...new Set(allPending.map(item => item.created_by))];
-                const associatedTeam = creatorIds.map(id => teamMap[id] || 'Unknown').join(', ');
+                const associatedTeam = creatorIds.map(id => teamMap[id] || '-').join(', ');
 
                 return {
                     id: eId,
