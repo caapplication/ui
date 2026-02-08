@@ -686,7 +686,8 @@ const Dashboard = ({
                                                 dashboardData.top_header_expenses.map((expense, index) => (
                                                     <div
                                                         key={index}
-                                                        className="grid grid-cols-12 items-center text-sm py-2 hover:bg-white/10 transition-all rounded px-1 cursor-default group"
+                                                        className="grid grid-cols-12 items-center text-sm py-2 hover:bg-white/10 transition-all rounded px-1 cursor-pointer group"
+                                                        onClick={() => expense.header_id && navigate(`/dashboard/finance-headers/${expense.header_id}`)}
                                                     >
                                                         <div className="col-span-2 text-gray-400 font-mono">
                                                             {String(index + 1).padStart(2, "0")}
@@ -713,7 +714,7 @@ const Dashboard = ({
                                         <Button
                                             variant="ghost"
                                             className="w-full text-blue-400 hover:text-blue-300 hover:bg-blue-400/10 rounded-xl group transition-all text-sm py-2"
-                                            onClick={() => navigate('/finance')}
+                                            onClick={() => navigate('/dashboard/finance-headers')}
                                         >
                                             View more
                                             <TrendingUp className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
@@ -760,7 +761,7 @@ const Dashboard = ({
                                         <Button
                                             variant="ghost"
                                             className="w-full text-blue-400 hover:text-blue-300 hover:bg-blue-400/10 rounded-xl group transition-all text-sm py-2"
-                                            onClick={() => navigate('/finance/vouchers')}
+                                            onClick={() => navigate('/dashboard/recent-transactions')}
                                         >
                                             View more
                                             <TrendingUp className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
