@@ -47,7 +47,7 @@ const OngoingNoticesExpanded = () => {
 
             const teamMap = teamMembers.reduce((acc, t) => ({ ...acc, [t.user_id || t.id]: t.full_name || t.name || 'Unknown' }), {});
 
-            const activeNotices = notices.filter(n => n.status !== 'Resolved' && n.status !== 'Closed' && n.status !== 'closed');
+            const activeNotices = notices.filter(n => n.status !== 'closed');
 
             // Aggregate by Entity
             const entityStats = entities.map(entity => {

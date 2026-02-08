@@ -45,20 +45,20 @@ const OngoingTasksExpanded = () => {
             const agencyId = user.agency_id;
             const today = startOfDay(new Date());
 
-            const [entities, tasksResponse] = await Promise.all([
+            const [entities, tasksRaw] = await Promise.all([
                 listAllEntities(token).catch(() => []),
-                listTasks(agencyId, token).catch(() => ({ items: [] }))
+                listTasks(agencyId, token).catch(() => [])
             ]);
 
-            const tasks = tasksResponse.items || [];
-            const openTasks = tasks.filter(t => t.status !== 'Completed' && t.status !== 'CANCELLED');
+            const tasks = Array.isArray(tasksRaw) ? tasksRaw : (tasksRaw?.items || []);
+            const openTasks = tasks.filter(t => t.status !== 'completed');
 
             // Aggregate by Entity
             const entityStats = entities.map(entity => {
                 const eId = entity.id;
                 const eName = entity.name;
 
-                const entityTasks = openTasks.filter(t => (t.entity_id || t.entity) === eId);
+                const entityTasks = openTasks.filter(t => (t.entity_id || t.client_id || t.entity) === eId);
                 if (entityTasks.length === 0) return null;
 
                 const stats = {

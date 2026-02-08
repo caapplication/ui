@@ -58,9 +58,9 @@ const PendingVerificationExpanded = () => {
 
             const teamMap = teamMembers.reduce((acc, t) => ({ ...acc, [t.user_id || t.id]: t.full_name || t.name || 'Unknown' }), {});
 
-            // Filter for Pending Approval
-            const pendingInvoices = invoices.filter(i => i.status === 'Pending Approval' || i.status === 'PENDING');
-            const pendingVouchers = vouchers.filter(v => v.status === 'Pending Approval' || v.status === 'PENDING');
+            // Filter for Pending Approval (pending_ca_approval or pending_master_admin_approval)
+            const pendingInvoices = invoices.filter(i => i.status === 'pending_ca_approval' || i.status === 'pending_master_admin_approval');
+            const pendingVouchers = vouchers.filter(v => v.status === 'pending_ca_approval' || v.status === 'pending_master_admin_approval');
 
             // Aggregate by Entity
             const entityStats = entities.map(entity => {

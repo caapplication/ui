@@ -58,11 +58,11 @@ const TodayProgressExpanded = () => {
             const [invoices, vouchers, tasks, notices] = await Promise.all([
                 entityIds.length > 0 ? getCATeamInvoicesBulk(entityIds, token).catch(() => []) : Promise.resolve([]),
                 entityIds.length > 0 ? getCATeamVouchersBulk(entityIds, token).catch(() => []) : Promise.resolve([]),
-                listTasks(agencyId, token).catch(() => ({ items: [] })),
+                listTasks(agencyId, token).catch(() => []),
                 getNotices(null, token).catch(() => [])
             ]);
 
-            const tasksList = tasks.items || [];
+            const tasksList = Array.isArray(tasks) ? tasks : (tasks?.items || []);
             const noticesList = notices || [];
 
             const isToday = (dateStr) => {
