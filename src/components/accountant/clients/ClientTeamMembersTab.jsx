@@ -121,7 +121,9 @@ const ClientTeamMembersTab = ({ client, teamMembers = [], onTeamMemberChanged })
     const availableMembers = teamMembers.filter(member =>
         !assignedMembers.some(assigned =>
             String(assigned.team_member_user_id) === String(member.user_id || member.id)
-        )
+        ) &&
+        // Exclude current user (e.g. CA_ACCOUNTANT themselves)
+        String(member.user_id || member.id) !== String(user?.id)
     );
 
     if (isLoading) {

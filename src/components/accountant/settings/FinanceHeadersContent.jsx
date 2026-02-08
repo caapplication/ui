@@ -123,12 +123,14 @@ const FinanceHeadersContent = () => {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                     <Input placeholder="Search finance headers..." className="pl-10 glass-input" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                 </div>
-                <Button onClick={handleOpenNew} className="bg-primary hover:bg-primary/90 text-white">
-                    <Plus className="mr-2 h-4 w-4" /> New Finance Header
-                </Button>
-                <Button onClick={handleExport} variant="outline" className="ml-2 bg-transparent text-white border-white/20 hover:bg-white/10">
-                    Export to Excel
-                </Button>
+                <div className="flex items-center gap-2">
+                    <Button onClick={handleExport} variant="outline" className="bg-transparent text-white border-white/20 hover:bg-white/10">
+                        Export to Excel
+                    </Button>
+                    <Button onClick={handleOpenNew} className="bg-primary hover:bg-primary/90 text-white">
+                        <Plus className="mr-2 h-4 w-4" /> New Finance Header
+                    </Button>
+                </div>
             </div>
             <div className="glass-card p-4">
                 <div className="grid grid-cols-[1fr_auto] px-4 py-2 border-b border-white/10 font-bold uppercase text-sm text-gray-400">
