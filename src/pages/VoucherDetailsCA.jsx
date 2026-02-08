@@ -1614,6 +1614,7 @@ const VoucherDetailsCA = () => {
                                                         name="finance_header_id"
                                                         value={editedVoucher.finance_header_id ? String(editedVoucher.finance_header_id) : ''}
                                                         onValueChange={(value) => setEditedVoucher(p => ({ ...p, finance_header_id: value ? Number(value) : null }))}
+                                                        disabled={voucherDetails.status === 'verified'}
                                                     >
                                                         <SelectTrigger>
                                                             <SelectValue placeholder="Select a header" />
@@ -1760,6 +1761,7 @@ const VoucherDetailsCA = () => {
                                                                     placeholder="Select a header"
                                                                     searchPlaceholder="Search headers..."
                                                                     className="w-full h-11 bg-white/10 border-white/20 text-white hover:bg-white/20"
+                                                                    disabled={voucherDetails.status === 'verified'}
                                                                 />
                                                             </div>
                                                         )}
@@ -1793,26 +1795,28 @@ const VoucherDetailsCA = () => {
                                                                                 {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />} Reject
                                                                             </Button>
                                                                         )}
-                                                                        <Button
-                                                                            variant="approve"
-                                                                            onClick={() => {
-                                                                                if (!editedVoucher.finance_header_id) {
-                                                                                    toast({
-                                                                                        title: 'Validation Error',
-                                                                                        description: 'Please select a header before tagging the voucher.',
-                                                                                        variant: 'destructive',
-                                                                                    });
-                                                                                    return;
-                                                                                }
-                                                                                updateCAVoucher(voucherId, { is_ready: true, finance_header_id: editedVoucher.finance_header_id, status: 'verified' }, user.access_token)
-                                                                                    .then(() => {
-                                                                                        toast({ title: 'Success', description: 'Voucher tagged and verified successfully.' });
-                                                                                        handleAutoNext();
-                                                                                    })
-                                                                                    .catch(err => {
-                                                                                        toast({ title: 'Error', description: `Failed to tag voucher: ${err.message}`, variant: 'destructive' });
-                                                                                    });
-                                                                            }}>Tag</Button>
+                                                                        {voucherDetails.status !== 'verified' && !isReadOnly && (
+                                                                            <Button
+                                                                                variant="approve"
+                                                                                onClick={() => {
+                                                                                    if (!editedVoucher.finance_header_id) {
+                                                                                        toast({
+                                                                                            title: 'Validation Error',
+                                                                                            description: 'Please select a header before tagging the voucher.',
+                                                                                            variant: 'destructive',
+                                                                                        });
+                                                                                        return;
+                                                                                    }
+                                                                                    updateCAVoucher(voucherId, { is_ready: true, finance_header_id: editedVoucher.finance_header_id, status: 'verified' }, user.access_token)
+                                                                                        .then(() => {
+                                                                                            toast({ title: 'Success', description: 'Voucher tagged and verified successfully.' });
+                                                                                            handleAutoNext();
+                                                                                        })
+                                                                                        .catch(err => {
+                                                                                            toast({ title: 'Error', description: `Failed to tag voucher: ${err.message}`, variant: 'destructive' });
+                                                                                        });
+                                                                                }}>Tag</Button>
+                                                                        )}
                                                                     </>
                                                                 )}
                                                             </div>
