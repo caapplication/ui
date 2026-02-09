@@ -1438,7 +1438,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   };
 
   const renderMyFiles = () => {
-    const isSubFolder = currentPath.length > 2;
+    const isSubFolder = currentFolderId !== 'root';
     const folders = filteredChildren.filter(item => item.is_folder);
     const documents = filteredChildren.filter(item => !item.is_folder);
 
@@ -2068,57 +2068,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2 w-full lg:w-auto">
               {/* Action bar: New Folder/Upload | Share | Collaborate | Delete */}
               <div className="flex items-center gap-1 sm:gap-2 p-1.5 sm:p-2 bg-gray-800/50 rounded-lg border border-gray-700 flex-wrap" onClick={(e) => e.stopPropagation()}>
-                {/* 1. New Folder */}
-                {activeTab === 'myFiles' && (
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    className="bg-emerald-600 hover:bg-emerald-700 h-8 sm:h-9 text-xs sm:text-sm flex-1 sm:flex-initial"
-                    onClick={() => setShowCreateFolder(true)}
-                  >
-                    <FolderPlus className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
-                    <span className="hidden sm:inline">New Folder</span>
-                  </Button>
-                )}
-                {/* Upload - shown when inside a subfolder */}
-                {activeTab === 'myFiles' && currentFolderId !== 'root' && currentPath.length > 2 && (
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    className="bg-emerald-600 hover:bg-emerald-700 h-8 sm:h-9 text-xs sm:text-sm flex-1 sm:flex-initial"
-                    onClick={() => setShowUpload(true)}
-                  >
-                    <Plus className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
-                    <span className="hidden sm:inline">Upload</span>
-                  </Button>
-                )}
-                {/* Separator when New Folder/Upload shown */}
-                {activeTab === 'myFiles' && (
-                  <div className="w-px h-6 bg-gray-600 mx-0.5 hidden sm:block" />
-                )}
-                {/* 2. Share */}
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed h-8 sm:h-9 text-xs sm:text-sm flex-1 sm:flex-initial"
-                  onClick={() => selectedFolder && handleShareClick(selectedFolder)}
-                  disabled={!selectedFolder}
-                >
-                  <Share2 className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Share</span>
-                </Button>
-                {/* 3. Collaborate */}
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed h-8 sm:h-9 text-xs sm:text-sm flex-1 sm:flex-initial"
-                  onClick={() => selectedFolder && handleCollaborateClick(selectedFolder)}
-                  disabled={!selectedFolder}
-                >
-                  <UserPlus className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Collaborate</span>
-                </Button>
-                {/* 4. Delete */}
+                {/* 1. Delete */}
                 <AlertDialog open={itemToDelete?.id === selectedFolder?.id && itemToDelete?.type === 'folder'} onOpenChange={(open) => {
                   if (!open && !isMutating) {
                     setItemToDelete(null);
@@ -2167,6 +2117,56 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
+                {/* 2. Share */}
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed h-8 sm:h-9 text-xs sm:text-sm flex-1 sm:flex-initial"
+                  onClick={() => selectedFolder && handleShareClick(selectedFolder)}
+                  disabled={!selectedFolder}
+                >
+                  <Share2 className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Share</span>
+                </Button>
+                {/* 3. Collaborate */}
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed h-8 sm:h-9 text-xs sm:text-sm flex-1 sm:flex-initial"
+                  onClick={() => selectedFolder && handleCollaborateClick(selectedFolder)}
+                  disabled={!selectedFolder}
+                >
+                  <UserPlus className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Collaborate</span>
+                </Button>
+                {/* Separator before create actions */}
+                {activeTab === 'myFiles' && (
+                  <div className="w-px h-6 bg-gray-600 mx-0.5 hidden sm:block" />
+                )}
+                {/* 4. New Folder */}
+                {activeTab === 'myFiles' && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="bg-emerald-600 hover:bg-emerald-700 h-8 sm:h-9 text-xs sm:text-sm flex-1 sm:flex-initial"
+                    onClick={() => setShowCreateFolder(true)}
+                  >
+                    <FolderPlus className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
+                    <span className="hidden sm:inline">New Folder</span>
+                  </Button>
+                )}
+                {/* Upload - shown when inside any folder (not root) */}
+                {activeTab === 'myFiles' && currentFolderId !== 'root' && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="bg-emerald-600 hover:bg-emerald-700 h-8 sm:h-9 text-xs sm:text-sm flex-1 sm:flex-initial"
+                    onClick={() => setShowUpload(true)}
+                  >
+                    <Plus className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Upload</span>
+                  </Button>
+                )}
                 {selectedFolder && (
                   <Button
                     size="sm"
