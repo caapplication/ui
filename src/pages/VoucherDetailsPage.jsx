@@ -11,7 +11,9 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
     'pdfjs-dist/build/pdf.worker.min.js',
     import.meta.url
 ).toString();
-import { deleteVoucher, updateVoucher, getBeneficiaries, getVoucherAttachment, getVoucher, getBankAccountsForBeneficiary, getOrganisationBankAccounts, getFinanceHeaders } from '@/lib/api.js';
+import { deleteVoucher, updateVoucher, getBeneficiaries, getVoucherAttachment, getVoucher, getBankAccountsForBeneficiary, getOrganisationBankAccounts, getFinanceHeaders, getInvoices, getCATeamVouchers } from '@/lib/api.js';
+
+
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -183,7 +185,10 @@ const VoucherDetailsPage = () => {
     const cache = useApiCache();
     const { voucher: initialVoucher, vouchers, startInEditMode, organizationName, entityName, organisationId, isReadOnly } = location.state || {};
     const [voucher, setVoucher] = useState(initialVoucher);
-    const [currentIndex, setCurrentIndex] = useState(vouchers ? vouchers.findIndex(v => v.id === initialVoucher.id) : -1);
+    // Initialize voucherList from location state if available
+    const [voucherList, setVoucherList] = useState(vouchers || []);
+    const [currentIndex, setCurrentIndex] = useState(vouchers ? vouchers.findIndex(v => String(v.id) === String(initialVoucher?.id)) : -1);
+    const hasFetchedVoucherList = useRef(false);
     const voucherDetailsRef = useRef(null);
     const voucherDetailsPDFRef = useRef(null);
     const attachmentRef = useRef(null);
@@ -206,11 +211,55 @@ const VoucherDetailsPage = () => {
     const [isSaving, setIsSaving] = useState(false);
     const [sidebarWidth, setSidebarWidth] = useState(320); // Default to expanded width (300px + padding)
 
+    // Fetch voucher list if not present (e.g. direct load) to enable navigation
+    useEffect(() => {
+        // If we already have a list, don't refetch
+        if (voucherList && voucherList.length > 0) return;
+        // If we are already fetching or not authorized, skip
+        if (hasFetchedVoucherList.current || !user?.access_token) return;
+
+        // Try to get entity ID from available sources
+        const entityId = (user?.role === 'CLIENT_MASTER_ADMIN' ? user?.organization_id : null) || localStorage.getItem('entityId') || voucher?.entity_id;
+
+        // If no entity context found, we can't fetch a reasonable list
+        if (!entityId) return;
+
+        const fetchVoucherList = async () => {
+            hasFetchedVoucherList.current = true;
+            try {
+                // Determine which list to fetch based on role
+                let data = [];
+                const cacheKey = { entityId, token: user.access_token, role: user.role };
+
+                // Fetch vouchers
+                const cached = cache.get('getCATeamVouchers', cacheKey);
+                if (cached) {
+                    data = cached;
+                } else {
+                    data = await getCATeamVouchers(entityId, user.access_token);
+                    cache.set('getCATeamVouchers', cacheKey, data);
+                }
+
+                if (Array.isArray(data) && data.length > 0) {
+                    // Sort by date descending
+                    const allVouchers = data.sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
+                    console.log("Fetched voucher list context for Page:", allVouchers.length);
+                    setVoucherList(allVouchers);
+                }
+            } catch (error) {
+                console.error("Failed to fetch voucher list context:", error);
+            }
+        };
+
+        fetchVoucherList();
+    }, [voucherList, voucher?.entity_id, user?.access_token, user?.organization_id, user?.role]);
+
     // Status and Remarks State
     const [showRejectDialog, setShowRejectDialog] = useState(false);
     const [rejectionRemarks, setRejectionRemarks] = useState('');
     const [isStatusUpdating, setIsStatusUpdating] = useState(false);
     const [showCompletionModal, setShowCompletionModal] = useState(false);
+    const [completionModalType, setCompletionModalType] = useState('all_done'); // 'all_done' or 'go_to_invoices'
 
     // Determine if the current user is a client user
     // CA_ACCOUNTANT and CA_TEAM should NOT be treated as client users
@@ -314,13 +363,13 @@ const VoucherDetailsPage = () => {
 
     // Update currentIndex when voucherId changes
     useEffect(() => {
-        if (vouchers && Array.isArray(vouchers) && voucherId) {
-            const index = vouchers.findIndex(v => String(v.id) === String(voucherId));
+        if (voucherList && Array.isArray(voucherList) && voucherId) {
+            const index = voucherList.findIndex(v => String(v.id) === String(voucherId));
             if (index !== currentIndex) {
                 setCurrentIndex(index >= 0 ? index : -1);
             }
         }
-    }, [voucherId, vouchers]);
+    }, [voucherId, voucherList]);
 
     useEffect(() => {
         if (authLoading || !user?.access_token) return;
@@ -360,6 +409,7 @@ const VoucherDetailsPage = () => {
                 }
 
                 if (isMounted) {
+                    const promises = [];
                     // Cache the fresh data
                     setCache(CACHE_KEY_VOUCHER, currentVoucher);
 
@@ -376,8 +426,8 @@ const VoucherDetailsPage = () => {
                     setVoucher(currentVoucher);
                     setEditedVoucher(currentVoucher);
                     // Update currentIndex when voucher changes
-                    if (vouchers && Array.isArray(vouchers)) {
-                        const index = vouchers.findIndex(v => String(v.id) === String(voucherId));
+                    if (voucherList && Array.isArray(voucherList)) {
+                        const index = voucherList.findIndex(v => String(v.id) === String(voucherId));
                         setCurrentIndex(index >= 0 ? index : -1);
                     }
                     setIsLoading(false);
@@ -398,9 +448,6 @@ const VoucherDetailsPage = () => {
                     console.log("Collected attachment IDs:", { primaryAttachmentId, additionalIds, allIds });
                     setAllAttachmentIds(allIds);
                     setCurrentAttachmentIndex(0); // Reset to first attachment
-
-                    // Load attachment and finance headers in parallel (non-blocking)
-                    const promises = [];
 
                     // Always reset attachment state when voucher changes
                     // Load first attachment
@@ -441,8 +488,6 @@ const VoucherDetailsPage = () => {
                                     // Show a toast for user feedback
                                     toast({
                                         title: 'Attachment Error',
-                                        description: `Failed to load attachment: ${err.message}`,
-                                        variant: 'destructive'
                                     });
                                 })
                         );
@@ -451,6 +496,7 @@ const VoucherDetailsPage = () => {
                         setAttachmentUrl(null);
                         setIsImageLoading(false);
                     }
+
 
                     if (user && (user.role === 'CA_ACCOUNTANT' || user.role === 'CA_TEAM')) {
                         promises.push(
@@ -611,9 +657,9 @@ const VoucherDetailsPage = () => {
 
     // Filter vouchers based on role to ensure consistent navigation
     const filteredVouchers = useMemo(() => {
-        if (!vouchers || !Array.isArray(vouchers)) return [];
+        if (!voucherList || !Array.isArray(voucherList)) return [];
 
-        return vouchers.filter(v => {
+        return voucherList.filter(v => {
             // CA Team/Accountant should only see pending_ca_approval
             if (user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') {
                 return v.status === 'pending_ca_approval';
@@ -624,7 +670,7 @@ const VoucherDetailsPage = () => {
             }
             return true;
         });
-    }, [vouchers, user?.role]);
+    }, [voucherList, user?.role]);
 
     // Update currentIndex when filteredVouchers changes
     useEffect(() => {
@@ -652,10 +698,10 @@ const VoucherDetailsPage = () => {
             navigate(`/finance/vouchers/${nextVoucher.id}`, {
                 state: {
                     voucher: nextVoucher,
-                    vouchers: filteredVouchers,
+                    // Pass the UDPATED full list so consistent navigation works in next screen
+                    vouchers: updatedList || voucherList,
                     organisationId,
                     entityName,
-                    organizationName
                 }
             });
         } else {
@@ -664,12 +710,66 @@ const VoucherDetailsPage = () => {
     };
 
     // Auto-navigation helper
-    const handleAutoNext = () => {
-        // Use currentFilteredIndex to find next
-        if (currentIndex !== -1 && currentIndex + 1 < filteredVouchers.length) {
-            handleNavigate(1);
+    const handleAutoNext = async (updatedList = null) => {
+        let sourceList = filteredVouchers;
+
+        if (updatedList) {
+            sourceList = updatedList.filter(v => {
+                if (user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') {
+                    return v.status === 'pending_ca_approval';
+                }
+                if (user?.role === 'CLIENT_MASTER_ADMIN') {
+                    return v.status === 'pending_master_admin_approval';
+                }
+                return true;
+            });
+        }
+
+        // Since the current voucher is likely just approved/rejected, it might be removed from the list.
+        // We should check if there are ANY pending vouchers remaining.
+        let pendingVouchers = [];
+
+        // For all roles, filter out the current voucher ID from the pending list
+        pendingVouchers = sourceList.filter(v =>
+            String(v.id) !== String(voucherId)
+        );
+
+        if (pendingVouchers.length > 0) {
+            // Go to the first pending/next voucher
+            const nextVoucher = pendingVouchers[0];
+            navigate(`/finance/vouchers/${nextVoucher.id}`, {
+                state: {
+                    voucher: nextVoucher,
+                    // Pass the UDPATED full list so consistent navigation works in next screen
+                    vouchers: updatedList || voucherList,
+                    organisationId,
+                    entityName,
+                    organizationName
+                },
+                replace: true
+            });
         } else {
-            // No more vouchers in the filtered list
+            // Check for pending invoices if Client Master Admin
+            if (user?.role === 'CLIENT_MASTER_ADMIN') {
+                try {
+                    const entityId = voucher?.entity_id || localStorage.getItem('entityId');
+                    if (entityId) {
+                        const invoices = await getInvoices(entityId, user.access_token);
+                        const pendingInvoices = invoices.filter(inv => inv.status === 'pending_master_admin_approval');
+
+                        if (pendingInvoices.length > 0) {
+                            setCompletionModalType('go_to_invoices');
+                            setShowCompletionModal(true);
+                            return;
+                        }
+                    }
+                } catch (err) {
+                    console.error("Failed to check pending invoices:", err);
+                }
+            }
+
+            // No more vouchers (and no pending invoices for Master Admin)
+            setCompletionModalType('all_done');
             setShowCompletionModal(true);
         }
     };
@@ -1309,16 +1409,25 @@ const VoucherDetailsPage = () => {
 
                 // Auto-navigate to next voucher if available
                 // This mimics the CA panel behavior
-                if (status !== 'rejected') { // Don't auto-next on reject if we want them to see the modal? No, user said "do same navigation thing"
-                    // Actually CA panel auto-nexts on both approve and reject.
-                    // The requirement is "if pending_master_admin_approval status show that only in the navigation list if all completed then show model"
-                    // So we should auto-next.
+                if (status !== 'rejected') {
+                    // Update local list
+                    const updatedList = voucherList.map(v =>
+                        String(v.id) === String(voucherId) ? { ...v, status: status } : v
+                    );
+                    setVoucherList(updatedList);
+
                     setTimeout(() => {
-                        handleAutoNext();
+                        handleAutoNext(updatedList);
                     }, 500);
                 } else {
+                    // Even on reject, we want to update list and navigate
+                    const updatedList = voucherList.map(v =>
+                        String(v.id) === String(voucherId) ? { ...v, status: 'rejected' } : v
+                    );
+                    setVoucherList(updatedList);
+
                     setTimeout(() => {
-                        handleAutoNext();
+                        handleAutoNext(updatedList);
                     }, 500);
                 }
             }
@@ -2517,21 +2626,76 @@ const VoucherDetailsPage = () => {
                 >
                     <div className="flex flex-col items-center justify-center py-6 text-center">
                         <div className="mb-4 rounded-full bg-green-500/20 p-3">
-                            <CheckCircle className="h-12 w-12 text-green-500" />
+                            {completionModalType === 'go_to_invoices' ? (
+                                <AlertCircle className="h-12 w-12 text-yellow-500" />
+                            ) : (
+                                <CheckCircle className="h-12 w-12 text-green-500" />
+                            )}
                         </div>
                         <DialogHeader>
-                            <DialogTitle className="text-xl mb-2 text-center">All Caught Up!</DialogTitle>
+                            <DialogTitle className="text-xl mb-2 text-center">
+                                {completionModalType === 'go_to_invoices' ? 'Vouchers Complete!' : 'All Caught Up!'}
+                            </DialogTitle>
                             <DialogDescription className="text-center text-gray-400">
-                                You have processed all pending vouchers.
+                                {completionModalType === 'go_to_invoices'
+                                    ? 'You have completed all vouchers, but there are pending invoices requiring your attention.'
+                                    : 'You have processed all pending vouchers.'}
                             </DialogDescription>
                         </DialogHeader>
-                        <div className="mt-8">
-                            <Button
-                                onClick={() => navigate('/')}
-                                className="bg-blue-600 hover:bg-blue-700 text-white min-w-[200px]"
-                            >
-                                Go to Dashboard
-                            </Button>
+                        <div className="mt-8 flex gap-3 w-full justify-center">
+                            {completionModalType === 'go_to_invoices' ? (
+                                <>
+                                    <Button
+                                        onClick={() => navigate('/')}
+                                        variant="outline"
+                                        className="border-white/20 text-white hover:bg-white/10"
+                                    >
+                                        Dashboard
+                                    </Button>
+                                    <Button
+                                        onClick={async () => {
+                                            // Navigate to first pending invoice
+                                            try {
+                                                const entityId = voucher?.entity_id || localStorage.getItem('entityId');
+                                                if (entityId) {
+                                                    const invoices = await getInvoices(entityId, user.access_token);
+                                                    const pendingInvoices = invoices.filter(inv => inv.status === 'pending_master_admin_approval');
+
+                                                    if (pendingInvoices.length > 0) {
+                                                        pendingInvoices.sort((a, b) => new Date(b.created_date || b.date) - new Date(a.created_date || a.date));
+                                                        const nextInvoice = pendingInvoices[0];
+                                                        navigate(location.pathname.includes('/finance/invoices') ? `/finance/invoices/${nextInvoice.id}` : `/invoices/${nextInvoice.id}`, {
+                                                            state: {
+                                                                invoice: nextInvoice,
+                                                                invoices: pendingInvoices,
+                                                                organizationName,
+                                                                entityName
+                                                            },
+                                                            replace: true
+                                                        });
+                                                    } else {
+                                                        navigate('/finance/invoices');
+                                                    }
+                                                } else {
+                                                    navigate('/finance/invoices');
+                                                }
+                                            } catch (e) {
+                                                navigate('/finance/invoices');
+                                            }
+                                        }}
+                                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                                    >
+                                        Go to Invoices
+                                    </Button>
+                                </>
+                            ) : (
+                                <Button
+                                    onClick={() => navigate('/')}
+                                    className="bg-blue-600 hover:bg-blue-700 text-white min-w-[200px]"
+                                >
+                                    Go to Dashboard
+                                </Button>
+                            )}
                         </div>
                     </div>
                 </DialogContent>

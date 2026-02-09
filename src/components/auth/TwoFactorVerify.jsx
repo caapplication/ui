@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useToast } from '@/components/ui/use-toast';
-import { ShieldCheck, KeyRound, ArrowLeft } from 'lucide-react';
+import { ShieldCheck, KeyRound, ArrowLeft, RefreshCw } from 'lucide-react';
+import { resend2FA } from '@/lib/api';
 
 const TwoFactorVerify = () => {
   const navigate = useNavigate();
@@ -62,6 +63,32 @@ const TwoFactorVerify = () => {
     }
   };
 
+  const handleResendOtp = async () => {
+    try {
+      if (loginAttemptData && loginAttemptData.access_token) {
+        await resend2FA(loginAttemptData.access_token);
+        toast({
+          title: "OTP Resent",
+          description: "A new verification code has been sent to your email.",
+        });
+      } else {
+        // If we don't have the token (direct login case without partial state), we might need to re-login first.
+        // But for this flow, we usually have loginAttemptData if we came from login.
+        toast({
+          title: "Cannot Resend",
+          description: "Please log in again to receive a new code.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Resend Failed",
+        description: error.message || "Failed to resend OTP.",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (!loginAttemptData && !email) {
     return null;
   }
@@ -87,7 +114,7 @@ const TwoFactorVerify = () => {
             </motion.div>
             <CardTitle className="text-3xl font-bold gradient-text">Two-Factor Auth</CardTitle>
             <CardDescription className="text-gray-300">
-              Enter the 6-digit code from your authenticator app.
+              Enter the 6-digit code sent to your email.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -107,6 +134,17 @@ const TwoFactorVerify = () => {
                     autoFocus
                   />
                 </div>
+              </div>
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  variant="link"
+                  onClick={handleResendOtp}
+                  className="text-sky-400 hover:text-sky-300 p-0 h-auto font-normal text-sm"
+                >
+                  <RefreshCw className="w-3 h-3 mr-1" />
+                  Resend Code
+                </Button>
               </div>
               <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                 <Button

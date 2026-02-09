@@ -185,7 +185,13 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onRefresh, i
     const beneficiaryName = getBeneficiaryName(invoice);
     // Find the index of the clicked invoice in the filtered invoices list
     const invoiceIndex = filteredInvoices.findIndex(inv => inv.id === invoice.id);
-    navigate(`/invoices/${invoice.id}`, {
+
+    // Determine the route based on user role
+    const path = (user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM')
+      ? `/invoices/ca/${invoice.id}`
+      : `/invoices/${invoice.id}`;
+
+    navigate(path, {
       state: {
         invoice,
         beneficiaryName,
