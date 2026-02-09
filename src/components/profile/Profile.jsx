@@ -52,6 +52,7 @@ const Profile = () => {
     const [is2faDialogOpen, setIs2faDialogOpen] = useState(false);
     const [qrCodeImage, setQrCodeImage] = useState(null);
     const [verificationCode, setVerificationCode] = useState('');
+    const [twoFactorPassword, setTwoFactorPassword] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isLoadingProfile, setIsLoadingProfile] = useState(true);
 
@@ -138,8 +139,7 @@ const Profile = () => {
                 updateUser({ is_2fa_enabled: false });
                 toast({ title: "Success", description: "Two-Factor Authentication has been disabled." });
             } else {
-                const response = await toggle2FA(true, user.access_token);
-                setQrCodeImage(response.qr_code_image);
+                setTwoFactorPassword('');
                 setIs2faDialogOpen(true);
             }
         } catch (error) {
@@ -149,15 +149,18 @@ const Profile = () => {
         }
     };
 
-    const handleVerify2FA = async () => {
+    const handleConfirmEnable2FA = async () => {
+        if (!twoFactorPassword) {
+            toast({ title: "Error", description: "Password is required.", variant: "destructive" });
+            return;
+        }
         setIsSubmitting(true);
         try {
-            await verify2FA(verificationCode, user.access_token);
+            await toggle2FA(true, user.access_token, twoFactorPassword);
             updateUser({ is_2fa_enabled: true });
             toast({ title: "Success", description: "Two-Factor Authentication has been enabled." });
             setIs2faDialogOpen(false);
-            setVerificationCode('');
-            setQrCodeImage(null);
+            setTwoFactorPassword('');
         } catch (error) {
             toast({ title: "Error", description: error.message, variant: "destructive" });
         } finally {
@@ -364,37 +367,24 @@ const Profile = () => {
                     <DialogHeader>
                         <DialogTitle>Enable Two-Factor Authentication</DialogTitle>
                         <DialogDescription>
-                            Scan the QR code with your authenticator app, then enter the verification code below.
+                            Please enter your account password to enable Two-Factor Authentication.
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="flex flex-col items-center gap-4 py-4">
-                        {qrCodeImage ? (
-                            <div className="p-2 bg-white rounded-lg">
-                                <img src={qrCodeImage} alt="2FA QR Code" />
-                            </div>
-                        ) : (
-                            <div className="w-[200px] h-[200px] bg-gray-700 animate-pulse rounded-lg flex items-center justify-center">
-                                <p className="text-sm text-gray-400">Loading QR...</p>
-                            </div>
-                        )}
-                        <div>
-                            <Label htmlFor="verification-code" className="sr-only">Verification Code</Label>
-                            <Input
-                                id="verification-code"
-                                placeholder="Enter 6-digit code"
-                                value={verificationCode}
-                                onChange={(e) => setVerificationCode(e.target.value)}
-                                maxLength={6}
-                                className="w-48 text-center text-lg tracking-[0.2em]"
-                            />
-                        </div>
+                    <div className="py-4">
+                        <Label htmlFor="2fa-password">Account Password</Label>
+                        <PasswordInput
+                            id="2fa-password"
+                            placeholder="Enter your password"
+                            value={twoFactorPassword}
+                            onChange={(e) => setTwoFactorPassword(e.target.value)}
+                        />
                     </div>
                     <DialogFooter>
                         <DialogClose asChild>
                             <Button variant="ghost">Cancel</Button>
                         </DialogClose>
-                        <Button onClick={handleVerify2FA} disabled={isSubmitting || verificationCode.length < 6}>
-                            {isSubmitting ? 'Verifying...' : 'Verify & Enable'}
+                        <Button onClick={handleConfirmEnable2FA} disabled={isSubmitting || !twoFactorPassword}>
+                            {isSubmitting ? 'Enabling...' : 'Confirm & Enable'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

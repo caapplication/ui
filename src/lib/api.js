@@ -24,6 +24,7 @@ export const {
     updatePassword,
     toggle2FA,
     verify2FA,
+    resend2FA,
     get2FAStatus,
     uploadProfilePicture,
     deleteProfilePicture

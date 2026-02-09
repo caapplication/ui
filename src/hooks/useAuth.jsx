@@ -1,5 +1,6 @@
 import React, { useState, useEffect, createContext, useContext, useCallback, useRef } from 'react';
 import { getProfile as apiGetProfile, getEntities as apiGetEntities, refreshToken as apiRefreshToken, verify2FA as apiVerify2FA, get2FAStatus as apiGet2FAStatus } from '@/lib/api';
+import { encryptData } from '@/lib/api/crypto';
 import { listClientsByOrganization } from '@/lib/api/clients';
 import { useNavigate } from 'react-router-dom';
 import { clearAttachmentCache } from '@/lib/cache';
@@ -168,7 +169,8 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password, otp = null) => {
     const loginApiUrl = import.meta.env.VITE_LOGIN_API_URL || 'http://127.0.0.1:8001';
-    const bodyParams = { email, password };
+    const encryptedPassword = await encryptData(password);
+    const bodyParams = { email, password: encryptedPassword };
     if (otp) {
       bodyParams.otp = otp;
     }
@@ -361,7 +363,7 @@ export const AuthProvider = ({ children }) => {
 
   const verifyOtpAndFinishLogin = async (loginData, otp) => {
     const { access_token } = loginData;
-    await apiVerify2FA(access_token, otp);
+    await apiVerify2FA(otp, access_token);
     finishLogin(loginData);
   }
 

@@ -21,7 +21,8 @@ export const {
   updateName,
   updatePassword,
   toggle2FA,
-  verify2FA
+  verify2FA,
+  resend2FA
 } = auth;
 
 export const {
