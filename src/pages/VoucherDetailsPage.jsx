@@ -267,7 +267,8 @@ const VoucherDetailsPage = () => {
     const isCaUser = user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM';
 
     // Debug the values to understand why buttons aren't hiding
-    const hideClientActions = (isClientUser || user?.role === 'client_user') && (voucher?.status === 'pending_ca_approval');
+    // Hide actions if status is 'pending_ca_approval' OR 'verified'
+    const hideClientActions = (isClientUser || user?.role === 'client_user') && (voucher?.status === 'pending_ca_approval' || voucher?.status === 'verified');
 
     console.log('Visibility Logic:', {
         role: user?.role,
