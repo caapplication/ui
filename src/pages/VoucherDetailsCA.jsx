@@ -1363,7 +1363,10 @@ const VoucherDetailsCA = () => {
         ? (voucherDetails.beneficiary.beneficiary_type === 'individual' ? voucherDetails.beneficiary.name : voucherDetails.beneficiary.company_name)
         : voucherDetails.beneficiaryName || 'N/A';
 
+    const [isExportingPDF, setIsExportingPDF] = React.useState(false);
+
     const handleServerPDFExport = async () => {
+        setIsExportingPDF(true);
         try {
             const response = await fetch(`${import.meta.env.VITE_FINANCE_API_URL}/api/vouchers/${voucherId}/generate_pdf`, {
                 method: 'GET',
@@ -1394,6 +1397,8 @@ const VoucherDetailsCA = () => {
                 description: 'Failed to export PDF',
                 variant: 'destructive'
             });
+        } finally {
+            setIsExportingPDF(false);
         }
     };
 
@@ -1979,11 +1984,16 @@ const VoucherDetailsCA = () => {
                                                                                 className="h-9 sm:h-10"
                                                                                 onClick={handleServerPDFExport}
                                                                                 disabled={
-                                                                                    voucher?.payment_type === 'bank_transfer' &&
-                                                                                    (!fromBankAccounts.length || !toBankAccounts.length)
+                                                                                    isExportingPDF ||
+                                                                                    (voucher?.payment_type === 'bank_transfer' &&
+                                                                                        (!fromBankAccounts.length || !toBankAccounts.length))
                                                                                 }
                                                                             >
-                                                                                <FileText className="h-4 w-4" />
+                                                                                {isExportingPDF ? (
+                                                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                                                ) : (
+                                                                                    <FileText className="h-4 w-4" />
+                                                                                )}
                                                                             </Button>
                                                                         </TooltipTrigger>
                                                                         <TooltipContent>
