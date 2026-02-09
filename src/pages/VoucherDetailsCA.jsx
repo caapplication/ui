@@ -2219,7 +2219,7 @@ const VoucherDetailsCA = () => {
                                                     if (pendingInvoices.length > 0) {
                                                         pendingInvoices.sort((a, b) => new Date(b.created_date || b.date) - new Date(a.created_date || a.date));
                                                         const nextInvoice = pendingInvoices[0];
-                                                        navigate(`/invoices/ca/${nextInvoice.id}`, {
+                                                        navigate(`/invoices/${nextInvoice.id}`, {
                                                             state: {
                                                                 invoice: nextInvoice,
                                                                 invoices: pendingInvoices,

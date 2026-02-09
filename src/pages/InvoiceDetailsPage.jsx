@@ -3,7 +3,7 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useOrganisation } from '@/hooks/useOrganisation';
 import { useApiCache } from '@/contexts/ApiCacheContext.jsx';
-import { deleteInvoice, updateInvoice, getBeneficiaries, getInvoiceAttachment, getFinanceHeaders, getInvoices, getVouchers, FINANCE_API_BASE_URL } from '@/lib/api';
+import { deleteInvoice, updateInvoice, getBeneficiaries, getInvoiceAttachment, getInvoices, getVouchers, FINANCE_API_BASE_URL } from '@/lib/api';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/resizable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.jsx";
 import ActivityLog from '@/components/finance/ActivityLog';
-import { Combobox } from '@/components/ui/combobox';
+
 
 const DetailItem = ({ label, value }) => (
     <div className="flex justify-between items-center py-2 border-b border-white/10">
@@ -63,7 +63,7 @@ const InvoiceDetailsPage = () => {
     const [allAttachmentIds, setAllAttachmentIds] = useState([]);
     const [currentAttachmentIndex, setCurrentAttachmentIndex] = useState(0);
     const [zoom, setZoom] = useState(1);
-    const [financeHeaders, setFinanceHeaders] = useState([]);
+
     const [invoices, setInvoices] = useState(invoicesFromState || []);
     const [currentIndex, setCurrentIndex] = useState(currentIndexFromState ?? -1);
     const [loadingInvoice, setLoadingInvoice] = useState(false);
@@ -79,8 +79,7 @@ const InvoiceDetailsPage = () => {
     const [showCompletionModal, setShowCompletionModal] = useState(false);
     const [completionModalType, setCompletionModalType] = useState('all_done'); // 'all_done' or 'go_to_vouchers'
 
-    // Determine if the current user is a client user
-    const isClientUser = user?.role === 'CLIENT_USER' || user?.role === 'CLIENT_MASTER_ADMIN';
+
 
     // Hide scrollbars globally for this page
     useEffect(() => {
@@ -111,7 +110,7 @@ const InvoiceDetailsPage = () => {
             return invoice.entity.name;
         }
 
-        // Priority 2: Check if entityId is in localStorage (most reliable for client context)
+        // Priority 2: Check if entityId is in localStorage
         const entityId = localStorage.getItem('entityId') || invoice?.entity?.id;
 
         // Priority 3: Check user.entities if available
@@ -122,9 +121,6 @@ const InvoiceDetailsPage = () => {
 
         // Priority 4: Check location state
         if (entityName) return entityName;
-
-        // Priority 5: If invoice has entity_name (sometimes populated)
-        if (invoice?.entity_name) return invoice.entity_name;
 
         return 'N/A';
     };
@@ -341,13 +337,7 @@ const InvoiceDetailsPage = () => {
                         setIsImageLoading(false);
                     }
 
-                    if (user && (user.role === 'CA_ACCOUNTANT' || user.role === 'CA_TEAM')) {
-                        promises.push(
-                            getFinanceHeaders(user.agency_id, user.access_token)
-                                .then(headers => setFinanceHeaders(headers))
-                                .catch(err => console.error("Failed to fetch finance headers:", err))
-                        );
-                    }
+
 
                     // Fetch beneficiaries
                     const orgIdToFetch = organisationId || user.organization_id;
@@ -1008,9 +998,6 @@ const InvoiceDetailsPage = () => {
         if (!invoices || !Array.isArray(invoices)) return [];
 
         return invoices.filter(inv => {
-            if (user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') {
-                return inv.status === 'pending_ca_approval';
-            }
             if (user?.role === 'CLIENT_MASTER_ADMIN') {
                 return inv.status === 'pending_master_admin_approval';
             }
@@ -1079,7 +1066,6 @@ const InvoiceDetailsPage = () => {
 
             if (pending.length > 0) {
                 nextInvoice = pending[0];
-                // Update the list state passed to next page to prevent showing old status
                 if (newStatus) {
                     nextInvoicesList = invoices.map(inv =>
                         String(inv.id) === String(invoiceId)
@@ -1105,36 +1091,9 @@ const InvoiceDetailsPage = () => {
                     console.error("Failed to check for pending vouchers:", error);
                 }
             }
-        } else {
-            // Fallback for other roles or general case
-            if (currentFilteredIndex !== -1 && currentFilteredIndex + 1 < filteredInvoices.length) {
-                nextInvoice = filteredInvoices[currentFilteredIndex + 1];
-                // For other roles, we might also want to update the list, but sticking to existing flow for now
-                if (newStatus) {
-                    nextInvoicesList = invoices.map(inv =>
-                        String(inv.id) === String(invoiceId)
-                            ? { ...inv, status: newStatus }
-                            : inv
-                    );
-                }
-            }
         }
 
         if (nextInvoice) {
-            navigate(`/finances/invoices/${nextInvoice.id}`, { // Assuming route is finance/invoices or invoices/ ? Wait, Check route.
-                // Original used: navigate(`/invoices/${nextInvoice.id}`...
-                // But wait, InvoiceDetailsPage is usually at /finance/invoices/:id for Master Admin?
-                // Step 1427 showed navigate(`/finance/invoices/${nextInvoice.id}`) in VoucherDetailsPage logic.
-                // InvoiceDetailsPage is usually mounted at /finance/invoices/:id or /invoices/:id?
-                // Let's stick to what handleNavigate used: navigate(`/invoices/${nextInvoice.id}`... 
-                // Wait, handleNavigate used navigate(`/invoices/${nextInvoice.id}`... in Step 1369 view.
-                // Actually Step 1369 line 1053: navigate(`/invoices/${nextInvoice.id}`, ...
-                // BUT Step 1361 line 694 (VoucherDetailsPage) used: navigate(`/finance/vouchers/${nextVoucher.id}`
-                // Let's check imports or route definitions? 
-                // I will use relative path or what was there.
-                // The previous code had `navigate(`/invoices/${nextInvoice.id}`, ...`
-            });
-            // Re-using the navigate logic below
             navigate(`/invoices/${nextInvoice.id}`, {
                 state: {
                     invoice: nextInvoice,
@@ -1147,49 +1106,12 @@ const InvoiceDetailsPage = () => {
                 replace: true
             });
         } else {
-            // If not Master Admin or Master Admin found no pending items (and no vouchers)
             setCompletionModalType('all_done');
             setShowCompletionModal(true);
         }
     };
 
-    // Tag logic
-    const handleTag = async () => {
-        if (!editedInvoice.finance_header_id) {
-            toast({
-                title: 'Validation Error',
-                description: 'Please select a header before tagging the invoice.',
-                variant: 'destructive',
-            });
-            return;
-        }
 
-        try {
-            const entityId = selectedEntity || localStorage.getItem('entityId');
-            // When tagging, we also mark as verified
-            updateInvoice(invoiceId, entityId, {
-                is_ready: true,
-                finance_header_id: Number(editedInvoice.finance_header_id),
-                status: 'verified'
-            }, user.access_token);
-            toast({ title: 'Success', description: 'Invoice tagged and verified successfully.' });
-
-            // Update the local invoices list state to reflect the change immediately
-            setInvoices(prevInvoices => prevInvoices.map(inv =>
-                inv.id === invoiceId
-                    ? { ...inv, status: 'verified', is_ready: true, finance_header_id: Number(editedInvoice.finance_header_id) }
-                    : inv
-            ));
-
-            handleAutoNext('verified');
-        } catch (error) {
-            toast({
-                title: 'Error',
-                description: `Failed to tag invoice: ${error.message}`,
-                variant: 'destructive',
-            });
-        }
-    };
 
     // Skeleton loading component
     const InvoiceDetailsSkeleton = () => (
@@ -1281,8 +1203,8 @@ const InvoiceDetailsPage = () => {
     }
 
 
-    const defaultTab = isClientUser ? 'details' : 'details';
-    const cols = isClientUser ? 'grid-cols-3' : 'grid-cols-3';
+    const defaultTab = 'details';
+    const cols = 'grid-cols-3';
 
     return (
         <div className="h-screen w-full flex flex-col text-white bg-transparent p-3 sm:p-4 md:p-6" style={{ paddingBottom: hasInvoices ? '6rem' : '1.5rem' }}>
@@ -1448,24 +1370,8 @@ const InvoiceDetailsPage = () => {
                                                 <Label htmlFor="remarks">Remarks</Label>
                                                 <Input name="remarks" defaultValue={editedInvoice.remarks} />
                                             </div>
-                                            {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
-                                                <div>
-                                                    <Label htmlFor="finance_header_id">Header</Label>
-                                                    <Combobox
-                                                        options={[...financeHeaders].sort((a, b) => a.name.localeCompare(b.name)).map(h => ({ value: String(h.id), label: h.name }))}
-                                                        value={editedInvoice?.finance_header_id ? String(editedInvoice.finance_header_id) : ''}
-                                                        onValueChange={(val) => setEditedInvoice(p => ({ ...p, finance_header_id: val ? Number(val) : null }))}
-                                                        placeholder="Select a header"
-                                                        searchPlaceholder="Search headers..."
-                                                        className="w-full h-11 bg-white/10 border-white/20 text-white hover:bg-white/20"
-                                                    />
-                                                </div>
-                                            )}
-                                            {/* Hidden inputs to ensure beneficiary_id and finance_header_id are in FormData */}
+
                                             <input type="hidden" name="beneficiary_id" value={editedInvoice?.beneficiary_id || ''} />
-                                            {user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM' ? (
-                                                <input type="hidden" name="finance_header_id" value={editedInvoice?.finance_header_id || ''} />
-                                            ) : null}
                                             <div className="flex justify-end gap-2">
                                                 <Button variant="ghost" onClick={() => setIsEditing(false)} disabled={isDeleting}>Cancel</Button>
                                                 <Button type="submit" disabled={isDeleting}>
@@ -1514,23 +1420,11 @@ const InvoiceDetailsPage = () => {
                                                                 <p className="text-sm text-white">{invoiceDetails.status_remarks}</p>
                                                             </div>
                                                             {(invoiceDetails.status === 'rejected_by_ca' || invoiceDetails.status === 'rejected_by_master_admin') && (
-                                                                <p className="text-xs text-gray-400 mt-2">Click Edit to make changes and resubmit to CA for review.</p>
+                                                                <p className="text-xs text-gray-400 mt-2">Click Edit to make changes and resubmit for review.</p>
                                                             )}
                                                         </div>
                                                     )}
-                                                    {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
-                                                        <div className="pt-4">
-                                                            <Label htmlFor="finance_header_id">Header</Label>
-                                                            <Combobox
-                                                                options={[...financeHeaders].sort((a, b) => a.name.localeCompare(b.name)).map(h => ({ value: String(h.id), label: h.name }))}
-                                                                value={editedInvoice?.finance_header_id ? String(editedInvoice.finance_header_id) : ""}
-                                                                onValueChange={(val) => setEditedInvoice(p => ({ ...p, finance_header_id: val ? Number(val) : null }))}
-                                                                placeholder="Select a header"
-                                                                searchPlaceholder="Search headers..."
-                                                                className="w-full h-11 bg-white/10 border-white/20 text-white hover:bg-white/20"
-                                                            />
-                                                        </div>
-                                                    )}
+
                                                 </CardContent>
                                             </div>
                                             <div className="flex items-center gap-3 pb-10 mb-20 sm:mb-16 md:mb-4 justify-center relative z-[100] px-4 sm:px-6 action-buttons-container">
@@ -1538,7 +1432,7 @@ const InvoiceDetailsPage = () => {
                                                 <div className="flex items-center gap-3 relative z-[100]">
                                                     <TooltipProvider delayDuration={0}>
                                                         {/* 1. Delete (Icon) - Restricted for CA */}
-                                                        {isEditable && !isReadOnly && user?.role !== 'CA_ACCOUNTANT' && user?.role !== 'CA_TEAM' && !invoiceDetails.is_deleted && (
+                                                        {isEditable && !isReadOnly && !invoiceDetails.is_deleted && (
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>
                                                                     <Button variant="destructive" size="icon" onClick={() => setShowDeleteDialog(true)} className="h-9 w-9 sm:h-10 sm:w-10">
@@ -1550,7 +1444,7 @@ const InvoiceDetailsPage = () => {
                                                         )}
 
                                                         {/* 2. Edit (Icon) - Restricted for CA */}
-                                                        {isEditable && !isReadOnly && user?.role !== 'CA_ACCOUNTANT' && user?.role !== 'CA_TEAM' && !invoiceDetails.is_deleted && (
+                                                        {isEditable && !isReadOnly && !invoiceDetails.is_deleted && (
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>
                                                                     <Button variant="outline" size="icon" onClick={() => setIsEditing(!isEditing)} className="h-9 w-9 sm:h-10 sm:w-10 bg-white/5 border-white/10">
@@ -1581,18 +1475,6 @@ const InvoiceDetailsPage = () => {
                                                             </Button>
                                                             <Button onClick={() => setShowRejectDialog(true)} disabled={isStatusUpdating} variant="reject" className="h-9 sm:h-10" size="sm">
                                                                 {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />} Reject
-                                                            </Button>
-                                                        </>
-                                                    )}
-
-                                                    {/* CA/Team Actions */}
-                                                    {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && !isReadOnly && !invoiceDetails.is_deleted && (invoiceDetails.status === 'pending_ca_approval' || invoiceDetails.status === 'pending_approval' || invoiceDetails.status === 'created') && (
-                                                        <>
-                                                            <Button onClick={() => setShowRejectDialog(true)} disabled={isStatusUpdating} variant="reject" className="h-9 sm:h-10" size="sm">
-                                                                {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />} Reject
-                                                            </Button>
-                                                            <Button onClick={handleTag} variant="approve" className="h-9 sm:h-10" size="sm">
-                                                                {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />} Tag
                                                             </Button>
                                                         </>
                                                     )}
@@ -1800,32 +1682,8 @@ const InvoiceDetailsPage = () => {
                                         <Label htmlFor="remarks" className="text-sm">Remarks</Label>
                                         <Input name="remarks" defaultValue={editedInvoice.remarks} className="text-sm" />
                                     </div>
-                                    {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
-                                        <div>
-                                            <Label htmlFor="finance_header_id" className="text-sm">Header</Label>
-                                            <Select
-                                                name="finance_header_id"
-                                                value={editedInvoice?.finance_header_id ? String(editedInvoice.finance_header_id) : ''}
-                                                onValueChange={(val) => setEditedInvoice(p => ({ ...p, finance_header_id: val ? Number(val) : null }))}
-                                            >
-                                                <SelectTrigger className="text-sm">
-                                                    <SelectValue placeholder="Select a header" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {financeHeaders.map((h) => (
-                                                        <SelectItem key={h.id} value={String(h.id)}>
-                                                            {h.name}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    )}
-                                    {/* Hidden inputs to ensure beneficiary_id and finance_header_id are in FormData */}
+
                                     <input type="hidden" name="beneficiary_id" value={editedInvoice?.beneficiary_id || ''} />
-                                    {user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM' ? (
-                                        <input type="hidden" name="finance_header_id" value={editedInvoice?.finance_header_id || ''} />
-                                    ) : null}
                                     <div className="flex justify-end gap-2">
                                         <Button variant="ghost" onClick={() => setIsEditing(false)} disabled={isDeleting} className="text-sm">Cancel</Button>
                                         <Button type="submit" disabled={isDeleting} className="text-sm">
@@ -1868,27 +1726,7 @@ const InvoiceDetailsPage = () => {
                                                     </p>
                                                 </div>
                                             )}
-                                            {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
-                                                <div className="pt-4">
-                                                    <Label htmlFor="finance_header_id" className="text-sm">Header</Label>
-                                                    <Select
-                                                        name="finance_header_id"
-                                                        value={editedInvoice.finance_header_id || ""}
-                                                        onValueChange={(value) => setEditedInvoice(p => ({ ...p, finance_header_id: value }))}
-                                                    >
-                                                        <SelectTrigger className="text-sm">
-                                                            <SelectValue placeholder="Select a header" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            {financeHeaders.map((h) => (
-                                                                <SelectItem key={h.id} value={h.id}>
-                                                                    {h.name}
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-                                            )}
+
                                         </CardContent>
                                     </div>
                                     <div className="flex items-center gap-3 mt-4 mb-20 sm:mb-16 md:mb-4 justify-end relative z-[100] px-4 action-buttons-container">
@@ -1896,7 +1734,7 @@ const InvoiceDetailsPage = () => {
                                         <div className="flex items-center gap-3 relative z-[100]">
                                             <TooltipProvider delayDuration={0}>
                                                 {/* 1. Delete (Icon) */}
-                                                {isEditable && !isReadOnly && user?.role !== 'CA_ACCOUNTANT' && user?.role !== 'CA_TEAM' && !invoiceDetails.is_deleted && (
+                                                {isEditable && !isReadOnly && !invoiceDetails.is_deleted && (
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
                                                             <Button variant="destructive" size="icon" onClick={() => setShowDeleteDialog(true)} className="h-9 w-9 sm:h-10 sm:w-10">
@@ -1908,7 +1746,7 @@ const InvoiceDetailsPage = () => {
                                                 )}
 
                                                 {/* 2. Edit (Icon) */}
-                                                {isEditable && !isReadOnly && user?.role !== 'CA_ACCOUNTANT' && user?.role !== 'CA_TEAM' && !invoiceDetails.is_deleted && (
+                                                {isEditable && !isReadOnly && !invoiceDetails.is_deleted && (
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
                                                             <Button variant="outline" size="icon" onClick={() => setIsEditing(!isEditing)} className="h-9 w-9 sm:h-10 sm:w-10 bg-white/5 border-white/10">
@@ -1943,17 +1781,7 @@ const InvoiceDetailsPage = () => {
                                                 </>
                                             )}
 
-                                            {/* CA/Team Actions */}
-                                            {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && !isReadOnly && !invoiceDetails.is_deleted && (invoiceDetails.status === 'pending_ca_approval' || invoiceDetails.status === 'pending_approval' || invoiceDetails.status === 'created') && (
-                                                <>
-                                                    <Button onClick={() => setShowRejectDialog(true)} disabled={isStatusUpdating} variant="reject" className="h-9 sm:h-10" size="sm">
-                                                        {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />} Reject
-                                                    </Button>
-                                                    <Button onClick={handleTag} variant="approve" className="h-9 sm:h-10" size="sm">
-                                                        {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />} Tag
-                                                    </Button>
-                                                </>
-                                            )}
+
                                         </div>
                                     </div>
                                 </Card>
@@ -2126,7 +1954,7 @@ const InvoiceDetailsPage = () => {
                         </Button>
                         <Button
                             variant="destructive"
-                            onClick={() => handleStatusUpdate(user?.role === 'CLIENT_MASTER_ADMIN' ? 'rejected_by_master_admin' : 'rejected_by_ca', rejectionRemarks)}
+                            onClick={() => handleStatusUpdate('rejected_by_master_admin', rejectionRemarks)}
                             disabled={isStatusUpdating || !rejectionRemarks.trim()}
                         >
                             {isStatusUpdating ? 'Rejecting...' : 'Reject Invoice'}

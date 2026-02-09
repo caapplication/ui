@@ -42,6 +42,7 @@ const InvoiceDetailsPage = lazy(() => import('@/pages/InvoiceDetailsPage.jsx'));
 const VoucherDetailsPage = lazy(() => import('@/pages/VoucherDetailsPage.jsx'));
 const VoucherDetailsCAPage = lazy(() => import('@/pages/VoucherDetailsCA.jsx'));
 const InvoiceDetailsCAPage = lazy(() => import('@/pages/InvoiceDetailsCA.jsx'));
+
 const BeneficiaryDetailsPage = lazy(() => import('@/pages/BeneficiaryDetailsPage.jsx'));
 const BeneficiaryLedger = lazy(() => import('@/components/beneficiaries/BeneficiaryLedger.jsx'));
 const BeneficiaryIndividualLedger = lazy(() => import('@/components/beneficiaries/BeneficiaryIndividualLedger.jsx'));
@@ -319,6 +320,7 @@ const ProtectedContent = () => {
               <Route path="/finance/vouchers/:voucherId" element={<VoucherDetailsPage />} />
               <Route path="/vouchers/ca/:voucherId" element={<VoucherDetailsCAPage />} />
               <Route path="/invoices/ca/:invoiceId" element={<InvoiceDetailsCAPage />} />
+
               <Route path="/beneficiaries/:beneficiaryId" element={<BeneficiaryDetailsPage />} />
               <Route path="/notices" element={<NoticesPage />} />
               <Route path="/notices/:noticeId" element={<NoticeDetailsPage />} />

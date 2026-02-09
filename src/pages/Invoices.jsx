@@ -236,7 +236,10 @@ const Invoices = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
 
   const handleViewInvoice = (invoice) => {
     const currentIndex = invoices.findIndex(inv => inv.id === invoice.id);
-    navigate(`/invoices/${invoice.id}`, { state: { invoice, invoices, currentIndex } });
+    const path = (user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM')
+      ? `/invoices/ca/${invoice.id}`
+      : `/invoices/${invoice.id}`;
+    navigate(path, { state: { invoice, invoices, currentIndex } });
   };
 
   return (
