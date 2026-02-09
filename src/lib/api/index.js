@@ -66,6 +66,7 @@ export const {
   shareDocument,
   viewFile,
   getSharedDocuments,
+  getSharedFolderContents,
   createPublicShareTokenDocument,
   createPublicShareTokenFolder,
   revokePublicShareTokenDocument,

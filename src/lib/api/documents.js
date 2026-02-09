@@ -113,6 +113,13 @@ export const getSharedDocuments = async (token, userRole, entityId) => {
     return handleResponse(response);
 };
 
+export const getSharedFolderContents = async (folderId, token) => {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/documents/shared/folder/${folderId}`, {
+        headers: getAuthHeaders(token),
+    });
+    return handleResponse(response);
+};
+
 export const shareFolder = async (folderId, email, token) => {
     const formData = new FormData();
     formData.append('email', email);

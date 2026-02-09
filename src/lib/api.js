@@ -90,6 +90,7 @@ export const {
     shareDocument,
     viewFile,
     getSharedDocuments,
+    getSharedFolderContents,
     createCAFolder,
     uploadCAFile,
     shareFolder,
