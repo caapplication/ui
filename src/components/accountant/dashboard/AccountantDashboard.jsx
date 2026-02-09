@@ -14,7 +14,6 @@ import {
   listAllClientUsers,
   listTeamMembers,
   listServices,
-  getAccountantDashboardStats,
   listAllEntities,
   getCATeamInvoicesBulk,
   getCATeamVouchersBulk,
@@ -103,7 +102,7 @@ const DetailBlock = ({ title, subtitle, count, data, columns, onViewMore, delay 
                       {row.col1}
                     </div>
                     <div className="col-span-4 text-right text-red-100 font-semibold text-xs sm:text-sm">
-                      {typeof row.col2 === 'number' ? `₹${row.col2.toLocaleString()}` : row.col2}
+                      {typeof row.col2 === 'number' ? row.col2.toLocaleString() : row.col2}
                     </div>
                   </div>
                 ))
@@ -172,21 +171,11 @@ const AccountantDashboard = () => {
         clientsData = await listClients(agencyId, token).catch(() => []);
       }
 
-      const [clientUsersData, teamData, servicesData, financeStats] = await Promise.all([
+      const [clientUsersData, teamData, servicesData] = await Promise.all([
         listAllClientUsers(token).catch(() => []),
         listTeamMembers(token).catch(() => []),
-        listServices(agencyId, token).catch(() => []),
-        getAccountantDashboardStats(token).catch(() => null)
+        listServices(agencyId, token).catch(() => [])
       ]);
-
-      setStats({
-        myClients: Array.isArray(clientsData) ? clientsData.length : (clientsData?.results?.length || 0),
-        clientUsers: Array.isArray(clientUsersData) ? clientUsersData.length : 0,
-        myTeam: Array.isArray(teamData) ? teamData.length : 0,
-        services: Array.isArray(servicesData) ? servicesData.length : 0,
-        revenue: financeStats?.total_revenue || 0,
-        due: financeStats?.total_due || 0
-      });
 
       // 2. Fetch Historical Trend Data (Last 15 Days)
       const entities = await listAllEntities(token).catch(() => []);
@@ -195,12 +184,32 @@ const AccountantDashboard = () => {
       const [invoices, vouchers, tasks, notices] = await Promise.all([
         entityIds.length > 0 ? getCATeamInvoicesBulk(entityIds, token).catch(() => []) : Promise.resolve([]),
         entityIds.length > 0 ? getCATeamVouchersBulk(entityIds, token).catch(() => []) : Promise.resolve([]),
-        listTasks(agencyId, token).catch(() => ({ items: [] })),
+        listTasks(agencyId, token).catch(() => []),
         getNotices(null, token).catch(() => [])
       ]);
 
-      const tasksList = tasks.items || [];
+      const tasksList = Array.isArray(tasks) ? tasks : (tasks?.items || []);
       const noticesList = notices || [];
+
+      // Compute Revenue & Due from actual invoice/voucher data
+      const totalRevenue = [
+        ...invoices.filter(i => i.status === 'verified'),
+        ...vouchers.filter(v => v.status === 'verified')
+      ].reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+
+      const totalDue = [
+        ...invoices.filter(i => i.status === 'pending_ca_approval' || i.status === 'pending_master_admin_approval' || i.status === 'created' || i.status === 'pending_approval'),
+        ...vouchers.filter(v => v.status === 'pending_ca_approval' || v.status === 'pending_master_admin_approval' || v.status === 'created' || v.status === 'pending_approval')
+      ].reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+
+      setStats({
+        myClients: Array.isArray(clientsData) ? clientsData.length : (clientsData?.results?.length || 0),
+        clientUsers: Array.isArray(clientUsersData) ? clientUsersData.length : 0,
+        myTeam: Array.isArray(teamData) ? teamData.length : 0,
+        services: Array.isArray(servicesData) ? servicesData.length : 0,
+        revenue: totalRevenue,
+        due: totalDue
+      });
 
       // Process Trend Data
       const last15Days = [];
@@ -244,7 +253,7 @@ const AccountantDashboard = () => {
 
       const getEntityCounts = (items, filterFn = () => true) => {
         const counts = items.filter(filterFn).reduce((acc, item) => {
-          const eId = item.entity_id || item.entity;
+          const eId = item.entity_id || item.client_id || item.entity;
           if (eId && eId !== 'undefined' && eId !== 'null') {
             acc[eId] = (acc[eId] || 0) + 1;
           }
@@ -272,11 +281,17 @@ const AccountantDashboard = () => {
           .sort((a, b) => b.col2 - a.col2);
       };
 
+      // Pending verification: invoices + vouchers awaiting CA or admin approval
+      const pendingItems = [
+        ...invoices.filter(i => i.status === 'pending_ca_approval' || i.status === 'pending_master_admin_approval'),
+        ...vouchers.filter(v => v.status === 'pending_ca_approval' || v.status === 'pending_master_admin_approval')
+      ];
+
       setDetailBlocks({
         todayProgress: getTodayUserProgress(),
-        pendingVerification: getEntityCounts(vouchers, v => !v.is_verified && v.status !== 'REJECTED'),
-        ongoingTasks: getEntityCounts(tasksList, t => t.status !== 'CLOSED' && t.status !== 'COMPLETED'),
-        ongoingNotices: getEntityCounts(noticesList, n => n.status !== 'CLOSED' && n.status !== 'RESOLVED')
+        pendingVerification: getEntityCounts(pendingItems),
+        ongoingTasks: getEntityCounts(tasksList, t => t.status !== 'completed'),
+        ongoingNotices: getEntityCounts(noticesList, n => n.status !== 'closed')
       });
 
     } catch (error) {

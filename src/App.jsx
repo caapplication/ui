@@ -58,6 +58,9 @@ const TodayProgressExpanded = lazy(() => import('@/components/accountant/dashboa
 const PendingVerificationExpanded = lazy(() => import('@/components/accountant/dashboard/PendingVerificationExpanded.jsx'));
 const OngoingTasksExpanded = lazy(() => import('@/components/accountant/dashboard/OngoingTasksExpanded.jsx'));
 const OngoingNoticesExpanded = lazy(() => import('@/components/accountant/dashboard/OngoingNoticesExpanded.jsx'));
+const FinanceHeadersExpanded = lazy(() => import('@/components/dashboard/FinanceHeadersExpanded.jsx'));
+const RecentTransactionsExpanded = lazy(() => import('@/components/dashboard/RecentTransactionsExpanded.jsx'));
+const HeaderExpensesDetail = lazy(() => import('@/components/dashboard/HeaderExpensesDetail.jsx'));
 
 const FullScreenLoader = () => (
   <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden">
@@ -260,6 +263,9 @@ const ProtectedContent = () => {
               <Route path="/dashboard/pending-verification" element={<PendingVerificationExpanded />} />
               <Route path="/dashboard/ongoing-tasks" element={<OngoingTasksExpanded />} />
               <Route path="/dashboard/ongoing-notices" element={<OngoingNoticesExpanded />} />
+              <Route path="/dashboard/finance-headers" element={<FinanceHeadersExpanded entityId={currentEntity} />} />
+              <Route path="/dashboard/finance-headers/:headerId" element={<HeaderExpensesDetail entityId={currentEntity} />} />
+              <Route path="/dashboard/recent-transactions" element={<RecentTransactionsExpanded entityId={currentEntity} />} />
               <Route
                 path="/finance/*"
                 element={
