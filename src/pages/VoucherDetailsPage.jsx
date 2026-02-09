@@ -1280,6 +1280,40 @@ const VoucherDetailsPage = () => {
         ? (voucherDetails.beneficiary.beneficiary_type === 'individual' ? voucherDetails.beneficiary.name : voucherDetails.beneficiary.company_name)
         : voucherDetails.beneficiaryName || 'N/A';
 
+    const handleServerPDFExport = async () => {
+        try {
+            const response = await fetch(`${import.meta.env.VITE_FINANCE_API_URL}/api/vouchers/${voucherId}/generate_pdf`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${user.access_token}`,
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to generate PDF');
+            }
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `voucher-${voucherDetails.voucher_id || voucherId}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+            toast({ title: 'Success', description: 'PDF exported successfully' });
+        } catch (error) {
+            console.error('PDF export error:', error);
+            toast({
+                title: 'Error',
+                description: 'Failed to export PDF',
+                variant: 'destructive'
+            });
+        }
+    };
+
     const handleDelete = async () => {
         setIsDeleting(true);
         try {
@@ -1914,7 +1948,7 @@ const VoucherDetailsPage = () => {
                                                                         <Button
                                                                             variant="outline"
                                                                             size="icon"
-                                                                            onClick={handleExportToPDF}
+                                                                            onClick={handleServerPDFExport}
                                                                             disabled={
                                                                                 voucher?.payment_type === 'bank_transfer' &&
                                                                                 (!fromBankAccounts.length || !toBankAccounts.length)
