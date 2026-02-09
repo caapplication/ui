@@ -17,7 +17,6 @@ import {
     ArrowUpRight,
     ArrowDownRight,
     Calendar,
-    FileWarning,
     Eye,
     TrendingUp,
     CreditCard
@@ -45,8 +44,7 @@ import {
     LabelList,
     ReferenceLine,
 } from "recharts";
-import { listExpiringDocuments } from '@/lib/api/documents';
-import { differenceInDays, format } from 'date-fns';
+import { format } from 'date-fns';
 
 const StatCard = ({
     title,
@@ -199,7 +197,7 @@ const Dashboard = ({
     const [dashboardData, setDashboardData] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [vouchers, setVouchers] = useState([]);
-    const [expiringDocs, setExpiringDocs] = useState([]);
+    // Expiring docs moved to Documents section Renewals tab
     const [expensePeriod, setExpensePeriod] = useState("1month"); // Default to 1 month
 
     const isMobile = useMediaQuery("(max-width: 640px)");
@@ -218,14 +216,12 @@ const Dashboard = ({
         if (!entityId || !user?.access_token) return;
         setIsLoading(true);
         try {
-            const [dashData, vouchersData, docs] = await Promise.all([
+            const [dashData, vouchersData] = await Promise.all([
                 getDashboardData(entityId, user.access_token, user.agency_id),
                 getVouchersList(entityId, user.access_token),
-                listExpiringDocuments(user.access_token, (user.role === 'CLIENT_USER' || user.role === 'CLIENT_MASTER_ADMIN') ? entityId : null)
             ]);
             setDashboardData(dashData);
             setVouchers(Array.isArray(vouchersData) ? vouchersData : []);
-            setExpiringDocs(docs || []);
         } catch (error) {
             toast({
                 title: "Error fetching dashboard data",
@@ -466,44 +462,6 @@ const Dashboard = ({
                                     delay={index * 0.1}
                                 />
                             ))}
-                            <Card className="glass-card h-full">
-                                <CardHeader className="p-4 sm:p-6 pb-2">
-                                    <CardTitle className="text-xs sm:text-sm font-medium text-gray-300 flex items-center gap-2">
-                                        <FileWarning className="w-4 h-4 text-yellow-500" />
-                                        Expiring Documents
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="p-4 sm:p-6 pt-2">
-                                    {expiringDocs.length === 0 ? (
-                                        <div className="text-center py-4 text-gray-400 text-xs">None expiring soon.</div>
-                                    ) : (
-                                        <div className="space-y-3">
-                                            {expiringDocs.slice(0, 3).map(doc => {
-                                                const daysLeft = differenceInDays(new Date(doc.expiry_date), new Date());
-                                                return (
-                                                    <div key={doc.id} className="cursor-pointer group rounded bg-white/5 p-2 hover:bg-white/10 transition-colors"
-                                                        onClick={() => navigate(`/documents?folderId=${btoa(doc.folder_id || 'root')}&clientId=${btoa(doc.entity_id || '')}`)}>
-                                                        <div className="flex items-center justify-between gap-2 overflow-hidden">
-                                                            <div className="flex items-center gap-2 truncate">
-                                                                <FileText className="w-3 h-3 text-blue-400 shrink-0" />
-                                                                <span className="text-sm font-medium text-white truncate">{doc.name}</span>
-                                                            </div>
-                                                            <span className={`text-[10px] whitespace-nowrap ${daysLeft < 5 ? 'text-red-400' : 'text-yellow-400'}`}>
-                                                                {daysLeft}d left
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                            {expiringDocs.length > 3 && (
-                                                <div className="text-center pt-1">
-                                                    <span className="text-xs text-blue-400 cursor-pointer hover:underline" onClick={() => navigate('/documents')}>View All ({expiringDocs.length})</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
                         </div>
 
                         <Card className="glass-card mb-8">

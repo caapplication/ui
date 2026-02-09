@@ -59,6 +59,14 @@ export const resendInvite = async (email, token) => {
     return handleResponse(response);
 };
 
+export const listCATeamForClient = async (token) => {
+    const response = await fetch(`${API_BASE_URL}/team/ca-team-for-client`, {
+        method: 'GET',
+        headers: getAuthHeaders(token),
+    });
+    return handleResponse(response);
+};
+
 export const listDepartments = async (agencyId, token) => {
     const response = await fetch(`${TASKS_API_BASE_URL}/departments`, {
         method: 'GET',

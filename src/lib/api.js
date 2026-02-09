@@ -179,6 +179,7 @@ export const {
 export const {
     inviteTeamMember,
     listTeamMembers,
+    listCATeamForClient,
     updateTeamMember,
     deleteTeamMember,
     resendInvite,
