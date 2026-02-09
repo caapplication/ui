@@ -573,10 +573,10 @@ const BeneficiaryLedger = ({ entityId }) => {
                                             </span>
                                         </td>
                                         <td
-                                            className="py-4 pr-6 text-right cursor-pointer select-none hover:text-white transition-colors"
+                                            className="py-4 px-4 cursor-pointer select-none hover:text-white transition-colors"
                                             onClick={() => handleSort('debitTotal')}
                                         >
-                                            <span className="inline-flex items-center justify-end w-full">
+                                            <span className="inline-flex items-center">
                                                 By Debit
                                                 <SortIcon column="debitTotal" sortColumn={sortColumn} sortDirection={sortDirection} />
                                             </span>
@@ -607,7 +607,7 @@ const BeneficiaryLedger = ({ entityId }) => {
                                                 <td className="py-4 px-4 text-red-400">
                                                     ₹{Math.round(item.cashTotal).toLocaleString('en-IN')}
                                                 </td>
-                                                <td className="py-4 pr-6 text-right text-red-400">
+                                                <td className="py-4 px-4 text-red-400">
                                                     ₹{Math.round(item.debitTotal).toLocaleString('en-IN')}
                                                 </td>
                                             </tr>
@@ -633,7 +633,7 @@ const BeneficiaryLedger = ({ entityId }) => {
                                             <td className="py-4 px-4 text-red-400">
                                                 ₹{Math.round(totals.cash).toLocaleString('en-IN')}
                                             </td>
-                                            <td className="py-4 pr-6 text-right text-red-400">
+                                            <td className="py-4 px-4 text-red-400">
                                                 ₹{Math.round(totals.debit).toLocaleString('en-IN')}
                                             </td>
                                         </tr>
