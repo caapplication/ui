@@ -143,12 +143,14 @@ const VoucherDetailsCA = () => {
     const lastFetchedVoucherIdRef = useRef(null);
     const activityLogRef = useRef(null);
     const attachmentRef = useRef(null);
+    const hasFetchedVoucherList = useRef(false);
 
     // Status management state
     const [showRejectDialog, setShowRejectDialog] = useState(false);
     const [rejectionRemarks, setRejectionRemarks] = useState('');
     const [isStatusUpdating, setIsStatusUpdating] = useState(false);
     const [showCompletionModal, setShowCompletionModal] = useState(false);
+    const [completionModalType, setCompletionModalType] = useState('all_done'); // 'all_done' or 'go_to_invoices'
 
     // Hide scrollbars globally for this page
     useEffect(() => {
@@ -450,6 +452,74 @@ const VoucherDetailsCA = () => {
         })();
     }, [user?.access_token, editedVoucher?.beneficiary_id]);
 
+    // Fetch voucher list if not present (e.g. direct load) to enable navigation
+    useEffect(() => {
+        // If we already have a list, don't refetch
+        if (voucherList && voucherList.length > 0) return;
+        // If we are already fetching or not authorized, skip
+        if (hasFetchedVoucherList.current || orgLoading || !user?.access_token) return;
+
+        // Try to get entity ID from available sources
+        const entityId = selectedEntity && selectedEntity !== "all"
+            ? selectedEntity
+            : (voucher?.entity_id || localStorage.getItem('entityId'));
+
+        // If no entity context found and not in "all", we can't fetch a reasonable list
+        if (!entityId && selectedEntity !== "all") return;
+
+        const fetchVoucherList = async () => {
+            hasFetchedVoucherList.current = true;
+            try {
+                let entityIdsToFetch = [];
+                if (selectedEntity === "all" && entities.length > 0) {
+                    entityIdsToFetch = entities.map(e => e.id);
+                } else if (entityId) {
+                    entityIdsToFetch = [entityId];
+                }
+
+                if (entityIdsToFetch.length > 0) {
+                    console.log("Fetching voucher list for navigation context...", entityIdsToFetch);
+                    const fetchPromises = entityIdsToFetch.map(async (id) => {
+                        const cacheKey = { entityId: id, token: user.access_token };
+                        const cached = cache.get('getCATeamVouchers', cacheKey);
+                        if (cached) return cached;
+
+                        const data = await getCATeamVouchers(id, user.access_token);
+                        cache.set('getCATeamVouchers', cacheKey, data);
+                        return data;
+                    });
+
+                    const results = await Promise.all(fetchPromises);
+                    // Flatten and sort by date descending
+                    const allVouchers = results.flat().sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
+
+                    if (allVouchers.length > 0) {
+                        console.log("Fetched voucher list context:", allVouchers.length);
+                        setVoucherList(allVouchers);
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to fetch voucher list context:", error);
+            }
+        };
+
+        fetchVoucherList();
+    }, [voucherList, selectedEntity, voucher?.entity_id, user?.access_token, orgLoading, entities]);
+
+    // Update currentIndex when voucherList is populated
+    useEffect(() => {
+        if (voucherList.length > 0) {
+            const newIndex = voucherList.findIndex(v => String(v.id) === String(voucherId));
+            if (newIndex >= 0) {
+                setCurrentIndex(newIndex);
+            } else if (currentIndex === -1 && voucher) {
+                // Try to find by ID even if strict equality failed or if it's the only one
+                const indexById = voucherList.findIndex(v => String(v.id) === String(voucher.id));
+                if (indexById >= 0) setCurrentIndex(indexById);
+            }
+        }
+    }, [voucherList, voucherId, voucher]);
+
     useEffect(() => {
         if (editedVoucher?.voucher_type === 'cash') {
             setEditedVoucher(prevState => ({ ...prevState, payment_type: 'cash' }));
@@ -669,12 +739,99 @@ const VoucherDetailsCA = () => {
     };
 
     // Auto-navigation helper
-    const handleAutoNext = () => {
-        // Use currentFilteredIndex to find next
-        if (currentIndex !== -1 && currentIndex + 1 < filteredVouchers.length) {
-            handleNavigate(1);
+    // Auto-navigation helper
+    const handleAutoNext = async (updatedList = null) => {
+        // Use updated list if provided, otherwise use current filtered list
+        // We need to re-filter if we passed a raw list, or just assume the caller assumed it's the source
+        // Actually, if updatedList is passed (the full voucherList with updates), we need to apply the same role filters
+
+        let sourceList = filteredVouchers;
+
+        if (updatedList) {
+            sourceList = updatedList.filter(v => {
+                if (user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') {
+                    return v.status === 'pending_ca_approval';
+                }
+                if (user?.role === 'CLIENT_MASTER_ADMIN') {
+                    return v.status === 'pending_master_admin_approval';
+                }
+                return true;
+            });
+        }
+
+        // Since the current voucher is likely just approved/rejected, it might be removed from the list.
+        // We should check if there are ANY pending vouchers remaining.
+        let pendingVouchers = [];
+
+        if (user?.role === 'CLIENT_MASTER_ADMIN') {
+            pendingVouchers = sourceList.filter(v =>
+                v.status === 'pending_master_admin_approval' && String(v.id) !== String(voucherId)
+            );
+        } else {
+            // For CA, we only want pending_ca_approval. filteredVouchers already does this.
+            // We just exclude current.
+            pendingVouchers = sourceList.filter(v =>
+                String(v.id) !== String(voucherId)
+            );
+        }
+
+        if (pendingVouchers.length > 0) {
+            // Go to the first pending/next voucher
+            const nextVoucher = pendingVouchers[0];
+            navigate(`/vouchers/ca/${nextVoucher.id}`, {
+                state: {
+                    voucher: nextVoucher,
+                    // Pass the UDPATED full list so consistent navigation works in next screen
+                    vouchers: updatedList || voucherList,
+                    organisationId,
+                    entityName,
+                    organizationName
+                },
+                replace: true
+            });
         } else {
             // No more vouchers in the filtered list
+            // Check for pending invoices before showing completion modal
+            try {
+                // Get entityId from current voucher or selectedEntity
+                const entityId = selectedEntity || voucher?.entity_id || localStorage.getItem('entityId');
+
+                if (selectedEntity === "all" && entities && entities.length > 0) {
+                    console.log("Checking for pending invoices for ALL entities");
+                    const entityIds = entities.map(e => e.id);
+                    const invoices = await getCATeamInvoicesBulk(entityIds, user.access_token);
+                    console.log("Fetched bulk invoices for check:", invoices.length);
+                    const pendingInvoices = invoices.filter(inv => inv.status === 'pending_ca_approval');
+                    console.log("Pending invoices found (bulk):", pendingInvoices.length);
+
+                    if (pendingInvoices.length > 0) {
+                        setCompletionModalType('go_to_invoices');
+                        setShowCompletionModal(true);
+                        return;
+                    }
+                } else if (entityId && entityId !== "all") {
+                    console.log("Checking for pending invoices for entity:", entityId);
+                    // Fetch pending invoices
+                    // Ensure we check for CA pending invoices correctly
+                    const invoices = await getCATeamInvoices(entityId, user.access_token);
+                    console.log("Fetched invoices for check:", invoices.length);
+                    const pendingInvoices = invoices.filter(inv => inv.status === 'pending_ca_approval');
+                    console.log("Pending invoices found:", pendingInvoices.length);
+
+                    if (pendingInvoices.length > 0) {
+                        setCompletionModalType('go_to_invoices');
+                        setShowCompletionModal(true);
+                        return;
+                    }
+                } else {
+                    console.log("No specific entity context to check for pending invoices", { selectedEntity, voucherEntityId: voucher?.entity_id });
+                }
+            } catch (error) {
+                console.error("Failed to check for pending invoices:", error);
+            }
+
+            // No more vouchers and no pending invoices
+            setCompletionModalType('all_done');
             setShowCompletionModal(true);
         }
     };
@@ -1810,7 +1967,17 @@ const VoucherDetailsCA = () => {
                                                                                     updateCAVoucher(voucherId, { is_ready: true, finance_header_id: editedVoucher.finance_header_id, status: 'verified' }, user.access_token)
                                                                                         .then(() => {
                                                                                             toast({ title: 'Success', description: 'Voucher tagged and verified successfully.' });
-                                                                                            handleAutoNext();
+
+                                                                                            // Update local list first
+                                                                                            const updatedList = voucherList.map(v =>
+                                                                                                String(v.id) === String(voucherId)
+                                                                                                    ? { ...v, status: 'verified', is_ready: true, finance_header_id: editedVoucher.finance_header_id }
+                                                                                                    : v
+                                                                                            );
+                                                                                            setVoucherList(updatedList);
+
+                                                                                            // Pass updated list to navigation logic to avoid stale data
+                                                                                            handleAutoNext(updatedList);
                                                                                         })
                                                                                         .catch(err => {
                                                                                             toast({ title: 'Error', description: `Failed to tag voucher: ${err.message}`, variant: 'destructive' });
@@ -2007,21 +2174,83 @@ const VoucherDetailsCA = () => {
                 >
                     <div className="flex flex-col items-center justify-center py-6 text-center">
                         <div className="mb-4 rounded-full bg-green-500/20 p-3">
-                            <CheckCircle className="h-12 w-12 text-green-500" />
+                            {completionModalType === 'go_to_invoices' ? (
+                                <AlertCircle className="h-12 w-12 text-yellow-500" />
+                            ) : (
+                                <CheckCircle className="h-12 w-12 text-green-500" />
+                            )}
                         </div>
                         <DialogHeader>
-                            <DialogTitle className="text-xl mb-2 text-center">All Caught Up!</DialogTitle>
+                            <DialogTitle className="text-xl mb-2 text-center">
+                                {completionModalType === 'go_to_invoices' ? 'Vouchers Complete!' : 'All Caught Up!'}
+                            </DialogTitle>
                             <DialogDescription className="text-center text-gray-400">
-                                You have processed all pending vouchers.
+                                {completionModalType === 'go_to_invoices'
+                                    ? 'You have completed all vouchers, but there are pending invoices requiring your attention.'
+                                    : 'You have processed all pending vouchers.'}
                             </DialogDescription>
                         </DialogHeader>
-                        <div className="mt-8">
-                            <Button
-                                onClick={() => navigate('/')}
-                                className="bg-blue-600 hover:bg-blue-700 text-white min-w-[200px]"
-                            >
-                                Go to Dashboard
-                            </Button>
+                        <div className="mt-8 flex gap-3 w-full justify-center">
+                            {completionModalType === 'go_to_invoices' ? (
+                                <>
+                                    <Button
+                                        onClick={() => navigate('/')}
+                                        variant="outline"
+                                        className="border-white/20 text-white hover:bg-white/10"
+                                    >
+                                        Dashboard
+                                    </Button>
+                                    <Button
+                                        onClick={async () => {
+                                            // Navigate to first pending invoice
+                                            try {
+                                                const entityId = selectedEntity || voucher?.entity_id || localStorage.getItem('entityId');
+                                                if (entityId) {
+                                                    let invoices = [];
+                                                    if (selectedEntity === "all" && entities && entities.length > 0) {
+                                                        const entityIds = entities.map(e => e.id);
+                                                        invoices = await getCATeamInvoicesBulk(entityIds, user.access_token);
+                                                    } else if (entityId !== "all") {
+                                                        invoices = await getCATeamInvoices(entityId, user.access_token);
+                                                    }
+
+                                                    const pendingInvoices = invoices.filter(inv => inv.status === 'pending_ca_approval');
+
+                                                    if (pendingInvoices.length > 0) {
+                                                        pendingInvoices.sort((a, b) => new Date(b.created_date || b.date) - new Date(a.created_date || a.date));
+                                                        const nextInvoice = pendingInvoices[0];
+                                                        navigate(`/invoices/ca/${nextInvoice.id}`, {
+                                                            state: {
+                                                                invoice: nextInvoice,
+                                                                invoices: pendingInvoices,
+                                                                organizationName,
+                                                                entityName
+                                                            },
+                                                            replace: true
+                                                        });
+                                                    } else {
+                                                        navigate('/finance?tab=invoices');
+                                                    }
+                                                } else {
+                                                    navigate('/finance?tab=invoices');
+                                                }
+                                            } catch (e) {
+                                                navigate('/finance?tab=invoices');
+                                            }
+                                        }}
+                                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                                    >
+                                        Go to Invoices
+                                    </Button>
+                                </>
+                            ) : (
+                                <Button
+                                    onClick={() => navigate('/')}
+                                    className="bg-blue-600 hover:bg-blue-700 text-white min-w-[200px]"
+                                >
+                                    Go to Dashboard
+                                </Button>
+                            )}
                         </div>
                     </div>
                 </DialogContent>

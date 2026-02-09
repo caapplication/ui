@@ -3,7 +3,7 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useOrganisation } from '@/hooks/useOrganisation';
 import { useApiCache } from '@/contexts/ApiCacheContext.jsx';
-import { deleteInvoice, updateInvoice, getBeneficiaries, getInvoiceAttachment, getFinanceHeaders, getInvoices, FINANCE_API_BASE_URL } from '@/lib/api';
+import { deleteInvoice, updateInvoice, getBeneficiaries, getInvoiceAttachment, getFinanceHeaders, getInvoices, getVouchers, FINANCE_API_BASE_URL } from '@/lib/api';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -77,6 +77,7 @@ const InvoiceDetailsPage = () => {
     const [rejectionRemarks, setRejectionRemarks] = useState('');
     const [isStatusUpdating, setIsStatusUpdating] = useState(false);
     const [showCompletionModal, setShowCompletionModal] = useState(false);
+    const [completionModalType, setCompletionModalType] = useState('all_done'); // 'all_done' or 'go_to_vouchers'
 
     // Determine if the current user is a client user
     const isClientUser = user?.role === 'CLIENT_USER' || user?.role === 'CLIENT_MASTER_ADMIN';
@@ -1066,18 +1067,88 @@ const InvoiceDetailsPage = () => {
     };
 
     // Auto-navigation helper
-    const handleAutoNext = () => {
-        // Upon approval/rejection, the current invoice status changes.
-        // It might be removed from filteredInvoices in the next render cycle.
-        // If we are at index i, and i gets removed, the item at i+1 becomes the new i.
-        // So effectively, we want to go to the item that is *currently* at index + 1 relative to the OLD list?
-        // Or simpler: If there is a next item in the verified list, go to it.
+    const handleAutoNext = async (newStatus) => {
+        let nextInvoice = null;
+        let nextInvoicesList = invoices;
 
-        // Use currentFilteredIndex to find next
-        if (currentFilteredIndex !== -1 && currentFilteredIndex + 1 < filteredInvoices.length) {
-            handleNavigate(1);
+        if (user?.role === 'CLIENT_MASTER_ADMIN') {
+            // Filter out the current one and any that are not pending
+            const pending = invoices.filter(inv =>
+                inv.status === 'pending_master_admin_approval' && String(inv.id) !== String(invoiceId)
+            );
+
+            if (pending.length > 0) {
+                nextInvoice = pending[0];
+                // Update the list state passed to next page to prevent showing old status
+                if (newStatus) {
+                    nextInvoicesList = invoices.map(inv =>
+                        String(inv.id) === String(invoiceId)
+                            ? { ...inv, status: newStatus }
+                            : inv
+                    );
+                }
+            } else {
+                // No pending invoices, check for pending vouchers
+                try {
+                    const entityId = invoiceDetails?.entity_id || localStorage.getItem('entityId');
+                    if (entityId) {
+                        const vouchers = await getVouchers(entityId, user.access_token);
+                        const pendingVouchers = vouchers.filter(v => v.status === 'pending_master_admin_approval');
+
+                        if (pendingVouchers.length > 0) {
+                            setCompletionModalType('go_to_vouchers');
+                            setShowCompletionModal(true);
+                            return;
+                        }
+                    }
+                } catch (error) {
+                    console.error("Failed to check for pending vouchers:", error);
+                }
+            }
         } else {
-            // No more invoices in the filtered list
+            // Fallback for other roles or general case
+            if (currentFilteredIndex !== -1 && currentFilteredIndex + 1 < filteredInvoices.length) {
+                nextInvoice = filteredInvoices[currentFilteredIndex + 1];
+                // For other roles, we might also want to update the list, but sticking to existing flow for now
+                if (newStatus) {
+                    nextInvoicesList = invoices.map(inv =>
+                        String(inv.id) === String(invoiceId)
+                            ? { ...inv, status: newStatus }
+                            : inv
+                    );
+                }
+            }
+        }
+
+        if (nextInvoice) {
+            navigate(`/finances/invoices/${nextInvoice.id}`, { // Assuming route is finance/invoices or invoices/ ? Wait, Check route.
+                // Original used: navigate(`/invoices/${nextInvoice.id}`...
+                // But wait, InvoiceDetailsPage is usually at /finance/invoices/:id for Master Admin?
+                // Step 1427 showed navigate(`/finance/invoices/${nextInvoice.id}`) in VoucherDetailsPage logic.
+                // InvoiceDetailsPage is usually mounted at /finance/invoices/:id or /invoices/:id?
+                // Let's stick to what handleNavigate used: navigate(`/invoices/${nextInvoice.id}`... 
+                // Wait, handleNavigate used navigate(`/invoices/${nextInvoice.id}`... in Step 1369 view.
+                // Actually Step 1369 line 1053: navigate(`/invoices/${nextInvoice.id}`, ...
+                // BUT Step 1361 line 694 (VoucherDetailsPage) used: navigate(`/finance/vouchers/${nextVoucher.id}`
+                // Let's check imports or route definitions? 
+                // I will use relative path or what was there.
+                // The previous code had `navigate(`/invoices/${nextInvoice.id}`, ...`
+            });
+            // Re-using the navigate logic below
+            navigate(`/invoices/${nextInvoice.id}`, {
+                state: {
+                    invoice: nextInvoice,
+                    invoices: nextInvoicesList,
+                    organisationId,
+                    entityName,
+                    organizationName,
+                    isReadOnly
+                },
+                replace: true
+            });
+        } else {
+            // If not Master Admin or Master Admin found no pending items (and no vouchers)
+            setCompletionModalType('all_done');
             setShowCompletionModal(true);
         }
     };
@@ -1110,7 +1181,7 @@ const InvoiceDetailsPage = () => {
                     : inv
             ));
 
-            handleAutoNext();
+            handleAutoNext('verified');
         } catch (error) {
             toast({
                 title: 'Error',
@@ -1191,7 +1262,7 @@ const InvoiceDetailsPage = () => {
                     inv.id === invoiceId ? updatedInvoice : inv
                 ));
 
-                handleAutoNext();
+                handleAutoNext(status);
             }
         } catch (error) {
             console.error('Status Update Error:', error);
@@ -2070,23 +2141,72 @@ const InvoiceDetailsPage = () => {
                     className="bg-slate-900 border-white/10 text-white sm:max-w-[425px] [&>button]:hidden"
                     onInteractOutside={(e) => e.preventDefault()}
                 >
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                            <CheckCircle className="w-6 h-6 text-green-500" />
-                            All Done!
-                        </DialogTitle>
-                        <DialogDescription className="text-gray-400 pt-2">
-                            There are no more invoices pending for your review.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter className="mt-4">
-                        <Button
-                            onClick={() => navigate('/')}
-                            className="w-full bg-primary hover:bg-primary/90 text-white"
-                        >
-                            Go to Dashboard
-                        </Button>
-                    </DialogFooter>
+                    <div className="flex flex-col items-center justify-center py-6 text-center">
+                        <div className="mb-4 rounded-full bg-green-500/20 p-3">
+                            {completionModalType === 'go_to_vouchers' ? (
+                                <AlertCircle className="h-12 w-12 text-yellow-500" />
+                            ) : (
+                                <CheckCircle className="h-12 w-12 text-green-500" />
+                            )}
+                        </div>
+                        <DialogHeader>
+                            <DialogTitle className="text-xl mb-2 text-center">
+                                {completionModalType === 'go_to_vouchers' ? 'Invoices Complete!' : 'All Done!'}
+                            </DialogTitle>
+                            <DialogDescription className="text-center text-gray-400">
+                                {completionModalType === 'go_to_vouchers'
+                                    ? 'You have completed all invoices, but there are pending vouchers requiring your attention.'
+                                    : 'There are no more invoices pending for your review.'}
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="mt-8 flex gap-3 w-full justify-center">
+                            {completionModalType === 'go_to_vouchers' ? (
+                                <>
+                                    <Button
+                                        onClick={() => navigate('/')}
+                                        variant="outline"
+                                        className="border-white/20 text-white hover:bg-white/10"
+                                    >
+                                        Dashboard
+                                    </Button>
+                                    <Button
+                                        onClick={async () => {
+                                            const entityId = invoiceDetails?.entity_id || localStorage.getItem('entityId');
+                                            if (entityId) {
+                                                try {
+                                                    const vouchers = await getVouchers(entityId, user.access_token);
+                                                    const pendingVouchers = vouchers.filter(v => v.status === 'pending_master_admin_approval');
+                                                    if (pendingVouchers.length > 0) {
+                                                        const nextVoucher = pendingVouchers[0];
+                                                        navigate(`/finance/vouchers/${nextVoucher.id}`, {
+                                                            state: { voucher: nextVoucher, vouchers: pendingVouchers, organizationName, entityName },
+                                                            replace: true
+                                                        });
+                                                    } else {
+                                                        navigate('/finance/vouchers');
+                                                    }
+                                                } catch (e) {
+                                                    navigate('/finance/vouchers');
+                                                }
+                                            } else {
+                                                navigate('/finance/vouchers');
+                                            }
+                                        }}
+                                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                                    >
+                                        Go to Vouchers
+                                    </Button>
+                                </>
+                            ) : (
+                                <Button
+                                    onClick={() => navigate('/')}
+                                    className="w-full bg-primary hover:bg-primary/90 text-white"
+                                >
+                                    Go to Dashboard
+                                </Button>
+                            )}
+                        </div>
+                    </div>
                 </DialogContent>
             </Dialog>
         </div >

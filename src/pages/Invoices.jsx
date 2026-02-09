@@ -39,12 +39,12 @@ const Invoices = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
 
     // Create a unique key for this fetch
     const fetchKey = `${selectedEntity}-${selectedOrganisation}`;
-    
+
     // Skip if we're already fetching
     if (isFetchingRef.current) {
       return;
     }
-    
+
     // OPTIMIZATION: Check cache first and show immediately, then refresh in background
     if (selectedEntity !== 'all') {
       const cacheKey = { entityId: selectedEntity, token: user.access_token };
@@ -59,13 +59,13 @@ const Invoices = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
         }
       }
     }
-    
+
     // Prevent concurrent fetches - if we already have data for this exact fetch key, skip
     if (lastFetchKey.current === fetchKey && invoices.length > 0) {
       setIsLoading(false);
       return;
     }
-    
+
     // Only show loading if we don't have cached data
     if (invoices.length === 0) {
       setIsLoading(true);
@@ -73,7 +73,7 @@ const Invoices = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
     setHasAttemptedLoad(true);
     lastFetchKey.current = fetchKey;
     isFetchingRef.current = true;
-    
+
     let entityIdsToFetch = [];
     if (selectedEntity === 'all') {
       try {
@@ -96,7 +96,7 @@ const Invoices = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
     } else {
       entityIdsToFetch = [selectedEntity];
     }
-    
+
     if (entityIdsToFetch.length === 0) {
       setInvoices([]);
       setIsLoading(false);
@@ -109,7 +109,7 @@ const Invoices = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
         // Use bulk endpoint - single API call instead of N calls
         const cacheKey = { entityIds: entityIdsToFetch.sort().join(','), token: user.access_token };
         const requestKey = `getCATeamInvoicesBulk-${cacheKey.entityIds}-${user.access_token}`;
-        
+
         // Check cache first
         let cached = cache.get('getCATeamInvoicesBulk', cacheKey);
         if (cached) {
@@ -117,7 +117,7 @@ const Invoices = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
           setIsLoading(false);
           return;
         }
-        
+
         // Check if there's already a pending request
         if (pendingRequestsRef.current.has(requestKey)) {
           const data = await pendingRequestsRef.current.get(requestKey);
@@ -125,7 +125,7 @@ const Invoices = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
           setIsLoading(false);
           return;
         }
-        
+
         // Create bulk request
         const requestPromise = getCATeamInvoicesBulk(entityIdsToFetch, user.access_token)
           .then(data => {
@@ -137,7 +137,7 @@ const Invoices = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
             pendingRequestsRef.current.delete(requestKey);
             throw error;
           });
-        
+
         pendingRequestsRef.current.set(requestKey, requestPromise);
         const allInvoices = await requestPromise;
         setInvoices(allInvoices);
@@ -146,7 +146,7 @@ const Invoices = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
         const id = entityIdsToFetch[0];
         const cacheKey = { entityId: id, token: user.access_token };
         const requestKey = `getCATeamInvoices-${id}-${user.access_token}`;
-        
+
         // Check cache first
         let cached = cache.get('getCATeamInvoices', cacheKey);
         if (cached) {
@@ -154,7 +154,7 @@ const Invoices = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
           setIsLoading(false);
           return;
         }
-        
+
         // Check if there's already a pending request
         if (pendingRequestsRef.current.has(requestKey)) {
           const data = await pendingRequestsRef.current.get(requestKey);
@@ -162,7 +162,7 @@ const Invoices = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
           setIsLoading(false);
           return;
         }
-        
+
         // Create request
         const requestPromise = getCATeamInvoices(id, user.access_token)
           .then(data => {
@@ -174,7 +174,7 @@ const Invoices = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
             pendingRequestsRef.current.delete(requestKey);
             throw error;
           });
-        
+
         pendingRequestsRef.current.set(requestKey, requestPromise);
         const invoices = await requestPromise;
         setInvoices(invoices);
@@ -244,9 +244,9 @@ const Invoices = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
       {isLoading ? (
         <InvoiceHistorySkeleton />
       ) : (
-        <InvoiceHistory 
+        <InvoiceHistory
           invoices={invoices}
-          onDeleteInvoice={() => toast({ title: "Note", description: "Deletion from this view is not supported."})}
+          onDeleteInvoice={() => toast({ title: "Note", description: "Deletion from this view is not supported." })}
           onViewInvoice={handleViewInvoice}
           onRefresh={onRefresh}
         />

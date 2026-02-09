@@ -4,7 +4,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useOrganisation } from '@/hooks/useOrganisation';
-import { deleteInvoice, updateInvoice, getBeneficiaries, getInvoiceAttachment, getFinanceHeaders, getCATeamInvoices, getInvoices } from '@/lib/api.js';
+import { deleteInvoice, updateInvoice, getBeneficiaries, getInvoiceAttachment, getFinanceHeaders, getCATeamInvoices, getInvoices, getCATeamVouchers } from '@/lib/api.js';
 import { useApiCache } from '@/contexts/ApiCacheContext.jsx';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/use-toast';
@@ -61,6 +61,8 @@ const InvoiceDetailsCA = () => {
   const [allAttachmentIds, setAllAttachmentIds] = useState([]);
   const [currentAttachmentIndex, setCurrentAttachmentIndex] = useState(0);
   const [sidebarWidth, setSidebarWidth] = useState(320); // Default to expanded width (300px + padding)
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const [completionModalType, setCompletionModalType] = useState('all_done'); // 'all_done' or 'go_to_vouchers'
 
   // Refs to prevent duplicate API calls
   const fetchingInvoiceRef = useRef(false);
@@ -570,6 +572,10 @@ const InvoiceDetailsCA = () => {
 
       setShowRejectDialog(false);
       setRejectionRemarks('');
+
+      if (newStatus === 'verified') {
+        handleAutoNext();
+      }
     } catch (error) {
       toast({
         title: 'Error',
@@ -578,6 +584,67 @@ const InvoiceDetailsCA = () => {
       });
     } finally {
       setIsStatusUpdating(false);
+    }
+  };
+
+  const handleAutoNext = async () => {
+    // Determine which invoices are still pending
+    // Exclude the current invoice id, as we just processed it
+    const pendingInvoices = invoiceList.filter(inv =>
+      inv.status === 'pending_ca_approval' && String(inv.id) !== String(invoiceId)
+    );
+
+    if (pendingInvoices.length > 0) {
+      const nextInvoice = pendingInvoices[0];
+      toast({ title: 'Invoice Verified', description: 'Navigating to next pending invoice...' });
+
+      // Reset necessary states for new invoice
+      setLoadingInvoice(true);
+      setAttachmentUrl(null);
+      setAttachmentContentType(null);
+      setAllAttachmentIds([]);
+      setCurrentAttachmentIndex(0);
+      setIsImageLoading(false);
+
+      navigate(`/invoices/ca/${nextInvoice.id}`, {
+        state: {
+          invoice: nextInvoice,
+          invoices: invoiceList, // Pass the original list? Or maybe we should filter it? Keeping original list is safer for context.
+          organizationName,
+          entityName
+        },
+        replace: true
+      });
+    } else {
+      // No more pending invoices, check for pending vouchers
+      try {
+        const entityId = selectedEntity || invoiceDetails?.entity_id || localStorage.getItem('entityId');
+        if (selectedEntity === "all" && entities && entities.length > 0) {
+          const entityIds = entities.map(e => e.id);
+          const vouchers = await getCATeamVouchersBulk(entityIds, user.access_token);
+          const pendingVouchers = vouchers.filter(v => v.status === 'pending_ca_approval');
+
+          if (pendingVouchers.length > 0) {
+            setCompletionModalType('go_to_vouchers');
+            setShowCompletionModal(true);
+            return;
+          }
+        } else if (entityId && entityId !== "all") {
+          const vouchers = await getCATeamVouchers(entityId, user.access_token);
+          const pendingVouchers = vouchers.filter(v => v.status === 'pending_ca_approval');
+
+          if (pendingVouchers.length > 0) {
+            setCompletionModalType('go_to_vouchers');
+            setShowCompletionModal(true);
+            return;
+          }
+        }
+      } catch (error) {
+        console.error("Failed to check for pending vouchers:", error);
+      }
+
+      setCompletionModalType('all_done');
+      setShowCompletionModal(true);
     }
   };
 
@@ -888,6 +955,92 @@ const InvoiceDetailsCA = () => {
               Reject Invoice
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showCompletionModal} onOpenChange={setShowCompletionModal}>
+        <DialogContent
+          className="[&>button]:hidden text-white border-white/10 bg-[#0f172a] sm:max-w-[425px]"
+          onInteractOutside={(e) => {
+            e.preventDefault();
+          }}
+        >
+          <div className="flex flex-col items-center justify-center py-6 text-center">
+            <div className="mb-4 rounded-full bg-green-500/20 p-3">
+              {completionModalType === 'go_to_vouchers' ? (
+                <AlertCircle className="h-12 w-12 text-yellow-500" />
+              ) : (
+                <CheckCircle className="h-12 w-12 text-green-500" />
+              )}
+            </div>
+            <DialogHeader>
+              <DialogTitle className="text-xl mb-2 text-center">
+                {completionModalType === 'go_to_vouchers' ? 'Invoices Complete!' : 'All Caught Up!'}
+              </DialogTitle>
+              <DialogDescription className="text-center text-gray-400">
+                {completionModalType === 'go_to_vouchers'
+                  ? 'You have completed all invoices, but there are pending vouchers requiring your attention.'
+                  : 'You have processed all pending items.'}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="mt-8 flex gap-3 w-full justify-center">
+              {completionModalType === 'go_to_vouchers' ? (
+                <>
+                  <Button
+                    onClick={() => navigate('/')}
+                    variant="outline"
+                    className="border-white/20 text-white hover:bg-white/10"
+                  >
+                    Dashboard
+                  </Button>
+                  <Button
+                    onClick={async () => {
+                      // Navigate to first pending voucher
+                      const entityId = selectedEntity || invoiceDetails?.entity_id || localStorage.getItem('entityId');
+                      if (entityId) {
+                        try {
+                          let vouchers = [];
+                          if (selectedEntity === "all" && entities && entities.length > 0) {
+                            const entityIds = entities.map(e => e.id);
+                            vouchers = await getCATeamVouchersBulk(entityIds, user.access_token);
+                          } else if (entityId !== "all") {
+                            vouchers = await getCATeamVouchers(entityId, user.access_token);
+                          }
+
+                          const pendingVouchers = vouchers.filter(v => v.status === 'pending_ca_approval');
+                          if (pendingVouchers.length > 0) {
+                            // Sort by date descending
+                            pendingVouchers.sort((a, b) => new Date(b.created_date || b.date) - new Date(a.created_date || a.date));
+                            const nextVoucher = pendingVouchers[0];
+                            navigate(`/vouchers/ca/${nextVoucher.id}`, {
+                              state: { voucher: nextVoucher, vouchers: pendingVouchers, organizationName, entityName },
+                              replace: true
+                            });
+                          } else {
+                            navigate('/finance?tab=vouchers');
+                          }
+                        } catch (e) {
+                          navigate('/finance?tab=vouchers');
+                        }
+                      } else {
+                        navigate('/finance?tab=vouchers');
+                      }
+                    }}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    Go to Vouchers
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  onClick={() => navigate('/')}
+                  className="bg-blue-600 hover:bg-blue-700 text-white min-w-[200px]"
+                >
+                  Go to Dashboard
+                </Button>
+              )}
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
