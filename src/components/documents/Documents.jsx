@@ -116,7 +116,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useCurrentOrganization } from '@/hooks/useCurrentOrganization';
 import {
-  getDocuments, createFolder, uploadFile, deleteDocument, shareDocument, viewFile, getSharedDocuments, listClients, createCAFolder, uploadCAFile, shareFolder, listAllClientUsers,
+  getDocuments, createFolder, uploadFile, deleteDocument, shareDocument, viewFile, getSharedDocuments, getSharedFolderContents, listClients, createCAFolder, uploadCAFile, shareFolder, listAllClientUsers,
   listTemplates, createTemplate, deleteTemplate, applyTemplate, updateTemplate, renameFolder,
   listTeamMembers, listOrgUsers, listCATeamForClient
 } from '../../lib/api';
@@ -352,6 +352,11 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('myFiles'); // 'myFiles', 'sharedWithMe', 'renewals', or 'activityLog'
   const [sharedByFilter, setSharedByFilter] = useState(null);
+  // Shared tab folder navigation state
+  const [sharedCurrentFolder, setSharedCurrentFolder] = useState(null); // null = root (list of shared items)
+  const [sharedFolderPath, setSharedFolderPath] = useState([]); // breadcrumb: [{id, name}, ...]
+  const [sharedFolderContents, setSharedFolderContents] = useState({ folders: [], documents: [] });
+  const [isLoadingSharedFolder, setIsLoadingSharedFolder] = useState(false);
   const [clientsForFilter, setClientsForFilter] = useState([]);
   const [isClientsLoading, setIsClientsLoading] = useState(false);
   // const [realSelectedClientId, setRealSelectedClientId] = useState(null); // Removed: Initialized above
@@ -1761,104 +1766,285 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
     return Array.from(sharers.entries()).map(([email, name]) => ({ email, name }));
   }, [sharedDocuments]);
 
+  // Navigate into a shared folder
+  const handleSharedFolderOpen = useCallback(async (folder) => {
+    setIsLoadingSharedFolder(true);
+    try {
+      const data = await getSharedFolderContents(folder.id, user.access_token);
+      const subfolders = (data.folders || []).map(f => ({ ...f, is_folder: true }));
+      const docs = (data.documents || []).map(d => ({ ...d, is_folder: false }));
+      setSharedFolderContents({ folders: subfolders, documents: docs });
+      setSharedCurrentFolder(folder);
+      setSharedFolderPath(prev => [...prev, { id: folder.id, name: folder.name }]);
+    } catch (error) {
+      console.error('Error fetching shared folder contents:', error);
+      toast({ title: 'Error', description: 'Failed to open shared folder.', variant: 'destructive' });
+    } finally {
+      setIsLoadingSharedFolder(false);
+    }
+  }, [user?.access_token, toast]);
+
+  // Navigate back in shared folder breadcrumb
+  const handleSharedFolderBack = useCallback(async (targetIndex) => {
+    if (targetIndex < 0) {
+      // Go back to shared root
+      setSharedCurrentFolder(null);
+      setSharedFolderPath([]);
+      setSharedFolderContents({ folders: [], documents: [] });
+      return;
+    }
+    const target = sharedFolderPath[targetIndex];
+    setIsLoadingSharedFolder(true);
+    try {
+      const data = await getSharedFolderContents(target.id, user.access_token);
+      const subfolders = (data.folders || []).map(f => ({ ...f, is_folder: true }));
+      const docs = (data.documents || []).map(d => ({ ...d, is_folder: false }));
+      setSharedFolderContents({ folders: subfolders, documents: docs });
+      setSharedCurrentFolder(target);
+      setSharedFolderPath(prev => prev.slice(0, targetIndex + 1));
+    } catch (error) {
+      console.error('Error navigating shared folder:', error);
+      toast({ title: 'Error', description: 'Failed to navigate.', variant: 'destructive' });
+    } finally {
+      setIsLoadingSharedFolder(false);
+    }
+  }, [user?.access_token, sharedFolderPath, toast]);
+
+  // Deduplicate shared folders: hide subfolder if any ancestor is already in the shared list
+  const deduplicatedSharedDocs = useMemo(() => {
+    const sharedFolderIds = new Set(sharedDocuments.filter(d => d.is_folder).map(d => d.id));
+
+    // For each shared folder, check if any of its ancestors are also shared
+    const isAncestorShared = (item) => {
+      if (!item.is_folder || !item.parent_id) return false;
+      if (sharedFolderIds.has(item.parent_id)) return true;
+      // Check deeper ancestors by finding the parent in the shared list
+      const parent = sharedDocuments.find(d => d.is_folder && d.id === item.parent_id);
+      if (parent) return isAncestorShared(parent);
+      return false;
+    };
+
+    return sharedDocuments.filter(item => !isAncestorShared(item));
+  }, [sharedDocuments]);
+
+  // Reset shared folder navigation when switching tabs
+  useEffect(() => {
+    if (activeTab !== 'sharedWithMe') {
+      setSharedCurrentFolder(null);
+      setSharedFolderPath([]);
+      setSharedFolderContents({ folders: [], documents: [] });
+    }
+  }, [activeTab]);
+
   const renderSharedWithMe = () => {
-    // Filter by search term (name search) and sharedByFilter (user who shared)
-    const filteredSharedDocs = sharedDocuments.filter(item => {
+    // If we're inside a shared folder, show its contents
+    if (sharedCurrentFolder) {
+      const allContents = [...sharedFolderContents.folders, ...sharedFolderContents.documents];
+      const folders = sharedFolderContents.folders;
+      const documents = sharedFolderContents.documents;
+
+      const formatDate = (dateString) => {
+        if (!dateString) return '-';
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      };
+
+      return (
+        <div>
+          {/* Breadcrumb navigation */}
+          <div className="flex items-center space-x-1 sm:space-x-2 text-gray-400 mb-4 sm:mb-8 text-sm sm:text-base overflow-x-auto pb-2">
+            <Button variant="ghost" size="sm" onClick={() => {
+              if (sharedFolderPath.length <= 1) {
+                handleSharedFolderBack(-1);
+              } else {
+                handleSharedFolderBack(sharedFolderPath.length - 2);
+              }
+            }} className="h-8 sm:h-9 text-xs sm:text-sm flex-shrink-0">
+              <ArrowLeft className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" /> <span className="hidden sm:inline">Back</span>
+            </Button>
+            <span
+              className="cursor-pointer hover:text-white transition-colors whitespace-nowrap"
+              onClick={() => handleSharedFolderBack(-1)}
+            >
+              Shared
+            </span>
+            <span className="text-gray-600 flex-shrink-0">/</span>
+            {sharedFolderPath.map((crumb, index) => (
+              <React.Fragment key={crumb.id}>
+                <span
+                  className={`cursor-pointer hover:text-white transition-colors whitespace-nowrap truncate max-w-[100px] sm:max-w-none ${index === sharedFolderPath.length - 1 ? 'text-white' : ''}`}
+                  onClick={() => {
+                    if (index < sharedFolderPath.length - 1) {
+                      handleSharedFolderBack(index);
+                    }
+                  }}
+                >
+                  {crumb.name}
+                </span>
+                {index < sharedFolderPath.length - 1 && <span className="text-gray-600 flex-shrink-0">/</span>}
+              </React.Fragment>
+            ))}
+          </div>
+
+          {isLoadingSharedFolder ? (
+            <div className="flex justify-center items-center h-40">
+              <Loader2 className="w-8 h-8 animate-spin text-white" />
+            </div>
+          ) : (
+            <>
+              {/* Subfolders - grid like My Files */}
+              {folders.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6 mb-6 sm:mb-8">
+                  {folders.map((item, index) => (
+                    <motion.div
+                      key={item.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.5, delay: index * 0.05 }}
+                      className="flex flex-col items-center cursor-pointer group relative p-2 sm:p-3 rounded-lg transition-all hover:bg-gray-800/30"
+                      onClick={() => handleSharedFolderOpen(item)}
+                    >
+                      <div className="relative mb-2">
+                        <FolderIcon
+                          className="w-40 h-40 sm:w-48 sm:h-48 md:w-56 md:h-56 transition-transform group-hover:scale-110"
+                          hasExpired={hasExpiredDocuments(item)}
+                        />
+                      </div>
+                      <div className="w-full text-center px-1">
+                        <p className="text-xs sm:text-sm text-white truncate group-hover:text-blue-300 transition-colors" title={item.name}>{item.name}</p>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+
+              {/* Documents - table format */}
+              {documents.length > 0 && (
+                <div className="mt-4 sm:mt-8 overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-gray-400 text-xs sm:text-sm">FILE NAME</TableHead>
+                        <TableHead className="text-gray-400 text-xs sm:text-sm hidden md:table-cell">UPLOADED BY</TableHead>
+                        <TableHead className="text-gray-400 text-xs sm:text-sm hidden sm:table-cell">EXPIRY DATE</TableHead>
+                        <TableHead className="text-gray-400 text-right text-xs sm:text-sm">ACTION</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {documents.map((item) => (
+                        <TableRow key={item.id} className="hover:bg-white/5">
+                          <TableCell className="text-white font-medium text-xs sm:text-sm">
+                            <div className="flex items-center gap-2">
+                              <FileText className="w-4 h-4 text-purple-400 shrink-0" />
+                              <span className="truncate">{item.name}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-gray-400 text-xs sm:text-sm hidden md:table-cell">
+                            {item.owner_name || item.owner_email || '-'}
+                          </TableCell>
+                          <TableCell className="text-gray-400 text-xs sm:text-sm hidden sm:table-cell">
+                            {item.expiry_date ? formatDate(item.expiry_date) : <span className="text-gray-500 italic">No expiry</span>}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button size="icon" variant="ghost" className="h-7 w-7 sm:h-8 sm:w-8"
+                                onClick={(e) => { e.stopPropagation(); handleView(item); }}>
+                                <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+
+              {folders.length === 0 && documents.length === 0 && (
+                <div className="text-center py-12">
+                  <p className="text-gray-400 text-sm sm:text-base">This folder is empty.</p>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      );
+    }
+
+    // Root shared view - show list of shared items (deduplicated)
+    const filteredSharedDocs = deduplicatedSharedDocs.filter(item => {
       const matchesSearch = !searchTerm || (item.name || '').toLowerCase().includes(searchTerm.toLowerCase());
       const matchesSharer = !sharedByFilter || item.owner_email === sharedByFilter;
       return matchesSearch && matchesSharer;
     });
 
+    const sharedFolders = filteredSharedDocs.filter(item => item.is_folder);
+    const sharedFiles = filteredSharedDocs.filter(item => !item.is_folder);
+
     return (
       <div>
-        {/* Shared by filter */}
-        {uniqueSharers.length > 0 && (
-          <div className="mb-4 flex items-center gap-3 flex-wrap">
-            <span className="text-gray-400 text-xs sm:text-sm">Filter by shared user:</span>
-            <div className="flex items-center gap-2 flex-wrap">
-              <Button
-                size="sm"
-                variant={!sharedByFilter ? "secondary" : "ghost"}
-                className={`h-7 text-xs rounded-full ${!sharedByFilter ? 'bg-blue-600 text-white' : 'text-gray-400'}`}
-                onClick={() => setSharedByFilter(null)}
+        {/* Shared Folders - grid matching My Files */}
+        {sharedFolders.length > 0 && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6 mb-6 sm:mb-8">
+            {sharedFolders.map((item, index) => (
+              <motion.div
+                key={item.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: index * 0.05 }}
+                className="flex flex-col items-center cursor-pointer group relative p-2 sm:p-3 rounded-lg transition-all hover:bg-gray-800/30"
+                onClick={() => handleSharedFolderOpen(item)}
               >
-                All
-              </Button>
-              {uniqueSharers.map(sharer => (
-                <Button
-                  key={sharer.email}
-                  size="sm"
-                  variant={sharedByFilter === sharer.email ? "secondary" : "ghost"}
-                  className={`h-7 text-xs rounded-full ${sharedByFilter === sharer.email ? 'bg-blue-600 text-white' : 'text-gray-400'}`}
-                  onClick={() => setSharedByFilter(sharedByFilter === sharer.email ? null : sharer.email)}
-                >
-                  {sharer.name}
-                </Button>
-              ))}
-            </div>
-          </div>
-        )}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-2 sm:gap-4">
-          {filteredSharedDocs.map((item, index) => (
-            <motion.div
-              key={item.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: index * 0.05 }}
-              className="flex flex-col items-center cursor-pointer group relative"
-              onDoubleClick={() => handleView(item)}
-            >
-              <div className="relative mb-2">
-                {item.is_folder ? (
+                <div className="relative mb-2">
                   <FolderIcon
-                    className="w-24 h-24 sm:w-32 sm:h-32 md:w-36 md:h-36 lg:w-40 lg:h-40 transition-transform group-hover:scale-110"
+                    className="w-40 h-40 sm:w-48 sm:h-48 md:w-56 md:h-56 transition-transform group-hover:scale-110"
                     hasExpired={hasExpiredDocuments(item)}
                   />
-                ) : (
+                </div>
+                <div className="w-full text-center px-1">
+                  <p className="text-xs sm:text-sm text-white truncate group-hover:text-blue-300 transition-colors" title={item.name}>{item.name}</p>
+                  {(item.owner_name || item.owner_email) && (
+                    <p className="text-xs text-gray-400 mt-1 truncate hidden sm:block">Shared by: {item.owner_name || item.owner_email}</p>
+                  )}
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
+
+        {/* Shared Files - grid matching My Files document grid */}
+        {sharedFiles.length > 0 && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-2 sm:gap-4">
+            {sharedFiles.map((item, index) => (
+              <motion.div
+                key={item.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: index * 0.05 }}
+                className="flex flex-col items-center cursor-pointer group relative p-2 sm:p-3 rounded-lg transition-all hover:bg-gray-800/30"
+                onDoubleClick={() => handleView(item)}
+              >
+                <div className="relative mb-2">
                   <div className="w-24 h-24 sm:w-32 sm:h-32 md:w-36 md:h-36 lg:w-40 lg:h-40 rounded-xl flex items-center justify-center bg-gradient-to-br from-purple-500 to-pink-500 transition-transform group-hover:scale-110">
                     <FileText className="w-12 h-12 sm:w-16 sm:h-16 md:w-18 md:h-18 lg:w-20 lg:h-20 text-white" />
                   </div>
-                )}
-                {/* Action buttons on hover */}
-                <div className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-0.5 sm:gap-1">
-                  <Button
-                    size="icon"
-                    variant="secondary"
-                    className="h-6 w-6 sm:h-7 sm:w-7 bg-gray-800/90 hover:bg-gray-700"
-                    onClick={(e) => { e.stopPropagation(); handleView(item) }}
-                  >
-                    <FileText className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="secondary"
-                    className="h-6 w-6 sm:h-7 sm:w-7 bg-gray-800/90 hover:bg-gray-700"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDocumentClick(item);
-                    }}
-                  >
-                    <Download className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                  </Button>
                 </div>
-              </div>
-              <div className="w-full text-center px-1">
-                <p className="text-xs sm:text-sm text-white truncate group-hover:text-blue-300 transition-colors" title={item.name}>{item.name}</p>
-                {(item.owner_name || item.owner_email) && (
-                  <p className="text-xs text-gray-400 mt-1 truncate hidden sm:block">Shared by: {item.owner_name || item.owner_email}</p>
-                )}
-                {!item.owner_email && !item.owner_name && (
-                  <p className="text-xs text-gray-400 mt-1 truncate hidden sm:block italic">Shared by unknown</p>
-                )}
-              </div>
-            </motion.div>
-          ))}
-          {filteredSharedDocs.length === 0 && (
-            <div className="text-center py-12 col-span-full">
-              <p className="text-gray-400 text-sm sm:text-base">{searchTerm || sharedByFilter ? 'No shared items found matching your filters.' : 'No items have been shared with you.'}</p>
-            </div>
-          )}
-        </div>
+                <div className="w-full text-center px-1">
+                  <p className="text-xs sm:text-sm text-white truncate group-hover:text-blue-300 transition-colors" title={item.name}>{item.name}</p>
+                  {(item.owner_name || item.owner_email) && (
+                    <p className="text-xs text-gray-400 mt-1 truncate hidden sm:block">Shared by: {item.owner_name || item.owner_email}</p>
+                  )}
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
+
+        {filteredSharedDocs.length === 0 && (
+          <div className="text-center py-12">
+            <p className="text-gray-400 text-sm sm:text-base">{searchTerm || sharedByFilter ? 'No shared items found matching your filters.' : 'No items have been shared with you.'}</p>
+          </div>
+        )}
       </div>
     );
   };
@@ -1951,6 +2137,25 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
           <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white">Documents</h1>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2 w-full xl:w-auto flex-wrap justify-end">
             <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+              {/* Shared by user filter - left of search, only on Shared tab */}
+              {activeTab === 'sharedWithMe' && !sharedCurrentFolder && uniqueSharers.length > 0 && (
+                <div className="w-44 sm:w-52">
+                  <Combobox
+                    options={[
+                      { value: '__all__', label: 'All Users' },
+                      ...uniqueSharers.map(sharer => ({
+                        value: sharer.email,
+                        label: sharer.name || sharer.email
+                      }))
+                    ]}
+                    value={sharedByFilter || '__all__'}
+                    onValueChange={(val) => setSharedByFilter(val === '__all__' ? null : val)}
+                    placeholder="Filter by user..."
+                    searchPlaceholder="Search users..."
+                    emptyText="No users found."
+                  />
+                </div>
+              )}
               <div className="relative flex-1 sm:w-64">
                 <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                 <Input placeholder="Search..." className="pl-9 sm:pl-12 h-9 sm:h-10 text-sm" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
