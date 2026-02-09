@@ -4,7 +4,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useOrganisation } from '@/hooks/useOrganisation';
-import { deleteCAVoucher, updateCAVoucher, getBeneficiariesForCA, getVoucherAttachment, getCAVoucher, getBankAccountsForBeneficiary, getOrganisationBankAccountsForCA, getFinanceHeaders, getCATeamVouchers, FINANCE_API_BASE_URL } from '@/lib/api.js';
+import { deleteCAVoucher, updateCAVoucher, getBeneficiariesForCA, getVoucherAttachment, getCAVoucher, getBankAccountsForBeneficiary, getOrganisationBankAccountsForCA, getFinanceHeaders, getCATeamVouchers, getCATeamInvoices, FINANCE_API_BASE_URL } from '@/lib/api.js';
 import { useApiCache } from '@/contexts/ApiCacheContext.jsx';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/use-toast';
@@ -793,30 +793,28 @@ const VoucherDetailsCA = () => {
             // No more vouchers in the filtered list
             // Check for pending invoices before showing completion modal
             try {
-                // Get entityId from current voucher or selectedEntity
-                const entityId = selectedEntity || voucher?.entity_id || localStorage.getItem('entityId');
+                // Fetch fresh voucher data to get latest entity information
+                let freshVoucher = voucher;
+                try {
+                    freshVoucher = await getCAVoucher(voucherId, user.access_token);
+                    console.log('Fetched fresh voucher data:', freshVoucher);
+                } catch (err) {
+                    console.warn('Failed to fetch fresh voucher, using cached:', err);
+                }
 
-                if (selectedEntity === "all" && entities && entities.length > 0) {
-                    console.log("Checking for pending invoices for ALL entities");
-                    const entityIds = entities.map(e => e.id);
-                    const invoices = await getCATeamInvoicesBulk(entityIds, user.access_token);
-                    console.log("Fetched bulk invoices for check:", invoices.length);
-                    const pendingInvoices = invoices.filter(inv => inv.status === 'pending_ca_approval');
-                    console.log("Pending invoices found (bulk):", pendingInvoices.length);
+                // Get entityId from fresh voucher (PRIORITY) or selectedEntity
+                // We must use the voucher's actual entity ID, not the globally selected one,
+                // because the user might be viewing a voucher from a different entity than selected in header
+                const entityId = freshVoucher?.entity?.id || selectedEntity || localStorage.getItem('entityId');
+                console.log('Checking for pending invoices with entityId:', entityId);
 
-                    if (pendingInvoices.length > 0) {
-                        setCompletionModalType('go_to_invoices');
-                        setShowCompletionModal(true);
-                        return;
-                    }
-                } else if (entityId && entityId !== "all") {
-                    console.log("Checking for pending invoices for entity:", entityId);
-                    // Fetch pending invoices
-                    // Ensure we check for CA pending invoices correctly
+                if (entityId && entityId !== "all") {
+                    console.log("Fetching invoices for entity:", entityId);
+                    // Use getCATeamInvoices with entityId to fetch invoices
                     const invoices = await getCATeamInvoices(entityId, user.access_token);
-                    console.log("Fetched invoices for check:", invoices.length);
-                    const pendingInvoices = invoices.filter(inv => inv.status === 'pending_ca_approval');
-                    console.log("Pending invoices found:", pendingInvoices.length);
+                    console.log("Fetched invoices:", invoices?.length || 0);
+                    const pendingInvoices = (invoices || []).filter(inv => inv.status === 'pending_ca_approval');
+                    console.log("Pending CA invoices found:", pendingInvoices.length);
 
                     if (pendingInvoices.length > 0) {
                         setCompletionModalType('go_to_invoices');
@@ -824,7 +822,7 @@ const VoucherDetailsCA = () => {
                         return;
                     }
                 } else {
-                    console.log("No specific entity context to check for pending invoices", { selectedEntity, voucherEntityId: voucher?.entity_id });
+                    console.log("No specific entity context to check for pending invoices", { selectedEntity, voucherEntity: freshVoucher?.entity });
                 }
             } catch (error) {
                 console.error("Failed to check for pending invoices:", error);
@@ -2204,27 +2202,37 @@ const VoucherDetailsCA = () => {
                                         onClick={async () => {
                                             // Navigate to first pending invoice
                                             try {
-                                                const entityId = selectedEntity || voucher?.entity_id || localStorage.getItem('entityId');
-                                                if (entityId) {
-                                                    let invoices = [];
-                                                    if (selectedEntity === "all" && entities && entities.length > 0) {
-                                                        const entityIds = entities.map(e => e.id);
-                                                        invoices = await getCATeamInvoicesBulk(entityIds, user.access_token);
-                                                    } else if (entityId !== "all") {
-                                                        invoices = await getCATeamInvoices(entityId, user.access_token);
-                                                    }
+                                                // Get entityId from fresh voucher (PRIORITY) or selectedEntity
+                                                // We must use the voucher's actual entity ID, not the globally selected one
+                                                let currentVoucher = voucher;
+                                                try {
+                                                    // Try to get fresh voucher data if possible, otherwise use current
+                                                    const cacheKey = { voucherId, token: user.access_token };
+                                                    const cached = cache.get('getVoucher', cacheKey);
+                                                    if (cached) currentVoucher = cached;
+                                                } catch (e) {
+                                                    console.warn("Failed to get fresh voucher for navigation", e);
+                                                }
 
-                                                    const pendingInvoices = invoices.filter(inv => inv.status === 'pending_ca_approval');
+                                                const entityId = currentVoucher?.entity?.id || selectedEntity || localStorage.getItem('entityId');
+
+                                                if (entityId && entityId !== "all") {
+                                                    const invoices = await getCATeamInvoices(entityId, user.access_token);
+                                                    const pendingInvoices = (invoices || []).filter(inv => inv.status === 'pending_ca_approval');
 
                                                     if (pendingInvoices.length > 0) {
-                                                        pendingInvoices.sort((a, b) => new Date(b.created_date || b.date) - new Date(a.created_date || a.date));
+                                                        // Sort by date to get the oldest pending invoice first
+                                                        pendingInvoices.sort((a, b) => new Date(a.created_date || a.date) - new Date(b.created_date || b.date));
                                                         const nextInvoice = pendingInvoices[0];
-                                                        navigate(`/invoices/${nextInvoice.id}`, {
+
+                                                        console.log("Navigating to pending invoice:", nextInvoice.id);
+                                                        // Navigate to CA specific invoice details page
+                                                        navigate(`/invoices/ca/${nextInvoice.id}`, {
                                                             state: {
                                                                 invoice: nextInvoice,
                                                                 invoices: pendingInvoices,
                                                                 organizationName,
-                                                                entityName
+                                                                entityName: currentVoucher?.entity?.name || entityName
                                                             },
                                                             replace: true
                                                         });
@@ -2235,6 +2243,7 @@ const VoucherDetailsCA = () => {
                                                     navigate('/finance?tab=invoices');
                                                 }
                                             } catch (e) {
+                                                console.error("Navigation error:", e);
                                                 navigate('/finance?tab=invoices');
                                             }
                                         }}
