@@ -1093,8 +1093,13 @@ const InvoiceDetailsCA = () => {
                     </div>
                 </div>
                 {/* Entity name in top right */}
-                <div className="flex items-center">
+                <div className="flex flex-col items-end">
                     <p className="text-lg sm:text-xl md:text-2xl font-bold text-white truncate">{getEntityName()}</p>
+                    {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM' || user?.role === 'CLIENT_MASTER_ADMIN') && (
+                        <p className="text-sm text-gray-400">
+                            Pending {user?.role === 'CLIENT_MASTER_ADMIN' ? 'Approval' : 'Audit'}: {filteredInvoices?.length || 0}
+                        </p>
+                    )}
                 </div>
             </header>
 
@@ -1250,6 +1255,24 @@ const InvoiceDetailsCA = () => {
                                         </div>
                                         <div className="flex items-center gap-3 pb-10 mb-20 sm:mb-16 md:mb-4 justify-center relative z-[100] px-4 sm:px-6 action-buttons-container">
                                             {/* Action buttons on right */}
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="icon"
+                                                            onClick={(e) => { e.stopPropagation(); handleExportToPDF(); }}
+                                                            className="h-9 w-9 sm:h-10 sm:w-10 mr-2"
+                                                        >
+                                                            <FileText className="h-4 w-4 sm:h-5 sm:w-5" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Export</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+
                                             {/* 4. Approve/Reject Actions */}
                                             {/* CA Actions - only for pending audit */}
                                             {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && !isReadOnly && !invoiceDetails.is_deleted && isAuditable && (

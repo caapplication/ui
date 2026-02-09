@@ -267,7 +267,8 @@ const VoucherDetailsPage = () => {
     const isCaUser = user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM';
 
     // Debug the values to understand why buttons aren't hiding
-    const hideClientActions = (isClientUser || user?.role === 'client_user') && (voucher?.status === 'pending_ca_approval');
+    // Hide actions if status is 'pending_ca_approval' OR 'verified'
+    const hideClientActions = (isClientUser || user?.role === 'client_user') && (voucher?.status === 'pending_ca_approval' || voucher?.status === 'verified');
 
     console.log('Visibility Logic:', {
         role: user?.role,
@@ -1506,8 +1507,13 @@ const VoucherDetailsPage = () => {
                     </div>
                 </div>
                 {/* Entity name in top right */}
-                <div className="flex items-center">
+                <div className="flex flex-col items-end">
                     <p className="text-lg sm:text-xl md:text-2xl font-bold text-white truncate">{getEntityName()}</p>
+                    {user?.role === 'CLIENT_MASTER_ADMIN' && (
+                        <p className="text-sm text-gray-400">
+                            Pending Approval: {filteredVouchers?.length || 0}
+                        </p>
+                    )}
                 </div>
             </header>
 

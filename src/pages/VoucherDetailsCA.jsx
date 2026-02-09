@@ -889,6 +889,13 @@ const VoucherDetailsCA = () => {
                 setVoucher(updatedVoucher);
                 setEditedVoucher(updatedVoucher);
                 cache.set('getVoucher', cacheKey, updatedVoucher);
+
+                // Update the list to reflect status change immediately (removes from filtered view)
+                setVoucherList(prevList =>
+                    prevList.map(v =>
+                        String(v.id) === String(voucherId) ? { ...v, status: newStatus } : v
+                    )
+                );
             }
 
             toast({
@@ -1563,8 +1570,13 @@ const VoucherDetailsCA = () => {
                     </div>
                 </div>
                 {/* Entity name in top right */}
-                <div className="flex items-center">
+                <div className="flex flex-col items-end">
                     <p className="text-2xl font-bold text-white">{getEntityName()}</p>
+                    {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM' || user?.role === 'CLIENT_MASTER_ADMIN') && (
+                        <p className="text-sm text-gray-400">
+                            Pending {user?.role === 'CLIENT_MASTER_ADMIN' ? 'Approval' : 'Audit'}: {filteredVouchers?.length || 0}
+                        </p>
+                    )}
                 </div>
             </header>
 
