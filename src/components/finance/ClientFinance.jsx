@@ -429,6 +429,11 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
     });
   };
 
+  const handleViewInvoice = (invoice) => {
+    const currentIndex = invoices.findIndex(inv => inv.id === invoice.id);
+    navigate(`/invoices/${invoice.id}`, { state: { invoice, invoices, currentIndex } });
+  };
+
   const handleExportToTally = async (format) => {
     const token = localStorage.getItem('accessToken');
     if (format === 'xml') {
@@ -561,6 +566,7 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
                       beneficiaries={beneficiaries}
                       onDeleteInvoice={handleDeleteInvoiceClick}
                       onEditInvoice={(invoice) => console.log(invoice)}
+                      onViewInvoice={handleViewInvoice}
                     />
                   )
                 }

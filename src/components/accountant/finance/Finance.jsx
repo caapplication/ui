@@ -167,7 +167,12 @@ const AccountantFinance = () => {
     //    we can safely fetch the data.
     fetchData();
 
-  }, [organisationId, entities, selectedEntity, setSelectedEntity, fetchData, activeTab]); // Added activeTab dependency
+  }, [user?.access_token, organisationId, entities, selectedEntity, fetchData]);
+
+  const handleViewInvoice = (invoice) => {
+    const currentIndex = invoices.findIndex(inv => inv.id === invoice.id);
+    navigate(`/invoices/ca/${invoice.id}`, { state: { invoice, invoices, currentIndex } });
+  };
 
   const enrichedVouchers = useMemo(() => {
     return (vouchers || []).map((v) => {
@@ -336,6 +341,7 @@ const AccountantFinance = () => {
                     beneficiaries={beneficiaries}
                     onDeleteInvoice={handleDeleteInvoiceClick}
                     onEditInvoice={(invoice) => console.log(invoice)}
+                    onViewInvoice={handleViewInvoice}
                     isAccountantView={true}
                   />
                 }
