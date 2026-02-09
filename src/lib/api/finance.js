@@ -15,8 +15,12 @@ export const getEntities = async (token) => {
     });
 };
 
-export const getDashboardData = async (entityId, token, agencyId) => {
-    const response = await fetch(`${FINANCE_API_BASE_URL}/api/dashboard/?entity_id=${entityId}`, {
+export const getDashboardData = async (entityId, token, agencyId, fromDate = null, toDate = null, limit = 10) => {
+    let url = `${FINANCE_API_BASE_URL}/api/dashboard/?entity_id=${entityId}&limit=${limit}`;
+    if (fromDate) url += `&from_date=${fromDate}`;
+    if (toDate) url += `&to_date=${toDate}`;
+
+    const response = await fetch(url, {
         headers: getAuthHeaders(token, 'application/json', agencyId),
     });
     return handleResponse(response);
