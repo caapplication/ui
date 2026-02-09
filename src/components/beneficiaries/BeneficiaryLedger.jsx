@@ -13,6 +13,8 @@ import {
 } from '@/components/ui/select';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useToast } from '@/components/ui/use-toast';
+import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
 import {
     getBeneficiaries,
     getInvoices,
@@ -33,8 +35,7 @@ import {
     Banknote,
     ArrowUpDown,
     ArrowUp,
-    ArrowDown,
-    Calendar
+    ArrowDown
 } from 'lucide-react';
 import { useCurrentOrganization } from '@/hooks/useCurrentOrganization';
 import {
@@ -45,8 +46,13 @@ import {
     endOfMonth,
     subMonths,
     addDays,
-    addMonths
+    addMonths,
+    differenceInDays,
+    isAfter
 } from 'date-fns';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarPicker } from '@/components/ui/calendar';
+import { AlertCircle, Calendar as CalendarIcon } from 'lucide-react';
 
 // --- Time Frame Presets ---
 const TIME_FRAME_PRESETS = [
@@ -57,14 +63,10 @@ const TIME_FRAME_PRESETS = [
     { key: 'thisMonth', label: 'This Month' },
     { key: 'lastMonth', label: 'Last Month' },
     { key: 'last3Months', label: 'Last 3 Months' },
-    { key: 'tomorrow', label: 'Tomorrow' },
-    { key: 'next7', label: 'Next 7 Days' },
-    { key: 'next30', label: 'Next 30 Days' },
-    { key: 'nextMonth', label: 'Next Month' },
-    { key: 'next3Months', label: 'Next 3 Months' },
+    { key: 'custom', label: 'Custom' },
 ];
 
-function getDateRange(preset) {
+function getDateRange(preset, start, end) {
     const now = new Date();
     const todayStart = startOfDay(now);
     const todayEnd = endOfDay(now);
@@ -84,18 +86,10 @@ function getDateRange(preset) {
             return { from: startOfMonth(subMonths(now, 1)), to: endOfMonth(subMonths(now, 1)) };
         case 'last3Months':
             return { from: startOfDay(subMonths(now, 3)), to: todayEnd };
-        case 'tomorrow':
-            return { from: startOfDay(addDays(now, 1)), to: endOfDay(addDays(now, 1)) };
-        case 'next7':
-            return { from: todayStart, to: endOfDay(addDays(now, 7)) };
-        case 'next30':
-            return { from: todayStart, to: endOfDay(addDays(now, 30)) };
-        case 'nextMonth':
-            return { from: startOfMonth(addMonths(now, 1)), to: endOfMonth(addMonths(now, 1)) };
-        case 'next3Months':
-            return { from: todayStart, to: endOfDay(addMonths(now, 3)) };
+        case 'custom':
+            return { from: start ? startOfDay(start) : null, to: end ? endOfDay(end) : null };
         default:
-            return null; // custom or 'all'
+            return null;
     }
 }
 
@@ -150,6 +144,9 @@ const BeneficiaryLedger = ({ entityId }) => {
 
     // Time frame filter state
     const [timeFrame, setTimeFrame] = useState('last30');
+    const [customStartDate, setCustomStartDate] = useState(null);
+    const [customEndDate, setCustomEndDate] = useState(null);
+    const [dateError, setDateError] = useState('');
 
     const fetchData = useCallback(async () => {
         if (!user?.access_token || !organizationId || !entityId) return;
@@ -180,10 +177,25 @@ const BeneficiaryLedger = ({ entityId }) => {
         fetchData();
     }, [fetchData]);
 
+    useEffect(() => {
+        if (timeFrame === 'custom' && customStartDate && customEndDate) {
+            const days = differenceInDays(customEndDate, customStartDate);
+            if (days > 365) {
+                setDateError('Maximum range is 365 days');
+            } else if (days < 0) {
+                setDateError('Start date must be before end date');
+            } else {
+                setDateError('');
+            }
+        } else {
+            setDateError('');
+        }
+    }, [timeFrame, customStartDate, customEndDate]);
+
     // Compute active date range
     const dateRange = useMemo(() => {
-        return getDateRange(timeFrame);
-    }, [timeFrame]);
+        return getDateRange(timeFrame, customStartDate, customEndDate);
+    }, [timeFrame, customStartDate, customEndDate]);
 
     // Filter invoices and vouchers by date range
     const filteredInvoices = useMemo(() => {
@@ -215,6 +227,13 @@ const BeneficiaryLedger = ({ entityId }) => {
     const handleTimeFrameSelect = (key) => {
         setTimeFrame(key);
         setCurrentPage(1);
+        setDateError('');
+        if (key === 'custom' && !customStartDate) {
+            const end = new Date();
+            const start = subDays(end, 30);
+            setCustomStartDate(start);
+            setCustomEndDate(end);
+        }
     };
 
     const ledgerData = useMemo(() => {
@@ -380,19 +399,120 @@ const BeneficiaryLedger = ({ entityId }) => {
                     </div>
 
                     {/* Time Frame Filter */}
-                    <Select value={timeFrame} onValueChange={handleTimeFrameSelect}>
-                        <SelectTrigger className="w-[140px] sm:w-[170px] h-9 sm:h-10 rounded-xl text-xs sm:text-sm border-white/10 bg-white/5">
-                            <Calendar className="w-4 h-4 mr-2 opacity-50 shrink-0" />
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {TIME_FRAME_PRESETS.map(preset => (
-                                <SelectItem key={preset.key} value={preset.key}>
-                                    {preset.label}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    <div className="flex flex-col items-end gap-2">
+                        <div className="flex items-center gap-2">
+                            <Select value={timeFrame} onValueChange={handleTimeFrameSelect}>
+                                <SelectTrigger className="w-[140px] sm:w-[150px] h-9 sm:h-10 rounded-xl text-xs sm:text-sm border-white/10 bg-white/5">
+                                    <CalendarIcon className="w-4 h-4 mr-2 opacity-50 shrink-0" />
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="bg-[#1a1a2e] border-white/10 text-white rounded-xl">
+                                    {TIME_FRAME_PRESETS.map(preset => (
+                                        <SelectItem key={preset.key} value={preset.key} className="hover:bg-white/10 focus:bg-white/10 cursor-pointer rounded-lg">
+                                            {preset.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+
+                            {timeFrame === 'custom' && (
+                                <div className="flex items-center gap-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                                    <div className="flex items-center gap-1.5">
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button
+                                                    variant={"outline"}
+                                                    className={cn(
+                                                        "w-[110px] sm:w-[120px] h-9 sm:h-10 gap-2 justify-start text-left font-normal bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl px-2 sm:px-3",
+                                                        !customStartDate && "text-muted-foreground"
+                                                    )}
+                                                >
+                                                    <CalendarIcon className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+                                                    <span className="truncate text-[10px] sm:text-xs">{customStartDate ? format(customStartDate, "dd MMM yy") : "Start"}</span>
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0 bg-[#1a1a2e] border-white/10 shadow-2xl" align="end">
+                                                <CalendarPicker
+                                                    mode="single"
+                                                    selected={customStartDate}
+                                                    onSelect={(date) => {
+                                                        setCustomStartDate(date);
+                                                        if (date && customEndDate) {
+                                                            const days = differenceInDays(customEndDate, date);
+                                                            if (days > 365 || days < 0) {
+                                                                const newEnd = new Date(date);
+                                                                newEnd.setFullYear(newEnd.getFullYear() + 1);
+                                                                const limit = new Date();
+                                                                setCustomEndDate(newEnd > limit ? limit : newEnd);
+                                                            }
+                                                        }
+                                                    }}
+                                                    fromYear={2020}
+                                                    toYear={new Date().getFullYear()}
+                                                    disabled={(date) => {
+                                                        if (customEndDate) {
+                                                            const diff = differenceInDays(customEndDate, date);
+                                                            return diff < 0 || diff > 365 || isAfter(date, new Date());
+                                                        }
+                                                        return isAfter(date, new Date());
+                                                    }}
+                                                    initialFocus
+                                                />
+                                            </PopoverContent>
+                                        </Popover>
+                                        <span className="text-gray-500 text-[10px] uppercase font-bold px-0.5">to</span>
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button
+                                                    variant={"outline"}
+                                                    className={cn(
+                                                        "w-[110px] sm:w-[120px] h-9 sm:h-10 gap-2 justify-start text-left font-normal bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl px-2 sm:px-3",
+                                                        !customEndDate && "text-muted-foreground"
+                                                    )}
+                                                >
+                                                    <CalendarIcon className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+                                                    <span className="truncate text-[10px] sm:text-xs">{customEndDate ? format(customEndDate, "dd MMM yy") : "End"}</span>
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0 bg-[#1a1a2e] border-white/10 shadow-2xl" align="end">
+                                                <CalendarPicker
+                                                    mode="single"
+                                                    selected={customEndDate}
+                                                    onSelect={(date) => {
+                                                        setCustomEndDate(date);
+                                                        if (customStartDate && date) {
+                                                            const days = differenceInDays(date, customStartDate);
+                                                            if (days > 365 || days < 0) {
+                                                                const newStart = new Date(date);
+                                                                newStart.setFullYear(newStart.getFullYear() - 1);
+                                                                setCustomStartDate(newStart);
+                                                            }
+                                                        }
+                                                    }}
+                                                    fromYear={2020}
+                                                    toYear={new Date().getFullYear()}
+                                                    disabled={(date) => {
+                                                        if (customStartDate) {
+                                                            const diff = differenceInDays(date, customStartDate);
+                                                            return diff < 0 || diff > 365 || isAfter(date, new Date());
+                                                        }
+                                                        return isAfter(date, new Date());
+                                                    }}
+                                                    initialFocus
+                                                />
+                                            </PopoverContent>
+                                        </Popover>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        {timeFrame === 'custom' && dateError && (
+                            <div className="flex items-center gap-1.5 text-[10px] text-red-400 bg-red-400/10 px-2 py-1 rounded-lg border border-red-400/20">
+                                <AlertCircle className="w-3 h-3" />
+                                {dateError}
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 
