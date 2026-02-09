@@ -192,15 +192,8 @@ const AccountantDashboard = () => {
       const noticesList = notices || [];
 
       // Compute Revenue & Due from actual invoice/voucher data
-      const totalRevenue = [
-        ...invoices.filter(i => i.status === 'verified'),
-        ...vouchers.filter(v => v.status === 'verified')
-      ].reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
-
-      const totalDue = [
-        ...invoices.filter(i => i.status === 'pending_ca_approval' || i.status === 'pending_master_admin_approval' || i.status === 'created' || i.status === 'pending_approval'),
-        ...vouchers.filter(v => v.status === 'pending_ca_approval' || v.status === 'pending_master_admin_approval' || v.status === 'created' || v.status === 'pending_approval')
-      ].reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+      const totalRevenue = 0;
+      const totalDue = 0;
 
       setStats({
         myClients: Array.isArray(clientsData) ? clientsData.length : (clientsData?.results?.length || 0),

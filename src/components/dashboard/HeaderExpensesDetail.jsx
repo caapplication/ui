@@ -258,19 +258,19 @@ const HeaderExpensesDetail = ({ entityId }) => {
                     </div>
 
                     {timeFrame === 'custom' && (
-                        <div className="flex flex-col sm:flex-row items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                        <div className="flex flex-row items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
                             <div className="flex items-center gap-2">
                                 <Popover>
                                     <PopoverTrigger asChild>
                                         <Button
                                             variant={"outline"}
                                             className={cn(
-                                                "w-[130px] h-9 gap-2 justify-start text-left font-normal bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl px-3",
+                                                "w-[120px] sm:w-[130px] h-9 gap-2 justify-start text-left font-normal bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl px-2 sm:px-3",
                                                 !customStartDate && "text-muted-foreground"
                                             )}
                                         >
                                             <CalendarIcon className="h-3.5 w-3.5 text-blue-400 shrink-0" />
-                                            <span className="truncate">{customStartDate ? format(customStartDate, "dd MMM yy") : "Start"}</span>
+                                            <span className="truncate text-xs sm:text-sm">{customStartDate ? format(customStartDate, "dd MMM yy") : "Start"}</span>
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-0 bg-[#1a1a2e] border-white/10 shadow-2xl" align="start">
@@ -302,18 +302,18 @@ const HeaderExpensesDetail = ({ entityId }) => {
                                         />
                                     </PopoverContent>
                                 </Popover>
-                                <span className="text-gray-500 text-xs font-medium shrink-0">to</span>
+                                <span className="text-gray-500 text-[10px] sm:text-xs font-medium shrink-0 uppercase">to</span>
                                 <Popover>
                                     <PopoverTrigger asChild>
                                         <Button
                                             variant={"outline"}
                                             className={cn(
-                                                "w-[130px] h-9 gap-2 justify-start text-left font-normal bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl px-3",
+                                                "w-[120px] sm:w-[130px] h-9 gap-2 justify-start text-left font-normal bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl px-2 sm:px-3",
                                                 !customEndDate && "text-muted-foreground"
                                             )}
                                         >
                                             <CalendarIcon className="h-3.5 w-3.5 text-blue-400 shrink-0" />
-                                            <span className="truncate">{customEndDate ? format(customEndDate, "dd MMM yy") : "End"}</span>
+                                            <span className="truncate text-xs sm:text-sm">{customEndDate ? format(customEndDate, "dd MMM yy") : "End"}</span>
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-0 bg-[#1a1a2e] border-white/10 shadow-2xl" align="start">
