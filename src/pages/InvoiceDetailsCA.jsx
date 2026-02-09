@@ -923,6 +923,27 @@ const InvoiceDetailsCA = () => {
                 replace: true
             });
         } else {
+            // No pending invoices, check for pending vouchers
+            try {
+                const entityId = invoiceDetails?.entity?.id || invoice?.entity?.id || localStorage.getItem('entityId');
+                console.log('Checking for pending vouchers for entityId:', entityId);
+                if (entityId) {
+                    const vouchers = await getVouchers(entityId, user.access_token);
+                    console.log('Fetched vouchers:', vouchers);
+                    const pendingVouchers = vouchers.filter(v => v.status === 'pending_ca_approval');
+                    console.log('Pending CA vouchers:', pendingVouchers);
+
+                    if (pendingVouchers.length > 0) {
+                        setCompletionModalType('go_to_vouchers');
+                        setShowCompletionModal(true);
+                        return;
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to check for pending vouchers:", error);
+            }
+
+            // No pending vouchers either, mark as all done
             setCompletionModalType('all_done');
             setShowCompletionModal(true);
         }
@@ -1656,21 +1677,22 @@ const InvoiceDetailsCA = () => {
                                     </Button>
                                     <Button
                                         onClick={async () => {
-                                            const entityId = invoiceDetails?.entity_id || localStorage.getItem('entityId');
+                                            const entityId = invoiceDetails?.entity?.id || invoice?.entity?.id || localStorage.getItem('entityId');
                                             if (entityId) {
                                                 try {
                                                     const vouchers = await getVouchers(entityId, user.access_token);
-                                                    const pendingVouchers = vouchers.filter(v => v.status === 'pending_master_admin_approval');
+                                                    const pendingVouchers = vouchers.filter(v => v.status === 'pending_ca_approval');
                                                     if (pendingVouchers.length > 0) {
                                                         const nextVoucher = pendingVouchers[0];
-                                                        navigate(`/finance/vouchers/${nextVoucher.id}`, {
-                                                            state: { voucher: nextVoucher, vouchers: pendingVouchers, organizationName, entityName },
+                                                        navigate(`/vouchers/ca/${nextVoucher.id}`, {
+                                                            state: { voucher: nextVoucher, vouchers, organizationName, entityName },
                                                             replace: true
                                                         });
                                                     } else {
                                                         navigate('/finance/vouchers');
                                                     }
                                                 } catch (e) {
+                                                    console.error('Failed to fetch vouchers:', e);
                                                     navigate('/finance/vouchers');
                                                 }
                                             } else {
