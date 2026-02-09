@@ -21,6 +21,15 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Calendar } from "@/components/ui/calendar"
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover"
+import { Calendar as CalendarIcon, AlertCircle } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { addYears, isAfter, differenceInDays, startOfDay, endOfDay } from 'date-fns';
 
 const TIME_FRAME_PRESETS = [
     { label: 'Today', value: 'today' },
@@ -32,10 +41,10 @@ const TIME_FRAME_PRESETS = [
     { label: 'Last 3 Months', value: 'last3Months' },
     { label: 'Last 6 Months', value: 'last6Months' },
     { label: 'This Year', value: 'thisYear' },
-    { label: 'All Time', value: 'all' },
+    { label: 'Custom', value: 'custom' },
 ];
 
-const getDateRange = (preset) => {
+const getDateRange = (preset, customStart, customEnd) => {
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     switch (preset) {
@@ -75,7 +84,11 @@ const getDateRange = (preset) => {
         }
         case 'thisYear':
             return { start: new Date(now.getFullYear(), 0, 1), end: now };
-        case 'all':
+        case 'custom':
+            return {
+                start: customStart ? startOfDay(customStart) : null,
+                end: customEnd ? endOfDay(customEnd) : null
+            };
         default:
             return { start: null, end: null };
     }
@@ -92,7 +105,10 @@ const HeaderExpensesDetail = ({ entityId }) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [sortColumn, setSortColumn] = useState('created_date');
     const [sortDirection, setSortDirection] = useState('desc');
-    const [timeFrame, setTimeFrame] = useState('all');
+    const [timeFrame, setTimeFrame] = useState('thisYear');
+    const [customStartDate, setCustomStartDate] = useState(null);
+    const [customEndDate, setCustomEndDate] = useState(null);
+    const [dateError, setDateError] = useState('');
     const itemsPerPage = 15;
 
     const resolvedEntityId = entityId || localStorage.getItem('entityId');
@@ -143,7 +159,7 @@ const HeaderExpensesDetail = ({ entityId }) => {
     };
 
     const filteredData = useMemo(() => {
-        const { start, end } = getDateRange(timeFrame);
+        const { start, end } = getDateRange(timeFrame, customStartDate, customEndDate);
 
         let result = vouchers.filter(v => {
             // Time frame filter
@@ -204,29 +220,140 @@ const HeaderExpensesDetail = ({ entityId }) => {
                     </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
-                    <Select value={timeFrame} onValueChange={(val) => { setTimeFrame(val); setCurrentPage(1); }}>
-                        <SelectTrigger className="w-full sm:w-44 h-9 sm:h-10 border-white/10 bg-white/5 text-white rounded-xl text-sm">
-                            <SelectValue placeholder="Time frame" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-[#1a1a2e] border-white/10 text-white rounded-xl">
-                            {TIME_FRAME_PRESETS.map(preset => (
-                                <SelectItem key={preset.value} value={preset.value} className="hover:bg-white/10 focus:bg-white/10 cursor-pointer rounded-lg">
-                                    {preset.label}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                <div className="flex flex-col gap-3 w-full sm:w-auto">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                        <Select value={timeFrame} onValueChange={(val) => {
+                            setTimeFrame(val);
+                            setCurrentPage(1);
+                            setDateError('');
+                            if (val === 'custom' && !customStartDate) {
+                                const end = new Date();
+                                const start = new Date();
+                                start.setMonth(start.getMonth() - 1);
+                                setCustomStartDate(start);
+                                setCustomEndDate(end);
+                            }
+                        }}>
+                            <SelectTrigger className="w-full sm:w-44 h-9 sm:h-10 border-white/10 bg-white/5 text-white rounded-xl text-sm">
+                                <SelectValue placeholder="Time frame" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-[#1a1a2e] border-white/10 text-white rounded-xl">
+                                {TIME_FRAME_PRESETS.map(preset => (
+                                    <SelectItem key={preset.value} value={preset.value} className="hover:bg-white/10 focus:bg-white/10 cursor-pointer rounded-lg">
+                                        {preset.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
 
-                    <div className="relative w-full sm:w-64">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <Input
-                            placeholder="Search beneficiary..."
-                            className="pl-9 h-9 sm:h-10 border-white/10 bg-white/5 focus:bg-white/10 text-white placeholder:text-gray-500 rounded-xl text-sm"
-                            value={searchTerm}
-                            onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-                        />
+                        <div className="relative w-full sm:w-64">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <Input
+                                placeholder="Search beneficiary..."
+                                className="pl-9 h-9 sm:h-10 border-white/10 bg-white/5 focus:bg-white/10 text-white placeholder:text-gray-500 rounded-xl text-sm"
+                                value={searchTerm}
+                                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                            />
+                        </div>
                     </div>
+
+                    {timeFrame === 'custom' && (
+                        <div className="flex flex-col sm:flex-row items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                            <div className="flex items-center gap-2">
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant={"outline"}
+                                            className={cn(
+                                                "w-[130px] h-9 gap-2 justify-start text-left font-normal bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl px-3",
+                                                !customStartDate && "text-muted-foreground"
+                                            )}
+                                        >
+                                            <CalendarIcon className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+                                            <span className="truncate">{customStartDate ? format(customStartDate, "dd MMM yy") : "Start"}</span>
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0 bg-[#1a1a2e] border-white/10 shadow-2xl" align="start">
+                                        <Calendar
+                                            mode="single"
+                                            selected={customStartDate}
+                                            onSelect={(date) => {
+                                                setCustomStartDate(date);
+                                                if (date && customEndDate) {
+                                                    const days = differenceInDays(customEndDate, date);
+                                                    if (days > 365 || days < 0) {
+                                                        const newEnd = new Date(date);
+                                                        newEnd.setFullYear(newEnd.getFullYear() + 1);
+                                                        const limit = new Date();
+                                                        setCustomEndDate(newEnd > limit ? limit : newEnd);
+                                                    }
+                                                }
+                                            }}
+                                            fromYear={2020}
+                                            toYear={new Date().getFullYear()}
+                                            disabled={(date) => {
+                                                if (customEndDate) {
+                                                    const diff = differenceInDays(customEndDate, date);
+                                                    return diff < 0 || diff > 365 || isAfter(date, new Date());
+                                                }
+                                                return isAfter(date, new Date());
+                                            }}
+                                            initialFocus
+                                        />
+                                    </PopoverContent>
+                                </Popover>
+                                <span className="text-gray-500 text-xs font-medium shrink-0">to</span>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant={"outline"}
+                                            className={cn(
+                                                "w-[130px] h-9 gap-2 justify-start text-left font-normal bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl px-3",
+                                                !customEndDate && "text-muted-foreground"
+                                            )}
+                                        >
+                                            <CalendarIcon className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+                                            <span className="truncate">{customEndDate ? format(customEndDate, "dd MMM yy") : "End"}</span>
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0 bg-[#1a1a2e] border-white/10 shadow-2xl" align="start">
+                                        <Calendar
+                                            mode="single"
+                                            selected={customEndDate}
+                                            onSelect={(date) => {
+                                                setCustomEndDate(date);
+                                                if (customStartDate && date) {
+                                                    const days = differenceInDays(date, customStartDate);
+                                                    if (days > 365 || days < 0) {
+                                                        const newStart = new Date(date);
+                                                        newStart.setFullYear(newStart.getFullYear() - 1);
+                                                        setCustomStartDate(newStart);
+                                                    }
+                                                }
+                                            }}
+                                            fromYear={2020}
+                                            toYear={new Date().getFullYear()}
+                                            disabled={(date) => {
+                                                if (customStartDate) {
+                                                    const diff = differenceInDays(date, customStartDate);
+                                                    return diff < 0 || diff > 365 || isAfter(date, new Date());
+                                                }
+                                                return isAfter(date, new Date());
+                                            }}
+                                            initialFocus
+                                        />
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
+
+                            {dateError && (
+                                <div className="flex items-center gap-1.5 text-xs text-red-400 bg-red-400/10 px-3 py-1.5 rounded-lg border border-red-400/20">
+                                    <AlertCircle className="w-3.5 h-3.5" />
+                                    {dateError}
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -375,7 +502,7 @@ const HeaderExpensesDetail = ({ entityId }) => {
                     </div>
                 )}
             </Card>
-        </div>
+        </div >
     );
 };
 
