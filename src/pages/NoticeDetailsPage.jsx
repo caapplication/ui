@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ArrowLeft, Send, Paperclip, MoreVertical, FileText, UserPlus, X, Download, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RefreshCcw, Share2, Trash2, CheckCircle, XCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { ArrowLeft, Send, Paperclip, MoreVertical, FileText, UserPlus, X, Download, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RefreshCcw, Share2, Trash2, CheckCircle, XCircle, AlertCircle, Loader2, Eye, ImageIcon, Clock, MessageSquare } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Search } from 'lucide-react';
+import { format, formatDistanceToNow } from 'date-fns';
 
 import { getNotice, getNoticeComments, addNoticeComment, requestNoticeClosure, approveNoticeClosure, rejectNoticeClosure, addNoticeCollaborator } from '@/lib/api/notices';
 import { getNoticeAttachment } from '@/lib/api';
@@ -53,14 +54,27 @@ const NoticeDetailsPage = () => {
     const [closureReason, setClosureReason] = useState('');
     const [isProcessingAction, setIsProcessingAction] = useState(false);
 
+    const [loadingImages, setLoadingImages] = useState(new Set());
+    const [readReceipts, setReadReceipts] = useState({}); // { commentId: [{ user_id, name, read_at }] }
+    const [isLoadingReadReceipts, setIsLoadingReadReceipts] = useState(false);
+    const [selectedFile, setSelectedFile] = useState(null);
+    const fileInputRef = useRef(null);
+
     const messagesEndRef = useRef(null);
+    const chatContainerRef = useRef(null);
 
     const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        if (chatContainerRef.current) {
+            chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+        } else if (messagesEndRef.current) {
+            messagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        }
     };
 
     useEffect(() => {
-        scrollToBottom();
+        if (messages.length > 0) {
+            scrollToBottom();
+        }
     }, [messages]);
 
     useEffect(() => {
@@ -85,19 +99,7 @@ const NoticeDetailsPage = () => {
             }
 
             const commentsData = await getNoticeComments(noticeId, token);
-            // Map comments to UI message format if needed, or stick to backend structure
-            // Example map:
-            const mappedMessages = commentsData.map(c => ({
-                id: c.id,
-                text: c.message,
-                sender: c.user_name || 'Unknown',
-                time: new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                isMe: c.user_id === user?.id,
-                avatar: (c.user_name || 'U')[0],
-                attachment: c.attachment_url,
-                role: c.user_role
-            }));
-            setMessages(mappedMessages);
+            setMessages(Array.isArray(commentsData) ? commentsData : []);
 
         } catch (error) {
             console.error("Failed to fetch notice details", error);
@@ -109,25 +111,18 @@ const NoticeDetailsPage = () => {
 
     const handleSendMessage = async (e) => {
         e.preventDefault();
-        if (!newMessage.trim()) return;
+        if (!newMessage.trim() && !selectedFile) return;
 
         setIsSending(true);
         try {
-            await addNoticeComment(noticeId, newMessage, null, token);
+            await addNoticeComment(noticeId, newMessage, selectedFile, token);
             setNewMessage('');
+            setSelectedFile(null);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+
             // Refresh comments
             const commentsData = await getNoticeComments(noticeId, token);
-            const mappedMessages = commentsData.map(c => ({
-                id: c.id,
-                text: c.message,
-                sender: c.user_name || 'Unknown',
-                time: new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                isMe: c.user_id === user?.id,
-                avatar: (c.user_name || 'U')[0],
-                attachment: c.attachment_url,
-                role: c.user_role
-            }));
-            setMessages(mappedMessages);
+            setMessages(Array.isArray(commentsData) ? commentsData : []);
         } catch (error) {
             console.error("Failed to send message", error);
             toast({ title: "Error", description: "Failed to send message", variant: "destructive" });
@@ -161,6 +156,36 @@ const NoticeDetailsPage = () => {
             setIsProcessingAction(false);
         }
     }
+
+    const getUserNameColor = (userId) => {
+        if (!userId) return 'text-gray-300';
+        const colors = [
+            'text-red-400',
+            'text-blue-400',
+            'text-green-400',
+            'text-yellow-400',
+            'text-purple-400',
+            'text-pink-400',
+            'text-cyan-400',
+            'text-orange-400',
+        ];
+        const idStr = String(userId);
+        const hash = idStr.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        return colors[hash % colors.length];
+    };
+
+    const handleFetchReadReceipts = async (commentId) => {
+        // Since we don't have an explicit read receipts API for notices yet,
+        // we'll check if the comment object already has this info
+        const comment = messages.find(m => m.id === commentId);
+        if (comment && (comment.read_receipts || comment.read_by)) {
+            setReadReceipts(prev => ({
+                ...prev,
+                [commentId]: comment.read_receipts || comment.read_by
+            }));
+        }
+    };
+
 
     if (isLoading && !notice) return <div className="p-8 text-center text-white">Loading notice details...</div>;
     if (!isLoading && !notice) return <div className="p-8 text-center text-white">Notice not found</div>;
@@ -291,53 +316,215 @@ const NoticeDetailsPage = () => {
                 {/* Right Panel - Chat Interface */}
                 <ResizablePanel defaultSize={50} minSize={30}>
                     <div className="flex h-full flex-col bg-transparent">
-                        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                        <div className="p-4 py-3 border-b border-white/10 flex items-center gap-2">
+                            <MessageSquare className="w-5 h-5 text-gray-300" />
+                            <h2 className="text-lg font-semibold text-white">Notice Chat</h2>
+                        </div>
+                        <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 mb-4 pr-2 min-h-0" style={{ overflowX: 'visible' }}>
                             {messages.length === 0 ? (
                                 <div className="text-center text-gray-500 mt-10">No messages yet. Start the discussion.</div>
                             ) : (
-                                messages.map((msg) => (
-                                    <div key={msg.id} className={`flex ${msg.isMe ? 'justify-end' : 'justify-start'}`}>
-                                        <div className={`flex items-end max-w-[80%] gap-2 ${msg.isMe ? 'flex-row-reverse' : 'flex-row'}`}>
-                                            {!msg.isMe && (
-                                                <TooltipProvider>
-                                                    <Tooltip>
-                                                        <TooltipTrigger>
-                                                            <Avatar className="w-8 h-8 cursor-help">
-                                                                <AvatarFallback className="bg-indigo-600 text-xs">{msg.avatar}</AvatarFallback>
-                                                            </Avatar>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>
-                                                            <p>{msg.sender} ({msg.role})</p>
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                </TooltipProvider>
+                                messages.map((msg, index) => {
+                                    const isOwnComment = msg.user_id === user?.id;
+                                    const commentUserName = msg.user_name || (isOwnComment ? (user?.name || 'You') : 'Unknown');
+
+                                    // Check if previous message is from same user to group messages
+                                    const prevMessage = index > 0 ? messages[index - 1] : null;
+                                    const isGrouped = prevMessage && prevMessage.user_id === msg.user_id;
+
+                                    // Format timestamp
+                                    const messageDate = new Date(msg.created_at || msg.timestamp || msg.time);
+                                    const now = new Date();
+                                    const isToday = messageDate.toDateString() === now.toDateString();
+                                    const isYesterday = new Date(now.getTime() - 86400000).toDateString() === messageDate.toDateString();
+                                    let timeStr = format(messageDate, 'HH:mm');
+                                    if (isToday) {
+                                        timeStr = format(messageDate, 'HH:mm');
+                                    } else if (isYesterday) {
+                                        timeStr = `Yesterday, ${format(messageDate, 'HH:mm')}`;
+                                    } else {
+                                        timeStr = format(messageDate, 'dd-MM-yyyy, HH:mm');
+                                    }
+
+                                    return (
+                                        <div key={msg.id} className={`flex gap-2 ${isOwnComment ? 'flex-row-reverse' : 'flex-row'} ${isGrouped ? 'mt-1' : 'mt-4'}`}>
+                                            {/* Avatar - only show if not grouped */}
+                                            {!isGrouped && (
+                                                <div className="flex-shrink-0">
+                                                    <TooltipProvider>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <Avatar className="w-10 h-10 shadow-lg cursor-help">
+                                                                    <AvatarFallback className="bg-indigo-600 font-semibold text-sm text-white">
+                                                                        {commentUserName.charAt(0).toUpperCase()}
+                                                                    </AvatarFallback>
+                                                                </Avatar>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                <p>{commentUserName} ({msg.user_role || msg.role || 'Member'})</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </TooltipProvider>
+                                                </div>
                                             )}
-                                            <div className={`p-3 rounded-2xl text-sm ${msg.isMe ? 'bg-blue-600 text-white rounded-br-none' : 'glass-card border-white/10 text-gray-200 rounded-bl-none'}`}>
-                                                <p className="whitespace-pre-wrap">{msg.text}</p>
-                                                <span className={`text-[10px] block mt-1 ${msg.isMe ? 'text-blue-200' : 'text-gray-500'}`}>{msg.time}</span>
+                                            {isGrouped && <div className="w-10"></div>}
+
+                                            <div className={`flex-1 ${isOwnComment ? 'flex flex-col items-end' : 'flex flex-col items-start'}`}>
+                                                {!isGrouped && (
+                                                    <div className={`mb-1 ${isOwnComment ? 'text-right' : 'text-left'}`}>
+                                                        <span className={`text-sm font-bold ${getUserNameColor(msg.user_id)}`}>
+                                                            {commentUserName}
+                                                        </span>
+                                                    </div>
+                                                )}
+
+                                                {/* Message bubble */}
+                                                <div className={`relative inline-block max-w-[75%] ${isOwnComment ? 'bg-blue-500/20 text-white border border-blue-500/50' : 'bg-white/10 text-white border border-white/20'} rounded-lg shadow-sm`} style={{
+                                                    borderRadius: isOwnComment
+                                                        ? (isGrouped ? '7px 7px 2px 7px' : '7px 7px 2px 7px')
+                                                        : (isGrouped ? '2px 7px 7px 7px' : '7px 7px 7px 2px')
+                                                }}>
+                                                    <div className="p-3 pb-1">
+                                                        {msg.attachment_url && (
+                                                            <div className="mb-2">
+                                                                {msg.attachment_type?.startsWith('image/') || msg.attachment_url.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ? (
+                                                                    <div className="rounded-lg overflow-hidden relative">
+                                                                        {loadingImages.has(msg.id) && (
+                                                                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10">
+                                                                                <Loader2 className="w-8 h-8 animate-spin text-white" />
+                                                                            </div>
+                                                                        )}
+                                                                        <img
+                                                                            src={msg.attachment_url}
+                                                                            alt="Attachment"
+                                                                            className="max-w-full h-auto rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                                                                            onLoad={() => setLoadingImages(prev => {
+                                                                                const next = new Set(prev);
+                                                                                next.delete(msg.id);
+                                                                                return next;
+                                                                            })}
+                                                                        />
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="flex items-center gap-3 p-2 bg-white/5 border border-white/10 rounded-lg">
+                                                                        <FileText className="w-8 h-8 text-blue-400" />
+                                                                        <div className="flex-1 min-w-0">
+                                                                            <p className="text-sm font-medium text-white truncate">{msg.attachment_name || 'Attachment'}</p>
+                                                                        </div>
+                                                                        <a href={msg.attachment_url} download className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors">
+                                                                            <Download className="w-4 h-4 text-white" />
+                                                                        </a>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                        {msg.message && <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{msg.message}</p>}
+                                                    </div>
+
+                                                    {/* Timestamp and ticks */}
+                                                    <div className="flex items-center justify-end gap-1 px-2 pb-1">
+                                                        <span className="text-[10px] text-gray-400">
+                                                            {timeStr}
+                                                        </span>
+                                                        {isOwnComment && (
+                                                            <TooltipProvider>
+                                                                <Tooltip delayDuration={300}>
+                                                                    <TooltipTrigger asChild>
+                                                                        <button
+                                                                            onMouseEnter={() => handleFetchReadReceipts(msg.id)}
+                                                                            className="text-[10px] cursor-pointer ml-1 flex items-center"
+                                                                        >
+                                                                            {(() => {
+                                                                                const receipts = readReceipts[msg.id] || msg.read_receipts || msg.read_by || [];
+                                                                                const hasRead = Array.isArray(receipts) && receipts.some(r => {
+                                                                                    const rid = r.user_id || r.id || (typeof r !== 'object' ? r : null);
+                                                                                    return rid && String(rid) !== String(user?.id);
+                                                                                });
+                                                                                return hasRead ? (
+                                                                                    <span className="text-blue-400">✓✓</span>
+                                                                                ) : (
+                                                                                    <span className="text-gray-500">✓</span>
+                                                                                );
+                                                                            })()}
+                                                                        </button>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent className="bg-slate-900 border-white/10 p-0 max-w-xs z-50">
+                                                                        <div className="p-3">
+                                                                            <div className="text-xs font-semibold text-white mb-2 pb-2 border-b border-white/10">Read By</div>
+                                                                            {readReceipts[msg.id]?.length > 0 ? (
+                                                                                <div className="space-y-2">
+                                                                                    {readReceipts[msg.id].map((r, i) => (
+                                                                                        <div key={i} className="flex items-center gap-2">
+                                                                                            <Avatar className="w-5 h-5"><AvatarFallback className="text-[8px] bg-blue-500">{(r.name || 'U')[0]}</AvatarFallback></Avatar>
+                                                                                            <div className="flex flex-col">
+                                                                                                <span className="text-[10px] font-medium text-white">{r.name || 'Unknown'}</span>
+                                                                                                <span className="text-[8px] text-gray-400">{r.read_at ? format(new Date(r.read_at), 'HH:mm, dd MMM') : ''}</span>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    ))}
+                                                                                </div>
+                                                                            ) : (
+                                                                                <div className="text-xs text-gray-400 py-1">Sent</div>
+                                                                            )}
+                                                                        </div>
+                                                                    </TooltipContent>
+                                                                </Tooltip>
+                                                            </TooltipProvider>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                ))
+                                    );
+                                })
                             )}
                             <div ref={messagesEndRef} />
                         </div>
 
                         {/* Input Area */}
                         <div className="p-4 border-t border-white/10 bg-black/20 backdrop-blur-sm">
+                            {selectedFile && (
+                                <div className="mb-2 p-2 bg-blue-600/20 border border-blue-500/30 rounded-lg flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <Paperclip className="w-4 h-4 text-blue-400" />
+                                        <span className="text-xs text-white truncate max-w-[200px]">{selectedFile.name}</span>
+                                    </div>
+                                    <Button type="button" size="icon" variant="ghost" className="h-6 w-6 text-gray-400 hover:text-white" onClick={() => setSelectedFile(null)}>
+                                        <X className="w-3 h-3" />
+                                    </Button>
+                                </div>
+                            )}
                             <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-                                <Button type="button" size="icon" variant="ghost" className="text-gray-400 hover:text-white hover:bg-white/10">
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    className="hidden"
+                                    onChange={(e) => setSelectedFile(e.target.files[0])}
+                                />
+                                <Button
+                                    type="button"
+                                    size="icon"
+                                    variant="ghost"
+                                    className="text-gray-400 hover:text-white hover:bg-white/10"
+                                    onClick={() => fileInputRef.current?.click()}
+                                >
                                     <Paperclip className="w-5 h-5" />
                                 </Button>
                                 <Input
                                     value={newMessage}
                                     onChange={(e) => setNewMessage(e.target.value)}
                                     placeholder="Type your message..."
-                                    className="flex-1 glass-input border-white/10 focus-visible:ring-blue-500/50 bg-black/20"
+                                    className="flex-1 bg-white/10 text-white border-2 border-blue-500/50 rounded-full h-10 px-4 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 placeholder:text-gray-400"
                                     disabled={isSending}
+                                    onKeyPress={(e) => {
+                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                            e.preventDefault();
+                                            handleSendMessage(e);
+                                        }
+                                    }}
                                 />
-                                <Button type="submit" size="icon" disabled={isSending} className="bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg shadow-blue-900/20">
-                                    <Send className="w-4 h-4" />
+                                <Button type="submit" size="icon" disabled={isSending} className={`flex-shrink-0 h-10 w-10 rounded-full p-0 ${isSending ? 'bg-gray-600 cursor-not-allowed text-gray-400' : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg'}`}>
+                                    {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                                 </Button>
                             </form>
                         </div>
@@ -346,26 +533,87 @@ const NoticeDetailsPage = () => {
             </ResizablePanelGroup>
 
             {/* Mobile View (Simplified) */}
-            <div className="flex flex-col md:hidden flex-1 gap-4">
+            <div className="flex flex-col md:hidden flex-1 gap-4 overflow-hidden">
+                <div className="flex items-center gap-2 px-1">
+                    <MessageSquare className="w-5 h-5 text-gray-300" />
+                    <h2 className="text-lg font-semibold text-white">Notice Chat</h2>
+                </div>
                 <div className="flex-1 overflow-y-auto p-4 space-y-4 border border-white/10 rounded-lg">
-                    {messages.map((msg) => (
-                        <div key={msg.id} className={`flex ${msg.isMe ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`p-3 rounded-2xl text-sm ${msg.isMe ? 'bg-blue-600 text-white' : 'glass-card border-white/10 text-gray-200'}`}>
-                                <p>{msg.text}</p>
-                            </div>
-                        </div>
-                    ))}
+                    {messages.length === 0 ? (
+                        <div className="text-center text-gray-500 mt-10">No messages yet.</div>
+                    ) : (
+                        messages.map((msg, index) => {
+                            const isOwnComment = msg.user_id === user?.id;
+                            const prevMessage = index > 0 ? messages[index - 1] : null;
+                            const isGrouped = prevMessage && prevMessage.user_id === msg.user_id;
+                            const messageDate = new Date(msg.created_at || msg.timestamp || msg.time);
+                            const timeStr = format(messageDate, 'HH:mm');
+
+                            return (
+                                <div key={msg.id} className={`flex ${isOwnComment ? 'justify-end' : 'justify-start'} ${isGrouped ? 'mt-1' : 'mt-3'}`}>
+                                    <div className={`p-3 rounded-lg text-sm max-w-[85%] ${isOwnComment ? 'bg-blue-500/20 text-white border border-blue-500/50' : 'bg-white/10 text-white border border-white/20'}`} style={{
+                                        borderRadius: isOwnComment
+                                            ? (isGrouped ? '7px 7px 2px 7px' : '7px 7px 2px 7px')
+                                            : (isGrouped ? '2px 7px 7px 7px' : '7px 7px 7px 2px')
+                                    }}>
+                                        <p className="whitespace-pre-wrap">{msg.message}</p>
+                                        <div className="flex items-center justify-end gap-1 mt-1">
+                                            <span className="text-[9px] text-gray-400">{timeStr}</span>
+                                            {isOwnComment && (
+                                                <span className="text-[9px] font-bold">
+                                                    {(() => {
+                                                        const receipts = readReceipts[msg.id] || msg.read_receipts || msg.read_by || [];
+                                                        const hasRead = Array.isArray(receipts) && receipts.some(r => {
+                                                            const rid = r.user_id || r.id || (typeof r !== 'object' ? r : null);
+                                                            return rid && String(rid) !== String(user?.id);
+                                                        });
+                                                        return hasRead ? (
+                                                            <span className="text-blue-400">✓✓</span>
+                                                        ) : (
+                                                            <span className="text-gray-500">✓</span>
+                                                        );
+                                                    })()}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
+                    <div ref={messagesEndRef} />
                 </div>
                 <div className="p-3 border-t border-white/10 bg-black/20">
+                    {selectedFile && (
+                        <div className="mb-2 p-2 bg-blue-600/20 border border-blue-500/30 rounded-lg flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-xs truncate">
+                                <Paperclip className="w-3 h-3 text-blue-400 flex-shrink-0" />
+                                <span className="text-white truncate">{selectedFile.name}</span>
+                            </div>
+                            <Button type="button" size="icon" variant="ghost" className="h-5 w-5 text-gray-400" onClick={() => setSelectedFile(null)}>
+                                <X className="w-3 h-3" />
+                            </Button>
+                        </div>
+                    )}
                     <form onSubmit={handleSendMessage} className="flex gap-2">
+                        <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            className="h-10 w-10 text-gray-400 rounded-full"
+                            onClick={() => fileInputRef.current?.click()}
+                        >
+                            <Paperclip className="w-5 h-5" />
+                        </Button>
                         <Input
                             value={newMessage}
                             onChange={(e) => setNewMessage(e.target.value)}
                             placeholder="Message..."
-                            className="flex-1 h-9 text-sm glass-input border-white/10"
+                            className="flex-1 h-10 bg-white/10 text-white border border-blue-500/30 rounded-full px-4 text-sm"
+                            disabled={isSending}
                         />
-                        <Button type="submit" size="icon" className="h-9 w-9 bg-blue-600">
-                            <Send className="w-4 h-4" />
+                        <Button type="submit" size="icon" disabled={isSending} className="h-10 w-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full">
+                            {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                         </Button>
                     </form>
                 </div>
