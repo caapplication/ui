@@ -15,7 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Search } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 
-import { getNotice, getNoticeComments, addNoticeComment, requestNoticeClosure, approveNoticeClosure, rejectNoticeClosure, addNoticeCollaborator } from '@/lib/api/notices';
+import { getNotice, getNoticeComments, addNoticeComment, requestNoticeClosure, approveNoticeClosure, rejectNoticeClosure, addNoticeCollaborator, markNoticeCommentAsRead, getNoticeCommentReadReceipts } from '@/lib/api/notices';
 import { getNoticeAttachment } from '@/lib/api';
 import { listAllClientUsers } from '@/lib/api/organisation';
 import { useAuth } from '@/hooks/useAuth';
@@ -56,7 +56,7 @@ const NoticeDetailsPage = () => {
     const [isProcessingAction, setIsProcessingAction] = useState(false);
 
     const [loadingImages, setLoadingImages] = useState(new Set());
-    const [readReceipts, setReadReceipts] = useState({}); // { commentId: [{ user_id, name, read_at }] }
+    const [readReceipts, setReadReceipts] = useState({}); // { commentId: [{ user_id, user_name, read_at }] }
     const [isLoadingReadReceipts, setIsLoadingReadReceipts] = useState(false);
     const [selectedFile, setSelectedFile] = useState(null);
     const fileInputRef = useRef(null);
@@ -80,7 +80,26 @@ const NoticeDetailsPage = () => {
 
     useEffect(() => {
         fetchData();
+
+        // Polling for updates (optional but good for read receipts)
+        const interval = setInterval(() => {
+            if (noticeId) {
+                // Refresh comments periodically to get new read receipts
+                refreshComments();
+            }
+        }, 10000); // 10 seconds
+
+        return () => clearInterval(interval);
     }, [noticeId]);
+
+    const refreshComments = async () => {
+        try {
+            const commentsData = await getNoticeComments(noticeId, token);
+            setMessages(Array.isArray(commentsData) ? commentsData : []);
+        } catch (error) {
+            console.error("Failed to refresh comments", error);
+        }
+    };
 
     const fetchData = async () => {
         setIsLoading(true);
@@ -133,6 +152,99 @@ const NoticeDetailsPage = () => {
             setIsFetchingAttachment(false);
         }
     };
+
+    const handleFetchReadReceipts = async (commentId) => {
+        if (readReceipts[commentId] || isLoadingReadReceipts) return;
+
+        try {
+            const receipts = await getNoticeCommentReadReceipts(noticeId, commentId, token);
+            setReadReceipts(prev => ({
+                ...prev,
+                [commentId]: receipts
+            }));
+        } catch (error) {
+            console.error("Failed to fetch read receipts", error);
+        }
+    };
+
+    // Hydrate receipts from comments when messages load
+    useEffect(() => {
+        if (messages.length > 0) {
+            setReadReceipts(prev => {
+                const next = { ...prev };
+                let changed = false;
+                messages.forEach(c => {
+                    const receipts = c.read_receipts;
+                    if (receipts && Array.isArray(receipts) && !next[c.id]) {
+                        next[c.id] = receipts;
+                        changed = true;
+                    }
+                });
+                return changed ? next : prev;
+            });
+        }
+    }, [messages]);
+
+    // Intersection Observer for Mark as Read
+    useEffect(() => {
+        if (!user?.id || messages.length === 0) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                entries.forEach(async (entry) => {
+                    if (entry.isIntersecting) {
+                        const commentId = entry.target.getAttribute('data-comment-id');
+                        const comment = messages.find(m => m.id === commentId);
+
+                        // Mark as read if not ours and not already read by us
+                        if (comment && String(comment.user_id) !== String(user.id)) {
+                            const alreadyReadByMe = (comment.read_receipts || []).some(
+                                r => String(r.user_id) === String(user.id)
+                            ) || (readReceipts[commentId] || []).some(
+                                r => String(r.user_id) === String(user.id)
+                            );
+
+                            if (!alreadyReadByMe) {
+                                try {
+                                    await markNoticeCommentAsRead(noticeId, commentId, token);
+                                    // Optionally refresh to get updated receipts
+                                    handleFetchReadReceipts(commentId);
+                                } catch (error) {
+                                    console.error("Failed to mark comment as read", error);
+                                }
+                            }
+                        }
+                    }
+                });
+            },
+            { threshold: 0.5, root: chatContainerRef.current }
+        );
+
+        const messageElements = document.querySelectorAll('[data-comment-id]');
+        messageElements.forEach(el => observer.observe(el));
+
+        return () => observer.disconnect();
+    }, [messages, user?.id, noticeId, readReceipts]);
+
+    const groupMessagesByDate = (msgs) => {
+        const groups = {};
+        msgs.forEach(msg => {
+            const dateStr = format(new Date(msg.created_at), 'yyyy-MM-dd');
+            if (!groups[dateStr]) groups[dateStr] = [];
+            groups[dateStr].push(msg);
+        });
+        return groups;
+    };
+
+    const formatDateHeader = (dateStr) => {
+        const date = new Date(dateStr);
+        if (format(date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')) return 'Today';
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        if (format(date, 'yyyy-MM-dd') === format(yesterday, 'yyyy-MM-dd')) return 'Yesterday';
+        return format(date, 'd MMMM yyyy');
+    };
+
 
     const handleSendMessage = async (e) => {
         e.preventDefault();
@@ -197,18 +309,6 @@ const NoticeDetailsPage = () => {
         const idStr = String(userId);
         const hash = idStr.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
         return colors[hash % colors.length];
-    };
-
-    const handleFetchReadReceipts = async (commentId) => {
-        // Since we don't have an explicit read receipts API for notices yet,
-        // we'll check if the comment object already has this info
-        const comment = messages.find(m => m.id === commentId);
-        if (comment && (comment.read_receipts || comment.read_by)) {
-            setReadReceipts(prev => ({
-                ...prev,
-                [commentId]: comment.read_receipts || comment.read_by
-            }));
-        }
     };
 
 
@@ -397,159 +497,157 @@ const NoticeDetailsPage = () => {
                             {messages.length === 0 ? (
                                 <div className="text-center text-gray-500 mt-10">No messages yet. Start the discussion.</div>
                             ) : (
-                                messages.map((msg, index) => {
-                                    const isOwnComment = msg.user_id === user?.id;
-                                    const commentUserName = msg.user_name || (isOwnComment ? (user?.name || 'You') : 'Unknown');
+                                Object.entries(groupMessagesByDate(messages)).map(([dateStr, dateMsgs]) => (
+                                    <div key={dateStr} className="space-y-4">
+                                        {/* Date Separator */}
+                                        <div className="flex justify-center my-6">
+                                            <div className="px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/10 shadow-lg">
+                                                <span className="text-xs font-semibold text-gray-300 uppercase tracking-wider">
+                                                    {formatDateHeader(dateStr)}
+                                                </span>
+                                            </div>
+                                        </div>
 
-                                    // Check if previous message is from same user to group messages
-                                    const prevMessage = index > 0 ? messages[index - 1] : null;
-                                    const isGrouped = prevMessage && prevMessage.user_id === msg.user_id;
+                                        {dateMsgs.map((msg, index) => {
+                                            const isOwnComment = String(msg.user_id) === String(user?.id);
+                                            const commentUserName = msg.user_name || (isOwnComment ? (user?.name || 'You') : 'Unknown');
 
-                                    // Format timestamp
-                                    const messageDate = new Date(msg.created_at || msg.timestamp || msg.time);
-                                    const now = new Date();
-                                    const isToday = messageDate.toDateString() === now.toDateString();
-                                    const isYesterday = new Date(now.getTime() - 86400000).toDateString() === messageDate.toDateString();
-                                    let timeStr = format(messageDate, 'HH:mm');
-                                    if (isToday) {
-                                        timeStr = format(messageDate, 'HH:mm');
-                                    } else if (isYesterday) {
-                                        timeStr = `Yesterday, ${format(messageDate, 'HH:mm')}`;
-                                    } else {
-                                        timeStr = format(messageDate, 'dd-MM-yyyy, HH:mm');
-                                    }
+                                            // Check if previous message in THIS date group is from same user
+                                            const prevMessage = index > 0 ? dateMsgs[index - 1] : null;
+                                            const isGrouped = prevMessage && String(prevMessage.user_id) === String(msg.user_id);
 
-                                    return (
-                                        <div key={msg.id} className={`flex gap-2 ${isOwnComment ? 'flex-row-reverse' : 'flex-row'} ${isGrouped ? 'mt-1' : 'mt-4'}`}>
-                                            {/* Avatar - only show if not grouped */}
-                                            {!isGrouped && (
-                                                <div className="flex-shrink-0">
-                                                    <TooltipProvider>
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <Avatar className="w-10 h-10 shadow-lg cursor-help">
-                                                                    <AvatarFallback className="bg-indigo-600 font-semibold text-sm text-white">
-                                                                        {commentUserName.charAt(0).toUpperCase()}
-                                                                    </AvatarFallback>
-                                                                </Avatar>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>
-                                                                <p>{commentUserName} ({msg.user_role || msg.role || 'Member'})</p>
-                                                            </TooltipContent>
-                                                        </Tooltip>
-                                                    </TooltipProvider>
-                                                </div>
-                                            )}
-                                            {isGrouped && <div className="w-10"></div>}
+                                            // Format timestamp
+                                            const messageDate = new Date(msg.created_at);
+                                            const timeStr = format(messageDate, 'HH:mm');
 
-                                            <div className={`flex-1 ${isOwnComment ? 'flex flex-col items-end' : 'flex flex-col items-start'}`}>
-                                                {!isGrouped && (
-                                                    <div className={`mb-1 ${isOwnComment ? 'text-right' : 'text-left'}`}>
-                                                        <span className={`text-sm font-bold ${getUserNameColor(msg.user_id)}`}>
-                                                            {commentUserName}
-                                                        </span>
-                                                    </div>
-                                                )}
-
-                                                {/* Message bubble */}
-                                                <div className={`relative inline-block max-w-[75%] ${isOwnComment ? 'bg-blue-500/20 text-white border border-blue-500/50' : 'bg-white/10 text-white border border-white/20'} rounded-lg shadow-sm`} style={{
-                                                    borderRadius: isOwnComment
-                                                        ? (isGrouped ? '7px 7px 2px 7px' : '7px 7px 2px 7px')
-                                                        : (isGrouped ? '2px 7px 7px 7px' : '7px 7px 7px 2px')
-                                                }}>
-                                                    <div className="p-3 pb-1">
-                                                        {msg.attachment_url && (
-                                                            <div className="mb-2">
-                                                                {msg.attachment_type?.startsWith('image/') || msg.attachment_url.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ? (
-                                                                    <div className="rounded-lg overflow-hidden relative">
-                                                                        {loadingImages.has(msg.id) && (
-                                                                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10">
-                                                                                <Loader2 className="w-8 h-8 animate-spin text-white" />
-                                                                            </div>
-                                                                        )}
-                                                                        <img
-                                                                            src={msg.attachment_url}
-                                                                            alt="Attachment"
-                                                                            className="max-w-full h-auto rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-                                                                            onLoad={() => setLoadingImages(prev => {
-                                                                                const next = new Set(prev);
-                                                                                next.delete(msg.id);
-                                                                                return next;
-                                                                            })}
-                                                                        />
-                                                                    </div>
-                                                                ) : (
-                                                                    <div className="flex items-center gap-3 p-2 bg-white/5 border border-white/10 rounded-lg">
-                                                                        <FileText className="w-8 h-8 text-blue-400" />
-                                                                        <div className="flex-1 min-w-0">
-                                                                            <p className="text-sm font-medium text-white truncate">{msg.attachment_name || 'Attachment'}</p>
-                                                                        </div>
-                                                                        <a href={msg.attachment_url} download className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors">
-                                                                            <Download className="w-4 h-4 text-white" />
-                                                                        </a>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                        {msg.message && <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{msg.message}</p>}
-                                                    </div>
-
-                                                    {/* Timestamp and ticks */}
-                                                    <div className="flex items-center justify-end gap-1 px-2 pb-1">
-                                                        <span className="text-[10px] text-gray-400">
-                                                            {timeStr}
-                                                        </span>
-                                                        {isOwnComment && (
+                                            return (
+                                                <div
+                                                    key={msg.id}
+                                                    data-comment-id={msg.id}
+                                                    className={`flex gap-2 ${isOwnComment ? 'flex-row-reverse' : 'flex-row'} ${isGrouped ? 'mt-1' : 'mt-4'}`}
+                                                >
+                                                    {/* Avatar - only show if not grouped */}
+                                                    {!isGrouped && (
+                                                        <div className="flex-shrink-0">
                                                             <TooltipProvider>
-                                                                <Tooltip delayDuration={300}>
+                                                                <Tooltip>
                                                                     <TooltipTrigger asChild>
-                                                                        <button
-                                                                            onMouseEnter={() => handleFetchReadReceipts(msg.id)}
-                                                                            className="text-[10px] cursor-pointer ml-1 flex items-center"
-                                                                        >
-                                                                            {(() => {
-                                                                                const receipts = readReceipts[msg.id] || msg.read_receipts || msg.read_by || [];
-                                                                                const hasRead = Array.isArray(receipts) && receipts.some(r => {
-                                                                                    const rid = r.user_id || r.id || (typeof r !== 'object' ? r : null);
-                                                                                    return rid && String(rid) !== String(user?.id);
-                                                                                });
-                                                                                return hasRead ? (
-                                                                                    <span className="text-blue-400">✓✓</span>
-                                                                                ) : (
-                                                                                    <span className="text-gray-500">✓</span>
-                                                                                );
-                                                                            })()}
-                                                                        </button>
+                                                                        <Avatar className="w-10 h-10 shadow-lg cursor-help">
+                                                                            <AvatarFallback className="bg-indigo-600 font-semibold text-sm text-white">
+                                                                                {commentUserName.charAt(0).toUpperCase()}
+                                                                            </AvatarFallback>
+                                                                        </Avatar>
                                                                     </TooltipTrigger>
-                                                                    <TooltipContent className="bg-slate-900 border-white/10 p-0 max-w-xs z-50">
-                                                                        <div className="p-3">
-                                                                            <div className="text-xs font-semibold text-white mb-2 pb-2 border-b border-white/10">Read By</div>
-                                                                            {readReceipts[msg.id]?.length > 0 ? (
-                                                                                <div className="space-y-2">
-                                                                                    {readReceipts[msg.id].map((r, i) => (
-                                                                                        <div key={i} className="flex items-center gap-2">
-                                                                                            <Avatar className="w-5 h-5"><AvatarFallback className="text-[8px] bg-blue-500">{(r.name || 'U')[0]}</AvatarFallback></Avatar>
-                                                                                            <div className="flex flex-col">
-                                                                                                <span className="text-[10px] font-medium text-white">{r.name || 'Unknown'}</span>
-                                                                                                <span className="text-[8px] text-gray-400">{r.read_at ? format(new Date(r.read_at), 'HH:mm, dd MMM') : ''}</span>
-                                                                                            </div>
-                                                                                        </div>
-                                                                                    ))}
-                                                                                </div>
-                                                                            ) : (
-                                                                                <div className="text-xs text-gray-400 py-1">Sent</div>
-                                                                            )}
-                                                                        </div>
+                                                                    <TooltipContent>
+                                                                        <p>{commentUserName} ({msg.user_role || 'Member'})</p>
                                                                     </TooltipContent>
                                                                 </Tooltip>
                                                             </TooltipProvider>
+                                                        </div>
+                                                    )}
+                                                    {isGrouped && <div className="w-10"></div>}
+
+                                                    <div className={`flex-1 ${isOwnComment ? 'flex flex-col items-end' : 'flex flex-col items-start'}`}>
+                                                        {!isGrouped && (
+                                                            <div className={`mb-1 ${isOwnComment ? 'text-right' : 'text-left'}`}>
+                                                                <span className={`text-sm font-bold ${getUserNameColor(msg.user_id)}`}>
+                                                                    {commentUserName}
+                                                                </span>
+                                                            </div>
                                                         )}
+
+                                                        {/* Message bubble */}
+                                                        <div className={`relative inline-block max-w-[85%] ${isOwnComment ? 'bg-blue-600/30 text-white border border-blue-500/30' : 'bg-white/10 text-white border border-white/20'} rounded-lg shadow-sm`} style={{
+                                                            borderRadius: isOwnComment
+                                                                ? (isGrouped ? '8px 8px 2px 8px' : '8px 8px 2px 8px')
+                                                                : (isGrouped ? '2px 8px 8px 8px' : '8px 8px 8px 2px')
+                                                        }}>
+                                                            <div className="p-3 pb-1">
+                                                                {msg.attachment_url && (
+                                                                    <div className="mb-2">
+                                                                        {msg.attachment_url.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ? (
+                                                                            <div className="rounded-lg overflow-hidden relative">
+                                                                                <img
+                                                                                    src={msg.attachment_url}
+                                                                                    alt="Attachment"
+                                                                                    className="max-w-full h-auto rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                                                                                />
+                                                                            </div>
+                                                                        ) : (
+                                                                            <div className="flex items-center gap-3 p-2 bg-white/5 border border-white/10 rounded-lg">
+                                                                                <FileText className="w-8 h-8 text-blue-400" />
+                                                                                <div className="flex-1 min-w-0">
+                                                                                    <p className="text-sm font-medium text-white truncate">{msg.attachment_name || 'Attachment'}</p>
+                                                                                </div>
+                                                                                <a href={msg.attachment_url} download className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors">
+                                                                                    <Download className="w-4 h-4 text-white" />
+                                                                                </a>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                                {msg.message && <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{msg.message}</p>}
+                                                            </div>
+
+                                                            {/* Timestamp and ticks */}
+                                                            <div className="flex items-center justify-end gap-1 px-3 pb-1 opacity-70">
+                                                                <span className="text-[10px] text-gray-300">
+                                                                    {timeStr}
+                                                                </span>
+                                                                {isOwnComment && (
+                                                                    <TooltipProvider>
+                                                                        <Tooltip delayDuration={300}>
+                                                                            <TooltipTrigger asChild>
+                                                                                <button
+                                                                                    onMouseEnter={() => handleFetchReadReceipts(msg.id)}
+                                                                                    className="text-[10px] cursor-pointer ml-1 flex items-center"
+                                                                                >
+                                                                                    {(() => {
+                                                                                        const receipts = readReceipts[msg.id] || msg.read_receipts || [];
+                                                                                        const isReadByOthers = receipts.some(r => String(r.user_id) !== String(user?.id));
+                                                                                        return isReadByOthers ? (
+                                                                                            <span className="text-blue-400 font-bold">✓✓</span>
+                                                                                        ) : (
+                                                                                            <span className="text-gray-400">✓</span>
+                                                                                        );
+                                                                                    })()}
+                                                                                </button>
+                                                                            </TooltipTrigger>
+                                                                            <TooltipContent className="bg-slate-900 border border-white/10 p-2 shadow-2xl z-50">
+                                                                                <div>
+                                                                                    <div className="text-[11px] font-bold text-blue-400 mb-2 border-b border-white/10 pb-1">Read By</div>
+                                                                                    {(readReceipts[msg.id] || []).filter(r => String(r.user_id) !== String(user?.id)).length > 0 ? (
+                                                                                        <div className="space-y-2 min-w-[120px]">
+                                                                                            {(readReceipts[msg.id] || []).filter(r => String(r.user_id) !== String(user?.id)).map((r, i) => (
+                                                                                                <div key={i} className="flex items-center gap-2">
+                                                                                                    <Avatar className="w-5 h-5">
+                                                                                                        <AvatarFallback className="text-[8px] bg-blue-500 text-white">
+                                                                                                            {(r.user_name || 'U')[0]}
+                                                                                                        </AvatarFallback>
+                                                                                                    </Avatar>
+                                                                                                    <div className="flex flex-col">
+                                                                                                        <span className="text-[10px] font-medium text-white">{r.user_name || 'Unknown'}</span>
+                                                                                                        <span className="text-[9px] text-gray-400">{format(new Date(r.read_at), 'HH:mm, dd MMM')}</span>
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                            ))}
+                                                                                        </div>
+                                                                                    ) : (
+                                                                                        <div className="text-[10px] text-gray-400 py-1 italic">Not read by anyone yet</div>
+                                                                                    )}
+                                                                                </div>
+                                                                            </TooltipContent>
+                                                                        </Tooltip>
+                                                                    </TooltipProvider>
+                                                                )}
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })
+                                            );
+                                        })}
+                                    </div>
+                                ))
                             )}
                             <div ref={messagesEndRef} />
                         </div>
@@ -606,7 +704,7 @@ const NoticeDetailsPage = () => {
             </ResizablePanelGroup>
 
             {/* Mobile View (Simplified) */}
-            <div className="flex flex-col md:hidden flex-1 gap-4 overflow-hidden">
+            < div className="flex flex-col md:hidden flex-1 gap-4 overflow-hidden" >
                 <div className="flex items-center gap-2 px-1">
                     <MessageSquare className="w-5 h-5 text-gray-300" />
                     <h2 className="text-lg font-semibold text-white">Notice Chat</h2>
@@ -690,10 +788,10 @@ const NoticeDetailsPage = () => {
                         </Button>
                     </form>
                 </div>
-            </div>
+            </div >
 
             {/* Request Close Dialog */}
-            <Dialog open={isRequestCloseOpen} onOpenChange={setIsRequestCloseOpen}>
+            < Dialog open={isRequestCloseOpen} onOpenChange={setIsRequestCloseOpen} >
                 <DialogContent className="glass-card border-white/10 text-white">
                     <DialogHeader>
                         <DialogTitle>Request Notice Closure</DialogTitle>
@@ -710,10 +808,10 @@ const NoticeDetailsPage = () => {
                         <Button onClick={() => handleAction('request_close')} disabled={isProcessingAction}>Submit Request</Button>
                     </DialogFooter>
                 </DialogContent>
-            </Dialog>
+            </Dialog >
 
             {/* Reject Close Dialog */}
-            <Dialog open={isRejectCloseOpen} onOpenChange={setIsRejectCloseOpen}>
+            < Dialog open={isRejectCloseOpen} onOpenChange={setIsRejectCloseOpen} >
                 <DialogContent className="glass-card border-white/10 text-white">
                     <DialogHeader>
                         <DialogTitle>Reject Closure Request</DialogTitle>
@@ -730,7 +828,7 @@ const NoticeDetailsPage = () => {
                         <Button variant="destructive" onClick={() => handleAction('reject_close')} disabled={isProcessingAction}>Reject Request</Button>
                     </DialogFooter>
                 </DialogContent>
-            </Dialog>
+            </Dialog >
 
             <CollaboratorsDialog
                 isOpen={isCollaborateOpen}
@@ -739,7 +837,7 @@ const NoticeDetailsPage = () => {
                 token={token}
                 toast={toast}
             />
-        </div>
+        </div >
     );
 };
 

@@ -127,3 +127,18 @@ export const getUnreadNoticeCount = async (token) => {
   const data = await handleResponse(response);
   return data.count;
 };
+
+export const markNoticeCommentAsRead = async (noticeId, commentId, token) => {
+  const response = await fetch(`${FINANCE_API_BASE_URL}/api/notices/${noticeId}/comments/${commentId}/read`, {
+    method: 'POST',
+    headers: getAuthHeaders(token),
+  });
+  return handleResponse(response);
+};
+
+export const getNoticeCommentReadReceipts = async (noticeId, commentId, token) => {
+  const response = await fetch(`${FINANCE_API_BASE_URL}/api/notices/${noticeId}/comments/${commentId}/reads`, {
+    headers: getAuthHeaders(token),
+  });
+  return handleResponse(response);
+};
