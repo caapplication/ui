@@ -388,17 +388,21 @@ const NoticeDetailsPage = () => {
                 {/* Action Bar */}
                 <div className="flex items-center gap-2">
                     {canRequestClose && (
-                        <Button onClick={() => setIsRequestCloseOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white h-9 text-sm font-medium">
+                        <Button
+                            variant="reject"
+                            onClick={() => setIsRequestCloseOpen(true)}
+                            className="h-9 text-sm font-medium"
+                        >
                             <CheckCircle className="w-4 h-4 mr-2" /> Request Close
                         </Button>
                     )}
 
                     {canReviewClose && (
                         <>
-                            <Button onClick={() => handleAction('approve_close')} disabled={isProcessingAction} className="bg-green-600 hover:bg-green-700 text-white h-9 text-sm font-medium">
+                            <Button variant="accept" onClick={() => handleAction('approve_close')} disabled={isProcessingAction} className="bg-green-600 hover:bg-green-700 text-white h-9 text-sm font-medium">
                                 <CheckCircle className="w-4 h-4 mr-2" /> Approve
                             </Button>
-                            <Button onClick={() => setIsRejectCloseOpen(true)} className="bg-red-600 hover:bg-red-700 text-white h-9 text-sm font-medium">
+                            <Button variant="reject" onClick={() => setIsRejectCloseOpen(true)} className="bg-red-600 hover:bg-red-700 text-white h-9 text-sm font-medium">
                                 <XCircle className="w-4 h-4 mr-2" /> Reject
                             </Button>
                         </>
@@ -836,12 +840,14 @@ const NoticeDetailsPage = () => {
                 noticeId={noticeId}
                 token={token}
                 toast={toast}
+                existingCollaborators={notice?.collaborators || []}
+                onSuccess={fetchData}
             />
         </div >
     );
 };
 
-const CollaboratorsDialog = ({ isOpen, onClose, noticeId, token, toast }) => {
+const CollaboratorsDialog = ({ isOpen, onClose, noticeId, token, toast, existingCollaborators = [], onSuccess }) => {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState('');
@@ -870,6 +876,8 @@ const CollaboratorsDialog = ({ isOpen, onClose, noticeId, token, toast }) => {
         try {
             await addNoticeCollaborator(noticeId, userId, token);
             toast({ title: "Success", description: "Collaborator added successfully" });
+            if (onSuccess) onSuccess();
+            onClose(); // Close modal after successful addition
         } catch (error) {
             console.error("Failed to add collaborator", error);
             toast({ title: "Error", description: "This user is already a collaborator or error occurred", variant: "destructive" });
@@ -911,28 +919,36 @@ const CollaboratorsDialog = ({ isOpen, onClose, noticeId, token, toast }) => {
                         {loading ? (
                             <div className="py-8 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-blue-400" /></div>
                         ) : filteredUsers.length > 0 ? (
-                            filteredUsers.map(u => (
-                                <div key={u.id} className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/5 hover:border-indigo-500/30 transition-colors">
-                                    <div className="flex items-center gap-3">
-                                        <Avatar className="w-8 h-8">
-                                            <AvatarFallback className="bg-indigo-600 text-xs">{(u.name || 'U')[0]}</AvatarFallback>
-                                        </Avatar>
-                                        <div className="flex flex-col">
-                                            <span className="text-sm font-medium">{u.name}</span>
-                                            <span className="text-[10px] text-gray-500 uppercase tracking-wider">{u.role?.replace('_', ' ')}</span>
+                            filteredUsers.map(u => {
+                                const isAlreadyCollaborator = existingCollaborators.some(c => String(c.user_id) === String(u.id));
+
+                                return (
+                                    <div key={u.id} className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/5 hover:border-indigo-500/30 transition-colors">
+                                        <div className="flex items-center gap-3">
+                                            <Avatar className="w-8 h-8">
+                                                <AvatarFallback className="bg-indigo-600 text-xs">{(u.name || 'U')[0]}</AvatarFallback>
+                                            </Avatar>
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-medium">{u.name}</span>
+                                                <span className="text-[10px] text-gray-500 uppercase tracking-wider">{u.role?.replace('_', ' ')}</span>
+                                            </div>
                                         </div>
+                                        {isAlreadyCollaborator ? (
+                                            <span className="text-xs font-semibold text-green-400 bg-green-400/10 px-2 py-1 rounded">Added</span>
+                                        ) : (
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                className="h-8 text-xs text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10"
+                                                onClick={() => handleAdd(u.id)}
+                                                disabled={processing === u.id}
+                                            >
+                                                {processing === u.id ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Add'}
+                                            </Button>
+                                        )}
                                     </div>
-                                    <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        className="h-8 text-xs text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10"
-                                        onClick={() => handleAdd(u.id)}
-                                        disabled={processing === u.id}
-                                    >
-                                        {processing === u.id ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Add'}
-                                    </Button>
-                                </div>
-                            ))
+                                );
+                            })
                         ) : (
                             <div className="py-8 text-center text-gray-500 text-sm italic">No members found</div>
                         )}

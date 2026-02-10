@@ -33,9 +33,9 @@ const AccountantSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) =
   const location = useLocation();
   const { socket } = useSocket();
   const [unreadCount, setUnreadCount] = useState(0);
-  const [unreadNoticeCount, setUnreadNoticeCount] = useState(0); // Add state for notice count
+  const [unreadNoticeCount, setUnreadNoticeCount] = useState(0);
   const [isBlinking, setIsBlinking] = useState(false);
-  const [isNoticeBlinking, setIsNoticeBlinking] = useState(false); // Add blinking for notices
+  const [isNoticeBlinking, setIsNoticeBlinking] = useState(false);
 
   // Fetch initial unread counts
   useEffect(() => {
@@ -74,13 +74,22 @@ const AccountantSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) =
         }
       };
 
-      // If we had a socket event for notices, we'd listen here too. 
-      // For now, polling handles it.
+      const handleNoticeUnreadUpdate = (data) => {
+        if (typeof data.count === 'number') {
+          if (data.count > unreadNoticeCount) {
+            setIsNoticeBlinking(true);
+            setTimeout(() => setIsNoticeBlinking(false), 3000);
+          }
+          setUnreadNoticeCount(data.count);
+        }
+      };
 
       socket.on('global_unread_update', handleUnreadUpdate);
+      socket.on('notice_unread_update', handleNoticeUnreadUpdate);
 
       return () => {
         socket.off('global_unread_update', handleUnreadUpdate);
+        socket.off('notice_unread_update', handleNoticeUnreadUpdate);
       };
     }
   }, [socket, unreadCount]);
@@ -95,7 +104,8 @@ const AccountantSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) =
       path: '/tasks',
       label: 'Tasks',
       icon: ListTodo,
-      badge: unreadCount > 0 ? unreadCount : null
+      badge: unreadCount > 0 ? unreadCount : null,
+      blinking: isBlinking
     },
     { id: 'documents', path: '/documents', label: 'Documents', icon: FileText },
     {
@@ -103,7 +113,8 @@ const AccountantSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) =
       path: '/notices',
       label: 'Notices',
       icon: Bell,
-      badge: unreadNoticeCount > 0 ? unreadNoticeCount : null // Add badge logic
+      badge: unreadNoticeCount > 0 ? unreadNoticeCount : null,
+      blinking: isNoticeBlinking
     },
     { id: 'services', path: '/services', label: 'Services', icon: Briefcase },
     { id: 'settings', path: '/settings', label: 'Settings', icon: Settings },
@@ -173,7 +184,7 @@ const AccountantSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) =
                         {active && (
                           <motion.div
                             layoutId="active-nav-glow-accountant"
-                            className="absolute inset-0 bg-white/10 rounded-lg shadow-glow-secondary"
+                            className="absolute inset-0 bg-white/10 rounded-lg "
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
@@ -186,16 +197,18 @@ const AccountantSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) =
                           <motion.span variants={textVariants} initial="collapsed" animate="expanded" exit="collapsed" className="flex-1 font-medium z-10 flex items-center justify-between">
                             {item.label}
                             {item.badge && (
-                              <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full ml-2">
+                              <Badge
+                                className={`ml-auto ${item.blinking ? 'animate-pulse' : ''} bg-orange-500 hover:bg-orange-600 text-white border-0`}
+                              >
                                 {item.badge > 99 ? '99+' : item.badge}
-                              </span>
+                              </Badge>
                             )}
                           </motion.span>
                         )}
                       </AnimatePresence>
                       {/* Badge for collapsed state */}
                       {isCollapsed && item.badge && (
-                        <div className="absolute top-2 right-2 w-3 h-3 bg-red-500 rounded-full border-2 border-[#1e293b] z-20"></div>
+                        <div className={`absolute top-2 right-2 w-3 h-3 bg-orange-500 rounded-full border-2 border-[#1e293b] z-20 ${item.blinking ? 'animate-ping' : ''}`}></div>
                       )}
                     </Button>
                   </Link>

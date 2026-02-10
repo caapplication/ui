@@ -9,6 +9,7 @@ import * as settings from './settings';
 import * as team from './team';
 import * as tasks from './tasks';
 import * as recurringTasks from './recurringTasks';
+import * as notices from './notices';
 
 const API_BASE_URL = import.meta.env.VITE_LOGIN_API_URL || 'http://127.0.0.1:8001';
 const FINANCE_API_BASE_URL = import.meta.env.VITE_FINANCE_API_URL || 'http://127.0.0.1:8003';
@@ -206,3 +207,19 @@ export const {
   deleteRecurringTask,
   triggerRecurringTaskScheduler
 } = recurringTasks;
+
+export const {
+  getNotices,
+  getNotice,
+  createNotice,
+  uploadNotice,
+  requestNoticeClosure,
+  approveNoticeClosure,
+  rejectNoticeClosure,
+  getNoticeComments,
+  addNoticeComment,
+  addNoticeCollaborator,
+  getUnreadNoticeCount,
+  markNoticeCommentAsRead,
+  getNoticeCommentReadReceipts
+} = notices;
