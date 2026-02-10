@@ -34,6 +34,7 @@ const NoticeDetailsPage = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [isSending, setIsSending] = useState(false);
     const [isAttachmentLoading, setIsAttachmentLoading] = useState(true);
+    const [isFetchingAttachment, setIsFetchingAttachment] = useState(false);
 
     // Collaboration
     const [isCollaborateOpen, setIsCollaborateOpen] = useState(false);
@@ -83,29 +84,53 @@ const NoticeDetailsPage = () => {
 
     const fetchData = async () => {
         setIsLoading(true);
+        setAttachmentUrl(null);
+        setIsAttachmentLoading(true);
+        setIsFetchingAttachment(false);
+
         try {
+            // Priority 1: Fetch basic notice details
             const noticeData = await getNotice(noticeId, token);
             setNotice(noticeData);
 
-            // Fetch secure attachment URL (Blob)
+            // Parallel Process 1: Fetch comments (independent of attachment)
+            fetchComments();
+
+            // Parallel Process 2: Fetch secure attachment (independent of comments)
             if (noticeData.id) {
-                try {
-                    const result = await getNoticeAttachment(noticeData.id, token);
-                    setAttachmentUrl(result.url);
-                    setAttachmentContentType(result.contentType);
-                } catch (e) {
-                    console.error("Failed to load secure attachment", e);
-                }
+                fetchAttachment(noticeData.id);
             }
 
-            const commentsData = await getNoticeComments(noticeId, token);
-            setMessages(Array.isArray(commentsData) ? commentsData : []);
+            // End primary loading state once notice metadata is available
+            // This allows the layout and chat container anchor to render
+            setIsLoading(false);
 
         } catch (error) {
             console.error("Failed to fetch notice details", error);
             toast({ title: "Error", description: "Failed to load notice details", variant: "destructive" });
-        } finally {
             setIsLoading(false);
+        }
+    };
+
+    const fetchComments = async () => {
+        try {
+            const commentsData = await getNoticeComments(noticeId, token);
+            setMessages(Array.isArray(commentsData) ? commentsData : []);
+        } catch (error) {
+            console.error("Failed to fetch comments", error);
+        }
+    };
+
+    const fetchAttachment = async (id) => {
+        setIsFetchingAttachment(true);
+        try {
+            const result = await getNoticeAttachment(id, token);
+            setAttachmentUrl(result.url);
+            setAttachmentContentType(result.contentType);
+        } catch (e) {
+            console.error("Failed to load secure attachment", e);
+        } finally {
+            setIsFetchingAttachment(false);
         }
     };
 
@@ -187,7 +212,47 @@ const NoticeDetailsPage = () => {
     };
 
 
-    if (isLoading && !notice) return <div className="p-8 text-center text-white">Loading notice details...</div>;
+    if (isLoading && !notice) {
+        return (
+            <div className="h-full flex flex-col text-white bg-transparent p-3 sm:p-4 md:p-6 pb-24 md:pb-24">
+                {/* Header Skeleton */}
+                <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 pb-3 sm:pb-4 border-b border-white/10 mb-3 sm:mb-4">
+                    <div className="flex items-center gap-3 sm:gap-4">
+                        <Skeleton className="h-10 w-10 rounded-full bg-white/10" />
+                        <div className="space-y-2">
+                            <Skeleton className="h-8 w-48 bg-white/10" />
+                            <Skeleton className="h-4 w-32 bg-white/10" />
+                        </div>
+                    </div>
+                    <div className="flex gap-2">
+                        <Skeleton className="h-9 w-32 rounded bg-white/10" />
+                    </div>
+                </header>
+
+                <div className="flex-1 flex gap-4 overflow-hidden">
+                    {/* Left Panel Skeleton */}
+                    <div className="flex-1 rounded-lg border border-white/10 bg-black/20 p-4 flex flex-col items-center justify-center">
+                        <Skeleton className="h-full w-full bg-white/5 rounded-lg" />
+                    </div>
+
+                    {/* Right Panel Skeleton */}
+                    <div className="w-[400px] hidden md:flex flex-col rounded-lg border border-white/10 bg-black/10">
+                        <div className="p-4 border-b border-white/10">
+                            <Skeleton className="h-6 w-32 bg-white/10" />
+                        </div>
+                        <div className="flex-1 p-4 space-y-4">
+                            <Skeleton className="h-16 w-full rounded bg-white/5" />
+                            <Skeleton className="h-16 w-3/4 rounded bg-white/5 self-end" />
+                            <Skeleton className="h-16 w-full rounded bg-white/5" />
+                        </div>
+                        <div className="p-4 border-t border-white/10">
+                            <Skeleton className="h-10 w-full rounded-full bg-white/10" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
     if (!isLoading && !notice) return <div className="p-8 text-center text-white">Notice not found</div>;
 
     const canRequestClose = (user?.role === 'CLIENT_MASTER_ADMIN' || user?.role === 'CLIENT_USER') &&
@@ -275,9 +340,10 @@ const NoticeDetailsPage = () => {
                             </div>
                         )}
 
-                        {(attachmentUrl || notice.file_url) ? (
+                        {(attachmentUrl || (!isFetchingAttachment && notice.file_url)) ? (
                             (() => {
-                                const urlToUse = attachmentUrl || notice.file_url;
+                                const urlToUse = attachmentUrl || (!isFetchingAttachment ? notice.file_url : null);
+                                if (!urlToUse) return null;
 
                                 const isPdf =
                                     (attachmentContentType && attachmentContentType.includes("pdf")) ||
