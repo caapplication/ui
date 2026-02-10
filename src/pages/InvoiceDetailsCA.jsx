@@ -32,6 +32,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.jsx";
 import ActivityLog from '@/components/finance/ActivityLog';
 import { Combobox } from '@/components/ui/combobox';
+import PdfPreviewModal from '@/components/modals/PdfPreviewModal';
 
 const DetailItem = ({ label, value }) => (
     <div className="flex justify-between items-center py-2 border-b border-white/10">
@@ -75,6 +76,8 @@ const InvoiceDetailsCA = () => {
     const [isStatusUpdating, setIsStatusUpdating] = useState(false);
     const [showCompletionModal, setShowCompletionModal] = useState(false);
     const [completionModalType, setCompletionModalType] = useState('all_done'); // 'all_done' or 'go_to_vouchers'
+    const [pdfPreviewUrl, setPdfPreviewUrl] = useState(null);
+    const [isPdfPreviewOpen, setIsPdfPreviewOpen] = useState(false);
 
 
 
@@ -436,19 +439,8 @@ const InvoiceDetailsCA = () => {
         try {
             setIsLoading(true);
             const blobUrl = await getInvoicePdf(invoiceId, user.access_token);
-
-            // Create a temporary link element to trigger download
-            const link = document.createElement('a');
-            link.href = blobUrl;
-            link.download = `Invoice-${invoiceDetails.bill_number || invoiceId}.pdf`;
-            document.body.appendChild(link);
-            link.click();
-
-            // Clean up
-            document.body.removeChild(link);
-            URL.revokeObjectURL(blobUrl);
-
-            toast({ title: 'Success', description: 'Invoice PDF downloaded successfully.' });
+            setPdfPreviewUrl(blobUrl);
+            setIsPdfPreviewOpen(true);
         } catch (error) {
             console.error('PDF Export Error:', error);
             toast({ title: 'Export Error', description: `Failed to export PDF: ${error.message}`, variant: 'destructive' });
@@ -1115,6 +1107,17 @@ const InvoiceDetailsCA = () => {
                                 </div>
                                 <div className="flex items-center gap-3 mt-4 mb-20 sm:mb-16 md:mb-4 justify-end relative z-[100] px-4 action-buttons-container">
                                     {/* Action buttons on right */}
+                                    <TooltipProvider delayDuration={0}>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button variant="outline" size="icon" onClick={handleExportToPDF} className="h-9 w-9 bg-white/5 border-white/10 hover:bg-white/10">
+                                                    <FileText className="h-4 w-4" />
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent><p>Export PDF</p></TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+
                                     {/* CA Actions - only for pending audit */}
                                     {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && !isReadOnly && !invoiceDetails.is_deleted && isAuditable && (
                                         <>
@@ -1359,6 +1362,21 @@ const InvoiceDetailsCA = () => {
                     </div>
                 </DialogContent>
             </Dialog>
+
+
+            <PdfPreviewModal
+                isOpen={isPdfPreviewOpen}
+                onClose={() => {
+                    setIsPdfPreviewOpen(false);
+                    if (pdfPreviewUrl) {
+                        URL.revokeObjectURL(pdfPreviewUrl);
+                        setPdfPreviewUrl(null);
+                    }
+                }}
+                pdfUrl={pdfPreviewUrl}
+                title="Invoice Preview"
+                fileName={`Invoice-${invoiceDetails.bill_number || invoiceId}.pdf`}
+            />
         </div >
     );
 };

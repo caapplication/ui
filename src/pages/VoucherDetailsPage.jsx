@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useApiCache } from '@/contexts/ApiCacheContext.jsx';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 import * as pdfjsLib from 'pdfjs-dist';
 import { useAuth } from '@/hooks/useAuth.jsx';
 
@@ -32,6 +30,7 @@ import {
 } from "@/components/ui/resizable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.jsx";
 import ActivityLog from '@/components/finance/ActivityLog';
+import PdfPreviewModal from '@/components/modals/PdfPreviewModal';
 
 // Helper functions for localStorage caching
 const getCache = (key) => {
@@ -833,454 +832,15 @@ const VoucherDetailsPage = () => {
         }
     };
 
-    const handleExportToPDF = async () => {
-        // For bank transfers, ensure bank account details are loaded
-        if (
-            voucher?.payment_type === 'bank_transfer' &&
-            (
-                !fromBankAccounts.length ||
-                !toBankAccounts.length
-            )
-        ) {
-            toast({
-                title: 'Bank Account Details Not Loaded',
-                description: 'Please wait for bank account details to load before exporting the PDF.',
-                variant: 'destructive'
-            });
-            return;
-        }
 
-        const pdf = new jsPDF({
-            orientation: 'portrait',
-            unit: 'mm',
-            format: 'a4'
-        });
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = pdf.internal.pageSize.getHeight();
-        const margin = 10;
-        const contentWidth = pdfWidth - (margin * 2);
-        const contentHeight = pdfHeight - (margin * 2);
-
-        try {
-            // Helper function to add image to PDF with proper scaling and validation
-            const addImageToPDF = (imgData, imgWidth, imgHeight) => {
-                // Validate input dimensions
-                if (!imgData || !imgWidth || !imgHeight || imgWidth <= 0 || imgHeight <= 0) {
-                    console.warn('Invalid image dimensions:', { imgWidth, imgHeight });
-                    return false;
-                }
-
-                // Calculate ratio with validation
-                const ratio = imgWidth / imgHeight;
-                if (!isFinite(ratio) || ratio <= 0) {
-                    console.warn('Invalid image ratio:', ratio);
-                    return false;
-                }
-
-                let displayWidth = contentWidth;
-                let displayHeight = displayWidth / ratio;
-
-                // If content is taller than page, scale it down to fit
-                if (displayHeight > contentHeight) {
-                    displayHeight = contentHeight;
-                    displayWidth = displayHeight * ratio;
-                }
-
-                // Validate calculated dimensions
-                if (!isFinite(displayWidth) || !isFinite(displayHeight) || displayWidth <= 0 || displayHeight <= 0) {
-                    console.warn('Invalid display dimensions:', { displayWidth, displayHeight });
-                    return false;
-                }
-
-                // Center the image on the page
-                const xPos = margin + (contentWidth - displayWidth) / 2;
-                const yPos = margin + (contentHeight - displayHeight) / 2;
-
-                // Validate coordinates
-                if (!isFinite(xPos) || !isFinite(yPos) || xPos < 0 || yPos < 0) {
-                    console.warn('Invalid coordinates:', { xPos, yPos });
-                    return false;
-                }
-
-                try {
-                    pdf.addImage(imgData, 'PNG', xPos, yPos, displayWidth, displayHeight);
-                    return true;
-                } catch (imgError) {
-                    console.error('Error adding image to PDF:', imgError);
-                    return false;
-                }
-            };
-
-            let hasContent = false;
-
-            // Page 1: Voucher Details - Create formatted table with dark theme
-            if (voucherDetails) {
-                try {
-                    // Dark theme colors
-                    const darkBg = [30, 41, 59]; // #1e293b (slate-800)
-                    const darkCard = [51, 65, 85]; // #334155 (slate-700)
-                    const lightText = [255, 255, 255];
-                    const grayText = [203, 213, 225]; // #cbd5e1 (slate-300)
-                    const borderColor = [100, 100, 100]; // Gray border for visibility
-
-                    // Set background to dark
-                    pdf.setFillColor(...darkBg);
-                    pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
-
-                    // Header section
-                    let yPos = margin + 5;
-                    pdf.setTextColor(...lightText);
-                    pdf.setFontSize(20);
-                    pdf.setFont(undefined, 'bold');
-                    pdf.text('Voucher Details', margin + 5, yPos);
-
-                    yPos += 8;
-                    pdf.setFontSize(12);
-                    pdf.setFont(undefined, 'normal');
-                    pdf.setTextColor(...grayText);
-                    const beneficiaryName = voucherDetails.beneficiary
-                        ? (voucherDetails.beneficiary.beneficiary_type === 'individual'
-                            ? voucherDetails.beneficiary.name
-                            : voucherDetails.beneficiary.company_name)
-                        : voucherDetails.beneficiaryName || 'N/A';
-                    pdf.text(`Voucher to ${beneficiaryName}`, margin + 5, yPos);
-
-                    yPos += 5;
-                    pdf.setFontSize(10);
-                    pdf.text(`Created on ${new Date(voucherDetails.created_date).toLocaleDateString()}`, margin + 5, yPos);
-
-                    yPos += 10;
-
-                    // Create table with dark theme
-                    const tableStartY = yPos;
-                    const rowHeight = 8;
-                    const col1Width = contentWidth * 0.4;
-                    const col2Width = contentWidth * 0.6;
-
-                    // Table header
-                    pdf.setFillColor(...darkCard);
-                    pdf.rect(margin, tableStartY, contentWidth, rowHeight, 'F');
-                    pdf.setTextColor(...lightText);
-                    pdf.setFontSize(11);
-                    pdf.setFont(undefined, 'bold');
-                    pdf.text('Field', margin + 3, tableStartY + 5);
-                    pdf.text('Value', margin + col1Width + 3, tableStartY + 5);
-
-                    // Draw border
-                    pdf.setDrawColor(...borderColor);
-                    pdf.rect(margin, tableStartY, contentWidth, rowHeight);
-
-                    yPos = tableStartY + rowHeight;
-
-                    // Table rows
-                    // Use "Rs." instead of rupee symbol since jsPDF default font doesn't support ₹
-                    const amountText = `Rs. ${parseFloat(voucherDetails.amount).toFixed(2)}`;
-                    const rows = [
-                        ['Invoice ID', voucherDetails.invoice_id || 'N/A'],
-                        ['Voucher ID', voucherDetails.voucher_id || 'N/A'],
-                        ['Amount', amountText],
-                        ['Voucher Type', voucherDetails.voucher_type || 'N/A'],
-                        ['Payment Method', formatPaymentMethod(
-                            (voucherDetails.payment_type || '')
-                                .toString()
-                                .toLowerCase()
-                                .replace(/\s/g, '_')
-                        )]
-                    ];
-
-                    // Add bank account details if applicable
-                    if (voucherDetails.payment_type === 'bank_transfer') {
-                        const fromBank = fromBankAccounts.find(
-                            acc => String(acc.id) === String(voucherDetails.from_bank_account_id)
-                        );
-                        const fromBankText = fromBank
-                            ? `${fromBank.bank_name} - ${fromBank.account_number}`
-                            : (voucherDetails.from_bank_account_name
-                                ? `${voucherDetails.from_bank_account_name} - ${voucherDetails.from_bank_account_number || ''}`.trim()
-                                : voucherDetails.from_bank_account_id || 'N/A');
-                        rows.push(['From Bank Account', fromBankText]);
-
-                        const toBank = toBankAccounts.find(
-                            acc => String(acc.id) === String(voucherDetails.to_bank_account_id)
-                        );
-                        const toBankText = toBank
-                            ? `${toBank.bank_name} - ${toBank.account_number}`
-                            : (voucherDetails.to_bank_account_name
-                                ? `${voucherDetails.to_bank_account_name} - ${voucherDetails.to_bank_account_number || ''}`.trim()
-                                : voucherDetails.to_bank_account_id || 'N/A');
-                        rows.push(['To Bank Account', toBankText]);
-                    }
-
-                    // Draw table rows
-                    pdf.setFontSize(10);
-                    pdf.setFont(undefined, 'normal');
-
-                    rows.forEach((row, index) => {
-                        // Check if we need a new page
-                        if (yPos + rowHeight > pdfHeight - margin - 10) {
-                            pdf.addPage();
-                            pdf.setFillColor(...darkBg);
-                            pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
-                            yPos = margin + 5;
-                        }
-
-                        // Use same background as page for all rows except header
-                        pdf.setFillColor(...darkBg);
-                        pdf.rect(margin, yPos, contentWidth, rowHeight, 'F');
-
-                        // Draw row border
-                        pdf.setDrawColor(...borderColor);
-                        pdf.rect(margin, yPos, contentWidth, rowHeight);
-
-                        // Draw column separator
-                        pdf.line(margin + col1Width, yPos, margin + col1Width, yPos + rowHeight);
-
-                        // Add text
-                        pdf.setTextColor(...grayText);
-                        pdf.text(row[0], margin + 3, yPos + 5);
-                        pdf.setTextColor(...lightText);
-                        pdf.setFont(undefined, 'bold');
-                        // Wrap long text
-                        const valueText = pdf.splitTextToSize(row[1], col2Width - 6);
-                        pdf.text(valueText, margin + col1Width + 3, yPos + 5);
-                        pdf.setFont(undefined, 'normal');
-
-                        yPos += rowHeight;
-                    });
-
-                    // Remarks section - no gap between title and content
-                    if (yPos + 20 > pdfHeight - margin - 10) {
-                        pdf.addPage();
-                        pdf.setFillColor(...darkBg);
-                        pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
-                        yPos = margin + 5;
-                    }
-
-                    // Remarks title row - similar to table rows
-                    const remarksTitleY = yPos;
-                    const remarksTitleHeight = rowHeight;
-                    pdf.setFillColor(...darkBg);
-                    pdf.rect(margin, remarksTitleY, contentWidth, remarksTitleHeight, 'F');
-
-                    // Draw border around remarks title row
-                    pdf.setDrawColor(...borderColor);
-                    pdf.rect(margin, remarksTitleY, contentWidth, remarksTitleHeight);
-
-                    pdf.setFontSize(11);
-                    pdf.setFont(undefined, 'bold');
-                    pdf.setTextColor(...grayText);
-                    pdf.text('Remarks', margin + 3, remarksTitleY + 5);
-
-                    // Remarks content box - directly below title, no gap
-                    yPos = remarksTitleY + remarksTitleHeight;
-                    pdf.setFillColor(...darkBg);
-                    const remarksHeight = 12;
-                    const remarksBoxY = yPos;
-                    pdf.rect(margin, remarksBoxY, contentWidth, remarksHeight, 'F');
-
-                    // Draw border around remarks box - use same color as table rows
-                    pdf.setDrawColor(...borderColor);
-                    pdf.rect(margin, remarksBoxY, contentWidth, remarksHeight);
-
-                    pdf.setFontSize(10);
-                    pdf.setFont(undefined, 'normal');
-                    pdf.setTextColor(...lightText);
-                    const remarksText = voucherDetails.remarks && voucherDetails.remarks.trim()
-                        ? voucherDetails.remarks
-                        : 'N/A';
-                    const wrappedRemarks = pdf.splitTextToSize(remarksText, contentWidth - 6);
-                    pdf.text(wrappedRemarks, margin + 3, remarksBoxY + 5);
-
-                    hasContent = true;
-                } catch (error) {
-                    console.error('Error creating voucher details PDF:', error);
-                }
-            }
-
-            // Page 2: Attachment (image only - PDFs will be merged separately)
-            if (attachmentUrl) {
-                const isPdfAttachment = attachmentContentType?.toLowerCase().includes('pdf') || attachmentUrl?.toLowerCase().endsWith('.pdf');
-
-                if (!isPdfAttachment) {
-                    // For image attachments only, add them to jsPDF
-                    // For image attachments, use the existing logic
-                    try {
-                        pdf.addPage();
-
-                        // Load the image directly from URL
-                        const img = new Image();
-                        img.crossOrigin = 'anonymous';
-
-                        await new Promise((resolve, reject) => {
-                            img.onload = () => resolve();
-                            img.onerror = (err) => {
-                                console.error('Error loading image:', err);
-                                reject(err);
-                            };
-                            img.src = attachmentUrl;
-
-                            // Timeout after 10 seconds
-                            setTimeout(() => {
-                                if (!img.complete) {
-                                    reject(new Error('Image load timeout'));
-                                }
-                            }, 10000);
-                        });
-
-                        // Calculate dimensions to fit the page
-                        const imgWidth = img.width;
-                        const imgHeight = img.height;
-                        const ratio = imgWidth / imgHeight;
-
-                        let displayWidth = contentWidth;
-                        let displayHeight = displayWidth / ratio;
-
-                        // If image is taller than page, scale it down
-                        if (displayHeight > contentHeight) {
-                            displayHeight = contentHeight;
-                            displayWidth = displayHeight * ratio;
-                        }
-
-                        // Center the image on the page
-                        const xPos = margin + (contentWidth - displayWidth) / 2;
-                        const yPos = margin + (contentHeight - displayHeight) / 2;
-
-                        // Add image to PDF
-                        pdf.addImage(attachmentUrl, 'PNG', xPos, yPos, displayWidth, displayHeight);
-                    } catch (error) {
-                        console.error('Error adding attachment image to PDF:', error);
-                        // Fallback: try using html2canvas if direct image load fails
-                        if (attachmentRef.current) {
-                            try {
-                                const attachmentCanvas = await html2canvas(attachmentRef.current, {
-                                    useCORS: true,
-                                    scale: 2,
-                                    backgroundColor: '#ffffff',
-                                    logging: false,
-                                    allowTaint: true
-                                });
-
-                                if (attachmentCanvas && attachmentCanvas.width > 0 && attachmentCanvas.height > 0) {
-                                    const attachmentImgData = attachmentCanvas.toDataURL('image/png');
-                                    addImageToPDF(attachmentImgData, attachmentCanvas.width, attachmentCanvas.height);
-                                }
-                            } catch (canvasError) {
-                                console.error('Error capturing attachment with html2canvas:', canvasError);
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Last Page: Activity Log
-            if (activityLogRef.current) {
-                try {
-                    pdf.addPage();
-                    const activityCanvas = await html2canvas(activityLogRef.current, {
-                        useCORS: true,
-                        scale: 2,
-                        backgroundColor: '#1e293b',
-                        logging: false,
-                        allowTaint: true
-                    });
-
-                    if (activityCanvas && activityCanvas.width > 0 && activityCanvas.height > 0) {
-                        const activityImgData = activityCanvas.toDataURL('image/png');
-                        addImageToPDF(activityImgData, activityCanvas.width, activityCanvas.height);
-                    }
-                } catch (error) {
-                    console.error('Error capturing activity log:', error);
-                }
-            }
-
-            if (!hasContent) {
-                throw new Error('No valid content to export. Please ensure the voucher details are visible.');
-            }
-
-            // Convert jsPDF to arrayBuffer for merging
-            const detailsPdfBytes = pdf.output('arraybuffer');
-
-            // Now merge PDFs if there's a PDF attachment
-            const isPdfAttachment = attachmentUrl && (attachmentContentType?.toLowerCase().includes('pdf') || attachmentUrl?.toLowerCase().endsWith('.pdf'));
-
-            if (isPdfAttachment) {
-                try {
-                    // Dynamically import pdf-lib only when needed
-                    const { PDFDocument } = await import('pdf-lib');
-
-                    // Get attachment ID from voucher or allAttachmentIds
-                    const attachmentId = voucher?.attachment_id || (voucher?.attachment && voucher?.attachment.id) || allAttachmentIds[0];
-
-                    if (!attachmentId) {
-                        throw new Error('No attachment ID available');
-                    }
-
-                    // Fetch the PDF directly from the API endpoint
-                    const FINANCE_API_BASE_URL = import.meta.env.VITE_FINANCE_API_URL || 'http://127.0.0.1:8003';
-                    const response = await fetch(`${FINANCE_API_BASE_URL}/api/attachments/${attachmentId}`, {
-                        headers: {
-                            'Authorization': `Bearer ${user.access_token}`,
-                            'Content-Type': 'application/json'
-                        }
-                    });
-
-                    if (!response.ok) {
-                        throw new Error(`Failed to fetch attachment: ${response.status}`);
-                    }
-
-                    const attachmentBlob = await response.blob();
-                    const attachmentPdfBytes = await attachmentBlob.arrayBuffer();
-
-                    // Create a new PDF document to merge
-                    const mergedPdf = await PDFDocument.create();
-
-                    // Load the details PDF
-                    const detailsPdf = await PDFDocument.load(detailsPdfBytes);
-                    const detailsPages = await mergedPdf.copyPages(detailsPdf, detailsPdf.getPageIndices());
-                    detailsPages.forEach((page) => mergedPdf.addPage(page));
-
-                    // Load and merge the attachment PDF
-                    const attachmentPdf = await PDFDocument.load(attachmentPdfBytes);
-                    const attachmentPages = await mergedPdf.copyPages(attachmentPdf, attachmentPdf.getPageIndices());
-                    attachmentPages.forEach((page) => mergedPdf.addPage(page));
-
-                    // Save the merged PDF
-                    const mergedPdfBytes = await mergedPdf.save();
-                    const blob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
-                    const url = URL.createObjectURL(blob);
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.download = `voucher-${voucher.voucher_id || voucherId}.pdf`;
-                    link.click();
-                    URL.revokeObjectURL(url);
-
-                    toast({ title: 'Export Successful', description: 'Voucher exported to PDF with details, attachment, and activity log.' });
-                } catch (error) {
-                    console.error('Error merging PDF attachment:', error);
-                    // Fallback to saving jsPDF if merging fails
-                    pdf.save(`voucher-${voucher.voucher_id || voucherId}.pdf`);
-                    toast({
-                        title: 'Export Warning',
-                        description: 'PDF exported but attachment could not be merged. Details only.',
-                        variant: 'default'
-                    });
-                }
-            } else {
-                // No PDF attachment, just save the jsPDF
-                pdf.save(`voucher-${voucher.voucher_id || voucherId}.pdf`);
-                toast({ title: 'Export Successful', description: 'Voucher exported to PDF with details, attachment, and activity log.' });
-            }
-        } catch (error) {
-            console.error('PDF Export Error:', error);
-            toast({ title: 'Export Error', description: `An error occurred: ${error.message}`, variant: 'destructive' });
-        }
-    };
 
     const beneficiaryName = voucherDetails.beneficiary
         ? (voucherDetails.beneficiary.beneficiary_type === 'individual' ? voucherDetails.beneficiary.name : voucherDetails.beneficiary.company_name)
         : voucherDetails.beneficiaryName || 'N/A';
 
     const [isExportingPDF, setIsExportingPDF] = React.useState(false);
+    const [pdfPreviewUrl, setPdfPreviewUrl] = useState(null);
+    const [isPdfPreviewOpen, setIsPdfPreviewOpen] = useState(false);
 
     const handleServerPDFExport = async () => {
         setIsExportingPDF(true);
@@ -1298,15 +858,9 @@ const VoucherDetailsPage = () => {
 
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `voucher-${voucherDetails.voucher_id || voucherId}.pdf`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
+            setPdfPreviewUrl(url);
+            setIsPdfPreviewOpen(true);
 
-            toast({ title: 'Success', description: 'PDF exported successfully' });
         } catch (error) {
             console.error('PDF export error:', error);
             toast({
@@ -2750,6 +2304,20 @@ const VoucherDetailsPage = () => {
                     </div>
                 </DialogContent>
             </Dialog>
+
+            <PdfPreviewModal
+                isOpen={isPdfPreviewOpen}
+                onClose={() => {
+                    setIsPdfPreviewOpen(false);
+                    if (pdfPreviewUrl) {
+                        window.URL.revokeObjectURL(pdfPreviewUrl);
+                        setPdfPreviewUrl(null);
+                    }
+                }}
+                pdfUrl={pdfPreviewUrl}
+                title="Voucher Preview"
+                fileName={`voucher-${voucherDetails?.voucher_id || voucherId}.pdf`}
+            />
 
         </div >
     );
