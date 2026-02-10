@@ -374,6 +374,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   const [editingTemplate, setEditingTemplate] = useState(null); // { id, name, folders }
   const [selectedTemplateForApply, setSelectedTemplateForApply] = useState(null);
   const [selectedClientsForTemplate, setSelectedClientsForTemplate] = useState([]);
+  const [templateClientSearch, setTemplateClientSearch] = useState('');
 
   // Initialize collabSelectedClientId when user changes
   useEffect(() => {
@@ -1222,25 +1223,39 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
               toast({ title: 'Error', description: 'Failed to fetch team members.', variant: 'destructive' });
             }
           }
-          // CASE 2: Client Selected - fetch that client's organization users
+          // CASE 2: Client Selected - fetch that client's users
           else {
-            const client = clientsForFilter.find(c => c.id === collabSelectedClientId);
-            if (client && client.organization_id) {
+            const client = clientsForFilter.find(c => String(c.id) === String(collabSelectedClientId));
+            if (client) {
+              // Primary: use listAllClientUsers with entity_id (client.id) - works reliably
               try {
-                const orgUsers = await listOrgUsers(client.organization_id, user.access_token);
-                if (orgUsers && typeof orgUsers === 'object') {
-                  const invited = Array.isArray(orgUsers.invited_users) ? orgUsers.invited_users : [];
-                  const joined = Array.isArray(orgUsers.joined_users) ? orgUsers.joined_users : [];
-                  users = [...invited, ...joined];
-                } else if (Array.isArray(orgUsers)) {
-                  users = orgUsers;
+                const clientUsers = await listAllClientUsers(user.access_token, client.id);
+                if (Array.isArray(clientUsers)) {
+                  users = clientUsers;
                 }
-              } catch (orgError) {
-                console.error('Failed to fetch org users:', orgError);
-                toast({ title: 'Error', description: 'Failed to fetch client users.', variant: 'destructive' });
+              } catch (entityError) {
+                console.error('Failed to fetch client users via entity:', entityError);
+                // Fallback: try listOrgUsers if organization_id exists
+                if (client.organization_id) {
+                  try {
+                    const orgUsers = await listOrgUsers(client.organization_id, user.access_token);
+                    if (orgUsers && typeof orgUsers === 'object') {
+                      const invited = Array.isArray(orgUsers.invited_users) ? orgUsers.invited_users : [];
+                      const joined = Array.isArray(orgUsers.joined_users) ? orgUsers.joined_users : [];
+                      users = [...invited, ...joined];
+                    } else if (Array.isArray(orgUsers)) {
+                      users = orgUsers;
+                    }
+                  } catch (orgError) {
+                    console.error('Fallback listOrgUsers also failed:', orgError);
+                    toast({ title: 'Error', description: 'Failed to fetch client users.', variant: 'destructive' });
+                  }
+                } else {
+                  toast({ title: 'Error', description: 'Failed to fetch client users.', variant: 'destructive' });
+                }
               }
             } else {
-              console.warn('Selected client has no organization_id', client);
+              console.warn('Selected client not found in clientsForFilter', collabSelectedClientId);
             }
           }
         }
@@ -2063,11 +2078,17 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
       return { label: `Expiring in ${daysLeft} day${daysLeft > 1 ? 's' : ''}`, color: 'text-yellow-400' };
     };
 
-    const getFolderPath = (doc) => {
-      if (!doc.folder_id) return 'Root';
-      // Try to find the folder in the file tree
+    // Build full folder path like "Main Folder / Sub Folder"
+    const getFolderPathInfo = (doc) => {
+      if (!doc.folder_id) return { label: 'Root', folderId: 'root' };
+      const path = findPath(documentsState, doc.folder_id);
+      if (path.length > 1) {
+        // Skip the root node, join remaining folder names
+        const folderNames = path.slice(1).map(f => f.name);
+        return { label: folderNames.join(' / '), folderId: doc.folder_id };
+      }
       const folder = findFolder(documentsState, doc.folder_id);
-      return folder ? folder.name : `Folder #${doc.folder_id}`;
+      return { label: folder ? folder.name : `Folder #${doc.folder_id}`, folderId: doc.folder_id };
     };
 
     const filteredRenewals = renewalDocuments.filter(doc =>
@@ -2108,8 +2129,25 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                   <TableCell className={`text-xs sm:text-sm hidden sm:table-cell font-medium ${status.color}`}>
                     {status.label}
                   </TableCell>
-                  <TableCell className="text-gray-400 text-xs sm:text-sm hidden md:table-cell">
-                    {getFolderPath(doc)}
+                  <TableCell className="text-xs sm:text-sm hidden md:table-cell">
+                    {(() => {
+                      const pathInfo = getFolderPathInfo(doc);
+                      return (
+                        <span
+                          className="text-blue-400 hover:text-blue-300 hover:underline cursor-pointer transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveTab('myFiles');
+                            if (pathInfo.folderId && pathInfo.folderId !== 'root') {
+                              handleFolderNavigation(pathInfo.folderId);
+                            }
+                          }}
+                          title={`Navigate to: ${pathInfo.label}`}
+                        >
+                          {pathInfo.label}
+                        </span>
+                      );
+                    })()}
                   </TableCell>
                   <TableCell className="text-gray-400 text-xs sm:text-sm hidden lg:table-cell">
                     {doc.expiry_date ? new Date(doc.expiry_date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'}
@@ -3120,29 +3158,74 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
               <div className="space-y-6">
                 <div className="space-y-4">
                   <Label>1. Select Template</Label>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    {templates.map(template => (
-                      <div
-                        key={template.id}
-                        onClick={() => setSelectedTemplateForApply(template.id)}
-                        className={cn(
-                          "cursor-pointer p-3 rounded-md border text-center transition-all",
-                          selectedTemplateForApply === template.id
-                            ? "bg-blue-500/20 border-blue-500 text-blue-400 ring-2 ring-blue-500/30"
-                            : "bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-500"
-                        )}
-                      >
-                        <div className="font-medium">{template.name}</div>
-                        <div className="text-xs mt-1 opacity-70">{(template.folders || []).length} folders</div>
-                      </div>
-                    ))}
-                  </div>
+                  {/* Show selected template prominently, hide unselected ones */}
+                  {selectedTemplateForApply ? (
+                    <div className="space-y-3">
+                      {(() => {
+                        const selected = templates.find(t => t.id === selectedTemplateForApply);
+                        if (!selected) return null;
+                        return (
+                          <div className="p-4 rounded-md border bg-blue-500/20 border-blue-500 ring-2 ring-blue-500/30">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <div className="font-medium text-blue-400">{selected.name}</div>
+                                <div className="text-xs mt-1 text-gray-400">{(selected.folders || []).length} folders</div>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-gray-400 hover:text-white h-8"
+                                onClick={() => setSelectedTemplateForApply(null)}
+                              >
+                                <X className="w-3 h-3 mr-1" /> Change
+                              </Button>
+                            </div>
+                            {/* Show folder preview */}
+                            {(selected.folders || []).length > 0 && (
+                              <div className="mt-3 pt-3 border-t border-blue-500/30 flex flex-wrap gap-2">
+                                {(selected.folders || []).map((f, i) => (
+                                  <span key={i} className="text-xs bg-blue-500/10 text-blue-300 px-2 py-1 rounded">
+                                    {f}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {templates.map(template => (
+                        <div
+                          key={template.id}
+                          onClick={() => setSelectedTemplateForApply(template.id)}
+                          className="cursor-pointer p-3 rounded-md border bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-500 text-center transition-all"
+                        >
+                          <div className="font-medium">{template.name}</div>
+                          <div className="text-xs mt-1 opacity-70">{(template.folders || []).length} folders</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-4">
                   <Label>2. Select Clients ({selectedClientsForTemplate.length})</Label>
+                  {/* Search clients */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Input
+                      placeholder="Search clients..."
+                      className="pl-9 h-9 bg-gray-800 border-gray-700 text-white text-sm"
+                      value={templateClientSearch || ''}
+                      onChange={(e) => setTemplateClientSearch(e.target.value)}
+                    />
+                  </div>
                   <div className="h-[200px] overflow-y-auto border border-gray-700 rounded-md bg-gray-800/50 p-2 space-y-1 custom-scrollbar">
-                    {clientsForFilter.map(client => {
+                    {clientsForFilter
+                      .filter(client => !templateClientSearch || client.name.toLowerCase().includes(templateClientSearch.toLowerCase()))
+                      .map(client => {
                       const isSelected = selectedClientsForTemplate.includes(client.id);
                       return (
                         <div
@@ -3166,6 +3249,9 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                         </div>
                       );
                     })}
+                    {clientsForFilter.filter(client => !templateClientSearch || client.name.toLowerCase().includes(templateClientSearch.toLowerCase())).length === 0 && (
+                      <div className="text-center py-4 text-gray-500 text-sm">No clients found.</div>
+                    )}
                   </div>
                   <div className="flex justify-between text-xs text-gray-400 px-1">
                     <span className="cursor-pointer hover:text-white" onClick={() => setSelectedClientsForTemplate(clientsForFilter.map(c => c.id))}>Select All</span>
