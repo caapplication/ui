@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/resizable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.jsx";
 import ActivityLog from '@/components/finance/ActivityLog';
+import PdfPreviewModal from '@/components/modals/PdfPreviewModal';
 
 
 const DetailItem = ({ label, value }) => (
@@ -78,6 +79,8 @@ const InvoiceDetailsPage = () => {
     const [isStatusUpdating, setIsStatusUpdating] = useState(false);
     const [showCompletionModal, setShowCompletionModal] = useState(false);
     const [completionModalType, setCompletionModalType] = useState('all_done'); // 'all_done' or 'go_to_vouchers'
+    const [pdfPreviewUrl, setPdfPreviewUrl] = useState(null);
+    const [isPdfPreviewOpen, setIsPdfPreviewOpen] = useState(false);
 
 
 
@@ -553,19 +556,8 @@ const InvoiceDetailsPage = () => {
         try {
             setIsLoading(true);
             const blobUrl = await getInvoicePdf(invoiceId, user.access_token);
-
-            // Create a temporary link element to trigger download
-            const link = document.createElement('a');
-            link.href = blobUrl;
-            link.download = `Invoice-${invoiceDetails.bill_number || invoiceId}.pdf`;
-            document.body.appendChild(link);
-            link.click();
-
-            // Clean up
-            document.body.removeChild(link);
-            URL.revokeObjectURL(blobUrl);
-
-            toast({ title: 'Success', description: 'Invoice PDF downloaded successfully.' });
+            setPdfPreviewUrl(blobUrl);
+            setIsPdfPreviewOpen(true);
         } catch (error) {
             console.error('PDF Export Error:', error);
             toast({ title: 'Export Error', description: `Failed to export PDF: ${error.message}`, variant: 'destructive' });
@@ -1662,6 +1654,24 @@ const InvoiceDetailsPage = () => {
                     </div>
                 </DialogContent>
             </Dialog>
+
+
+            <PdfPreviewModal
+                isOpen={isPdfPreviewOpen}
+                onClose={() => {
+                    setIsPdfPreviewOpen(false);
+                    // Note: getInvoicePdf returns a blob URL that needs explicit revocation if we created it.
+                    // However, if the API function creates it, we should check if we need to revoke it here.
+                    // Assuming getInvoicePdf returns a string URL created with URL.createObjectURL
+                    if (pdfPreviewUrl) {
+                        URL.revokeObjectURL(pdfPreviewUrl);
+                        setPdfPreviewUrl(null);
+                    }
+                }}
+                pdfUrl={pdfPreviewUrl}
+                title="Invoice Preview"
+                fileName={`Invoice-${invoiceDetails.bill_number || invoiceId}.pdf`}
+            />
         </div >
     );
 };
