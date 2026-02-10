@@ -10,11 +10,13 @@ import {
     ArrowDown,
     ArrowUpDown,
     CalendarIcon,
-    AlertCircle
+    AlertCircle,
+    Download
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useToast } from '@/components/ui/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { getVouchersList } from '@/lib/api';
 import { format, startOfDay, endOfDay, differenceInDays, isAfter } from 'date-fns';
@@ -111,8 +113,45 @@ const RecentTransactionsExpanded = ({ entityId }) => {
     const [customEndDate, setCustomEndDate] = useState(null);
     const [dateError, setDateError] = useState('');
     const itemsPerPage = 10;
+    const { toast } = useToast();
 
     const resolvedEntityId = entityId || localStorage.getItem('entityId');
+
+    const handleExport = () => {
+        if (filteredData.length === 0) {
+            toast({
+                title: "No data",
+                description: "There is no data to export.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        const headers = ["S.No", "Beneficiary", "Remarks", "Date", "Amount"];
+        const rows = filteredData.map((v, idx) => {
+            const beneficiaryName = v.beneficiary_name || v.beneficiary?.name || v.beneficiary?.company_name || '-';
+            const vDate = v.created_date || v.created_at;
+            return [
+                String(idx + 1).padStart(2, '0'),
+                beneficiaryName.replace(/,/g, ";"),
+                (v.remarks || '-').replace(/,/g, ";"),
+                vDate ? format(new Date(vDate), 'dd MMM yyyy') : '-',
+                Math.round(parseFloat(v.amount) || 0)
+            ];
+        });
+
+        const csvContent = "data:text/csv;charset=utf-8,"
+            + headers.join(",") + "\n"
+            + rows.map(r => r.join(",")).join("\n");
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `Recent_Transactions_${new Date().getTime()}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
 
     const fetchData = useCallback(async () => {
         if (!user?.access_token || !resolvedEntityId) return;
@@ -211,6 +250,24 @@ const RecentTransactionsExpanded = ({ entityId }) => {
 
                 <div className="flex flex-col gap-3 w-full sm:w-auto">
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                        <Button
+                            onClick={handleExport}
+                            className="h-9 sm:h-10 rounded-xl bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm w-full sm:w-auto justify-center"
+                        >
+                            <Download className="w-4 h-4" />
+                            <span>Export</span>
+                        </Button>
+
+                        <div className="relative w-full sm:w-64">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <Input
+                                placeholder="Search beneficiary..."
+                                className="pl-9 h-9 sm:h-10 border-white/10 bg-white/5 focus:bg-white/10 text-white placeholder:text-gray-500 rounded-xl text-sm"
+                                value={searchTerm}
+                                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                            />
+                        </div>
+
                         <Select value={timeFrame} onValueChange={(val) => {
                             setTimeFrame(val);
                             setCurrentPage(1);
@@ -233,16 +290,6 @@ const RecentTransactionsExpanded = ({ entityId }) => {
                                 ))}
                             </SelectContent>
                         </Select>
-
-                        <div className="relative w-full sm:w-64">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                            <Input
-                                placeholder="Search beneficiary..."
-                                className="pl-9 h-9 sm:h-10 border-white/10 bg-white/5 focus:bg-white/10 text-white placeholder:text-gray-500 rounded-xl text-sm"
-                                value={searchTerm}
-                                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-                            />
-                        </div>
                     </div>
 
                     {timeFrame === 'custom' && (
@@ -350,7 +397,7 @@ const RecentTransactionsExpanded = ({ entityId }) => {
                 <CardContent className="p-0 flex flex-col">
                     <div className="overflow-auto custom-scrollbar">
                         <table className="w-full text-left border-collapse">
-                            <thead className="sticky top-0 z-20 backdrop-blur-md">
+                            <thead className="sticky top-0 z-20">
                                 <tr className="border-b border-white/10 text-gray-400 text-[10px] sm:text-xs font-medium uppercase tracking-wider bg-white/5">
                                     <th className="py-4 pl-6 w-16">S.No</th>
                                     <th
