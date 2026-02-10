@@ -1,19 +1,23 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
+    ChevronLeft,
+    ChevronRight,
     Search,
     Loader2,
     ArrowLeft,
     ArrowUp,
     ArrowDown,
-    ArrowUpDown
+    ArrowUpDown,
+    CalendarIcon,
+    AlertCircle
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { getVouchersList } from '@/lib/api';
-import { format } from 'date-fns';
+import { format, startOfDay, endOfDay, differenceInDays, isAfter } from 'date-fns';
 import {
     Select,
     SelectContent,
@@ -21,6 +25,13 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
 
 const TIME_FRAME_PRESETS = [
     { label: 'Today', value: 'today' },
@@ -35,7 +46,7 @@ const TIME_FRAME_PRESETS = [
     { label: 'All Time', value: 'all' },
 ];
 
-const getDateRange = (preset) => {
+const getDateRange = (preset, start, end) => {
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     switch (preset) {
@@ -75,6 +86,11 @@ const getDateRange = (preset) => {
         }
         case 'thisYear':
             return { start: new Date(now.getFullYear(), 0, 1), end: now };
+        case 'custom':
+            return {
+                start: start ? startOfDay(start) : null,
+                end: end ? endOfDay(end) : null
+            };
         case 'all':
         default:
             return { start: null, end: null };
@@ -91,7 +107,10 @@ const RecentTransactionsExpanded = ({ entityId }) => {
     const [sortColumn, setSortColumn] = useState('created_date');
     const [sortDirection, setSortDirection] = useState('desc');
     const [timeFrame, setTimeFrame] = useState('last30');
-    const itemsPerPage = 15;
+    const [customStartDate, setCustomStartDate] = useState(null);
+    const [customEndDate, setCustomEndDate] = useState(null);
+    const [dateError, setDateError] = useState('');
+    const itemsPerPage = 10;
 
     const resolvedEntityId = entityId || localStorage.getItem('entityId');
 
@@ -129,14 +148,14 @@ const RecentTransactionsExpanded = ({ entityId }) => {
     };
 
     const filteredData = useMemo(() => {
-        const { start, end } = getDateRange(timeFrame);
+        const { start, end } = getDateRange(timeFrame, customStartDate, customEndDate);
 
         let result = allVouchers.filter(v => {
             // Time frame filter
-            if (start && end) {
-                const vDate = new Date(v.created_date || v.created_at);
-                if (vDate < start || vDate > end) return false;
-            }
+            const vDate = new Date(v.created_date || v.created_at);
+            if (start && vDate < start) return false;
+            if (end && vDate > end) return false;
+
             // Search filter
             const beneficiaryName = v.beneficiary_name || v.beneficiary?.name || v.beneficiary?.company_name || '';
             const remarks = v.remarks || '';
@@ -162,7 +181,7 @@ const RecentTransactionsExpanded = ({ entityId }) => {
         });
 
         return result;
-    }, [allVouchers, searchTerm, sortColumn, sortDirection, timeFrame]);
+    }, [allVouchers, searchTerm, sortColumn, sortDirection, timeFrame, customStartDate, customEndDate]);
 
     const totalAmount = useMemo(() => {
         return filteredData.reduce((sum, v) => sum + (parseFloat(v.amount) || 0), 0);
@@ -190,39 +209,149 @@ const RecentTransactionsExpanded = ({ entityId }) => {
                     </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
-                    <Select value={timeFrame} onValueChange={(val) => { setTimeFrame(val); setCurrentPage(1); }}>
-                        <SelectTrigger className="w-full sm:w-44 h-9 sm:h-10 border-white/10 bg-white/5 text-white rounded-xl text-sm">
-                            <SelectValue placeholder="Time frame" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-[#1a1a2e] border-white/10 text-white rounded-xl">
-                            {TIME_FRAME_PRESETS.map(preset => (
-                                <SelectItem key={preset.value} value={preset.value} className="hover:bg-white/10 focus:bg-white/10 cursor-pointer rounded-lg">
-                                    {preset.label}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                <div className="flex flex-col gap-3 w-full sm:w-auto">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                        <Select value={timeFrame} onValueChange={(val) => {
+                            setTimeFrame(val);
+                            setCurrentPage(1);
+                            if (val === 'custom' && !customStartDate) {
+                                const end = new Date();
+                                const start = new Date();
+                                start.setMonth(start.getMonth() - 1);
+                                setCustomStartDate(start);
+                                setCustomEndDate(end);
+                            }
+                        }}>
+                            <SelectTrigger className="w-full sm:w-44 h-9 sm:h-10 border-white/10 bg-white/5 text-white rounded-xl text-sm">
+                                <SelectValue placeholder="Time frame" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-[#1a1a2e] border-white/10 text-white rounded-xl">
+                                {TIME_FRAME_PRESETS.map(preset => (
+                                    <SelectItem key={preset.value} value={preset.value} className="hover:bg-white/10 focus:bg-white/10 cursor-pointer rounded-lg">
+                                        {preset.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
 
-                    <div className="relative w-full sm:w-64">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <Input
-                            placeholder="Search beneficiary..."
-                            className="pl-9 h-9 sm:h-10 border-white/10 bg-white/5 focus:bg-white/10 text-white placeholder:text-gray-500 rounded-xl text-sm"
-                            value={searchTerm}
-                            onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-                        />
+                        <div className="relative w-full sm:w-64">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <Input
+                                placeholder="Search beneficiary..."
+                                className="pl-9 h-9 sm:h-10 border-white/10 bg-white/5 focus:bg-white/10 text-white placeholder:text-gray-500 rounded-xl text-sm"
+                                value={searchTerm}
+                                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                            />
+                        </div>
                     </div>
+
+                    {timeFrame === 'custom' && (
+                        <div className="flex flex-row items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                            <div className="flex items-center gap-2">
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant={"outline"}
+                                            className={cn(
+                                                "w-[120px] sm:w-[130px] h-9 gap-2 justify-start text-left font-normal bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl px-2 sm:px-3",
+                                                !customStartDate && "text-muted-foreground"
+                                            )}
+                                        >
+                                            <CalendarIcon className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+                                            <span className="truncate text-xs sm:text-sm">{customStartDate ? format(customStartDate, "dd MMM yy") : "Start"}</span>
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0 bg-[#1a1a2e] border-white/10 shadow-2xl" align="start">
+                                        <Calendar
+                                            mode="single"
+                                            selected={customStartDate}
+                                            onSelect={(date) => {
+                                                setCustomStartDate(date);
+                                                if (date && customEndDate) {
+                                                    const days = differenceInDays(customEndDate, date);
+                                                    if (days > 365 || days < 0) {
+                                                        const newEnd = new Date(date);
+                                                        newEnd.setFullYear(newEnd.getFullYear() + 1);
+                                                        const limit = new Date();
+                                                        setCustomEndDate(newEnd > limit ? limit : newEnd);
+                                                    }
+                                                }
+                                            }}
+                                            fromYear={2020}
+                                            toYear={new Date().getFullYear()}
+                                            disabled={(date) => {
+                                                if (customEndDate) {
+                                                    const diff = differenceInDays(customEndDate, date);
+                                                    return diff < 0 || diff > 365 || isAfter(date, new Date());
+                                                }
+                                                return isAfter(date, new Date());
+                                            }}
+                                            initialFocus
+                                        />
+                                    </PopoverContent>
+                                </Popover>
+                                <span className="text-gray-500 text-[10px] sm:text-xs font-medium shrink-0 uppercase">to</span>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant={"outline"}
+                                            className={cn(
+                                                "w-[120px] sm:w-[130px] h-9 gap-2 justify-start text-left font-normal bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl px-2 sm:px-3",
+                                                !customEndDate && "text-muted-foreground"
+                                            )}
+                                        >
+                                            <CalendarIcon className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+                                            <span className="truncate text-xs sm:text-sm">{customEndDate ? format(customEndDate, "dd MMM yy") : "End"}</span>
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0 bg-[#1a1a2e] border-white/10 shadow-2xl" align="start">
+                                        <Calendar
+                                            mode="single"
+                                            selected={customEndDate}
+                                            onSelect={(date) => {
+                                                setCustomEndDate(date);
+                                                if (customStartDate && date) {
+                                                    const days = differenceInDays(date, customStartDate);
+                                                    if (days > 365 || days < 0) {
+                                                        const newStart = new Date(date);
+                                                        newStart.setFullYear(newStart.getFullYear() - 1);
+                                                        setCustomStartDate(newStart);
+                                                    }
+                                                }
+                                            }}
+                                            fromYear={2020}
+                                            toYear={new Date().getFullYear()}
+                                            disabled={(date) => {
+                                                if (customStartDate) {
+                                                    const diff = differenceInDays(date, customStartDate);
+                                                    return diff < 0 || diff > 365 || isAfter(date, new Date());
+                                                }
+                                                return isAfter(date, new Date());
+                                            }}
+                                            initialFocus
+                                        />
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
+
+                            {dateError && (
+                                <div className="flex items-center gap-1.5 text-xs text-red-400 bg-red-400/10 px-3 py-1.5 rounded-lg border border-red-400/20">
+                                    <AlertCircle className="w-3.5 h-3.5" />
+                                    <span>{dateError}</span>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
 
             {/* Table */}
-            <Card className="glass-card overflow-hidden border-white/5 rounded-3xl">
-                <CardContent className="p-0">
-                    <div className="overflow-x-auto">
+            <Card className="glass-card overflow-hidden border-white/5 rounded-3xl flex flex-col">
+                <CardContent className="p-0 flex flex-col">
+                    <div className="overflow-auto custom-scrollbar">
                         <table className="w-full text-left border-collapse">
-                            <thead>
-                                <tr className="border-b border-white/10 text-gray-400 text-[10px] sm:text-xs font-medium uppercase tracking-wider">
+                            <thead className="sticky top-0 z-20 backdrop-blur-md">
+                                <tr className="border-b border-white/10 text-gray-400 text-[10px] sm:text-xs font-medium uppercase tracking-wider bg-white/5">
                                     <th className="py-4 pl-6 w-16">S.No</th>
                                     <th
                                         className="py-4 px-4 cursor-pointer select-none hover:text-white transition-colors"
@@ -283,7 +412,7 @@ const RecentTransactionsExpanded = ({ entityId }) => {
                                     })
                                 ) : (
                                     <tr>
-                                        <td colSpan="5" className="py-12 text-center text-gray-500">
+                                        <td colSpan="5" className="py-8 text-center text-gray-500">
                                             No transactions found.
                                         </td>
                                     </tr>
@@ -307,31 +436,33 @@ const RecentTransactionsExpanded = ({ entityId }) => {
 
                 {/* Pagination */}
                 {totalPages > 1 && (
-                    <div className="p-4 sm:p-6 border-t border-white/5 flex flex-col sm:flex-row justify-between items-center gap-4">
-                        <p className="text-xs sm:text-sm text-gray-400">
-                            Page {currentPage} of {totalPages}
+                    <div className="p-4 sm:p-6 border-t border-white/5 flex justify-between items-center bg-white/5">
+                        <p className="text-xs text-gray-400">
+                            Showing {paginatedData.length} of {filteredData.length} records
                         </p>
                         <div className="flex items-center gap-2">
                             <Button
                                 variant="outline"
-                                size="sm"
-                                className="border-white/10 bg-white/5 hover:bg-white/10 text-white rounded-xl h-9"
+                                size="icon"
+                                className="h-8 w-8 border-white/10 bg-transparent hover:bg-white/10 text-white"
                                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                                 disabled={currentPage === 1}
                             >
-                                Previous
+                                <ChevronLeft className="w-4 h-4" />
                             </Button>
-                            <div className="border border-white/10 bg-white/5 px-3 py-1.5 rounded-lg text-sm font-medium text-white">
-                                {currentPage} / {totalPages}
+                            <div className="flex items-center gap-1.5 px-3 py-1 bg-white/5 rounded-lg border border-white/10">
+                                <span className="text-xs font-bold text-white">{currentPage}</span>
+                                <span className="text-[10px] text-gray-500">/</span>
+                                <span className="text-[10px] text-gray-500 font-medium">{totalPages}</span>
                             </div>
                             <Button
                                 variant="outline"
-                                size="sm"
-                                className="border-white/10 bg-white/5 hover:bg-white/10 text-white rounded-xl h-9"
+                                size="icon"
+                                className="h-8 w-8 border-white/10 bg-transparent hover:bg-white/10 text-white"
                                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                                 disabled={currentPage === totalPages}
                             >
-                                Next
+                                <ChevronRight className="w-4 h-4" />
                             </Button>
                         </div>
                     </div>
