@@ -253,7 +253,7 @@ const NoticeDetailsPage = () => {
                 <ResizablePanel defaultSize={50} minSize={30}>
                     <div className="relative flex h-full w-full flex-col items-center justify-center p-2 bg-black/40 overflow-hidden">
                         {/* Zoom controls */}
-                        <div className="absolute bottom-4 right-4 z-10 flex gap-2">
+                        {/* <div className="absolute bottom-4 right-4 z-10 flex gap-2">
                             <Button variant="outline" size="icon" onClick={() => setZoom(z => z + 0.1)} className="h-9 w-9 bg-black/50 border-white/10 hover:bg-black/70">
                                 <ZoomIn className="h-4 w-4" />
                             </Button>
@@ -263,7 +263,7 @@ const NoticeDetailsPage = () => {
                             <Button variant="outline" size="icon" onClick={() => setZoom(1)} className="h-9 w-9 bg-black/50 border-white/10 hover:bg-black/70">
                                 <RefreshCcw className="h-4 w-4" />
                             </Button>
-                        </div>
+                        </div> */}
 
                         {(isAttachmentLoading || (!attachmentUrl && !notice.file_url)) && (
                             <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-8 bg-black/40">
@@ -278,16 +278,21 @@ const NoticeDetailsPage = () => {
                         {(attachmentUrl || notice.file_url) ? (
                             (() => {
                                 const urlToUse = attachmentUrl || notice.file_url;
-                                const isPdf = (attachmentContentType && attachmentContentType.includes('pdf')) ||
-                                    notice.file_name?.toLowerCase().endsWith('.pdf') ||
-                                    urlToUse.toLowerCase().includes('.pdf');
+
+                                const isPdf =
+                                    (attachmentContentType && attachmentContentType.includes("pdf")) ||
+                                    notice.file_name?.toLowerCase().endsWith(".pdf") ||
+                                    urlToUse.toLowerCase().includes(".pdf");
 
                                 if (isPdf) {
+                                    // Hide built-in PDF viewer UI (works in many browsers)
+                                    const pdfUrl = `${urlToUse}#toolbar=0&navpanes=0&scrollbar=0`;
+
                                     return (
                                         <iframe
-                                            src={urlToUse}
-                                            className={`w-full h-full border-0 bg-white transition-opacity duration-300 ${isAttachmentLoading ? 'opacity-0' : 'opacity-100'}`}
-                                            style={{ transform: `scale(${zoom})`, transformOrigin: 'center top', transition: 'transform 0.2s' }}
+                                            src={pdfUrl}
+                                            className={`w-full h-full border-0 bg-white transition-opacity duration-300 ${isAttachmentLoading ? "opacity-0" : "opacity-100"
+                                                }`}
                                             title="Notice Document"
                                             onLoad={() => setIsAttachmentLoading(false)}
                                         />
@@ -297,8 +302,9 @@ const NoticeDetailsPage = () => {
                                         <img
                                             src={urlToUse}
                                             alt="Notice Document"
-                                            className={`max-w-full max-h-full object-contain transition-all duration-300 ${isAttachmentLoading ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}
-                                            style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }}
+                                            className={`max-w-full max-h-full object-contain transition-all duration-300 ${isAttachmentLoading ? "opacity-0 scale-95" : "opacity-100 scale-100"
+                                                }`}
+                                            style={{ transform: `scale(${zoom})`, transformOrigin: "center" }}
                                             onLoad={() => setIsAttachmentLoading(false)}
                                         />
                                     );
@@ -307,6 +313,7 @@ const NoticeDetailsPage = () => {
                         ) : (
                             !isAttachmentLoading && <div className="text-gray-500">No document attached</div>
                         )}
+
 
                     </div>
                 </ResizablePanel>
