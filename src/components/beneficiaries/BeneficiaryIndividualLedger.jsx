@@ -135,7 +135,7 @@ const StatusBadge = ({ status }) => {
     const displayText = statusMap[status.toLowerCase()] || status.charAt(0).toUpperCase() + status.slice(1);
 
     return (
-        <div className={`inline-flex items-center justify-center text-center px-3 py-1 rounded-full text-xs font-medium border h-auto min-h-[1.5rem] whitespace-normal leading-tight ${getStatusColor(status.toLowerCase())}`}>
+        <div className={`inline-flex items-center justify-start text-center px-3 py-1 rounded-full text-xs font-medium border h-auto min-h-[1.5rem] whitespace-normal leading-tight ${getStatusColor(status.toLowerCase())}`}>
             {displayText}
         </div>
     );
@@ -411,7 +411,7 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
     }
 
     return (
-        <div className="p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8">
+        <div className="flex flex-col h-full min-h-screen p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8">
             {/* Header */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
@@ -559,11 +559,11 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
             </div>
 
             {/* Table Section */}
-            <Card className="glass-card overflow-hidden border-white/5 rounded-3xl">
-                <CardContent className="p-0">
-                    <div className="overflow-x-auto custom-scrollbar">
+            <Card className="flex-1 glass-card overflow-hidden border-white/5 rounded-3xl flex flex-col min-h-0">
+                <CardContent className="p-0 flex-1 flex flex-col min-h-0">
+                    <div className="flex-1 overflow-auto custom-scrollbar">
                         <table className="w-full text-left border-collapse min-w-[1000px]">
-                            <thead>
+                            <thead className="sticky top-0 z-20 ">
                                 <tr className="border-b border-white/5 text-gray-400 text-[10px] sm:text-xs font-medium uppercase tracking-wider bg-white/5">
                                     <td className="py-4 pl-6 w-16">Sr No</td>
                                     <td className="py-4 px-4 w-40 cursor-pointer select-none hover:text-white transition-colors" onClick={() => handleSort('date')}>
@@ -575,6 +575,12 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
                                     <td className="py-4 px-4 w-48 cursor-pointer select-none hover:text-white transition-colors" onClick={() => handleSort('type')}>
                                         <span className="inline-flex items-center">
                                             Type
+                                            <SortIcon column="type" sortColumn={sortColumn} sortDirection={sortDirection} />
+                                        </span>
+                                    </td>
+                                    <td className="py-4 px-4 w-48 cursor-pointer select-none hover:text-white transition-colors" onClick={() => handleSort('type')}>
+                                        <span className="inline-flex items-center">
+                                            Doc No 
                                             <SortIcon column="type" sortColumn={sortColumn} sortDirection={sortDirection} />
                                         </span>
                                     </td>
@@ -603,7 +609,7 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
                                         </span>
                                     </td>
                                     <td className="py-4 pr-6 text-right cursor-pointer select-none hover:text-white transition-colors" onClick={() => handleSort('status')}>
-                                        <span className="inline-flex items-center justify-end w-full">
+                                        <span className="inline-flex items-start justify-start w-full    ">
                                             Status
                                             <SortIcon column="status" sortColumn={sortColumn} sortDirection={sortDirection} />
                                         </span>
@@ -630,9 +636,9 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
                                                                 <span className="text-white font-medium">
                                                                     {date}
                                                                 </span>
-                                                                <span className="text-gray-500 text-[10px] italic mt-0.5">
+                                                                {/* <span className="text-gray-500 text-[10px] italic mt-0.5">
                                                                     {time}
-                                                                </span>
+                                                                </span> */}
                                                             </>
                                                         );
                                                     })()}
@@ -648,6 +654,12 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
                                                         }`}>
                                                         {tx.type}
                                                     </span>
+                                                    {/* <span className="text-gray-300 text-xs font-mono font-medium">{tx.ref}</span> */}
+                                                </div>
+                                            </td>
+                                            <td className="py-4 px-4">
+                                                <div className="flex flex-col gap-1.5">
+                                                   
                                                     <span className="text-gray-300 text-xs font-mono font-medium">{tx.ref}</span>
                                                 </div>
                                             </td>
@@ -667,7 +679,7 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
                                                     <span className="text-gray-400 text-xs truncate">{tx.head}</span>
                                                 </div>
                                             </td>
-                                            <td className="py-4 pr-6 text-right">
+                                            <td className="py-4 pr-6 text-start">
                                                 <StatusBadge status={tx.status} />
                                             </td>
                                         </tr>
@@ -686,7 +698,7 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
 
                 {/* Pagination */}
                 {totalPages > 1 && (
-                    <div className="p-4 sm:p-6 border-t border-white/5 flex justify-between items-center bg-white/5">
+                    <div className="mt-auto p-4 sm:p-6 border-t border-white/5 flex justify-between items-center bg-white/5">
                         <p className="text-xs text-gray-400">
                             Showing {paginatedData.length} of {transactions.length} records
                         </p>
