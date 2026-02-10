@@ -2,7 +2,7 @@ import { FINANCE_API_BASE_URL } from '../api';
 import { getAuthHeaders, handleResponse } from './utils';
 
 export const getNotices = async (entityId, token) => {
-  let url = `${FINANCE_API_BASE_URL}/api/notices`;
+  let url = `${FINANCE_API_BASE_URL}/api/notices/`;
   if (entityId && entityId !== 'all') {
     url += `?entity_id=${entityId}`;
   }

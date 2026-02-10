@@ -29,7 +29,7 @@ const NoticesPage = () => {
     const [clients, setClients] = useState([]);
 
     // Filters
-    const [selectedClient, setSelectedClient] = useState('all'); // Default to All
+    const [selectedClient, setSelectedClient] = useState(''); // Default to empty, will be set on load
     const [noticeTitle, setNoticeTitle] = useState('');
     const [selectedFile, setSelectedFile] = useState(null);
 
@@ -67,6 +67,11 @@ const NoticesPage = () => {
                 console.log("Fetched Clients for Notices:", clientsData);
                 const safeClients = Array.isArray(clientsData) ? clientsData : (clientsData.results || []);
                 setClients(safeClients);
+
+                // Default to the first client if available and no client selected
+                if (safeClients.length > 0 && !selectedClient) {
+                    setSelectedClient(safeClients[0].id);
+                }
 
             } catch (error) {
                 console.error("Failed to fetch clients", error);
@@ -184,10 +189,10 @@ const NoticesPage = () => {
                     {/* Filter Dropdown for Main View if needed, or just Upload */}
                     <Select value={selectedClient} onValueChange={setSelectedClient}>
                         <SelectTrigger className="w-[200px] glass-input border-white/10 bg-black/20 text-white">
-                            <SelectValue placeholder="Filter by Client" />
+                            <SelectValue placeholder="Select Client" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="all">All Clients</SelectItem>
+                            {/* Removed All Clients option as per requirement */}
                             {clients.map(client => (
                                 <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>
                             ))}
@@ -211,11 +216,9 @@ const NoticesPage = () => {
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                         <div className="flex items-center gap-4">
                             <h2 className="text-xl font-semibold">
-                                {selectedClient === 'all'
-                                    ? 'All Clients - Notices'
-                                    : selectedClient
-                                        ? `${getClientName(selectedClient)} - Notices`
-                                        : 'Select a Client to View Notices'}
+                                {selectedClient
+                                    ? `${getClientName(selectedClient)} - Notices`
+                                    : 'Select a Client to View Notices'}
                             </h2>
                             {/* Toggle Button Group */}
                             <div className="flex p-1 bg-black/20 rounded-lg border border-white/10 backdrop-blur-sm">
