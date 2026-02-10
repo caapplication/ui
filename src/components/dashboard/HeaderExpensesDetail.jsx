@@ -6,13 +6,17 @@ import {
     ArrowLeft,
     ArrowUp,
     ArrowDown,
-    ArrowUpDown
+    ArrowUpDown,
+    ChevronLeft,
+    ChevronRight,
+    Download
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { getVouchersList, getFinanceHeaders } from '@/lib/api';
+import { useToast } from '@/components/ui/use-toast';
 import { format } from 'date-fns';
 import {
     Select,
@@ -109,9 +113,46 @@ const HeaderExpensesDetail = ({ entityId }) => {
     const [customStartDate, setCustomStartDate] = useState(null);
     const [customEndDate, setCustomEndDate] = useState(null);
     const [dateError, setDateError] = useState('');
-    const itemsPerPage = 15;
+    const itemsPerPage = 10;
+    const { toast } = useToast();
 
     const resolvedEntityId = entityId || localStorage.getItem('entityId');
+
+    const handleExport = () => {
+        if (filteredData.length === 0) {
+            toast({
+                title: "No data to export",
+                description: "There are no expenses matching your current filters.",
+                variant: "warning"
+            });
+            return;
+        }
+
+        const headers = ["Sr No", "Beneficiary", "Remarks", "Date", "Amount"];
+        const rows = filteredData.map((v, idx) => {
+            const beneficiaryName = v.beneficiary_name || v.beneficiary?.name || v.beneficiary?.company_name || '-';
+            const vDate = v.created_date || v.created_at;
+            return [
+                idx + 1,
+                beneficiaryName,
+                (v.remarks || '-').replace(/,/g, ";"),
+                vDate ? format(new Date(vDate), "dd MMM yy") : "-",
+                v.amount
+            ];
+        });
+
+        const csvContent = "data:text/csv;charset=utf-8,"
+            + headers.join(",") + "\n"
+            + rows.map(r => r.join(",")).join("\n");
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `Expenses_${headerName.replace(/\s+/g, '_')}_${format(new Date(), "ddMMyy")}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
 
     const fetchData = useCallback(async () => {
         if (!user?.access_token || !resolvedEntityId || !headerId) return;
@@ -163,10 +204,10 @@ const HeaderExpensesDetail = ({ entityId }) => {
 
         let result = vouchers.filter(v => {
             // Time frame filter
-            if (start && end) {
-                const vDate = new Date(v.created_date || v.created_at);
-                if (vDate < start || vDate > end) return false;
-            }
+            const vDate = new Date(v.created_date || v.created_at);
+            if (start && vDate < start) return false;
+            if (end && vDate > end) return false;
+
             // Search filter
             const beneficiaryName = v.beneficiary_name || v.beneficiary?.name || v.beneficiary?.company_name || '';
             const remarks = v.remarks || '';
@@ -192,7 +233,7 @@ const HeaderExpensesDetail = ({ entityId }) => {
         });
 
         return result;
-    }, [vouchers, searchTerm, sortColumn, sortDirection, timeFrame]);
+    }, [vouchers, searchTerm, sortColumn, sortDirection, timeFrame, customStartDate, customEndDate]);
 
     const totalAmount = useMemo(() => {
         return filteredData.reduce((sum, v) => sum + (parseFloat(v.amount) || 0), 0);
@@ -222,6 +263,13 @@ const HeaderExpensesDetail = ({ entityId }) => {
 
                 <div className="flex flex-col gap-3 w-full sm:w-auto">
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                        <Button
+                            onClick={handleExport}
+                            className="h-9 rounded-xl bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm w-full sm:w-auto justify-center order-first sm:order-none"
+                        >
+                            <Download className="w-4 h-4" />
+                            <span>Export</span>
+                        </Button>
                         <Select value={timeFrame} onValueChange={(val) => {
                             setTimeFrame(val);
                             setCurrentPage(1);
@@ -245,6 +293,8 @@ const HeaderExpensesDetail = ({ entityId }) => {
                                 ))}
                             </SelectContent>
                         </Select>
+
+
 
                         <div className="relative w-full sm:w-64">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -382,12 +432,12 @@ const HeaderExpensesDetail = ({ entityId }) => {
             </div>
 
             {/* Table */}
-            <Card className="glass-card overflow-hidden border-white/5 rounded-3xl">
-                <CardContent className="p-0">
-                    <div className="overflow-x-auto">
+            <Card className="glass-card overflow-hidden border-white/5 rounded-3xl flex flex-col">
+                <CardContent className="p-0 flex flex-col">
+                    <div className="overflow-auto custom-scrollbar">
                         <table className="w-full text-left border-collapse">
-                            <thead>
-                                <tr className="border-b border-white/10 text-gray-400 text-[10px] sm:text-xs font-medium uppercase tracking-wider">
+                            <thead className="sticky top-0 z-20  ">
+                                <tr className="border-b border-white/10 text-gray-400 text-[10px] sm:text-xs font-medium uppercase tracking-wider bg-white/5">
                                     <th className="py-4 pl-6 w-16">S.No</th>
                                     <th
                                         className="py-4 px-4 cursor-pointer select-none hover:text-white transition-colors"
@@ -448,7 +498,7 @@ const HeaderExpensesDetail = ({ entityId }) => {
                                     })
                                 ) : (
                                     <tr>
-                                        <td colSpan="5" className="py-12 text-center text-gray-500">
+                                        <td colSpan="5" className="py-8 text-center text-gray-500">
                                             No expenses found for this header.
                                         </td>
                                     </tr>
@@ -472,31 +522,33 @@ const HeaderExpensesDetail = ({ entityId }) => {
 
                 {/* Pagination */}
                 {totalPages > 1 && (
-                    <div className="p-4 sm:p-6 border-t border-white/5 flex flex-col sm:flex-row justify-between items-center gap-4">
-                        <p className="text-xs sm:text-sm text-gray-400">
-                            Page {currentPage} of {totalPages}
+                    <div className="p-4 sm:p-6 border-t border-white/5 flex justify-between items-center bg-white/5">
+                        <p className="text-xs text-gray-400">
+                            Showing {paginatedData.length} of {filteredData.length} records
                         </p>
                         <div className="flex items-center gap-2">
                             <Button
                                 variant="outline"
-                                size="sm"
-                                className="border-white/10 bg-white/5 hover:bg-white/10 text-white rounded-xl h-9"
+                                size="icon"
+                                className="h-8 w-8 border-white/10 bg-transparent hover:bg-white/10 text-white"
                                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                                 disabled={currentPage === 1}
                             >
-                                Previous
+                                <ChevronLeft className="w-4 h-4" />
                             </Button>
-                            <div className="border border-white/10 bg-white/5 px-3 py-1.5 rounded-lg text-sm font-medium text-white">
-                                {currentPage} / {totalPages}
+                            <div className="flex items-center gap-1.5 px-3 py-1 bg-white/5 rounded-lg border border-white/10">
+                                <span className="text-xs font-bold text-white">{currentPage}</span>
+                                <span className="text-[10px] text-gray-500">/</span>
+                                <span className="text-[10px] text-gray-500 font-medium">{totalPages}</span>
                             </div>
                             <Button
                                 variant="outline"
-                                size="sm"
-                                className="border-white/10 bg-white/5 hover:bg-white/10 text-white rounded-xl h-9"
+                                size="icon"
+                                className="h-8 w-8 border-white/10 bg-transparent hover:bg-white/10 text-white"
                                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                                 disabled={currentPage === totalPages}
                             >
-                                Next
+                                <ChevronRight className="w-4 h-4" />
                             </Button>
                         </div>
                     </div>

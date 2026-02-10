@@ -166,7 +166,7 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
     const [sortColumn, setSortColumn] = useState('date');
     const [sortDirection, setSortDirection] = useState('desc');
     const [currentPage, setCurrentPage] = useState(1);
-    const pageSize = 15;
+    const pageSize = 10;
 
     const fetchData = useCallback(async () => {
         if (!user?.access_token || !organizationId || !entityId || !beneficiaryId) return;
@@ -411,7 +411,7 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
     }
 
     return (
-        <div className="flex flex-col h-full min-h-screen p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8">
+        <div className="p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8">
             {/* Header */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
@@ -434,7 +434,7 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
                 <div className="flex flex-col items-end gap-3 w-full sm:w-auto">
                     <div className="flex flex-wrap items-center justify-end gap-2 w-full">
                         <Button
-                            variant="outline"
+                            // variant="outline"
                             size="sm"
                             onClick={handleExport}
                             className="h-9 rounded-xl bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm"
@@ -559,9 +559,9 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
             </div>
 
             {/* Table Section */}
-            <Card className="flex-1 glass-card overflow-hidden border-white/5 rounded-3xl flex flex-col min-h-0">
-                <CardContent className="p-0 flex-1 flex flex-col min-h-0">
-                    <div className="flex-1 overflow-auto custom-scrollbar">
+            <Card className="glass-card overflow-hidden border-white/5 rounded-3xl flex flex-col">
+                <CardContent className="p-0 flex flex-col">
+                    <div className="overflow-auto custom-scrollbar">
                         <table className="w-full text-left border-collapse min-w-[1000px]">
                             <thead className="sticky top-0 z-20 ">
                                 <tr className="border-b border-white/5 text-gray-400 text-[10px] sm:text-xs font-medium uppercase tracking-wider bg-white/5">
@@ -580,7 +580,7 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
                                     </td>
                                     <td className="py-4 px-4 w-48 cursor-pointer select-none hover:text-white transition-colors" onClick={() => handleSort('type')}>
                                         <span className="inline-flex items-center">
-                                            Doc No 
+                                            Doc No
                                             <SortIcon column="type" sortColumn={sortColumn} sortDirection={sortDirection} />
                                         </span>
                                     </td>
@@ -659,7 +659,7 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
                                             </td>
                                             <td className="py-4 px-4">
                                                 <div className="flex flex-col gap-1.5">
-                                                   
+
                                                     <span className="text-gray-300 text-xs font-mono font-medium">{tx.ref}</span>
                                                 </div>
                                             </td>
@@ -686,7 +686,7 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="8" className="py-20 text-center text-gray-500">
+                                        <td colSpan="8" className="py-10 text-center text-gray-500">
                                             No records found for this beneficiary.
                                         </td>
                                     </tr>
@@ -698,7 +698,7 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
 
                 {/* Pagination */}
                 {totalPages > 1 && (
-                    <div className="mt-auto p-4 sm:p-6 border-t border-white/5 flex justify-between items-center bg-white/5">
+                    <div className="p-4 sm:p-6 border-t border-white/5 flex justify-between items-center bg-white/5">
                         <p className="text-xs text-gray-400">
                             Showing {paginatedData.length} of {transactions.length} records
                         </p>

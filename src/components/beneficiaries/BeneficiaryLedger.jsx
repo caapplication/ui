@@ -380,7 +380,7 @@ const BeneficiaryLedger = ({ entityId }) => {
 
                 <div className="flex items-center gap-2 sm:gap-3">
                     <Button
-                        variant="outline"
+                        // variant="outline"
                         className="border-white/10 bg-white/5 hover:bg-white/10 text-white rounded-xl h-9 sm:h-10 text-xs sm:text-sm px-3 sm:px-4"
                         onClick={handleExport}
                     >
