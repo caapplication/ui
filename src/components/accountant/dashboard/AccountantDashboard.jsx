@@ -20,6 +20,7 @@ import {
   listTasks,
   getNotices
 } from '@/lib/api';
+import { useOrganisation } from "@/hooks/useOrganisation";
 
 const StatCard = ({ title, value, description, icon, color, delay, trend, meta, hideValue, suffix = "" }) => {
   const Icon = icon;
@@ -125,11 +126,20 @@ const DetailBlock = ({ title, subtitle, count, data, columns, onViewMore, delay 
   );
 };
 
+
+
 const AccountantDashboard = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
+
+  const {
+    selectedOrg,
+    selectedEntity,
+    entities,
+    organisationId,
+  } = useOrganisation();
 
   // State for the dashboard metrics
   const [stats, setStats] = useState({
@@ -159,6 +169,25 @@ const AccountantDashboard = () => {
       const token = user.access_token;
       const agencyId = user.agency_id;
 
+      // Determine Entity IDs based on context
+      let entityIds = [];
+      let relevantEntities = [];
+
+      if (organisationId) {
+        if (selectedEntity && selectedEntity !== 'all') {
+          entityIds = [selectedEntity];
+          relevantEntities = entities.filter(e => e.id === selectedEntity);
+        } else if (entities && entities.length > 0) {
+          entityIds = entities.map(e => e.id);
+          relevantEntities = entities;
+        }
+      } else {
+        // Fallback: If no org selected, fetch all entities for the user (global view)
+        const allEntities = await listAllEntities(token).catch(() => []);
+        entityIds = allEntities.map(e => e.id);
+        relevantEntities = allEntities;
+      }
+
       // 1. Fetch Summary Stats
       let clientsData = [];
       if (user.organizations && user.organizations.length > 0) {
@@ -178,9 +207,6 @@ const AccountantDashboard = () => {
       ]);
 
       // 2. Fetch Historical Trend Data (Last 15 Days)
-      const entities = await listAllEntities(token).catch(() => []);
-      const entityIds = entities.map(e => e.id);
-
       const [invoices, vouchers, tasks, notices] = await Promise.all([
         entityIds.length > 0 ? getCATeamInvoicesBulk(entityIds, token).catch(() => []) : Promise.resolve([]),
         entityIds.length > 0 ? getCATeamVouchersBulk(entityIds, token).catch(() => []) : Promise.resolve([]),
@@ -190,6 +216,10 @@ const AccountantDashboard = () => {
 
       const tasksList = Array.isArray(tasks) ? tasks : (tasks?.items || []);
       const noticesList = notices || [];
+
+      // Filter tasks and notices by entityIds
+      const filteredTasks = tasksList.filter(t => entityIds.includes(t.entity_id) || entityIds.includes(t.client_id));
+      const filteredNotices = noticesList.filter(n => entityIds.includes(n.entity_id) || entityIds.includes(n.client_id));
 
       // Compute Revenue & Due from actual invoice/voucher data
       const totalRevenue = 0;
@@ -221,7 +251,9 @@ const AccountantDashboard = () => {
 
       const processItems = (items, key, dateKey = 'created_at') => {
         items.forEach(item => {
-          const itemDate = startOfDay(new Date(item[dateKey] || item.created_date));
+          const rawDate = item[dateKey] || item.created_at || item.created_date;
+          if (!rawDate) return;
+          const itemDate = startOfDay(new Date(rawDate));
           const day = last15Days.find(d => d.date.getTime() === itemDate.getTime());
           if (day) {
             day[key]++;
@@ -230,17 +262,17 @@ const AccountantDashboard = () => {
         });
       };
 
-      processItems(tasksList, 'tasks');
-      processItems(vouchers, 'vouchers');
-      processItems(invoices, 'invoices');
-      processItems(noticesList, 'notices');
+      processItems(filteredTasks, 'tasks', 'created_at');
+      processItems(vouchers.filter(v => v.status === 'pending_ca_approval'), 'vouchers', 'date');
+      processItems(invoices.filter(i => i.status === 'pending_ca_approval'), 'invoices', 'date');
+      processItems(filteredNotices, 'notices', 'created_at');
 
       setChartData(last15Days);
       const totalActivity = last15Days.reduce((sum, day) => sum + day.total, 0);
       setAverageActivity(totalActivity / 15);
 
       // 3. Process Detail Blocks
-      const entityMap = entities.reduce((acc, e) => ({ ...acc, [e.id]: e.name, [String(e.id)]: e.name }), {});
+      const entityMap = relevantEntities.reduce((acc, e) => ({ ...acc, [e.id]: e.name, [String(e.id)]: e.name }), {});
       const teamMap = teamData.reduce((acc, t) => ({ ...acc, [t.user_id || t.id]: t.full_name || t.name || 'Unknown' }), {});
       const today = startOfDay(new Date());
 
@@ -257,8 +289,14 @@ const AccountantDashboard = () => {
           .sort((a, b) => b.col2 - a.col2);
       };
 
+
       const getTodayUserProgress = () => {
-        const allItems = [...tasksList, ...vouchers, ...invoices, ...noticesList];
+        const allItems = [
+          ...filteredTasks.filter(t => t.status !== 'completed'),
+          ...vouchers.filter(v => v.status === 'pending_ca_approval'),
+          ...invoices.filter(i => i.status === 'pending_ca_approval'),
+          ...filteredNotices.filter(n => n.status !== 'closed')
+        ];
         const counts = allItems
           .filter(item => {
             const date = item.created_at || item.created_date || item.date;
@@ -274,17 +312,17 @@ const AccountantDashboard = () => {
           .sort((a, b) => b.col2 - a.col2);
       };
 
-      // Pending verification: invoices + vouchers awaiting CA or admin approval
+      // Pending verification: invoices + vouchers awaiting CA approval
       const pendingItems = [
-        ...invoices.filter(i => i.status === 'pending_ca_approval' || i.status === 'pending_master_admin_approval'),
-        ...vouchers.filter(v => v.status === 'pending_ca_approval' || v.status === 'pending_master_admin_approval')
+        ...invoices.filter(i => i.status === 'pending_ca_approval'),
+        ...vouchers.filter(v => v.status === 'pending_ca_approval')
       ];
 
       setDetailBlocks({
         todayProgress: getTodayUserProgress(),
         pendingVerification: getEntityCounts(pendingItems),
-        ongoingTasks: getEntityCounts(tasksList, t => t.status !== 'completed'),
-        ongoingNotices: getEntityCounts(noticesList, n => n.status !== 'closed')
+        ongoingTasks: getEntityCounts(filteredTasks, t => t.status !== 'completed'),
+        ongoingNotices: getEntityCounts(filteredNotices, n => n.status !== 'closed')
       });
 
     } catch (error) {

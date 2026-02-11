@@ -174,11 +174,11 @@ const PendingVerificationExpanded = () => {
             };
 
             const pendingInvoices = invoices.filter(i =>
-                (i.status === 'pending_ca_approval' || i.status === 'pending_master_admin_approval') &&
+                i.status === 'pending_ca_approval' &&
                 isWithinRange(i.created_at || i.timestamp)
             );
             const pendingVouchers = vouchers.filter(v =>
-                (v.status === 'pending_ca_approval' || v.status === 'pending_master_admin_approval') &&
+                v.status === 'pending_ca_approval' &&
                 isWithinRange(v.created_date || v.created_at || v.timestamp)
             );
 
