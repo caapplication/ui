@@ -2273,7 +2273,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
         {/* Tabs Component Integration */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6 sm:mb-8">
-            <TabsList className="bg-black/20 p-1 rounded-lg w-full sm:w-auto h-auto">
+            <TabsList className="bg-black/20 p-2 grid grid-cols-2 gap-2 items-center justify-center md:grid-cols-4 rounded-lg w-full sm:w-auto h-auto">
               <TabsTrigger
                 value="myFiles"
                 className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm flex-1 sm:flex-initial data-[state=active]:bg-white/10 data-[state=active]:text-white data-[state=active]:shadow-none"

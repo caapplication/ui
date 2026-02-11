@@ -180,7 +180,7 @@ const ActivityLog = ({ itemId, itemType, showFilter = true, excludeTypes = [] })
         <div className="space-y-4">
             {/* Filters and Download - Only show if showFilter is true */}
             {showFilter && (
-                <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
+                <div className="flex flex-col flex-wrap sm:flex-row gap-4 items-start sm:items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
                     <div className="flex flex-col sm:flex-row gap-4 flex-1">
                         <div className="flex items-center gap-2">
                             <Label htmlFor="start-date" className="text-sm text-gray-400 whitespace-nowrap">From:</Label>

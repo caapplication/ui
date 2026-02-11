@@ -239,7 +239,7 @@ const TodayProgressExpanded = () => {
                     </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+                <div className="flex flex-col sm:flex-row items-stretch flex-wrap sm:items-center gap-3 w-full sm:w-auto">
                     <Button
                         onClick={handleExport}
                         className="h-9 rounded-xl bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm w-full sm:w-auto justify-center"

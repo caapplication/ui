@@ -134,7 +134,7 @@ const TeamMembers = () => {
                 <h1 className="text-3xl font-bold text-white">Team Members</h1>
                 <Button onClick={handleInvite}><UserPlus className="w-4 h-4 mr-2" /> Invite User</Button>
             </div>
-            <div className="glass-pane p-4 rounded-lg flex-grow">
+            <div className="glass-pane p-4 rounded-lg flex-grow overflow-y-auto">
                 {loading ? (
                     <div className="flex justify-center items-center h-full">
                         <Loader2 className="w-8 h-8 animate-spin text-white" />
@@ -172,24 +172,47 @@ const TeamMembers = () => {
                                     <TableCell className="text-right">
                                         {member.id ? (
                                             <>
-                                                <Button variant="ghost" size="icon" onClick={() => handleEdit(member)}><Edit className="w-4 h-4" /></Button>
-                                                <AlertDialog>
-                                                    <AlertDialogTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="text-red-500"><Trash2 className="w-4 h-4" /></Button>
-                                                    </AlertDialogTrigger>
-                                                    <AlertDialogContent>
-                                                        <AlertDialogHeader>
-                                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                            <AlertDialogDescription>
-                                                                This action cannot be undone. This will permanently delete the user.
-                                                            </AlertDialogDescription>
-                                                        </AlertDialogHeader>
-                                                        <AlertDialogFooter>
-                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                            <AlertDialogAction onClick={() => handleDelete(member)}>Delete</AlertDialogAction>
-                                                        </AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                </AlertDialog>
+                                               <div className="flex items-center justify-end gap-1 sm:gap-2">
+  <Button
+    variant="ghost"
+    size="icon"
+    className="h-9 w-9 sm:h-8 sm:w-8"
+    onClick={() => handleEdit(member)}
+  >
+    <Edit className="h-4 w-4" />
+  </Button>
+
+  <AlertDialog>
+    <AlertDialogTrigger asChild>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-9 w-9 sm:h-8 sm:w-8 text-red-500"
+      >
+        <Trash2 className="h-4 w-4" />
+      </Button>
+    </AlertDialogTrigger>
+
+    <AlertDialogContent className="w-[calc(100%-2rem)] sm:max-w-lg">
+      <AlertDialogHeader>
+        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+        <AlertDialogDescription>
+          This action cannot be undone. This will permanently delete the user.
+        </AlertDialogDescription>
+      </AlertDialogHeader>
+      <AlertDialogFooter className="gap-2 sm:gap-0">
+        <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
+        <AlertDialogAction
+          className="w-full sm:w-auto"
+          onClick={() => handleDelete(member)}
+        >
+          Delete
+        </AlertDialogAction>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>
+</div>
+
                                             </>
                                         ) : (
                                             <>

@@ -1210,7 +1210,7 @@ const VoucherDetailsCA = () => {
                     <div className="relative flex h-full flex-col">
                         <div className="flex-1 overflow-y-auto p-6" style={{ paddingBottom: hasVouchers ? '6rem' : '1.5rem' }}>
                             <Tabs defaultValue="details" className="w-full">
-                                <TabsList className="grid w-full grid-cols-3">
+                                <TabsList className="flex flex-col sm:flex-row items-stretch flex-wrap sm:items-center gap-3 w-full sm:w-auto">
                                     <TabsTrigger value="details">Details</TabsTrigger>
                                     <TabsTrigger value="activity">Activity Log</TabsTrigger>
                                     <TabsTrigger value="beneficiary">Beneficiary</TabsTrigger>

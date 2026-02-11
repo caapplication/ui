@@ -26,7 +26,7 @@ const StatCard = ({ title, value, description, icon, color, delay, trend, meta, 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay }}>
       <Card className="glass-card card-hover overflow-hidden h-full relative group rounded-3xl border-white/5">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 sm:p-6">
+        <CardHeader className="flex flex-row gap-2 items-center justify-between space-y-0 pb-2 p-4 sm:p-6">
           <CardTitle className="text-xs sm:text-sm font-medium text-gray-400 uppercase tracking-wider">
             {title}
           </CardTitle>
@@ -322,7 +322,7 @@ const AccountantDashboard = () => {
       </motion.div>
 
       {/* Row 1: 6 Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 sm:gap-4 lg:gap-4 mb-6 lg:mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-6 gap-4 sm:gap-4 lg:gap-4 mb-6 lg:mb-8">
         <StatCard
           title="MY CLIENTS"
           value={stats.myClients}

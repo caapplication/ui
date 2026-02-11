@@ -499,7 +499,7 @@ const NewClientForm = ({ onBack, onSave, client, allServices, organisations, bus
                         )}
                     </h1>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center flex-wrap gap-2">
                     <Button variant="outline" onClick={onBack} disabled={isSaving}>Cancel</Button>
                     <Button onClick={handleSubmit} disabled={isSaving} style={isSaving ? { opacity: 0.5, pointerEvents: 'none' } : {}}>
                         {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

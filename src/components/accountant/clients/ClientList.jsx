@@ -345,7 +345,7 @@ const ClientList = ({
 
     return (
         <div className="h-full flex flex-col relative">
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex justify-between items-center mb-4 flex-shrink-0 flex-wrap gap-2">
                 <h1 className="text-2xl font-bold text-white flex items-center gap-3">
                     <div className="w-3 h-8 bg-primary rounded-full" />
                     Client

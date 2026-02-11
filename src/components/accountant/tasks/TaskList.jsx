@@ -517,8 +517,8 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                         </div>
                     </div>
                 </div>
-                <div className="flex-grow overflow-auto relative min-h-0">
-                    <Table className="min-w-full">
+                <div className="flex-grow relative min-h-0 overflow-x-auto overflow-y-auto">
+                    <Table className="w-full min-w-[1000px]">
                         <TableHeader>
                             <TableRow>
                                 <TableHead className="w-24">T.ID</TableHead>
@@ -594,8 +594,8 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                                                 <div
                                                     key={task._last_unread_update || 'static'}
                                                     className={`flex items-center gap-1.5 font-medium ${task.has_unread_messages
-                                                            ? (task._last_unread_update ? 'text-orange-500 animate-blink-3s' : 'text-orange-500')
-                                                            : 'text-white'
+                                                        ? (task._last_unread_update ? 'text-orange-500 animate-blink-3s' : 'text-orange-500')
+                                                        : 'text-white'
                                                         }`}
                                                 >
                                                     {task.has_unread_messages && (
