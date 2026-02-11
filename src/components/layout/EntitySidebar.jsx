@@ -83,7 +83,7 @@ const EntitySidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) => {
                         {isActive && (
                           <motion.div
                             layoutId="active-nav-glow-entity"
-                            className="absolute inset-0 bg-white/10 rounded-lg shadow-glow-secondary"
+                            className="absolute inset-0 bg-white/10 rounded-lg"
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}

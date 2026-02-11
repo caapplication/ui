@@ -27,7 +27,7 @@ import {
 import { useMediaQuery } from '@/hooks/useMediaQuery.jsx';
 import { Link, useLocation } from 'react-router-dom';
 import { useSocket } from '@/contexts/SocketContext.jsx';
-import { getUnreadNotificationCount } from '@/lib/api';
+import { getUnreadNotificationCount, getUnreadNoticeCount } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
 
 import { listClients, listClientsByOrganization } from '@/lib/api/clients';
@@ -39,27 +39,36 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
   const [clients, setClients] = React.useState([]);
   const { socket } = useSocket();
   const [unreadCount, setUnreadCount] = React.useState(0);
+  const [unreadNoticeCount, setUnreadNoticeCount] = React.useState(0);
   const [isBlinking, setIsBlinking] = React.useState(false);
+  const [isNoticeBlinking, setIsNoticeBlinking] = React.useState(false);
 
   // Fetch initial unread count
   React.useEffect(() => {
-    const fetchUnreadCount = async () => {
+    const fetchUnreadCounts = async () => {
       if (user?.access_token) {
         try {
           // For client users, agency_id might be derived differently, but backend handles it via token user context usually
-          // However, getUnreadNotificationCount expects agencyId.
-          // If the user is a client user, they might have an agency_id property or we might need to rely on the backend finding it from the token.
-          // The current getUnreadNotificationCount takes (agencyId, token).
           const agencyId = user.agency_id || (user.entities && user.entities[0]?.agency_id);
-          const count = await getUnreadNotificationCount(agencyId, user.access_token);
-          setUnreadCount(count);
+
+          const [taskCount, noticeCount] = await Promise.all([
+            getUnreadNotificationCount(agencyId, user.access_token),
+            getUnreadNoticeCount(user.access_token)
+          ]);
+
+          setUnreadCount(taskCount);
+          setUnreadNoticeCount(noticeCount);
         } catch (error) {
-          console.error("Failed to fetch unread notification count:", error);
+          console.error("Failed to fetch unread notification counts:", error);
         }
       }
     };
 
-    fetchUnreadCount();
+    fetchUnreadCounts();
+
+    // Poll for updates every 30 seconds as fallback
+    const interval = setInterval(fetchUnreadCounts, 30000);
+    return () => clearInterval(interval);
   }, [user]);
 
   // Listen for socket updates
@@ -75,10 +84,22 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
         }
       };
 
+      const handleNoticeUnreadUpdate = (data) => {
+        if (typeof data.count === 'number') {
+          if (data.count > unreadNoticeCount) {
+            setIsNoticeBlinking(true);
+            setTimeout(() => setIsNoticeBlinking(false), 3000);
+          }
+          setUnreadNoticeCount(data.count);
+        }
+      };
+
       socket.on('global_unread_update', handleUnreadUpdate);
+      socket.on('notice_unread_update', handleNoticeUnreadUpdate);
 
       return () => {
         socket.off('global_unread_update', handleUnreadUpdate);
+        socket.off('notice_unread_update', handleNoticeUnreadUpdate);
       };
     }
   }, [socket, unreadCount]);
@@ -90,13 +111,14 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
     { id: 'users', path: '/users', label: 'Manage Team', icon: UserCog, hidden: user?.role === 'CLIENT_USER' },
     { id: 'beneficiaries', path: '/beneficiaries', label: 'Beneficiaries', icon: Users },
     { id: 'organisation-bank', path: '/organisation-bank', label: 'Organisation Bank', icon: Banknote },
-    { id: 'notices', path: '/notices', label: 'Notices', icon: Bell, badge: null },
+    { id: 'notices', path: '/notices', label: 'Notices', icon: Bell, badge: unreadNoticeCount > 0 ? unreadNoticeCount : null, blinking: isNoticeBlinking },
     {
       id: 'tasks',
       path: '/tasks',
       label: 'Tasks',
       icon: ListTodo,
-      badge: unreadCount > 0 ? unreadCount : null
+      badge: unreadCount > 0 ? unreadCount : null,
+      blinking: isBlinking
     },
   ];
 
@@ -252,7 +274,7 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
                         {isActive && (
                           <motion.div
                             layoutId="active-nav-glow-client"
-                            className="absolute inset-0 bg-white/10 rounded-lg shadow-glow-secondary"
+                            className="absolute inset-0 bg-white/10 rounded-lg "
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
@@ -266,7 +288,7 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
                             {item.label}
                             {item.badge && (
                               <Badge
-                                className={`ml-auto ${isBlinking ? 'animate-pulse' : ''} bg-orange-500 hover:bg-orange-600 text-white border-0`}
+                                className={`ml-auto ${item.blinking ? 'animate-pulse' : ''} bg-orange-500 hover:bg-orange-600 text-white border-0`}
                               >
                                 {item.badge > 99 ? '99+' : item.badge}
                               </Badge>

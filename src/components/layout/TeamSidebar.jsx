@@ -21,8 +21,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useMediaQuery } from '@/hooks/useMediaQuery.jsx';
 import { Link, useLocation } from 'react-router-dom';
 import { useSocket } from '@/contexts/SocketContext.jsx';
-import { getUnreadNotificationCount } from '@/lib/api';
+import { getUnreadNotificationCount, getUnreadNoticeCount } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
+import { Bell } from 'lucide-react';
 
 const TeamSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) => {
   const { user, logout } = useAuth();
@@ -31,22 +32,31 @@ const TeamSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) => {
   const location = useLocation();
   const { socket } = useSocket();
   const [unreadCount, setUnreadCount] = React.useState(0);
+  const [unreadNoticeCount, setUnreadNoticeCount] = React.useState(0);
   const [isBlinking, setIsBlinking] = React.useState(false);
+  const [isNoticeBlinking, setIsNoticeBlinking] = React.useState(false);
 
   // Fetch initial unread count
   React.useEffect(() => {
-    const fetchUnreadCount = async () => {
+    const fetchUnreadCounts = async () => {
       if (user?.access_token) {
         try {
-          const count = await getUnreadNotificationCount(user.agency_id, user.access_token);
-          setUnreadCount(count);
+          const taskCount = await getUnreadNotificationCount(user.agency_id, user.access_token);
+          setUnreadCount(taskCount);
+
+          const noticeCount = await getUnreadNoticeCount(user.access_token);
+          setUnreadNoticeCount(noticeCount);
         } catch (error) {
-          console.error("Failed to fetch unread notification count:", error);
+          console.error("Failed to fetch unread notification counts:", error);
         }
       }
     };
 
-    fetchUnreadCount();
+    fetchUnreadCounts();
+
+    // Poll for updates every 30 seconds as fallback
+    const interval = setInterval(fetchUnreadCounts, 30000);
+    return () => clearInterval(interval);
   }, [user]);
 
   // Listen for socket updates
@@ -62,10 +72,22 @@ const TeamSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) => {
         }
       };
 
+      const handleNoticeUnreadUpdate = (data) => {
+        if (typeof data.count === 'number') {
+          if (data.count > unreadNoticeCount) {
+            setIsNoticeBlinking(true);
+            setTimeout(() => setIsNoticeBlinking(false), 3000);
+          }
+          setUnreadNoticeCount(data.count);
+        }
+      };
+
       socket.on('global_unread_update', handleUnreadUpdate);
+      socket.on('notice_unread_update', handleNoticeUnreadUpdate);
 
       return () => {
         socket.off('global_unread_update', handleUnreadUpdate);
+        socket.off('notice_unread_update', handleNoticeUnreadUpdate);
       };
     }
   }, [socket, unreadCount]);
@@ -81,8 +103,10 @@ const TeamSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) => {
       path: '/tasks',
       label: 'Tasks',
       icon: ListTodo,
-      badge: unreadCount > 0 ? unreadCount : null
+      badge: unreadCount > 0 ? unreadCount : null,
+      blinking: isBlinking
     },
+    { id: 'notices', path: '/notices', label: 'Notices', icon: Bell, badge: unreadNoticeCount > 0 ? unreadNoticeCount : null, blinking: isNoticeBlinking },
     { id: 'documents', path: '/documents', label: 'Documents', icon: FileText },
     { id: 'services', path: '/services', label: 'Services', icon: Briefcase },
     { id: 'settings', path: '/settings', label: 'Settings', icon: Settings },
@@ -149,7 +173,7 @@ const TeamSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) => {
                         {active && (
                           <motion.div
                             layoutId="active-nav-glow-accountant"
-                            className="absolute inset-0 bg-white/10 rounded-lg shadow-glow-secondary"
+                            className="absolute inset-0 bg-white/10 rounded-lg"
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
@@ -163,7 +187,7 @@ const TeamSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) => {
                             {item.label}
                             {item.badge && (
                               <Badge
-                                className={`ml-auto ${isBlinking ? 'animate-pulse' : ''} bg-orange-500 hover:bg-orange-600 text-white border-0`}
+                                className={`ml-auto ${item.blinking ? 'animate-pulse' : ''} bg-orange-500 hover:bg-orange-600 text-white border-0`}
                               >
                                 {item.badge > 99 ? '99+' : item.badge}
                               </Badge>
