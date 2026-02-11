@@ -169,9 +169,15 @@ const AccountantFinance = () => {
 
   }, [user?.access_token, organisationId, entities, selectedEntity, fetchData]);
 
-  const handleViewInvoice = (invoice) => {
+  const handleViewInvoice = (invoice, hasFilters) => {
     const currentIndex = invoices.findIndex(inv => inv.id === invoice.id);
-    navigate(`/invoices/ca/${invoice.id}`, { state: { invoice, invoices, currentIndex } });
+    const path = `/invoices/ca/${invoice.id}`;
+
+    if (hasFilters) {
+      window.open(path, '_blank');
+    } else {
+      navigate(path, { state: { invoice, invoices, currentIndex } });
+    }
   };
 
   const enrichedVouchers = useMemo(() => {
@@ -318,15 +324,20 @@ const AccountantFinance = () => {
                   <VoucherHistory
                     vouchers={enrichedVouchers}
                     onDeleteVoucher={handleDeleteVoucherClick}
-                    onViewVoucher={(voucher) => {
-                      console.log("Navigating to voucher:", voucher);
-                      navigate(`/vouchers/ca/${voucher.id}`, {
-                        state: {
-                          voucher: voucher,
-                          vouchers: enrichedVouchers,
-                          isReadOnly: voucher.isReadOnly // Passed from VoucherHistory
-                        }
-                      });
+                    onViewVoucher={(voucher, hasFilters) => {
+                      if (hasFilters) {
+                        const url = `/vouchers/ca/${voucher.id}`;
+                        window.open(url, '_blank');
+                      } else {
+                        console.log("Navigating to voucher:", voucher);
+                        navigate(`/vouchers/ca/${voucher.id}`, {
+                          state: {
+                            voucher: voucher,
+                            vouchers: enrichedVouchers,
+                            isReadOnly: voucher.isReadOnly // Passed from VoucherHistory
+                          }
+                        });
+                      }
                     }}
                     onEditVoucher={(voucher) => console.log(voucher)}
                     isAccountantView={true}

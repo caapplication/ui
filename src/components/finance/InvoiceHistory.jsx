@@ -17,8 +17,35 @@ const ITEMS_PER_PAGE = 10;
 
 import { Check } from 'lucide-react';
 
-const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onRefresh, isAccountantView }) => {
+const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onViewInvoice, onRefresh, isAccountantView }) => {
   const [activeFilters, setActiveFilters] = useState([]);
+  // ...
+  const handleViewAttachment = (invoice) => {
+    if (onViewInvoice) {
+      onViewInvoice(invoice, activeFilters.length > 0);
+      return;
+    }
+    const beneficiaryName = getBeneficiaryName(invoice);
+    // ... (rest of legacy fallback logic if needed, or just remove it)
+    const invoiceIndex = filteredInvoices.findIndex(inv => inv.id === invoice.id);
+    const path = (user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM')
+      ? `/invoices/ca/${invoice.id}`
+      : `/invoices/${invoice.id}`;
+
+    if (activeFilters.length > 0) {
+      window.open(path, '_blank');
+    } else {
+      navigate(path, {
+        state: {
+          invoice,
+          beneficiaryName,
+          invoices: filteredInvoices,
+          currentIndex: invoiceIndex >= 0 ? invoiceIndex : -1,
+          isReadOnly: viewMode === 'history'
+        }
+      });
+    }
+  };
   const [filterValues, setFilterValues] = useState({
     dateFrom: '',
     dateTo: '',
@@ -181,26 +208,7 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onRefresh, i
     currentPage * ITEMS_PER_PAGE
   );
 
-  const handleViewAttachment = (invoice) => {
-    const beneficiaryName = getBeneficiaryName(invoice);
-    // Find the index of the clicked invoice in the filtered invoices list
-    const invoiceIndex = filteredInvoices.findIndex(inv => inv.id === invoice.id);
 
-    // Determine the route based on user role
-    const path = (user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM')
-      ? `/invoices/ca/${invoice.id}`
-      : `/invoices/${invoice.id}`;
-
-    navigate(path, {
-      state: {
-        invoice,
-        beneficiaryName,
-        invoices: filteredInvoices,
-        currentIndex: invoiceIndex >= 0 ? invoiceIndex : -1,
-        isReadOnly: viewMode === 'history'
-      }
-    });
-  };
 
   return (
     <Card className="glass-card mt-4">

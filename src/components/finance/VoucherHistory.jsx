@@ -317,7 +317,7 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                             {paginatedVouchers.map(voucher => {
                                 const { date, time } = formatDate(voucher.created_date);
                                 return (
-                                    <TableRow key={voucher.id} onClick={() => onViewVoucher({ ...voucher, isReadOnly: viewMode === 'history' })} className={`transition-colors cursor-pointer ${voucher.is_ready ? '' : ''}`}>
+                                    <TableRow key={voucher.id} onClick={() => onViewVoucher({ ...voucher, isReadOnly: viewMode === 'history' }, activeFilters.length > 0)} className={`transition-colors cursor-pointer ${voucher.is_ready ? '' : ''}`}>
                                         <TableCell className="text-xs sm:text-sm">
                                             <div>{date}</div>
                                             <div className="text-xs text-gray-400">{time}</div>

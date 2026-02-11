@@ -294,3 +294,4 @@ export const trackedGetVouchers = trackApiCall(getVouchers);
 // Initialize idle timeout and refresh interval
 resetIdleTimeout();
 startRefreshInterval();
+``

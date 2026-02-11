@@ -266,8 +266,18 @@ const Vouchers = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
   }, [location.pathname, isActive, selectedEntity, user?.access_token, cache, fetchDataForClient]);
   */
 
-  const handleViewVoucher = (voucher) => {
-    navigate(`/vouchers/ca/${voucher.id}`, { state: { voucher, vouchers: enrichedVouchers, organisationId: selectedOrganisation } });
+  const handleViewVoucher = (voucher, hasFilters) => {
+    if (hasFilters) {
+      // Open in new tab to preserve filters
+      const url = `/vouchers/ca/${voucher.id}`;
+      // Since navigate doesn't work for new tab with state, we rely on the URL param and local storage/api cache
+      // But passing state (like vouchers list) is harder with window.open.
+      // However, the details page fetches its own data usually, or we might miss the list for navigation.
+      // ClientFinance used window.open(url, '_blank').
+      window.open(url, '_blank');
+    } else {
+      navigate(`/vouchers/ca/${voucher.id}`, { state: { voucher, vouchers: enrichedVouchers, organisationId: selectedOrganisation } });
+    }
   };
 
   const enrichedVouchers = useMemo(() => {
