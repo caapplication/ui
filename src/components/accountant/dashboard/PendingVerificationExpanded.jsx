@@ -10,7 +10,9 @@ import {
     Receipt,
     Users,
     Loader2,
-    Download
+    Download,
+    Calendar as CalendarIcon,
+    AlertCircle
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -32,12 +34,19 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
+import {
     listTeamMembers,
     listAllEntities,
     getCATeamInvoicesBulk,
     getCATeamVouchersBulk
 } from '@/lib/api';
-import { formatDistanceToNow, isWithinInterval, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, subMonths, startOfYear } from 'date-fns';
+import { format, formatDistanceToNow, isWithinInterval, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, subMonths, startOfYear, differenceInDays, isAfter } from 'date-fns';
 
 const TIME_FRAME_PRESETS = [
     { label: 'Today', value: 'today' },
@@ -49,10 +58,10 @@ const TIME_FRAME_PRESETS = [
     { label: 'Last 3 Months', value: 'last_3_months' },
     { label: 'Last 6 Months', value: 'last_6_months' },
     { label: 'This Year', value: 'this_year' },
-    { label: 'All Time', value: 'all' },
+    { label: 'Custom Range', value: 'custom' },
 ];
 
-const getDateRange = (preset) => {
+const getDateRange = (preset, start, end) => {
     const now = new Date();
     switch (preset) {
         case 'today':
@@ -77,6 +86,11 @@ const getDateRange = (preset) => {
             return { start: startOfDay(subMonths(now, 6)), end: endOfDay(now) };
         case 'this_year':
             return { start: startOfYear(now), end: endOfDay(now) };
+        case 'custom':
+            return {
+                start: start ? startOfDay(start) : null,
+                end: end ? endOfDay(end) : null
+            };
         default:
             return { start: null, end: null };
     }
@@ -89,7 +103,10 @@ const PendingVerificationExpanded = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [data, setData] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
-    const [timeFrame, setTimeFrame] = useState('all');
+    const [timeFrame, setTimeFrame] = useState('last_30_days');
+    const [customStartDate, setCustomStartDate] = useState(null);
+    const [customEndDate, setCustomEndDate] = useState(null);
+    const [dateError, setDateError] = useState('');
     const itemsPerPage = 10;
     const { toast } = useToast();
 
@@ -148,7 +165,7 @@ const PendingVerificationExpanded = () => {
             const teamMap = teamMembers.reduce((acc, t) => ({ ...acc, [t.user_id || t.id]: t.full_name || t.name || '-' }), {});
 
             // Filter for Pending Approval (pending_ca_approval or pending_master_admin_approval) and timeFrame
-            const { start, end } = getDateRange(timeFrame);
+            const { start, end } = getDateRange(timeFrame, customStartDate, customEndDate);
 
             const isWithinRange = (dateStr) => {
                 if (!start || !end) return true;
@@ -203,7 +220,7 @@ const PendingVerificationExpanded = () => {
         } finally {
             setLoading(false);
         }
-    }, [user, timeFrame]);
+    }, [user, timeFrame, customStartDate, customEndDate]);
 
     useEffect(() => {
         fetchData();
@@ -259,6 +276,13 @@ const PendingVerificationExpanded = () => {
                     <Select value={timeFrame} onValueChange={(val) => {
                         setTimeFrame(val);
                         setCurrentPage(1);
+                        if (val === 'custom' && !customStartDate) {
+                            const end = new Date();
+                            const start = new Date();
+                            start.setMonth(start.getMonth() - 1);
+                            setCustomStartDate(start);
+                            setCustomEndDate(end);
+                        }
                     }}>
                         <SelectTrigger className="w-full sm:w-44 h-9 border-white/10 bg-white/5 text-white rounded-xl text-sm">
                             <SelectValue placeholder="Time frame" />
@@ -271,6 +295,104 @@ const PendingVerificationExpanded = () => {
                             ))}
                         </SelectContent>
                     </Select>
+
+                    {timeFrame === 'custom' && (
+                        <div className="flex flex-row items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                            <div className="flex items-center gap-2">
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant={"outline"}
+                                            className={cn(
+                                                "w-[120px] sm:w-[130px] h-9 gap-2 justify-start text-left font-normal bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl px-2 sm:px-3",
+                                                !customStartDate && "text-muted-foreground"
+                                            )}
+                                        >
+                                            <CalendarIcon className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+                                            <span className="truncate text-xs sm:text-sm">{customStartDate ? format(customStartDate, "dd MMM yy") : "Start"}</span>
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0 bg-[#1a1a2e] border-white/10 shadow-2xl" align="start">
+                                        <Calendar
+                                            mode="single"
+                                            selected={customStartDate}
+                                            onSelect={(date) => {
+                                                setCustomStartDate(date);
+                                                if (date && customEndDate) {
+                                                    const days = differenceInDays(customEndDate, date);
+                                                    if (days > 365 || days < 0) {
+                                                        const newEnd = new Date(date);
+                                                        newEnd.setFullYear(newEnd.getFullYear() + 1);
+                                                        const limit = new Date();
+                                                        setCustomEndDate(newEnd > limit ? limit : newEnd);
+                                                    }
+                                                }
+                                            }}
+                                            fromYear={2020}
+                                            toYear={new Date().getFullYear()}
+                                            disabled={(date) => {
+                                                if (customEndDate) {
+                                                    const diff = differenceInDays(customEndDate, date);
+                                                    return diff < 0 || diff > 365 || isAfter(date, new Date());
+                                                }
+                                                return isAfter(date, new Date());
+                                            }}
+                                            initialFocus
+                                        />
+                                    </PopoverContent>
+                                </Popover>
+                                <span className="text-gray-500 text-[10px] sm:text-xs font-medium shrink-0 uppercase">to</span>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant={"outline"}
+                                            className={cn(
+                                                "w-[120px] sm:w-[130px] h-9 gap-2 justify-start text-left font-normal bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl px-2 sm:px-3",
+                                                !customEndDate && "text-muted-foreground"
+                                            )}
+                                        >
+                                            <CalendarIcon className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+                                            <span className="truncate text-xs sm:text-sm">{customEndDate ? format(customEndDate, "dd MMM yy") : "End"}</span>
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0 bg-[#1a1a2e] border-white/10 shadow-2xl" align="start">
+                                        <Calendar
+                                            mode="single"
+                                            selected={customEndDate}
+                                            onSelect={(date) => {
+                                                setCustomEndDate(date);
+                                                if (customStartDate && date) {
+                                                    const days = differenceInDays(date, customStartDate);
+                                                    if (days > 365 || days < 0) {
+                                                        const newStart = new Date(date);
+                                                        newStart.setFullYear(newStart.getFullYear() - 1);
+                                                        setCustomStartDate(newStart);
+                                                    }
+                                                }
+                                            }}
+                                            fromYear={2020}
+                                            toYear={new Date().getFullYear()}
+                                            disabled={(date) => {
+                                                if (customStartDate) {
+                                                    const diff = differenceInDays(date, customStartDate);
+                                                    return diff < 0 || diff > 365 || isAfter(date, new Date());
+                                                }
+                                                return isAfter(date, new Date());
+                                            }}
+                                            initialFocus
+                                        />
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
+
+                            {dateError && (
+                                <div className="flex items-center gap-1.5 text-xs text-red-400 bg-red-400/10 px-3 py-1.5 rounded-lg border border-red-400/20">
+                                    <AlertCircle className="w-3.5 h-3.5" />
+                                    <span>{dateError}</span>
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     <div className="relative w-full sm:w-64">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
