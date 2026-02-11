@@ -264,7 +264,7 @@ const isFolderEmpty = (folder) => {
 const folderHasDocumentsRecursive = (folder) => {
   if (!folder || !folder.is_folder) return false;
   if (!folder.children || folder.children.length === 0) return false;
-  
+
   for (const child of folder.children) {
     if (!child.is_folder) return true; // Found a document
     if (child.is_folder && folderHasDocumentsRecursive(child)) return true;
@@ -781,12 +781,12 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
 
     // Only the creator can delete
     if (folder.owner_id && folder.owner_id !== user?.id) return false;
-    
+
     // Template folders: only block if documents exist (even in subfolders)
     if (folder.template_id) {
       return !folderHasDocumentsRecursive(folder);
     }
-    
+
     // Regular folders: block if not empty
     return isFolderEmpty(folder);
   }, [selectedFolder, documentsState]);
@@ -1050,7 +1050,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
     // Check if trying to delete a folder
     if (itemToDelete.type === 'folder') {
       const folder = findFolder(documentsState, itemToDelete.id);
-      
+
       // Template folders: block if documents exist anywhere in the hierarchy
       if (folder && folder.template_id && folderHasDocumentsRecursive(folder)) {
         toast({
@@ -1061,7 +1061,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
         setItemToDelete(null);
         return;
       }
-      
+
       // Regular folders: block if not empty
       if (folder && !folder.template_id && !isFolderEmpty(folder)) {
         toast({
@@ -1506,7 +1506,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                     handleFolderNavigation(item.id);
                   }}
                 >
-                  <div className="relative mb-2">
+                  <div className="relative mb-0">
                     <FolderIcon
                       className={`w-40 h-40 sm:w-48 sm:h-48 md:w-56 md:h-56 transition-transform ${isSelected ? 'scale-105' : 'group-hover:scale-110'}`}
                       hasExpired={hasExpiredDocuments(item)}
@@ -1528,7 +1528,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                       />
                     </div>
                   </div>
-                  <div className="w-full text-center px-1">
+                  <div className="w-full text-center !mt-[-25px] px-1 ">
                     <p className={`text-xs sm:text-sm truncate transition-colors ${isSelected ? 'text-blue-300 font-semibold' : 'text-white group-hover:text-blue-300'
                       }`}>{item.name}</p>
                   </div>
@@ -1596,47 +1596,47 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                               Collaborate
                             </DropdownMenuItem>
                             {item.owner_id === user?.id && (
-                            <AlertDialog open={itemToDelete?.id === item.id && itemToDelete?.type === 'document'} onOpenChange={(open) => {
-                              if (!open && !isMutating) {
-                                setItemToDelete(null);
-                              }
-                            }}>
-                              <AlertDialogTrigger asChild>
-                                <DropdownMenuItem
-                                  className="text-red-400 focus:text-red-400 focus:bg-red-500/10"
-                                  onSelect={(e) => {
-                                    e.preventDefault();
-                                    setItemToDelete({ id: item.id, type: 'document' });
-                                  }}
-                                >
-                                  <Trash2 className="w-4 h-4 mr-2" />
-                                  Delete
-                                </DropdownMenuItem>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    This action cannot be undone. This will permanently delete the document.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel onClick={() => setItemToDelete(null)} disabled={isMutating}>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction onClick={async () => {
-                                    await handleDelete();
-                                  }} disabled={isMutating}>
-                                    {isMutating ? (
-                                      <>
-                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                        Deleting...
-                                      </>
-                                    ) : (
-                                      'Delete'
-                                    )}
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                              <AlertDialog open={itemToDelete?.id === item.id && itemToDelete?.type === 'document'} onOpenChange={(open) => {
+                                if (!open && !isMutating) {
+                                  setItemToDelete(null);
+                                }
+                              }}>
+                                <AlertDialogTrigger asChild>
+                                  <DropdownMenuItem
+                                    className="text-red-400 focus:text-red-400 focus:bg-red-500/10"
+                                    onSelect={(e) => {
+                                      e.preventDefault();
+                                      setItemToDelete({ id: item.id, type: 'document' });
+                                    }}
+                                  >
+                                    <Trash2 className="w-4 h-4 mr-2" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      This action cannot be undone. This will permanently delete the document.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel onClick={() => setItemToDelete(null)} disabled={isMutating}>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={async () => {
+                                      await handleDelete();
+                                    }} disabled={isMutating}>
+                                      {isMutating ? (
+                                        <>
+                                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                          Deleting...
+                                        </>
+                                      ) : (
+                                        'Delete'
+                                      )}
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
                             )}
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -1919,13 +1919,13 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                       className="flex flex-col items-center cursor-pointer group relative p-2 sm:p-3 rounded-lg transition-all hover:bg-gray-800/30"
                       onClick={() => handleSharedFolderOpen(item)}
                     >
-                      <div className="relative mb-2">
+                      <div className="relative mb-0">
                         <FolderIcon
                           className="w-40 h-40 sm:w-48 sm:h-48 md:w-56 md:h-56 transition-transform group-hover:scale-110"
                           hasExpired={hasExpiredDocuments(item)}
                         />
                       </div>
-                      <div className="w-full text-center px-1">
+                      <div className="w-full text-center !mt-[-25px] px-1">
                         <p className="text-xs sm:text-sm text-white truncate group-hover:text-blue-300 transition-colors" title={item.name}>{item.name}</p>
                       </div>
                     </motion.div>
@@ -2010,13 +2010,13 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                 className="flex flex-col items-center cursor-pointer group relative p-2 sm:p-3 rounded-lg transition-all hover:bg-gray-800/30"
                 onClick={() => handleSharedFolderOpen(item)}
               >
-                <div className="relative mb-2">
+                <div className="relative mb-0">
                   <FolderIcon
                     className="w-40 h-40 sm:w-48 sm:h-48 md:w-56 md:h-56 transition-transform group-hover:scale-110"
                     hasExpired={hasExpiredDocuments(item)}
                   />
                 </div>
-                <div className="w-full text-center px-1">
+                <div className="w-full text-center !mt-[-25px] px-1">
                   <p className="text-xs sm:text-sm text-white truncate group-hover:text-blue-300 transition-colors" title={item.name}>{item.name}</p>
                   {(item.owner_name || item.owner_email) && (
                     <p className="text-xs text-gray-400 mt-1 truncate hidden sm:block">Shared by: {item.owner_name || item.owner_email}</p>
@@ -3226,29 +3226,29 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                     {clientsForFilter
                       .filter(client => !templateClientSearch || client.name.toLowerCase().includes(templateClientSearch.toLowerCase()))
                       .map(client => {
-                      const isSelected = selectedClientsForTemplate.includes(client.id);
-                      return (
-                        <div
-                          key={client.id}
-                          className={`flex items-center space-x-3 p-2 rounded cursor-pointer transition-colors ${isSelected ? 'bg-blue-500/10 hover:bg-blue-500/15' : 'hover:bg-white/5'}`}
-                          onClick={() => {
-                            if (isSelected) {
-                              setSelectedClientsForTemplate(prev => prev.filter(id => id !== client.id));
-                            } else {
-                              setSelectedClientsForTemplate(prev => [...prev, client.id]);
-                            }
-                          }}
-                        >
-                          <Checkbox
-                            checked={isSelected}
-                            className="pointer-events-none"
-                          />
-                          <span className="text-sm font-medium leading-none flex-1">
-                            {client.name}
-                          </span>
-                        </div>
-                      );
-                    })}
+                        const isSelected = selectedClientsForTemplate.includes(client.id);
+                        return (
+                          <div
+                            key={client.id}
+                            className={`flex items-center space-x-3 p-2 rounded cursor-pointer transition-colors ${isSelected ? 'bg-blue-500/10 hover:bg-blue-500/15' : 'hover:bg-white/5'}`}
+                            onClick={() => {
+                              if (isSelected) {
+                                setSelectedClientsForTemplate(prev => prev.filter(id => id !== client.id));
+                              } else {
+                                setSelectedClientsForTemplate(prev => [...prev, client.id]);
+                              }
+                            }}
+                          >
+                            <Checkbox
+                              checked={isSelected}
+                              className="pointer-events-none"
+                            />
+                            <span className="text-sm font-medium leading-none flex-1">
+                              {client.name}
+                            </span>
+                          </div>
+                        );
+                      })}
                     {clientsForFilter.filter(client => !templateClientSearch || client.name.toLowerCase().includes(templateClientSearch.toLowerCase())).length === 0 && (
                       <div className="text-center py-4 text-gray-500 text-sm">No clients found.</div>
                     )}
