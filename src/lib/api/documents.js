@@ -40,7 +40,7 @@ export const createFolder = async (folderName, entityId, parentId, agencyId, tok
     return handleResponse(response);
 };
 
-export const uploadFile = async (folderId, entityId, file, expiryDate, token) => {
+export const uploadFile = async (folderId, entityId, file, expiryDate, token, name) => {
     const formData = new FormData();
     formData.append('file', file);
     if (entityId) {
@@ -52,6 +52,14 @@ export const uploadFile = async (folderId, entityId, file, expiryDate, token) =>
     if (expiryDate) {
         const formattedDate = expiryDate.toISOString().split('T')[0];
         formData.append('expiry_date', formattedDate);
+    }
+    if (name) {
+        formData.append('document_name', name);
+    }
+
+    // Debug logging for formData
+    for (var pair of formData.entries()) {
+        console.log('DEBUG uploadFile formData:', pair[0] + ', ' + pair[1]);
     }
 
     const url = `${FINANCE_API_BASE_URL}/api/documents/`;
