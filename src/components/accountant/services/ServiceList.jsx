@@ -75,9 +75,9 @@ const ServiceList = ({ services, onSelectService, onAddService }) => {
 
     return (
         <div className="h-full flex flex-col">
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex justify-between flex-wrap items-center mb-6">
                 <h1 className="text-3xl font-bold text-white">Services</h1>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 flex-wrap">
                     <div className="relative w-full max-w-xs">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                         <Input
@@ -120,11 +120,11 @@ const ServiceList = ({ services, onSelectService, onAddService }) => {
                     </TableHeader>
                     <TableBody>
                         {filteredServices.map((service, index) => (
-                           <ServiceRow key={service.id} service={service} onSelectService={onSelectService} index={index} />
+                            <ServiceRow key={service.id} service={service} onSelectService={onSelectService} index={index} />
                         ))}
                     </TableBody>
                 </Table>
-                 {filteredServices.length === 0 && (
+                {filteredServices.length === 0 && (
                     <div className="text-center py-16 text-gray-500">
                         <p className="text-lg">No services found.</p>
                         <p>Try adjusting your search or filter.</p>

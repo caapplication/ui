@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     ChevronLeft,
+    ChevronRight,
     Search,
     Loader2,
     ArrowLeft,
@@ -47,7 +48,7 @@ const FinanceHeadersExpanded = ({ entityId }) => {
     const [timeFrame, setTimeFrame] = useState('last_3_months');
     const [customStartDate, setCustomStartDate] = useState(null);
     const [customEndDate, setCustomEndDate] = useState(null);
-    const itemsPerPage = 15;
+    const itemsPerPage = 10;
     const { toast } = useToast();
 
     const getDateRange = (preset, start, end) => {
@@ -320,12 +321,12 @@ const FinanceHeadersExpanded = ({ entityId }) => {
             </div>
 
             {/* Table */}
-            <Card className="glass-card overflow-hidden border-white/5 rounded-3xl">
-                <CardContent className="p-0">
-                    <div className="overflow-x-auto">
+            <Card className="glass-card overflow-hidden border-white/5 rounded-3xl flex flex-col">
+                <CardContent className="p-0 flex flex-col">
+                    <div className="overflow-auto custom-scrollbar">
                         <table className="w-full text-left border-collapse">
-                            <thead>
-                                <tr className="border-b border-white/10 text-gray-400 text-[10px] sm:text-xs font-medium uppercase tracking-wider">
+                            <thead className="sticky top-0 z-20 ">
+                                <tr className="border-b border-white/10 text-gray-400 text-[10px] sm:text-xs font-medium uppercase tracking-wider bg-white/5">
                                     <th className="py-4 pl-6 w-20">S.No</th>
                                     <th
                                         className="py-4 px-4 cursor-pointer select-none hover:text-white transition-colors"
@@ -369,7 +370,7 @@ const FinanceHeadersExpanded = ({ entityId }) => {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="3" className="py-12 text-center text-gray-500">
+                                        <td colSpan="3" className="py-8 text-center text-gray-500">
                                             No finance header expenses found.
                                         </td>
                                     </tr>
@@ -391,31 +392,33 @@ const FinanceHeadersExpanded = ({ entityId }) => {
 
                 {/* Pagination */}
                 {totalPages > 1 && (
-                    <div className="p-4 sm:p-6 border-t border-white/5 flex flex-col sm:flex-row justify-between items-center gap-4">
-                        <p className="text-xs sm:text-sm text-gray-400">
-                            Page {currentPage} of {totalPages}
+                    <div className="p-4 sm:p-6 border-t border-white/5 flex justify-between items-center bg-white/5">
+                        <p className="text-xs text-gray-400">
+                            Showing {paginatedData.length} of {filteredData.length} records
                         </p>
                         <div className="flex items-center gap-2">
                             <Button
                                 variant="outline"
-                                size="sm"
-                                className="border-white/10 bg-white/5 hover:bg-white/10 text-white rounded-xl h-9"
+                                size="icon"
+                                className="h-8 w-8 border-white/10 bg-transparent hover:bg-white/10 text-white"
                                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                                 disabled={currentPage === 1}
                             >
-                                Previous
+                                <ChevronLeft className="w-4 h-4" />
                             </Button>
-                            <div className="border border-white/10 bg-white/5 px-3 py-1.5 rounded-lg text-sm font-medium text-white">
-                                {currentPage} / {totalPages}
+                            <div className="flex items-center gap-1.5 px-3 py-1 bg-white/5 rounded-lg border border-white/10">
+                                <span className="text-xs font-bold text-white">{currentPage}</span>
+                                <span className="text-[10px] text-gray-500">/</span>
+                                <span className="text-[10px] text-gray-500 font-medium">{totalPages}</span>
                             </div>
                             <Button
                                 variant="outline"
-                                size="sm"
-                                className="border-white/10 bg-white/5 hover:bg-white/10 text-white rounded-xl h-9"
+                                size="icon"
+                                className="h-8 w-8 border-white/10 bg-transparent hover:bg-white/10 text-white"
                                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                                 disabled={currentPage === totalPages}
                             >
-                                Next
+                                <ChevronRight className="w-4 h-4" />
                             </Button>
                         </div>
                     </div>

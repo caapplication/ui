@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Filter, Plus, FileText, Eye, Trash2, Loader2, UploadCloud } from 'lucide-react';
+import { Search, Filter, Plus, FileText, Eye, Trash2, Loader2, UploadCloud, Bell } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { listClients, listClientsByOrganization } from '@/lib/api/clients';
@@ -29,7 +29,7 @@ const NoticesPage = () => {
     const [clients, setClients] = useState([]);
 
     // Filters
-    const [selectedClient, setSelectedClient] = useState('all'); // Default to All
+    const [selectedClient, setSelectedClient] = useState(localStorage.getItem('entityId') || '');
     const [noticeTitle, setNoticeTitle] = useState('');
     const [selectedFile, setSelectedFile] = useState(null);
 
@@ -68,6 +68,11 @@ const NoticesPage = () => {
                 const safeClients = Array.isArray(clientsData) ? clientsData : (clientsData.results || []);
                 setClients(safeClients);
 
+                // Default to the first client if available and no client selected
+                if (safeClients.length > 0 && !selectedClient) {
+                    setSelectedClient(safeClients[0].id);
+                }
+
             } catch (error) {
                 console.error("Failed to fetch clients", error);
                 toast({ title: "Error", description: "Failed to load clients", variant: "destructive" });
@@ -82,21 +87,32 @@ const NoticesPage = () => {
             return;
         }
 
+        let isCurrent = true;
+
         const fetchNotices = async () => {
             setIsLoading(true);
             try {
-                // Pass 'all' or specific ID. ensure api handles 'all' or empty
                 const data = await getNotices(selectedClient, token);
-                setNotices(data);
+                if (isCurrent) {
+                    setNotices(data);
+                }
             } catch (error) {
-                console.error("Failed to fetch notices", error);
-                toast({ title: "Error", description: "Failed to load notices", variant: "destructive" });
+                if (isCurrent) {
+                    console.error("Failed to fetch notices", error);
+                    toast({ title: "Error", description: "Failed to load notices", variant: "destructive" });
+                }
             } finally {
-                setIsLoading(false);
+                if (isCurrent) {
+                    setIsLoading(false);
+                }
             }
         };
 
         fetchNotices();
+
+        return () => {
+            isCurrent = false;
+        };
     }, [selectedClient, token]);
 
 
@@ -184,10 +200,10 @@ const NoticesPage = () => {
                     {/* Filter Dropdown for Main View if needed, or just Upload */}
                     <Select value={selectedClient} onValueChange={setSelectedClient}>
                         <SelectTrigger className="w-[200px] glass-input border-white/10 bg-black/20 text-white">
-                            <SelectValue placeholder="Filter by Client" />
+                            <SelectValue placeholder="Select Client" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="all">All Clients</SelectItem>
+                            {/* Removed All Clients option as per requirement */}
                             {clients.map(client => (
                                 <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>
                             ))}
@@ -211,11 +227,9 @@ const NoticesPage = () => {
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                         <div className="flex items-center gap-4">
                             <h2 className="text-xl font-semibold">
-                                {selectedClient === 'all'
-                                    ? 'All Clients - Notices'
-                                    : selectedClient
-                                        ? `${getClientName(selectedClient)} - Notices`
-                                        : 'Select a Client to View Notices'}
+                                {selectedClient
+                                    ? `${getClientName(selectedClient)} - Notices`
+                                    : 'Select a Client to View Notices'}
                             </h2>
                             {/* Toggle Button Group */}
                             <div className="flex p-1 bg-black/20 rounded-lg border border-white/10 backdrop-blur-sm">
@@ -259,17 +273,18 @@ const NoticesPage = () => {
                     <Table className="min-w-full">
                         <TableHeader className="sticky top-0 z-10 border-b border-white/10">
                             <TableRow className="border-white/10 hover:bg-white/5">
-                                <TableHead className="text-gray-300 w-[25%]">Client</TableHead>
-                                <TableHead className="text-gray-300 w-[40%]">Notice Title</TableHead>
-                                <TableHead className="text-gray-300 w-[20%]">Received At</TableHead>
-                                <TableHead className="text-gray-300 w-[15%]">Status</TableHead>
+                                <TableHead className="w-[40px]"></TableHead>
+                                <TableHead className="text-gray-300 w-[24%]">Client</TableHead>
+                                <TableHead className="text-gray-300 w-[38%]">Notice Title</TableHead>
+                                <TableHead className="text-gray-300 w-[18%]">Received At</TableHead>
+                                <TableHead className="text-gray-300 w-[10%]">Status</TableHead>
                                 <TableHead className="text-right text-gray-300 w-[10%]">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {isLoading ? (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="text-center py-8 text-gray-400">
+                                    <TableCell colSpan={6} className="text-center py-8 text-gray-400">
                                         <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />
                                         Loading notices...
                                     </TableCell>
@@ -277,11 +292,22 @@ const NoticesPage = () => {
                             ) : filteredNotices.length > 0 ? (
                                 filteredNotices.map((notice) => (
                                     <TableRow key={notice.id} className="border-white/5 hover:bg-white/5 transition-colors group cursor-pointer" onClick={() => navigate(`/notices/${notice.id}`)}>
+                                        <TableCell className="w-[40px] px-2 text-center">
+                                            {notice.has_unread_messages && (
+                                                <div className="relative inline-flex items-center justify-center">
+                                                    <Bell className="w-4 h-4 text-orange-500 fill-orange-500/20" />
+                                                    <span className="flex h-2 w-2 absolute -top-1 -right-1">
+                                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-600"></span>
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </TableCell>
                                         <TableCell className="font-medium text-white">{getClientName(notice.entity_id)}</TableCell>
                                         <TableCell className="text-gray-300">
                                             <div className="flex items-center">
-                                                <FileText className="w-4 h-4 mr-2 text-blue-400" />
-                                                {notice.title}
+                                                <FileText className="w-4 h-4 mr-2 text-blue-400 shrink-0" />
+                                                <span className="truncate">{notice.title}</span>
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-gray-300">
@@ -308,7 +334,7 @@ const NoticesPage = () => {
                                                 notice.status === 'pending' ? 'destructive' :
                                                     notice.status === 'closure_requested' ? 'warning' :
                                                         notice.status === 'closed' ? 'success' : 'secondary'
-                                            } className="capitalize relative max-w-fit">
+                                            } className="capitalize relative max-w-fit whitespace-nowrap">
                                                 {notice.status === 'closed' ? 'Verified' : notice.status?.replace('_', ' ')}
                                             </Badge>
                                         </TableCell>
@@ -326,7 +352,7 @@ const NoticesPage = () => {
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="text-center py-8 text-gray-400">
+                                    <TableCell colSpan={6} className="text-center py-8 text-gray-400">
                                         No notices found based on your search.
                                     </TableCell>
                                 </TableRow>

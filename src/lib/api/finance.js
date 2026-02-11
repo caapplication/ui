@@ -688,3 +688,14 @@ export const getNoticeAttachment = async (noticeId, token) => {
         throw error;
     }
 };
+
+export const getInvoicePdf = async (invoiceId, token) => {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/invoices/${invoiceId}/generate_pdf`, {
+        headers: getAuthHeaders(token),
+    });
+    if (!response.ok) {
+        throw new Error('Failed to fetch invoice PDF');
+    }
+    const blob = await response.blob();
+    return URL.createObjectURL(blob);
+};

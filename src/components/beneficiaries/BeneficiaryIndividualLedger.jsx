@@ -135,7 +135,7 @@ const StatusBadge = ({ status }) => {
     const displayText = statusMap[status.toLowerCase()] || status.charAt(0).toUpperCase() + status.slice(1);
 
     return (
-        <div className={`inline-flex items-center justify-center text-center px-3 py-1 rounded-full text-xs font-medium border h-auto min-h-[1.5rem] whitespace-normal leading-tight ${getStatusColor(status.toLowerCase())}`}>
+        <div className={`inline-flex items-center justify-start text-center px-3 py-1 rounded-full text-xs font-medium border h-auto min-h-[1.5rem] whitespace-normal leading-tight ${getStatusColor(status.toLowerCase())}`}>
             {displayText}
         </div>
     );
@@ -166,7 +166,7 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
     const [sortColumn, setSortColumn] = useState('date');
     const [sortDirection, setSortDirection] = useState('desc');
     const [currentPage, setCurrentPage] = useState(1);
-    const pageSize = 15;
+    const pageSize = 10;
 
     const fetchData = useCallback(async () => {
         if (!user?.access_token || !organizationId || !entityId || !beneficiaryId) return;
@@ -434,7 +434,7 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
                 <div className="flex flex-col items-end gap-3 w-full sm:w-auto">
                     <div className="flex flex-wrap items-center justify-end gap-2 w-full">
                         <Button
-                            variant="outline"
+                            // variant="outline"
                             size="sm"
                             onClick={handleExport}
                             className="h-9 rounded-xl bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm"
@@ -559,11 +559,11 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
             </div>
 
             {/* Table Section */}
-            <Card className="glass-card overflow-hidden border-white/5 rounded-3xl">
-                <CardContent className="p-0">
-                    <div className="overflow-x-auto custom-scrollbar">
+            <Card className="glass-card overflow-hidden border-white/5 rounded-3xl flex flex-col">
+                <CardContent className="p-0 flex flex-col">
+                    <div className="overflow-auto custom-scrollbar">
                         <table className="w-full text-left border-collapse min-w-[1000px]">
-                            <thead>
+                            <thead className="sticky top-0 z-20 ">
                                 <tr className="border-b border-white/5 text-gray-400 text-[10px] sm:text-xs font-medium uppercase tracking-wider bg-white/5">
                                     <td className="py-4 pl-6 w-16">Sr No</td>
                                     <td className="py-4 px-4 w-40 cursor-pointer select-none hover:text-white transition-colors" onClick={() => handleSort('date')}>
@@ -575,6 +575,12 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
                                     <td className="py-4 px-4 w-48 cursor-pointer select-none hover:text-white transition-colors" onClick={() => handleSort('type')}>
                                         <span className="inline-flex items-center">
                                             Type
+                                            <SortIcon column="type" sortColumn={sortColumn} sortDirection={sortDirection} />
+                                        </span>
+                                    </td>
+                                    <td className="py-4 px-4 w-48 cursor-pointer select-none hover:text-white transition-colors" onClick={() => handleSort('type')}>
+                                        <span className="inline-flex items-center">
+                                            Doc No
                                             <SortIcon column="type" sortColumn={sortColumn} sortDirection={sortDirection} />
                                         </span>
                                     </td>
@@ -603,7 +609,7 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
                                         </span>
                                     </td>
                                     <td className="py-4 pr-6 text-right cursor-pointer select-none hover:text-white transition-colors" onClick={() => handleSort('status')}>
-                                        <span className="inline-flex items-center justify-end w-full">
+                                        <span className="inline-flex items-start justify-start w-full    ">
                                             Status
                                             <SortIcon column="status" sortColumn={sortColumn} sortDirection={sortDirection} />
                                         </span>
@@ -630,9 +636,9 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
                                                                 <span className="text-white font-medium">
                                                                     {date}
                                                                 </span>
-                                                                <span className="text-gray-500 text-[10px] italic mt-0.5">
+                                                                {/* <span className="text-gray-500 text-[10px] italic mt-0.5">
                                                                     {time}
-                                                                </span>
+                                                                </span> */}
                                                             </>
                                                         );
                                                     })()}
@@ -648,6 +654,12 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
                                                         }`}>
                                                         {tx.type}
                                                     </span>
+                                                    {/* <span className="text-gray-300 text-xs font-mono font-medium">{tx.ref}</span> */}
+                                                </div>
+                                            </td>
+                                            <td className="py-4 px-4">
+                                                <div className="flex flex-col gap-1.5">
+
                                                     <span className="text-gray-300 text-xs font-mono font-medium">{tx.ref}</span>
                                                 </div>
                                             </td>
@@ -667,14 +679,14 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
                                                     <span className="text-gray-400 text-xs truncate">{tx.head}</span>
                                                 </div>
                                             </td>
-                                            <td className="py-4 pr-6 text-right">
+                                            <td className="py-4 pr-6 text-start">
                                                 <StatusBadge status={tx.status} />
                                             </td>
                                         </tr>
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="8" className="py-20 text-center text-gray-500">
+                                        <td colSpan="8" className="py-10 text-center text-gray-500">
                                             No records found for this beneficiary.
                                         </td>
                                     </tr>

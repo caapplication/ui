@@ -26,7 +26,7 @@ const StatCard = ({ title, value, description, icon, color, delay, trend, meta, 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay }}>
       <Card className="glass-card card-hover overflow-hidden h-full relative group rounded-3xl border-white/5">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 sm:p-6">
+        <CardHeader className="flex flex-row gap-2 items-center justify-between space-y-0 pb-2 p-4 sm:p-6">
           <CardTitle className="text-xs sm:text-sm font-medium text-gray-400 uppercase tracking-wider">
             {title}
           </CardTitle>
@@ -322,52 +322,54 @@ const AccountantDashboard = () => {
       </motion.div>
 
       {/* Row 1: 6 Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 sm:gap-4 lg:gap-4 mb-6 lg:mb-8">
-        <StatCard
-          title="MY CLIENTS"
-          value={stats.myClients}
-          icon={Building2}
-          color="from-blue-500 to-indigo-600"
-          delay={0.1}
-        />
-        <StatCard
-          title="CLIENT USERS"
-          value={stats.clientUsers}
-          icon={Users}
-          color="from-sky-400 to-blue-500"
-          delay={0.15}
-        />
-        <StatCard
-          title="MY TEAM"
-          value={stats.myTeam}
-          icon={UserCheck}
-          color="from-violet-500 to-purple-600"
-          delay={0.2}
-        />
-        <StatCard
-          title="SERVICES"
-          value={stats.services}
-          icon={Briefcase}
-          color="from-indigo-500 to-blue-600"
-          delay={0.25}
-        />
-        <StatCard
-          title="REVENUE"
-          value={stats.revenue}
-          suffix="₹"
-          icon={Banknote}
-          color="from-blue-600 to-indigo-700"
-          delay={0.3}
-        />
-        <StatCard
-          title="DUE"
-          value={stats.due}
-          suffix="₹"
-          icon={Clock}
-          color="from-slate-600 to-gray-700"
-          delay={0.35}
-        />
-      </div>
+      {user?.role === 'CA_ACCOUNTANT' && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-6 gap-4 sm:gap-4 lg:gap-4 mb-6 lg:mb-8">
+          <StatCard
+            title="MY CLIENTS"
+            value={stats.myClients}
+            icon={Building2}
+            color="from-blue-500 to-indigo-600"
+            delay={0.1}
+          />
+          <StatCard
+            title="CLIENT USERS"
+            value={stats.clientUsers}
+            icon={Users}
+            color="from-sky-400 to-blue-500"
+            delay={0.15}
+          />
+          <StatCard
+            title="MY TEAM"
+            value={stats.myTeam}
+            icon={UserCheck}
+            color="from-violet-500 to-purple-600"
+            delay={0.2}
+          />
+          <StatCard
+            title="SERVICES"
+            value={stats.services}
+            icon={Briefcase}
+            color="from-indigo-500 to-blue-600"
+            delay={0.25}
+          />
+          <StatCard
+            title="REVENUE"
+            value={stats.revenue}
+            suffix="₹"
+            icon={Banknote}
+            color="from-blue-600 to-indigo-700"
+            delay={0.3}
+          />
+          <StatCard
+            title="DUE"
+            value={stats.due}
+            suffix="₹"
+            icon={Clock}
+            color="from-slate-600 to-gray-700"
+            delay={0.35}
+          />
+        </div>
+      )}
 
       {/* Row 2: Chart Section */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.6 }} className="mb-6">
@@ -410,10 +412,10 @@ const AccountantDashboard = () => {
                     strokeDasharray="3 3"
                   />
                 )}
-                <Bar dataKey="tasks" stackId="a" fill="#6366f1" fillOpacity={0.9} radius={[4, 4, 0, 0]} barSize={32} maxBarSize={40} name="Tasks" />
-                <Bar dataKey="vouchers" stackId="a" fill="#10b981" fillOpacity={0.9} radius={[4, 4, 0, 0]} barSize={32} maxBarSize={40} name="Vouchers" />
-                <Bar dataKey="invoices" stackId="a" fill="#f43f5e" fillOpacity={0.9} radius={[4, 4, 0, 0]} barSize={32} maxBarSize={40} name="Invoices" />
-                <Bar dataKey="notices" stackId="a" fill="#f59e0b" fillOpacity={0.9} radius={[4, 4, 0, 0]} barSize={32} maxBarSize={40} name="Notices">
+                <Bar dataKey="tasks" stackId="a" fill="#3b82f6" fillOpacity={0.9} radius={[4, 4, 0, 0]} barSize={32} maxBarSize={40} name="Tasks" />
+                <Bar dataKey="vouchers" stackId="a" fill="#22c55e" fillOpacity={0.9} radius={[4, 4, 0, 0]} barSize={32} maxBarSize={40} name="Vouchers" />
+                <Bar dataKey="invoices" stackId="a" fill="#eab308" fillOpacity={0.9} radius={[4, 4, 0, 0]} barSize={32} maxBarSize={40} name="Invoices" />
+                <Bar dataKey="notices" stackId="a" fill="#ef4444" fillOpacity={0.9} radius={[4, 4, 0, 0]} barSize={32} maxBarSize={40} name="Notices">
                   <LabelList
                     dataKey="total"
                     position="top"

@@ -2,7 +2,7 @@ import { FINANCE_API_BASE_URL } from '../api';
 import { getAuthHeaders, handleResponse } from './utils';
 
 export const getNotices = async (entityId, token) => {
-  let url = `${FINANCE_API_BASE_URL}/api/notices`;
+  let url = `${FINANCE_API_BASE_URL}/api/notices/`;
   if (entityId && entityId !== 'all') {
     url += `?entity_id=${entityId}`;
   }
@@ -126,4 +126,19 @@ export const getUnreadNoticeCount = async (token) => {
   });
   const data = await handleResponse(response);
   return data.count;
+};
+
+export const markNoticeCommentAsRead = async (noticeId, commentId, token) => {
+  const response = await fetch(`${FINANCE_API_BASE_URL}/api/notices/${noticeId}/comments/${commentId}/read`, {
+    method: 'POST',
+    headers: getAuthHeaders(token),
+  });
+  return handleResponse(response);
+};
+
+export const getNoticeCommentReadReceipts = async (noticeId, commentId, token) => {
+  const response = await fetch(`${FINANCE_API_BASE_URL}/api/notices/${noticeId}/comments/${commentId}/reads`, {
+    headers: getAuthHeaders(token),
+  });
+  return handleResponse(response);
 };
