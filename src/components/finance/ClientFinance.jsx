@@ -410,7 +410,7 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
     }
   };
 
-  const handleViewVoucher = (voucher) => {
+  const handleViewVoucher = (voucher, hasFilters) => {
     // Get entity name from user entities if available
     let entityName = 'N/A';
     if ((user?.role === 'CLIENT_USER' || user?.role === 'CLIENT_MASTER_ADMIN') && user.entities && entityId) {
@@ -418,20 +418,32 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
       if (entity) entityName = entity.name;
     }
 
-    navigate(`/finance/vouchers/${voucher.id}`, {
-      state: {
-        voucher,
-        vouchers: vouchers || [],
-        organisationId: user?.organization_id,
-        entityName: entityName,
-        organizationName: user?.organization_name || 'N/A'
-      }
-    });
+    if (hasFilters) {
+      // Open in new tab to preserve filters in the list view if filters are applied
+      const url = `/finance/vouchers/${voucher.id}`;
+      window.open(url, '_blank');
+    } else {
+      navigate(`/finance/vouchers/${voucher.id}`, {
+        state: {
+          voucher,
+          vouchers: vouchers || [],
+          organisationId: user?.organization_id,
+          entityName: entityName,
+          organizationName: user?.organization_name || 'N/A'
+        }
+      });
+    }
   };
 
-  const handleViewInvoice = (invoice) => {
+  const handleViewInvoice = (invoice, hasFilters) => {
     const currentIndex = invoices.findIndex(inv => inv.id === invoice.id);
-    navigate(`/invoices/${invoice.id}`, { state: { invoice, invoices, currentIndex } });
+    const path = `/invoices/${invoice.id}`;
+
+    if (hasFilters) {
+      window.open(path, '_blank');
+    } else {
+      navigate(path, { state: { invoice, invoices, currentIndex } });
+    }
   };
 
   const handleExportToTally = async (format) => {

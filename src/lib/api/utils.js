@@ -21,7 +21,7 @@ export const getAuthHeaders = (token, contentType = 'application/json', agencyId
     if (contentType) {
         headers['Content-Type'] = contentType;
     }
-    
+
     let finalAgencyId = agencyId;
 
     if (!finalAgencyId) {
@@ -39,7 +39,7 @@ export const getAuthHeaders = (token, contentType = 'application/json', agencyId
     if (finalAgencyId) {
         headers['x-agency-id'] = finalAgencyId;
     }
-    
+
     return headers;
 };
 
@@ -52,7 +52,7 @@ export const handleResponse = async (response) => {
         } catch (e) {
             error = { detail: text || `HTTP error! status: ${response.status}` };
         }
-        
+
         const errorMessage = error.detail || `HTTP error! status: ${response.status}`;
         const messageString = typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage);
 
@@ -68,7 +68,7 @@ export const handleResponse = async (response) => {
         }
 
         if (response.status === 401 || messageString.toLowerCase().includes('invalid token') || messageString.toLowerCase().includes('token has expired') || messageString.toLowerCase().includes('invalid authentication credentials')) {
-             window.dispatchEvent(new CustomEvent('auth-error'));
+            window.dispatchEvent(new CustomEvent('auth-error'));
         }
 
         throw new Error(errorMessage);

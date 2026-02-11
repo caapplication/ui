@@ -108,8 +108,8 @@ const TeamSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) => {
     },
     { id: 'notices', path: '/notices', label: 'Notices', icon: Bell, badge: unreadNoticeCount > 0 ? unreadNoticeCount : null, blinking: isNoticeBlinking },
     { id: 'documents', path: '/documents', label: 'Documents', icon: FileText },
-    { id: 'services', path: '/services', label: 'Services', icon: Briefcase },
-    { id: 'settings', path: '/settings', label: 'Settings', icon: Settings },
+    // { id: 'services', path: '/services', label: 'Services', icon: Briefcase },
+    // { id: 'settings', path: '/settings', label: 'Settings', icon: Settings },
   ];
 
   const isActive = (path) => {

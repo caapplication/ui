@@ -5,13 +5,19 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Plus, Loader2 } from 'lucide-react';
-import { DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from '@/components/ui/dialog';
 import { Combobox } from '@/components/ui/combobox';
 import { useAuth } from '@/hooks/useAuth';
 import { compressImageIfNeeded } from '@/lib/imageCompression';
+import { useToast } from '@/components/ui/use-toast';
+import { addBeneficiary } from '@/lib/api';
+import BeneficiaryForm from '@/components/beneficiaries/BeneficiaryForm';
+import { useCurrentOrganization } from '@/hooks/useCurrentOrganization';
 
 const InvoiceForm = ({ entityId, beneficiaries, isLoading, onSave, onCancel, invoice, financeHeaders }) => {
     const { user } = useAuth();
+    const { toast } = useToast();
+    const organizationId = useCurrentOrganization(entityId);
     const isEditing = !!invoice;
     const today = new Date().toISOString().split('T')[0];
 
@@ -23,6 +29,11 @@ const InvoiceForm = ({ entityId, beneficiaries, isLoading, onSave, onCancel, inv
     const [igst, setIgst] = useState(invoice?.igst || 0);
     const [roundoff, setRoundoff] = useState(invoice?.roundoff || 0);
     const [total, setTotal] = useState(0);
+
+    // State for adding new beneficiary
+    const [showAddBeneficiaryDialog, setShowAddBeneficiaryDialog] = useState(false);
+    const [isAddingBeneficiary, setIsAddingBeneficiary] = useState(false);
+    const [localBeneficiaries, setLocalBeneficiaries] = useState([]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -92,117 +103,175 @@ const InvoiceForm = ({ entityId, beneficiaries, isLoading, onSave, onCancel, inv
         setTotal(preTaxAmount + cgstAmount + sgstAmount + igstAmount + roundoffAmount);
     }, [amount, cgst, sgst, igst, roundoff]);
 
+    const handleAddBeneficiary = async (beneficiaryData) => {
+        setIsAddingBeneficiary(true);
+        try {
+            const newBeneficiary = await addBeneficiary({ ...beneficiaryData, organisation_id: organizationId }, user.access_token);
+            toast({ title: 'Success', description: 'Beneficiary added successfully.' });
+            setLocalBeneficiaries(prev => [newBeneficiary, ...prev]);
+            setSelectedBeneficiaryId(String(newBeneficiary.id));
+            setShowAddBeneficiaryDialog(false);
+        } catch (error) {
+            const errorMsg = error.message && typeof error.message === 'object'
+                ? JSON.stringify(error.message)
+                : (error.message || 'Unknown error occurred');
+            toast({
+                title: 'Error',
+                description: `Failed to add beneficiary: ${errorMsg}`,
+                variant: 'destructive',
+            });
+        } finally {
+            setIsAddingBeneficiary(false);
+        }
+    };
+
+    const combinedBeneficiaries = React.useMemo(() => {
+        const uniqueBeneficiaries = new Map();
+        [...localBeneficiaries, ...(beneficiaries || [])].forEach(b => {
+            if (b && b.id) uniqueBeneficiaries.set(String(b.id), b);
+        });
+        return Array.from(uniqueBeneficiaries.values());
+    }, [beneficiaries, localBeneficiaries]);
+
     return (
-        <DialogContent className="w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto px-4 py-6 sm:p-6" closeDisabled={isLoading}>
-            <DialogHeader>
-                <DialogTitle>{isEditing ? 'Edit Invoice' : 'Add New Invoice'}</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-                <div
-                    className="space-y-6"
-                    style={isLoading ? { opacity: 0.5, pointerEvents: 'none' } : {}}
-                >
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="md:col-span-2">
-                            <Label htmlFor="beneficiary_id" className="mb-2">Beneficiary</Label>
-                            {isLoading ? (
-                                <div className="flex items-center justify-center p-2 border border-white/20 bg-white/10 rounded-lg h-11">
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                </div>
-                            ) : (
+        <>
+            <DialogContent className="w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto px-4 py-6 sm:p-6" closeDisabled={isLoading}>
+                <DialogHeader>
+                    <DialogTitle>{isEditing ? 'Edit Invoice' : 'Add New Invoice'}</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+                    <div
+                        className="space-y-6"
+                        style={isLoading ? { opacity: 0.5, pointerEvents: 'none' } : {}}
+                    >
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="md:col-span-2">
+                                <Label htmlFor="beneficiary_id" className="mb-2">Beneficiary</Label>
+                                {isLoading ? (
+                                    <div className="flex items-center justify-center p-2 border border-white/20 bg-white/10 rounded-lg h-11">
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                    </div>
+                                ) : (
+                                    <Combobox
+                                        options={combinedBeneficiaries.map(b => ({
+                                            value: String(b.id),
+                                            label: b.beneficiary_type === 'individual' ? b.name : b.company_name
+                                        }))}
+                                        value={selectedBeneficiaryId}
+                                        onValueChange={(value) => setSelectedBeneficiaryId(value)}
+                                        placeholder="Select beneficiary..."
+                                        searchPlaceholder="Search beneficiaries..."
+                                        emptyText="No beneficiaries found."
+                                        footer={
+                                            <Button
+                                                type="button"
+                                                variant="secondary"
+                                                size="sm"
+                                                className="w-full h-8 text-xs mt-1"
+                                                onClick={() => setShowAddBeneficiaryDialog(true)}
+                                            >
+                                                <Plus className="w-3 h-3 mr-1" />
+                                                Add New Beneficiary
+                                            </Button>
+                                        }
+                                        disabled={isLoading}
+                                    />
+                                )}
+                            </div>
+
+                            <div>
+                                <Label htmlFor="bill_number" className="mb-2">Bill Number</Label>
+                                <Input name="bill_number" id="bill_number" required defaultValue={invoice?.bill_number} disabled={isLoading} />
+                            </div>
+                            <div>
+                                <Label htmlFor="date" className="mb-2">Bill Date</Label>
+                                <Input name="date" id="date" type="date" required defaultValue={invoice ? new Date(invoice.date).toISOString().split('T')[0] : today} disabled={isLoading} />
+                            </div>
+                            <div>
+                                <Label htmlFor="amount" className="mb-2">Amount (excl. tax)</Label>
+                                <Input name="amount" id="amount" type="number" step="0.01" required value={amount} onChange={(e) => setAmount(e.target.value)} disabled={isLoading} />
+                            </div>
+                            <div>
+                                <Label htmlFor="attachment" className="mb-2">Attachments (Multiple files allowed)</Label>
+                                <Input id="attachment" name="attachment" type="file" multiple disabled={isLoading} />
+                                {isEditing && invoice?.attachment_id && <p className="text-xs text-gray-400 mt-1">Leave empty to keep existing attachments.</p>}
+                            </div>
+                        </div>
+
+                        {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
+                            <div>
+                                <Label htmlFor="finance_header_id" className="mb-2">Finance Header</Label>
                                 <Combobox
-                                    options={(beneficiaries || []).map(b => ({
-                                        value: String(b.id),
-                                        label: b.beneficiary_type === 'individual' ? b.name : b.company_name
+                                    options={(financeHeaders || []).map(header => ({
+                                        value: String(header.id),
+                                        label: header.name
                                     }))}
-                                    value={selectedBeneficiaryId}
-                                    onValueChange={(value) => setSelectedBeneficiaryId(value)}
-                                    placeholder="Select beneficiary..."
-                                    searchPlaceholder="Search beneficiaries..."
-                                    emptyText="No beneficiaries found."
+                                    value={selectedFinanceHeaderId}
+                                    onValueChange={(value) => setSelectedFinanceHeaderId(value)}
+                                    placeholder="Select a header..."
+                                    searchPlaceholder="Search headers..."
+                                    emptyText="No headers found."
                                     disabled={isLoading}
                                 />
-                            )}
+                            </div>
+                        )}
+
+                        <div className="space-y-2">
+                            <Label className="mb-2 block">Taxes</Label>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div><Label htmlFor="cgst" className="text-xs mb-1 block">CGST</Label><Input name="cgst" id="cgst" type="number" step="0.01" value={cgst} onChange={(e) => { setCgst(e.target.value); setSgst(e.target.value); }} disabled={isLoading} /></div>
+                                <div><Label htmlFor="sgst" className="text-xs mb-1 block">SGST</Label><Input name="sgst" id="sgst" type="number" step="0.01" value={sgst} onChange={(e) => { setSgst(e.target.value); setCgst(e.target.value); }} disabled={isLoading} /></div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div><Label htmlFor="igst" className="text-xs mb-1 block">IGST</Label><Input name="igst" id="igst" type="number" step="0.01" value={igst} onChange={(e) => setIgst(e.target.value)} disabled={isLoading} /></div>
+                                <div><Label htmlFor="roundoff" className="text-xs mb-1 block">Roundoff</Label><Input name="roundoff" id="roundoff" type="number" step="0.01" value={roundoff} onChange={(e) => setRoundoff(e.target.value)} disabled={isLoading} /></div>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-between items-center bg-white/5 p-4 rounded-xl">
+                            <div>
+                                <p className="text-sm text-gray-400">Pre-Tax Amount</p>
+                                <p className="text-lg font-semibold text-white">₹{parseFloat(amount || 0).toFixed(2)}</p>
+                            </div>
+                            <div>
+                                <p className="text-sm text-gray-400">Total (inc. GST & Roundoff)</p>
+                                <p className="text-lg font-bold text-white">₹{total.toFixed(2)}</p>
+                            </div>
                         </div>
 
                         <div>
-                            <Label htmlFor="bill_number" className="mb-2">Bill Number</Label>
-                            <Input name="bill_number" id="bill_number" required defaultValue={invoice?.bill_number} disabled={isLoading} />
-                        </div>
-                        <div>
-                            <Label htmlFor="date" className="mb-2">Bill Date</Label>
-                            <Input name="date" id="date" type="date" required defaultValue={invoice ? new Date(invoice.date).toISOString().split('T')[0] : today} disabled={isLoading} />
-                        </div>
-                        <div>
-                            <Label htmlFor="amount" className="mb-2">Amount (excl. tax)</Label>
-                            <Input name="amount" id="amount" type="number" step="0.01" required value={amount} onChange={(e) => setAmount(e.target.value)} disabled={isLoading} />
-                        </div>
-                        <div>
-                            <Label htmlFor="attachment" className="mb-2">Attachments (Multiple files allowed)</Label>
-                            <Input id="attachment" name="attachment" type="file" multiple disabled={isLoading} />
-                            {isEditing && invoice?.attachment_id && <p className="text-xs text-gray-400 mt-1">Leave empty to keep existing attachments.</p>}
+                            <Label htmlFor="remarks" className="mb-2">Remarks</Label>
+                            <Textarea name="remarks" id="remarks" defaultValue={invoice?.remarks} disabled={isLoading} />
                         </div>
                     </div>
 
-                    {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
-                        <div>
-                            <Label htmlFor="finance_header_id" className="mb-2">Finance Header</Label>
-                            <Combobox
-                                options={(financeHeaders || []).map(header => ({
-                                    value: String(header.id),
-                                    label: header.name
-                                }))}
-                                value={selectedFinanceHeaderId}
-                                onValueChange={(value) => setSelectedFinanceHeaderId(value)}
-                                placeholder="Select a header..."
-                                searchPlaceholder="Search headers..."
-                                emptyText="No headers found."
-                                disabled={isLoading}
-                            />
-                        </div>
-                    )}
-
-                    <div className="space-y-2">
-                        <Label className="mb-2 block">Taxes</Label>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div><Label htmlFor="cgst" className="text-xs mb-1 block">CGST</Label><Input name="cgst" id="cgst" type="number" step="0.01" value={cgst} onChange={(e) => { setCgst(e.target.value); setSgst(e.target.value); }} disabled={isLoading} /></div>
-                            <div><Label htmlFor="sgst" className="text-xs mb-1 block">SGST</Label><Input name="sgst" id="sgst" type="number" step="0.01" value={sgst} onChange={(e) => { setSgst(e.target.value); setCgst(e.target.value); }} disabled={isLoading} /></div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div><Label htmlFor="igst" className="text-xs mb-1 block">IGST</Label><Input name="igst" id="igst" type="number" step="0.01" value={igst} onChange={(e) => setIgst(e.target.value)} disabled={isLoading} /></div>
-                            <div><Label htmlFor="roundoff" className="text-xs mb-1 block">Roundoff</Label><Input name="roundoff" id="roundoff" type="number" step="0.01" value={roundoff} onChange={(e) => setRoundoff(e.target.value)} disabled={isLoading} /></div>
-                        </div>
-                    </div>
-
-                    <div className="flex justify-between items-center bg-white/5 p-4 rounded-xl">
-                        <div>
-                            <p className="text-sm text-gray-400">Pre-Tax Amount</p>
-                            <p className="text-lg font-semibold text-white">₹{parseFloat(amount || 0).toFixed(2)}</p>
-                        </div>
-                        <div>
-                            <p className="text-sm text-gray-400">Total (inc. GST & Roundoff)</p>
-                            <p className="text-lg font-bold text-white">₹{total.toFixed(2)}</p>
-                        </div>
-                    </div>
-
-                    <div>
-                        <Label htmlFor="remarks" className="mb-2">Remarks</Label>
-                        <Textarea name="remarks" id="remarks" defaultValue={invoice?.remarks} disabled={isLoading} />
-                    </div>
-                </div>
-
-                <DialogFooter>
-                    <DialogClose asChild>
-                        <Button variant="ghost" type="button" onClick={onCancel} disabled={isLoading} style={isLoading ? { opacity: 0.5, pointerEvents: 'none' } : {}}>
-                            Cancel
+                    <DialogFooter>
+                        <DialogClose asChild>
+                            <Button variant="ghost" type="button" onClick={onCancel} disabled={isLoading} style={isLoading ? { opacity: 0.5, pointerEvents: 'none' } : {}}>
+                                Cancel
+                            </Button>
+                        </DialogClose>
+                        <Button type="submit" disabled={isLoading} style={isLoading ? { opacity: 0.5, pointerEvents: 'none' } : {}}>
+                            {isEditing ? 'Save Changes' : <><Plus className="w-4 h-4 mr-2" /> Add Invoice</>}
                         </Button>
-                    </DialogClose>
-                    <Button type="submit" disabled={isLoading} style={isLoading ? { opacity: 0.5, pointerEvents: 'none' } : {}}>
-                        {isEditing ? 'Save Changes' : <><Plus className="w-4 h-4 mr-2" /> Add Invoice</>}
-                    </Button>
-                </DialogFooter>
-            </form>
-        </DialogContent>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+
+            <Dialog open={showAddBeneficiaryDialog} onOpenChange={setShowAddBeneficiaryDialog}>
+                <DialogContent className="max-w-2xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="text-lg sm:text-xl">Add New Beneficiary</DialogTitle>
+                        <DialogDescription>Enter the details for the new beneficiary.</DialogDescription>
+                    </DialogHeader>
+                    <BeneficiaryForm
+                        onAdd={handleAddBeneficiary}
+                        onCancel={() => setShowAddBeneficiaryDialog(false)}
+                        isSaving={isAddingBeneficiary}
+                    />
+                </DialogContent>
+            </Dialog>
+        </>
     );
 };
 
