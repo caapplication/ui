@@ -14,6 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Search } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
+import imageCompression from 'browser-image-compression';
 
 import { getNotice, getNoticeComments, addNoticeComment, requestNoticeClosure, approveNoticeClosure, rejectNoticeClosure, addNoticeCollaborator, markNoticeCommentAsRead, getNoticeCommentReadReceipts, deleteNotice } from '@/lib/api/notices';
 import { getNoticeAttachment } from '@/lib/api';
@@ -253,7 +254,26 @@ const NoticeDetailsPage = () => {
 
         setIsSending(true);
         try {
-            await addNoticeComment(noticeId, newMessage, selectedFile, token);
+            let fileToSend = selectedFile;
+
+            // Image Compression
+            if (fileToSend && fileToSend.type.startsWith('image/')) {
+                const options = {
+                    maxSizeMB: 1,
+                    maxWidthOrHeight: 1920,
+                    useWebWorker: true
+                };
+                try {
+                    fileToSend = await imageCompression(fileToSend, options);
+                } catch (error) {
+                    console.error("Image compression failed:", error);
+                }
+            }
+
+            // Backend requires 'message' field not to be empty/null
+            const messageToSend = newMessage.trim() || " ";
+
+            await addNoticeComment(noticeId, messageToSend, fileToSend, token);
             setNewMessage('');
             setSelectedFile(null);
             if (fileInputRef.current) fileInputRef.current.value = '';
@@ -407,7 +427,7 @@ const NoticeDetailsPage = () => {
                 <div className="flex items-center gap-2">
                     {canRequestClose && (
                         <Button
-                            variant="default" // Changed from 'reject' to default/green custom
+                            variant="accept" // Changed from 'reject' to default/green custom
                             onClick={() => setIsRequestCloseOpen(true)}
                             className="bg-green-600 hover:bg-green-700 text-white h-9 text-sm font-medium"
                         >
@@ -426,14 +446,14 @@ const NoticeDetailsPage = () => {
                         </>
                     )}
 
-                    {user?.role === 'CLIENT_MASTER_ADMIN' && (
+                    {(user?.role === 'CLIENT_MASTER_ADMIN' || user?.role === 'CA_ACCOUNTANT') && notice.status !== 'closed' && (
                         <Button onClick={() => setIsCollaborateOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white h-9 text-sm font-medium">
                             <UserPlus className="w-4 h-4 mr-2" /> Collaborate
                         </Button>
                     )}
 
                     {/* Delete Option for CA */}
-                    {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_ADMIN') && (
+                    {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_ADMIN') && notice.status !== 'closed' && (
                         <Button
                             variant="destructive"
                             onClick={handleDelete}
@@ -725,6 +745,7 @@ const NoticeDetailsPage = () => {
                                     ref={fileInputRef}
                                     className="hidden"
                                     onChange={(e) => setSelectedFile(e.target.files[0])}
+                                    disabled={isSending || notice.status === 'closed'}
                                 />
                                 <Button
                                     type="button"
@@ -732,15 +753,16 @@ const NoticeDetailsPage = () => {
                                     variant="ghost"
                                     className="text-gray-400 hover:text-white hover:bg-white/10"
                                     onClick={() => fileInputRef.current?.click()}
+                                    disabled={isSending || notice.status === 'closed'}
                                 >
                                     <Paperclip className="w-5 h-5" />
                                 </Button>
                                 <Input
                                     value={newMessage}
                                     onChange={(e) => setNewMessage(e.target.value)}
-                                    placeholder="Type your message..."
-                                    className="flex-1 bg-white/10 text-white border-2 border-blue-500/50 rounded-full h-10 px-4 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 placeholder:text-gray-400"
-                                    disabled={isSending}
+                                    placeholder={notice.status === 'closed' ? "This notice is closed" : "Type your message..."}
+                                    className="flex-1 bg-white/10 text-white border-2 border-blue-500/50 rounded-full h-10 px-4 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 placeholder:text-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    disabled={isSending || notice.status === 'closed'}
                                     onKeyPress={(e) => {
                                         if (e.key === 'Enter' && !e.shiftKey) {
                                             e.preventDefault();
@@ -748,7 +770,7 @@ const NoticeDetailsPage = () => {
                                         }
                                     }}
                                 />
-                                <Button type="submit" size="icon" disabled={isSending} className={`flex-shrink-0 h-10 w-10 rounded-full p-0 ${isSending ? 'bg-gray-600 cursor-not-allowed text-gray-400' : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg'}`}>
+                                <Button type="submit" size="icon" disabled={isSending || notice.status === 'closed'} className={`flex-shrink-0 h-10 w-10 rounded-full p-0 ${(isSending || notice.status === 'closed') ? 'bg-gray-600 cursor-not-allowed text-gray-400' : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg'}`}>
                                     {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                                 </Button>
                             </form>
