@@ -142,3 +142,12 @@ export const getNoticeCommentReadReceipts = async (noticeId, commentId, token) =
   });
   return handleResponse(response);
 };
+
+export const deleteNotice = async (noticeId, token) => {
+  const response = await fetch(`${FINANCE_API_BASE_URL}/api/notices/${noticeId}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(token),
+  });
+  if (response.status === 204) return true;
+  return handleResponse(response);
+};
