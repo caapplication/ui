@@ -27,6 +27,7 @@ export function Combobox({
   className,
   displayValue = null, // Function to customize display value
   style = null, // Custom style for the button
+  footer = null, // Custom footer content
 }) {
   const [open, setOpen] = React.useState(false)
 
@@ -79,6 +80,7 @@ export function Combobox({
               ))}
             </CommandGroup>
           </CommandList>
+          {footer && <div className="p-1 border-t border-white/10">{footer}</div>}
         </Command>
       </PopoverContent>
     </Popover>

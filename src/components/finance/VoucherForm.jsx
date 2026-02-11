@@ -7,14 +7,21 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Plus, Loader2 } from 'lucide-react';
-import { DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Combobox } from '@/components/ui/combobox';
-import { getBankAccountsForBeneficiaryDropdown, getOrganisationBankAccountsDropdown } from '@/lib/api';
+import { getBankAccountsForBeneficiaryDropdown, getOrganisationBankAccountsDropdown, addBeneficiary, addBankAccount, addOrganisationBankAccount } from '@/lib/api';
 import { compressImageIfNeeded } from '@/lib/imageCompression';
+import { useToast } from '@/components/ui/use-toast';
+import BeneficiaryForm from '@/components/beneficiaries/BeneficiaryForm';
+import AddBankAccountForm from '@/components/beneficiaries/AddBankAccountForm';
+import AddOrganisationBankAccountForm from '@/components/organisation/AddOrganisationBankAccountForm';
+import { useCurrentOrganization } from '@/hooks/useCurrentOrganization';
 
 const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSave, onCancel, entityId, voucher, financeHeaders }) => {
     const isEditing = !!voucher;
     const { user } = useAuth();
+    const { toast } = useToast();
+    const organizationId = useCurrentOrganization(entityId);
     const [orgBankAccounts, setOrgBankAccounts] = useState(organisationBankAccounts || []);
 
     const [voucherType, setVoucherType] = useState(voucher?.voucher_type || 'debit');
@@ -22,6 +29,19 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
     const [selectedBeneficiaryId, setSelectedBeneficiaryId] = useState(voucher?.beneficiary_id || '');
     const [fromBankAccountId, setFromBankAccountId] = useState(voucher?.from_bank_account_id || '');
     const [toBankAccountId, setToBankAccountId] = useState(voucher?.to_bank_account_id || '');
+
+    // State for adding new beneficiary
+    const [showAddBeneficiaryDialog, setShowAddBeneficiaryDialog] = useState(false);
+    const [isAddingBeneficiary, setIsAddingBeneficiary] = useState(false);
+    const [localBeneficiaries, setLocalBeneficiaries] = useState([]);
+
+    // State for adding new bank account
+    const [showAddBankAccountDialog, setShowAddBankAccountDialog] = useState(false);
+    const [isAddingBankAccount, setIsAddingBankAccount] = useState(false);
+
+    // State for adding new organization bank account
+    const [showAddOrgBankAccountDialog, setShowAddOrgBankAccountDialog] = useState(false);
+    const [isAddingOrgBankAccount, setIsAddingOrgBankAccount] = useState(false);
 
     useEffect(() => {
         if (voucher) {
@@ -65,6 +85,93 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
         };
         fetchOrgAccounts();
     }, [entityId, isEditing, user?.access_token, paymentType, orgBankAccounts.length]);
+
+    const handleAddBeneficiary = async (beneficiaryData) => {
+        setIsAddingBeneficiary(true);
+        try {
+            const newBeneficiary = await addBeneficiary({ ...beneficiaryData, organisation_id: organizationId }, user.access_token);
+            toast({ title: 'Success', description: 'Beneficiary added successfully.' });
+
+            setLocalBeneficiaries(prev => [newBeneficiary, ...prev]);
+            setSelectedBeneficiaryId(String(newBeneficiary.id));
+            setShowAddBeneficiaryDialog(false);
+        } catch (error) {
+            const errorMsg = error.message && typeof error.message === 'object'
+                ? JSON.stringify(error.message)
+                : (error.message || 'Unknown error occurred');
+
+            toast({
+                title: 'Error',
+                description: `Failed to add beneficiary: ${errorMsg}`,
+                variant: 'destructive',
+            });
+        } finally {
+            setIsAddingBeneficiary(false);
+        }
+    };
+
+    const handleAddBankAccount = async (beneficiaryId, bankAccountData) => {
+        setIsAddingBankAccount(true);
+        try {
+            const newAccount = await addBankAccount(beneficiaryId, bankAccountData, user.access_token);
+            toast({ title: 'Success', description: 'Bank account added successfully.' });
+
+            // Update cache with new account
+            setBeneficiaryBankAccountsCache(prev => {
+                const existingAccounts = prev[beneficiaryId] || [];
+                return {
+                    ...prev,
+                    [beneficiaryId]: [...existingAccounts, newAccount]
+                };
+            });
+
+            setToBankAccountId(String(newAccount.id));
+            setShowAddBankAccountDialog(false);
+        } catch (error) {
+            const errorMsg = error.message && typeof error.message === 'object'
+                ? JSON.stringify(error.message)
+                : (error.message || 'Unknown error occurred');
+
+            toast({
+                title: 'Error',
+                description: `Failed to add bank account: ${errorMsg}`,
+                variant: 'destructive',
+            });
+        } finally {
+            setIsAddingBankAccount(false);
+        }
+    };
+
+    const handleAddOrgBankAccount = async (bankAccountData) => {
+        setIsAddingOrgBankAccount(true);
+        try {
+            const newAccount = await addOrganisationBankAccount(bankAccountData, user.access_token);
+            toast({ title: 'Success', description: 'Organization bank account added successfully.' });
+            setOrgBankAccounts(prev => [...prev, newAccount]);
+            setFromBankAccountId(String(newAccount.id));
+            setShowAddOrgBankAccountDialog(false);
+        } catch (error) {
+            const errorMsg = error.message && typeof error.message === 'object'
+                ? JSON.stringify(error.message)
+                : (error.message || 'Unknown error occurred');
+            toast({
+                title: 'Error',
+                description: `Failed to add organization bank account: ${errorMsg}`,
+                variant: 'destructive',
+            });
+        } finally {
+            setIsAddingOrgBankAccount(false);
+        }
+    };
+
+    const combinedBeneficiaries = useMemo(() => {
+        const uniqueBeneficiaries = new Map();
+        [...localBeneficiaries, ...(beneficiaries || [])].forEach(b => {
+            if (b && b.id) uniqueBeneficiaries.set(String(b.id), b);
+        });
+        return Array.from(uniqueBeneficiaries.values());
+    }, [beneficiaries, localBeneficiaries]);
+
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -172,182 +279,280 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
     }, [selectedBeneficiaryId, beneficiaries, isEditing, beneficiaryBankAccountsCache]);
 
     return (
-        <DialogContent className="w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto px-4 py-6 sm:p-6" closeDisabled={isLoading}>
-            <DialogHeader>
-                <DialogTitle>{isEditing ? 'Edit Voucher' : 'Add New Voucher'}</DialogTitle>
-                <DialogDescription>
-                    {isEditing ? 'Update the details of the existing voucher.' : 'Fill in the details to add a new voucher.'}
-                </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-6 pt-4">
-                <div
-                    className="space-y-6"
-                    style={isLoading ? { opacity: 0.5, pointerEvents: 'none' } : {}}
-                >
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <Label htmlFor="voucherType" className="mb-2">Voucher Type</Label>
-                            <Select name="voucher_type" required onValueChange={setVoucherType} value={voucherType} disabled={isLoading}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="debit">Debit</SelectItem>
-                                    <SelectItem value="cash">Cash</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div>
-                            <Label htmlFor="amount" className="mb-2">Amount</Label>
-                            <Input name="amount" id="amount" type="number" step="0.01" required defaultValue={voucher?.amount} disabled={isLoading} />
-                        </div>
-                    </div>
-
-                    <div>
-                        <Label htmlFor="beneficiary_id" className="mb-2">Beneficiary</Label>
-                        {isLoading ? (
-                            <div className="flex items-center justify-center p-2 border border-white/20 bg-white/10 rounded-lg h-11">
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                            </div>
-                        ) : (
-                            <Combobox
-                                options={(beneficiaries || []).map(b => ({
-                                    value: String(b.id),
-                                    label: b.beneficiary_type === 'individual' ? b.name : b.company_name
-                                }))}
-                                value={selectedBeneficiaryId ? String(selectedBeneficiaryId) : ''}
-                                onValueChange={(value) => setSelectedBeneficiaryId(value)}
-                                placeholder="Select beneficiary..."
-                                searchPlaceholder="Search beneficiaries..."
-                                emptyText="No beneficiaries found."
-                                disabled={isLoading}
-                            />
-                        )}
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <Label htmlFor="payment_type" className="mb-2">Payment Type</Label>
-                            {voucherType === 'debit' ? (
-                                <Select name="payment_type" required onValueChange={setPaymentType} value={paymentType} disabled={isLoading}>
-                                    <SelectTrigger><SelectValue placeholder="Select payment type" /></SelectTrigger>
+        <>
+            <DialogContent className="w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto px-4 py-6 sm:p-6" closeDisabled={isLoading}>
+                <DialogHeader>
+                    <DialogTitle>{isEditing ? 'Edit Voucher' : 'Add New Voucher'}</DialogTitle>
+                    <DialogDescription>
+                        {isEditing ? 'Update the details of the existing voucher.' : 'Fill in the details to add a new voucher.'}
+                    </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-6 pt-4">
+                    <div
+                        className="space-y-6"
+                        style={isLoading ? { opacity: 0.5, pointerEvents: 'none' } : {}}
+                    >
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <Label htmlFor="voucherType" className="mb-2">Voucher Type</Label>
+                                <Select name="voucher_type" required onValueChange={setVoucherType} value={voucherType} disabled={isLoading}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                                        <SelectItem value="upi">UPI</SelectItem>
-                                        <SelectItem value="card">Card</SelectItem>
-                                        <SelectItem value="cheque">Cheque</SelectItem>
-                                        <SelectItem value="demand_draft">Demand Draft</SelectItem>
+                                        <SelectItem value="debit">Debit</SelectItem>
+                                        <SelectItem value="cash">Cash</SelectItem>
                                     </SelectContent>
                                 </Select>
+                            </div>
+                            <div>
+                                <Label htmlFor="amount" className="mb-2">Amount</Label>
+                                <Input name="amount" id="amount" type="number" step="0.01" required defaultValue={voucher?.amount} disabled={isLoading} />
+                            </div>
+                        </div>
+
+                        <div>
+                            <Label htmlFor="beneficiary_id" className="mb-2">Beneficiary</Label>
+                            {isLoading ? (
+                                <div className="flex items-center justify-center p-2 border border-white/20 bg-white/10 rounded-lg h-11">
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                </div>
                             ) : (
-                                <Input value="Cash" disabled />
+                                <Combobox
+                                    options={combinedBeneficiaries.map(b => ({
+                                        value: String(b.id),
+                                        label: b.beneficiary_type === 'individual' ? b.name : b.company_name
+                                    }))}
+                                    value={selectedBeneficiaryId ? String(selectedBeneficiaryId) : ''}
+                                    onValueChange={(value) => setSelectedBeneficiaryId(value)}
+                                    placeholder="Select beneficiary..."
+                                    searchPlaceholder="Search beneficiaries..."
+                                    emptyText="No beneficiaries found."
+                                    footer={
+                                        <Button
+                                            type="button"
+                                            variant="secondary"
+                                            size="sm"
+                                            className="w-full h-8 text-xs mt-1"
+                                            onClick={() => setShowAddBeneficiaryDialog(true)}
+                                        >
+                                            <Plus className="w-3 h-3 mr-1" />
+                                            Add New Beneficiary
+                                        </Button>
+                                    }
+                                    disabled={isLoading}
+                                />
                             )}
                         </div>
 
-                        {voucherType === 'debit' && paymentType && paymentType !== '' && (
-                            <>
-                                <div>
-                                    <Label htmlFor="from_bank_account_id" className="mb-2">From (Organisation Bank)</Label>
-                                    {isLoadingOrgAccounts ? (
-                                        <div className="flex items-center justify-center p-2 border border-white/20 bg-white/10 rounded-lg h-11">
-                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                        </div>
-                                    ) : (
-                                        <Combobox
-                                            options={(isEditing ? (organisationBankAccounts || []) : orgBankAccounts).map(acc => ({
-                                                value: String(acc.id),
-                                                label: `${acc.bank_name} - ...${String(acc.account_number).slice(-4)}`
-                                            }))}
-                                            value={fromBankAccountId ? String(fromBankAccountId) : ''}
-                                            onValueChange={(value) => setFromBankAccountId(value)}
-                                            placeholder="Select your bank account..."
-                                            searchPlaceholder="Search bank accounts..."
-                                            emptyText="No bank accounts found."
-                                            disabled={isLoading || isLoadingOrgAccounts}
-                                        />
-                                    )}
-                                </div>
-                                <div className="md:col-span-2">
-                                    <Label htmlFor="to_bank_account_id" className="mb-2">To (Beneficiary Bank)</Label>
-                                    {isLoadingBeneficiaryAccounts ? (
-                                        <div className="flex items-center justify-center p-2 border border-white/20 bg-white/10 rounded-lg h-11">
-                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                        </div>
-                                    ) : !selectedBeneficiaryId ? (
-                                        <div className="flex items-center justify-center p-2 border border-white/20 bg-white/10 rounded-lg h-11 text-gray-400">
-                                            First select a beneficiary
-                                        </div>
-                                    ) : selectedBeneficiaryBankAccounts.length === 0 ? (
-                                        <div className="flex items-center justify-center p-2 border border-white/20 bg-white/10 rounded-lg h-11 text-gray-400">
-                                            No bank accounts for this beneficiary
-                                        </div>
-                                    ) : (
-                                        <Combobox
-                                            options={selectedBeneficiaryBankAccounts.map(acc => ({
-                                                value: String(acc.id),
-                                                label: `${acc.bank_name} - ${acc.account_number}`
-                                            }))}
-                                            value={toBankAccountId ? String(toBankAccountId) : ''}
-                                            onValueChange={(value) => setToBankAccountId(value)}
-                                            placeholder="Select beneficiary's account..."
-                                            searchPlaceholder="Search beneficiary accounts..."
-                                            emptyText="No bank accounts found."
-                                            disabled={isLoading || isLoadingBeneficiaryAccounts}
-                                        />
-                                    )}
-                                </div>
-                            </>
-                        )}
-                    </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <Label htmlFor="payment_type" className="mb-2">Payment Type</Label>
+                                {voucherType === 'debit' ? (
+                                    <Select name="payment_type" required onValueChange={setPaymentType} value={paymentType} disabled={isLoading}>
+                                        <SelectTrigger><SelectValue placeholder="Select payment type" /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                                            <SelectItem value="upi">UPI</SelectItem>
+                                            <SelectItem value="card">Card</SelectItem>
+                                            <SelectItem value="cheque">Cheque</SelectItem>
+                                            <SelectItem value="demand_draft">Demand Draft</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                ) : (
+                                    <Input value="Cash" disabled />
+                                )}
+                            </div>
 
-                    <div>
-                        <Label htmlFor="attachment" className="mb-2">Attachments (Multiple files allowed)</Label>
-                        <Input id="attachment" name="attachment" type="file" multiple disabled={isLoading} />
-                        {isEditing && voucher?.attachment_id && <p className="text-xs text-gray-400 mt-1">Leave empty to keep existing attachments.</p>}
-                    </div>
-
-                    {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
-                        <div>
-                            <Label htmlFor="finance_header_id" className="mb-2">Finance Header</Label>
-                            <Select name="finance_header_id" defaultValue={voucher?.finance_header_id} disabled={isLoading}>
-                                <SelectTrigger><SelectValue placeholder="Select a header" /></SelectTrigger>
-                                <SelectContent>
-                                    {(financeHeaders || []).map(header => (
-                                        <SelectItem key={header.id} value={String(header.id)}>
-                                            {header.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            {voucherType === 'debit' && paymentType && paymentType !== '' && (
+                                <>
+                                    <div>
+                                        <Label htmlFor="from_bank_account_id" className="mb-2">From (Organisation Bank)</Label>
+                                        {isLoadingOrgAccounts ? (
+                                            <div className="flex items-center justify-center p-2 border border-white/20 bg-white/10 rounded-lg h-11">
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                            </div>
+                                        ) : (
+                                            <Combobox
+                                                options={(isEditing ? (organisationBankAccounts || []) : orgBankAccounts).map(acc => ({
+                                                    value: String(acc.id),
+                                                    label: `${acc.bank_name} - ...${String(acc.account_number).slice(-4)}`
+                                                }))}
+                                                value={fromBankAccountId ? String(fromBankAccountId) : ''}
+                                                onValueChange={(value) => setFromBankAccountId(value)}
+                                                placeholder="Select your bank account..."
+                                                searchPlaceholder="Search bank accounts..."
+                                                emptyText="No bank accounts found."
+                                                footer={
+                                                    <Button
+                                                        type="button"
+                                                        variant="secondary"
+                                                        size="sm"
+                                                        className="w-full h-8 text-xs mt-1"
+                                                        onClick={() => setShowAddOrgBankAccountDialog(true)}
+                                                    >
+                                                        <Plus className="w-3 h-3 mr-1" />
+                                                        Add New Organization Bank
+                                                    </Button>
+                                                }
+                                                disabled={isLoading || isLoadingOrgAccounts}
+                                            />
+                                        )}
+                                    </div>
+                                    <div className="md:col-span-2">
+                                        <Label htmlFor="to_bank_account_id" className="mb-2">To (Beneficiary Bank)</Label>
+                                        {isLoadingBeneficiaryAccounts ? (
+                                            <div className="flex items-center justify-center p-2 border border-white/20 bg-white/10 rounded-lg h-11">
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                            </div>
+                                        ) : !selectedBeneficiaryId ? (
+                                            <div className="flex items-center justify-center p-2 border border-white/20 bg-white/10 rounded-lg h-11 text-gray-400">
+                                                First select a beneficiary
+                                            </div>
+                                        ) : selectedBeneficiaryBankAccounts.length === 0 ? (
+                                            <div className="flex flex-col items-center justify-center p-2 border border-white/20 bg-white/10 rounded-lg min-h-[44px]">
+                                                <span className="text-sm text-gray-400 mb-1">No bank accounts found</span>
+                                                <Button
+                                                    type="button"
+                                                    variant="secondary"
+                                                    size="sm"
+                                                    className="h-7 text-xs w-full"
+                                                    onClick={() => setShowAddBankAccountDialog(true)}
+                                                >
+                                                    <Plus className="w-3 h-3 mr-1" />
+                                                    Add New Account
+                                                </Button>
+                                            </div>
+                                        ) : (
+                                            <Combobox
+                                                options={selectedBeneficiaryBankAccounts.map(acc => ({
+                                                    value: String(acc.id),
+                                                    label: `${acc.bank_name} - ${acc.account_number}`
+                                                }))}
+                                                value={toBankAccountId ? String(toBankAccountId) : ''}
+                                                onValueChange={(value) => setToBankAccountId(value)}
+                                                placeholder="Select beneficiary's account..."
+                                                searchPlaceholder="Search beneficiary accounts..."
+                                                emptyText="No bank accounts found."
+                                                footer={
+                                                    <Button
+                                                        type="button"
+                                                        variant="secondary"
+                                                        size="sm"
+                                                        className="w-full h-8 text-xs mt-1"
+                                                        onClick={() => setShowAddBankAccountDialog(true)}
+                                                    >
+                                                        <Plus className="w-3 h-3 mr-1" />
+                                                        Add New Bank Account
+                                                    </Button>
+                                                }
+                                                disabled={isLoading || isLoadingBeneficiaryAccounts}
+                                            />
+                                        )}
+                                    </div>
+                                </>
+                            )}
                         </div>
-                    )}
 
-                    <div>
-                        <Label htmlFor="remarks" className="mb-2">Remarks</Label>
-                        <Textarea name="remarks" id="remarks" defaultValue={voucher?.remarks} disabled={isLoading} />
+                        <div>
+                            <Label htmlFor="attachment" className="mb-2">Attachments (Multiple files allowed)</Label>
+                            <Input id="attachment" name="attachment" type="file" multiple disabled={isLoading} />
+                            {isEditing && voucher?.attachment_id && <p className="text-xs text-gray-400 mt-1">Leave empty to keep existing attachments.</p>}
+                        </div>
+
+                        {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
+                            <div>
+                                <Label htmlFor="finance_header_id" className="mb-2">Finance Header</Label>
+                                <Select name="finance_header_id" defaultValue={voucher?.finance_header_id} disabled={isLoading}>
+                                    <SelectTrigger><SelectValue placeholder="Select a header" /></SelectTrigger>
+                                    <SelectContent>
+                                        {(financeHeaders || []).map(header => (
+                                            <SelectItem key={header.id} value={String(header.id)}>
+                                                {header.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+
+                        <div>
+                            <Label htmlFor="remarks" className="mb-2">Remarks</Label>
+                            <Textarea name="remarks" id="remarks" defaultValue={voucher?.remarks} disabled={isLoading} />
+                        </div>
                     </div>
-                </div>
 
-                <DialogFooter>
-                    <DialogClose asChild>
+                    <DialogFooter>
+                        <DialogClose asChild>
+                            <Button
+                                variant="ghost"
+                                type="button"
+                                onClick={onCancel}
+                                disabled={isLoading}
+                                style={isLoading ? { opacity: 0.5, pointerEvents: 'none' } : {}}
+                            >
+                                Cancel
+                            </Button>
+                        </DialogClose>
                         <Button
-                            variant="ghost"
-                            type="button"
-                            onClick={onCancel}
+                            type="submit"
                             disabled={isLoading}
                             style={isLoading ? { opacity: 0.5, pointerEvents: 'none' } : {}}
                         >
-                            Cancel
+                            {isEditing ? 'Save Changes' : <><Plus className="w-4 h-4 mr-2" /> Add Voucher</>}
                         </Button>
-                    </DialogClose>
-                    <Button
-                        type="submit"
-                        disabled={isLoading}
-                        style={isLoading ? { opacity: 0.5, pointerEvents: 'none' } : {}}
-                    >
-                        {isEditing ? 'Save Changes' : <><Plus className="w-4 h-4 mr-2" /> Add Voucher</>}
-                    </Button>
-                </DialogFooter>
-            </form>
-        </DialogContent>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+
+            <Dialog open={showAddBeneficiaryDialog} onOpenChange={setShowAddBeneficiaryDialog}>
+                <DialogContent className="max-w-2xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="text-lg sm:text-xl">Add New Beneficiary</DialogTitle>
+                        <DialogDescription>Enter the details for the new beneficiary.</DialogDescription>
+                    </DialogHeader>
+                    <BeneficiaryForm
+                        onAdd={handleAddBeneficiary}
+                        onCancel={() => setShowAddBeneficiaryDialog(false)}
+                        isSaving={isAddingBeneficiary}
+                    />
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={showAddBankAccountDialog} onOpenChange={setShowAddBankAccountDialog}>
+                <DialogContent className="max-w-xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="text-lg sm:text-xl">Add Bank Account</DialogTitle>
+                        <DialogDescription>
+                            Add a new bank account for the selected beneficiary.
+                        </DialogDescription>
+                    </DialogHeader>
+                    {selectedBeneficiaryId && (
+                        <AddBankAccountForm
+                            beneficiary={{ id: selectedBeneficiaryId }}
+                            onAddBankAccount={handleAddBankAccount}
+                            onCancel={() => setShowAddBankAccountDialog(false)}
+                            isSaving={isAddingBankAccount}
+                        />
+                    )}
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={showAddOrgBankAccountDialog} onOpenChange={setShowAddOrgBankAccountDialog}>
+                <DialogContent className="max-w-xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="text-lg sm:text-xl">Add Organization Bank Account</DialogTitle>
+                        <DialogDescription>
+                            Add a new bank account for your organization.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <AddOrganisationBankAccountForm
+                        entityId={entityId}
+                        onAdd={handleAddOrgBankAccount}
+                        onCancel={() => setShowAddOrgBankAccountDialog(false)}
+                        isSaving={isAddingOrgBankAccount}
+                    />
+                </DialogContent>
+            </Dialog>
+        </>
     );
 };
 
