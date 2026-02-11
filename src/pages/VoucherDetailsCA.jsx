@@ -1485,11 +1485,7 @@ const VoucherDetailsCA = () => {
                                                                                 variant="outline"
                                                                                 className="h-9 sm:h-10"
                                                                                 onClick={handleServerPDFExport}
-                                                                                disabled={
-                                                                                    isExportingPDF ||
-                                                                                    (voucher?.payment_type === 'bank_transfer' &&
-                                                                                        (!fromBankAccounts.length || !toBankAccounts.length))
-                                                                                }
+                                                                                disabled={isExportingPDF}
                                                                             >
                                                                                 {isExportingPDF ? (
                                                                                     <Loader2 className="h-4 w-4 animate-spin" />
