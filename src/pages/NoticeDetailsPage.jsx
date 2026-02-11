@@ -14,8 +14,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Search } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
+import imageCompression from 'browser-image-compression';
 
-import { getNotice, getNoticeComments, addNoticeComment, requestNoticeClosure, approveNoticeClosure, rejectNoticeClosure, addNoticeCollaborator, markNoticeCommentAsRead, getNoticeCommentReadReceipts } from '@/lib/api/notices';
+import { getNotice, getNoticeComments, addNoticeComment, requestNoticeClosure, approveNoticeClosure, rejectNoticeClosure, addNoticeCollaborator, markNoticeCommentAsRead, getNoticeCommentReadReceipts, deleteNotice } from '@/lib/api/notices';
 import { getNoticeAttachment } from '@/lib/api';
 import { listAllClientUsers } from '@/lib/api/organisation';
 import { useAuth } from '@/hooks/useAuth';
@@ -53,6 +54,7 @@ const NoticeDetailsPage = () => {
     const [isRequestCloseOpen, setIsRequestCloseOpen] = useState(false);
     const [isRejectCloseOpen, setIsRejectCloseOpen] = useState(false);
     const [closureReason, setClosureReason] = useState('');
+    const [previewAttachment, setPreviewAttachment] = useState(null); // { url, name, type }
     const [isProcessingAction, setIsProcessingAction] = useState(false);
 
     const [loadingImages, setLoadingImages] = useState(new Set());
@@ -252,7 +254,26 @@ const NoticeDetailsPage = () => {
 
         setIsSending(true);
         try {
-            await addNoticeComment(noticeId, newMessage, selectedFile, token);
+            let fileToSend = selectedFile;
+
+            // Image Compression
+            if (fileToSend && fileToSend.type.startsWith('image/')) {
+                const options = {
+                    maxSizeMB: 1,
+                    maxWidthOrHeight: 1920,
+                    useWebWorker: true
+                };
+                try {
+                    fileToSend = await imageCompression(fileToSend, options);
+                } catch (error) {
+                    console.error("Image compression failed:", error);
+                }
+            }
+
+            // Backend requires 'message' field not to be empty/null
+            const messageToSend = newMessage.trim() || " ";
+
+            await addNoticeComment(noticeId, messageToSend, fileToSend, token);
             setNewMessage('');
             setSelectedFile(null);
             if (fileInputRef.current) fileInputRef.current.value = '';
@@ -293,6 +314,23 @@ const NoticeDetailsPage = () => {
             setIsProcessingAction(false);
         }
     }
+
+    const handleDelete = async () => {
+        if (!confirm("Are you sure you want to delete this notice? This action cannot be undone.")) return;
+        setIsProcessingAction(true);
+        try {
+            await deleteNotice(noticeId, token);
+            toast({ title: "Success", description: "Notice deleted successfully" });
+            navigate('/notices');
+        } catch (error) {
+            console.error("Failed to delete notice", error);
+            toast({ title: "Error", description: "Failed to delete notice", variant: "destructive" });
+        } finally {
+            setIsProcessingAction(false);
+        }
+    };
+
+
 
     const getUserNameColor = (userId) => {
         if (!userId) return 'text-gray-300';
@@ -355,10 +393,10 @@ const NoticeDetailsPage = () => {
     }
     if (!isLoading && !notice) return <div className="p-8 text-center text-white">Notice not found</div>;
 
-    const canRequestClose = (user?.role === 'CLIENT_MASTER_ADMIN' || user?.role === 'CLIENT_USER') &&
+    const canRequestClose = user?.role === 'CA_ACCOUNTANT' &&
         (notice.status === 'pending' || notice.status === 'rejected');
 
-    const canReviewClose = user?.role === 'CA_ACCOUNTANT' && notice.status === 'closure_requested';
+    const canReviewClose = user?.role === 'CLIENT_MASTER_ADMIN' && notice.status === 'closure_requested';
 
     return (
         <div className="h-full flex flex-col text-white bg-transparent p-3 sm:p-4 md:p-6 pb-24 md:pb-24">
@@ -389,9 +427,9 @@ const NoticeDetailsPage = () => {
                 <div className="flex items-center gap-2">
                     {canRequestClose && (
                         <Button
-                            variant="reject"
+                            variant="accept" // Changed from 'reject' to default/green custom
                             onClick={() => setIsRequestCloseOpen(true)}
-                            className="h-9 text-sm font-medium"
+                            className="bg-green-600 hover:bg-green-700 text-white h-9 text-sm font-medium"
                         >
                             <CheckCircle className="w-4 h-4 mr-2" /> Request Close
                         </Button>
@@ -408,9 +446,22 @@ const NoticeDetailsPage = () => {
                         </>
                     )}
 
-                    {user?.role === 'CLIENT_MASTER_ADMIN' && (
+                    {(user?.role === 'CLIENT_MASTER_ADMIN' || user?.role === 'CA_ACCOUNTANT') && notice.status !== 'closed' && (
                         <Button onClick={() => setIsCollaborateOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white h-9 text-sm font-medium">
                             <UserPlus className="w-4 h-4 mr-2" /> Collaborate
+                        </Button>
+                    )}
+
+                    {/* Delete Option for CA */}
+                    {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_ADMIN') && notice.status !== 'closed' && (
+                        <Button
+                            variant="destructive"
+                            onClick={handleDelete}
+                            disabled={isProcessingAction}
+                            className="h-9 text-sm font-medium bg-red-600 hover:bg-red-700 text-white ml-2"
+                            title="Delete Notice"
+                        >
+                            <Trash2 className="w-4 h-4 mr-2" /> Delete
                         </Button>
                     )}
                 </div>
@@ -570,22 +621,41 @@ const NoticeDetailsPage = () => {
                                                                 {msg.attachment_url && (
                                                                     <div className="mb-2">
                                                                         {msg.attachment_url.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ? (
-                                                                            <div className="rounded-lg overflow-hidden relative">
+                                                                            <div className="rounded-lg overflow-hidden relative group">
                                                                                 <img
                                                                                     src={msg.attachment_url}
                                                                                     alt="Attachment"
-                                                                                    className="max-w-full h-auto rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                                                                                    className="max-w-full h-auto max-h-[200px] object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                                                                                    onClick={() => setPreviewAttachment({
+                                                                                        url: msg.attachment_url,
+                                                                                        name: msg.attachment_name || 'Image',
+                                                                                        type: 'image'
+                                                                                    })}
                                                                                 />
+                                                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                                                                                    <Eye className="text-white w-8 h-8 drop-shadow-lg" />
+                                                                                </div>
                                                                             </div>
                                                                         ) : (
-                                                                            <div className="flex items-center gap-3 p-2 bg-white/5 border border-white/10 rounded-lg">
+                                                                            <div
+                                                                                className="flex items-center gap-3 p-2 bg-white/5 border border-white/10 rounded-lg cursor-pointer hover:bg-white/10 transition-colors"
+                                                                                onClick={() => setPreviewAttachment({
+                                                                                    url: msg.attachment_url,
+                                                                                    name: msg.attachment_name || 'Document',
+                                                                                    type: 'document'
+                                                                                })}
+                                                                            >
                                                                                 <FileText className="w-8 h-8 text-blue-400" />
                                                                                 <div className="flex-1 min-w-0">
                                                                                     <p className="text-sm font-medium text-white truncate">{msg.attachment_name || 'Attachment'}</p>
+                                                                                    <p className="text-xs text-gray-400">Click to preview</p>
                                                                                 </div>
-                                                                                <a href={msg.attachment_url} download className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors">
-                                                                                    <Download className="w-4 h-4 text-white" />
-                                                                                </a>
+                                                                                <Button size="icon" variant="ghost" className="h-8 w-8 text-gray-400 hover:text-white" onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    window.open(msg.attachment_url, '_blank');
+                                                                                }}>
+                                                                                    <Download className="w-4 h-4" />
+                                                                                </Button>
                                                                             </div>
                                                                         )}
                                                                     </div>
@@ -675,6 +745,7 @@ const NoticeDetailsPage = () => {
                                     ref={fileInputRef}
                                     className="hidden"
                                     onChange={(e) => setSelectedFile(e.target.files[0])}
+                                    disabled={isSending || notice.status === 'closed'}
                                 />
                                 <Button
                                     type="button"
@@ -682,15 +753,16 @@ const NoticeDetailsPage = () => {
                                     variant="ghost"
                                     className="text-gray-400 hover:text-white hover:bg-white/10"
                                     onClick={() => fileInputRef.current?.click()}
+                                    disabled={isSending || notice.status === 'closed'}
                                 >
                                     <Paperclip className="w-5 h-5" />
                                 </Button>
                                 <Input
                                     value={newMessage}
                                     onChange={(e) => setNewMessage(e.target.value)}
-                                    placeholder="Type your message..."
-                                    className="flex-1 bg-white/10 text-white border-2 border-blue-500/50 rounded-full h-10 px-4 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 placeholder:text-gray-400"
-                                    disabled={isSending}
+                                    placeholder={notice.status === 'closed' ? "This notice is closed" : "Type your message..."}
+                                    className="flex-1 bg-white/10 text-white border-2 border-blue-500/50 rounded-full h-10 px-4 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 placeholder:text-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    disabled={isSending || notice.status === 'closed'}
                                     onKeyPress={(e) => {
                                         if (e.key === 'Enter' && !e.shiftKey) {
                                             e.preventDefault();
@@ -698,7 +770,7 @@ const NoticeDetailsPage = () => {
                                         }
                                     }}
                                 />
-                                <Button type="submit" size="icon" disabled={isSending} className={`flex-shrink-0 h-10 w-10 rounded-full p-0 ${isSending ? 'bg-gray-600 cursor-not-allowed text-gray-400' : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg'}`}>
+                                <Button type="submit" size="icon" disabled={isSending || notice.status === 'closed'} className={`flex-shrink-0 h-10 w-10 rounded-full p-0 ${(isSending || notice.status === 'closed') ? 'bg-gray-600 cursor-not-allowed text-gray-400' : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg'}`}>
                                     {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                                 </Button>
                             </form>
@@ -813,6 +885,48 @@ const NoticeDetailsPage = () => {
                     </DialogFooter>
                 </DialogContent>
             </Dialog >
+
+            {/* Preview Attachment Dialog */}
+            <Dialog open={!!previewAttachment} onOpenChange={(open) => !open && setPreviewAttachment(null)}>
+                <DialogContent className="glass-card border-white/10 text-white max-w-4xl w-full h-[80vh] flex flex-col p-0 overflow-hidden">
+                    <div className="flex items-center justify-between p-4 border-b border-white/10 bg-black/40">
+                        <div className="flex items-center gap-2">
+                            {previewAttachment?.type === 'image' ? <ImageIcon className="w-5 h-5 text-blue-400" /> : <FileText className="w-5 h-5 text-blue-400" />}
+                            <span className="font-medium truncate max-w-[300px]">{previewAttachment?.name}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 gap-2 hover:bg-white/10"
+                                onClick={() => window.open(previewAttachment?.url, '_blank')}
+                            >
+                                <Download className="w-4 h-4" /> Download
+                            </Button>
+                            <DialogClose asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-white/10">
+                                    <X className="w-4 h-4" />
+                                </Button>
+                            </DialogClose>
+                        </div>
+                    </div>
+                    <div className="flex-1 bg-black/60 flex items-center justify-center p-4 overflow-hidden relative">
+                        {previewAttachment?.type === 'image' ? (
+                            <img
+                                src={previewAttachment.url}
+                                alt={previewAttachment.name}
+                                className="max-w-full max-h-full object-contain"
+                            />
+                        ) : (
+                            <iframe
+                                src={previewAttachment?.url}
+                                className="w-full h-full rounded bg-white"
+                                title="File Preview"
+                            />
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
 
             {/* Reject Close Dialog */}
             < Dialog open={isRejectCloseOpen} onOpenChange={setIsRejectCloseOpen} >

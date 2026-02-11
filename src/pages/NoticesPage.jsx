@@ -12,6 +12,7 @@ import { listClients, listClientsByOrganization } from '@/lib/api/clients';
 import { getNotices, uploadNotice } from '@/lib/api/notices';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/ui/use-toast';
+import { formatDistanceToNow, formatDistance } from 'date-fns';
 
 const NoticesPage = () => {
     const navigate = useNavigate();
@@ -274,11 +275,17 @@ const NoticesPage = () => {
                         <TableHeader className="sticky top-0 z-10 border-b border-white/10">
                             <TableRow className="border-white/10 hover:bg-white/5">
                                 <TableHead className="w-[40px]"></TableHead>
-                                <TableHead className="text-gray-300 w-[24%]">Client</TableHead>
-                                <TableHead className="text-gray-300 w-[38%]">Notice Title</TableHead>
-                                <TableHead className="text-gray-300 w-[18%]">Received At</TableHead>
-                                <TableHead className="text-gray-300 w-[10%]">Status</TableHead>
-                                <TableHead className="text-right text-gray-300 w-[10%]">Actions</TableHead>
+                                <TableHead className="text-gray-300 w-[20%]">Client</TableHead>
+                                <TableHead className="text-gray-300 w-[25%]">Notice</TableHead>
+                                <TableHead className="text-gray-300 w-[20%]">Uploaded Date</TableHead>
+                                {viewMode === 'history' && (
+                                    <>
+                                        <TableHead className="text-gray-300 w-[15%]">Completed Date</TableHead>
+                                        <TableHead className="text-gray-300 w-[10%]">Duration</TableHead>
+                                    </>
+                                )}
+                                <TableHead className="text-gray-300 w-[15%]">Uploaded By</TableHead>
+                                <TableHead className="text-gray-300 w-[15%] text-right">Status</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -314,22 +321,48 @@ const NoticesPage = () => {
                                             {(() => {
                                                 if (!notice.created_at) return 'N/A';
                                                 const dateObj = new Date(notice.created_at);
-                                                // Format similar to VoucherHistory
                                                 const datePart = dateObj.toLocaleDateString('en-IN', {
-                                                    day: 'numeric', month: 'numeric', year: 'numeric'
+                                                    day: 'numeric', month: 'short', year: 'numeric'
                                                 });
-                                                const timePart = dateObj.toLocaleTimeString('en-IN', {
-                                                    hour: '2-digit', minute: '2-digit', hour12: true
-                                                });
+                                                let duration = '';
+                                                try {
+                                                    duration = formatDistanceToNow(dateObj, { addSuffix: true });
+                                                } catch (e) { console.error(e); }
+
                                                 return (
                                                     <div className="flex flex-col">
-                                                        <span className="font-semibold text-white">{datePart}</span>
-                                                        <span className="text-xs text-gray-400">{timePart}</span>
+                                                        <span className="font-medium text-white">{datePart}</span>
+                                                        <span className="text-xs text-gray-400">{duration}</span>
                                                     </div>
                                                 );
                                             })()}
                                         </TableCell>
-                                        <TableCell>
+                                        {viewMode === 'history' && (
+                                            <>
+                                                <TableCell className="text-gray-300">
+                                                    {(() => {
+                                                        if (!notice.reviewed_at) return 'N/A';
+                                                        const dateObj = new Date(notice.reviewed_at);
+                                                        const datePart = dateObj.toLocaleDateString('en-IN', {
+                                                            day: 'numeric', month: 'short', year: 'numeric'
+                                                        });
+                                                        return <span className="font-medium text-white">{datePart}</span>;
+                                                    })()}
+                                                </TableCell>
+                                                <TableCell className="text-gray-300">
+                                                    {(() => {
+                                                        if (!notice.created_at || !notice.reviewed_at) return 'N/A';
+                                                        try {
+                                                            return formatDistance(new Date(notice.created_at), new Date(notice.reviewed_at));
+                                                        } catch (e) { return 'N/A'; }
+                                                    })()}
+                                                </TableCell>
+                                            </>
+                                        )}
+                                        <TableCell className="text-gray-300">
+                                            {notice.created_by_name || 'Unknown'}
+                                        </TableCell>
+                                        <TableCell className="text-right">
                                             <Badge variant={
                                                 notice.status === 'pending' ? 'destructive' :
                                                     notice.status === 'closure_requested' ? 'warning' :
@@ -337,16 +370,6 @@ const NoticesPage = () => {
                                             } className="capitalize relative max-w-fit whitespace-nowrap">
                                                 {notice.status === 'closed' ? 'Verified' : notice.status?.replace('_', ' ')}
                                             </Badge>
-                                        </TableCell>
-                                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                                            <div className="flex justify-end gap-2 transition-opacity">
-                                                <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-400 hover:text-blue-300 hover:bg-blue-500/20" onClick={() => navigate(`/notices/${notice.id}`)}>
-                                                    <Eye className="w-4 h-4" />
-                                                </Button>
-                                                <Button size="icon" variant="ghost" className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-500/20">
-                                                    <Trash2 className="w-4 h-4" />
-                                                </Button>
-                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ))

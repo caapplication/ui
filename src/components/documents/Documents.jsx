@@ -343,6 +343,8 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   const [itemToDelete, setItemToDelete] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [previewFile, setPreviewFile] = useState(null);
+  const [documentName, setDocumentName] = useState(''); // New state for document name (without extension)
+  const [fileExtension, setFileExtension] = useState(''); // New state for file extension
   const [collaborateDialogOpen, setCollaborateDialogOpen] = useState(false);
   const [collaborateDoc, setCollaborateDoc] = useState(null);
   const [availableUsers, setAvailableUsers] = useState([]);
@@ -835,6 +837,8 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
       return;
     }
 
+    const finalDocumentName = documentName.trim() ? `${documentName.trim()}${fileExtension}` : file.name;
+
     // Validate that at least one option is selected (either checkbox OR expiry date)
     if (!withoutExpiryDate && !shareExpiryDate) {
       toast({ title: "Expiry date required", description: "Please select an expiry date or check 'Without expiry date'.", variant: "destructive" });
@@ -846,7 +850,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
     const tempDocId = `temp-${Date.now()}`;
     const newDocument = {
       id: tempDocId,
-      name: file.name,
+      name: finalDocumentName,
       is_folder: false,
       file_type: file.type || 'Unknown',
       size: file.size,
@@ -871,7 +875,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
     try {
       let createdDocument;
       const expiryDateToSend = withoutExpiryDate ? null : shareExpiryDate;
-      createdDocument = await uploadFile(currentFolderId, user?.role === 'CA_ACCOUNTANT' ? realSelectedClientId : entityId, file, expiryDateToSend, user.access_token);
+      createdDocument = await uploadFile(currentFolderId, user?.role === 'CA_ACCOUNTANT' ? realSelectedClientId : entityId, file, expiryDateToSend, user.access_token, finalDocumentName);
 
       // Replace temp document with real document from server
       setDocumentsState(prev => {
@@ -897,6 +901,9 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
       e.target.reset();
       setShareExpiryDate(null);
       setWithoutExpiryDate(false);
+      setWithoutExpiryDate(false);
+      setDocumentName(''); // Reset document name
+      setFileExtension(''); // Reset extension
       // Refresh in background (non-blocking) to sync with server
       fetchDocuments(true).catch(err => console.error('Background refresh failed:', err));
     } catch (error) {
@@ -2473,6 +2480,8 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
             if (!open) {
               setShareExpiryDate(null);
               setWithoutExpiryDate(false);
+              setDocumentName('');
+              setFileExtension('');
             }
           }}>
             <DialogContent>
@@ -2480,7 +2489,42 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
               <form onSubmit={handleUpload} className="space-y-4 py-4">
                 <div>
                   <Label htmlFor="file">Select File</Label>
-                  <Input id="file" name="file" type="file" required />
+                  <Input
+                    id="file"
+                    name="file"
+                    type="file"
+                    required
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (file) {
+                        const lastDotIndex = file.name.lastIndexOf('.');
+                        if (lastDotIndex !== -1) {
+                          setDocumentName(file.name.substring(0, lastDotIndex));
+                          setFileExtension(file.name.substring(lastDotIndex));
+                        } else {
+                          setDocumentName(file.name);
+                          setFileExtension('');
+                        }
+                      }
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="document-name">Document Name</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="document-name"
+                      value={documentName}
+                      onChange={(e) => setDocumentName(e.target.value)}
+                      placeholder="Enter document name"
+                      className="flex-1"
+                    />
+                    {fileExtension && (
+                      <span className="text-sm text-gray-500 font-medium whitespace-nowrap bg-muted px-2 py-2 rounded-md border">
+                        {fileExtension}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="space-y-3">
                   <div className="flex items-center space-x-2">
@@ -2539,6 +2583,8 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                     setShowUpload(false);
                     setShareExpiryDate(null);
                     setWithoutExpiryDate(false);
+                    setDocumentName('');
+                    setFileExtension('');
                   }} disabled={isMutating}>Cancel</Button>
                   <Button type="submit" disabled={isMutating}>
                     {isMutating ? (
