@@ -5,6 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Combobox } from '@/components/ui/combobox';
 import { Search, Filter, Plus, FileText, Eye, Trash2, Loader2, UploadCloud, Bell } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
@@ -30,7 +31,7 @@ const NoticesPage = () => {
     const [clients, setClients] = useState([]);
 
     // Filters
-    const [selectedClient, setSelectedClient] = useState(localStorage.getItem('entityId') || '');
+    const [selectedClient, setSelectedClient] = useState(localStorage.getItem('entityId') || 'all');
     const [noticeTitle, setNoticeTitle] = useState('');
     const [selectedFile, setSelectedFile] = useState(null);
 
@@ -69,9 +70,9 @@ const NoticesPage = () => {
                 const safeClients = Array.isArray(clientsData) ? clientsData : (clientsData.results || []);
                 setClients(safeClients);
 
-                // Default to the first client if available and no client selected
-                if (safeClients.length > 0 && !selectedClient) {
-                    setSelectedClient(safeClients[0].id);
+                // Default to 'all' if no client selected (already handled by useState, but ensuring consistency)
+                if (!selectedClient) {
+                    setSelectedClient('all');
                 }
 
             } catch (error) {
@@ -187,6 +188,7 @@ const NoticesPage = () => {
 
     // Helper to get client name
     const getClientName = (entityId) => {
+        if (entityId === 'all') return 'All Entities';
         return clients.find(c => c.id === entityId)?.name || 'Unknown Client';
     };
 
@@ -199,17 +201,18 @@ const NoticesPage = () => {
                 </h1>
                 <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                     {/* Filter Dropdown for Main View if needed, or just Upload */}
-                    <Select value={selectedClient} onValueChange={setSelectedClient}>
-                        <SelectTrigger className="w-[200px] glass-input border-white/10 bg-black/20 text-white">
-                            <SelectValue placeholder="Select Client" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {/* Removed All Clients option as per requirement */}
-                            {clients.map(client => (
-                                <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    {/* Filter Dropdown for Main View if needed, or just Upload */}
+                    <Combobox
+                        options={[
+                            { value: 'all', label: 'All Entities' },
+                            ...clients.map(client => ({ value: client.id, label: client.name }))
+                        ]}
+                        value={selectedClient}
+                        onValueChange={setSelectedClient}
+                        placeholder="Select Client"
+                        searchPlaceholder="Search client..."
+                        className="w-[250px] border-white/10 bg-black/20 text-white"
+                    />
 
                     {user?.role === 'CA_ACCOUNTANT' && (
                         <Button onClick={() => setIsUploadModalOpen(true)} className="rounded-lg flex-1 sm:flex-initial bg-blue-600 hover:bg-blue-700 text-white">
@@ -285,7 +288,7 @@ const NoticesPage = () => {
                                     </>
                                 )}
                                 <TableHead className="text-gray-300 w-[15%]">Uploaded By</TableHead>
-                                <TableHead className="text-gray-300 w-[15%] text-right">Status</TableHead>
+                                <TableHead className="text-gray-300 w-[15%]">Status</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -362,7 +365,7 @@ const NoticesPage = () => {
                                         <TableCell className="text-gray-300">
                                             {notice.created_by_name || 'Unknown'}
                                         </TableCell>
-                                        <TableCell className="text-right">
+                                        <TableCell>
                                             <Badge variant={
                                                 notice.status === 'pending' ? 'destructive' :
                                                     notice.status === 'closure_requested' ? 'warning' :
