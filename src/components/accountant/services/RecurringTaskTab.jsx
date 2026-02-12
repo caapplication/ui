@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useToast } from '@/components/ui/use-toast';
 import { Loader2, Plus } from 'lucide-react';
@@ -27,6 +28,7 @@ import ServiceRecurringTasksTable from "@/components/accountant/services/Service
 const RecurringTaskTab = ({ service, onUpdate }) => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
 
   // Modal State
@@ -230,6 +232,10 @@ const RecurringTaskTab = ({ service, onUpdate }) => {
     setIsModalOpen(true);
   };
 
+  const handleViewTask = (taskId) => {
+    navigate(`/tasks/${taskId}`);
+  };
+
 
   if (isLoading && recurringTasks.length === 0) {
     return (
@@ -260,6 +266,7 @@ const RecurringTaskTab = ({ service, onUpdate }) => {
         teamMembers={teamMembers}
         onEdit={openEditTaskModal}
         onDelete={handleDelete}
+        onViewTask={handleViewTask}
       />
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
