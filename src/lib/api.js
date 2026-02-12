@@ -276,44 +276,6 @@ export const {
     updatePaymentQRSettings
 } = payments;
 
-// Idle timeout and token refresh logic
-let lastApiCallTimestamp = Date.now();
-let idleTimeout;
-let refreshInterval;
-
-function resetIdleTimeout() {
-    clearTimeout(idleTimeout);
-    idleTimeout = setTimeout(() => {
-        console.log('Session idle for 30 minutes. Logging out...');
-        // Perform logout logic here
-    }, 30 * 60 * 1000); // 30 minutes
-}
-
-function startRefreshInterval() {
-    clearInterval(refreshInterval);
-    refreshInterval = setInterval(() => {
-        if (Date.now() - lastApiCallTimestamp < 15 * 60 * 1000) { // 15 minutes
-            console.log('Refreshing token...');
-            refreshToken(); // Call the refreshToken function
-        }
-    }, 15 * 60 * 1000); // 15 minutes
-}
-
-// Wrap API calls to track activity
-function trackApiCall(apiFunction) {
-    return async function (...args) {
-        lastApiCallTimestamp = Date.now();
-        resetIdleTimeout();
-        return apiFunction(...args);
-    };
-}
-
-
-
-// Example: Wrapping an API call
-export const trackedGetVouchers = trackApiCall(getVouchers);
-
-// Initialize idle timeout and refresh interval
-resetIdleTimeout();
-startRefreshInterval();
+// Wrapped API call functionality can be kept if needed for other purposes, 
+// but the global idle timeout logic should be removed as it's now managed in useAuth.jsx.
 ``

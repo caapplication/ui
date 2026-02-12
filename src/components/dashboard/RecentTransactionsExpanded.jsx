@@ -19,7 +19,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { getVouchersList } from '@/lib/api';
-import { format, startOfDay, endOfDay, differenceInDays, isAfter } from 'date-fns';
+import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, subMonths, isAfter, differenceInDays } from 'date-fns';
 import {
     Select,
     SelectContent,
@@ -38,62 +38,41 @@ import { cn } from '@/lib/utils';
 const TIME_FRAME_PRESETS = [
     { label: 'Today', value: 'today' },
     { label: 'Yesterday', value: 'yesterday' },
-    { label: 'Last 7 Days', value: 'last7' },
-    { label: 'Last 30 Days', value: 'last30' },
-    { label: 'This Month', value: 'thisMonth' },
-    { label: 'Last Month', value: 'lastMonth' },
-    { label: 'Last 3 Months', value: 'last3Months' },
-    { label: 'Last 6 Months', value: 'last6Months' },
-    { label: 'This Year', value: 'thisYear' },
-    { label: 'All Time', value: 'all' },
+    { label: 'Last 7 Days', value: 'last_7_days' },
+    { label: 'Last 30 Days', value: 'last_30_days' },
+    { label: 'This Month', value: 'this_month' },
+    { label: 'Last Month', value: 'last_month' },
+    { label: 'Last 3 Months', value: 'last_3_months' },
+    { label: 'Custom Range', value: 'custom' },
 ];
 
 const getDateRange = (preset, start, end) => {
-    const now = new Date();
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const today = new Date();
+    const startOfToday = startOfDay(today);
+    const endOfToday = endOfDay(today);
+
     switch (preset) {
         case 'today':
-            return { start: startOfToday, end: now };
-        case 'yesterday': {
-            const y = new Date(startOfToday);
-            y.setDate(y.getDate() - 1);
-            return { start: y, end: startOfToday };
-        }
-        case 'last7': {
-            const d = new Date(startOfToday);
-            d.setDate(d.getDate() - 7);
-            return { start: d, end: now };
-        }
-        case 'last30': {
-            const d = new Date(startOfToday);
-            d.setDate(d.getDate() - 30);
-            return { start: d, end: now };
-        }
-        case 'thisMonth':
-            return { start: new Date(now.getFullYear(), now.getMonth(), 1), end: now };
-        case 'lastMonth': {
-            const s = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-            const e = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
-            return { start: s, end: e };
-        }
-        case 'last3Months': {
-            const d = new Date(startOfToday);
-            d.setMonth(d.getMonth() - 3);
-            return { start: d, end: now };
-        }
-        case 'last6Months': {
-            const d = new Date(startOfToday);
-            d.setMonth(d.getMonth() - 6);
-            return { start: d, end: now };
-        }
-        case 'thisYear':
-            return { start: new Date(now.getFullYear(), 0, 1), end: now };
+            return { start: startOfToday, end: endOfToday };
+        case 'yesterday':
+            const yesterday = subDays(today, 1);
+            return { start: startOfDay(yesterday), end: endOfDay(yesterday) };
+        case 'last_7_days':
+            return { start: startOfDay(subDays(today, 7)), end: endOfToday };
+        case 'last_30_days':
+            return { start: startOfDay(subDays(today, 30)), end: endOfToday };
+        case 'this_month':
+            return { start: startOfMonth(today), end: endOfMonth(today) };
+        case 'last_month':
+            const lastMonth = subMonths(today, 1);
+            return { start: startOfMonth(lastMonth), end: endOfMonth(lastMonth) };
+        case 'last_3_months':
+            return { start: startOfMonth(subMonths(today, 2)), end: endOfMonth(today) };
         case 'custom':
             return {
                 start: start ? startOfDay(start) : null,
                 end: end ? endOfDay(end) : null
             };
-        case 'all':
         default:
             return { start: null, end: null };
     }
@@ -108,7 +87,7 @@ const RecentTransactionsExpanded = ({ entityId }) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [sortColumn, setSortColumn] = useState('created_date');
     const [sortDirection, setSortDirection] = useState('desc');
-    const [timeFrame, setTimeFrame] = useState('last30');
+    const [timeFrame, setTimeFrame] = useState('last_3_months');
     const [customStartDate, setCustomStartDate] = useState(null);
     const [customEndDate, setCustomEndDate] = useState(null);
     const [dateError, setDateError] = useState('');
@@ -191,9 +170,12 @@ const RecentTransactionsExpanded = ({ entityId }) => {
 
         let result = allVouchers.filter(v => {
             // Time frame filter
-            const vDate = new Date(v.created_date || v.created_at);
-            if (start && vDate < start) return false;
-            if (end && vDate > end) return false;
+            const rawDate = v.created_date || v.created_at;
+            if (!rawDate) return false;
+            const vDate = startOfDay(new Date(rawDate));
+
+            if (start && vDate < startOfDay(start)) return false;
+            if (end && vDate > startOfDay(end)) return false;
 
             // Search filter
             const beneficiaryName = v.beneficiary_name || v.beneficiary?.name || v.beneficiary?.company_name || '';
@@ -268,23 +250,14 @@ const RecentTransactionsExpanded = ({ entityId }) => {
                             />
                         </div>
 
-                        <Select value={timeFrame} onValueChange={(val) => {
-                            setTimeFrame(val);
-                            setCurrentPage(1);
-                            if (val === 'custom' && !customStartDate) {
-                                const end = new Date();
-                                const start = new Date();
-                                start.setMonth(start.getMonth() - 1);
-                                setCustomStartDate(start);
-                                setCustomEndDate(end);
-                            }
-                        }}>
-                            <SelectTrigger className="w-full sm:w-44 h-9 sm:h-10 border-white/10 bg-white/5 text-white rounded-xl text-sm">
-                                <SelectValue placeholder="Time frame" />
+                        <Select value={timeFrame} onValueChange={(val) => { setTimeFrame(val); setCurrentPage(1); }}>
+                            <SelectTrigger className="w-[140px] h-9 rounded-xl border-white/10 bg-white/5 text-white text-xs focus:ring-0 focus:ring-offset-0">
+                                <CalendarIcon className="w-3.5 h-3.5 mr-2 opacity-50" />
+                                <SelectValue placeholder="Time Frame" />
                             </SelectTrigger>
-                            <SelectContent className="bg-[#1a1a2e] border-white/10 text-white rounded-xl">
+                            <SelectContent className="bg-slate-900 border-white/10 text-white rounded-xl">
                                 {TIME_FRAME_PRESETS.map(preset => (
-                                    <SelectItem key={preset.value} value={preset.value} className="hover:bg-white/10 focus:bg-white/10 cursor-pointer rounded-lg">
+                                    <SelectItem key={preset.value} value={preset.value} className="text-xs cursor-pointer">
                                         {preset.label}
                                     </SelectItem>
                                 ))}
@@ -300,40 +273,36 @@ const RecentTransactionsExpanded = ({ entityId }) => {
                                         <Button
                                             variant={"outline"}
                                             className={cn(
-                                                "w-[120px] sm:w-[130px] h-9 gap-2 justify-start text-left font-normal bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl px-2 sm:px-3",
-                                                !customStartDate && "text-muted-foreground"
+                                                "w-[110px] h-9 gap-2 justify-start text-left font-normal bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl px-3",
+                                                !customStartDate && "text-gray-500"
                                             )}
                                         >
                                             <CalendarIcon className="h-3.5 w-3.5 text-blue-400 shrink-0" />
-                                            <span className="truncate text-xs sm:text-sm">{customStartDate ? format(customStartDate, "dd MMM yy") : "Start"}</span>
+                                            <span className="truncate text-[10px]">{customStartDate ? format(customStartDate, "dd MMM yy") : "Start"}</span>
                                         </Button>
                                     </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0 bg-[#1a1a2e] border-white/10 shadow-2xl" align="start">
+                                    <PopoverContent className="w-auto p-0 bg-slate-900 border-white/10" align="start">
                                         <Calendar
                                             mode="single"
                                             selected={customStartDate}
                                             onSelect={(date) => {
-                                                setCustomStartDate(date);
-                                                if (date && customEndDate) {
-                                                    const days = differenceInDays(customEndDate, date);
-                                                    if (days > 365 || days < 0) {
-                                                        const newEnd = new Date(date);
-                                                        newEnd.setFullYear(newEnd.getFullYear() + 1);
-                                                        const limit = new Date();
-                                                        setCustomEndDate(newEnd > limit ? limit : newEnd);
+                                                if (customEndDate && date) {
+                                                    const diff = differenceInDays(customEndDate, date);
+                                                    if (diff > 365) {
+                                                        toast({
+                                                            title: "Range too long",
+                                                            description: "Please select a range within 1 year.",
+                                                            variant: "destructive"
+                                                        });
+                                                        return;
                                                     }
                                                 }
+                                                setCustomStartDate(date);
+                                                setCurrentPage(1);
                                             }}
-                                            fromYear={2020}
-                                            toYear={new Date().getFullYear()}
-                                            disabled={(date) => {
-                                                if (customEndDate) {
-                                                    const diff = differenceInDays(customEndDate, date);
-                                                    return diff < 0 || diff > 365 || isAfter(date, new Date());
-                                                }
-                                                return isAfter(date, new Date());
-                                            }}
+                                            disabled={(date) => isAfter(date, new Date()) || (customEndDate && isAfter(date, customEndDate))}
                                             initialFocus
+                                            className="bg-slate-900 text-white"
                                         />
                                     </PopoverContent>
                                 </Popover>
@@ -343,39 +312,36 @@ const RecentTransactionsExpanded = ({ entityId }) => {
                                         <Button
                                             variant={"outline"}
                                             className={cn(
-                                                "w-[120px] sm:w-[130px] h-9 gap-2 justify-start text-left font-normal bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl px-2 sm:px-3",
-                                                !customEndDate && "text-muted-foreground"
+                                                "w-[110px] h-9 gap-2 justify-start text-left font-normal bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl px-3",
+                                                !customEndDate && "text-gray-500"
                                             )}
                                         >
                                             <CalendarIcon className="h-3.5 w-3.5 text-blue-400 shrink-0" />
-                                            <span className="truncate text-xs sm:text-sm">{customEndDate ? format(customEndDate, "dd MMM yy") : "End"}</span>
+                                            <span className="truncate text-[10px]">{customEndDate ? format(customEndDate, "dd MMM yy") : "End"}</span>
                                         </Button>
                                     </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0 bg-[#1a1a2e] border-white/10 shadow-2xl" align="start">
+                                    <PopoverContent className="w-auto p-0 bg-slate-900 border-white/10" align="start">
                                         <Calendar
                                             mode="single"
                                             selected={customEndDate}
                                             onSelect={(date) => {
-                                                setCustomEndDate(date);
                                                 if (customStartDate && date) {
-                                                    const days = differenceInDays(date, customStartDate);
-                                                    if (days > 365 || days < 0) {
-                                                        const newStart = new Date(date);
-                                                        newStart.setFullYear(newStart.getFullYear() - 1);
-                                                        setCustomStartDate(newStart);
+                                                    const diff = differenceInDays(date, customStartDate);
+                                                    if (diff > 365) {
+                                                        toast({
+                                                            title: "Range too long",
+                                                            description: "Please select a range within 1 year.",
+                                                            variant: "destructive"
+                                                        });
+                                                        return;
                                                     }
                                                 }
+                                                setCustomEndDate(date);
+                                                setCurrentPage(1);
                                             }}
-                                            fromYear={2020}
-                                            toYear={new Date().getFullYear()}
-                                            disabled={(date) => {
-                                                if (customStartDate) {
-                                                    const diff = differenceInDays(date, customStartDate);
-                                                    return diff < 0 || diff > 365 || isAfter(date, new Date());
-                                                }
-                                                return isAfter(date, new Date());
-                                            }}
+                                            disabled={(date) => isAfter(date, new Date()) || (customStartDate && isAfter(customStartDate, date))}
                                             initialFocus
+                                            className="bg-slate-900 text-white"
                                         />
                                     </PopoverContent>
                                 </Popover>
