@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useSocket } from '@/contexts/SocketContext.jsx';
 import { useOrganisation } from '@/hooks/useOrganisation';
-import { getTaskDetails, startTaskTimer, stopTaskTimer, getTaskHistory, /* addTaskSubtask, updateTaskSubtask, deleteTaskSubtask, */ updateTask, listClients, listServices, listTeamMembers, listTaskComments, createTaskComment, updateTaskComment, deleteTaskComment, addTaskCollaborator, removeTaskCollaborator, getTaskCollaborators, getCommentReadReceipts, requestTaskClosure, getClosureRequest, reviewClosureRequest, listTaskStages, listEntityUsers } from '@/lib/api';
+import { getTaskDetails, startTaskTimer, stopTaskTimer, getTaskHistory, /* addTaskSubtask, updateTaskSubtask, deleteTaskSubtask, */ updateTask, listClients, listServices, listTeamMembers, listTaskComments, createTaskComment, updateTaskComment, deleteTaskComment, addTaskCollaborator, removeTaskCollaborator, getTaskCollaborators, getCommentReadReceipts, requestTaskClosure, getClosureRequest, reviewClosureRequest, listTaskStages, listEntityUsers, getRecurringTask } from '@/lib/api';
 import { listOrgUsers } from '@/lib/api/organisation';
 import * as pdfjsLib from 'pdfjs-dist';
 import { useToast } from '@/components/ui/use-toast';
@@ -173,9 +173,10 @@ const TaskDashboardPage = () => {
     });
     const [showCloseConfirmationDialog, setShowCloseConfirmationDialog] = useState(false);
     const [pendingCloseStageId, setPendingCloseStageId] = useState(null);
+    const [isRecurringTask, setIsRecurringTask] = useState(false);
 
     const fetchCollaborators = useCallback(async () => {
-        if (!user?.access_token || !taskId) return;
+        if (!user?.access_token || !taskId || isRecurringTask) return; // Skip for recurring tasks
         setIsLoadingCollaborators(true);
         try {
             const agencyId = user?.agency_id || null;
@@ -187,7 +188,7 @@ const TaskDashboardPage = () => {
         } finally {
             setIsLoadingCollaborators(false);
         }
-    }, [taskId, user?.agency_id, user?.access_token]);
+    }, [taskId, user?.agency_id, user?.access_token, isRecurringTask]);
 
     const fetchTask = useCallback(async () => {
         if (!user?.access_token || !taskId) return;
@@ -196,15 +197,45 @@ const TaskDashboardPage = () => {
             // Only fetch task details first - load other data lazily when needed
             // For CLIENT users, agency_id might be null/undefined - API will handle it
             const agencyId = user?.agency_id || null;
-            const taskData = await getTaskDetails(taskId, agencyId, user.access_token);
-            setTask(taskData);
+            
+            // Try fetching as regular task first
+            try {
+                const taskData = await getTaskDetails(taskId, agencyId, user.access_token);
+                setTask(taskData);
+                setIsRecurringTask(false);
+            } catch (regularTaskError) {
+                // If regular task fails, try as recurring task
+                const is404 = regularTaskError.message?.includes('404') || 
+                             regularTaskError.message?.includes('not found') || 
+                             regularTaskError.response?.status === 404 ||
+                             regularTaskError.status === 404;
+                
+                if (is404) {
+                    try {
+                        // Set isRecurringTask early to prevent comment fetching
+                        setIsRecurringTask(true);
+                        const recurringTaskData = await getRecurringTask(taskId, agencyId, user.access_token);
+                        // Transform recurring task data to match task structure for display
+                        setTask({
+                            ...recurringTaskData,
+                            is_recurring_task: true, // Flag to identify it's a recurring task
+                            status: recurringTaskData.is_active ? 'active' : 'inactive'
+                        });
+                    } catch (recurringTaskError) {
+                        setIsRecurringTask(false); // Reset if recurring task fetch also fails
+                        throw new Error('Task not found');
+                    }
+                } else {
+                    throw regularTaskError;
+                }
+            }
         } catch (error) {
             toast({
                 title: 'Error fetching task details',
                 description: error.message,
                 variant: 'destructive',
             });
-            navigate('/');
+            navigate('/tasks');
         } finally {
             setIsLoading(false);
         }
@@ -307,7 +338,7 @@ const TaskDashboardPage = () => {
 
 
     const fetchHistory = useCallback(async () => {
-        if (!user?.access_token || !taskId) return;
+        if (!user?.access_token || !taskId || isRecurringTask) return; // Skip for recurring tasks
         setIsHistoryLoading(true);
         try {
             const agencyId = user?.agency_id || null;
@@ -322,29 +353,36 @@ const TaskDashboardPage = () => {
         } finally {
             setIsHistoryLoading(false);
         }
-    }, [taskId, user?.agency_id, user?.access_token, toast]);
+    }, [taskId, user?.agency_id, user?.access_token, toast, isRecurringTask]);
 
     const fetchComments = useCallback(async () => {
-        if (!user?.access_token || !taskId) return;
+        if (!user?.access_token || !taskId || isRecurringTask) return; // Skip for recurring tasks
         setIsLoadingComments(true);
         try {
             const agencyId = user?.agency_id || null;
             const commentsData = await listTaskComments(taskId, agencyId, user.access_token);
             setComments(Array.isArray(commentsData) ? commentsData : []);
         } catch (error) {
-            toast({
-                title: 'Error fetching comments',
-                description: error.message,
-                variant: 'destructive',
-            });
+            // Silently handle errors for recurring tasks or 404s (task not found)
+            if (!isRecurringTask && !error.message?.includes('404') && !error.message?.includes('not found')) {
+                toast({
+                    title: 'Error fetching comments',
+                    description: error.message,
+                    variant: 'destructive',
+                });
+            }
+            setComments([]);
         } finally {
             setIsLoadingComments(false);
         }
-    }, [taskId, user?.agency_id, user?.access_token, toast]);
+    }, [taskId, user?.agency_id, user?.access_token, toast, isRecurringTask]);
 
     useEffect(() => {
-        fetchComments();
-    }, [fetchComments]);
+        // Only fetch comments if task is loaded and it's not a recurring task
+        if (task && !isRecurringTask && !isLoading) {
+            fetchComments();
+        }
+    }, [task, fetchComments, isRecurringTask, isLoading]);
 
     // Hydrate read receipts from comments when loaded
     useEffect(() => {
@@ -557,11 +595,17 @@ const TaskDashboardPage = () => {
 
     useEffect(() => {
         fetchTask();
-        fetchHistory();
-        fetchCollaborators();
-        fetchClosureRequest();
         fetchStages();
-    }, [fetchTask, fetchHistory, fetchCollaborators, fetchClosureRequest, fetchStages]);
+    }, [fetchTask, fetchStages]);
+
+    // Fetch task-specific data only after task is loaded and confirmed not recurring
+    useEffect(() => {
+        if (task && !isRecurringTask && !isLoading) {
+            fetchHistory();
+            fetchCollaborators();
+            fetchClosureRequest();
+        }
+    }, [task, isRecurringTask, isLoading, fetchHistory, fetchCollaborators, fetchClosureRequest]);
 
     // Socket.IO: Join task room and listen for real-time comment updates
     useEffect(() => {
@@ -2351,7 +2395,8 @@ const TaskDashboardPage = () => {
             <div className="flex-1 min-h-0">
                 {/* Responsive Grid Layout: 1 col (mobile), 2 cols (tablet), 4 cols (desktop) */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 lg:grid-rows-2 gap-4 md:gap-6 h-auto lg:h-full min-h-0 overflow-visible lg:overflow-hidden">
-                    {/* Task Chat - Full width on mobile, 2 cols on desktop */}
+                    {/* Task Chat - Full width on mobile, 2 cols on desktop - Hidden for recurring tasks */}
+                    {!isRecurringTask && (
                     <Card className="glass-pane card-hover flex flex-col overflow-hidden rounded-2xl md:col-span-2 lg:row-span-2 h-[500px] lg:h-full">
                         <CardHeader className="flex-shrink-0"><CardTitle className="flex items-center gap-2"><MessageSquare className="w-5 h-5" /> Task Chat</CardTitle></CardHeader>
                         <CardContent className="flex-1 flex flex-col overflow-hidden min-h-0">
@@ -2708,6 +2753,7 @@ const TaskDashboardPage = () => {
                             </div>
                         </CardContent>
                     </Card>
+                    )}
 
                     {/* Checklists - Column 3, Row 1 (col-span-1, row-span-1) - Green Box */}
                     <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col md:col-span-1 lg:col-span-1 lg:row-span-1 border-2 border-green-500/50 h-[400px] lg:h-full">
@@ -2900,8 +2946,38 @@ const TaskDashboardPage = () => {
                                     )}
                                 </div>
                                 <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
-                                    {(task?.is_recurring || task?.is_recurring === 1 || task?.is_recurring === '1') ? (
+                                    {(task?.is_recurring || task?.is_recurring === 1 || task?.is_recurring === '1' || task?.is_recurring_task) ? (
                                         (() => {
+                                            // For recurring tasks, show frequency info directly
+                                            if (task?.is_recurring_task && task?.frequency) {
+                                                const FREQUENCY_LABELS = {
+                                                    daily: "Daily",
+                                                    weekly: "Weekly",
+                                                    monthly: "Monthly",
+                                                    yearly: "Yearly",
+                                                };
+                                                let desc = `Every ${task.interval || 1} ${FREQUENCY_LABELS[task.frequency] || task.frequency}`;
+                                                if (task.frequency === "weekly" && task.day_of_week !== null && task.day_of_week !== undefined) {
+                                                    const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+                                                    desc += ` on ${days[task.day_of_week] || ""}`.trimEnd();
+                                                } else if (task.frequency === "monthly") {
+                                                    if (task.day_of_month) {
+                                                        desc += ` on day ${task.day_of_month}`;
+                                                    }
+                                                }
+                                                return (
+                                                    <div className="text-center space-y-2">
+                                                        <div className="text-xl font-bold text-white">
+                                                            {desc}
+                                                        </div>
+                                                        {task.start_date && (
+                                                            <div className="text-sm font-semibold text-blue-400">
+                                                                Starts: {format(new Date(task.start_date), 'dd MMM yyyy')}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            }
                                             const { main, sub } = formatRecurringDetails();
                                             return (
                                                 <div className="text-center space-y-2">
@@ -2924,8 +3000,9 @@ const TaskDashboardPage = () => {
                         </CardContent>
                     </Card>
 
-                    {/* Collaborate - Column 4, Row 1 (col-span-1, row-span-1) - Red Box */}
-                    <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col md:col-span-1 lg:col-span-1 lg:row-span-1 border-2 border-red-500/50 h-[400px] lg:h-full">
+                    {/* Collaborate - Column 4, Row 1 (col-span-1, row-span-1) - Red Box - Hidden for recurring tasks */}
+                    {!isRecurringTask && (
+                        <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col md:col-span-1 lg:col-span-1 lg:row-span-1 border-2 border-red-500/50 h-[400px] lg:h-full">
                         <CardHeader className="flex-shrink-0">
                             <div className="flex items-center justify-between">
                                 <CardTitle>Collaborate</CardTitle>
@@ -3085,10 +3162,12 @@ const TaskDashboardPage = () => {
                                 </div>
                             )}
                         </CardContent>
-                    </Card >
+                        </Card>
+                    )}
 
-                    {/* Activity Log - Column 4, Row 2 (col-span-1, row-span-1) - Blue Box */}
-                    < Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col md:col-span-1 lg:col-span-1 lg:row-span-1 border-2 border-blue-500/50 h-[400px] lg:h-full" >
+                    {/* Activity Log - Column 4, Row 2 (col-span-1, row-span-1) - Blue Box - Hidden for recurring tasks */}
+                    {!isRecurringTask && (
+                        <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col md:col-span-1 lg:col-span-1 lg:row-span-1 border-2 border-blue-500/50 h-[400px] lg:h-full">
                         <CardHeader className="flex-shrink-0">
                             <CardTitle className="flex items-center gap-2">
                                 <History className="w-5 h-5" />
@@ -3116,7 +3195,8 @@ const TaskDashboardPage = () => {
                                 );
                             })()}
                         </CardContent>
-                    </Card >
+                        </Card>
+                    )}
                 </div >
             </div >
 

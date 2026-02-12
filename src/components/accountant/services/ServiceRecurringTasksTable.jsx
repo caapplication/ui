@@ -62,7 +62,17 @@ const formatOffset = (days) => {
   return `${n} day${Math.abs(n) === 1 ? "" : "s"}`;
 };
 
-const ServiceRecurringTasksTable = ({ recurringTasks = [], teamMembers = [], onEdit, onDelete }) => {
+const ServiceRecurringTasksTable = ({ recurringTasks = [], teamMembers = [], onEdit, onDelete, onViewTask }) => {
+  const handleRowClick = (e, taskId) => {
+    // Don't trigger if clicking on action buttons
+    if (e.target.closest('button') || e.target.closest('[role="button"]')) {
+      return;
+    }
+    if (onViewTask) {
+      onViewTask(taskId);
+    }
+  };
+
   return (
     <div className="glass-pane rounded-lg overflow-hidden border border-white/10">
       <div className="overflow-x-auto">
@@ -78,7 +88,11 @@ const ServiceRecurringTasksTable = ({ recurringTasks = [], teamMembers = [], onE
           </TableHeader>
           <TableBody>
             {recurringTasks.map((task) => (
-              <TableRow key={task.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+              <TableRow 
+                key={task.id} 
+                className="border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer"
+                onClick={(e) => handleRowClick(e, task.id)}
+              >
                 <TableCell className="align-top">
                   <div className="flex flex-col gap-1">
                     <span className="font-medium text-white text-base">{task.title}</span>
