@@ -133,9 +133,17 @@ export const deleteSupportingFile = async (fileId, agencyId, token) => {
 };
 
 export const getClientCountForService = async (serviceId, agencyId, token) => {
-    const response = await fetch(`${SERVICES_API_URL}/clients/${serviceId}/count`, {
+    const response = await fetch(`${SERVICES_API_URL}/services/${serviceId}/clients/count`, {
         method: 'GET',
         headers: getAuthHeaders(token, 'application/json', agencyId)
+    });
+    return handleResponse(response);
+};
+
+export const listAssignedClientIdsForService = async (serviceId, agencyId, token) => {
+    const response = await fetch(`${SERVICES_API_URL}/services/${serviceId}/assigned-clients`, {
+        method: 'GET',
+        headers: getAuthHeaders(token, 'application/json', agencyId),
     });
     return handleResponse(response);
 };

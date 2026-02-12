@@ -1,33 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, ChevronRight, Plus, Filter, Loader2 } from 'lucide-react';
+import { Search, ChevronRight, Plus, Filter } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { getClientCountForService } from '@/lib/api';
-import { useAuth } from '@/hooks/useAuth.jsx';
 
 const ServiceRow = ({ service, onSelectService, index }) => {
-    const [clientCount, setClientCount] = useState(null);
-    const { user } = useAuth();
-
-    useEffect(() => {
-        const fetchClientCount = async () => {
-            if (!user || !service.id) return;
-            try {
-                const count = await getClientCountForService(service.id, user.agency_id, user.access_token);
-                setClientCount(count);
-            } catch (error) {
-                console.error(`Failed to fetch client count for service ${service.id}:`, error);
-                setClientCount(0); // Default to 0 on error
-            }
-        };
-
-        fetchClientCount();
-    }, [service.id, user, user?.access_token, user?.agency_id]);
-
+    const clientCount = typeof service.assigned_clients === 'number' ? service.assigned_clients : 0;
     return (
         <motion.tr
             key={service.id}
@@ -45,11 +26,7 @@ const ServiceRow = ({ service, onSelectService, index }) => {
             </TableCell>
             <TableCell className="text-gray-300">{service.auto_task_creation_frequency || 'As Per Need'}</TableCell>
             <TableCell className="text-center">
-                {clientCount === null ? (
-                    <Loader2 className="w-4 h-4 animate-spin mx-auto" />
-                ) : (
-                    <span className="text-blue-400 font-semibold">{clientCount}</span>
-                )}
+                <span className="text-blue-400 font-semibold">{clientCount}</span>
             </TableCell>
             <TableCell className="text-center">
                 <Badge variant={service.is_enabled ? 'success' : 'destructive'}>

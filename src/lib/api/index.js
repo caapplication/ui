@@ -95,7 +95,8 @@ export const {
   getSupportingFiles,
   addSupportingFile,
   deleteSupportingFile,
-  getClientCountForService
+  getClientCountForService,
+  listAssignedClientIdsForService
 } = services;
 
 export const {
@@ -138,6 +139,7 @@ export const {
   removeServicesFromClient,
   getClientDashboard,
   getClientTeamMembers,
+  getAllClientTeamMembers,
   assignTeamMembers,
   removeTeamMember
 } = clients;

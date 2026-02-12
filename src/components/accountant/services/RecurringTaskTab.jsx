@@ -4,7 +4,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Loader2, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import NewTaskForm from '@/components/accountant/tasks/NewTaskForm.jsx';
-import RecurringTaskList from '@/components/accountant/tasks/RecurringTaskList.jsx';
+// Note: Service detail uses a service-specific recurring table layout.
 import {
   Dialog,
   DialogContent,
@@ -22,6 +22,7 @@ import {
   getTags,
   listAllClientUsers
 } from '@/lib/api';
+import ServiceRecurringTasksTable from "@/components/accountant/services/ServiceRecurringTasksTable.jsx";
 
 const RecurringTaskTab = ({ service, onUpdate }) => {
   const { user } = useAuth();
@@ -239,24 +240,27 @@ const RecurringTaskTab = ({ service, onUpdate }) => {
   }
 
   return (
-    <div className="p-6">
-      <div className="space-y-4">
-        <div className="flex justify-between items-center">
-          <h3 className="text-xl font-semibold text-white">Tasks for {service.name}</h3>
-          <Button onClick={openNewTaskModal} className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white shadow-lg">
-            <Plus className="w-4 h-4 mr-2" />
-            Create Task
-          </Button>
+    <div className="space-y-4">
+      <div className="flex justify-between items-center flex-wrap gap-3">
+        <div>
+          <h3 className="text-xl font-semibold text-white">Recurring Tasks</h3>
+          <p className="text-sm text-gray-400">Recurring tasks created for this service.</p>
         </div>
-        <RecurringTaskList
-          recurringTasks={recurringTasks}
-          onEdit={openEditTaskModal}
-          onDelete={handleDelete}
-          isLoading={isLoading}
-          clients={clients}
-          teamMembers={teamMembers}
-        />
+        <Button
+          onClick={openNewTaskModal}
+          className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white shadow-lg"
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          Create Task
+        </Button>
       </div>
+
+      <ServiceRecurringTasksTable
+        recurringTasks={recurringTasks}
+        teamMembers={teamMembers}
+        onEdit={openEditTaskModal}
+        onDelete={handleDelete}
+      />
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-slate-900 border-white/10 text-white p-0">

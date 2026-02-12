@@ -2026,7 +2026,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                 <div className="w-full text-center !mt-[-25px] px-1">
                   <p className="text-xs sm:text-sm text-white truncate group-hover:text-blue-300 transition-colors" title={item.name}>{item.name}</p>
                   {(item.owner_name || item.owner_email) && (
-                    <p className="text-xs text-gray-400 mt-1 truncate hidden sm:block">Shared by: {item.owner_name || item.owner_email}</p>
+                    <p className="text-xs text-gray-400 mt-1 truncate hidden sm:block">{item.owner_name || item.owner_email}</p>
                   )}
                 </div>
               </motion.div>

@@ -535,18 +535,20 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
                 <Label htmlFor="title">Task Title*</Label>
                 <Input id="title" name="title" placeholder="e.g., File annual tax returns" value={formData.title} onChange={handleChange} required disabled={isSaving} />
               </div>
-              <div>
-                <Label htmlFor="due_date" className="mb-2">Due Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formData.due_date && "text-muted-foreground")}>
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {formData.due_date ? format(formData.due_date, "PPP") : <span>Pick a date</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={formData.due_date} onSelect={(d) => handleDateChange('due_date', d)} disabled={(date) => date < new Date().setHours(0, 0, 0, 0)} initialFocus /></PopoverContent>
-                </Popover>
-              </div>
+              {!formData.is_recurring && (
+                <div>
+                  <Label htmlFor="due_date" className="mb-2">Due Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formData.due_date && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {formData.due_date ? format(formData.due_date, "PPP") : <span>Pick a date</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={formData.due_date} onSelect={(d) => handleDateChange('due_date', d)} disabled={(date) => date < new Date().setHours(0, 0, 0, 0)} initialFocus /></PopoverContent>
+                  </Popover>
+                </div>
+              )}
             </div>
 
 
@@ -760,7 +762,13 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
               <Checkbox
                 id="is_recurring"
                 checked={formData.is_recurring}
-                onCheckedChange={(c) => handleSwitchChange('is_recurring', c)}
+                onCheckedChange={(c) => {
+                  handleSwitchChange('is_recurring', c);
+                  // Clear due_date when enabling recurring (since due_date_offset will be used instead)
+                  if (c) {
+                    setFormData(prev => ({ ...prev, due_date: null }));
+                  }
+                }}
                 disabled={isSaving}
               />
             )}
@@ -950,6 +958,109 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
               }
 
               {/* Offset fields for Recurring Tasks */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="due_date_offset">
+                    {formData.recurrence_frequency === 'daily' 
+                      ? 'Due after (hours)' 
+                      : 'Due after (days)'}
+                  </Label>
+                  <Input
+                    id="due_date_offset"
+                    name="due_date_offset"
+                    type="number"
+                    min={formData.recurrence_frequency === 'daily' ? 0 : 1}
+                    max={(() => {
+                      if (formData.recurrence_frequency === 'daily') return 24;
+                      if (formData.recurrence_frequency === 'weekly') return 7;
+                      if (formData.recurrence_frequency === 'quarterly') return 120;
+                      if (formData.recurrence_frequency === 'half_yearly') return 180;
+                      if (formData.recurrence_frequency === 'yearly') return 365;
+                      return 31; // monthly default
+                    })()}
+                    value={formData.due_date_offset || 0}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 0;
+                      const max = (() => {
+                        if (formData.recurrence_frequency === 'daily') return 24;
+                        if (formData.recurrence_frequency === 'weekly') return 7;
+                        if (formData.recurrence_frequency === 'quarterly') return 120;
+                        if (formData.recurrence_frequency === 'half_yearly') return 180;
+                        if (formData.recurrence_frequency === 'yearly') return 365;
+                        return 31;
+                      })();
+                      const min = formData.recurrence_frequency === 'daily' ? 0 : 1;
+                      const clamped = Math.max(min, Math.min(max, val));
+                      handleSelectChange('due_date_offset', clamped);
+                    }}
+                    placeholder={(() => {
+                      if (formData.recurrence_frequency === 'daily') return 'e.g., 24';
+                      if (formData.recurrence_frequency === 'weekly') return '1-7';
+                      if (formData.recurrence_frequency === 'quarterly') return '1-120';
+                      if (formData.recurrence_frequency === 'half_yearly') return '180';
+                      if (formData.recurrence_frequency === 'yearly') return '365';
+                      return '1-31';
+                    })()}
+                    disabled={isSaving}
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    {formData.recurrence_frequency === 'daily' 
+                      ? 'Hours after task creation' 
+                      : formData.recurrence_frequency === 'weekly'
+                      ? 'Days after task creation (1-7)'
+                      : formData.recurrence_frequency === 'quarterly'
+                      ? 'Days after task creation (1-120)'
+                      : formData.recurrence_frequency === 'half_yearly'
+                      ? 'Days after task creation (180)'
+                      : formData.recurrence_frequency === 'yearly'
+                      ? 'Days after task creation (365)'
+                      : 'Days after task creation (1-31)'}
+                  </p>
+                </div>
+                <div>
+                  <Label htmlFor="target_date_offset">
+                    {formData.recurrence_frequency === 'daily' 
+                      ? 'Target after (hours)' 
+                      : 'Target after (days)'}
+                  </Label>
+                  <Input
+                    id="target_date_offset"
+                    name="target_date_offset"
+                    type="number"
+                    min={formData.recurrence_frequency === 'daily' ? 0 : 1}
+                    max={(() => {
+                      if (formData.recurrence_frequency === 'daily') return 24;
+                      if (formData.recurrence_frequency === 'weekly') return 7;
+                      if (formData.recurrence_frequency === 'quarterly') return 120;
+                      if (formData.recurrence_frequency === 'half_yearly') return 180;
+                      if (formData.recurrence_frequency === 'yearly') return 365;
+                      return 31;
+                    })()}
+                    value={formData.target_date_offset || ''}
+                    onChange={(e) => {
+                      const val = e.target.value === '' ? null : parseInt(e.target.value);
+                      if (val === null) {
+                        handleSelectChange('target_date_offset', null);
+                      } else {
+                        const max = (() => {
+                          if (formData.recurrence_frequency === 'daily') return 24;
+                          if (formData.recurrence_frequency === 'weekly') return 7;
+                          if (formData.recurrence_frequency === 'quarterly') return 120;
+                          if (formData.recurrence_frequency === 'half_yearly') return 180;
+                          if (formData.recurrence_frequency === 'yearly') return 365;
+                          return 31;
+                        })();
+                        const min = formData.recurrence_frequency === 'daily' ? 0 : 1;
+                        const clamped = Math.max(min, Math.min(max, val));
+                        handleSelectChange('target_date_offset', clamped);
+                      }
+                    }}
+                    placeholder="Optional"
+                    disabled={isSaving}
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Optional target date offset</p>
+                </div>
+              </div>
 
             </div>
           )

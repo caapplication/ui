@@ -13,6 +13,7 @@ const Services = () => {
     const { toast } = useToast();
     const [services, setServices] = useState([]);
     const [selectedService, setSelectedService] = useState(null);
+    const [view, setView] = useState('list'); // 'list' | 'detail'
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -44,6 +45,7 @@ const Services = () => {
              setIsLoading(true);
              const detailedService = await getServiceDetails(serviceStub.id, user.agency_id, user.access_token);
              setSelectedService(detailedService);
+             setView('detail');
         } catch (error) {
             toast({
                 title: "❌ Error fetching service details",
@@ -57,6 +59,7 @@ const Services = () => {
 
     const handleBackToList = () => {
         setSelectedService(null);
+        setView('list');
         fetchServices();
     };
     
@@ -74,18 +77,10 @@ const Services = () => {
         handleSelectService(newService);
     };
 
-    if (isLoading && !selectedService) {
-        return (
-            <div className="p-4 md:p-8 text-white h-full flex items-center justify-center">
-                <Loader2 className="w-12 h-12 animate-spin text-primary" />
-            </div>
-        );
-    }
-
     return (
         <div className="p-4 md:p-8 text-white relative overflow-hidden h-full">
             <AnimatePresence mode="wait">
-                {selectedService ? (
+                {view === 'detail' && selectedService ? (
                     <motion.div
                         key="detail"
                         initial={{ opacity: 0, x: 300 }}
@@ -99,13 +94,23 @@ const Services = () => {
                 ) : (
                     <motion.div
                         key="list"
-                        initial={{ opacity: 0, x: 0 }}
+                        initial={{ opacity: 0, x: -300 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: 300 }}
                         transition={{ duration: 0.3, ease: 'easeInOut' }}
                         className="h-full"
                     >
-                        <ServiceList services={services} onSelectService={handleSelectService} onAddService={() => setIsAddModalOpen(true)} />
+                        {isLoading ? (
+                            <div className="h-full flex items-center justify-center">
+                                <Loader2 className="w-12 h-12 animate-spin text-primary" />
+                            </div>
+                        ) : (
+                            <ServiceList
+                                services={services}
+                                onSelectService={handleSelectService}
+                                onAddService={() => setIsAddModalOpen(true)}
+                            />
+                        )}
                     </motion.div>
                 )}
             </AnimatePresence>

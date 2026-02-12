@@ -2,20 +2,19 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { ArrowLeft, Trash2, Loader2 } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { deleteService as apiDeleteService } from '@/lib/api';
 
-import SettingsTab from './SettingsTab';
-
-import SupportingFilesTab from './SupportingFilesTab';
 import RecurringTaskTab from './RecurringTaskTab';
+import AssignedClientsTab from "./AssignedClientsTab";
+import ActivityLog from "@/components/finance/ActivityLog";
 
 const ServiceDetail = ({ service, onBack, onDelete, onUpdate }) => {
     const { toast } = useToast();
     const { user } = useAuth();
     const [isDeleting, setIsDeleting] = React.useState(false);
+    const [activeSubTab, setActiveSubTab] = React.useState("Recurring tasks");
 
     const handleDelete = async () => {
         setIsDeleting(true);
@@ -71,26 +70,41 @@ const ServiceDetail = ({ service, onBack, onDelete, onUpdate }) => {
                 </AlertDialog>
             </div>
 
-            <Tabs defaultValue="settings" className="w-full flex-grow flex flex-col overflow-hidden">
-                <TabsList className="glass-tab-list mb-4 flex-shrink-0">
-                    <TabsTrigger value="settings">Settings</TabsTrigger>
-
-                    <TabsTrigger value="recurring">Tasks</TabsTrigger>
-                    <TabsTrigger value="supporting_files">Supporting Files</TabsTrigger>
-                </TabsList>
-                <div className="flex-grow overflow-y-auto no-scrollbar">
-                    <TabsContent value="settings" className="h-full">
-                        <SettingsTab service={service} onUpdate={onUpdate} />
-                    </TabsContent>
-
-                    <TabsContent value="recurring">
-                        <RecurringTaskTab service={service} onUpdate={onUpdate} />
-                    </TabsContent>
-                    <TabsContent value="supporting_files">
-                        <SupportingFilesTab service={service} onUpdate={onUpdate} />
-                    </TabsContent>
+            <div className="flex-grow overflow-y-auto no-scrollbar pr-2 space-y-6">
+                <div className="border-b border-white/10">
+                    <nav className="-mb-px flex space-x-6 overflow-x-auto">
+                        {["Recurring tasks", "Assigned Clients", "Activity logs"].map((tab) => {
+                            const isActive = activeSubTab === tab;
+                            return (
+                                <button
+                                    key={tab}
+                                    onClick={() => setActiveSubTab(tab)}
+                                    className={`${isActive
+                                        ? 'border-primary text-primary'
+                                        : 'border-transparent text-gray-400 hover:text-white hover:border-gray-300'
+                                        } whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors`}
+                                >
+                                    {tab}
+                                </button>
+                            );
+                        })}
+                    </nav>
                 </div>
-            </Tabs>
+
+                <div>
+                    {activeSubTab === "Recurring tasks" && (
+                        <RecurringTaskTab service={service} onUpdate={onUpdate} />
+                    )}
+                    {activeSubTab === "Assigned Clients" && (
+                        <AssignedClientsTab service={service} />
+                    )}
+                    {activeSubTab === "Activity logs" && (
+                        <div className="glass-pane p-6 rounded-lg">
+                            <ActivityLog itemId={service.id} itemType="service" />
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
     );
 };
