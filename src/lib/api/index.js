@@ -144,6 +144,22 @@ export const {
   removeTeamMember
 } = clients;
 
+export {
+  getClientBillingSetup,
+  createOrUpdateClientBilling,
+  updateClientBilling,
+  bulkUpdateServiceBillings
+} from './clientBilling';
+
+export {
+  getInvoicesWithPaymentStatus,
+  getPaymentQRCode,
+  uploadPaymentProof,
+  getPaymentQRSettings,
+  createPaymentQRSettings,
+  updatePaymentQRSettings
+} from './payments';
+
 export const {
   getGeneralSettings,
   updateGeneralSettings,

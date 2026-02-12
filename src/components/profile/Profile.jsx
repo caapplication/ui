@@ -7,9 +7,10 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/components/ui/use-toast';
-import { User, Lock, Shield, Camera, Mail, Eye, EyeOff, Trash2 } from 'lucide-react';
+import { User, Lock, Shield, Camera, Mail, Eye, EyeOff, Trash2, QrCode, Upload, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { getProfile, updateName, updatePassword, toggle2FA, verify2FA, uploadProfilePicture, deleteProfilePicture, get2FAStatus } from '@/lib/api';
+import { Textarea } from '@/components/ui/textarea';
+import { getProfile, updateName, updatePassword, toggle2FA, verify2FA, uploadProfilePicture, deleteProfilePicture, get2FAStatus, uploadCAFile, getPaymentQRSettings, createPaymentQRSettings, updatePaymentQRSettings } from '@/lib/api';
 import Cropper from 'react-easy-crop';
 import { getCroppedImg } from '@/lib/imageUtils';
 
@@ -56,6 +57,20 @@ const Profile = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isLoadingProfile, setIsLoadingProfile] = useState(true);
 
+    // Payment QR Code states (for CA users)
+    const [qrSettings, setQrSettings] = useState(null);
+    const [isLoadingQRSettings, setIsLoadingQRSettings] = useState(false);
+    const [isQRDialogOpen, setIsQRDialogOpen] = useState(false);
+    const [qrCodeFile, setQrCodeFile] = useState(null);
+    const [bankDetails, setBankDetails] = useState({
+        bank_name: '',
+        account_number: '',
+        ifsc_code: '',
+        branch_name: '',
+        account_holder_name: '',
+        upi_id: '',
+    });
+
     // Crop dialog states
     const [showCropDialog, setShowCropDialog] = useState(false);
     const [imageToCrop, setImageToCrop] = useState(null);
@@ -91,11 +106,102 @@ const Profile = () => {
     useEffect(() => {
         if (!authLoading && user?.access_token) {
             fetchProfileData(user.access_token);
+            // Load QR settings if CA user
+            if (user?.role === 'CA_ACCOUNTANT' || user?.role === 'AGENCY_ADMIN') {
+                loadQRSettings();
+            }
         } else if (!authLoading && !user?.access_token) {
             setIsLoadingProfile(false);
             toast({ title: "Authentication Error", description: "Could not find access token.", variant: "destructive" });
         }
-    }, [user?.access_token, authLoading, fetchProfileData, toast]);
+    }, [user?.access_token, authLoading, fetchProfileData, toast, user?.role]);
+
+    const loadQRSettings = async () => {
+        if (!user?.access_token) return;
+        setIsLoadingQRSettings(true);
+        try {
+            const settings = await getPaymentQRSettings(null, user.access_token);
+            if (settings && settings.length > 0) {
+                const defaultSetting = settings.find(s => !s.entity_id) || settings[0];
+                setQrSettings(defaultSetting);
+                setBankDetails({
+                    bank_name: defaultSetting.bank_name || '',
+                    account_number: defaultSetting.account_number || '',
+                    ifsc_code: defaultSetting.ifsc_code || '',
+                    branch_name: defaultSetting.branch_name || '',
+                    account_holder_name: defaultSetting.account_holder_name || '',
+                    upi_id: defaultSetting.upi_id || '',
+                });
+            }
+        } catch (error) {
+            console.error('Error loading QR settings:', error);
+            // Don't show error toast - it's okay if no settings exist yet
+        } finally {
+            setIsLoadingQRSettings(false);
+        }
+    };
+
+    const handleQRCodeFileSelect = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            if (!file.type.startsWith('image/')) {
+                toast({ title: 'Error', description: 'Please select an image file', variant: 'destructive' });
+                return;
+            }
+            if (file.size > 5 * 1024 * 1024) { // 5MB limit
+                toast({ title: 'Error', description: 'File size must be less than 5MB', variant: 'destructive' });
+                return;
+            }
+            setQrCodeFile(file);
+        }
+    };
+
+    const handleSaveQRCode = async () => {
+        if (!qrCodeFile && !qrSettings) {
+            toast({ title: 'Error', description: 'Please upload a QR code image', variant: 'destructive' });
+            return;
+        }
+
+        setIsSubmitting(true);
+        try {
+            let qrCodeImageId = qrSettings?.qr_code_image_id;
+
+            // Upload QR code image if new file selected
+            if (qrCodeFile) {
+                const document = await uploadCAFile(null, qrCodeFile, null, user.access_token);
+                qrCodeImageId = document.id;
+            }
+
+            if (qrSettings?.id) {
+                // Update existing settings
+                await updatePaymentQRSettings(
+                    qrSettings.id,
+                    qrCodeImageId,
+                    bankDetails,
+                    true,
+                    user.access_token
+                );
+            } else {
+                // Create new settings
+                await createPaymentQRSettings(
+                    qrCodeImageId,
+                    bankDetails,
+                    null, // entity_id = null means default for all clients
+                    user.access_token
+                );
+            }
+
+            toast({ title: 'Success', description: 'Payment QR code settings saved successfully' });
+            setIsQRDialogOpen(false);
+            setQrCodeFile(null);
+            loadQRSettings();
+        } catch (error) {
+            console.error('Error saving QR settings:', error);
+            toast({ title: 'Error', description: error.message || 'Failed to save QR code settings', variant: 'destructive' });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     const handleNameUpdate = async (e) => {
         e.preventDefault();
@@ -358,6 +464,43 @@ const Profile = () => {
                                 </Button>
                             </CardContent>
                         </Card>
+
+                        {/* Payment QR Code Settings - Only for CA users */}
+                        {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'AGENCY_ADMIN') && (
+                            <Card className="glass-card">
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <QrCode className="w-5 h-5" />
+                                        Payment QR Code
+                                    </CardTitle>
+                                    <CardDescription>Upload QR code image and bank details for client payments.</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    {isLoadingQRSettings ? (
+                                        <div className="flex items-center justify-center py-4">
+                                            <Loader2 className="w-6 h-6 animate-spin" />
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-4">
+                                            {qrSettings?.qr_code_image_url && (
+                                                <div className="flex flex-col items-center p-4 border rounded-lg">
+                                                    <p className="text-sm text-gray-400 mb-2">Current QR Code</p>
+                                                    <img
+                                                        src={qrSettings.qr_code_image_url}
+                                                        alt="Payment QR Code"
+                                                        className="w-32 h-32 border rounded object-contain"
+                                                    />
+                                                </div>
+                                            )}
+                                            <Button onClick={() => setIsQRDialogOpen(true)} className="w-full">
+                                                <Upload className="w-4 h-4 mr-2" />
+                                                {qrSettings ? 'Update QR Code Settings' : 'Upload QR Code'}
+                                            </Button>
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        )}
                     </div>
                 </div>
             </motion.div>
@@ -433,6 +576,114 @@ const Profile = () => {
                         <Button onClick={handleSaveCrop} disabled={isSubmitting}>
                             {isSubmitting ? <span className="animate-spin mr-2">⏳</span> : null}
                             Save
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* QR Code Settings Dialog */}
+            <Dialog open={isQRDialogOpen} onOpenChange={setIsQRDialogOpen}>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>Payment QR Code Settings</DialogTitle>
+                        <DialogDescription>
+                            Upload QR code image and enter bank details. This will be shown to clients for making payments.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="qr-code-file">QR Code Image</Label>
+                            <Input
+                                id="qr-code-file"
+                                type="file"
+                                accept="image/*"
+                                onChange={handleQRCodeFileSelect}
+                            />
+                            {qrCodeFile && (
+                                <p className="text-xs text-gray-400">Selected: {qrCodeFile.name}</p>
+                            )}
+                            {qrSettings?.qr_code_image_url && !qrCodeFile && (
+                                <div className="mt-2">
+                                    <p className="text-xs text-gray-400 mb-2">Current QR Code:</p>
+                                    <img
+                                        src={qrSettings.qr_code_image_url}
+                                        alt="Current QR Code"
+                                        className="w-32 h-32 border rounded object-contain"
+                                    />
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="bank-name">Bank Name</Label>
+                                <Input
+                                    id="bank-name"
+                                    value={bankDetails.bank_name}
+                                    onChange={(e) => setBankDetails({ ...bankDetails, bank_name: e.target.value })}
+                                    placeholder="e.g., State Bank of India"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="account-number">Account Number</Label>
+                                <Input
+                                    id="account-number"
+                                    value={bankDetails.account_number}
+                                    onChange={(e) => setBankDetails({ ...bankDetails, account_number: e.target.value })}
+                                    placeholder="Account number"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="ifsc-code">IFSC Code</Label>
+                                <Input
+                                    id="ifsc-code"
+                                    value={bankDetails.ifsc_code}
+                                    onChange={(e) => setBankDetails({ ...bankDetails, ifsc_code: e.target.value })}
+                                    placeholder="e.g., SBIN0001234"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="branch-name">Branch Name</Label>
+                                <Input
+                                    id="branch-name"
+                                    value={bankDetails.branch_name}
+                                    onChange={(e) => setBankDetails({ ...bankDetails, branch_name: e.target.value })}
+                                    placeholder="Branch name"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="account-holder">Account Holder Name</Label>
+                                <Input
+                                    id="account-holder"
+                                    value={bankDetails.account_holder_name}
+                                    onChange={(e) => setBankDetails({ ...bankDetails, account_holder_name: e.target.value })}
+                                    placeholder="Account holder name"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="upi-id">UPI ID</Label>
+                                <Input
+                                    id="upi-id"
+                                    value={bankDetails.upi_id}
+                                    onChange={(e) => setBankDetails({ ...bankDetails, upi_id: e.target.value })}
+                                    placeholder="e.g., yourname@paytm"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <DialogClose asChild>
+                            <Button variant="outline" disabled={isSubmitting}>Cancel</Button>
+                        </DialogClose>
+                        <Button onClick={handleSaveQRCode} disabled={isSubmitting}>
+                            {isSubmitting ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Saving...
+                                </>
+                            ) : (
+                                'Save Settings'
+                            )}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

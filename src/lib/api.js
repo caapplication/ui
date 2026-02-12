@@ -11,6 +11,7 @@ import * as tasks from './api/tasks';
 import * as notices from './api/notices';
 import * as recurringTasks from './api/recurringTasks';
 import * as folderTemplates from './api/folderTemplates';
+import * as clientBilling from './api/clientBilling';
 
 const API_BASE_URL = import.meta.env.VITE_LOGIN_API_URL || 'http://127.0.0.1:8001';
 export const FINANCE_API_BASE_URL = import.meta.env.VITE_FINANCE_API_URL || 'http://127.0.0.1:8003';
@@ -76,7 +77,6 @@ export const {
     exportVouchersToTallyXML,
     getActivityLog,
     getNoticeAttachment,
-    getUnreadNoticeCount,
     getAccountantDashboardStats,
     exportVouchers,
     exportInvoices,
@@ -248,7 +248,7 @@ export const {
     getNoticeComments,
     addNoticeComment,
     addNoticeCollaborator,
-    getUnreadNoticeCount: getUnreadNoticeCountDirect
+    getUnreadNoticeCount
 } = notices;
 
 export const {
@@ -258,6 +258,13 @@ export const {
     deleteTemplate,
     applyTemplate
 } = folderTemplates;
+
+export const {
+    getClientBillingSetup,
+    createOrUpdateClientBilling,
+    updateClientBilling,
+    bulkUpdateServiceBillings
+} = clientBilling;
 
 // Idle timeout and token refresh logic
 let lastApiCallTimestamp = Date.now();

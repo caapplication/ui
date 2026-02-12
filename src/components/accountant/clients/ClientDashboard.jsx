@@ -4,6 +4,8 @@ import { ArrowLeft, Edit, Trash2, Loader2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import ClientDashboardDetails from './ClientDashboardDetails';
 import ClientServicesTab from './ClientServicesTab';
+import ClientBillingTab from './ClientBillingTab';
+import ClientInvoicesPaymentsTab from './ClientInvoicesPaymentsTab';
 import ClientPasswordsTab from './ClientPasswordsTab';
 import ClientUsersTab from './ClientUsersTab';
 import ClientTeamMembersTab from './ClientTeamMembersTab';
@@ -164,6 +166,8 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
     const tabs = [
         'Details',
         'Services',
+        'Billing',
+        'Invoices & Payments',
         'Passwords',
         {
             key: 'Client User',
@@ -228,6 +232,10 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
                 return <ClientDashboardDetails client={client} teamMembers={teamMembers} onUpdateClient={onUpdateClient} />;
             case 'Services':
                 return <ClientServicesTab client={client} allServices={allServices} onUpdateClient={onUpdateClient} />;
+            case 'Billing':
+                return <ClientBillingTab client={client} allServices={allServices} />;
+            case 'Invoices & Payments':
+                return <ClientInvoicesPaymentsTab client={client} />;
             case 'Passwords':
                 return <ClientPasswordsTab client={client} />;
             case 'Activity Log':
