@@ -1,6 +1,4 @@
-import api from '../api';
-
-const BASE_URL = import.meta.env.VITE_FINANCE_API_URL || 'http://localhost:8001';
+const BASE_URL = import.meta.env.VITE_FINANCE_API_URL || 'http://localhost:8003';
 
 /**
  * Get invoices with payment status for an entity (client)

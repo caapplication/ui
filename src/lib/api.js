@@ -12,6 +12,7 @@ import * as notices from './api/notices';
 import * as recurringTasks from './api/recurringTasks';
 import * as folderTemplates from './api/folderTemplates';
 import * as clientBilling from './api/clientBilling';
+import * as payments from './api/payments';
 
 const API_BASE_URL = import.meta.env.VITE_LOGIN_API_URL || 'http://127.0.0.1:8001';
 export const FINANCE_API_BASE_URL = import.meta.env.VITE_FINANCE_API_URL || 'http://127.0.0.1:8003';
@@ -265,6 +266,15 @@ export const {
     updateClientBilling,
     bulkUpdateServiceBillings
 } = clientBilling;
+
+export const {
+    getInvoicesWithPaymentStatus,
+    getPaymentQRCode,
+    uploadPaymentProof,
+    getPaymentQRSettings,
+    createPaymentQRSettings,
+    updatePaymentQRSettings
+} = payments;
 
 // Idle timeout and token refresh logic
 let lastApiCallTimestamp = Date.now();
