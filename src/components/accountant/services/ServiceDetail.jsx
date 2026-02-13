@@ -4,7 +4,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { ArrowLeft, Trash2, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth.jsx';
-import { deleteService as apiDeleteService } from '@/lib/api';
+import { deleteService as apiDeleteService, createActivityLog } from '@/lib/api';
 
 import RecurringTaskTab from './RecurringTaskTab';
 import AssignedClientsTab from "./AssignedClientsTab";
@@ -19,6 +19,18 @@ const ServiceDetail = ({ service, onBack, onDelete, onUpdate }) => {
     const handleDelete = async () => {
         setIsDeleting(true);
         try {
+            // Log the activity before deletion (since we need the ID/Name)
+            try {
+                await createActivityLog({
+                    action: "delete",
+                    details: `Deleted service "${service.name}"`,
+                    service_id: service.id,
+                    user_id: user.id
+                }, user.access_token);
+            } catch (logError) {
+                console.error("Failed to log service deletion:", logError);
+            }
+
             await apiDeleteService(service.id, user.agency_id, user.access_token);
             toast({
                 title: '✅ Service Deleted',

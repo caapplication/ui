@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import ClientList from '@/components/accountant/clients/ClientList';
 import NewClientForm from '@/components/accountant/clients/NewClientForm';
 import ClientDashboard from '@/components/accountant/clients/ClientDashboard';
@@ -19,6 +20,7 @@ import {
     listEntities,
     createEntity,
     listAllEntityUsers,
+    createActivityLog,
 } from '@/lib/api';
 import { useToast } from '@/components/ui/use-toast';
 import { Loader2 } from 'lucide-react';
@@ -36,6 +38,8 @@ const clientServicesCacheStore = new Map();
 const isCacheValid = (timestamp = 0) => Date.now() - timestamp < CLIENTS_CACHE_TTL;
 
 const Clients = ({ setActiveTab }) => {
+    const location = useLocation();
+    const navigate = useNavigate();
     const { user } = useAuth();
     const { toast } = useToast();
 
@@ -315,6 +319,15 @@ const Clients = ({ setActiveTab }) => {
         }
     }, [user?.agency_id, user?.access_token, fetchClientsAndServices]);
 
+    useEffect(() => {
+        if (location.state?.clientId && clients.length > 0 && view === 'list') {
+            const client = clients.find(c => String(c.id) === String(location.state.clientId));
+            if (client) {
+                handleViewClient(client);
+            }
+        }
+    }, [location.state, clients, view]);
+
     const handleAddNew = () => {
         setEditingClient(null);
         setView('new');
@@ -326,9 +339,13 @@ const Clients = ({ setActiveTab }) => {
     };
 
     const handleBackToList = () => {
-        setView('list');
-        setSelectedClient(null);
-        setEditingClient(null);
+        if (location.state?.from) {
+            navigate(location.state.from);
+        } else {
+            setView('list');
+            setSelectedClient(null);
+            setEditingClient(null);
+        }
     };
 
     const handleCancelForm = () => {
@@ -353,6 +370,19 @@ const Clients = ({ setActiveTab }) => {
                 throw new Error('User information is not available.');
             }
             await apiDeleteClient(clientId, user.agency_id, user.access_token);
+
+            // Log activity
+            try {
+                await createActivityLog({
+                    action: "delete",
+                    details: `Deleted client`,
+                    client_id: clientId,
+                    user_id: user.id
+                }, user.access_token);
+            } catch (logError) {
+                console.error("Failed to log client deletion:", logError);
+            }
+
             toast({ title: '✅ Client Deleted', description: `Client has been removed.` });
             setClients((prev) => {
                 const next = prev.filter((c) => c.id !== clientId);
@@ -374,6 +404,21 @@ const Clients = ({ setActiveTab }) => {
                 throw new Error('User information is not available.');
             }
             await Promise.all(clientIds.map((id) => apiDeleteClient(id, user.agency_id, user.access_token)));
+
+            // Log activity for each deleted client
+            try {
+                await Promise.all(clientIds.map(id =>
+                    createActivityLog({
+                        action: "delete",
+                        details: `Deleted client (bulk)`,
+                        client_id: id,
+                        user_id: user.id
+                    }, user.access_token)
+                ));
+            } catch (logError) {
+                console.error("Failed to log bulk client deletion:", logError);
+            }
+
             toast({
                 title: `✅ ${clientIds.length} Clients Deleted`,
                 description: `The selected clients have been removed.`,
@@ -439,6 +484,19 @@ const Clients = ({ setActiveTab }) => {
                 }
 
                 finalClient = { ...finalClient, organization_name: orgName };
+
+                // Log activity
+                try {
+                    await createActivityLog({
+                        action: "update",
+                        details: `Updated client details`,
+                        client_id: editingClient.id,
+                        user_id: user.id
+                    }, user.access_token);
+                } catch (logError) {
+                    console.error("Failed to log client update:", logError);
+                }
+
                 toast({ title: '✅ Client Updated', description: `Client ${updatedClient.name} has been updated.` });
 
                 const updatedClients = clients.map((c) => (c.id === editingClient.id ? finalClient : c));
@@ -512,6 +570,19 @@ const Clients = ({ setActiveTab }) => {
                 }
 
                 toast({ title: '✅ Client Created', description: `Client ${newClient.name} has been added.` });
+
+                // Log activity
+                try {
+                    await createActivityLog({
+                        action: "create",
+                        details: `Created new client "${newClient.name}"`,
+                        client_id: newClient.id,
+                        user_id: user.id
+                    }, user.access_token);
+                } catch (logError) {
+                    console.error("Failed to log client creation:", logError);
+                }
+
                 setClients((prev) => {
                     const next = [
                         {

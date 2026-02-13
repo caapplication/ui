@@ -5,7 +5,7 @@ import { Plus, Minus, Search, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { addServicesToClient, removeServicesFromClient } from '@/lib/api';
+import { addServicesToClient, removeServicesFromClient, createActivityLog } from '@/lib/api';
 
 const ServiceItem = ({ service, onToggle, isAvailed }) => (
     <motion.div
@@ -72,6 +72,34 @@ const ClientServicesTab = ({ client, allServices, onUpdateClient }) => {
 
             if (promises.length > 0) {
                 await Promise.all(promises);
+
+                // Log activity
+                try {
+                    const logPromises = [];
+                    servicesToAdd.forEach(id => {
+                        const service = allServices.find(s => s.id === id);
+                        logPromises.push(createActivityLog({
+                            action: "update",
+                            details: `Availed service "${service?.name}"`,
+                            client_id: client.id,
+                            service_id: id,
+                            user_id: user.id
+                        }, user.access_token));
+                    });
+                    servicesToRemove.forEach(id => {
+                        const service = allServices.find(s => s.id === id);
+                        logPromises.push(createActivityLog({
+                            action: "update",
+                            details: `Removed service "${service?.name}"`,
+                            client_id: client.id,
+                            service_id: id,
+                            user_id: user.id
+                        }, user.access_token));
+                    });
+                    await Promise.all(logPromises);
+                } catch (logError) {
+                    console.error("Failed to log service changes:", logError);
+                }
             }
 
             const updatedClientServices = currentServiceIds.map(id => ({ service_id: id }));

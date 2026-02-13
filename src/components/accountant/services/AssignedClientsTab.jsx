@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Loader2, Users } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.jsx";
 import { useToast } from "@/components/ui/use-toast";
@@ -7,9 +8,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { listAssignedClientIdsForService, listClients, getAllClientTeamMembers, listTeamMembers } from "@/lib/api";
+import { listAssignedClientIdsForService, listClients, getAllClientTeamMembers, listTeamMembers, createActivityLog, listOrganisations, listAllEntityUsers } from "@/lib/api";
 
 const AssignedClientsTab = ({ service }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
@@ -25,12 +28,50 @@ const AssignedClientsTab = ({ service }) => {
       if (!user?.agency_id || !user?.access_token || !service?.id) return;
       setIsLoading(true);
       try {
-        const [ids, allClients] = await Promise.all([
+        const [ids, allClients, orgsData] = await Promise.all([
           listAssignedClientIdsForService(service.id, user.agency_id, user.access_token),
           listClients(user.agency_id, user.access_token),
+          listOrganisations(user.access_token),
         ]);
+
+        const rawClients = Array.isArray(allClients) ? allClients : (allClients?.items || []);
+        const orgsMap = (orgsData || []).reduce((acc, org) => {
+          acc[org.id] = org.name;
+          return acc;
+        }, {});
+
+        const clientsWithOrg = rawClients.map(client => ({
+          ...client,
+          organization_name: orgsMap[client.organization_id] || null,
+        }));
+
         setClientIds(Array.isArray(ids) ? ids : []);
-        setClients(Array.isArray(allClients) ? allClients : (allClients?.items || []));
+
+        // Fetch org users enrichment
+        const uniqueOrgIds = [...new Set(clientsWithOrg.map(c => c.organization_id).filter(Boolean))];
+        const orgDataPromises = uniqueOrgIds.map(async (orgId) => {
+          try {
+            const entityUsersMap = await listAllEntityUsers(orgId, user.access_token);
+            return { orgId, entityUsersMap };
+          } catch (e) {
+            console.error(`Failed to fetch org data for ${orgId}:`, e);
+            return { orgId, entityUsersMap: {} };
+          }
+        });
+
+        const orgDataResults = await Promise.all(orgDataPromises);
+        const orgDataMap = new Map(orgDataResults.map(r => [r.orgId, r.entityUsersMap]));
+
+        const finalClients = clientsWithOrg.map(client => {
+          const entityUsersMap = orgDataMap.get(client.organization_id) || {};
+          const clientUsers = entityUsersMap[client.id] || { invited_users: [], joined_users: [] };
+          return {
+            ...client,
+            orgUsers: clientUsers,
+          };
+        });
+
+        setClients(finalClients);
       } catch (e) {
         toast({
           title: "Error loading assigned clients",
@@ -165,6 +206,8 @@ const AssignedClientsTab = ({ service }) => {
     });
   }, [clientIds, clients, search]);
 
+
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -195,7 +238,7 @@ const AssignedClientsTab = ({ service }) => {
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by name / PAN / mobile / email..."
+          placeholder="Search by name / mobile / email..."
           className="glass-input sm:max-w-sm"
         />
       </div>
@@ -219,7 +262,8 @@ const AssignedClientsTab = ({ service }) => {
               {assignedClients.map((client) => (
                 <TableRow
                   key={client.id}
-                  className="border-none hover:bg-white/5"
+                  className="border-none hover:bg-white/5 cursor-pointer"
+                  onClick={() => navigate('/clients', { state: { clientId: client.id, from: location.pathname } })}
                 >
                   <TableCell>
                     <Avatar>

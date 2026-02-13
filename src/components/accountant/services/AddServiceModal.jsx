@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { createService } from '@/lib/api';
+import { createService, createActivityLog } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth.jsx';
 
 const AddServiceModal = ({ isOpen, onClose, onAddService }) => {
@@ -26,6 +26,19 @@ const AddServiceModal = ({ isOpen, onClose, onAddService }) => {
         setIsLoading(true);
         try {
             const newService = await createService({ name: serviceName }, user.agency_id, user.access_token);
+
+            // Log the activity
+            try {
+                await createActivityLog({
+                    action: "create",
+                    details: `Created service "${newService.name}"`,
+                    service_id: newService.id,
+                    user_id: user.id
+                }, user.access_token);
+            } catch (logError) {
+                console.error("Failed to log service creation:", logError);
+            }
+
             onAddService(newService);
             toast({
                 title: "✅ Service Added",
@@ -53,14 +66,14 @@ const AddServiceModal = ({ isOpen, onClose, onAddService }) => {
                 </DialogHeader>
                 <div className="py-4">
                     <Label htmlFor="serviceName">Service Name <span className="text-red-500">*</span></Label>
-                    <Input 
-                        id="serviceName" 
-                        name="serviceName" 
-                        className="glass-input mt-2" 
+                    <Input
+                        id="serviceName"
+                        name="serviceName"
+                        className="glass-input mt-2"
                         value={serviceName}
                         onChange={(e) => setServiceName(e.target.value)}
                         placeholder="e.g., Monthly Accounting"
-                        required 
+                        required
                     />
                 </div>
                 <DialogFooter>
