@@ -425,6 +425,19 @@ const NoticeDetailsPage = () => {
 
                 {/* Action Bar */}
                 <div className="flex items-center gap-2">
+                    {/* Delete Option for CA */}
+                    {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_ADMIN') && notice.status !== 'closed' && (
+                        <Button
+                            variant="destructive"
+                            onClick={handleDelete}
+                            disabled={isProcessingAction}
+                            className="h-9 text-sm font-medium bg-red-600 hover:bg-red-700 text-white mr-2"
+                            title="Delete Notice"
+                        >
+                            <Trash2 className="w-4 h-4 mr-2" /> Delete
+                        </Button>
+                    )}
+
                     {canRequestClose && (
                         <Button
                             variant="accept" // Changed from 'reject' to default/green custom
@@ -449,19 +462,6 @@ const NoticeDetailsPage = () => {
                     {(user?.role === 'CLIENT_MASTER_ADMIN' || user?.role === 'CA_ACCOUNTANT') && notice.status !== 'closed' && (
                         <Button onClick={() => setIsCollaborateOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white h-9 text-sm font-medium">
                             <UserPlus className="w-4 h-4 mr-2" /> Collaborate
-                        </Button>
-                    )}
-
-                    {/* Delete Option for CA */}
-                    {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_ADMIN') && notice.status !== 'closed' && (
-                        <Button
-                            variant="destructive"
-                            onClick={handleDelete}
-                            disabled={isProcessingAction}
-                            className="h-9 text-sm font-medium bg-red-600 hover:bg-red-700 text-white ml-2"
-                            title="Delete Notice"
-                        >
-                            <Trash2 className="w-4 h-4 mr-2" /> Delete
                         </Button>
                     )}
                 </div>
