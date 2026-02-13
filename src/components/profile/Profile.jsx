@@ -10,9 +10,11 @@ import { useToast } from '@/components/ui/use-toast';
 import { User, Lock, Shield, Camera, Mail, Eye, EyeOff, Trash2, QrCode, Upload, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getProfile, updateName, updatePassword, toggle2FA, verify2FA, uploadProfilePicture, deleteProfilePicture, get2FAStatus, uploadCAFile, getPaymentQRSettings, createPaymentQRSettings, updatePaymentQRSettings } from '@/lib/api';
 import Cropper from 'react-easy-crop';
 import { getCroppedImg } from '@/lib/imageUtils';
+import MyCompany from './MyCompany';
 
 const PasswordInput = ({ id, value, onChange, ...props }) => {
     const [showPassword, setShowPassword] = useState(false);
@@ -340,6 +342,8 @@ const Profile = () => {
         return <div className="p-8 flex justify-center items-center h-full"><div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white"></div></div>;
     }
 
+    const isCAUser = user?.role === 'CA_ACCOUNTANT' || user?.role === 'AGENCY_ADMIN';
+
     return (
         <div className="p-8">
             <motion.div
@@ -352,7 +356,14 @@ const Profile = () => {
                     <p className="text-gray-400 mt-1">Manage your account details and security settings.</p>
                 </header>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <Tabs defaultValue="my-profile" className="w-full">
+                    <TabsList className="mb-6">
+                        <TabsTrigger value="my-profile">My Profile</TabsTrigger>
+                        {isCAUser && <TabsTrigger value="my-company">My Company</TabsTrigger>}
+                    </TabsList>
+
+                    <TabsContent value="my-profile">
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-1">
                         <Card className="glass-card">
                             <CardContent className="pt-6 flex flex-col items-center text-center">
@@ -503,6 +514,14 @@ const Profile = () => {
                         )}
                     </div>
                 </div>
+                    </TabsContent>
+
+                    {isCAUser && (
+                        <TabsContent value="my-company">
+                            <MyCompany />
+                        </TabsContent>
+                    )}
+                </Tabs>
             </motion.div>
 
             <Dialog open={is2faDialogOpen} onOpenChange={setIs2faDialogOpen}>

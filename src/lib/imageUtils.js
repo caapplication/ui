@@ -31,6 +31,6 @@ export const getCroppedImg = async (imageSrc, pixelCrop) => {
     return new Promise((resolve) => {
         canvas.toBlob((blob) => {
             resolve(blob);
-        }, 'image/jpeg', 0.95);
+        }, 'image/png', 1.0); // Use PNG for better quality and transparency support
     });
 };

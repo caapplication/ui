@@ -81,7 +81,10 @@ export const {
     getAccountantDashboardStats,
     exportVouchers,
     exportInvoices,
-    getInvoicePdf
+    getInvoicePdf,
+    getCACompanyProfile,
+    createCACompanyProfile,
+    updateCACompanyProfile
 } = finance;
 
 export const {

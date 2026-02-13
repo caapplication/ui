@@ -160,6 +160,12 @@ export {
   updatePaymentQRSettings
 } from './payments';
 
+export {
+  getCACompanyProfile,
+  createCACompanyProfile,
+  updateCACompanyProfile
+} from './finance';
+
 export const {
   getGeneralSettings,
   updateGeneralSettings,

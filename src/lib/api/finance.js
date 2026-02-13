@@ -3,6 +3,37 @@ import { getCachedAttachment, setCachedAttachment } from '../cache';
 
 const FINANCE_API_BASE_URL = import.meta.env.VITE_FINANCE_API_URL || 'http://127.0.0.1:8003';
 
+// CA Company Profile APIs
+export const getCACompanyProfile = async (token) => {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/ca/company-profile`, {
+        method: 'GET',
+        headers: getAuthHeaders(token)
+    });
+    // Handle 404 gracefully - profile doesn't exist yet
+    if (response.status === 404) {
+        throw { response: { status: 404 } };
+    }
+    return handleResponse(response);
+};
+
+export const createCACompanyProfile = async (formData, token) => {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/ca/company-profile`, {
+        method: 'POST',
+        headers: getAuthHeaders(token, null), // Let browser set Content-Type with boundary for FormData
+        body: formData
+    });
+    return handleResponse(response);
+};
+
+export const updateCACompanyProfile = async (formData, token) => {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/ca/company-profile`, {
+        method: 'PUT',
+        headers: getAuthHeaders(token, null), // Let browser set Content-Type with boundary for FormData
+        body: formData
+    });
+    return handleResponse(response);
+};
+
 export const getEntities = async (token) => {
     const response = await fetch(`${FINANCE_API_BASE_URL}/api/entities`, {
         method: 'GET',
