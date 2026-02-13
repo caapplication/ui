@@ -90,7 +90,7 @@ const VoucherPDF = React.forwardRef(({ voucher, organizationName, entityName, fr
     // Find from/to bank account details (prefer live lookup; fallback to voucher snapshot)
     let fromBank = null;
     let toBank = null;
-    if (voucher.payment_type === 'bank_transfer') {
+    if (voucher.voucher_type === 'debit' && voucher.payment_type !== 'cash') {
         if (fromBankAccounts && voucher.from_bank_account_id) {
             fromBank = fromBankAccounts.find(acc => String(acc.id) === String(voucher.from_bank_account_id));
         }
@@ -128,19 +128,19 @@ const VoucherPDF = React.forwardRef(({ voucher, organizationName, entityName, fr
                 <p><span className="font-bold">PAN:</span> {voucher.beneficiary?.pan || 'N/A'}</p>
                 <p><span className="font-bold">Email:</span> {voucher.beneficiary?.email || 'N/A'}</p>
                 <p><span className="font-bold">Phone:</span> {voucher.beneficiary?.phone || 'N/A'}</p>
-                {voucher.payment_type === 'bank_transfer' && (
+                {voucher.voucher_type === 'debit' && voucher.payment_type !== 'cash' && (
                     <>
                         <p>
                             <span className="font-bold">From Bank Account:</span>
                             {fromBank
                                 ? ` ${fromBank.bank_name} - ${fromBank.account_number}`
-                                : (fromSnapshotLabel ? ` ${fromSnapshotLabel}` : (voucher.from_bank_account_id || 'N/A'))}
+                                : (fromSnapshotLabel ? ` ${fromSnapshotLabel}` : (voucher.from_bank_account_id && voucher.from_bank_account_id !== '0' ? ` ${voucher.from_bank_account_id}` : ' -'))}
                         </p>
                         <p>
                             <span className="font-bold">To Bank Account:</span>
                             {toBank
                                 ? ` ${toBank.bank_name} - ${toBank.account_number}`
-                                : (toSnapshotLabel ? ` ${toSnapshotLabel}` : (voucher.to_bank_account_id || 'N/A'))}
+                                : (toSnapshotLabel ? ` ${toSnapshotLabel}` : (voucher.to_bank_account_id && voucher.to_bank_account_id !== '0' ? ` ${voucher.to_bank_account_id}` : ' -'))}
                         </p>
                     </>
                 )}
@@ -1371,7 +1371,7 @@ const VoucherDetailsPage = () => {
                                                                     )
                                                             }
                                                         />
-                                                        {(voucherDetails.payment_type === 'bank_transfer' || voucher?.payment_type === 'bank_transfer') && (
+                                                        {(voucherDetails.voucher_type === 'debit' && voucherDetails.payment_type !== 'cash') && (
                                                             <>
                                                                 <DetailItem
                                                                     label="From Bank Account"
@@ -1382,6 +1382,26 @@ const VoucherDetailsPage = () => {
                                                                             const fromId = source.from_bank_account_id;
                                                                             const fromName = source.from_bank_account_name;
                                                                             const fromNumber = source.from_bank_account_number;
+                                                                            const fromBranch = source.from_bank_branch;
+                                                                            const fromIfsc = source.from_bank_ifsc;
+                                                                            const fromCode = source.from_bank_code;
+                                                                            const fromAccountType = source.from_bank_account_type;
+                                                                            const fromCountry = source.from_bank_country;
+                                                                            const fromCurrency = source.from_bank_currency;
+                                                                            const fromSwiftCode = source.from_bank_swift_code;
+                                                                            const fromBban = source.from_bank_bban;
+                                                                            const fromIban = source.from_bank_iban;
+                                                                            const fromIdCode = source.from_bank_id_code;
+                                                                            const fromIdType = source.from_bank_id_type;
+                                                                            const fromLegalName = source.from_bank_legal_name;
+                                                                            const fromOrganizationId = source.from_bank_organization_id;
+                                                                            const fromPhone = source.from_bank_phone;
+                                                                            const fromPostalCode = source.from_bank_postal_code;
+                                                                            const fromState = source.from_bank_state;
+                                                                            const fromWebsite = source.from_bank_website;
+                                                                            const fromAddressLine1 = source.from_bank_address_line1;
+                                                                            const fromAddressLine2 = source.from_bank_address_line2;
+                                                                            const fromCity = source.from_bank_city;
 
                                                                             // Priority 1: Use snapshot data first (most reliable, always available after save)
                                                                             if (fromName && fromName.trim()) {
@@ -1389,7 +1409,7 @@ const VoucherDetailsPage = () => {
                                                                             }
 
                                                                             // Priority 2: Try to find in fetched bank accounts array (if loaded)
-                                                                            if (fromId && fromBankAccounts?.length > 0) {
+                                                                            if (fromId && fromId !== '0' && fromBankAccounts?.length > 0) {
                                                                                 const fromBank = fromBankAccounts.find(
                                                                                     acc => String(acc.id) === String(fromId)
                                                                                 );
@@ -1399,11 +1419,11 @@ const VoucherDetailsPage = () => {
                                                                             }
 
                                                                             // Priority 3: Show ID if available
-                                                                            if (fromId) {
+                                                                            if (fromId && fromId !== '0') {
                                                                                 return String(fromId);
                                                                             }
 
-                                                                            return 'N/A';
+                                                                            return '-';
                                                                         })()
                                                                     }
                                                                 />
@@ -1423,7 +1443,7 @@ const VoucherDetailsPage = () => {
                                                                             }
 
                                                                             // Priority 2: Try to find in fetched bank accounts array (if loaded)
-                                                                            if (toId && toBankAccounts?.length > 0) {
+                                                                            if (toId && toId !== '0' && toBankAccounts?.length > 0) {
                                                                                 const toBank = toBankAccounts.find(
                                                                                     acc => String(acc.id) === String(toId)
                                                                                 );
@@ -1433,11 +1453,11 @@ const VoucherDetailsPage = () => {
                                                                             }
 
                                                                             // Priority 3: Show ID if available
-                                                                            if (toId) {
+                                                                            if (toId && toId !== '0') {
                                                                                 return String(toId);
                                                                             }
 
-                                                                            return 'N/A';
+                                                                            return '-';
                                                                         })()
                                                                     }
                                                                 />

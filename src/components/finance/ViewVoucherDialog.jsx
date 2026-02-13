@@ -13,7 +13,7 @@ import { useNavigate } from 'react-router-dom';
 const ViewVoucherDialog = ({ voucher, fromAccount, toAccount, beneficiary, isOpen, onOpenChange, organizationName, organisationId }) => {
     const { user } = useAuth();
     const navigate = useNavigate();
-    
+
     if (!voucher) return null;
 
     const handleViewAttachment = async () => {
@@ -221,17 +221,25 @@ const ViewVoucherDialog = ({ voucher, fromAccount, toAccount, beneficiary, isOpe
                                 <p className="text-gray-400">Payment Method:</p>
                                 <p className="capitalize">{voucher.payment_type}</p>
                             </div>
-                            {voucher.payment_type === 'bank' && fromAccount && (
-                                <div className="grid grid-cols-2 gap-2">
-                                    <p className="text-gray-400">From Account:</p>
-                                    <p>{fromAccount.bank_name} (...{fromAccount.account_number.slice(-4)})</p>
-                                </div>
-                            )}
-                            {voucher.payment_type === 'bank' && toAccount && (
-                                <div className="grid grid-cols-2 gap-2">
-                                    <p className="text-gray-400">To Account:</p>
-                                    <p>{toAccount.bank_name} (...{toAccount.account_number.slice(-4)})</p>
-                                </div>
+                            {voucher.voucher_type === 'debit' && voucher.payment_type !== 'cash' && (
+                                <>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <p className="text-gray-400">From Account:</p>
+                                        <p>
+                                            {fromAccount
+                                                ? `${fromAccount.bank_name} (...${fromAccount.account_number.slice(-4)})`
+                                                : (voucher.from_bank_account_name ? `${voucher.from_bank_account_name} (...${voucher.from_bank_account_number?.slice(-4) || ''})` : "-")}
+                                        </p>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <p className="text-gray-400">To Account:</p>
+                                        <p>
+                                            {toAccount
+                                                ? `${toAccount.bank_name} (...${toAccount.account_number.slice(-4)})`
+                                                : (voucher.to_bank_account_name ? `${voucher.to_bank_account_name} (...${voucher.to_bank_account_number?.slice(-4) || ''})` : "-")}
+                                        </p>
+                                    </div>
+                                </>
                             )}
                             <div className="grid grid-cols-2 gap-2">
                                 <p className="text-gray-400">Remarks:</p>

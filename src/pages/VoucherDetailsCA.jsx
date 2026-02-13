@@ -1384,7 +1384,7 @@ const VoucherDetailsCA = () => {
                                                                     )
                                                             }
                                                         />
-                                                        {(voucherDetails.payment_type === 'bank_transfer' || voucher?.payment_type === 'bank_transfer') && (
+                                                        {(voucherDetails.voucher_type === 'debit' && voucherDetails.payment_type !== 'cash') && (
                                                             <>
                                                                 <DetailItem
                                                                     label="From Bank Account"
@@ -1402,7 +1402,7 @@ const VoucherDetailsCA = () => {
                                                                             }
 
                                                                             // Priority 2: Try to find in fetched bank accounts array (if loaded)
-                                                                            if (fromId && fromBankAccounts?.length > 0) {
+                                                                            if (fromId && fromId !== '0' && fromBankAccounts?.length > 0) {
                                                                                 const fromBank = fromBankAccounts.find(
                                                                                     acc => String(acc.id) === String(fromId)
                                                                                 );
@@ -1412,11 +1412,11 @@ const VoucherDetailsCA = () => {
                                                                             }
 
                                                                             // Priority 3: Show ID if available
-                                                                            if (fromId) {
+                                                                            if (fromId && fromId !== '0') {
                                                                                 return String(fromId);
                                                                             }
 
-                                                                            return 'N/A';
+                                                                            return '-';
                                                                         })()
                                                                     }
                                                                 />
@@ -1436,7 +1436,7 @@ const VoucherDetailsCA = () => {
                                                                             }
 
                                                                             // Priority 2: Try to find in fetched bank accounts array (if loaded)
-                                                                            if (toId && toBankAccounts?.length > 0) {
+                                                                            if (toId && toId !== '0' && toBankAccounts?.length > 0) {
                                                                                 const toBank = toBankAccounts.find(
                                                                                     acc => String(acc.id) === String(toId)
                                                                                 );
@@ -1446,11 +1446,11 @@ const VoucherDetailsCA = () => {
                                                                             }
 
                                                                             // Priority 3: Show ID if available
-                                                                            if (toId) {
+                                                                            if (toId && toId !== '0') {
                                                                                 return String(toId);
                                                                             }
 
-                                                                            return 'N/A';
+                                                                            return '-';
                                                                         })()
                                                                     }
                                                                 />
