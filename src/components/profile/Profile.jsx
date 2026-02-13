@@ -81,6 +81,8 @@ const Profile = () => {
     const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
 
     const fileInputRef = useRef(null);
+    
+    const isCAUser = user?.role === 'CA_ACCOUNTANT' || user?.role === 'AGENCY_ADMIN';
 
     const fetchProfileData = useCallback(async (token) => {
         setIsLoadingProfile(true);
@@ -342,8 +344,6 @@ const Profile = () => {
         return <div className="p-8 flex justify-center items-center h-full"><div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white"></div></div>;
     }
 
-    const isCAUser = user?.role === 'CA_ACCOUNTANT' || user?.role === 'AGENCY_ADMIN';
-
     return (
         <div className="p-8">
             <motion.div
@@ -359,7 +359,9 @@ const Profile = () => {
                 <Tabs defaultValue="my-profile" className="w-full">
                     <TabsList className="mb-6">
                         <TabsTrigger value="my-profile">My Profile</TabsTrigger>
-                        {isCAUser && <TabsTrigger value="my-company">My Company</TabsTrigger>}
+                        {(isCAUser || user?.role === 'CLIENT_USER' || user?.role === 'CLIENT_ADMIN' || user?.role === 'CLIENT_MASTER_ADMIN') && (
+                            <TabsTrigger value="my-company">My Company</TabsTrigger>
+                        )}
                     </TabsList>
 
                     <TabsContent value="my-profile">
@@ -517,9 +519,13 @@ const Profile = () => {
                     </TabsContent>
 
                     {isCAUser && (
-                        <TabsContent value="my-company">
+                    <TabsContent value="my-company">
+                        {isCAUser ? (
                             <MyCompany />
-                        </TabsContent>
+                        ) : (user?.role === 'CLIENT_USER' || user?.role === 'CLIENT_ADMIN' || user?.role === 'CLIENT_MASTER_ADMIN') ? (
+                            <ClientMyCompany />
+                        ) : null}
+                    </TabsContent>
                     )}
                 </Tabs>
             </motion.div>

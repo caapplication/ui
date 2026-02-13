@@ -142,14 +142,19 @@ export const {
   getClientTeamMembers,
   getAllClientTeamMembers,
   assignTeamMembers,
-  removeTeamMember
+  removeTeamMember,
+  getClientBillingInvoices,
+  getMyCompany,
+  updateMyCompany,
+  downloadInvoicePDF
 } = clients;
 
 export {
   getClientBillingSetup,
   createOrUpdateClientBilling,
   updateClientBilling,
-  bulkUpdateServiceBillings
+  bulkUpdateServiceBillings,
+  generateInvoicesNow
 } from './clientBilling';
 
 export {

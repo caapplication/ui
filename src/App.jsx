@@ -42,6 +42,8 @@ const InvoiceDetailsPage = lazy(() => import('@/pages/InvoiceDetailsPage.jsx'));
 const VoucherDetailsPage = lazy(() => import('@/pages/VoucherDetailsPage.jsx'));
 const VoucherDetailsCAPage = lazy(() => import('@/pages/VoucherDetailsCA.jsx'));
 const InvoiceDetailsCAPage = lazy(() => import('@/pages/InvoiceDetailsCA.jsx'));
+const ClientsBillPage = lazy(() => import('@/pages/ClientsBillPage.jsx'));
+const ClientBillPaymentPage = lazy(() => import('@/pages/ClientBillPaymentPage.jsx'));
 
 const BeneficiaryDetailsPage = lazy(() => import('@/pages/BeneficiaryDetailsPage.jsx'));
 const BeneficiaryLedger = lazy(() => import('@/components/beneficiaries/BeneficiaryLedger.jsx'));
@@ -313,6 +315,8 @@ const ProtectedContent = () => {
               />
               <Route path="/profile" element={<Profile />} />
               <Route path="/clients" element={<Clients setActiveTab={() => { }} />} />
+              <Route path="/clients-bill" element={<ClientsBillPage />} />
+              <Route path="/bill-payment" element={<ClientBillPaymentPage entityId={currentEntity} />} />
               <Route path="/tasks" element={<TaskManagementPage entityId={currentEntity} entityName={getEntityName(currentEntity)} />} />
               <Route path="/tasks/recurring" element={<RecurringTaskManagementPage />} />
               <Route path="/todos" element={<TodoPage />} />

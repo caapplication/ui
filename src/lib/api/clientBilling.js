@@ -36,3 +36,11 @@ export const bulkUpdateServiceBillings = async (clientId, serviceBillings, agenc
     });
     return handleResponse(response);
 };
+
+export const generateInvoicesNow = async (clientId, agencyId, token) => {
+    const response = await fetch(`${CLIENT_API_BASE_URL}/clients/${clientId}/billing/generate-invoices`, {
+        method: 'POST',
+        headers: getAuthHeaders(token, 'application/json', agencyId),
+    });
+    return handleResponse(response);
+};

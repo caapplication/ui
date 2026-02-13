@@ -84,7 +84,8 @@ export const {
     getInvoicePdf,
     getCACompanyProfile,
     createCACompanyProfile,
-    updateCACompanyProfile
+    updateCACompanyProfile,
+    createActivityLog
 } = finance;
 
 export const {
@@ -146,6 +147,10 @@ export const {
 
 export const {
     listClients,
+    getClientBillingInvoices,
+    getMyCompany,
+    updateMyCompany,
+    downloadInvoicePDF,
     createClient,
     updateClient,
     uploadClientPhoto,
@@ -267,7 +272,8 @@ export const {
     getClientBillingSetup,
     createOrUpdateClientBilling,
     updateClientBilling,
-    bulkUpdateServiceBillings
+    bulkUpdateServiceBillings,
+    generateInvoicesNow
 } = clientBilling;
 
 export const {

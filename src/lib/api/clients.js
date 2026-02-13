@@ -320,3 +320,68 @@ export const removeTeamMember = async (clientId, userId, agencyId, token) => {
     });
     return handleResponse(response);
 };
+
+// ==================== Client Billing Invoices ====================
+
+/**
+ * Get billing invoices for a client from Client service
+ */
+export const getClientBillingInvoices = async (clientId, agencyId, token) => {
+    const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/client/${clientId}/invoices`, {
+        method: 'GET',
+        headers: getAuthHeaders(token, 'application/json', agencyId)
+    });
+    return handleResponse(response);
+};
+
+// ==================== Client Company Profile ====================
+
+/**
+ * Get logged-in client admin's company details
+ */
+export const getMyCompany = async (token) => {
+    const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/my-company`, {
+        method: 'GET',
+        headers: getAuthHeaders(token, 'application/json')
+    });
+    return handleResponse(response);
+};
+
+/**
+ * Update logged-in client admin's company details
+ */
+export const updateMyCompany = async (companyData, token) => {
+    const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/my-company`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(token, 'application/json'),
+        body: JSON.stringify(companyData)
+    });
+    return handleResponse(response);
+};
+
+/**
+ * Download invoice PDF
+ */
+export const downloadInvoicePDF = async (invoiceId, agencyId, token) => {
+    const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/${invoiceId}/download-pdf`, {
+        method: 'GET',
+        headers: getAuthHeaders(token, 'application/json', agencyId)
+    });
+    
+    if (!response.ok) {
+        throw new Error(`Failed to download PDF: ${response.statusText}`);
+    }
+    
+    // Get blob from response
+    const blob = await response.blob();
+    
+    // Create download link
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `invoice_${invoiceId}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+};

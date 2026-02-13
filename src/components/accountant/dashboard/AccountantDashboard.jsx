@@ -22,11 +22,14 @@ import {
 } from '@/lib/api';
 import { useOrganisation } from "@/hooks/useOrganisation";
 
-const StatCard = ({ title, value, description, icon, color, delay, trend, meta, hideValue, suffix = "" }) => {
+const StatCard = ({ title, value, description, icon, color, delay, trend, meta, hideValue, suffix = "", onClick }) => {
   const Icon = icon;
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay }}>
-      <Card className="glass-card card-hover overflow-hidden h-full relative group rounded-3xl border-white/5">
+      <Card 
+        className={`glass-card card-hover overflow-hidden h-full relative group rounded-3xl border-white/5 ${onClick ? 'cursor-pointer' : ''}`}
+        onClick={onClick}
+      >
         <CardHeader className="flex flex-row gap-2 items-center justify-between space-y-0 pb-2 p-4 sm:p-6">
           <CardTitle className="text-xs sm:text-sm font-medium text-gray-400 uppercase tracking-wider">
             {title}
@@ -397,6 +400,7 @@ const AccountantDashboard = () => {
             icon={Banknote}
             color="from-blue-600 to-indigo-700"
             delay={0.3}
+            onClick={() => navigate('/clients-bill')}
           />
           <StatCard
             title="DUE"
@@ -405,6 +409,7 @@ const AccountantDashboard = () => {
             icon={Clock}
             color="from-slate-600 to-gray-700"
             delay={0.35}
+            onClick={() => navigate('/clients-bill')}
           />
         </div>
       )}

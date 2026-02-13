@@ -8,13 +8,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2, CreditCard, Upload, X, CheckCircle, AlertCircle, Clock } from 'lucide-react';
-import { getInvoicesWithPaymentStatus, getPaymentQRCode, uploadPaymentProof } from '@/lib/api';
+import { getClientBillingInvoices, getPaymentQRCode, uploadPaymentProof } from '@/lib/api';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 
 const ClientInvoicesPaymentsTab = ({ client }) => {
     const { toast } = useToast();
     const { user } = useAuth();
+    const agencyId = user?.agency_id || localStorage.getItem('agency_id');
     const [invoices, setInvoices] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedInvoice, setSelectedInvoice] = useState(null);
@@ -37,9 +38,23 @@ const ClientInvoicesPaymentsTab = ({ client }) => {
         if (!client?.id || !user?.access_token) return;
         setIsLoading(true);
         try {
-            // Client ID maps to entity ID in Finance service
-            const data = await getInvoicesWithPaymentStatus(client.id, user.access_token);
-            setInvoices(data || []);
+            // Get invoices directly from Client service
+            const data = await getClientBillingInvoices(client.id, agencyId, user.access_token);
+            
+            // Map Client service response format to frontend expected format
+            const mappedInvoices = (data || []).map(inv => ({
+                id: inv.id,
+                bill_number: inv.invoice_number,
+                date: inv.invoice_date,
+                amount: inv.invoice_amount,
+                status: inv.status,
+                payment_status: inv.status, // Use status as payment_status
+                due_date: inv.due_date,
+                payment_id: null,
+                payment_date: inv.paid_at || null,
+            }));
+            
+            setInvoices(mappedInvoices);
         } catch (error) {
             console.error('Error loading invoices:', error);
             toast({

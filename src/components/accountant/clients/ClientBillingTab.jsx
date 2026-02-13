@@ -5,19 +5,18 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { Loader2, Save } from 'lucide-react';
-import { getClientBillingSetup, createOrUpdateClientBilling, bulkUpdateServiceBillings, getFinanceHeaders } from '@/lib/api';
+import { Loader2, Save, Zap } from 'lucide-react';
+import { getClientBillingSetup, createOrUpdateClientBilling, bulkUpdateServiceBillings, generateInvoicesNow } from '@/lib/api';
 
 const ClientBillingTab = ({ client, allServices }) => {
     const { toast } = useToast();
     const { user } = useAuth();
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
-    const [financeHeaders, setFinanceHeaders] = useState([]);
-    
+    const [isGeneratingInvoices, setIsGeneratingInvoices] = useState(false);
     // Billing setup state
     const [billingData, setBillingData] = useState({
-        finance_header_id: null,
+        billing_head: '',
         monthly_charges_ex_gst: 0,
         gst_percent: 0,
         gst_amount: 0,
@@ -35,16 +34,11 @@ const ClientBillingTab = ({ client, allServices }) => {
             if (!user?.agency_id || !user?.access_token || !client?.id) return;
             setIsLoading(true);
             try {
-                const [billingSetup, headers] = await Promise.all([
-                    getClientBillingSetup(client.id, user.agency_id, user.access_token).catch(() => ({ billing: null, service_billings: [] })),
-                    getFinanceHeaders(user.agency_id, user.access_token),
-                ]);
-                
-                setFinanceHeaders(headers || []);
+                const billingSetup = await getClientBillingSetup(client.id, user.agency_id, user.access_token).catch(() => ({ billing: null, service_billings: [] }));
                 
                 if (billingSetup?.billing) {
                     setBillingData({
-                        finance_header_id: billingSetup.billing.finance_header_id || null,
+                        billing_head: billingSetup.billing.billing_head || '',
                         monthly_charges_ex_gst: parseFloat(billingSetup.billing.monthly_charges_ex_gst || 0),
                         gst_percent: parseFloat(billingSetup.billing.gst_percent || 0),
                         gst_amount: parseFloat(billingSetup.billing.gst_amount || 0),
@@ -139,7 +133,7 @@ const ClientBillingTab = ({ client, allServices }) => {
         // Check billing data changes
         const hasBillingChanges = billingData.monthly_charges_ex_gst !== 0 || 
                                  billingData.gst_percent !== 0 ||
-                                 billingData.finance_header_id !== null ||
+                                 billingData.billing_head !== '' ||
                                  billingData.hsn_sac_code !== '' ||
                                  billingData.invoice_generate_day !== null;
         
@@ -161,7 +155,7 @@ const ClientBillingTab = ({ client, allServices }) => {
                 await createOrUpdateClientBilling(
                     client.id,
                     {
-                        finance_header_id: billingData.finance_header_id || null,
+                        billing_head: billingData.billing_head || null,
                         monthly_charges_ex_gst: billingData.monthly_charges_ex_gst,
                         gst_percent: billingData.gst_percent,
                         hsn_sac_code: billingData.hsn_sac_code || null,
@@ -200,6 +194,27 @@ const ClientBillingTab = ({ client, allServices }) => {
             });
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    const handleGenerateInvoicesNow = async () => {
+        if (!user?.access_token || !user?.agency_id || !client?.id) return;
+        
+        setIsGeneratingInvoices(true);
+        try {
+            const result = await generateInvoicesNow(client.id, user.agency_id, user.access_token);
+            toast({
+                title: 'Success',
+                description: `Generated ${result.invoices_created || 0} invoice(s) successfully`,
+            });
+        } catch (error) {
+            toast({
+                title: 'Error',
+                description: error.message || 'Failed to generate invoices',
+                variant: 'destructive',
+            });
+        } finally {
+            setIsGeneratingInvoices(false);
         }
     };
 
@@ -255,23 +270,15 @@ const ClientBillingTab = ({ client, allServices }) => {
                     <h3 className="text-lg font-semibold mb-4 px-2">Billing Setup</h3>
                     <div className="space-y-4 flex-grow">
                         <div>
-                            <Label htmlFor="finance_header_id" className="text-sm">Billing Head</Label>
-                            <Select
-                                value={billingData.finance_header_id ? String(billingData.finance_header_id) : 'none'}
-                                onValueChange={(v) => handleBillingChange('finance_header_id', v && v !== 'none' ? parseInt(v) : null)}
-                            >
-                                <SelectTrigger className="glass-input">
-                                    <SelectValue placeholder="Select billing head" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="none">None</SelectItem>
-                                    {financeHeaders.map(header => (
-                                        <SelectItem key={header.id} value={String(header.id)}>
-                                            {header.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <Label htmlFor="billing_head" className="text-sm">Billing Head</Label>
+                            <Input
+                                id="billing_head"
+                                type="text"
+                                placeholder="Enter billing head"
+                                value={billingData.billing_head || ''}
+                                onChange={(e) => handleBillingChange('billing_head', e.target.value)}
+                                className="glass-input"
+                            />
                         </div>
 
                         <div>
@@ -380,12 +387,29 @@ const ClientBillingTab = ({ client, allServices }) => {
                 </div>
             </div>
 
-            <div className="flex justify-end mt-4">
-                <Button onClick={handleSave} disabled={!hasChanges || isSaving}>
-                    {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    <Save className="mr-2 h-4 w-4" />
-                    Save Billing Setup
-                </Button>
+            <div className="flex justify-between items-center mt-4">
+                {/* Development button - Create Bill Right Now */}
+                {billingData.invoice_generate_day && (
+                    <Button 
+                        onClick={handleGenerateInvoicesNow} 
+                        disabled={isGeneratingInvoices || isSaving}
+                        variant="outline"
+                        className="bg-yellow-500/20 hover:bg-yellow-500/30 border-yellow-500/50 text-yellow-400"
+                    >
+                        {isGeneratingInvoices && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        {!isGeneratingInvoices && <Zap className="mr-2 h-4 w-4" />}
+                        Create Bill Right Now
+                        <span className="ml-2 text-xs opacity-75">(Dev Only)</span>
+                    </Button>
+                )}
+                
+                <div className="flex gap-2 ml-auto">
+                    <Button onClick={handleSave} disabled={!hasChanges || isSaving}>
+                        {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        <Save className="mr-2 h-4 w-4" />
+                        Save Billing Setup
+                    </Button>
+                </div>
             </div>
         </div>
     );
