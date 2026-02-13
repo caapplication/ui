@@ -31,7 +31,7 @@ const NoticesPage = () => {
     const [clients, setClients] = useState([]);
 
     // Filters
-    const [selectedClient, setSelectedClient] = useState(localStorage.getItem('entityId') || 'all');
+    const [selectedClient, setSelectedClient] = useState('all');
     const [noticeTitle, setNoticeTitle] = useState('');
     const [selectedFile, setSelectedFile] = useState(null);
 
@@ -163,6 +163,10 @@ const NoticesPage = () => {
     const [viewMode, setViewMode] = useState('active'); // 'active' or 'history'
 
     const filteredNotices = notices.filter(notice => {
+        // Filter out unknown clients (not in our fetched list)
+        const isKnownClient = clients.some(c => c.id === notice.entity_id);
+        if (!isKnownClient) return false;
+
         // Status Filtering
         const isClosed = notice.status === 'closed';
         if (viewMode === 'active' && isClosed) return false;
