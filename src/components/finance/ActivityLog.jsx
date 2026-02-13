@@ -266,6 +266,8 @@ const ActivityLog = ({ itemId, itemType, showFilter = true, excludeTypes = [] })
                             actionDisplay = 'has deleted';
                         } else if (log.action.toLowerCase().includes('upload')) {
                             actionDisplay = 'has uploaded';
+                        } else if (log.action.toLowerCase() === 'view_profile') {
+                            actionDisplay = 'viewed profile of';
                         } else {
                             actionDisplay = log.action.toLowerCase();
                         }
@@ -281,8 +283,10 @@ const ActivityLog = ({ itemId, itemType, showFilter = true, excludeTypes = [] })
                         itemTypeDisplay = 'invoice';
                     } else if (itemType === 'voucher') {
                         itemTypeDisplay = 'voucher';
-                    } else if (itemType === 'client') {
+                    } else if (itemType === 'client' || log.client_id) {
                         itemTypeDisplay = 'client';
+                    } else if (itemType === 'service') {
+                        itemTypeDisplay = 'service';
                     } else {
                         itemTypeDisplay = 'item';
                     }

@@ -525,34 +525,63 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-4 md:p-8 text-white">
-      <form onSubmit={handleSubmit} className="space-y-8">
-        <div className="glass-pane p-6 rounded-lg">
+    <div className="max-w-4xl mx-auto p-2 md:p-4 text-white">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="glass-pane p-4 rounded-lg">
           <h2 className="text-xl font-semibold mb-4 border-b border-white/10 pb-2">Task Details</h2>
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="title">Task Title*</Label>
                 <Input id="title" name="title" placeholder="e.g., File annual tax returns" value={formData.title} onChange={handleChange} required disabled={isSaving} />
               </div>
-              {!formData.is_recurring && (
-                <div>
-                  <Label htmlFor="due_date" className="mb-2">Due Date</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formData.due_date && "text-muted-foreground")}>
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {formData.due_date ? format(formData.due_date, "PPP") : <span>Pick a date</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={formData.due_date} onSelect={(d) => handleDateChange('due_date', d)} disabled={(date) => date < new Date().setHours(0, 0, 0, 0)} initialFocus /></PopoverContent>
-                  </Popover>
-                </div>
-              )}
+              <div>
+                <Label htmlFor="assigned_user_id" className="mb-2 flex items-center gap-2">
+                  Assign To*
+                  {(loadingUsers || loadingClientUsers) && (
+                    <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                  )}
+                </Label>
+                <Combobox
+                  options={assignToOptions}
+                  value={formData.assigned_user_id ? String(formData.assigned_user_id) : ''}
+                  onValueChange={(value) => handleSelectChange('assigned_user_id', value)}
+                  placeholder={
+                    loadingUsers || loadingClientUsers
+                      ? "Loading users..."
+                      : formData.client_id
+                        ? (assignToOptions.length === 0 ? "No users found for this client" : "Select a client user")
+                        : "Select a user"
+                  }
+                  searchPlaceholder="Search users..."
+                  emptyText={
+                    loadingUsers || loadingClientUsers
+                      ? "Loading users..."
+                      : formData.client_id && assignToOptions.length === 0
+                        ? "No users found for this client."
+                        : "No users found."
+                  }
+                  disabled={isSaving || loadingUsers || loadingClientUsers || (formData.client_id && assignToOptions.length === 0)}
+                />
+              </div>
             </div>
 
+            {!formData.is_recurring && (
+              <div>
+                <Label htmlFor="due_date" className="mb-2">Due Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formData.due_date && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {formData.due_date ? format(formData.due_date, "PPP") : <span>Pick a date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={formData.due_date} onSelect={(d) => handleDateChange('due_date', d)} disabled={(date) => date < new Date().setHours(0, 0, 0, 0)} initialFocus /></PopoverContent>
+                </Popover>
+              </div>
+            )}
 
-            {user?.role === 'CA_ACCOUNTANT' && (
+            {!isRecurringOnly && user?.role === 'CA_ACCOUNTANT' && (
               <div>
                 <Label htmlFor="service_id" className="mb-2">Service</Label>
                 <Select name="service_id" onValueChange={(v) => handleSelectChange('service_id', v)} value={formData.service_id || ''} disabled={isSaving || !!fixedServiceId}>
@@ -571,7 +600,7 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
               </div>
             )}
 
-            {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
+            {!isRecurringOnly && (user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
               <div>
                 <Label htmlFor="client_id" className="mb-2">Client</Label>
                 <Combobox
@@ -594,211 +623,22 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
                 />
               </div>
             )}
-
-
-            <div>
-              <Label htmlFor="assigned_user_id" className="mb-2 flex items-center gap-2">
-                Assign To*
-                {(loadingUsers || loadingClientUsers) && (
-                  <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-                )}
-              </Label>
-              <Combobox
-                options={assignToOptions}
-                value={formData.assigned_user_id ? String(formData.assigned_user_id) : ''}
-                onValueChange={(value) => handleSelectChange('assigned_user_id', value)}
-                placeholder={
-                  loadingUsers || loadingClientUsers
-                    ? "Loading users..."
-                    : formData.client_id
-                      ? (assignToOptions.length === 0 ? "No users found for this client" : "Select a client user")
-                      : "Select a user"
-                }
-                searchPlaceholder="Search users..."
-                emptyText={
-                  loadingUsers || loadingClientUsers
-                    ? "Loading users..."
-                    : formData.client_id && assignToOptions.length === 0
-                      ? "No users found for this client."
-                      : "No users found."
-                }
-                disabled={isSaving || loadingUsers || loadingClientUsers || (formData.client_id && assignToOptions.length === 0)}
-              />
-            </div>
-            <div>
-              {/* <Label htmlFor="description">Description</Label> */}
-              {/* <Textarea id="description" name="description" placeholder="Add a detailed description for the task..." value={formData.description} onChange={handleChange} disabled={isSaving} /> */}
-            </div>
-          </div>
-        </div>
-
-        <div className="glass-pane p-6 rounded-lg">
-          <div className="flex items-center space-x-2 mb-4">
-            <Checkbox
-              id="checklist_enabled"
-              checked={formData.checklist_enabled}
-              onCheckedChange={(c) => handleSwitchChange('checklist_enabled', c)}
-              disabled={isSaving}
-            />
-            <Label htmlFor="checklist_enabled" className="text-xl font-semibold cursor-pointer">Checklist</Label>
           </div>
 
-          {formData.checklist_enabled && (
-            <>
-              <div className="flex gap-2 mb-4">
-                <Input
-                  id="new-checklist-item"
-                  placeholder="Add checklist item"
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter' && e.target.value.trim()) {
-                      const itemName = e.target.value.trim();
-                      setFormData(prev => ({
-                        ...prev,
-                        checklist_items: [...prev.checklist_items, { name: itemName, is_completed: false }]
-                      }));
-                      e.target.value = '';
-                    }
-                  }}
-                  disabled={isSaving}
-                  className="flex-grow"
-                />
-                <Button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const input = document.getElementById('new-checklist-item');
-                    if (input && input.value.trim()) {
-                      const itemName = input.value.trim();
-                      setFormData(prev => ({
-                        ...prev,
-                        checklist_items: [...prev.checklist_items, { name: itemName, is_completed: false }]
-                      }));
-                      input.value = '';
-                      setTimeout(() => input.focus(), 0);
-                    }
-                  }}
-                  disabled={isSaving}
-                >
-                  Add
-                </Button>
-              </div>
-
-              <div className="space-y-2">
-                {formData.checklist_items.map((item, index) => (
-                  <div key={index} className="flex items-center gap-3 p-3 rounded-md bg-white/5 border border-white/10">
-                    {/* <Checkbox
-                      checked={item.is_completed || false}
-                      onCheckedChange={(checked) => updateChecklistItem(index, 'is_completed', checked)}
-                      disabled={isSaving}
-                    /> */}
-                    <Input
-                      value={item.name}
-                      onChange={(e) => updateChecklistItem(index, 'name', e.target.value)}
-                      placeholder="Checklist item name"
-                      className="flex-grow bg-transparent border-none focus-visible:ring-0"
-                      disabled={isSaving}
-                      style={{ textDecoration: item.is_completed ? 'line-through' : 'none', opacity: item.is_completed ? 0.6 : 1 }}
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeChecklistItem(index)}
-                      disabled={isSaving}
-                      className="h-8 w-8 text-red-400 hover:text-red-500"
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ))}
-                {formData.checklist_items.length === 0 && (
-                  <p className="text-center text-gray-400 text-sm py-4">No checklist items yet. Add one above.</p>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-        {/* 
-        <div className="glass-pane p-6 rounded-lg">
-          <h2 className="text-xl font-semibold mb-4 border-b border-white/10 pb-2">Assignment & Status</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      
-            <div>
-            
-            </div>
-            <div>
-              <Label htmlFor="priority">Priority</Label>
-              <Select name="priority" onValueChange={(v) => handleSelectChange('priority', v)} value={formData.priority} disabled={isSaving}>
-                <SelectTrigger><SelectValue placeholder="Set priority" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="P1">P1 - Urgent</SelectItem>
-                  <SelectItem value="P2">P2 - High</SelectItem>
-                  <SelectItem value="P3">P3 - Medium</SelectItem>
-                  <SelectItem value="P4">P4 - Low</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="tag_id">Tag</Label>
-              <Select name="tag_id" onValueChange={(v) => handleSelectChange('tag_id', v)} value={formData.tag_id} disabled={isSaving}>
-                <SelectTrigger><SelectValue placeholder="Select a tag" /></SelectTrigger>
-                <SelectContent>
-                  {tags && tags.length > 0 ? (
-                    tags.map(tag => (
-                      <SelectItem key={tag.id} value={tag.id}>{tag.name}</SelectItem>
-                    ))
-                  ) : (
-                    <SelectItem value="no-tags" disabled>No tags found</SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </div> */}
-
-        <div className="glass-pane p-6 rounded-lg">
-          <div className="flex items-center space-x-2 mb-4">
-            {!isRecurringOnly && (
-              <Checkbox
-                id="is_recurring"
-                checked={formData.is_recurring}
-                onCheckedChange={(c) => {
-                  handleSwitchChange('is_recurring', c);
-                  // Clear due_date when enabling recurring (since due_date_offset will be used instead)
-                  if (c) {
-                    setFormData(prev => ({ ...prev, due_date: null }));
-                  }
-                }}
-                disabled={isSaving}
-              />
-            )}
-            <Label htmlFor="is_recurring" className="text-xl font-semibold cursor-pointer">
-              {isRecurringOnly ? 'Recurrence Configuration' : 'Make this task recurring'}
-            </Label>
-          </div>
-
-          {formData.is_recurring && (
-            <div className="space-y-4 mt-4">
-              <div className="grid grid-cols-1  gap-4">
+          {/* Recurrence Fields merged here when isRecurringOnly is true */}
+          {isRecurringOnly && formData.is_recurring && (
+            <div className="space-y-6 pt-4 border-t border-white/10 mt-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <Label htmlFor="recurrence_frequency">Frequency</Label>
                   <Select
                     name="recurrence_frequency"
                     onValueChange={(v) => {
                       handleSelectChange('recurrence_frequency', v);
-                      // Reset selections when frequency changes
-                      if (v !== 'daily') {
-                        handleSelectChange('recurrence_time', '09:00');
-                      }
-                      if (v !== 'weekly') {
-                        handleSelectChange('recurrence_day_of_week', null);
-                      }
-                      if (!['monthly', 'quarterly', 'half_yearly', 'yearly'].includes(v)) {
-                        handleSelectChange('recurrence_day_of_month', null);
-                      }
-                      if (!['quarterly', 'half_yearly', 'yearly'].includes(v)) {
-                        handleSelectChange('recurrence_start_month', null);
-                      }
+                      if (v !== 'daily') handleSelectChange('recurrence_time', '09:00');
+                      if (v !== 'weekly') handleSelectChange('recurrence_day_of_week', null);
+                      if (!['monthly', 'quarterly', 'half_yearly', 'yearly'].includes(v)) handleSelectChange('recurrence_day_of_month', null);
+                      if (!['quarterly', 'half_yearly', 'yearly'].includes(v)) handleSelectChange('recurrence_start_month', null);
                     }}
                     value={formData.recurrence_frequency}
                     disabled={isSaving}
@@ -814,54 +654,18 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  {/* <Label htmlFor="recurrence_start_date">Start Date</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formData.recurrence_start_date && "text-muted-foreground")}>
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {formData.recurrence_start_date ? format(formData.recurrence_start_date, "PPP") : <span>Pick a start date</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={formData.recurrence_start_date}
-                        onSelect={(d) => handleDateChange('recurrence_start_date', d)}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover> */}
-                </div>
-              </div>
 
-              {
-                formData.recurrence_frequency === 'daily' && (
+                {formData.recurrence_frequency === 'daily' && (
                   <div>
                     <Label htmlFor="recurrence_time">Time</Label>
-                    <Input
-                      id="recurrence_time"
-                      name="recurrence_time"
-                      type="time"
-                      value={formData.recurrence_time || '09:00'}
-                      onChange={(e) => handleSelectChange('recurrence_time', e.target.value)}
-                      disabled={isSaving}
-                      className="w-full"
-                    />
+                    <Input id="recurrence_time" name="recurrence_time" type="time" value={formData.recurrence_time || '09:00'} onChange={(e) => handleSelectChange('recurrence_time', e.target.value)} disabled={isSaving} />
                   </div>
-                )
-              }
+                )}
 
-              {
-                formData.recurrence_frequency === 'weekly' && (
+                {formData.recurrence_frequency === 'weekly' && (
                   <div>
                     <Label htmlFor="recurrence_day_of_week">Day of Week</Label>
-                    <Select
-                      name="recurrence_day_of_week"
-                      onValueChange={(v) => handleSelectChange('recurrence_day_of_week', parseInt(v))}
-                      value={formData.recurrence_day_of_week !== null ? String(formData.recurrence_day_of_week) : ''}
-                      disabled={isSaving}
-                    >
+                    <Select name="recurrence_day_of_week" onValueChange={(v) => handleSelectChange('recurrence_day_of_week', parseInt(v))} value={formData.recurrence_day_of_week !== null ? String(formData.recurrence_day_of_week) : ''} disabled={isSaving}>
                       <SelectTrigger><SelectValue placeholder="Select day" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="0">Monday</SelectItem>
@@ -874,21 +678,12 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
                       </SelectContent>
                     </Select>
                   </div>
-                )
-              }
+                )}
 
-
-
-              {
-                ['monthly'].includes(formData.recurrence_frequency) && (
+                {formData.recurrence_frequency === 'monthly' && (
                   <div>
                     <Label htmlFor="recurrence_day_of_month">Day of Month (1-31)</Label>
-                    <Select
-                      name="recurrence_day_of_month"
-                      onValueChange={(v) => handleSelectChange('recurrence_day_of_month', parseInt(v))}
-                      value={formData.recurrence_day_of_month !== null ? String(formData.recurrence_day_of_month) : ''}
-                      disabled={isSaving}
-                    >
+                    <Select name="recurrence_day_of_month" onValueChange={(v) => handleSelectChange('recurrence_day_of_month', parseInt(v))} value={formData.recurrence_day_of_month !== null ? String(formData.recurrence_day_of_month) : ''} disabled={isSaving}>
                       <SelectTrigger><SelectValue placeholder="Select day" /></SelectTrigger>
                       <SelectContent>
                         {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
@@ -897,54 +692,24 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
                       </SelectContent>
                     </Select>
                   </div>
-                )
-              }
+                )}
 
-
-
-
-              {
-                ['quarterly', 'half_yearly', 'yearly'].includes(formData.recurrence_frequency) && (
+                {['quarterly', 'half_yearly', 'yearly'].includes(formData.recurrence_frequency) && (
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="recurrence_start_month">
-                        {formData.recurrence_frequency === 'yearly' ? 'Month' : 'Start Month'}
-                      </Label>
-                      <Select
-                        name="recurrence_start_month"
-                        onValueChange={(v) => handleSelectChange('recurrence_start_month', parseInt(v))}
-                        value={formData.recurrence_start_month !== null ? String(formData.recurrence_start_month) : ''}
-                        disabled={isSaving}
-                      >
+                      <Label htmlFor="recurrence_start_month">{formData.recurrence_frequency === 'yearly' ? 'Month' : 'Start Month'}</Label>
+                      <Select name="recurrence_start_month" onValueChange={(v) => handleSelectChange('recurrence_start_month', parseInt(v))} value={formData.recurrence_start_month !== null ? String(formData.recurrence_start_month) : ''} disabled={isSaving}>
                         <SelectTrigger><SelectValue placeholder="Select month" /></SelectTrigger>
                         <SelectContent>
-                          {[
-                            { value: 0, label: 'January' },
-                            { value: 1, label: 'February' },
-                            { value: 2, label: 'March' },
-                            { value: 3, label: 'April' },
-                            { value: 4, label: 'May' },
-                            { value: 5, label: 'June' },
-                            { value: 6, label: 'July' },
-                            { value: 7, label: 'August' },
-                            { value: 8, label: 'September' },
-                            { value: 9, label: 'October' },
-                            { value: 10, label: 'November' },
-                            { value: 11, label: 'December' }
-                          ].map(month => (
-                            <SelectItem key={month.value} value={String(month.value)}>{month.label}</SelectItem>
+                          {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map((m, i) => (
+                            <SelectItem key={i} value={String(i)}>{m}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
                     <div>
-                      <Label htmlFor="recurrence_day_of_month">Day of Month</Label>
-                      <Select
-                        name="recurrence_day_of_month"
-                        onValueChange={(v) => handleSelectChange('recurrence_day_of_month', parseInt(v))}
-                        value={formData.recurrence_day_of_month !== null ? String(formData.recurrence_day_of_month) : ''}
-                        disabled={isSaving}
-                      >
+                      <Label htmlFor="recurrence_day_of_month">Day</Label>
+                      <Select name="recurrence_day_of_month" onValueChange={(v) => handleSelectChange('recurrence_day_of_month', parseInt(v))} value={formData.recurrence_day_of_month !== null ? String(formData.recurrence_day_of_month) : ''} disabled={isSaving}>
                         <SelectTrigger><SelectValue placeholder="Select day" /></SelectTrigger>
                         <SelectContent>
                           {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
@@ -954,121 +719,234 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
                       </Select>
                     </div>
                   </div>
-                )
-              }
-
-              {/* Offset fields for Recurring Tasks */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="due_date_offset">
-                    {formData.recurrence_frequency === 'daily' 
-                      ? 'Due after (hours)' 
-                      : 'Due after (days)'}
-                  </Label>
-                  <Input
-                    id="due_date_offset"
-                    name="due_date_offset"
-                    type="number"
-                    min={formData.recurrence_frequency === 'daily' ? 0 : 1}
-                    max={(() => {
-                      if (formData.recurrence_frequency === 'daily') return 24;
-                      if (formData.recurrence_frequency === 'weekly') return 7;
-                      if (formData.recurrence_frequency === 'quarterly') return 120;
-                      if (formData.recurrence_frequency === 'half_yearly') return 180;
-                      if (formData.recurrence_frequency === 'yearly') return 365;
-                      return 31; // monthly default
-                    })()}
-                    value={formData.due_date_offset || 0}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value) || 0;
-                      const max = (() => {
-                        if (formData.recurrence_frequency === 'daily') return 24;
-                        if (formData.recurrence_frequency === 'weekly') return 7;
-                        if (formData.recurrence_frequency === 'quarterly') return 120;
-                        if (formData.recurrence_frequency === 'half_yearly') return 180;
-                        if (formData.recurrence_frequency === 'yearly') return 365;
-                        return 31;
-                      })();
-                      const min = formData.recurrence_frequency === 'daily' ? 0 : 1;
-                      const clamped = Math.max(min, Math.min(max, val));
-                      handleSelectChange('due_date_offset', clamped);
-                    }}
-                    placeholder={(() => {
-                      if (formData.recurrence_frequency === 'daily') return 'e.g., 24';
-                      if (formData.recurrence_frequency === 'weekly') return '1-7';
-                      if (formData.recurrence_frequency === 'quarterly') return '1-120';
-                      if (formData.recurrence_frequency === 'half_yearly') return '180';
-                      if (formData.recurrence_frequency === 'yearly') return '365';
-                      return '1-31';
-                    })()}
-                    disabled={isSaving}
-                  />
-                  <p className="text-xs text-gray-400 mt-1">
-                    {formData.recurrence_frequency === 'daily' 
-                      ? 'Hours after task creation' 
-                      : formData.recurrence_frequency === 'weekly'
-                      ? 'Days after task creation (1-7)'
-                      : formData.recurrence_frequency === 'quarterly'
-                      ? 'Days after task creation (1-120)'
-                      : formData.recurrence_frequency === 'half_yearly'
-                      ? 'Days after task creation (180)'
-                      : formData.recurrence_frequency === 'yearly'
-                      ? 'Days after task creation (365)'
-                      : 'Days after task creation (1-31)'}
-                  </p>
-                </div>
-                <div>
-                  <Label htmlFor="target_date_offset">
-                    {formData.recurrence_frequency === 'daily' 
-                      ? 'Target after (hours)' 
-                      : 'Target after (days)'}
-                  </Label>
-                  <Input
-                    id="target_date_offset"
-                    name="target_date_offset"
-                    type="number"
-                    min={formData.recurrence_frequency === 'daily' ? 0 : 1}
-                    max={(() => {
-                      if (formData.recurrence_frequency === 'daily') return 24;
-                      if (formData.recurrence_frequency === 'weekly') return 7;
-                      if (formData.recurrence_frequency === 'quarterly') return 120;
-                      if (formData.recurrence_frequency === 'half_yearly') return 180;
-                      if (formData.recurrence_frequency === 'yearly') return 365;
-                      return 31;
-                    })()}
-                    value={formData.target_date_offset || ''}
-                    onChange={(e) => {
-                      const val = e.target.value === '' ? null : parseInt(e.target.value);
-                      if (val === null) {
-                        handleSelectChange('target_date_offset', null);
-                      } else {
-                        const max = (() => {
-                          if (formData.recurrence_frequency === 'daily') return 24;
-                          if (formData.recurrence_frequency === 'weekly') return 7;
-                          if (formData.recurrence_frequency === 'quarterly') return 120;
-                          if (formData.recurrence_frequency === 'half_yearly') return 180;
-                          if (formData.recurrence_frequency === 'yearly') return 365;
-                          return 31;
-                        })();
-                        const min = formData.recurrence_frequency === 'daily' ? 0 : 1;
-                        const clamped = Math.max(min, Math.min(max, val));
-                        handleSelectChange('target_date_offset', clamped);
-                      }
-                    }}
-                    placeholder="Optional"
-                    disabled={isSaving}
-                  />
-                  <p className="text-xs text-gray-400 mt-1">Optional target date offset</p>
-                </div>
+                )}
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <Label htmlFor="due_date_offset">{formData.recurrence_frequency === 'daily' ? 'Due after (hours)' : 'Due after (days)'}</Label>
+                  <Input id="due_date_offset" name="due_date_offset" type="number" value={formData.due_date_offset || 0} onChange={(e) => handleSelectChange('due_date_offset', parseInt(e.target.value) || 0)} disabled={isSaving} />
+                </div>
+                <div>
+                  <Label htmlFor="target_date_offset">{formData.recurrence_frequency === 'daily' ? 'Target after (hours)' : 'Target after (days)'}</Label>
+                  <Input id="target_date_offset" name="target_date_offset" type="number" value={formData.target_date_offset || ''} onChange={(e) => handleSelectChange('target_date_offset', e.target.value === '' ? null : parseInt(e.target.value))} placeholder="Optional" disabled={isSaving} />
+                </div>
+              </div>
             </div>
-          )
-          }
+          )}
         </div>
 
+        {!isRecurringOnly && (
+          <div className="glass-pane p-4 rounded-lg">
+            <div className="flex items-center space-x-2 mb-4">
+              <Checkbox
+                id="checklist_enabled"
+                checked={formData.checklist_enabled}
+                onCheckedChange={(c) => handleSwitchChange('checklist_enabled', c)}
+                disabled={isSaving}
+              />
+              <Label htmlFor="checklist_enabled" className="text-xl font-semibold cursor-pointer">Checklist</Label>
+            </div>
+
+            {formData.checklist_enabled && (
+              <>
+                <div className="flex gap-2 mb-4">
+                  <Input
+                    id="new-checklist-item"
+                    placeholder="Add checklist item"
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && e.target.value.trim()) {
+                        const itemName = e.target.value.trim();
+                        setFormData(prev => ({
+                          ...prev,
+                          checklist_items: [...prev.checklist_items, { name: itemName, is_completed: false }]
+                        }));
+                        e.target.value = '';
+                      }
+                    }}
+                    disabled={isSaving}
+                    className="flex-grow"
+                  />
+                  <Button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      const input = document.getElementById('new-checklist-item');
+                      if (input && input.value.trim()) {
+                        const itemName = input.value.trim();
+                        setFormData(prev => ({
+                          ...prev,
+                          checklist_items: [...prev.checklist_items, { name: itemName, is_completed: false }]
+                        }));
+                        input.value = '';
+                        setTimeout(() => input.focus(), 0);
+                      }
+                    }}
+                    disabled={isSaving}
+                  >
+                    Add
+                  </Button>
+                </div>
+
+                <div className="space-y-2">
+                  {formData.checklist_items.map((item, index) => (
+                    <div key={index} className="flex items-center gap-3 p-3 rounded-md bg-white/5 border border-white/10">
+                      <Input
+                        value={item.name}
+                        onChange={(e) => updateChecklistItem(index, 'name', e.target.value)}
+                        placeholder="Checklist item name"
+                        className="flex-grow bg-transparent border-none focus-visible:ring-0"
+                        disabled={isSaving}
+                        style={{ textDecoration: item.is_completed ? 'line-through' : 'none', opacity: item.is_completed ? 0.6 : 1 }}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeChecklistItem(index)}
+                        disabled={isSaving}
+                        className="h-8 w-8 text-red-400 hover:text-red-500"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {!isRecurringOnly && (
+          <div className="glass-pane p-4 rounded-lg">
+            <div className="flex items-center space-x-2 mb-4">
+              <Checkbox
+                id="is_recurring_bottom"
+                checked={formData.is_recurring}
+                onCheckedChange={(c) => {
+                  handleSwitchChange('is_recurring', c);
+                  if (c) setFormData(prev => ({ ...prev, due_date: null }));
+                }}
+                disabled={isSaving}
+              />
+              <Label htmlFor="is_recurring_bottom" className="text-xl font-semibold cursor-pointer">
+                Make this task recurring
+              </Label>
+            </div>
+
+            {formData.is_recurring && (
+              <div className="space-y-4 mt-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="recurrence_frequency">Frequency</Label>
+                    <Select
+                      name="recurrence_frequency"
+                      onValueChange={(v) => {
+                        handleSelectChange('recurrence_frequency', v);
+                        if (v !== 'daily') handleSelectChange('recurrence_time', '09:00');
+                        if (v !== 'weekly') handleSelectChange('recurrence_day_of_week', null);
+                        if (!['monthly', 'quarterly', 'half_yearly', 'yearly'].includes(v)) handleSelectChange('recurrence_day_of_month', null);
+                        if (!['quarterly', 'half_yearly', 'yearly'].includes(v)) handleSelectChange('recurrence_start_month', null);
+                      }}
+                      value={formData.recurrence_frequency}
+                      disabled={isSaving}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Select frequency" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="daily">Daily</SelectItem>
+                        <SelectItem value="weekly">Weekly</SelectItem>
+                        <SelectItem value="monthly">Monthly</SelectItem>
+                        <SelectItem value="quarterly">Quarterly</SelectItem>
+                        <SelectItem value="half_yearly">Half Yearly</SelectItem>
+                        <SelectItem value="yearly">Yearly</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {formData.recurrence_frequency === 'daily' && (
+                    <div>
+                      <Label htmlFor="recurrence_time">Time</Label>
+                      <Input id="recurrence_time_bottom" name="recurrence_time" type="time" value={formData.recurrence_time || '09:00'} onChange={(e) => handleSelectChange('recurrence_time', e.target.value)} disabled={isSaving} />
+                    </div>
+                  )}
+
+                  {formData.recurrence_frequency === 'weekly' && (
+                    <div>
+                      <Label htmlFor="recurrence_day_of_week">Day of Week</Label>
+                      <Select name="recurrence_day_of_week" onValueChange={(v) => handleSelectChange('recurrence_day_of_week', parseInt(v))} value={formData.recurrence_day_of_week !== null ? String(formData.recurrence_day_of_week) : ''} disabled={isSaving}>
+                        <SelectTrigger><SelectValue placeholder="Select day" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0">Monday</SelectItem>
+                          <SelectItem value="1">Tuesday</SelectItem>
+                          <SelectItem value="2">Wednesday</SelectItem>
+                          <SelectItem value="3">Thursday</SelectItem>
+                          <SelectItem value="4">Friday</SelectItem>
+                          <SelectItem value="5">Saturday</SelectItem>
+                          <SelectItem value="6">Sunday</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {formData.recurrence_frequency === 'monthly' && (
+                    <div>
+                      <Label htmlFor="recurrence_day_of_month">Day of Month (1-31)</Label>
+                      <Select name="recurrence_day_of_month" onValueChange={(v) => handleSelectChange('recurrence_day_of_month', parseInt(v))} value={formData.recurrence_day_of_month !== null ? String(formData.recurrence_day_of_month) : ''} disabled={isSaving}>
+                        <SelectTrigger><SelectValue placeholder="Select day" /></SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                            <SelectItem key={day} value={String(day)}>{day}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {['quarterly', 'half_yearly', 'yearly'].includes(formData.recurrence_frequency) && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="recurrence_start_month">{formData.recurrence_frequency === 'yearly' ? 'Month' : 'Start Month'}</Label>
+                        <Select name="recurrence_start_month" onValueChange={(v) => handleSelectChange('recurrence_start_month', parseInt(v))} value={formData.recurrence_start_month !== null ? String(formData.recurrence_start_month) : ''} disabled={isSaving}>
+                          <SelectTrigger><SelectValue placeholder="Select month" /></SelectTrigger>
+                          <SelectContent>
+                            {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map((m, i) => (
+                              <SelectItem key={i} value={String(i)}>{m}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label htmlFor="recurrence_day_of_month">Day</Label>
+                        <Select name="recurrence_day_of_month" onValueChange={(v) => handleSelectChange('recurrence_day_of_month', parseInt(v))} value={formData.recurrence_day_of_month !== null ? String(formData.recurrence_day_of_month) : ''} disabled={isSaving}>
+                          <SelectTrigger><SelectValue placeholder="Select day" /></SelectTrigger>
+                          <SelectContent>
+                            {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                              <SelectItem key={day} value={String(day)}>{day}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <Label htmlFor="due_date_offset">{formData.recurrence_frequency === 'daily' ? 'Due after (hours)' : 'Due after (days)'}</Label>
+                    <Input id="due_date_offset_bottom" name="due_date_offset" type="number" value={formData.due_date_offset || 0} onChange={(e) => handleSelectChange('due_date_offset', parseInt(e.target.value) || 0)} disabled={isSaving} />
+                  </div>
+                  <div>
+                    <Label htmlFor="target_date_offset">{formData.recurrence_frequency === 'daily' ? 'Target after (hours)' : 'Target after (days)'}</Label>
+                    <Input id="target_date_offset_bottom" name="target_date_offset" type="number" value={formData.target_date_offset || ''} onChange={(e) => handleSelectChange('target_date_offset', e.target.value === '' ? null : parseInt(e.target.value))} placeholder="Optional" disabled={isSaving} />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="flex justify-end pt-6 border-t border-white/10">
-          <Button onClick={handleSubmit} disabled={isSaving} style={isSaving ? { opacity: 0.5, pointerEvents: 'none' } : {}}>
+          <Button type="submit" disabled={isSaving}>
             {isSaving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
             {task ? 'Save Changes' : 'Create Task'}
           </Button>

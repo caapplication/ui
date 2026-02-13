@@ -57,6 +57,7 @@ export const {
   exportVouchersToTallyXML,
   getActivityLog,
   getAccountantDashboardStats,
+  createActivityLog,
 } = finance;
 
 export const {

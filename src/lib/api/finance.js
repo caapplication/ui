@@ -624,6 +624,18 @@ export const getActivityLog = async (itemId, itemType, token, startDate = null, 
     return handleResponse(response);
 };
 
+export const createActivityLog = async (data, token) => {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/activity_logs/`, {
+        method: 'POST',
+        headers: {
+            ...getAuthHeaders(token),
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+};
+
 export const getClientDocumentActivityLogs = async (clientId, token, startDate = null, endDate = null) => {
     let url = `${FINANCE_API_BASE_URL}/api/activity_logs/client/${clientId}/documents`;
     const params = new URLSearchParams();
