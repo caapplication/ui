@@ -233,7 +233,7 @@ const RecurringTaskTab = ({ service, onUpdate }) => {
   };
 
   const handleViewTask = (taskId) => {
-    navigate(`/tasks/${taskId}`);
+    navigate(`/tasks/${taskId}`, { state: { fromApp: true } });
   };
 
 

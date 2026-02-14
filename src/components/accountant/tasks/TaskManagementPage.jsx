@@ -276,7 +276,7 @@ const TaskManagementPage = ({ entityId, entityName }) => {
     };
 
     const handleViewTask = (taskId) => {
-        navigate(`/tasks/${taskId}`);
+        navigate(`/tasks/${taskId}`, { state: { fromApp: true } });
     };
 
     const handleBackToList = () => {

@@ -197,7 +197,7 @@ const TaskDashboardPage = () => {
             // Only fetch task details first - load other data lazily when needed
             // For CLIENT users, agency_id might be null/undefined - API will handle it
             const agencyId = user?.agency_id || null;
-            
+
             // Try fetching as regular task first
             try {
                 const taskData = await getTaskDetails(taskId, agencyId, user.access_token);
@@ -205,11 +205,11 @@ const TaskDashboardPage = () => {
                 setIsRecurringTask(false);
             } catch (regularTaskError) {
                 // If regular task fails, try as recurring task
-                const is404 = regularTaskError.message?.includes('404') || 
-                             regularTaskError.message?.includes('not found') || 
-                             regularTaskError.response?.status === 404 ||
-                             regularTaskError.status === 404;
-                
+                const is404 = regularTaskError.message?.includes('404') ||
+                    regularTaskError.message?.includes('not found') ||
+                    regularTaskError.response?.status === 404 ||
+                    regularTaskError.status === 404;
+
                 if (is404) {
                     try {
                         // Set isRecurringTask early to prevent comment fetching
@@ -2138,7 +2138,15 @@ const TaskDashboardPage = () => {
         <div className="h-auto min-h-screen lg:h-[100dvh] p-4 md:p-8 text-white flex flex-col min-h-0 overflow-x-hidden lg:overflow-hidden">
             <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-white/10 mb-6 flex-shrink-0">
                 <div className="flex items-center gap-4 w-full sm:w-auto">
-                    <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="flex-shrink-0">
+                    <Button variant="ghost" size="icon" onClick={() => {
+                        // Use location state if available (passed from navigating component)
+                        if (location.state?.fromApp) {
+                            navigate(-1);
+                        } else {
+                            // Default fallback to tasks list if opened directly or external link
+                            navigate('/tasks');
+                        }
+                    }} className="flex-shrink-0">
                         <ArrowLeft className="h-5 w-5 sm:h-6 sm:w-6" />
                     </Button>
                     <h1 className="text-2xl sm:text-3xl font-bold truncate">
@@ -2397,362 +2405,362 @@ const TaskDashboardPage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 lg:grid-rows-2 gap-4 md:gap-6 h-auto lg:h-full min-h-0 overflow-visible lg:overflow-hidden">
                     {/* Task Chat - Full width on mobile, 2 cols on desktop - Hidden for recurring tasks */}
                     {!isRecurringTask && (
-                    <Card className="glass-pane card-hover flex flex-col overflow-hidden rounded-2xl md:col-span-2 lg:row-span-2 h-[500px] lg:h-full">
-                        <CardHeader className="flex-shrink-0"><CardTitle className="flex items-center gap-2"><MessageSquare className="w-5 h-5" /> Task Chat</CardTitle></CardHeader>
-                        <CardContent className="flex-1 flex flex-col overflow-hidden min-h-0">
-                            <div ref={chatContainerRef} className="flex-1 overflow-y-auto space-y-4 mb-4 pr-2 min-h-0" style={{ overflowX: 'visible' }}>
-                                {isLoadingComments ? (
-                                    <div className="flex justify-center items-center py-8">
-                                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                                    </div>
-                                ) : comments.length > 0 ? (
-                                    comments.map((comment, index) => {
-                                        // Robust ID comparison
-                                        const currentUserId = (user?.id || user?.sub || user?.user_id) ? String(user?.id || user?.sub || user?.user_id).toLowerCase() : '';
-                                        const commentUserId = comment.user_id ? String(comment.user_id).toLowerCase() : '';
-                                        const isOwnComment = currentUserId && commentUserId && currentUserId === commentUserId;
+                        <Card className="glass-pane card-hover flex flex-col overflow-hidden rounded-2xl md:col-span-2 lg:row-span-2 h-[500px] lg:h-full">
+                            <CardHeader className="flex-shrink-0"><CardTitle className="flex items-center gap-2"><MessageSquare className="w-5 h-5" /> Task Chat</CardTitle></CardHeader>
+                            <CardContent className="flex-1 flex flex-col overflow-hidden min-h-0">
+                                <div ref={chatContainerRef} className="flex-1 overflow-y-auto space-y-4 mb-4 pr-2 min-h-0" style={{ overflowX: 'visible' }}>
+                                    {isLoadingComments ? (
+                                        <div className="flex justify-center items-center py-8">
+                                            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                                        </div>
+                                    ) : comments.length > 0 ? (
+                                        comments.map((comment, index) => {
+                                            // Robust ID comparison
+                                            const currentUserId = (user?.id || user?.sub || user?.user_id) ? String(user?.id || user?.sub || user?.user_id).toLowerCase() : '';
+                                            const commentUserId = comment.user_id ? String(comment.user_id).toLowerCase() : '';
+                                            const isOwnComment = currentUserId && commentUserId && currentUserId === commentUserId;
 
-                                        // Use comment.user_name from API (already fetched from database)
-                                        const commentUserName = comment.user_name ||
-                                            (isOwnComment ? (user?.name || 'You') : 'Unknown');
+                                            // Use comment.user_name from API (already fetched from database)
+                                            const commentUserName = comment.user_name ||
+                                                (isOwnComment ? (user?.name || 'You') : 'Unknown');
 
-                                        // Check if previous message is from same user to group messages
-                                        const prevComment = index > 0 ? comments[index - 1] : null;
-                                        const isGrouped = prevComment && prevComment.user_id === comment.user_id;
+                                            // Check if previous message is from same user to group messages
+                                            const prevComment = index > 0 ? comments[index - 1] : null;
+                                            const isGrouped = prevComment && prevComment.user_id === comment.user_id;
 
-                                        // Format timestamp like WhatsApp
-                                        const messageDate = new Date(comment.created_at);
-                                        const now = new Date();
-                                        const isToday = messageDate.toDateString() === now.toDateString();
-                                        const isYesterday = new Date(now.getTime() - 86400000).toDateString() === messageDate.toDateString();
-                                        let timeStr = format(messageDate, 'HH:mm');
-                                        if (isToday) {
-                                            timeStr = format(messageDate, 'HH:mm');
-                                        } else if (isYesterday) {
-                                            timeStr = `Yesterday, ${format(messageDate, 'HH:mm')}`;
-                                        } else {
-                                            timeStr = format(messageDate, 'dd-MM-yyyy, HH:mm');
-                                        }
+                                            // Format timestamp like WhatsApp
+                                            const messageDate = new Date(comment.created_at);
+                                            const now = new Date();
+                                            const isToday = messageDate.toDateString() === now.toDateString();
+                                            const isYesterday = new Date(now.getTime() - 86400000).toDateString() === messageDate.toDateString();
+                                            let timeStr = format(messageDate, 'HH:mm');
+                                            if (isToday) {
+                                                timeStr = format(messageDate, 'HH:mm');
+                                            } else if (isYesterday) {
+                                                timeStr = `Yesterday, ${format(messageDate, 'HH:mm')}`;
+                                            } else {
+                                                timeStr = format(messageDate, 'dd-MM-yyyy, HH:mm');
+                                            }
 
-                                        return (
-                                            <div key={comment.id} className={`flex gap-2 ${isOwnComment ? 'flex-row-reverse' : 'flex-row'} ${isGrouped ? 'mt-1' : 'mt-4'}`}>
-                                                {/* Avatar - only show if not grouped */}
-                                                {!isGrouped && (
-                                                    <div className={`flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-primary/40 to-primary/60 flex items-center justify-center text-white font-semibold text-sm shadow-lg`}>
-                                                        {commentUserName.charAt(0).toUpperCase()}
-                                                    </div>
-                                                )}
-                                                {isGrouped && <div className="w-10"></div>}
-
-                                                <div className={`flex-1 ${isOwnComment ? 'flex flex-col items-end' : 'flex flex-col items-start'}`}>
-                                                    {/* User name - only show if not grouped */}
+                                            return (
+                                                <div key={comment.id} className={`flex gap-2 ${isOwnComment ? 'flex-row-reverse' : 'flex-row'} ${isGrouped ? 'mt-1' : 'mt-4'}`}>
+                                                    {/* Avatar - only show if not grouped */}
                                                     {!isGrouped && (
-                                                        <div className={`mb-1 ${isOwnComment ? 'text-right' : 'text-left'}`}>
-                                                            <span className={`text-sm font-bold ${getUserNameColor(comment.user_id)}`}>
-                                                                {commentUserName}
-                                                            </span>
+                                                        <div className={`flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-primary/40 to-primary/60 flex items-center justify-center text-white font-semibold text-sm shadow-lg`}>
+                                                            {commentUserName.charAt(0).toUpperCase()}
                                                         </div>
                                                     )}
+                                                    {isGrouped && <div className="w-10"></div>}
 
-                                                    {/* Message bubble - WhatsApp style */}
-                                                    <div className={`relative inline-block max-w-[75%] ${isOwnComment ? 'bg-blue-500/20 text-white border border-blue-500/50' : 'bg-white/10 text-white border border-white/20'} rounded-lg shadow-sm`} style={{
-                                                        borderRadius: isOwnComment
-                                                            ? (isGrouped ? '7px 7px 2px 7px' : '7px 7px 2px 7px')
-                                                            : (isGrouped ? '2px 7px 7px 7px' : '7px 7px 7px 2px')
-                                                    }}>
-                                                        <div className="p-2 pb-1">
-                                                            {comment.attachment_url && (
-                                                                <div className="mb-2">
-                                                                    {comment.attachment_type?.startsWith('image/') || comment.attachment_url.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ? (
-                                                                        // Image attachment - show inline like WhatsApp
-                                                                        <div className="rounded-lg overflow-hidden relative">
-                                                                            {loadingImages.has(comment.id) && (
-                                                                                <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10">
-                                                                                    <Loader2 className="w-8 h-8 animate-spin text-white" />
-                                                                                </div>
-                                                                            )}
-                                                                            <img
-                                                                                src={comment.attachment_url}
-                                                                                alt={comment.attachment_name || "Image"}
-                                                                                className="max-w-full h-auto rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-                                                                                onClick={() => setPreviewAttachment({
-                                                                                    url: comment.attachment_url,
-                                                                                    name: comment.attachment_name || 'Image',
-                                                                                    type: comment.attachment_type || 'image'
-                                                                                })}
-                                                                                onLoad={() => {
-                                                                                    setLoadingImages(prev => {
-                                                                                        const newSet = new Set(prev);
-                                                                                        newSet.delete(comment.id);
-                                                                                        return newSet;
-                                                                                    });
-                                                                                }}
-                                                                                onLoadStart={() => {
-                                                                                    setLoadingImages(prev => new Set(prev).add(comment.id));
-                                                                                }}
-                                                                                onError={(e) => {
-                                                                                    setLoadingImages(prev => {
-                                                                                        const newSet = new Set(prev);
-                                                                                        newSet.delete(comment.id);
-                                                                                        return newSet;
-                                                                                    });
-                                                                                    e.target.style.display = 'none';
-                                                                                    if (e.target.nextSibling) {
-                                                                                        e.target.nextSibling.style.display = 'flex';
-                                                                                    }
-                                                                                }}
-                                                                            />
-                                                                            <div className="hidden items-center gap-2 p-3 bg-white/5 rounded-lg">
-                                                                                <ImageIcon className="w-5 h-5 text-gray-400" />
-                                                                                <a
-                                                                                    href={comment.attachment_url}
-                                                                                    download={comment.attachment_name}
-                                                                                    target="_blank"
-                                                                                    rel="noopener noreferrer"
-                                                                                    className="flex items-center gap-2 text-sm text-primary hover:underline flex-1"
-                                                                                >
-                                                                                    <span>{comment.attachment_name || 'Download Image'}</span>
-                                                                                    <Download className="w-4 h-4" />
-                                                                                </a>
-                                                                            </div>
-                                                                        </div>
-                                                                    ) : (
-                                                                        // Non-image attachment - show download option like WhatsApp
-                                                                        <div className="flex items-center gap-3 p-2 bg-white/5 border border-white/10 rounded-lg">
-                                                                            <div className="flex-shrink-0">
-                                                                                {comment.attachment_type === 'application/pdf' ? (
-                                                                                    <FileText className="w-8 h-8 text-red-500" />
-                                                                                ) : comment.attachment_type?.includes('word') || comment.attachment_url.match(/\.(doc|docx)$/i) ? (
-                                                                                    <FileText className="w-8 h-8 text-blue-500" />
-                                                                                ) : comment.attachment_type?.includes('excel') || comment.attachment_type?.includes('spreadsheet') || comment.attachment_url.match(/\.(xls|xlsx)$/i) ? (
-                                                                                    <FileText className="w-8 h-8 text-blue-500" />
-                                                                                ) : (
-                                                                                    <FileText className="w-8 h-8 text-gray-400" />
+                                                    <div className={`flex-1 ${isOwnComment ? 'flex flex-col items-end' : 'flex flex-col items-start'}`}>
+                                                        {/* User name - only show if not grouped */}
+                                                        {!isGrouped && (
+                                                            <div className={`mb-1 ${isOwnComment ? 'text-right' : 'text-left'}`}>
+                                                                <span className={`text-sm font-bold ${getUserNameColor(comment.user_id)}`}>
+                                                                    {commentUserName}
+                                                                </span>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Message bubble - WhatsApp style */}
+                                                        <div className={`relative inline-block max-w-[75%] ${isOwnComment ? 'bg-blue-500/20 text-white border border-blue-500/50' : 'bg-white/10 text-white border border-white/20'} rounded-lg shadow-sm`} style={{
+                                                            borderRadius: isOwnComment
+                                                                ? (isGrouped ? '7px 7px 2px 7px' : '7px 7px 2px 7px')
+                                                                : (isGrouped ? '2px 7px 7px 7px' : '7px 7px 7px 2px')
+                                                        }}>
+                                                            <div className="p-2 pb-1">
+                                                                {comment.attachment_url && (
+                                                                    <div className="mb-2">
+                                                                        {comment.attachment_type?.startsWith('image/') || comment.attachment_url.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ? (
+                                                                            // Image attachment - show inline like WhatsApp
+                                                                            <div className="rounded-lg overflow-hidden relative">
+                                                                                {loadingImages.has(comment.id) && (
+                                                                                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10">
+                                                                                        <Loader2 className="w-8 h-8 animate-spin text-white" />
+                                                                                    </div>
                                                                                 )}
-                                                                            </div>
-                                                                            <div className="flex-1 min-w-0">
-                                                                                <p className="text-sm font-medium text-white truncate">
-                                                                                    {comment.attachment_name || 'Attachment'}
-                                                                                </p>
-                                                                                {comment.attachment_type && (
-                                                                                    <p className="text-xs text-gray-400">
-                                                                                        {comment.attachment_type.split('/')[1]?.toUpperCase() || 'FILE'}
-                                                                                    </p>
-                                                                                )}
-                                                                            </div>
-                                                                            <div className="flex items-center gap-1">
-                                                                                <button
+                                                                                <img
+                                                                                    src={comment.attachment_url}
+                                                                                    alt={comment.attachment_name || "Image"}
+                                                                                    className="max-w-full h-auto rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
                                                                                     onClick={() => setPreviewAttachment({
                                                                                         url: comment.attachment_url,
-                                                                                        name: comment.attachment_name || 'Attachment',
-                                                                                        type: comment.attachment_type
+                                                                                        name: comment.attachment_name || 'Image',
+                                                                                        type: comment.attachment_type || 'image'
                                                                                     })}
-                                                                                    className="flex-shrink-0 p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
-                                                                                    title="Preview"
-                                                                                >
-                                                                                    <Eye className="w-5 h-5 text-white" />
-                                                                                </button>
-                                                                                <a
-                                                                                    href={comment.attachment_url}
-                                                                                    download={comment.attachment_name}
-                                                                                    target="_blank"
-                                                                                    rel="noopener noreferrer"
-                                                                                    className="flex-shrink-0 p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
-                                                                                    title="Download"
-                                                                                >
-                                                                                    <Download className="w-5 h-5 text-white" />
-                                                                                </a>
-                                                                            </div>
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            )}
-                                                            {comment.message && (
-                                                                <p className="text-sm whitespace-pre-wrap break-words leading-relaxed text-white">{comment.message}</p>
-                                                            )}
-                                                        </div>
-
-                                                        {/* Timestamp and read receipt - bottom right */}
-                                                        <div className={`flex items-center justify-end gap-1 px-2 pb-1`}>
-                                                            <span className="text-[10px] text-gray-400">
-                                                                {timeStr}
-                                                            </span>
-                                                            {/* Show read receipts only for sender's own messages */}
-                                                            {isOwnComment && (
-                                                                <TooltipProvider>
-                                                                    <Tooltip delayDuration={300}>
-                                                                        <TooltipTrigger asChild>
-                                                                            <button
-                                                                                onMouseEnter={() => handleFetchReadReceipts(comment.id)}
-                                                                                className="text-[10px] text-gray-400 hover:text-gray-300 cursor-pointer ml-1 flex items-center"
-                                                                            >
-                                                                                {/* Single tick if not read, double tick if read */}
-                                                                                {(() => {
-                                                                                    const receipts = readReceipts[comment.id] || comment.read_receipts || comment.read_by || [];
-                                                                                    const hasRead = Array.isArray(receipts) && receipts.some(r => {
-                                                                                        const userId = r.user_id || r.id || (typeof r !== 'object' ? r : null);
-                                                                                        return userId && String(userId) !== String(user?.id);
-                                                                                    });
-
-                                                                                    return hasRead ? (
-                                                                                        <span className="text-blue-400">✓✓</span>
-                                                                                    ) : (
-                                                                                        <span className="text-gray-500">✓</span>
-                                                                                    );
-                                                                                })()}
-                                                                            </button>
-                                                                        </TooltipTrigger>
-                                                                        <TooltipContent
-                                                                            side="bottom"
-                                                                            align="end"
-                                                                            className="bg-slate-900/95 backdrop-blur-md border border-white/10 shadow-xl p-0 max-w-xs z-[9999]"
-                                                                            sideOffset={8}
-                                                                            alignOffset={-10}
-                                                                            onOpenAutoFocus={(e) => e.preventDefault()}
-                                                                            collisionPadding={10}
-                                                                        >
-                                                                            <div className="p-3">
-                                                                                <div className="text-xs font-semibold text-white mb-2 pb-2 border-b border-white/10">
-                                                                                    Read By
+                                                                                    onLoad={() => {
+                                                                                        setLoadingImages(prev => {
+                                                                                            const newSet = new Set(prev);
+                                                                                            newSet.delete(comment.id);
+                                                                                            return newSet;
+                                                                                        });
+                                                                                    }}
+                                                                                    onLoadStart={() => {
+                                                                                        setLoadingImages(prev => new Set(prev).add(comment.id));
+                                                                                    }}
+                                                                                    onError={(e) => {
+                                                                                        setLoadingImages(prev => {
+                                                                                            const newSet = new Set(prev);
+                                                                                            newSet.delete(comment.id);
+                                                                                            return newSet;
+                                                                                        });
+                                                                                        e.target.style.display = 'none';
+                                                                                        if (e.target.nextSibling) {
+                                                                                            e.target.nextSibling.style.display = 'flex';
+                                                                                        }
+                                                                                    }}
+                                                                                />
+                                                                                <div className="hidden items-center gap-2 p-3 bg-white/5 rounded-lg">
+                                                                                    <ImageIcon className="w-5 h-5 text-gray-400" />
+                                                                                    <a
+                                                                                        href={comment.attachment_url}
+                                                                                        download={comment.attachment_name}
+                                                                                        target="_blank"
+                                                                                        rel="noopener noreferrer"
+                                                                                        className="flex items-center gap-2 text-sm text-primary hover:underline flex-1"
+                                                                                    >
+                                                                                        <span>{comment.attachment_name || 'Download Image'}</span>
+                                                                                        <Download className="w-4 h-4" />
+                                                                                    </a>
                                                                                 </div>
-                                                                                {isLoadingReadReceipts ? (
-                                                                                    <div className="flex justify-center items-center py-4">
-                                                                                        <Loader2 className="w-4 h-4 animate-spin text-white" />
-                                                                                    </div>
-                                                                                ) : readReceipts[comment.id]?.length > 0 ? (
-                                                                                    <div className="space-y-2 max-h-64 overflow-y-auto">
-                                                                                        {readReceipts[comment.id].map((receipt, idx) => (
-                                                                                            <div key={idx} className="flex items-start gap-2 py-1">
-                                                                                                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
-                                                                                                    {(receipt.name || receipt.email || 'U').charAt(0).toUpperCase()}
-                                                                                                </div>
-                                                                                                <div className="flex-1 min-w-0">
-                                                                                                    <div className="text-xs font-medium text-white truncate">
-                                                                                                        {receipt.name || 'Unknown'}
-                                                                                                    </div>
-                                                                                                    <div className="text-[10px] text-gray-400 mt-0.5">
-                                                                                                        {(() => {
-                                                                                                            try {
-                                                                                                                const readDate = new Date(receipt.read_at);
-                                                                                                                const hours = readDate.getHours();
-                                                                                                                const minutes = readDate.getMinutes();
-                                                                                                                const ampm = hours >= 12 ? 'PM' : 'AM';
-                                                                                                                const displayHours = hours % 12 || 12;
-                                                                                                                const displayMinutes = minutes.toString().padStart(2, '0');
-                                                                                                                const dateStr = format(readDate, 'dd-MM-yyyy');
-                                                                                                                return `${displayHours}:${displayMinutes} ${hours >= 12 ? 'PM' : 'AM'}, ${dateStr}`;
-                                                                                                            } catch (e) {
-                                                                                                                return receipt.read_at ? format(new Date(receipt.read_at), 'h:mm a, dd-MM-yyyy') : 'N/A';
-                                                                                                            }
-                                                                                                        })()}
-                                                                                                    </div>
-                                                                                                </div>
-                                                                                            </div>
-                                                                                        ))}
-
-                                                                                    </div>
-                                                                                ) : (
-                                                                                    <div className="text-xs text-gray-400 py-2">
-                                                                                        No one has read this message yet.
-                                                                                    </div>
-                                                                                )}
                                                                             </div>
-                                                                        </TooltipContent>
-                                                                    </Tooltip>
-                                                                </TooltipProvider>
-                                                            )}
+                                                                        ) : (
+                                                                            // Non-image attachment - show download option like WhatsApp
+                                                                            <div className="flex items-center gap-3 p-2 bg-white/5 border border-white/10 rounded-lg">
+                                                                                <div className="flex-shrink-0">
+                                                                                    {comment.attachment_type === 'application/pdf' ? (
+                                                                                        <FileText className="w-8 h-8 text-red-500" />
+                                                                                    ) : comment.attachment_type?.includes('word') || comment.attachment_url.match(/\.(doc|docx)$/i) ? (
+                                                                                        <FileText className="w-8 h-8 text-blue-500" />
+                                                                                    ) : comment.attachment_type?.includes('excel') || comment.attachment_type?.includes('spreadsheet') || comment.attachment_url.match(/\.(xls|xlsx)$/i) ? (
+                                                                                        <FileText className="w-8 h-8 text-blue-500" />
+                                                                                    ) : (
+                                                                                        <FileText className="w-8 h-8 text-gray-400" />
+                                                                                    )}
+                                                                                </div>
+                                                                                <div className="flex-1 min-w-0">
+                                                                                    <p className="text-sm font-medium text-white truncate">
+                                                                                        {comment.attachment_name || 'Attachment'}
+                                                                                    </p>
+                                                                                    {comment.attachment_type && (
+                                                                                        <p className="text-xs text-gray-400">
+                                                                                            {comment.attachment_type.split('/')[1]?.toUpperCase() || 'FILE'}
+                                                                                        </p>
+                                                                                    )}
+                                                                                </div>
+                                                                                <div className="flex items-center gap-1">
+                                                                                    <button
+                                                                                        onClick={() => setPreviewAttachment({
+                                                                                            url: comment.attachment_url,
+                                                                                            name: comment.attachment_name || 'Attachment',
+                                                                                            type: comment.attachment_type
+                                                                                        })}
+                                                                                        className="flex-shrink-0 p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+                                                                                        title="Preview"
+                                                                                    >
+                                                                                        <Eye className="w-5 h-5 text-white" />
+                                                                                    </button>
+                                                                                    <a
+                                                                                        href={comment.attachment_url}
+                                                                                        download={comment.attachment_name}
+                                                                                        target="_blank"
+                                                                                        rel="noopener noreferrer"
+                                                                                        className="flex-shrink-0 p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+                                                                                        title="Download"
+                                                                                    >
+                                                                                        <Download className="w-5 h-5 text-white" />
+                                                                                    </a>
+                                                                                </div>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                                {comment.message && (
+                                                                    <p className="text-sm whitespace-pre-wrap break-words leading-relaxed text-white">{comment.message}</p>
+                                                                )}
+                                                            </div>
+
+                                                            {/* Timestamp and read receipt - bottom right */}
+                                                            <div className={`flex items-center justify-end gap-1 px-2 pb-1`}>
+                                                                <span className="text-[10px] text-gray-400">
+                                                                    {timeStr}
+                                                                </span>
+                                                                {/* Show read receipts only for sender's own messages */}
+                                                                {isOwnComment && (
+                                                                    <TooltipProvider>
+                                                                        <Tooltip delayDuration={300}>
+                                                                            <TooltipTrigger asChild>
+                                                                                <button
+                                                                                    onMouseEnter={() => handleFetchReadReceipts(comment.id)}
+                                                                                    className="text-[10px] text-gray-400 hover:text-gray-300 cursor-pointer ml-1 flex items-center"
+                                                                                >
+                                                                                    {/* Single tick if not read, double tick if read */}
+                                                                                    {(() => {
+                                                                                        const receipts = readReceipts[comment.id] || comment.read_receipts || comment.read_by || [];
+                                                                                        const hasRead = Array.isArray(receipts) && receipts.some(r => {
+                                                                                            const userId = r.user_id || r.id || (typeof r !== 'object' ? r : null);
+                                                                                            return userId && String(userId) !== String(user?.id);
+                                                                                        });
+
+                                                                                        return hasRead ? (
+                                                                                            <span className="text-blue-400">✓✓</span>
+                                                                                        ) : (
+                                                                                            <span className="text-gray-500">✓</span>
+                                                                                        );
+                                                                                    })()}
+                                                                                </button>
+                                                                            </TooltipTrigger>
+                                                                            <TooltipContent
+                                                                                side="bottom"
+                                                                                align="end"
+                                                                                className="bg-slate-900/95 backdrop-blur-md border border-white/10 shadow-xl p-0 max-w-xs z-[9999]"
+                                                                                sideOffset={8}
+                                                                                alignOffset={-10}
+                                                                                onOpenAutoFocus={(e) => e.preventDefault()}
+                                                                                collisionPadding={10}
+                                                                            >
+                                                                                <div className="p-3">
+                                                                                    <div className="text-xs font-semibold text-white mb-2 pb-2 border-b border-white/10">
+                                                                                        Read By
+                                                                                    </div>
+                                                                                    {isLoadingReadReceipts ? (
+                                                                                        <div className="flex justify-center items-center py-4">
+                                                                                            <Loader2 className="w-4 h-4 animate-spin text-white" />
+                                                                                        </div>
+                                                                                    ) : readReceipts[comment.id]?.length > 0 ? (
+                                                                                        <div className="space-y-2 max-h-64 overflow-y-auto">
+                                                                                            {readReceipts[comment.id].map((receipt, idx) => (
+                                                                                                <div key={idx} className="flex items-start gap-2 py-1">
+                                                                                                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
+                                                                                                        {(receipt.name || receipt.email || 'U').charAt(0).toUpperCase()}
+                                                                                                    </div>
+                                                                                                    <div className="flex-1 min-w-0">
+                                                                                                        <div className="text-xs font-medium text-white truncate">
+                                                                                                            {receipt.name || 'Unknown'}
+                                                                                                        </div>
+                                                                                                        <div className="text-[10px] text-gray-400 mt-0.5">
+                                                                                                            {(() => {
+                                                                                                                try {
+                                                                                                                    const readDate = new Date(receipt.read_at);
+                                                                                                                    const hours = readDate.getHours();
+                                                                                                                    const minutes = readDate.getMinutes();
+                                                                                                                    const ampm = hours >= 12 ? 'PM' : 'AM';
+                                                                                                                    const displayHours = hours % 12 || 12;
+                                                                                                                    const displayMinutes = minutes.toString().padStart(2, '0');
+                                                                                                                    const dateStr = format(readDate, 'dd-MM-yyyy');
+                                                                                                                    return `${displayHours}:${displayMinutes} ${hours >= 12 ? 'PM' : 'AM'}, ${dateStr}`;
+                                                                                                                } catch (e) {
+                                                                                                                    return receipt.read_at ? format(new Date(receipt.read_at), 'h:mm a, dd-MM-yyyy') : 'N/A';
+                                                                                                                }
+                                                                                                            })()}
+                                                                                                        </div>
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                            ))}
+
+                                                                                        </div>
+                                                                                    ) : (
+                                                                                        <div className="text-xs text-gray-400 py-2">
+                                                                                            No one has read this message yet.
+                                                                                        </div>
+                                                                                    )}
+                                                                                </div>
+                                                                            </TooltipContent>
+                                                                        </Tooltip>
+                                                                    </TooltipProvider>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        );
-                                    })
-                                ) : (
-                                    <div className="text-center py-8 text-gray-400">No comments yet. Start the conversation!</div>
-                                )}
-                                {/* Invisible element to scroll to */}
-                                <div ref={chatMessagesEndRef} />
-                            </div>
-                            {/* File preview if selected */}
-                            {selectedFile && (
-                                <div className="mb-2 p-2 bg-white/5 rounded-lg flex items-center gap-2">
-                                    {filePreview ? (
-                                        <img src={filePreview} alt="Preview" className="w-12 h-12 object-cover rounded" />
+                                            );
+                                        })
                                     ) : (
-                                        <FileText className="w-8 h-8 text-gray-400" />
+                                        <div className="text-center py-8 text-gray-400">No comments yet. Start the conversation!</div>
                                     )}
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-xs text-white truncate">{selectedFile.name}</p>
-                                        <p className="text-xs text-gray-400">{(selectedFile.size / 1024).toFixed(2)} KB</p>
+                                    {/* Invisible element to scroll to */}
+                                    <div ref={chatMessagesEndRef} />
+                                </div>
+                                {/* File preview if selected */}
+                                {selectedFile && (
+                                    <div className="mb-2 p-2 bg-white/5 rounded-lg flex items-center gap-2">
+                                        {filePreview ? (
+                                            <img src={filePreview} alt="Preview" className="w-12 h-12 object-cover rounded" />
+                                        ) : (
+                                            <FileText className="w-8 h-8 text-gray-400" />
+                                        )}
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-xs text-white truncate">{selectedFile.name}</p>
+                                            <p className="text-xs text-gray-400">{(selectedFile.size / 1024).toFixed(2)} KB</p>
+                                        </div>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-6 w-6 text-gray-400 hover:text-red-400"
+                                            onClick={handleRemoveFile}
+                                        >
+                                            <X className="w-4 h-4" />
+                                        </Button>
                                     </div>
+                                )}
+
+                                <div className="flex items-center gap-2 border-t border-white/10 pt-4 pb-2 flex-shrink-0">
+                                    <input
+                                        type="file"
+                                        id="file-input"
+                                        ref={(input) => {
+                                            if (input) {
+                                                // Store ref for programmatic access
+                                                window.fileInputRef = input;
+                                            }
+                                        }}
+                                        className="hidden"
+                                        onChange={handleFileSelect}
+                                        accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt,.csv"
+                                    />
                                     <Button
+                                        type="button"
                                         variant="ghost"
                                         size="icon"
-                                        className="h-6 w-6 text-gray-400 hover:text-red-400"
-                                        onClick={handleRemoveFile}
+                                        className="text-gray-400 hover:text-white flex-shrink-0 h-10 w-10"
+                                        onClick={() => {
+                                            const fileInput = document.getElementById('file-input');
+                                            if (fileInput) {
+                                                fileInput.click();
+                                            }
+                                        }}
+                                        title="Attach file"
+                                        disabled={isCompleted}
                                     >
-                                        <X className="w-4 h-4" />
+                                        <Paperclip className="w-5 h-5" />
+                                    </Button>
+                                    <Input
+                                        placeholder={isCompleted ? "Task is completed" : "Type your message..."}
+                                        value={newComment}
+                                        onChange={(e) => setNewComment(e.target.value)}
+                                        disabled={isCompleted}
+                                        onKeyPress={(e) => {
+                                            if (e.key === 'Enter' && !e.shiftKey) {
+                                                e.preventDefault();
+                                                handleSendComment();
+                                            }
+                                        }}
+                                        className="flex-1 bg-white/10 text-white border-2 border-blue-500/50 rounded-full h-10 px-4 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 placeholder:text-gray-400"
+                                    />
+                                    <Button
+                                        onClick={handleSendComment}
+                                        disabled={isSendingComment || isCompleted}
+                                        className={`flex-shrink-0 h-10 w-10 rounded-full p-0 ${isCompleted ? 'bg-gray-600 cursor-not-allowed text-gray-400' : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white'}`}
+                                    >
+                                        {isSendingComment ? (
+                                            <Loader2 className="w-5 h-5 animate-spin" />
+                                        ) : (
+                                            <Send className="w-5 h-5" />
+                                        )}
                                     </Button>
                                 </div>
-                            )}
-
-                            <div className="flex items-center gap-2 border-t border-white/10 pt-4 pb-2 flex-shrink-0">
-                                <input
-                                    type="file"
-                                    id="file-input"
-                                    ref={(input) => {
-                                        if (input) {
-                                            // Store ref for programmatic access
-                                            window.fileInputRef = input;
-                                        }
-                                    }}
-                                    className="hidden"
-                                    onChange={handleFileSelect}
-                                    accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt,.csv"
-                                />
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    className="text-gray-400 hover:text-white flex-shrink-0 h-10 w-10"
-                                    onClick={() => {
-                                        const fileInput = document.getElementById('file-input');
-                                        if (fileInput) {
-                                            fileInput.click();
-                                        }
-                                    }}
-                                    title="Attach file"
-                                    disabled={isCompleted}
-                                >
-                                    <Paperclip className="w-5 h-5" />
-                                </Button>
-                                <Input
-                                    placeholder={isCompleted ? "Task is completed" : "Type your message..."}
-                                    value={newComment}
-                                    onChange={(e) => setNewComment(e.target.value)}
-                                    disabled={isCompleted}
-                                    onKeyPress={(e) => {
-                                        if (e.key === 'Enter' && !e.shiftKey) {
-                                            e.preventDefault();
-                                            handleSendComment();
-                                        }
-                                    }}
-                                    className="flex-1 bg-white/10 text-white border-2 border-blue-500/50 rounded-full h-10 px-4 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 placeholder:text-gray-400"
-                                />
-                                <Button
-                                    onClick={handleSendComment}
-                                    disabled={isSendingComment || isCompleted}
-                                    className={`flex-shrink-0 h-10 w-10 rounded-full p-0 ${isCompleted ? 'bg-gray-600 cursor-not-allowed text-gray-400' : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white'}`}
-                                >
-                                    {isSendingComment ? (
-                                        <Loader2 className="w-5 h-5 animate-spin" />
-                                    ) : (
-                                        <Send className="w-5 h-5" />
-                                    )}
-                                </Button>
-                            </div>
-                        </CardContent>
-                    </Card>
+                            </CardContent>
+                        </Card>
                     )}
 
                     {/* Checklists - Column 3, Row 1 (col-span-1, row-span-1) - Green Box */}
@@ -3003,198 +3011,198 @@ const TaskDashboardPage = () => {
                     {/* Collaborate - Column 4, Row 1 (col-span-1, row-span-1) - Red Box - Hidden for recurring tasks */}
                     {!isRecurringTask && (
                         <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col md:col-span-1 lg:col-span-1 lg:row-span-1 border-2 border-red-500/50 h-[400px] lg:h-full">
-                        <CardHeader className="flex-shrink-0">
-                            <div className="flex items-center justify-between">
-                                <CardTitle>Collaborate</CardTitle>
-                                <Dialog open={showAddCollaboratorDialog} onOpenChange={setShowAddCollaboratorDialog}>
-                                    {!isCompleted && (
-                                        <DialogTrigger asChild>
-                                            <Button variant="ghost" size="sm" className="p-2">
-                                                <UserPlus className="w-4 h-4" />
-                                            </Button>
-                                        </DialogTrigger>
-                                    )}
-                                    <DialogContent className="glass-pane">
-                                        <DialogHeader>
-                                            <DialogTitle>Add Collaborator</DialogTitle>
-                                            <DialogDescription>Select a user to add as a collaborator</DialogDescription>
-                                        </DialogHeader>
-                                        <div className="py-4 space-y-4">
-                                            {/* Client Selection (Optional) */}
-                                            <div>
-                                                <Label className="mb-2 block">Client (Optional)</Label>
-                                                <Combobox
-                                                    options={clients.map(c => ({
-                                                        value: String(c.id),
-                                                        label: c.name || c.email
-                                                    }))}
-                                                    value={selectedCollaboratorHostClient}
-                                                    onValueChange={(val) => {
-                                                        setSelectedCollaboratorHostClient(val);
-                                                        setSelectedCollaboratorId(''); // Reset user selection when client changes
-                                                    }}
-                                                    placeholder="Select a client..."
-                                                    searchPlaceholder="Search clients..."
-                                                    emptyText="No clients found."
-                                                />
-                                            </div>
-
-                                            {/* User Selection */}
-                                            <div>
-                                                <Label className="mb-2 block flex items-center gap-2">
-                                                    Collaborator
-                                                    {loadingCollaboratorHostUsers && <Loader2 className="h-3 w-3 animate-spin text-gray-400" />}
-                                                </Label>
-                                                <Combobox
-                                                    options={(selectedCollaboratorHostClient ? collaboratorHostClientUsers : teamMembers)
-                                                        .filter(m => {
-                                                            // Exclude already assigned user, creator, and existing collaborators
-                                                            const userId = m.user_id || m.id;
-
-                                                            const isCreator = String(userId) === String(task.created_by);
-                                                            const isAssignee = String(userId) === String(task.assigned_to);
-                                                            const isAlreadyCollaborator = collaborators.some(c => String(c.user_id) === String(userId));
-
-                                                            return !isCreator && !isAssignee && !isAlreadyCollaborator;
-                                                        })
-                                                        .map(m => ({
-                                                            value: m.user_id || m.id,
-                                                            label: `${m.name || m.full_name || m.email} ${(selectedCollaboratorHostClient) ? '(Client User)' : `(${m.role || m.department || 'N/A'})`}`
+                            <CardHeader className="flex-shrink-0">
+                                <div className="flex items-center justify-between">
+                                    <CardTitle>Collaborate</CardTitle>
+                                    <Dialog open={showAddCollaboratorDialog} onOpenChange={setShowAddCollaboratorDialog}>
+                                        {!isCompleted && (
+                                            <DialogTrigger asChild>
+                                                <Button variant="ghost" size="sm" className="p-2">
+                                                    <UserPlus className="w-4 h-4" />
+                                                </Button>
+                                            </DialogTrigger>
+                                        )}
+                                        <DialogContent className="glass-pane">
+                                            <DialogHeader>
+                                                <DialogTitle>Add Collaborator</DialogTitle>
+                                                <DialogDescription>Select a user to add as a collaborator</DialogDescription>
+                                            </DialogHeader>
+                                            <div className="py-4 space-y-4">
+                                                {/* Client Selection (Optional) */}
+                                                <div>
+                                                    <Label className="mb-2 block">Client (Optional)</Label>
+                                                    <Combobox
+                                                        options={clients.map(c => ({
+                                                            value: String(c.id),
+                                                            label: c.name || c.email
                                                         }))}
-                                                    value={selectedCollaboratorId}
-                                                    onValueChange={setSelectedCollaboratorId}
-                                                    placeholder={
-                                                        loadingCollaboratorHostUsers
-                                                            ? "Loading users..."
-                                                            : selectedCollaboratorHostClient
-                                                                ? (collaboratorHostClientUsers.length === 0 ? "No users found for this client" : "Select a client user...")
-                                                                : "Select a team member..."
-                                                    }
-                                                    searchPlaceholder="Search users..."
-                                                    emptyText={selectedCollaboratorHostClient && collaboratorHostClientUsers.length === 0 ? "No users found for this client." : "No users found."}
-                                                    disabled={loadingCollaboratorHostUsers || isAddingCollaborator || (selectedCollaboratorHostClient && collaboratorHostClientUsers.length === 0)}
-                                                />
-                                            </div>
-                                        </div>
-                                        <DialogFooter>
-                                            <Button
-                                                variant="ghost"
-                                                onClick={() => {
-                                                    setShowAddCollaboratorDialog(false);
-                                                    setSelectedCollaboratorId('');
-                                                    setSelectedCollaboratorHostClient(''); // Reset client selection on close
-                                                }}
-                                                disabled={isAddingCollaborator}
-                                            >
-                                                Cancel
-                                            </Button>
-                                            <Button
-                                                onClick={handleAddCollaborator}
-                                                disabled={!selectedCollaboratorId || isAddingCollaborator}
-                                            >
-                                                {isAddingCollaborator ? (
-                                                    <>
-                                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                                        Adding...
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <UserPlus className="w-4 h-4 mr-2" /> Add Collaborator
-                                                    </>
-                                                )}
-                                            </Button>
-                                        </DialogFooter>
-                                    </DialogContent>
-                                </Dialog>
-                            </div>
-                        </CardHeader>
-                        <CardContent className="flex-1 min-h-0 overflow-hidden flex flex-col">
-                            {isLoadingCollaborators ? (
-                                <div className="flex justify-center items-center py-4 flex-shrink-0">
-                                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                                </div>
-                            ) : (
-                                <div className="flex-1 min-h-0 overflow-y-auto space-y-2">
-                                    {collaborators.length > 0 ? (
-                                        collaborators.map((collab) => {
-                                            // Priority: 1. Direct from API (user_name), 2. Team Members list
-                                            const teamMember = teamMembers.find(m =>
-                                                (m.user_id || m.id) === collab.user_id
-                                            );
-
-                                            const displayName = collab.user_name || teamMember?.name || teamMember?.full_name || teamMember?.email || 'Unknown';
-                                            const displayRole = collab.user_role || teamMember?.role || teamMember?.department || 'N/A';
-                                            const displayEmail = teamMember?.email || 'N/A';
-
-                                            return (
-                                                <div key={collab.id} className="flex items-center justify-between p-2 rounded-md bg-white/5 hover:bg-white/10">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-sm font-semibold">
-                                                            {(displayName).charAt(0).toUpperCase()}
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-sm font-medium text-white">
-                                                                {displayName}
-                                                            </p>
-                                                            <p className="text-xs text-gray-400 italic">
-                                                                {displayRole}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                    {!isCompleted && (
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-8 w-8 text-gray-400 hover:text-red-500"
-                                                            onClick={() => handleRemoveCollaborator(collab.user_id)}
-                                                        >
-                                                            <X className="w-4 h-4" />
-                                                        </Button>
-                                                    )}
-
+                                                        value={selectedCollaboratorHostClient}
+                                                        onValueChange={(val) => {
+                                                            setSelectedCollaboratorHostClient(val);
+                                                            setSelectedCollaboratorId(''); // Reset user selection when client changes
+                                                        }}
+                                                        placeholder="Select a client..."
+                                                        searchPlaceholder="Search clients..."
+                                                        emptyText="No clients found."
+                                                    />
                                                 </div>
-                                            );
-                                        })
-                                    ) : (
-                                        <p className="text-center text-gray-400 py-4">No collaborators yet. Add collaborators to share this task.</p>
-                                    )
-                                    }
+
+                                                {/* User Selection */}
+                                                <div>
+                                                    <Label className="mb-2 block flex items-center gap-2">
+                                                        Collaborator
+                                                        {loadingCollaboratorHostUsers && <Loader2 className="h-3 w-3 animate-spin text-gray-400" />}
+                                                    </Label>
+                                                    <Combobox
+                                                        options={(selectedCollaboratorHostClient ? collaboratorHostClientUsers : teamMembers)
+                                                            .filter(m => {
+                                                                // Exclude already assigned user, creator, and existing collaborators
+                                                                const userId = m.user_id || m.id;
+
+                                                                const isCreator = String(userId) === String(task.created_by);
+                                                                const isAssignee = String(userId) === String(task.assigned_to);
+                                                                const isAlreadyCollaborator = collaborators.some(c => String(c.user_id) === String(userId));
+
+                                                                return !isCreator && !isAssignee && !isAlreadyCollaborator;
+                                                            })
+                                                            .map(m => ({
+                                                                value: m.user_id || m.id,
+                                                                label: `${m.name || m.full_name || m.email} ${(selectedCollaboratorHostClient) ? '(Client User)' : `(${m.role || m.department || 'N/A'})`}`
+                                                            }))}
+                                                        value={selectedCollaboratorId}
+                                                        onValueChange={setSelectedCollaboratorId}
+                                                        placeholder={
+                                                            loadingCollaboratorHostUsers
+                                                                ? "Loading users..."
+                                                                : selectedCollaboratorHostClient
+                                                                    ? (collaboratorHostClientUsers.length === 0 ? "No users found for this client" : "Select a client user...")
+                                                                    : "Select a team member..."
+                                                        }
+                                                        searchPlaceholder="Search users..."
+                                                        emptyText={selectedCollaboratorHostClient && collaboratorHostClientUsers.length === 0 ? "No users found for this client." : "No users found."}
+                                                        disabled={loadingCollaboratorHostUsers || isAddingCollaborator || (selectedCollaboratorHostClient && collaboratorHostClientUsers.length === 0)}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <DialogFooter>
+                                                <Button
+                                                    variant="ghost"
+                                                    onClick={() => {
+                                                        setShowAddCollaboratorDialog(false);
+                                                        setSelectedCollaboratorId('');
+                                                        setSelectedCollaboratorHostClient(''); // Reset client selection on close
+                                                    }}
+                                                    disabled={isAddingCollaborator}
+                                                >
+                                                    Cancel
+                                                </Button>
+                                                <Button
+                                                    onClick={handleAddCollaborator}
+                                                    disabled={!selectedCollaboratorId || isAddingCollaborator}
+                                                >
+                                                    {isAddingCollaborator ? (
+                                                        <>
+                                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                            Adding...
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <UserPlus className="w-4 h-4 mr-2" /> Add Collaborator
+                                                        </>
+                                                    )}
+                                                </Button>
+                                            </DialogFooter>
+                                        </DialogContent>
+                                    </Dialog>
                                 </div>
-                            )}
-                        </CardContent>
+                            </CardHeader>
+                            <CardContent className="flex-1 min-h-0 overflow-hidden flex flex-col">
+                                {isLoadingCollaborators ? (
+                                    <div className="flex justify-center items-center py-4 flex-shrink-0">
+                                        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                                    </div>
+                                ) : (
+                                    <div className="flex-1 min-h-0 overflow-y-auto space-y-2">
+                                        {collaborators.length > 0 ? (
+                                            collaborators.map((collab) => {
+                                                // Priority: 1. Direct from API (user_name), 2. Team Members list
+                                                const teamMember = teamMembers.find(m =>
+                                                    (m.user_id || m.id) === collab.user_id
+                                                );
+
+                                                const displayName = collab.user_name || teamMember?.name || teamMember?.full_name || teamMember?.email || 'Unknown';
+                                                const displayRole = collab.user_role || teamMember?.role || teamMember?.department || 'N/A';
+                                                const displayEmail = teamMember?.email || 'N/A';
+
+                                                return (
+                                                    <div key={collab.id} className="flex items-center justify-between p-2 rounded-md bg-white/5 hover:bg-white/10">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-sm font-semibold">
+                                                                {(displayName).charAt(0).toUpperCase()}
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-sm font-medium text-white">
+                                                                    {displayName}
+                                                                </p>
+                                                                <p className="text-xs text-gray-400 italic">
+                                                                    {displayRole}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        {!isCompleted && (
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-8 w-8 text-gray-400 hover:text-red-500"
+                                                                onClick={() => handleRemoveCollaborator(collab.user_id)}
+                                                            >
+                                                                <X className="w-4 h-4" />
+                                                            </Button>
+                                                        )}
+
+                                                    </div>
+                                                );
+                                            })
+                                        ) : (
+                                            <p className="text-center text-gray-400 py-4">No collaborators yet. Add collaborators to share this task.</p>
+                                        )
+                                        }
+                                    </div>
+                                )}
+                            </CardContent>
                         </Card>
                     )}
 
                     {/* Activity Log - Column 4, Row 2 (col-span-1, row-span-1) - Blue Box - Hidden for recurring tasks */}
                     {!isRecurringTask && (
                         <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col md:col-span-1 lg:col-span-1 lg:row-span-1 border-2 border-blue-500/50 h-[400px] lg:h-full">
-                        <CardHeader className="flex-shrink-0">
-                            <CardTitle className="flex items-center gap-2">
-                                <History className="w-5 h-5" />
-                                Activity Log
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="flex-1 min-h-0 overflow-hidden flex flex-col">
-                            {isHistoryLoading ? (
-                                <div className="flex justify-center items-center py-8 flex-shrink-0">
-                                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                                </div>
-                            ) : (() => {
-                                // Filter out comment-related events (chat history)
-                                const filteredHistory = history.filter(item =>
-                                    item.event_type !== 'comment_added' &&
-                                    item.event_type !== 'comment_updated' &&
-                                    item.event_type !== 'comment_deleted'
-                                );
-                                return filteredHistory.length > 0 ? (
-                                    <div className="flex-1 min-h-0 overflow-y-auto space-y-4">
-                                        {filteredHistory.map(renderHistoryItem)}
+                            <CardHeader className="flex-shrink-0">
+                                <CardTitle className="flex items-center gap-2">
+                                    <History className="w-5 h-5" />
+                                    Activity Log
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="flex-1 min-h-0 overflow-hidden flex flex-col">
+                                {isHistoryLoading ? (
+                                    <div className="flex justify-center items-center py-8 flex-shrink-0">
+                                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
                                     </div>
-                                ) : (
-                                    <div className="text-center py-8 text-gray-400 flex-shrink-0">No history found for this task.</div>
-                                );
-                            })()}
-                        </CardContent>
+                                ) : (() => {
+                                    // Filter out comment-related events (chat history)
+                                    const filteredHistory = history.filter(item =>
+                                        item.event_type !== 'comment_added' &&
+                                        item.event_type !== 'comment_updated' &&
+                                        item.event_type !== 'comment_deleted'
+                                    );
+                                    return filteredHistory.length > 0 ? (
+                                        <div className="flex-1 min-h-0 overflow-y-auto space-y-4">
+                                            {filteredHistory.map(renderHistoryItem)}
+                                        </div>
+                                    ) : (
+                                        <div className="text-center py-8 text-gray-400 flex-shrink-0">No history found for this task.</div>
+                                    );
+                                })()}
+                            </CardContent>
                         </Card>
                     )}
                 </div >
