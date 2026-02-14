@@ -952,6 +952,7 @@ const NoticeDetailsPage = () => {
                 isOpen={isCollaborateOpen}
                 onClose={() => setIsCollaborateOpen(false)}
                 noticeId={noticeId}
+                entityId={notice?.entity_id}
                 token={token}
                 toast={toast}
                 existingCollaborators={notice?.collaborators || []}
@@ -961,7 +962,7 @@ const NoticeDetailsPage = () => {
     );
 };
 
-const CollaboratorsDialog = ({ isOpen, onClose, noticeId, token, toast, existingCollaborators = [], onSuccess }) => {
+const CollaboratorsDialog = ({ isOpen, onClose, noticeId, entityId, token, toast, existingCollaborators = [], onSuccess }) => {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState('');
@@ -976,7 +977,8 @@ const CollaboratorsDialog = ({ isOpen, onClose, noticeId, token, toast, existing
     const fetchUsers = async () => {
         setLoading(true);
         try {
-            const data = await listAllClientUsers(token);
+            // Pass entityId to filter users by the notice's entity
+            const data = await listAllClientUsers(token, entityId);
             setUsers(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error("Failed to fetch users", error);
