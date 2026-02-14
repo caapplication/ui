@@ -1,10 +1,14 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ArrowLeft, Send, Paperclip, MoreVertical, FileText, UserPlus, X, Download, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RefreshCcw, Share2, Trash2, CheckCircle, XCircle, AlertCircle, Loader2, Eye, ImageIcon, Clock, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Send, Paperclip, MoreVertical, FileText, UserPlus, X, Download, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RefreshCcw, Share2, Trash2, CheckCircle, XCircle, AlertCircle, Loader2, Eye, ImageIcon, Clock, MessageSquare, Maximize2 } from 'lucide-react';
+import * as pdfjsLib from 'pdfjs-dist';
+
+// Configure PDF.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 import { Badge } from '@/components/ui/badge';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -63,6 +67,15 @@ const NoticeDetailsPage = () => {
     const [selectedFile, setSelectedFile] = useState(null);
     const fileInputRef = useRef(null);
 
+    // PDF Preview States
+    const [pdfDoc, setPdfDoc] = useState(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(0);
+    const [pdfBlobUrl, setPdfBlobUrl] = useState(null);
+    const [isLoadingPdf, setIsLoadingPdf] = useState(false);
+    const pdfBlobUrlRef = useRef(null);
+    const canvasRef = useRef(null);
+
     const messagesEndRef = useRef(null);
     const chatContainerRef = useRef(null);
 
@@ -93,6 +106,108 @@ const NoticeDetailsPage = () => {
 
         return () => clearInterval(interval);
     }, [noticeId]);
+
+    // Handle PDF preview - fetch and render using PDF.js
+    useEffect(() => {
+        const loadPdf = async () => {
+            if (!previewAttachment) {
+                // Clean up
+                if (pdfBlobUrlRef.current) {
+                    URL.revokeObjectURL(pdfBlobUrlRef.current);
+                    pdfBlobUrlRef.current = null;
+                }
+                setPdfBlobUrl(null);
+                setPdfDoc(null);
+                setCurrentPage(1);
+                setTotalPages(0);
+                return;
+            }
+
+            // Only handle if it's a PDF
+            if (previewAttachment.type === 'application/pdf' || previewAttachment.url.match(/\.pdf$/i)) {
+                setIsLoadingPdf(true);
+                try {
+                    // Clean up previous blob URL if exists
+                    if (pdfBlobUrlRef.current) {
+                        URL.revokeObjectURL(pdfBlobUrlRef.current);
+                    }
+
+                    // Fetch PDF as blob
+                    const response = await fetch(previewAttachment.url, {
+                        method: 'GET',
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch PDF');
+                    }
+
+                    const blob = await response.blob();
+                    const blobUrl = URL.createObjectURL(blob);
+                    pdfBlobUrlRef.current = blobUrl;
+                    setPdfBlobUrl(blobUrl);
+
+                    // Load PDF with PDF.js
+                    const loadingTask = pdfjsLib.getDocument({ url: blobUrl });
+                    const pdf = await loadingTask.promise;
+                    setPdfDoc(pdf);
+                    setTotalPages(pdf.numPages);
+                    setCurrentPage(1);
+
+                    // Render first page will be handled by the useEffect below
+                } catch (error) {
+                    console.error('Error loading PDF:', error);
+                    toast({
+                        title: 'Error loading PDF',
+                        description: 'Could not load the PDF. Please try downloading it instead.',
+                        variant: 'destructive',
+                    });
+                } finally {
+                    setIsLoadingPdf(false);
+                }
+            }
+        };
+
+        loadPdf();
+
+        // Cleanup function
+        return () => {
+            if (pdfBlobUrlRef.current) {
+                URL.revokeObjectURL(pdfBlobUrlRef.current);
+                pdfBlobUrlRef.current = null;
+            }
+        };
+    }, [previewAttachment, toast]);
+
+    // Render PDF page
+    const renderPage = useCallback(async (pdf, pageNum) => {
+        if (!pdf || !canvasRef.current) return;
+
+        try {
+            const page = await pdf.getPage(pageNum);
+            const viewport = page.getViewport({ scale: 1.5 });
+            const canvas = canvasRef.current;
+            const context = canvas.getContext('2d');
+
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+
+            const renderContext = {
+                canvasContext: context,
+                viewport: viewport
+            };
+
+            await page.render(renderContext).promise;
+        } catch (error) {
+            console.error('Error rendering PDF page:', error);
+        }
+    }, []);
+
+    // Handle page change
+    useEffect(() => {
+        if (pdfDoc && currentPage) {
+            renderPage(pdfDoc, currentPage);
+        }
+    }, [pdfDoc, currentPage, renderPage]);
 
     const refreshComments = async () => {
         try {
@@ -540,239 +655,261 @@ const NoticeDetailsPage = () => {
 
                 {/* Right Panel - Chat Interface */}
                 <ResizablePanel defaultSize={50} minSize={30}>
-                    <div className="flex h-full flex-col bg-transparent">
-                        <div className="p-4 py-3 border-b border-white/10 flex items-center gap-2">
-                            <MessageSquare className="w-5 h-5 text-gray-300" />
-                            <h2 className="text-lg font-semibold text-white">Notice Chat</h2>
-                        </div>
-                        <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 mb-4 pr-2 min-h-0" style={{ overflowX: 'visible' }}>
-                            {messages.length === 0 ? (
-                                <div className="text-center text-gray-500 mt-10">No messages yet. Start the discussion.</div>
-                            ) : (
-                                Object.entries(groupMessagesByDate(messages)).map(([dateStr, dateMsgs]) => (
-                                    <div key={dateStr} className="space-y-4">
-                                        {/* Date Separator */}
-                                        <div className="flex justify-center my-6">
-                                            <div className="px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/10 shadow-lg">
-                                                <span className="text-xs font-semibold text-gray-300 uppercase tracking-wider">
-                                                    {formatDateHeader(dateStr)}
-                                                </span>
+                    <Card className="glass-pane flex h-full flex-col overflow-hidden rounded-r-2xl rounded-l-none border-none">
+                        <CardHeader className="flex-shrink-0 border-b border-white/10 py-3">
+                            <CardTitle className="flex items-center gap-2 text-lg font-semibold text-white">
+                                <MessageSquare className="w-5 h-5 text-gray-300" />
+                                Notice Chat
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="flex-1 flex flex-col overflow-hidden min-h-0 p-0">
+                            <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 mb-4 pr-2 min-h-0" style={{ overflowX: 'visible' }}>
+                                {messages.length === 0 ? (
+                                    <div className="text-center text-gray-500 mt-10">No messages yet. Start the discussion.</div>
+                                ) : (
+                                    Object.entries(groupMessagesByDate(messages)).map(([dateStr, dateMsgs]) => (
+                                        <div key={dateStr} className="space-y-4">
+                                            {/* Date Separator */}
+                                            <div className="flex justify-center my-6">
+                                                <div className="px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/10 shadow-lg">
+                                                    <span className="text-xs font-semibold text-gray-300 uppercase tracking-wider">
+                                                        {formatDateHeader(dateStr)}
+                                                    </span>
+                                                </div>
                                             </div>
-                                        </div>
 
-                                        {dateMsgs.map((msg, index) => {
-                                            const isOwnComment = String(msg.user_id) === String(user?.id);
-                                            const commentUserName = msg.user_name || (isOwnComment ? (user?.name || 'You') : 'Unknown');
+                                            {dateMsgs.map((msg, index) => {
+                                                const isOwnComment = String(msg.user_id) === String(user?.id);
+                                                const commentUserName = msg.user_name || (isOwnComment ? (user?.name || 'You') : 'Unknown');
 
-                                            // Check if previous message in THIS date group is from same user
-                                            const prevMessage = index > 0 ? dateMsgs[index - 1] : null;
-                                            const isGrouped = prevMessage && String(prevMessage.user_id) === String(msg.user_id);
+                                                // Check if previous message in THIS date group is from same user
+                                                const prevMessage = index > 0 ? dateMsgs[index - 1] : null;
+                                                const isGrouped = prevMessage && String(prevMessage.user_id) === String(msg.user_id);
 
-                                            // Format timestamp
-                                            const messageDate = new Date(msg.created_at);
-                                            const timeStr = format(messageDate, 'HH:mm');
+                                                // Format timestamp
+                                                const messageDate = new Date(msg.created_at);
+                                                const timeStr = format(messageDate, 'HH:mm');
 
-                                            return (
-                                                <div
-                                                    key={msg.id}
-                                                    data-comment-id={msg.id}
-                                                    className={`flex gap-2 ${isOwnComment ? 'flex-row-reverse' : 'flex-row'} ${isGrouped ? 'mt-1' : 'mt-4'}`}
-                                                >
-                                                    {/* Avatar - only show if not grouped */}
-                                                    {!isGrouped && (
-                                                        <div className="flex-shrink-0">
-                                                            <TooltipProvider>
-                                                                <Tooltip>
-                                                                    <TooltipTrigger asChild>
-                                                                        <Avatar className="w-10 h-10 shadow-lg cursor-help">
-                                                                            <AvatarFallback className="bg-indigo-600 font-semibold text-sm text-white">
-                                                                                {commentUserName.charAt(0).toUpperCase()}
-                                                                            </AvatarFallback>
-                                                                        </Avatar>
-                                                                    </TooltipTrigger>
-                                                                    <TooltipContent>
-                                                                        <p>{commentUserName} ({msg.user_role || 'Member'})</p>
-                                                                    </TooltipContent>
-                                                                </Tooltip>
-                                                            </TooltipProvider>
-                                                        </div>
-                                                    )}
-                                                    {isGrouped && <div className="w-10"></div>}
-
-                                                    <div className={`flex-1 ${isOwnComment ? 'flex flex-col items-end' : 'flex flex-col items-start'}`}>
+                                                return (
+                                                    <div
+                                                        key={msg.id}
+                                                        data-comment-id={msg.id}
+                                                        className={`flex gap-2 ${isOwnComment ? 'flex-row-reverse' : 'flex-row'} ${isGrouped ? 'mt-1' : 'mt-4'}`}
+                                                    >
+                                                        {/* Avatar - only show if not grouped */}
                                                         {!isGrouped && (
-                                                            <div className={`mb-1 ${isOwnComment ? 'text-right' : 'text-left'}`}>
-                                                                <span className={`text-sm font-bold ${getUserNameColor(msg.user_id)}`}>
-                                                                    {commentUserName}
-                                                                </span>
+                                                            <div className="flex-shrink-0">
+                                                                <TooltipProvider>
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger asChild>
+                                                                            <Avatar className="w-10 h-10 shadow-lg cursor-help">
+                                                                                <AvatarFallback className="bg-gradient-to-br from-primary/40 to-primary/60 flex items-center justify-center text-white font-semibold text-sm shadow-lg">
+                                                                                    {commentUserName.charAt(0).toUpperCase()}
+                                                                                </AvatarFallback>
+                                                                            </Avatar>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent>
+                                                                            <p>{commentUserName} ({msg.user_role || 'Member'})</p>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                </TooltipProvider>
                                                             </div>
                                                         )}
+                                                        {isGrouped && <div className="w-10"></div>}
 
-                                                        {/* Message bubble */}
-                                                        <div className={`relative inline-block max-w-[85%] ${isOwnComment ? 'bg-blue-600/30 text-white border border-blue-500/30' : 'bg-white/10 text-white border border-white/20'} rounded-lg shadow-sm`} style={{
-                                                            borderRadius: isOwnComment
-                                                                ? (isGrouped ? '8px 8px 2px 8px' : '8px 8px 2px 8px')
-                                                                : (isGrouped ? '2px 8px 8px 8px' : '8px 8px 8px 2px')
-                                                        }}>
-                                                            <div className="p-3 pb-1">
-                                                                {msg.attachment_url && (
-                                                                    <div className="mb-2">
-                                                                        {msg.attachment_url.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ? (
-                                                                            <div className="rounded-lg overflow-hidden relative group">
-                                                                                <img
-                                                                                    src={msg.attachment_url}
-                                                                                    alt="Attachment"
-                                                                                    className="max-w-full h-auto max-h-[200px] object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-                                                                                    onClick={() => setPreviewAttachment({
-                                                                                        url: msg.attachment_url,
-                                                                                        name: msg.attachment_name || 'Image',
-                                                                                        type: 'image'
-                                                                                    })}
-                                                                                />
-                                                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-                                                                                    <Eye className="text-white w-8 h-8 drop-shadow-lg" />
-                                                                                </div>
-                                                                            </div>
-                                                                        ) : (
-                                                                            <div
-                                                                                className="flex items-center gap-3 p-2 bg-white/5 border border-white/10 rounded-lg cursor-pointer hover:bg-white/10 transition-colors"
-                                                                                onClick={() => setPreviewAttachment({
-                                                                                    url: msg.attachment_url,
-                                                                                    name: msg.attachment_name || 'Document',
-                                                                                    type: 'document'
-                                                                                })}
-                                                                            >
-                                                                                <FileText className="w-8 h-8 text-blue-400" />
-                                                                                <div className="flex-1 min-w-0">
-                                                                                    <p className="text-sm font-medium text-white truncate">{msg.attachment_name || 'Attachment'}</p>
-                                                                                    <p className="text-xs text-gray-400">Click to preview</p>
-                                                                                </div>
-                                                                                <Button size="icon" variant="ghost" className="h-8 w-8 text-gray-400 hover:text-white" onClick={(e) => {
-                                                                                    e.stopPropagation();
-                                                                                    window.open(msg.attachment_url, '_blank');
-                                                                                }}>
-                                                                                    <Download className="w-4 h-4" />
-                                                                                </Button>
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                )}
-                                                                {msg.message && <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{msg.message}</p>}
-                                                            </div>
+                                                        <div className={`flex-1 ${isOwnComment ? 'flex flex-col items-end' : 'flex flex-col items-start'}`}>
+                                                            {!isGrouped && (
+                                                                <div className={`mb-1 ${isOwnComment ? 'text-right' : 'text-left'}`}>
+                                                                    <span className={`text-sm font-bold ${getUserNameColor(msg.user_id)}`}>
+                                                                        {commentUserName}
+                                                                    </span>
+                                                                </div>
+                                                            )}
 
-                                                            {/* Timestamp and ticks */}
-                                                            <div className="flex items-center justify-end gap-1 px-3 pb-1 opacity-70">
-                                                                <span className="text-[10px] text-gray-300">
-                                                                    {timeStr}
-                                                                </span>
-                                                                {isOwnComment && (
-                                                                    <TooltipProvider>
-                                                                        <Tooltip delayDuration={300}>
-                                                                            <TooltipTrigger asChild>
-                                                                                <button
-                                                                                    onMouseEnter={() => handleFetchReadReceipts(msg.id)}
-                                                                                    className="text-[10px] cursor-pointer ml-1 flex items-center"
-                                                                                >
-                                                                                    {(() => {
-                                                                                        const receipts = readReceipts[msg.id] || msg.read_receipts || [];
-                                                                                        const isReadByOthers = receipts.some(r => String(r.user_id) !== String(user?.id));
-                                                                                        return isReadByOthers ? (
-                                                                                            <span className="text-blue-400 font-bold">✓✓</span>
+                                                            {/* Message bubble */}
+                                                            <div className={`relative inline-block max-w-[85%] ${isOwnComment ? 'bg-blue-500/20 text-white border border-blue-500/50' : 'bg-white/10 text-white border border-white/20'} rounded-lg shadow-sm`} style={{
+                                                                borderRadius: isOwnComment
+                                                                    ? (isGrouped ? '7px 7px 2px 7px' : '7px 7px 2px 7px')
+                                                                    : (isGrouped ? '2px 7px 7px 7px' : '7px 7px 7px 2px')
+                                                            }}>
+                                                                <div className="p-3 pb-1">
+                                                                    {msg.attachment_url && (
+                                                                        <div className="mb-2">
+                                                                            {msg.attachment_url.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ? (
+                                                                                <div className="rounded-lg overflow-hidden relative group">
+                                                                                    <img
+                                                                                        src={msg.attachment_url}
+                                                                                        alt="Attachment"
+                                                                                        className="max-w-full h-auto max-h-[200px] object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                                                                                        onClick={() => setPreviewAttachment({
+                                                                                            url: msg.attachment_url,
+                                                                                            name: msg.attachment_name || 'Image',
+                                                                                            type: 'image'
+                                                                                        })}
+                                                                                    />
+                                                                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                                                                                        <Eye className="text-white w-8 h-8 drop-shadow-lg" />
+                                                                                    </div>
+                                                                                </div>
+                                                                            ) : (
+                                                                                <div className="flex items-center gap-3 p-2 bg-white/5 border border-white/10 rounded-lg">
+                                                                                    <div className="flex-shrink-0">
+                                                                                        {msg.attachment_name?.toLowerCase().endsWith('.pdf') ? (
+                                                                                            <FileText className="w-8 h-8 text-red-500" />
+                                                                                        ) : msg.attachment_name?.toLowerCase().match(/\.(xls|xlsx)$/i) ? (
+                                                                                            <FileText className="w-8 h-8 text-blue-500" />
                                                                                         ) : (
-                                                                                            <span className="text-gray-400">✓</span>
-                                                                                        );
-                                                                                    })()}
-                                                                                </button>
-                                                                            </TooltipTrigger>
-                                                                            <TooltipContent className="bg-slate-900 border border-white/10 p-2 shadow-2xl z-50">
-                                                                                <div>
-                                                                                    <div className="text-[11px] font-bold text-blue-400 mb-2 border-b border-white/10 pb-1">Read By</div>
-                                                                                    {(readReceipts[msg.id] || []).filter(r => String(r.user_id) !== String(user?.id)).length > 0 ? (
-                                                                                        <div className="space-y-2 min-w-[120px]">
-                                                                                            {(readReceipts[msg.id] || []).filter(r => String(r.user_id) !== String(user?.id)).map((r, i) => (
-                                                                                                <div key={i} className="flex items-center gap-2">
-                                                                                                    <Avatar className="w-5 h-5">
-                                                                                                        <AvatarFallback className="text-[8px] bg-blue-500 text-white">
-                                                                                                            {(r.user_name || 'U')[0]}
-                                                                                                        </AvatarFallback>
-                                                                                                    </Avatar>
-                                                                                                    <div className="flex flex-col">
-                                                                                                        <span className="text-[10px] font-medium text-white">{r.user_name || 'Unknown'}</span>
-                                                                                                        <span className="text-[9px] text-gray-400">{format(new Date(r.read_at), 'HH:mm, dd MMM')}</span>
-                                                                                                    </div>
-                                                                                                </div>
-                                                                                            ))}
-                                                                                        </div>
-                                                                                    ) : (
-                                                                                        <div className="text-[10px] text-gray-400 py-1 italic">Not read by anyone yet</div>
-                                                                                    )}
+                                                                                            <FileText className="w-8 h-8 text-gray-400" />
+                                                                                        )}
+                                                                                    </div>
+                                                                                    <div className="flex-1 min-w-0">
+                                                                                        <p className="text-sm font-medium text-white truncate">{msg.attachment_name || 'Attachment'}</p>
+                                                                                        <p className="text-xs text-gray-400">{msg.attachment_name?.split('.').pop()?.toUpperCase() || 'FILE'}</p>
+                                                                                    </div>
+                                                                                    <div className="flex items-center gap-1">
+                                                                                        <button
+                                                                                            onClick={() => setPreviewAttachment({
+                                                                                                url: msg.attachment_url,
+                                                                                                name: msg.attachment_name || 'Document',
+                                                                                                type: 'document'
+                                                                                            })}
+                                                                                            className="flex-shrink-0 p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors text-white"
+                                                                                            title="Preview"
+                                                                                        >
+                                                                                            <Eye className="w-5 h-5" />
+                                                                                        </button>
+                                                                                        <a
+                                                                                            href={msg.attachment_url}
+                                                                                            download={msg.attachment_name || 'document'}
+                                                                                            target="_blank"
+                                                                                            rel="noopener noreferrer"
+                                                                                            className="flex-shrink-0 p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors text-white"
+                                                                                            title="Download"
+                                                                                        >
+                                                                                            <Download className="w-5 h-5" />
+                                                                                        </a>
+                                                                                    </div>
                                                                                 </div>
-                                                                            </TooltipContent>
-                                                                        </Tooltip>
-                                                                    </TooltipProvider>
-                                                                )}
+                                                                            )}
+                                                                        </div>
+                                                                    )}
+                                                                    {msg.message && <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{msg.message}</p>}
+                                                                </div>
+
+                                                                {/* Timestamp and ticks */}
+                                                                <div className="flex items-center justify-end gap-1 px-3 pb-1 opacity-70">
+                                                                    <span className="text-[10px] text-gray-300">
+                                                                        {timeStr}
+                                                                    </span>
+                                                                    {isOwnComment && (
+                                                                        <TooltipProvider>
+                                                                            <Tooltip delayDuration={300}>
+                                                                                <TooltipTrigger asChild>
+                                                                                    <button
+                                                                                        onMouseEnter={() => handleFetchReadReceipts(msg.id)}
+                                                                                        className="text-[10px] cursor-pointer ml-1 flex items-center"
+                                                                                    >
+                                                                                        {(() => {
+                                                                                            const receipts = readReceipts[msg.id] || msg.read_receipts || [];
+                                                                                            const isReadByOthers = receipts.some(r => String(r.user_id) !== String(user?.id));
+                                                                                            return isReadByOthers ? (
+                                                                                                <span className="text-blue-400 font-bold">✓✓</span>
+                                                                                            ) : (
+                                                                                                <span className="text-gray-400">✓</span>
+                                                                                            );
+                                                                                        })()}
+                                                                                    </button>
+                                                                                </TooltipTrigger>
+                                                                                <TooltipContent className="bg-slate-900 border border-white/10 p-2 shadow-2xl z-50">
+                                                                                    <div>
+                                                                                        <div className="text-[11px] font-bold text-blue-400 mb-2 border-b border-white/10 pb-1">Read By</div>
+                                                                                        {(readReceipts[msg.id] || []).filter(r => String(r.user_id) !== String(user?.id)).length > 0 ? (
+                                                                                            <div className="space-y-2 min-w-[120px]">
+                                                                                                {(readReceipts[msg.id] || []).filter(r => String(r.user_id) !== String(user?.id)).map((r, i) => (
+                                                                                                    <div key={i} className="flex items-center gap-2">
+                                                                                                        <Avatar className="w-5 h-5">
+                                                                                                            <AvatarFallback className="text-[8px] bg-blue-500 text-white">
+                                                                                                                {(r.user_name || 'U')[0]}
+                                                                                                            </AvatarFallback>
+                                                                                                        </Avatar>
+                                                                                                        <div className="flex flex-col">
+                                                                                                            <span className="text-[10px] font-medium text-white">{r.user_name || 'Unknown'}</span>
+                                                                                                            <span className="text-[9px] text-gray-400">{format(new Date(r.read_at), 'HH:mm, dd MMM')}</span>
+                                                                                                        </div>
+                                                                                                    </div>
+                                                                                                ))}
+                                                                                            </div>
+                                                                                        ) : (
+                                                                                            <div className="text-[10px] text-gray-400 py-1 italic">Not read by anyone yet</div>
+                                                                                        )}
+                                                                                    </div>
+                                                                                </TooltipContent>
+                                                                            </Tooltip>
+                                                                        </TooltipProvider>
+                                                                    )}
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                ))
-                            )}
-                            <div ref={messagesEndRef} />
-                        </div>
+                                                );
+                                            })}
+                                        </div>
+                                    ))
+                                )}
+                                <div ref={messagesEndRef} />
+                            </div>
 
-                        {/* Input Area */}
-                        <div className="p-4 border-t border-white/10 bg-black/20 backdrop-blur-sm">
-                            {selectedFile && (
-                                <div className="mb-2 p-2 bg-blue-600/20 border border-blue-500/30 rounded-lg flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                        <Paperclip className="w-4 h-4 text-blue-400" />
-                                        <span className="text-xs text-white truncate max-w-[200px]">{selectedFile.name}</span>
+                            {/* Input Area */}
+                            <div className="p-4 border-t border-white/10 bg-black/20 backdrop-blur-sm flex-shrink-0">
+                                {selectedFile && (
+                                    <div className="mb-2 p-2 bg-blue-600/20 border border-blue-500/30 rounded-lg flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <Paperclip className="w-4 h-4 text-blue-400" />
+                                            <span className="text-xs text-white truncate max-w-[200px]">{selectedFile.name}</span>
+                                        </div>
+                                        <Button type="button" size="icon" variant="ghost" className="h-6 w-6 text-gray-400 hover:text-white" onClick={() => setSelectedFile(null)}>
+                                            <X className="w-3 h-3" />
+                                        </Button>
                                     </div>
-                                    <Button type="button" size="icon" variant="ghost" className="h-6 w-6 text-gray-400 hover:text-white" onClick={() => setSelectedFile(null)}>
-                                        <X className="w-3 h-3" />
+                                )}
+                                <form onSubmit={handleSendMessage} className="flex items-center gap-2">
+                                    <input
+                                        type="file"
+                                        ref={fileInputRef}
+                                        className="hidden"
+                                        onChange={(e) => setSelectedFile(e.target.files[0])}
+                                        disabled={isSending || notice.status === 'closed'}
+                                    />
+                                    <Button
+                                        type="button"
+                                        size="icon"
+                                        variant="ghost"
+                                        className="text-gray-400 hover:text-white flex-shrink-0 h-10 w-10"
+                                        onClick={() => fileInputRef.current?.click()}
+                                        disabled={isSending || notice.status === 'closed'}
+                                    >
+                                        <Paperclip className="w-5 h-5" />
                                     </Button>
-                                </div>
-                            )}
-                            <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-                                <input
-                                    type="file"
-                                    ref={fileInputRef}
-                                    className="hidden"
-                                    onChange={(e) => setSelectedFile(e.target.files[0])}
-                                    disabled={isSending || notice.status === 'closed'}
-                                />
-                                <Button
-                                    type="button"
-                                    size="icon"
-                                    variant="ghost"
-                                    className="text-gray-400 hover:text-white hover:bg-white/10"
-                                    onClick={() => fileInputRef.current?.click()}
-                                    disabled={isSending || notice.status === 'closed'}
-                                >
-                                    <Paperclip className="w-5 h-5" />
-                                </Button>
-                                <Input
-                                    value={newMessage}
-                                    onChange={(e) => setNewMessage(e.target.value)}
-                                    placeholder={notice.status === 'closed' ? "This notice is closed" : "Type your message..."}
-                                    className="flex-1 bg-white/10 text-white border-2 border-blue-500/50 rounded-full h-10 px-4 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 placeholder:text-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                                    disabled={isSending || notice.status === 'closed'}
-                                    onKeyPress={(e) => {
-                                        if (e.key === 'Enter' && !e.shiftKey) {
-                                            e.preventDefault();
-                                            handleSendMessage(e);
-                                        }
-                                    }}
-                                />
-                                <Button type="submit" size="icon" disabled={isSending || notice.status === 'closed'} className={`flex-shrink-0 h-10 w-10 rounded-full p-0 ${(isSending || notice.status === 'closed') ? 'bg-gray-600 cursor-not-allowed text-gray-400' : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg'}`}>
-                                    {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                                </Button>
-                            </form>
-                        </div>
-                    </div>
+                                    <Input
+                                        value={newMessage}
+                                        onChange={(e) => setNewMessage(e.target.value)}
+                                        placeholder={notice.status === 'closed' ? "This notice is closed" : "Type your message..."}
+                                        className="flex-1 bg-white/10 text-white border-2 border-blue-500/50 rounded-full h-10 px-4 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 placeholder:text-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        disabled={isSending || notice.status === 'closed'}
+                                        onKeyPress={(e) => {
+                                            if (e.key === 'Enter' && !e.shiftKey) {
+                                                e.preventDefault();
+                                                handleSendMessage(e);
+                                            }
+                                        }}
+                                    />
+                                    <Button type="submit" size="icon" disabled={isSending || notice.status === 'closed'} className={`flex-shrink-0 h-10 w-10 rounded-full p-0 ${(isSending || notice.status === 'closed') ? 'bg-gray-600 cursor-not-allowed text-gray-400' : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg'}`}>
+                                        {isSending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+                                    </Button>
+                                </form>
+                            </div>
+                        </CardContent>
+                    </Card>
                 </ResizablePanel>
             </ResizablePanelGroup>
 
@@ -884,42 +1021,173 @@ const NoticeDetailsPage = () => {
             </Dialog >
 
             {/* Preview Attachment Dialog */}
-            <Dialog open={!!previewAttachment} onOpenChange={(open) => !open && setPreviewAttachment(null)}>
-                <DialogContent className="glass-card border-white/10 text-white max-w-4xl w-full h-[80vh] flex flex-col p-0 overflow-hidden">
-                    <div className="flex items-center justify-between p-4 border-b border-white/10 bg-black/40">
-                        <div className="flex items-center gap-2">
-                            {previewAttachment?.type === 'image' ? <ImageIcon className="w-5 h-5 text-blue-400" /> : <FileText className="w-5 h-5 text-blue-400" />}
-                            <span className="font-medium truncate max-w-[300px]">{previewAttachment?.name}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 gap-2 hover:bg-white/10"
-                                onClick={() => window.open(previewAttachment?.url, '_blank')}
-                            >
-                                <Download className="w-4 h-4" /> Download
-                            </Button>
-                            <DialogClose asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-white/10">
-                                    <X className="w-4 h-4" />
+            <Dialog open={!!previewAttachment} onOpenChange={(open) => {
+                if (!open) {
+                    setPreviewAttachment(null);
+                    // Clean up blob URL when dialog closes
+                    if (pdfBlobUrlRef.current) {
+                        URL.revokeObjectURL(pdfBlobUrlRef.current);
+                        pdfBlobUrlRef.current = null;
+                        setPdfBlobUrl(null);
+                    }
+                }
+            }}>
+                <DialogContent className="glass-card border-white/10 text-white max-w-4xl w-[95vw] h-[90vh] flex flex-col p-0 overflow-hidden">
+                    <DialogHeader className="flex-shrink-0 px-6 pt-6 pb-4 border-b border-white/10 bg-black/40">
+                        <div className="flex items-center justify-between">
+                            <DialogTitle className="flex items-center gap-2 text-lg">
+                                {previewAttachment?.type === 'image' ? <ImageIcon className="w-5 h-5 text-blue-400" /> : <FileText className="w-5 h-5 text-blue-400" />}
+                                <span className="font-medium truncate max-w-[300px]">{previewAttachment?.name}</span>
+                            </DialogTitle>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 gap-2 hover:bg-white/10 text-white"
+                                    onClick={() => window.open(previewAttachment?.url, '_blank')}
+                                >
+                                    <Download className="w-4 h-4" /> Download
                                 </Button>
-                            </DialogClose>
+                                <DialogClose asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-white/10 text-white">
+                                        <X className="w-4 h-4" />
+                                    </Button>
+                                </DialogClose>
+                            </div>
                         </div>
-                    </div>
-                    <div className="flex-1 bg-black/60 flex items-center justify-center p-4 overflow-hidden relative">
-                        {previewAttachment?.type === 'image' ? (
-                            <img
-                                src={previewAttachment.url}
-                                alt={previewAttachment.name}
-                                className="max-w-full max-h-full object-contain"
-                            />
-                        ) : (
-                            <iframe
-                                src={previewAttachment?.url}
-                                className="w-full h-full rounded bg-white"
-                                title="File Preview"
-                            />
+                    </DialogHeader>
+
+                    <div className="flex-1 bg-black/60 flex items-center justify-center p-6 overflow-hidden relative">
+                        {previewAttachment && (
+                            <>
+                                {previewAttachment.type?.startsWith('image/') || previewAttachment.url.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ? (
+                                    <div className="h-full flex items-center justify-center">
+                                        <img
+                                            src={previewAttachment.url}
+                                            alt={previewAttachment.name}
+                                            className="max-w-full max-h-full object-contain rounded-lg"
+                                        />
+                                    </div>
+                                ) : previewAttachment.type === 'application/pdf' || previewAttachment.url.match(/\.pdf$/i) ? (
+                                    <div className="h-full w-full flex flex-col">
+                                        {isLoadingPdf ? (
+                                            <div className="flex-1 flex items-center justify-center">
+                                                <div className="text-center">
+                                                    <Loader2 className="w-8 h-8 animate-spin text-white mx-auto mb-4" />
+                                                    <p className="text-white">Loading PDF...</p>
+                                                </div>
+                                            </div>
+                                        ) : pdfDoc && totalPages > 0 ? (
+                                            <>
+                                                <div className="flex-1 w-full overflow-auto rounded-lg border border-white/10 bg-gray-900 p-4 flex justify-center">
+                                                    <canvas
+                                                        ref={canvasRef}
+                                                        className="shadow-lg"
+                                                        style={{ maxWidth: '100%', height: 'auto' }}
+                                                    />
+                                                </div>
+                                                <div className="mt-4 flex items-center justify-between gap-4">
+                                                    <div className="flex items-center gap-2">
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                                            disabled={currentPage === 1}
+                                                            className="bg-white/10 hover:bg-white/20 text-white border-white/10"
+                                                        >
+                                                            Previous
+                                                        </Button>
+                                                        <span className="text-white px-4 text-sm font-medium">
+                                                            Page {currentPage} of {totalPages}
+                                                        </span>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                                            disabled={currentPage === totalPages}
+                                                            className="bg-white/10 hover:bg-white/20 text-white border-white/10"
+                                                        >
+                                                            Next
+                                                        </Button>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <a
+                                                            href={pdfBlobUrl || previewAttachment.url}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors text-sm font-medium"
+                                                        >
+                                                            <Maximize2 className="w-4 h-4" />
+                                                            Open in New Tab
+                                                        </a>
+                                                        <a
+                                                            href={pdfBlobUrl || previewAttachment.url}
+                                                            download={previewAttachment.name}
+                                                            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors text-sm font-medium"
+                                                        >
+                                                            <Download className="w-4 h-4" />
+                                                            Download
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <div className="flex-1 flex items-center justify-center">
+                                                <div className="text-center">
+                                                    <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                                                    <p className="text-white mb-4 italic">Preview not available directly. Please try downloading or opening in new tab.</p>
+                                                    <div className="flex items-center justify-center gap-4">
+                                                        <a
+                                                            href={previewAttachment.url}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
+                                                        >
+                                                            <Maximize2 className="w-4 h-4" />
+                                                            Open in New Tab
+                                                        </a>
+                                                        <a
+                                                            href={previewAttachment.url}
+                                                            download={previewAttachment.name}
+                                                            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+                                                        >
+                                                            <Download className="w-4 h-4" />
+                                                            Download
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="h-full flex flex-col items-center justify-center text-center">
+                                        <FileText className="w-16 h-16 text-gray-400 mb-4" />
+                                        <p className="text-white text-lg mb-2 font-medium">{previewAttachment.name}</p>
+                                        <p className="text-gray-400 text-sm mb-6">
+                                            Direct preview not supported for this file type.
+                                        </p>
+                                        <div className="flex items-center gap-4">
+                                            <a
+                                                href={previewAttachment.url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-2 px-6 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
+                                            >
+                                                <Maximize2 className="w-5 h-5" />
+                                                Open in New Tab
+                                            </a>
+                                            <a
+                                                href={previewAttachment.url}
+                                                download={previewAttachment.name}
+                                                className="inline-flex items-center gap-2 px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+                                            >
+                                                <Download className="w-5 h-5" />
+                                                Download
+                                            </a>
+                                        </div>
+                                    </div>
+                                )}
+                            </>
                         )}
                     </div>
                 </DialogContent>
