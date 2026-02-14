@@ -806,27 +806,34 @@ const VoucherDetailsPage = () => {
     // Status helper functions
     const formatStatus = (status) => {
         if (!status) return 'Unknown';
+        if (voucherDetails?.is_deleted || status === 'deleted') return 'Deleted';
         const statusMap = {
             verified: 'Verified',
             pending_ca_approval: 'Pending Audit',
             rejected_by_ca: 'Rejected',
             rejected_by_master_admin: 'Rejected',
-            pending_master_admin_approval: 'Pending Approval'
+            pending_master_admin_approval: 'Pending Approval',
+            deleted: 'Deleted'
         };
         return statusMap[status] || status.charAt(0).toUpperCase() + status.slice(1);
     };
 
     const getStatusColor = (status) => {
+        if (voucherDetails?.is_deleted || status === 'deleted') return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+
         switch (status) {
             case 'verified':
                 return 'bg-green-500/20 text-green-400 border-green-500/30';
             case 'rejected_by_ca':
             case 'rejected_by_master_admin':
+            case 'rejected':
                 return 'bg-red-500/20 text-red-400 border-red-500/30';
             case 'pending_ca_approval':
                 return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
             case 'pending_master_admin_approval':
                 return 'bg-orange-500/20 text-orange-400 border-orange-500/30';
+            case 'deleted':
+                return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
             default:
                 return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
         }
@@ -1488,7 +1495,7 @@ const VoucherDetailsPage = () => {
                                                         {/* Action buttons on right */}
                                                         <div className="flex items-center gap-3 relative z-[100]">
                                                             <TooltipProvider>
-                                                                {!isReadOnly && !hideClientActions && !(user?.role === 'CLIENT_MASTER_ADMIN' && voucher?.status === 'verified') && !voucherDetails.is_deleted && (
+                                                                {!isReadOnly && !hideClientActions && !(user?.role === 'CLIENT_MASTER_ADMIN' && voucher?.status === 'verified') && !voucherDetails.is_deleted && voucherDetails.status !== 'deleted' && (
                                                                     <Tooltip>
                                                                         <TooltipTrigger asChild>
                                                                             <Button
@@ -1505,7 +1512,7 @@ const VoucherDetailsPage = () => {
                                                                         </TooltipContent>
                                                                     </Tooltip>
                                                                 )}
-                                                                {!isReadOnly && !hideClientActions && !(user?.role === 'CLIENT_MASTER_ADMIN' && voucher?.status === 'verified') && !voucherDetails.is_deleted && (
+                                                                {!isReadOnly && !hideClientActions && !(user?.role === 'CLIENT_MASTER_ADMIN' && voucher?.status === 'verified') && !voucherDetails.is_deleted && voucherDetails.status !== 'deleted' && (
                                                                     <Tooltip>
                                                                         <TooltipTrigger asChild>
                                                                             <Button
@@ -1549,7 +1556,7 @@ const VoucherDetailsPage = () => {
                                                             </TooltipProvider>
 
                                                             {/* CA/Team Actions */}
-                                                            {!isClientUser && user?.role !== 'CLIENT_MASTER_ADMIN' && (
+                                                            {!isClientUser && user?.role !== 'CLIENT_MASTER_ADMIN' && !voucherDetails.is_deleted && voucherDetails.status !== 'deleted' && (
                                                                 <>
                                                                     {voucherDetails.status !== 'approved' && (
                                                                         <Button onClick={() => handleStatusUpdate('approved')} disabled={isStatusUpdating} variant="approve" className="h-9 sm:h-10" size="sm">
@@ -1564,7 +1571,7 @@ const VoucherDetailsPage = () => {
                                                                 </>
                                                             )}
                                                             {/* Client Admin Actions for Pending Vouchers Only */}
-                                                            {user?.role === 'CLIENT_MASTER_ADMIN' && (voucherDetails.status === 'pending_master_admin_approval' || voucherDetails.status === 'pending_approval') && (
+                                                            {user?.role === 'CLIENT_MASTER_ADMIN' && (voucherDetails.status === 'pending_master_admin_approval' || voucherDetails.status === 'pending_approval') && !voucherDetails.is_deleted && voucherDetails.status !== 'deleted' && (
                                                                 <>
                                                                     <Button onClick={() => handleStatusUpdate('pending_ca_approval')} disabled={isStatusUpdating} variant="approve" className="h-9 sm:h-10" size="sm">
                                                                         {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />} Approve

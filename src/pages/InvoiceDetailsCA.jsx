@@ -387,27 +387,34 @@ const InvoiceDetailsCA = () => {
     // Status helper functions
     const formatStatus = (status) => {
         if (!status) return 'Unknown';
+        if (invoiceDetails?.is_deleted || status === 'deleted') return 'Deleted';
         const statusMap = {
             verified: 'Verified',
             pending_ca_approval: 'Pending Audit',
             rejected_by_ca: 'Rejected',
             rejected_by_master_admin: 'Rejected',
-            pending_master_admin_approval: 'Pending Approval'
+            pending_master_admin_approval: 'Pending Approval',
+            deleted: 'Deleted'
         };
         return statusMap[status] || status.charAt(0).toUpperCase() + status.slice(1);
     };
 
     const getStatusColor = (status) => {
+        if (invoiceDetails?.is_deleted || status === 'deleted') return 'bg-gray-500/20 text-gray-400 border-gray-500/50';
+
         switch (status) {
             case 'verified':
                 return 'bg-green-500/20 text-green-400 border-green-500/50';
             case 'rejected_by_ca':
             case 'rejected_by_master_admin':
+            case 'rejected':
                 return 'bg-red-500/20 text-red-400 border-red-500/50';
             case 'pending_ca_approval':
                 return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50';
             case 'pending_master_admin_approval':
                 return 'bg-orange-500/20 text-orange-400 border-orange-500/50';
+            case 'deleted':
+                return 'bg-gray-500/20 text-gray-400 border-gray-500/50';
             default:
                 return 'bg-gray-500/20 text-gray-400 border-gray-500/50';
         }

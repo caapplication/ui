@@ -783,6 +783,7 @@ const VoucherDetailsCA = () => {
     // Status helper functions
     const formatStatus = (status) => {
         if (!status) return 'Unknown';
+        if (voucherDetails.is_deleted || status === 'deleted') return 'Deleted';
         const statusMap = {
             verified: 'Verified',
             pending_ca_approval: 'Pending Audit',
@@ -794,6 +795,7 @@ const VoucherDetailsCA = () => {
     };
 
     const getStatusColor = (status) => {
+        if (voucherDetails.is_deleted || status === 'deleted') return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
         switch (status) {
             case 'verified':
                 return 'bg-green-500/20 text-green-400 border-green-500/30';
@@ -1499,7 +1501,7 @@ const VoucherDetailsCA = () => {
                                                                         </TooltipContent>
                                                                     </Tooltip>
                                                                 </TooltipProvider>
-                                                                {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && !voucherDetails.is_deleted && (
+                                                                {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && !voucherDetails.is_deleted && voucherDetails.status !== 'deleted' && (
                                                                     <>
                                                                         {voucherDetails.status !== 'rejected' && voucherDetails.status !== 'verified' && !isReadOnly && (
                                                                             <Button onClick={() => setShowRejectDialog(true)} disabled={isStatusUpdating} variant="reject" className="h-9 sm:h-10" size="sm">
