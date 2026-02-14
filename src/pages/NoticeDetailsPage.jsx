@@ -417,9 +417,6 @@ const NoticeDetailsPage = () => {
                                 {notice.status.replace('_', ' ')}
                             </Badge>
                         </h1>
-                        <p className="text-xs sm:text-sm text-gray-400">
-                            Received {notice.date_received || 'N/A'} • {notice.notice_type}
-                        </p>
                     </div>
                 </div>
 
