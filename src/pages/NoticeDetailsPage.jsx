@@ -8,7 +8,8 @@ import { ArrowLeft, Send, Paperclip, MoreVertical, FileText, UserPlus, X, Downlo
 import * as pdfjsLib from 'pdfjs-dist';
 
 // Configure PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 import { Badge } from '@/components/ui/badge';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -123,8 +124,13 @@ const NoticeDetailsPage = () => {
                 return;
             }
 
-            // Only handle if it's a PDF
-            if (previewAttachment.type === 'application/pdf' || previewAttachment.url.match(/\.pdf$/i)) {
+            // Try to load as PDF if it's explicitly PDF or if it's NOT an image and not known to be something else
+            // This handles cases where extension is lost or missing
+            const isImage = previewAttachment.type?.startsWith('image') ||
+                previewAttachment.name?.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ||
+                previewAttachment.url.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?.*)?$/i);
+
+            if (!isImage) {
                 setIsLoadingPdf(true);
                 try {
                     // Clean up previous blob URL if exists
@@ -735,7 +741,7 @@ const NoticeDetailsPage = () => {
                                                                 <div className="p-3 pb-1">
                                                                     {msg.attachment_url && (
                                                                         <div className="mb-2">
-                                                                            {msg.attachment_url.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ? (
+                                                                            {msg.attachment_url.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?.*)?$/i) ? (
                                                                                 <div className="rounded-lg overflow-hidden relative group">
                                                                                     <img
                                                                                         src={msg.attachment_url}
@@ -1035,32 +1041,39 @@ const NoticeDetailsPage = () => {
                 <DialogContent className="glass-card border-white/10 text-white max-w-4xl w-[95vw] h-[90vh] flex flex-col p-0 overflow-hidden">
                     <DialogHeader className="flex-shrink-0 px-6 pt-6 pb-4 border-b border-white/10 bg-black/40">
                         <div className="flex items-center justify-between">
-                            <DialogTitle className="flex items-center gap-2 text-lg">
-                                {previewAttachment?.type === 'image' ? <ImageIcon className="w-5 h-5 text-blue-400" /> : <FileText className="w-5 h-5 text-blue-400" />}
-                                <span className="font-medium truncate max-w-[300px]">{previewAttachment?.name}</span>
+                            <DialogTitle className="text-white flex items-center gap-2">
+                                <FileText className="w-5 h-5" />
+                                Document
                             </DialogTitle>
                             <div className="flex items-center gap-2">
                                 <Button
                                     variant="ghost"
                                     size="sm"
                                     className="h-8 gap-2 hover:bg-white/10 text-white"
-                                    onClick={() => window.open(previewAttachment?.url, '_blank')}
+                                    onClick={() => {
+                                        const link = document.createElement('a');
+                                        link.href = previewAttachment?.url;
+                                        link.download = previewAttachment?.name || 'download';
+                                        document.body.appendChild(link);
+                                        link.click();
+                                        document.body.removeChild(link);
+                                    }}
                                 >
                                     <Download className="w-4 h-4" /> Download
                                 </Button>
-                                <DialogClose asChild>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-white/10 text-white">
-                                        <X className="w-4 h-4" />
-                                    </Button>
-                                </DialogClose>
                             </div>
                         </div>
+                        <DialogDescription className="sr-only">
+                            Preview of the selected attachment
+                        </DialogDescription>
                     </DialogHeader>
 
                     <div className="flex-1 bg-black/60 flex items-center justify-center p-6 overflow-hidden relative">
                         {previewAttachment && (
                             <>
-                                {previewAttachment.type?.startsWith('image/') || previewAttachment.url.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ? (
+                                {(previewAttachment.type?.startsWith('image') ||
+                                    previewAttachment.name?.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ||
+                                    previewAttachment.url.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?.*)?$/i)) ? (
                                     <div className="h-full flex items-center justify-center">
                                         <img
                                             src={previewAttachment.url}
@@ -1068,7 +1081,7 @@ const NoticeDetailsPage = () => {
                                             className="max-w-full max-h-full object-contain rounded-lg"
                                         />
                                     </div>
-                                ) : previewAttachment.type === 'application/pdf' || previewAttachment.url.match(/\.pdf$/i) ? (
+                                ) : (
                                     <div className="h-full w-full flex flex-col">
                                         {isLoadingPdf ? (
                                             <div className="flex-1 flex items-center justify-center">
@@ -1110,25 +1123,7 @@ const NoticeDetailsPage = () => {
                                                             Next
                                                         </Button>
                                                     </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <a
-                                                            href={pdfBlobUrl || previewAttachment.url}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors text-sm font-medium"
-                                                        >
-                                                            <Maximize2 className="w-4 h-4" />
-                                                            Open in New Tab
-                                                        </a>
-                                                        <a
-                                                            href={pdfBlobUrl || previewAttachment.url}
-                                                            download={previewAttachment.name}
-                                                            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors text-sm font-medium"
-                                                        >
-                                                            <Download className="w-4 h-4" />
-                                                            Download
-                                                        </a>
-                                                    </div>
+
                                                 </div>
                                             </>
                                         ) : (
@@ -1159,33 +1154,6 @@ const NoticeDetailsPage = () => {
                                             </div>
                                         )}
                                     </div>
-                                ) : (
-                                    <div className="h-full flex flex-col items-center justify-center text-center">
-                                        <FileText className="w-16 h-16 text-gray-400 mb-4" />
-                                        <p className="text-white text-lg mb-2 font-medium">{previewAttachment.name}</p>
-                                        <p className="text-gray-400 text-sm mb-6">
-                                            Direct preview not supported for this file type.
-                                        </p>
-                                        <div className="flex items-center gap-4">
-                                            <a
-                                                href={previewAttachment.url}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="inline-flex items-center gap-2 px-6 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
-                                            >
-                                                <Maximize2 className="w-5 h-5" />
-                                                Open in New Tab
-                                            </a>
-                                            <a
-                                                href={previewAttachment.url}
-                                                download={previewAttachment.name}
-                                                className="inline-flex items-center gap-2 px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
-                                            >
-                                                <Download className="w-5 h-5" />
-                                                Download
-                                            </a>
-                                        </div>
-                                    </div>
                                 )}
                             </>
                         )}
@@ -1194,7 +1162,7 @@ const NoticeDetailsPage = () => {
             </Dialog>
 
             {/* Reject Close Dialog */}
-            < Dialog open={isRejectCloseOpen} onOpenChange={setIsRejectCloseOpen} >
+            <Dialog open={isRejectCloseOpen} onOpenChange={setIsRejectCloseOpen}>
                 <DialogContent className="glass-card border-white/10 text-white">
                     <DialogHeader>
                         <DialogTitle>Reject Closure Request</DialogTitle>
