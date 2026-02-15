@@ -29,6 +29,7 @@ const Beneficiaries = lazy(() => import('@/components/beneficiaries/Beneficiarie
 const OrganisationBank = lazy(() => import('@/components/organisation/OrganisationBank.jsx'));
 const Profile = lazy(() => import('@/components/profile/Profile.jsx'));
 const AccountantDashboard = lazy(() => import('@/components/accountant/dashboard/AccountantDashboard.jsx'));
+const TeamMemberDashboard = lazy(() => import('@/pages/TeamMemberDashboard.jsx'));
 const Services = lazy(() => import('@/components/accountant/services/Services.jsx'));
 const Clients = lazy(() => import('@/components/accountant/clients/Clients.jsx'));
 const Organisation = lazy(() => import('@/components/accountant/organisation/Organisation.jsx'));
@@ -250,7 +251,9 @@ const ProtectedContent = () => {
               <Route
                 path="/"
                 element={
-                  user.role === 'CA_ACCOUNTANT' || user.role === 'CA_TEAM' ? (
+                  user.role === 'CA_TEAM' ? (
+                    <TeamMemberDashboard />
+                  ) : user.role === 'CA_ACCOUNTANT' ? (
                     <AccountantDashboard />
                   ) : (
                     <Dashboard

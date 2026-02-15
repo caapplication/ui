@@ -41,7 +41,10 @@ export const deleteOrganisation = async (orgId, token) => {
 };
 
 export const listEntities = async (organization_id, token) => {
-    let url = `${API_BASE_URL}/entities/?organization_id=${organization_id}`;
+    let url = `${API_BASE_URL}/entities/`;
+    if (organization_id) {
+        url += `?organization_id=${organization_id}`;
+    }
     const response = await fetch(url, {
         method: 'GET',
         headers: getAuthHeaders(token)
