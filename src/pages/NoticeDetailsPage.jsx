@@ -25,6 +25,7 @@ import { getNotice, getNoticeComments, addNoticeComment, requestNoticeClosure, a
 import { getNoticeAttachment } from '@/lib/api';
 import { listAllClientUsers } from '@/lib/api/organisation';
 import { useAuth } from '@/hooks/useAuth';
+import { useFinanceSocket } from '@/contexts/FinanceSocketContext';
 import { useToast } from '@/components/ui/use-toast';
 
 const NoticeDetailsPage = () => {
@@ -33,6 +34,7 @@ const NoticeDetailsPage = () => {
     const { user } = useAuth();
     const token = user?.access_token;
     const { toast } = useToast();
+    const { socket, joinNoticeRoom, leaveNoticeRoom } = useFinanceSocket();
 
     const [notice, setNotice] = useState(null);
     const [messages, setMessages] = useState([]);
@@ -93,6 +95,34 @@ const NoticeDetailsPage = () => {
             scrollToBottom();
         }
     }, [messages]);
+
+    // Socket.io Real-time updates
+    useEffect(() => {
+        if (noticeId) {
+            joinNoticeRoom(noticeId);
+        }
+        return () => {
+            if (noticeId) leaveNoticeRoom(noticeId);
+        };
+    }, [noticeId]);
+
+    useEffect(() => {
+        if (!socket) return;
+
+        const handleNewComment = (newComment) => {
+            console.log("Socket: New comment received", newComment);
+            setMessages(prev => {
+                if (prev.some(m => m.id === newComment.id)) return prev;
+                return [...prev, newComment];
+            });
+        };
+
+        socket.on('new_comment', handleNewComment);
+
+        return () => {
+            socket.off('new_comment', handleNewComment);
+        };
+    }, [socket]);
 
     useEffect(() => {
         fetchData();

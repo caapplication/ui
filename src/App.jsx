@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from '@/hooks/useAuth.jsx';
 import { Toaster } from '@/components/ui/toaster';
 import { ApiCacheProvider } from '@/contexts/ApiCacheContext.jsx';
 import { SocketProvider } from '@/contexts/SocketContext.jsx';
+import { FinanceSocketProvider } from '@/contexts/FinanceSocketContext.jsx';
 import { getOrganisationBankAccounts } from '@/lib/api/finance';
 import { listClientsByOrganization } from '@/lib/api/clients';
 import { Menu } from 'lucide-react';
@@ -389,26 +390,28 @@ function App() {
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <AuthProvider>
         <SocketProvider>
-          <ApiCacheProvider>
-            <HelmetProvider>
-              <Helmet>
-                <title>Fynivo: Simplify Your Finances</title>
-                <meta
-                  name="description"
-                  content="Comprehensive financial management platform for documents, beneficiaries, transactions, and invoice management."
-                />
-                <meta property="og:title" content="Fynivo: Simplify Your Accounts" />
-                <meta
-                  property="og:description"
-                  content="Comprehensive financial management platform for documents, beneficiaries, transactions, and invoice management."
-                />
-                <link rel="icon" type="image/png" href="/logo.png" />
-              </Helmet>
-              <div className="animated-bg"></div>
-              <AppContent />
-              <Toaster />
-            </HelmetProvider>
-          </ApiCacheProvider>
+          <FinanceSocketProvider>
+            <ApiCacheProvider>
+              <HelmetProvider>
+                <Helmet>
+                  <title>Fynivo: Simplify Your Finances</title>
+                  <meta
+                    name="description"
+                    content="Comprehensive financial management platform for documents, beneficiaries, transactions, and invoice management."
+                  />
+                  <meta property="og:title" content="Fynivo: Simplify Your Accounts" />
+                  <meta
+                    property="og:description"
+                    content="Comprehensive financial management platform for documents, beneficiaries, transactions, and invoice management."
+                  />
+                  <link rel="icon" type="image/png" href="/logo.png" />
+                </Helmet>
+                <div className="animated-bg"></div>
+                <AppContent />
+                <Toaster />
+              </HelmetProvider>
+            </ApiCacheProvider>
+          </FinanceSocketProvider>
         </SocketProvider>
       </AuthProvider>
     </BrowserRouter>
