@@ -573,6 +573,36 @@ const NoticeDetailsPage = () => {
 
                 {/* Action Bar */}
                 <div className="flex items-center gap-2">
+                    {/* Collaborators List */}
+                    {notice.collaborators && notice.collaborators.length > 0 && (
+                        <div className="flex items-center gap-2 mr-2 border-r border-white/10 pr-4">
+                            <span className="text-xs text-gray-400 hidden lg:inline">Collaborated with:</span>
+                            <div className="flex -space-x-2">
+                                <TooltipProvider>
+                                    {notice.collaborators.slice(0, 3).map((collab) => (
+                                        <Tooltip key={collab.id}>
+                                            <TooltipTrigger asChild>
+                                                <Avatar className="w-8 h-8 border-2 border-gray-800 cursor-help">
+                                                    <AvatarFallback className="bg-gray-700 text-white text-xs">
+                                                        {(collab.user_name?.charAt(0) || collab.user_email?.charAt(0) || '?').toLowerCase()}
+                                                    </AvatarFallback>
+                                                </Avatar>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>{collab.user_email || collab.user_name || 'Unknown'}</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    ))}
+                                    {notice.collaborators.length > 3 && (
+                                        <div className="w-8 h-8 rounded-full bg-gray-700 border-2 border-gray-800 flex items-center justify-center text-xs text-white">
+                                            +{notice.collaborators.length - 3}
+                                        </div>
+                                    )}
+                                </TooltipProvider>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Delete Option for CA */}
                     {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_ADMIN') && notice.status !== 'closed' && (
                         <Button
@@ -745,7 +775,7 @@ const NoticeDetailsPage = () => {
                                                                             </Avatar>
                                                                         </TooltipTrigger>
                                                                         <TooltipContent>
-                                                                            <p>{commentUserName} ({msg.user_role || 'Member'})</p>
+                                                                            <p>{msg.user_email || msg.user_name || 'Unknown'}</p>
                                                                         </TooltipContent>
                                                                     </Tooltip>
                                                                 </TooltipProvider>

@@ -14,6 +14,8 @@ import { getNotices, uploadNotice } from '@/lib/api/notices';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/ui/use-toast';
 import { formatDistanceToNow, formatDistance } from 'date-fns';
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const NoticesPage = () => {
     const navigate = useNavigate();
@@ -292,6 +294,7 @@ const NoticesPage = () => {
                                     </>
                                 )}
                                 <TableHead className="text-gray-300 w-[15%]">Uploaded By</TableHead>
+                                <TableHead className="text-gray-300 w-[15%]">Collaborators</TableHead>
                                 <TableHead className="text-gray-300 w-[15%]">Status</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -368,6 +371,35 @@ const NoticesPage = () => {
                                         )}
                                         <TableCell className="text-gray-300">
                                             {notice.created_by_name || 'Unknown'}
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="flex -space-x-2 overflow-hidden">
+                                                {notice.collaborators && notice.collaborators.length > 0 ? (
+                                                    <TooltipProvider>
+                                                        {notice.collaborators.slice(0, 3).map((collab) => (
+                                                            <Tooltip key={collab.id}>
+                                                                <TooltipTrigger asChild>
+                                                                    <Avatar className="w-8 h-8 border-2 border-gray-800 cursor-help">
+                                                                        <AvatarFallback className="bg-gray-700 text-white">
+                                                                            {(collab.user_name?.charAt(0) || collab.user_email?.charAt(0) || '?').toLowerCase()}
+                                                                        </AvatarFallback>
+                                                                    </Avatar>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    <p>{collab.user_email || collab.user_name || 'Unknown'}</p>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        ))}
+                                                        {notice.collaborators.length > 3 && (
+                                                            <div className="w-8 h-8 rounded-full bg-gray-700 border-2 border-gray-800 flex items-center justify-center text-xs text-white">
+                                                                +{notice.collaborators.length - 3}
+                                                            </div>
+                                                        )}
+                                                    </TooltipProvider>
+                                                ) : (
+                                                    <span className="text-gray-500 px-2">-</span>
+                                                )}
+                                            </div>
                                         </TableCell>
                                         <TableCell>
                                             <Badge variant={
