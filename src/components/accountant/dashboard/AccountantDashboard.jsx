@@ -15,6 +15,7 @@ import {
   listTeamMembers,
   listServices,
   listAllEntities,
+  listEntities,
   getCATeamInvoicesBulk,
   getCATeamVouchersBulk,
   listTasks,
@@ -176,7 +177,12 @@ const AccountantDashboard = () => {
       let entityIds = [];
       let relevantEntities = [];
 
-      if (organisationId) {
+      // For CA_TEAM: Only show entities assigned to this user via EntityUser table
+      if (user.role === 'CA_TEAM') {
+        const myEntities = await listEntities(null, token).catch(() => []);
+        entityIds = myEntities.map(e => e.id);
+        relevantEntities = myEntities;
+      } else if (organisationId) {
         if (selectedEntity && selectedEntity !== 'all') {
           entityIds = [selectedEntity];
           relevantEntities = entities.filter(e => e.id === selectedEntity);
@@ -193,7 +199,10 @@ const AccountantDashboard = () => {
 
       // 1. Fetch Summary Stats
       let clientsData = [];
-      if (user.organizations && user.organizations.length > 0) {
+      // For CA_TEAM: Use assigned entities as clients
+      if (user.role === 'CA_TEAM') {
+        clientsData = relevantEntities; // Already filtered to assigned entities
+      } else if (user.organizations && user.organizations.length > 0) {
         clientsData = await Promise.all(
           user.organizations.map(org =>
             listClientsByOrganization(org.id, token).catch(() => [])
@@ -221,7 +230,11 @@ const AccountantDashboard = () => {
       const noticesList = notices || [];
 
       // Filter tasks and notices by entityIds
-      const filteredTasks = tasksList.filter(t => entityIds.includes(t.entity_id) || entityIds.includes(t.client_id));
+      // For CA_TEAM: Also filter tasks by assigned_to user
+      let filteredTasks = tasksList.filter(t => entityIds.includes(t.entity_id) || entityIds.includes(t.client_id));
+      if (user.role === 'CA_TEAM') {
+        filteredTasks = filteredTasks.filter(t => t.assigned_to === user.id);
+      }
       const filteredNotices = noticesList.filter(n => entityIds.includes(n.entity_id) || entityIds.includes(n.client_id));
 
       // Compute Revenue & Due from actual invoice/voucher data
@@ -300,18 +313,26 @@ const AccountantDashboard = () => {
           ...invoices.filter(i => i.status === 'pending_ca_approval'),
           ...filteredNotices.filter(n => n.status !== 'closed')
         ];
-        const counts = allItems
+        // For CA_TEAM: Only show progress for the current user
+        const itemsToCount = user.role === 'CA_TEAM' 
+          ? allItems.filter(item => {
+              const userId = item.created_by_id || item.created_by || item.assigned_to;
+              return userId === user.id;
+            })
+          : allItems;
+        
+        const counts = itemsToCount
           .filter(item => {
             const date = item.created_at || item.created_date || item.date;
             return date && startOfDay(new Date(date)).getTime() === today.getTime();
           })
           .reduce((acc, item) => {
-            const userId = item.created_by_id || item.created_by;
+            const userId = item.created_by_id || item.created_by || item.assigned_to;
             if (userId) acc[userId] = (acc[userId] || 0) + 1;
             return acc;
           }, {});
         return Object.entries(counts)
-          .map(([id, count]) => ({ col1: teamMap[id] || 'Team Member', col2: count }))
+          .map(([id, count]) => ({ col1: teamMap[id] || (id === user.id ? user.name || 'You' : 'Team Member'), col2: count }))
           .sort((a, b) => b.col2 - a.col2);
       };
 
@@ -363,7 +384,7 @@ const AccountantDashboard = () => {
       </motion.div>
 
       {/* Row 1: 6 Metric Cards */}
-      {user?.role === 'CA_ACCOUNTANT' && (
+      {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-6 gap-4 sm:gap-4 lg:gap-4 mb-6 lg:mb-8">
           <StatCard
             title="MY CLIENTS"
