@@ -79,6 +79,8 @@ export const {
     getActivityLog,
     getNoticeAttachment,
     getAccountantDashboardStats,
+    getFinancePendingCaApprovalIndicator,
+    getEntityIndicators,
     exportVouchers,
     exportInvoices,
     getInvoicePdf,

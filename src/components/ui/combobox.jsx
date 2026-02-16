@@ -35,6 +35,7 @@ export function Combobox({
   const displayText = selectedOption
     ? (displayValue ? displayValue(selectedOption) : selectedOption.label)
     : placeholder
+  const isDisplayTextJSX = React.isValidElement(displayText)
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -50,7 +51,11 @@ export function Combobox({
           style={style}
           disabled={disabled}
         >
-          <span className="truncate">{displayText}</span>
+          {isDisplayTextJSX ? (
+            <div className="truncate flex-1">{displayText}</div>
+          ) : (
+            <span className="truncate">{displayText}</span>
+          )}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>

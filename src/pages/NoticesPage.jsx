@@ -11,6 +11,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { listClients, listClientsByOrganization } from '@/lib/api/clients';
 import { getNotices, uploadNotice } from '@/lib/api/notices';
+import { getEntityIndicators } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/ui/use-toast';
 import { formatDistanceToNow, formatDistance } from 'date-fns';
@@ -31,6 +32,7 @@ const NoticesPage = () => {
 
     const [notices, setNotices] = useState([]);
     const [clients, setClients] = useState([]);
+    const [entityIndicators, setEntityIndicators] = useState({}); // { "entity_id": { has_finance_pending, has_notice_unread } }
 
     // Filters
     const [selectedClient, setSelectedClient] = useState('all');
@@ -84,6 +86,24 @@ const NoticesPage = () => {
         };
         fetchClients();
     }, [token, user]);
+
+    // Fetch entity indicators (finance pending, notices unread) for dropdown dots
+    useEffect(() => {
+        const fetchIndicators = async () => {
+            if (clients.length > 0 && token) {
+                try {
+                    const indicators = await getEntityIndicators(token);
+                    setEntityIndicators(indicators || {});
+                } catch (error) {
+                    console.error('Failed to fetch entity indicators:', error);
+                }
+            }
+        };
+        fetchIndicators();
+        // Refresh indicators every 30 seconds
+        const interval = setInterval(fetchIndicators, 30000);
+        return () => clearInterval(interval);
+    }, [clients, token]);
 
     useEffect(() => {
         if (!token) {
@@ -218,6 +238,22 @@ const NoticesPage = () => {
                         placeholder="Select Client"
                         searchPlaceholder="Search client..."
                         className="w-[250px] border-white/10 bg-black/20 text-white"
+                        displayValue={(option) => {
+                            if (option.value === 'all') {
+                                return option.label;
+                            }
+                            const entityIdStr = String(option.value);
+                            const indicator = entityIndicators[entityIdStr];
+                            const hasNotification = indicator && (indicator.has_finance_pending || indicator.has_notice_unread);
+                            return (
+                                <div className="flex items-center justify-between w-full">
+                                    <span>{option.label}</span>
+                                    {hasNotification && (
+                                        <span className="ml-2 w-2 h-2 rounded-full bg-amber-400 border border-[#1e293b] flex-shrink-0" aria-hidden />
+                                    )}
+                                </div>
+                            );
+                        }}
                     />
 
                     {user?.role === 'CA_ACCOUNTANT' && (
