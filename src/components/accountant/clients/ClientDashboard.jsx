@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Edit, Trash2, Loader2 } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Loader2, Lock, Unlock } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import ClientDashboardDetails from './ClientDashboardDetails';
 import ClientServicesTab from './ClientServicesTab';
@@ -12,7 +12,10 @@ import ClientTeamMembersTab from './ClientTeamMembersTab';
 import ActivityLog from '@/components/finance/ActivityLog';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { getClientTeamMembers } from '@/lib/api/clients';
+import { getClientTeamMembers, lockClient, unlockClient } from '@/lib/api/clients';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -28,8 +31,12 @@ import {
 const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, onUpdateClient, onClientDeleted, teamMembers, onClientUserInvited, onClientUserDeleted }) => {
     const [activeSubTab, setActiveSubTab] = useState('Details');
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isLocking, setIsLocking] = useState(false);
+    const [isUnlockModalOpen, setIsUnlockModalOpen] = useState(false);
+    const [unlockDays, setUnlockDays] = useState(5);
     const { toast } = useToast();
     const { user } = useAuth();
+    const agencyId = user?.agency_id || localStorage.getItem('agency_id');
 
     const [photoBlobUrl, setPhotoBlobUrl] = useState(null);
     const [photoKey, setPhotoKey] = useState(0);
@@ -220,6 +227,70 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
         }
     };
 
+    const handleLockClient = async () => {
+        if (!user?.access_token || !agencyId) return;
+        setIsLocking(true);
+        try {
+            await lockClient(client.id, agencyId, user.access_token);
+            toast({
+                title: 'Success',
+                description: 'Client profile locked successfully',
+            });
+            // Refresh client data
+            if (onUpdateClient) {
+                onUpdateClient({ ...client, is_locked: true, unlock_until: null });
+            }
+        } catch (error) {
+            console.error('Error locking client:', error);
+            toast({
+                title: 'Error',
+                description: 'Failed to lock client profile. ' + (error.message || ''),
+                variant: 'destructive',
+            });
+        } finally {
+            setIsLocking(false);
+        }
+    };
+
+    const handleUnlockClient = async () => {
+        if (!user?.access_token || !agencyId) return;
+        if (unlockDays < 1 || unlockDays > 30) {
+            toast({
+                title: 'Error',
+                description: 'Please enter a number between 1 and 30 days',
+                variant: 'destructive',
+            });
+            return;
+        }
+        setIsLocking(true);
+        try {
+            const result = await unlockClient(client.id, unlockDays, agencyId, user.access_token);
+            toast({
+                title: 'Success',
+                description: `Client profile unlocked for ${unlockDays} days`,
+            });
+            setIsUnlockModalOpen(false);
+            setUnlockDays(5);
+            // Refresh client data
+            if (onUpdateClient) {
+                onUpdateClient({ 
+                    ...client, 
+                    is_locked: false, 
+                    unlock_until: result.unlock_until 
+                });
+            }
+        } catch (error) {
+            console.error('Error unlocking client:', error);
+            toast({
+                title: 'Error',
+                description: 'Failed to unlock client profile. ' + (error.message || ''),
+                variant: 'destructive',
+            });
+        } finally {
+            setIsLocking(false);
+        }
+    };
+
 
     if (!client) return null;
 
@@ -274,6 +345,35 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
                     </h1>
                 </div>
                 <div className="flex items-center gap-2">
+                    {client.is_locked ? (
+                        <Button 
+                            variant="outline" 
+                            onClick={() => setIsUnlockModalOpen(true)}
+                            className="border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/10"
+                        >
+                            <Unlock className="w-4 h-4 mr-2" />
+                            Unlock Profile
+                        </Button>
+                    ) : (
+                        <Button 
+                            variant="outline" 
+                            onClick={handleLockClient}
+                            disabled={isLocking}
+                            className="border-red-500/50 text-red-400 hover:bg-red-500/10"
+                        >
+                            {isLocking ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Locking...
+                                </>
+                            ) : (
+                                <>
+                                    <Lock className="w-4 h-4 mr-2" />
+                                    Lock Profile
+                                </>
+                            )}
+                        </Button>
+                    )}
                     <Button variant="outline" onClick={() => onEdit(client)}>
                         <Edit className="w-4 h-4 mr-2" />
                         Edit
@@ -379,6 +479,68 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
                     </div>
                 </div>
             </div>
+            
+            {/* Unlock Modal */}
+            <Dialog open={isUnlockModalOpen} onOpenChange={setIsUnlockModalOpen}>
+                <DialogContent className="bg-gray-900 border-white/10">
+                    <DialogHeader>
+                        <DialogTitle className="text-white">Unlock Client Profile</DialogTitle>
+                        <DialogDescription className="text-gray-400">
+                            Unlock {client.name}'s profile temporarily. The profile will be automatically re-locked after the selected period if bills are still overdue.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="unlockDays" className="text-white">
+                                Number of Days to Unlock (1-30)
+                            </Label>
+                            <Input
+                                id="unlockDays"
+                                type="number"
+                                min="1"
+                                max="30"
+                                value={unlockDays}
+                                onChange={(e) => setUnlockDays(parseInt(e.target.value) || 5)}
+                                className="bg-gray-800 border-white/10 text-white"
+                            />
+                            <p className="text-xs text-gray-500">
+                                The client will be able to login for {unlockDays} day{unlockDays !== 1 ? 's' : ''}. 
+                                After this period, if bills are still overdue, the profile will be automatically locked again.
+                            </p>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button 
+                            variant="outline" 
+                            onClick={() => {
+                                setIsUnlockModalOpen(false);
+                                setUnlockDays(5);
+                            }}
+                            className="border-white/20 text-white"
+                            disabled={isLocking}
+                        >
+                            Cancel
+                        </Button>
+                        <Button 
+                            onClick={handleUnlockClient}
+                            disabled={isLocking || unlockDays < 1 || unlockDays > 30}
+                            className="gap-2"
+                        >
+                            {isLocking ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    Unlocking...
+                                </>
+                            ) : (
+                                <>
+                                    <Unlock className="w-4 h-4" />
+                                    Unlock Profile
+                                </>
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };
