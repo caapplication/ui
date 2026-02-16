@@ -29,7 +29,6 @@ import { useMediaQuery } from '@/hooks/useMediaQuery.jsx';
 import { Link, useLocation } from 'react-router-dom';
 import { useSocket } from '@/contexts/SocketContext.jsx';
 import { getUnreadNotificationCount, getUnreadNoticeCount } from '@/lib/api';
-import { Badge } from '@/components/ui/badge';
 
 import { listClients, listClientsByOrganization } from '@/lib/api/clients';
 
@@ -113,13 +112,13 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
     { id: 'users', path: '/users', label: 'Manage Team', icon: UserCog, hidden: user?.role === 'CLIENT_USER' },
     { id: 'beneficiaries', path: '/beneficiaries', label: 'Beneficiaries', icon: Users },
     { id: 'organisation-bank', path: '/organisation-bank', label: 'Organisation Bank', icon: Banknote },
-    { id: 'notices', path: '/notices', label: 'Notices', icon: Bell, badge: unreadNoticeCount > 0 ? unreadNoticeCount : null, blinking: isNoticeBlinking },
+    { id: 'notices', path: '/notices', label: 'Notices', icon: Bell, showDot: unreadNoticeCount > 0, blinking: isNoticeBlinking },
     {
       id: 'tasks',
       path: '/tasks',
       label: 'Tasks',
       icon: ListTodo,
-      badge: unreadCount > 0 ? unreadCount : null,
+      showDot: unreadCount > 0,
       blinking: isBlinking
     },
   ];
@@ -288,16 +287,19 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
                         {!isCollapsed && (
                           <motion.span variants={textVariants} initial="collapsed" animate="expanded" exit="collapsed" className="flex-1 font-medium z-10 flex items-center justify-between">
                             {item.label}
-                            {item.badge && (
-                              <Badge
-                                className={`ml-auto ${item.blinking ? 'animate-pulse' : ''} bg-orange-500 hover:bg-orange-600 text-white border-0`}
-                              >
-                                {item.badge > 99 ? '99+' : item.badge}
-                              </Badge>
+                            {item.showDot && (
+                              <span
+                                className={`ml-auto w-2.5 h-2.5 rounded-full bg-amber-400 border-2 border-[#1e293b] flex-shrink-0 ${item.blinking ? 'animate-pulse' : ''}`}
+                                title="New activity"
+                                aria-hidden
+                              />
                             )}
                           </motion.span>
                         )}
                       </AnimatePresence>
+                      {isCollapsed && item.showDot && (
+                        <span className={`absolute top-2 right-2 w-2.5 h-2.5 bg-amber-400 rounded-full border-2 border-[#1e293b] z-20 ${item.blinking ? 'animate-pulse' : ''}`} aria-hidden />
+                      )}
                     </Button>
                   </Link>
                 </li>

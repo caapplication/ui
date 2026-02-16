@@ -687,6 +687,33 @@ export const getAccountantDashboardStats = async (token) => {
     return handleResponse(response);
 };
 
+/** Lightweight indicator for sidebar: true if any voucher/invoice has status pending_ca_approval (CA only). */
+export const getFinancePendingCaApprovalIndicator = async (token) => {
+    try {
+        const response = await fetch(`${FINANCE_API_BASE_URL}/api/dashboard/pending-ca-approval`, {
+            headers: getAuthHeaders(token),
+        });
+        const data = await handleResponse(response);
+        return data?.has_pending === true;
+    } catch (error) {
+        return false;
+    }
+};
+
+/** Get per-entity indicators (finance pending, notices unread) for entity dropdowns. */
+export const getEntityIndicators = async (token) => {
+    try {
+        const response = await fetch(`${FINANCE_API_BASE_URL}/api/dashboard/entity-indicators`, {
+            headers: getAuthHeaders(token),
+        });
+        const data = await handleResponse(response);
+        return data || {}; // { "entity_id": { "has_finance_pending": bool, "has_notice_unread": bool } }
+    } catch (error) {
+        console.error('Failed to fetch entity indicators:', error);
+        return {};
+    }
+};
+
 export const getNoticeAttachment = async (noticeId, token) => {
     // Similar logic to getVoucherAttachment but for Notices
     // No caching implemented yet for simplicity, but can add if needed

@@ -22,9 +22,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useMediaQuery } from '@/hooks/useMediaQuery.jsx';
 import { Link, useLocation } from 'react-router-dom';
 import { useSocket } from '@/contexts/SocketContext.jsx';
-import { getUnreadNotificationCount, getUnreadNoticeCount } from '@/lib/api';
+import { getUnreadNotificationCount, getUnreadNoticeCount, getFinancePendingCaApprovalIndicator } from '@/lib/api';
 import { useToast } from '@/components/ui/use-toast';
-import { Badge } from '@/components/ui/badge';
 
 const AccountantSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) => {
   const { user, logout } = useAuth();
@@ -34,30 +33,31 @@ const AccountantSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) =
   const { socket } = useSocket();
   const [unreadCount, setUnreadCount] = useState(0);
   const [unreadNoticeCount, setUnreadNoticeCount] = useState(0);
+  const [hasFinancePending, setHasFinancePending] = useState(false);
   const [isBlinking, setIsBlinking] = useState(false);
   const [isNoticeBlinking, setIsNoticeBlinking] = useState(false);
 
-  // Fetch initial unread counts
+  // Fetch initial unread counts and finance pending indicator
   useEffect(() => {
-    const fetchUnreadCounts = async () => {
+    const fetchIndicators = async () => {
       if (user?.access_token) {
         try {
-          const taskCount = await getUnreadNotificationCount(user.agency_id, user.access_token);
+          const [taskCount, noticeCount, financePending] = await Promise.all([
+            getUnreadNotificationCount(user.agency_id, user.access_token),
+            getUnreadNoticeCount(user.access_token),
+            getFinancePendingCaApprovalIndicator(user.access_token),
+          ]);
           setUnreadCount(taskCount);
-
-          // Fetch notice count
-          const noticeCount = await getUnreadNoticeCount(user.access_token);
           setUnreadNoticeCount(noticeCount);
+          setHasFinancePending(!!financePending);
         } catch (error) {
-          console.error("Failed to fetch unread notification counts:", error);
+          console.error("Failed to fetch sidebar indicators:", error);
         }
       }
     };
 
-    fetchUnreadCounts();
-
-    // Poll for updates every 30 seconds as fallback/update mechanism
-    const interval = setInterval(fetchUnreadCounts, 30000);
+    fetchIndicators();
+    const interval = setInterval(fetchIndicators, 30000);
     return () => clearInterval(interval);
   }, [user]);
 
@@ -97,14 +97,14 @@ const AccountantSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) =
   const menuItems = [
     { id: 'dashboard', path: '/', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'clients', path: '/clients', label: 'Clients', icon: Users },
-    { id: 'finance', path: '/finance', label: 'Finance', icon: Landmark },
+    { id: 'finance', path: '/finance', label: 'Finance', icon: Landmark, showDot: hasFinancePending },
     { id: 'team-members', path: '/team-members', label: 'Team Members', icon: UserPlus },
     {
       id: 'tasks',
       path: '/tasks',
       label: 'Tasks',
       icon: ListTodo,
-      badge: unreadCount > 0 ? unreadCount : null,
+      showDot: unreadCount > 0,
       blinking: isBlinking
     },
     { id: 'documents', path: '/documents', label: 'Documents', icon: FileText },
@@ -113,7 +113,7 @@ const AccountantSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) =
       path: '/notices',
       label: 'Notices',
       icon: Bell,
-      badge: unreadNoticeCount > 0 ? unreadNoticeCount : null,
+      showDot: unreadNoticeCount > 0,
       blinking: isNoticeBlinking
     },
     { id: 'services', path: '/services', label: 'Services', icon: Briefcase },
@@ -196,19 +196,19 @@ const AccountantSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) =
                         {!isCollapsed && (
                           <motion.span variants={textVariants} initial="collapsed" animate="expanded" exit="collapsed" className="flex-1 font-medium z-10 flex items-center justify-between">
                             {item.label}
-                            {item.badge && (
-                              <Badge
-                                className={`ml-auto ${item.blinking ? 'animate-pulse' : ''} bg-orange-500 hover:bg-orange-600 text-white border-0`}
-                              >
-                                {item.badge > 99 ? '99+' : item.badge}
-                              </Badge>
+                            {item.showDot && (
+                              <span
+                                className={`ml-auto w-2.5 h-2.5 rounded-full bg-amber-400 border-2 border-[#1e293b] flex-shrink-0 ${item.blinking ? 'animate-pulse' : ''}`}
+                                title="New activity"
+                                aria-hidden
+                              />
                             )}
                           </motion.span>
                         )}
                       </AnimatePresence>
-                      {/* Badge for collapsed state */}
-                      {isCollapsed && item.badge && (
-                        <div className={`absolute top-2 right-2 w-3 h-3 bg-orange-500 rounded-full border-2 border-[#1e293b] z-20 ${item.blinking ? 'animate-ping' : ''}`}></div>
+                      {/* Yellow dot for collapsed state */}
+                      {isCollapsed && item.showDot && (
+                        <span className={`absolute top-2 right-2 w-2.5 h-2.5 bg-amber-400 rounded-full border-2 border-[#1e293b] z-20 ${item.blinking ? 'animate-pulse' : ''}`} aria-hidden />
                       )}
                     </Button>
                   </Link>

@@ -57,6 +57,8 @@ export const {
   exportVouchersToTallyXML,
   getActivityLog,
   getAccountantDashboardStats,
+  getFinancePendingCaApprovalIndicator,
+  getEntityIndicators,
   createActivityLog,
 } = finance;
 

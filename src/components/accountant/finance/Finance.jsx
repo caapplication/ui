@@ -16,6 +16,7 @@ import {
   getBeneficiaries,
   updateInvoice,
   updateVoucher,
+  getEntityIndicators,
 } from "@/lib/api";
 import { useOrganisation } from "@/hooks/useOrganisation";
 import * as XLSX from 'xlsx';
@@ -40,6 +41,7 @@ const AccountantFinance = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [entityIndicators, setEntityIndicators] = useState({}); // { "entity_id": { has_finance_pending, has_notice_unread } }
 
   const {
     organisations,
@@ -169,6 +171,38 @@ const AccountantFinance = () => {
 
   }, [user?.access_token, organisationId, entities, selectedEntity, fetchData]);
 
+  // Fetch entity indicators (finance pending, notices unread) for dropdown dots
+  useEffect(() => {
+    const fetchIndicators = async () => {
+      if (entities.length > 0 && user?.access_token) {
+        try {
+          console.log('Finance: Fetching indicators for entities:', entities.length);
+          const indicators = await getEntityIndicators(user.access_token);
+          console.log('Finance: Fetched entity indicators:', indicators);
+          console.log('Finance: Entities:', entities.map(e => ({ id: String(e.id), name: e.name })));
+          
+          // Normalize entity IDs to strings for comparison
+          const normalizedIndicators = {};
+          Object.keys(indicators || {}).forEach(key => {
+            normalizedIndicators[String(key)] = indicators[key];
+          });
+          
+          console.log('Finance: Normalized indicators:', normalizedIndicators);
+          setEntityIndicators(normalizedIndicators);
+        } catch (error) {
+          console.error('Failed to fetch entity indicators:', error);
+          setEntityIndicators({});
+        }
+      } else {
+        console.log('Finance: Skipping indicator fetch - entities:', entities.length, 'token:', !!user?.access_token);
+      }
+    };
+    fetchIndicators();
+    // Refresh indicators every 30 seconds
+    const interval = setInterval(fetchIndicators, 30000);
+    return () => clearInterval(interval);
+  }, [entities, user?.access_token]);
+
   const handleViewInvoice = (invoice, hasFilters) => {
     const currentIndex = invoices.findIndex(inv => inv.id === invoice.id);
     const path = `/invoices/ca/${invoice.id}`;
@@ -252,11 +286,41 @@ const AccountantFinance = () => {
                 {entities.length > 1 && (
                   <SelectItem value="all">All Entities</SelectItem>
                 )}
-                {entities.map((entity) => (
-                  <SelectItem key={entity.id} value={entity.id}>
-                    {entity.name}
-                  </SelectItem>
-                ))}
+                {entities.map((entity) => {
+                  const entityIdStr = String(entity.id);
+                  const indicator = entityIndicators[entityIdStr];
+                  const hasNotification = indicator && (indicator.has_finance_pending || indicator.has_notice_unread);
+                  
+                  // Debug logging
+                  if (entity.name === 'The Abduz' || entity.name === 'Spic N Span') {
+                    console.log(`Finance: Checking ${entity.name}`, {
+                      entityId: entity.id,
+                      entityIdStr,
+                      indicator,
+                      hasNotification,
+                      allIndicators: entityIndicators
+                    });
+                  }
+                  
+                  return (
+                    <SelectItem 
+                      key={entity.id} 
+                      value={entity.id}
+                      className={hasNotification ? "relative !pr-8" : "relative"}
+                    >
+                      <div className="flex items-center justify-between w-full gap-2">
+                        <span className="flex-1 truncate">{entity.name}</span>
+                        {hasNotification && (
+                          <span 
+                            className="w-2 h-2 rounded-full bg-amber-400 border border-[#1e293b] flex-shrink-0" 
+                            aria-hidden="true"
+                            style={{ minWidth: '8px', minHeight: '8px' }}
+                          />
+                        )}
+                      </div>
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
 

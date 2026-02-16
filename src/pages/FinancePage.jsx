@@ -7,7 +7,7 @@ import { RefreshCw } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useToast } from '@/components/ui/use-toast';
 import { useOrganisation } from '@/hooks/useOrganisation';
-import { getCATeamInvoices, getCATeamVouchers, updateInvoice, updateVoucher } from '@/lib/api';
+import { getCATeamInvoices, getCATeamVouchers, updateInvoice, updateVoucher, getEntityIndicators } from '@/lib/api';
 import { listClientsByOrganization } from '@/lib/api/clients';
 import Vouchers from './Vouchers';
 import Invoices from './Invoices';
@@ -29,6 +29,7 @@ const FinancePage = () => {
   const [clients, setClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState(null);
   const [isDataLoading, setIsDataLoading] = useState(false);
+  const [entityIndicators, setEntityIndicators] = useState({}); // { "entity_id": { has_finance_pending, has_notice_unread } }
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -95,6 +96,38 @@ const FinancePage = () => {
     }
   }, [selectedClient]);
 
+  // Fetch entity indicators (finance pending, notices unread) for dropdown dots
+  useEffect(() => {
+    const fetchIndicators = async () => {
+      if (clients.length > 0 && user?.access_token) {
+        try {
+          console.log('FinancePage: Fetching indicators for clients:', clients.length);
+          const indicators = await getEntityIndicators(user.access_token);
+          console.log('FinancePage: Fetched entity indicators:', indicators);
+          console.log('FinancePage: Clients:', clients.map(c => ({ id: String(c.id), name: c.name })));
+          
+          // Normalize entity IDs to strings for comparison
+          const normalizedIndicators = {};
+          Object.keys(indicators || {}).forEach(key => {
+            normalizedIndicators[String(key)] = indicators[key];
+          });
+          
+          console.log('FinancePage: Normalized indicators:', normalizedIndicators);
+          setEntityIndicators(normalizedIndicators);
+        } catch (error) {
+          console.error('FinancePage: Failed to fetch entity indicators:', error);
+          setEntityIndicators({});
+        }
+      } else {
+        console.log('FinancePage: Skipping indicator fetch - clients:', clients.length, 'token:', !!user?.access_token);
+      }
+    };
+    fetchIndicators();
+    // Refresh indicators every 30 seconds
+    const interval = setInterval(fetchIndicators, 30000);
+    return () => clearInterval(interval);
+  }, [clients, user?.access_token]);
+
   // Refresh when returning from detail page
   useEffect(() => {
     // If we are on the finance page
@@ -130,10 +163,35 @@ const FinancePage = () => {
               <SelectValue placeholder={!clients.length ? "No clients found" : "Select client"} />
             </SelectTrigger>
             <SelectContent>
-
-              {clients.map(client => (
-                <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>
-              ))}
+              {clients.map(client => {
+                const entityIdStr = String(client.id);
+                const indicator = entityIndicators[entityIdStr];
+                const hasNotification = indicator && (indicator.has_finance_pending || indicator.has_notice_unread);
+                
+                // Debug logging
+                if (hasNotification) {
+                  console.log(`FinancePage: Client ${client.name} (${entityIdStr}) has notification:`, indicator);
+                }
+                
+                return (
+                  <SelectItem 
+                    key={client.id} 
+                    value={client.id}
+                    className={hasNotification ? "relative !pr-8" : "relative"}
+                  >
+                    <div className="flex items-center justify-between w-full gap-2">
+                      <span className="flex-1 truncate">{client.name}</span>
+                      {hasNotification && (
+                        <span 
+                          className="w-2 h-2 rounded-full bg-amber-400 border border-[#1e293b] flex-shrink-0" 
+                          aria-hidden="true"
+                          style={{ minWidth: '8px', minHeight: '8px' }}
+                        />
+                      )}
+                    </div>
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
           <Button variant="outline" size="icon" onClick={handleRefresh} disabled={isDataLoading || isOrgLoading || !selectedOrg}>
