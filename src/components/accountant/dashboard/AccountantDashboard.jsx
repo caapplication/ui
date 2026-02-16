@@ -18,7 +18,8 @@ import {
   getCATeamInvoicesBulk,
   getCATeamVouchersBulk,
   listTasks,
-  getNotices
+  getNotices,
+  getClientBillingInvoices
 } from '@/lib/api';
 import { useOrganisation } from "@/hooks/useOrganisation";
 
@@ -224,9 +225,44 @@ const AccountantDashboard = () => {
       const filteredTasks = tasksList.filter(t => entityIds.includes(t.entity_id) || entityIds.includes(t.client_id));
       const filteredNotices = noticesList.filter(n => entityIds.includes(n.entity_id) || entityIds.includes(n.client_id));
 
-      // Compute Revenue & Due from actual invoice/voucher data
-      const totalRevenue = 0;
-      const totalDue = 0;
+      // Compute Revenue & Due from current month billing invoices
+      let totalRevenue = 0;
+      let totalDue = 0;
+      
+      try {
+        const currentDate = new Date();
+        const currentMonth = currentDate.getMonth();
+        const currentYear = currentDate.getFullYear();
+        
+        // Get all clients for this CA
+        const allClients = Array.isArray(clientsData) ? clientsData : (clientsData?.results || []);
+        
+        // Fetch invoices for all clients and calculate current month totals
+        for (const client of allClients) {
+          try {
+            const invoices = await getClientBillingInvoices(client.id, agencyId, token);
+            if (Array.isArray(invoices)) {
+              for (const invoice of invoices) {
+                const invoiceDate = new Date(invoice.invoice_date);
+                // Check if invoice is from current month
+                if (invoiceDate.getMonth() === currentMonth && invoiceDate.getFullYear() === currentYear) {
+                  const amount = parseFloat(invoice.invoice_amount || 0);
+                  totalRevenue += amount;
+                  
+                  // Add to due if status is due or overdue
+                  if (invoice.status === 'due' || invoice.status === 'overdue') {
+                    totalDue += amount;
+                  }
+                }
+              }
+            }
+          } catch (error) {
+            console.warn(`Error fetching invoices for client ${client.id}:`, error);
+          }
+        }
+      } catch (error) {
+        console.error('Error calculating Revenue & Due:', error);
+      }
 
       setStats({
         myClients: Array.isArray(clientsData) ? clientsData.length : (clientsData?.results?.length || 0),

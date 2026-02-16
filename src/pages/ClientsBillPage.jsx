@@ -10,9 +10,9 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Search, Filter, ArrowLeft, CheckCircle, AlertCircle, Clock, Download, Check, CreditCard, Upload, X, Eye } from 'lucide-react';
+import { Loader2, Search, Filter, ArrowLeft, CheckCircle, AlertCircle, Clock, Download, Check, CreditCard, Upload, X, Eye, Pencil } from 'lucide-react';
 import { format } from 'date-fns';
-import { getClientBillingInvoices, listClients, downloadInvoicePDF, markInvoicePaid, getPaymentProofUrl, uploadClientInvoicePaymentProof, getInvoicePaymentDetails } from '@/lib/api';
+import { getClientBillingInvoices, listClients, downloadInvoicePDF, markInvoicePaid, getPaymentProofUrl, uploadClientInvoicePaymentProof, getInvoicePaymentDetails, updateClientBillingInvoice } from '@/lib/api';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 
 const ClientsBillPage = () => {
@@ -43,6 +43,20 @@ const ClientsBillPage = () => {
     const [isLoadingPaymentDetails, setIsLoadingPaymentDetails] = useState(false);
     const [paymentFile, setPaymentFile] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
+    
+    // Edit invoice modal
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [editFormData, setEditFormData] = useState({
+        invoice_number: '',
+        invoice_date: '',
+        due_date: '',
+        billing_head: '',
+        hsn_sac_code: '',
+        monthly_charges_ex_gst: '',
+        gst_percent: '',
+        state: ''
+    });
+    const [isSavingEdit, setIsSavingEdit] = useState(false);
     
     useEffect(() => {
         loadData();
@@ -316,6 +330,56 @@ const ClientsBillPage = () => {
         }
     };
     
+    const handleEditInvoice = (invoice) => {
+        setSelectedInvoice(invoice);
+        setEditFormData({
+            invoice_number: invoice.invoice_number || '',
+            invoice_date: invoice.invoice_date || '',
+            due_date: invoice.due_date || '',
+            billing_head: invoice.billing_head || '',
+            hsn_sac_code: invoice.hsn_sac_code || '',
+            monthly_charges_ex_gst: invoice.monthly_charges_ex_gst || '',
+            gst_percent: invoice.gst_percent || '',
+            state: invoice.state || ''
+        });
+        setIsEditModalOpen(true);
+    };
+    
+    const handleSaveEdit = async () => {
+        if (!selectedInvoice?.id || !user?.access_token || !agencyId) return;
+        
+        // Validate required fields
+        if (!editFormData.invoice_number || !editFormData.invoice_date || !editFormData.monthly_charges_ex_gst || !editFormData.gst_percent) {
+            toast({
+                title: 'Validation Error',
+                description: 'Please fill in all required fields',
+                variant: 'destructive',
+            });
+            return;
+        }
+        
+        setIsSavingEdit(true);
+        try {
+            await updateClientBillingInvoice(selectedInvoice.id, editFormData, agencyId, user.access_token);
+            toast({
+                title: 'Success',
+                description: 'Invoice updated successfully',
+            });
+            setIsEditModalOpen(false);
+            setSelectedInvoice(null);
+            loadData();
+        } catch (error) {
+            console.error('Error updating invoice:', error);
+            toast({
+                title: 'Error',
+                description: 'Failed to update invoice. ' + (error.message || ''),
+                variant: 'destructive',
+            });
+        } finally {
+            setIsSavingEdit(false);
+        }
+    };
+    
     const totals = calculateTotals();
     
     if (isLoading) {
@@ -481,35 +545,44 @@ const ClientsBillPage = () => {
                                                     {invoice.status === 'pending_verification' && (
                                                         <Button
                                                             variant="ghost"
-                                                            size="sm"
+                                                            size="icon"
                                                             onClick={() => handleMarkPaymentDone(invoice)}
-                                                            className="text-white hover:bg-white/10"
+                                                            className="text-white hover:bg-white/10 h-8 w-8"
                                                             title="Review proof and mark payment done"
                                                         >
-                                                            <Check className="w-4 h-4 mr-2" />
-                                                            Mark payment done
+                                                            <Check className="w-4 h-4" />
                                                         </Button>
                                                     )}
                                                     {(invoice.status === 'due' || invoice.status === 'overdue') && (
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            onClick={() => handleMakePayment(invoice)}
-                                                            className="text-white hover:bg-white/10"
-                                                            title="Upload payment proof"
-                                                        >
-                                                            <CreditCard className="w-4 h-4 mr-2" />
-                                                            Make Payment
-                                                        </Button>
+                                                        <>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                onClick={() => handleEditInvoice(invoice)}
+                                                                className="text-white hover:bg-white/10 h-8 w-8"
+                                                                title="Edit Invoice"
+                                                            >
+                                                                <Pencil className="w-4 h-4" />
+                                                            </Button>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                onClick={() => handleMakePayment(invoice)}
+                                                                className="text-white hover:bg-white/10 h-8 w-8"
+                                                                title="Upload payment proof"
+                                                            >
+                                                                <CreditCard className="w-4 h-4" />
+                                                            </Button>
+                                                        </>
                                                     )}
                                                     <Button
                                                         variant="ghost"
-                                                        size="sm"
+                                                        size="icon"
                                                         onClick={() => handleDownloadPDF(invoice.id)}
-                                                        className="text-white hover:bg-white/10"
+                                                        className="text-white hover:bg-white/10 h-8 w-8"
+                                                        title="Download PDF"
                                                     >
-                                                        <Download className="w-4 h-4 mr-2" />
-                                                        Download
+                                                        <Download className="w-4 h-4" />
                                                     </Button>
                                                 </TableCell>
                                             </TableRow>
@@ -636,6 +709,117 @@ const ClientsBillPage = () => {
                         <Button onClick={handleDonePayment} disabled={isUploading || isLoadingPaymentDetails || !paymentFile} className="gap-2">
                             {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                             Done
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            
+            {/* Edit Invoice Modal */}
+            <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-gray-900 border-white/10">
+                    <DialogHeader>
+                        <DialogTitle className="text-white">Edit Invoice</DialogTitle>
+                        <DialogDescription className="text-gray-400">
+                            Invoice: {selectedInvoice?.invoice_number} — Edit invoice details
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <Label htmlFor="invoice_number" className="text-white">Invoice Number *</Label>
+                                <Input
+                                    id="invoice_number"
+                                    value={editFormData.invoice_number}
+                                    onChange={(e) => setEditFormData({ ...editFormData, invoice_number: e.target.value })}
+                                    className="bg-gray-800 border-white/10 text-white"
+                                />
+                            </div>
+                            <div>
+                                <Label htmlFor="invoice_date" className="text-white">Invoice Date *</Label>
+                                <Input
+                                    id="invoice_date"
+                                    type="date"
+                                    value={editFormData.invoice_date}
+                                    onChange={(e) => setEditFormData({ ...editFormData, invoice_date: e.target.value })}
+                                    className="bg-gray-800 border-white/10 text-white"
+                                />
+                            </div>
+                            <div>
+                                <Label htmlFor="due_date" className="text-white">Due Date</Label>
+                                <Input
+                                    id="due_date"
+                                    type="date"
+                                    value={editFormData.due_date}
+                                    onChange={(e) => setEditFormData({ ...editFormData, due_date: e.target.value })}
+                                    className="bg-gray-800 border-white/10 text-white"
+                                />
+                            </div>
+                            <div>
+                                <Label htmlFor="billing_head" className="text-white">Billing Head</Label>
+                                <Input
+                                    id="billing_head"
+                                    value={editFormData.billing_head}
+                                    onChange={(e) => setEditFormData({ ...editFormData, billing_head: e.target.value })}
+                                    className="bg-gray-800 border-white/10 text-white"
+                                />
+                            </div>
+                            <div>
+                                <Label htmlFor="hsn_sac_code" className="text-white">HSN/SAC Code</Label>
+                                <Input
+                                    id="hsn_sac_code"
+                                    value={editFormData.hsn_sac_code}
+                                    onChange={(e) => setEditFormData({ ...editFormData, hsn_sac_code: e.target.value })}
+                                    className="bg-gray-800 border-white/10 text-white"
+                                />
+                            </div>
+                            <div>
+                                <Label htmlFor="state" className="text-white">State</Label>
+                                <Input
+                                    id="state"
+                                    value={editFormData.state}
+                                    onChange={(e) => setEditFormData({ ...editFormData, state: e.target.value })}
+                                    className="bg-gray-800 border-white/10 text-white"
+                                />
+                            </div>
+                            <div>
+                                <Label htmlFor="monthly_charges_ex_gst" className="text-white">Monthly Charges (Ex GST) *</Label>
+                                <Input
+                                    id="monthly_charges_ex_gst"
+                                    type="number"
+                                    step="0.01"
+                                    value={editFormData.monthly_charges_ex_gst}
+                                    onChange={(e) => setEditFormData({ ...editFormData, monthly_charges_ex_gst: e.target.value })}
+                                    className="bg-gray-800 border-white/10 text-white"
+                                />
+                            </div>
+                            <div>
+                                <Label htmlFor="gst_percent" className="text-white">GST % *</Label>
+                                <Input
+                                    id="gst_percent"
+                                    type="number"
+                                    step="0.01"
+                                    value={editFormData.gst_percent}
+                                    onChange={(e) => setEditFormData({ ...editFormData, gst_percent: e.target.value })}
+                                    className="bg-gray-800 border-white/10 text-white"
+                                />
+                            </div>
+                        </div>
+                        {editFormData.monthly_charges_ex_gst && editFormData.gst_percent && (
+                            <div className="p-4 bg-gray-800/50 rounded-lg border border-white/10">
+                                <div className="text-sm text-gray-400 space-y-1">
+                                    <div>GST Amount: ₹{((parseFloat(editFormData.monthly_charges_ex_gst || 0) * parseFloat(editFormData.gst_percent || 0)) / 100).toFixed(2)}</div>
+                                    <div className="text-white font-semibold">Total Amount: ₹{(parseFloat(editFormData.monthly_charges_ex_gst || 0) + (parseFloat(editFormData.monthly_charges_ex_gst || 0) * parseFloat(editFormData.gst_percent || 0)) / 100).toFixed(2)}</div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsEditModalOpen(false)} disabled={isSavingEdit} className="border-white/20 text-white">
+                            Cancel
+                        </Button>
+                        <Button onClick={handleSaveEdit} disabled={isSavingEdit} className="gap-2">
+                            {isSavingEdit ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                            Save Changes
                         </Button>
                     </DialogFooter>
                 </DialogContent>

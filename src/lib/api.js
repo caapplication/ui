@@ -157,6 +157,7 @@ export const {
     getMyCompany,
     updateMyCompany,
     downloadInvoicePDF,
+    updateClientBillingInvoice,
     createClient,
     updateClient,
     uploadClientPhoto,

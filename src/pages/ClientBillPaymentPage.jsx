@@ -426,23 +426,22 @@ const ClientBillPaymentPage = ({ entityId }) => {
                                                     {(invoice.status === 'due' || invoice.status === 'overdue') && (
                                                         <Button
                                                             variant="ghost"
-                                                            size="sm"
+                                                            size="icon"
                                                             onClick={() => handleMakePayment(invoice)}
-                                                            className="text-white hover:bg-white/10"
+                                                            className="text-white hover:bg-white/10 h-8 w-8"
                                                             title="Make Payment"
                                                         >
-                                                            <CreditCard className="w-4 h-4 mr-2" />
-                                                            Make Payment
+                                                            <CreditCard className="w-4 h-4" />
                                                         </Button>
                                                     )}
                                                     <Button
                                                         variant="ghost"
-                                                        size="sm"
+                                                        size="icon"
                                                         onClick={() => handleDownloadPDF(invoice.id)}
-                                                        className="text-white hover:bg-white/10"
+                                                        className="text-white hover:bg-white/10 h-8 w-8"
+                                                        title="Download PDF"
                                                     >
-                                                        <Download className="w-4 h-4 mr-2" />
-                                                        Download
+                                                        <Download className="w-4 h-4" />
                                                     </Button>
                                                 </TableCell>
                                             </TableRow>
