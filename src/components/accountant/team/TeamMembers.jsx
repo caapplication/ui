@@ -6,10 +6,13 @@ import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Edit, Trash2, UserPlus, Loader2 } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Plus, Edit, Trash2, UserPlus, Loader2, Building2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { listTeamMembers, inviteTeamMember, updateTeamMember, deleteTeamMember, resendInvite } from '@/lib/api';
+import { getAllClientTeamMembers, listClients } from '@/lib/api';
 
 const TeamMembers = () => {
     const [team, setTeam] = useState([]);
@@ -18,23 +21,53 @@ const TeamMembers = () => {
     const [showEditDialog, setShowEditDialog] = useState(false);
     const [editingUser, setEditingUser] = useState(null);
     const [formData, setFormData] = useState({ name: '', email: '', password: '' });
+    const [clients, setClients] = useState([]);
+    const [clientTeamMembers, setClientTeamMembers] = useState({});
+    const [memberClientsMap, setMemberClientsMap] = useState({});
     const { toast } = useToast();
     const { user } = useAuth();
+    const agencyId = user?.agency_id || localStorage.getItem('agency_id');
 
     const fetchTeamMembers = useCallback(async () => {
         if (!user?.access_token) return;
         setLoading(true);
         try {
-            const members = await listTeamMembers(user.access_token, 'joined');
+            const [members, assignments, clientsData] = await Promise.all([
+                listTeamMembers(user.access_token, 'joined'),
+                getAllClientTeamMembers(agencyId, user.access_token).catch(() => ({})),
+                listClients(agencyId, user.access_token).catch(() => [])
+            ]);
+            
             // Filter out current user
             const filteredMembers = members.filter(member => member.email !== user.email);
             setTeam(filteredMembers);
+            
+            // Set clients
+            const clientsList = Array.isArray(clientsData) ? clientsData : (clientsData?.results || []);
+            setClients(clientsList);
+            
+            // Set client team member assignments
+            setClientTeamMembers(assignments || {});
+            
+            // Create reverse mapping: team member -> clients
+            const memberToClients = {};
+            Object.keys(assignments || {}).forEach(clientId => {
+                const assignmentsForClient = assignments[clientId] || [];
+                assignmentsForClient.forEach(assignment => {
+                    const memberId = String(assignment.team_member_user_id);
+                    if (!memberToClients[memberId]) {
+                        memberToClients[memberId] = [];
+                    }
+                    memberToClients[memberId].push(clientId);
+                });
+            });
+            setMemberClientsMap(memberToClients);
         } catch (error) {
             toast({ title: "Error", description: `Failed to fetch team members: ${error.message}`, variant: "destructive" });
         } finally {
             setLoading(false);
         }
-    }, [user?.access_token, toast]);
+    }, [user?.access_token, user?.email, agencyId, toast]);
 
     useEffect(() => {
         fetchTeamMembers();
@@ -145,15 +178,55 @@ const TeamMembers = () => {
                             <TableRow className="border-b-white/10">
                                 <TableHead>Name</TableHead>
                                 <TableHead>Email</TableHead>
+                                <TableHead>Clients Assigned</TableHead>
                                 <TableHead>Status</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {team.map(member => (
+                            {team.map(member => {
+                                const memberId = String(member.id || member.user_id);
+                                const assignedClientIds = memberClientsMap[memberId] || [];
+                                const assignedClients = assignedClientIds
+                                    .map(clientId => clients.find(c => String(c.id) === String(clientId)))
+                                    .filter(Boolean);
+                                
+                                return (
                                 <TableRow key={member.id || member.email} className="border-none hover:bg-white/5">
                                     <TableCell className="font-medium">{member.name}</TableCell>
                                     <TableCell>{member.email}</TableCell>
+                                    <TableCell>
+                                        {assignedClients.length === 0 ? (
+                                            <span className="text-gray-400">-</span>
+                                        ) : (
+                                            <div className="flex -space-x-2">
+                                                {assignedClients.slice(0, 3).map((client, idx) => (
+                                                    <TooltipProvider key={`${memberId}-${client.id}-${idx}`}>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <Avatar className="w-8 h-8 border-2 border-gray-800 cursor-help">
+                                                                    {client.photo_url ? (
+                                                                        <AvatarImage src={client.photo_url} alt={client.name} />
+                                                                    ) : null}
+                                                                    <AvatarFallback className="bg-blue-600 text-white">
+                                                                        {client.name ? client.name.charAt(0).toUpperCase() : <Building2 className="w-4 h-4" />}
+                                                                    </AvatarFallback>
+                                                                </Avatar>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                <p>{client.name}</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </TooltipProvider>
+                                                ))}
+                                                {assignedClients.length > 3 && (
+                                                    <div className="w-8 h-8 rounded-full bg-gray-700 border-2 border-gray-800 flex items-center justify-center text-xs text-white">
+                                                        +{assignedClients.length - 3}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </TableCell>
                                     <TableCell>
                                         {member.id ? (
                                             <div className="flex items-center gap-2">
@@ -238,7 +311,7 @@ const TeamMembers = () => {
                                         )}
                                     </TableCell>
                                 </TableRow>
-                            ))}
+                            )})}
                         </TableBody>
                     </Table>
                 )}
