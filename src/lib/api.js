@@ -80,6 +80,7 @@ export const {
     getNoticeAttachment,
     getAccountantDashboardStats,
     getFinancePendingCaApprovalIndicator,
+    getFinancePendingMasterAdminApprovalIndicator,
     getEntityIndicators,
     exportVouchers,
     exportInvoices,

@@ -166,7 +166,8 @@ const FinancePage = () => {
               {clients.map(client => {
                 const entityIdStr = String(client.id);
                 const indicator = entityIndicators[entityIdStr];
-                const hasNotification = indicator && (indicator.has_finance_pending || indicator.has_notice_unread);
+                // On Finance page, only show dot for finance pending, not notices unread
+                const hasNotification = indicator && indicator.has_finance_pending === true;
                 
                 // Debug logging
                 if (hasNotification) {
