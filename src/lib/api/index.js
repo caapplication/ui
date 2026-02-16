@@ -154,9 +154,13 @@ export const {
   getMyCompany,
   updateMyCompany,
   downloadInvoicePDF,
+  updateClientBillingInvoice,
   lockClient,
   unlockClient
 } = clients;
+
+// Also export updateClientBillingInvoice directly to ensure it's available
+export { updateClientBillingInvoice } from './clients';
 
 export {
   getClientBillingSetup,

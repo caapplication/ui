@@ -6,8 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { Loader2, CheckCircle, AlertCircle, Clock, Download, Check, CreditCard, Upload, X } from 'lucide-react';
-import { getClientBillingInvoices, downloadInvoicePDF, markInvoicePaid, getPaymentProofUrl, uploadClientInvoicePaymentProof, getInvoicePaymentDetails } from '@/lib/api';
+import { Loader2, CheckCircle, AlertCircle, Clock, Download, Check, CreditCard, Upload, X, Pencil } from 'lucide-react';
+import { getClientBillingInvoices, downloadInvoicePDF, markInvoicePaid, getPaymentProofUrl, uploadClientInvoicePaymentProof, getInvoicePaymentDetails, updateClientBillingInvoice } from '@/lib/api';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 
@@ -30,6 +30,20 @@ const ClientInvoicesPaymentsTab = ({ client }) => {
     const [isLoadingPaymentDetails, setIsLoadingPaymentDetails] = useState(false);
     const [paymentFile, setPaymentFile] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
+    
+    // Edit invoice modal
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [editFormData, setEditFormData] = useState({
+        invoice_number: '',
+        invoice_date: '',
+        due_date: '',
+        billing_head: '',
+        hsn_sac_code: '',
+        monthly_charges_ex_gst: '',
+        gst_percent: '',
+        state: ''
+    });
+    const [isSavingEdit, setIsSavingEdit] = useState(false);
 
     useEffect(() => {
         if (client?.id && user?.access_token) {
@@ -55,6 +69,11 @@ const ClientInvoicesPaymentsTab = ({ client }) => {
                 due_date: inv.due_date,
                 payment_id: null,
                 payment_date: inv.paid_at || null,
+                billing_head: inv.billing_head,
+                hsn_sac_code: inv.hsn_sac_code,
+                monthly_charges_ex_gst: inv.monthly_charges_ex_gst,
+                gst_percent: inv.gst_percent,
+                state: inv.state,
             }));
             
             setInvoices(mappedInvoices);
@@ -224,6 +243,56 @@ const ClientInvoicesPaymentsTab = ({ client }) => {
             });
         }
     };
+    
+    const handleEditInvoice = (invoice) => {
+        setSelectedInvoice(invoice);
+        setEditFormData({
+            invoice_number: invoice.bill_number || '',
+            invoice_date: invoice.date || '',
+            due_date: invoice.due_date || '',
+            billing_head: invoice.billing_head || '',
+            hsn_sac_code: invoice.hsn_sac_code || '',
+            monthly_charges_ex_gst: invoice.monthly_charges_ex_gst || '',
+            gst_percent: invoice.gst_percent || '',
+            state: invoice.state || ''
+        });
+        setIsEditModalOpen(true);
+    };
+    
+    const handleSaveEdit = async () => {
+        if (!selectedInvoice?.id || !user?.access_token || !agencyId) return;
+        
+        // Validate required fields
+        if (!editFormData.invoice_number || !editFormData.invoice_date || !editFormData.monthly_charges_ex_gst || !editFormData.gst_percent) {
+            toast({
+                title: 'Validation Error',
+                description: 'Please fill in all required fields',
+                variant: 'destructive',
+            });
+            return;
+        }
+        
+        setIsSavingEdit(true);
+        try {
+            await updateClientBillingInvoice(selectedInvoice.id, editFormData, agencyId, user.access_token);
+            toast({
+                title: 'Success',
+                description: 'Invoice updated successfully',
+            });
+            setIsEditModalOpen(false);
+            setSelectedInvoice(null);
+            loadInvoices();
+        } catch (error) {
+            console.error('Error updating invoice:', error);
+            toast({
+                title: 'Error',
+                description: 'Failed to update invoice. ' + (error.message || ''),
+                variant: 'destructive',
+            });
+        } finally {
+            setIsSavingEdit(false);
+        }
+    };
 
     const getStatusBadge = (status) => {
         const statusConfig = {
@@ -281,7 +350,11 @@ const ClientInvoicesPaymentsTab = ({ client }) => {
                                 </TableCell>
                                 <TableCell className="font-medium">{invoice.bill_number}</TableCell>
                                 <TableCell>₹{parseFloat(invoice.amount).toFixed(2)}</TableCell>
-                                <TableCell>{getStatusBadge(invoice.payment_status)}</TableCell>
+                                <TableCell className="w-[180px]">
+                                    <div className="flex items-center justify-start">
+                                        {getStatusBadge(invoice.payment_status)}
+                                    </div>
+                                </TableCell>
                                 <TableCell>
                                     {invoice.due_date
                                         ? format(new Date(invoice.due_date), 'dd MMM yyyy')
@@ -290,34 +363,42 @@ const ClientInvoicesPaymentsTab = ({ client }) => {
                                 <TableCell className="flex items-center gap-2">
                                     {invoice.payment_status === 'pending_verification' && (
                                         <Button
-                                            size="sm"
+                                            size="icon"
                                             onClick={() => handleMarkPaymentDone(invoice)}
-                                            className="flex items-center gap-2"
+                                            className="h-8 w-8"
                                             title="Review client proof and mark payment done"
                                         >
                                             <Check className="w-4 h-4" />
-                                            Mark payment done
                                         </Button>
                                     )}
                                     {(invoice.payment_status === 'due' || invoice.payment_status === 'overdue') && (
-                                        <Button
-                                            size="sm"
-                                            onClick={() => handleMakePayment(invoice)}
-                                            className="flex items-center gap-2"
-                                            title="Upload payment proof"
-                                        >
-                                            <CreditCard className="w-4 h-4" />
-                                            Make Payment
-                                        </Button>
+                                        <>
+                                            <Button
+                                                size="icon"
+                                                onClick={() => handleEditInvoice(invoice)}
+                                                className="h-8 w-8"
+                                                title="Edit Invoice"
+                                            >
+                                                <Pencil className="w-4 h-4" />
+                                            </Button>
+                                            <Button
+                                                size="icon"
+                                                onClick={() => handleMakePayment(invoice)}
+                                                className="h-8 w-8"
+                                                title="Upload payment proof"
+                                            >
+                                                <CreditCard className="w-4 h-4" />
+                                            </Button>
+                                        </>
                                     )}
                                     <Button
-                                        size="sm"
-                                        variant="outline"
+                                        size="icon"
+                                        variant="ghost"
                                         onClick={() => handleDownloadPDF(invoice.id)}
-                                        className="flex items-center gap-2"
+                                        className="h-8 w-8"
+                                        title="Download PDF"
                                     >
                                         <Download className="w-4 h-4" />
-                                        Download
                                     </Button>
                                 </TableCell>
                             </TableRow>
@@ -440,6 +521,109 @@ const ClientInvoicesPaymentsTab = ({ client }) => {
                         <Button onClick={handleDonePayment} disabled={isUploading || isLoadingPaymentDetails || !paymentFile} className="gap-2">
                             {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                             Done
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            
+            {/* Edit Invoice Modal */}
+            <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>Edit Invoice</DialogTitle>
+                        <DialogDescription>
+                            Invoice: {selectedInvoice?.bill_number} — Edit invoice details
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <Label htmlFor="edit_invoice_number">Invoice Number *</Label>
+                                <Input
+                                    id="edit_invoice_number"
+                                    value={editFormData.invoice_number}
+                                    onChange={(e) => setEditFormData({ ...editFormData, invoice_number: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <Label htmlFor="edit_invoice_date">Invoice Date *</Label>
+                                <Input
+                                    id="edit_invoice_date"
+                                    type="date"
+                                    value={editFormData.invoice_date}
+                                    onChange={(e) => setEditFormData({ ...editFormData, invoice_date: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <Label htmlFor="edit_due_date">Due Date</Label>
+                                <Input
+                                    id="edit_due_date"
+                                    type="date"
+                                    value={editFormData.due_date}
+                                    onChange={(e) => setEditFormData({ ...editFormData, due_date: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <Label htmlFor="edit_billing_head">Billing Head</Label>
+                                <Input
+                                    id="edit_billing_head"
+                                    value={editFormData.billing_head}
+                                    onChange={(e) => setEditFormData({ ...editFormData, billing_head: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <Label htmlFor="edit_hsn_sac_code">HSN/SAC Code</Label>
+                                <Input
+                                    id="edit_hsn_sac_code"
+                                    value={editFormData.hsn_sac_code}
+                                    onChange={(e) => setEditFormData({ ...editFormData, hsn_sac_code: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <Label htmlFor="edit_state">State</Label>
+                                <Input
+                                    id="edit_state"
+                                    value={editFormData.state}
+                                    onChange={(e) => setEditFormData({ ...editFormData, state: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <Label htmlFor="edit_monthly_charges_ex_gst">Monthly Charges (Ex GST) *</Label>
+                                <Input
+                                    id="edit_monthly_charges_ex_gst"
+                                    type="number"
+                                    step="0.01"
+                                    value={editFormData.monthly_charges_ex_gst}
+                                    onChange={(e) => setEditFormData({ ...editFormData, monthly_charges_ex_gst: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <Label htmlFor="edit_gst_percent">GST % *</Label>
+                                <Input
+                                    id="edit_gst_percent"
+                                    type="number"
+                                    step="0.01"
+                                    value={editFormData.gst_percent}
+                                    onChange={(e) => setEditFormData({ ...editFormData, gst_percent: e.target.value })}
+                                />
+                            </div>
+                        </div>
+                        {editFormData.monthly_charges_ex_gst && editFormData.gst_percent && (
+                            <div className="p-4 bg-gray-50 rounded-lg border">
+                                <div className="text-sm text-gray-600 space-y-1">
+                                    <div>GST Amount: ₹{((parseFloat(editFormData.monthly_charges_ex_gst || 0) * parseFloat(editFormData.gst_percent || 0)) / 100).toFixed(2)}</div>
+                                    <div className="font-semibold">Total Amount: ₹{(parseFloat(editFormData.monthly_charges_ex_gst || 0) + (parseFloat(editFormData.monthly_charges_ex_gst || 0) * parseFloat(editFormData.gst_percent || 0)) / 100).toFixed(2)}</div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsEditModalOpen(false)} disabled={isSavingEdit}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleSaveEdit} disabled={isSavingEdit} className="gap-2">
+                            {isSavingEdit ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                            Save Changes
                         </Button>
                     </DialogFooter>
                 </DialogContent>

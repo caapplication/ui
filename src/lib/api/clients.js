@@ -382,6 +382,15 @@ export const markInvoicePaid = async (invoiceId, agencyId, token) => {
     return handleResponse(response);
 };
 
+export const updateClientBillingInvoice = async (invoiceId, invoiceData, agencyId, token) => {
+    const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/${invoiceId}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(token, 'application/json', agencyId),
+        body: JSON.stringify(invoiceData)
+    });
+    return handleResponse(response);
+};
+
 // ==================== Client Company Profile ====================
 
 /**
