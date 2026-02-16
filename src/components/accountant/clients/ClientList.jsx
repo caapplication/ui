@@ -25,6 +25,7 @@ import {
     Loader2,
     List as ListIcon,
     Grid as GridIcon,
+    Lock,
 } from 'lucide-react';
 
 
@@ -289,11 +290,22 @@ const ClientList = ({
                         <TableCell>{renderClientUsers(client)}</TableCell>
                         <TableCell>{renderTeamMembers(client)}</TableCell>
                         <TableCell>
-                            {client.is_active ? (
-                                <Badge variant="success">Active</Badge>
-                            ) : (
-                                <Badge variant="destructive">Inactive</Badge>
-                            )}
+                            <div className="flex items-center gap-2">
+                                {client.is_active ? (
+                                    <Badge variant="success">Active</Badge>
+                                ) : (
+                                    <Badge variant="destructive">Inactive</Badge>
+                                )}
+                                {client.is_locked && (
+                                    <Badge 
+                                        variant="destructive" 
+                                        className="bg-red-500/20 text-red-400 border-red-500/50 flex items-center gap-1"
+                                    >
+                                        <Lock className="w-3 h-3" />
+                                        Locked
+                                    </Badge>
+                                )}
+                            </div>
                         </TableCell>
                     </TableRow>
                 ))}
@@ -329,11 +341,22 @@ const ClientList = ({
                         <Badge variant="outline">
                             {client.business_type?.name || client.client_type || 'N/A'}
                         </Badge>
-                        {client.is_active ? (
-                            <Badge variant="success">Active</Badge>
-                        ) : (
-                            <Badge variant="destructive">Inactive</Badge>
-                        )}
+                        <div className="flex items-center gap-2">
+                            {client.is_active ? (
+                                <Badge variant="success">Active</Badge>
+                            ) : (
+                                <Badge variant="destructive">Inactive</Badge>
+                            )}
+                            {client.is_locked && (
+                                <Badge 
+                                    variant="destructive" 
+                                    className="bg-red-500/20 text-red-400 border-red-500/50 flex items-center gap-1"
+                                >
+                                    <Lock className="w-3 h-3" />
+                                    Locked
+                                </Badge>
+                            )}
+                        </div>
                     </div>
                     <div className="text-sm text-gray-300">
                         <span className="font-semibold">Org:</span> {client.organization_name || '-'}

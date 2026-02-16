@@ -433,3 +433,28 @@ export const downloadInvoicePDF = async (invoiceId, agencyId, token) => {
     window.URL.revokeObjectURL(url);
     document.body.removeChild(a);
 };
+
+// ==================== Client Lock/Unlock ====================
+
+/**
+ * Lock a client profile (CA only)
+ */
+export const lockClient = async (clientId, agencyId, token) => {
+    const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/${clientId}/lock`, {
+        method: 'POST',
+        headers: getAuthHeaders(token, 'application/json', agencyId)
+    });
+    return handleResponse(response);
+};
+
+/**
+ * Unlock a client profile temporarily (CA only)
+ */
+export const unlockClient = async (clientId, unlockDays, agencyId, token) => {
+    const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/${clientId}/unlock`, {
+        method: 'POST',
+        headers: getAuthHeaders(token, 'application/json', agencyId),
+        body: JSON.stringify({ unlock_days: unlockDays })
+    });
+    return handleResponse(response);
+};

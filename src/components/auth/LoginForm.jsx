@@ -39,10 +39,17 @@ const LoginForm = () => {
         navigate('/verify-2fa', { state: { email, password } });
         return;
       }
+      
+      // Check if account is locked
+      const errorMessage = error.message || "Please check your credentials and try again.";
+      const isLocked = errorMessage.toLowerCase().includes('locked') || 
+                       errorMessage.toLowerCase().includes('pay your due bills');
+      
       toast({
-        title: "Login Failed",
-        description: error.message || "Please check your credentials and try again.",
+        title: isLocked ? "Account Locked" : "Login Failed",
+        description: errorMessage,
         variant: "destructive",
+        duration: isLocked ? 8000 : 5000, // Show locked message longer
       });
     } finally {
       setLoading(false);

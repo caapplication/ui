@@ -153,7 +153,9 @@ export const {
   markInvoicePaid,
   getMyCompany,
   updateMyCompany,
-  downloadInvoicePDF
+  downloadInvoicePDF,
+  lockClient,
+  unlockClient
 } = clients;
 
 export {
