@@ -1,20 +1,10 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Trash2, Repeat, Loader2 } from 'lucide-react';
+import { Repeat, Loader2 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const FREQUENCY_LABELS = {
@@ -25,6 +15,7 @@ const FREQUENCY_LABELS = {
 };
 
 const RecurringTaskList = ({ recurringTasks, onEdit, onDelete, isLoading = false, clients = [], teamMembers = [] }) => {
+  const navigate = useNavigate();
   const getClientName = (clientId) => {
     if (!clientId) return 'N/A';
     if (!Array.isArray(clients)) return 'N/A';
@@ -90,18 +81,27 @@ const RecurringTaskList = ({ recurringTasks, onEdit, onDelete, isLoading = false
   };
 
   const getFrequencyDescription = (task) => {
-    let desc = `Every ${task.interval} ${FREQUENCY_LABELS[task.frequency]}`;
+    // Map unified task schema fields to expected format
+    const frequency = task.recurrence_frequency || task.frequency;
+    const interval = task.recurrence_interval || task.interval || 1;
+    const dayOfWeek = task.recurrence_day_of_week !== undefined ? task.recurrence_day_of_week : task.day_of_week;
+    const dayOfMonth = task.recurrence_day_of_month !== undefined ? task.recurrence_day_of_month : task.day_of_month;
+    const weekOfMonth = task.recurrence_week_of_month !== undefined ? task.recurrence_week_of_month : task.week_of_month;
+    
+    if (!frequency) return 'N/A';
+    
+    let desc = `Every ${interval} ${FREQUENCY_LABELS[frequency] || frequency}`;
 
-    if (task.frequency === 'weekly' && task.day_of_week !== null) {
+    if (frequency === 'weekly' && dayOfWeek !== null && dayOfWeek !== undefined) {
       const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-      desc += ` on ${days[task.day_of_week]}`;
-    } else if (task.frequency === 'monthly') {
-      if (task.day_of_month) {
-        desc += ` on day ${task.day_of_month}`;
-      } else if (task.week_of_month && task.day_of_week !== null) {
+      desc += ` on ${days[dayOfWeek]}`;
+    } else if (frequency === 'monthly') {
+      if (dayOfMonth !== null && dayOfMonth !== undefined) {
+        desc += ` on day ${dayOfMonth}`;
+      } else if (weekOfMonth !== null && weekOfMonth !== undefined && dayOfWeek !== null && dayOfWeek !== undefined) {
         const weeks = ['first', 'second', 'third', 'fourth'];
         const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-        desc = `${weeks[task.week_of_month - 1]} ${days[task.day_of_week]} of every ${task.interval} month(s)`;
+        desc = `${weeks[weekOfMonth - 1]} ${days[dayOfWeek]} of every ${interval} month(s)`;
       }
     }
 
@@ -154,7 +154,6 @@ const RecurringTaskList = ({ recurringTasks, onEdit, onDelete, isLoading = false
               <TableHead className="hidden xl:table-cell text-white">START DATE</TableHead>
               <TableHead className="hidden sm:table-cell text-white">ASSIGNED TO</TableHead>
               <TableHead className="text-white">STATUS</TableHead>
-              <TableHead className="text-right text-white">ACTIONS</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -164,7 +163,11 @@ const RecurringTaskList = ({ recurringTasks, onEdit, onDelete, isLoading = false
               const assignedToInfo = getUserInfo(task.assigned_to);
 
               return (
-                <TableRow key={task.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                <TableRow 
+                  key={task.id} 
+                  className="border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer"
+                  onClick={() => navigate(`/tasks/recurring/${task.id}`)}
+                >
                   {/* TASK DETAILS */}
                   <TableCell className="align-top">
                     <div className="flex flex-col gap-1">
@@ -186,16 +189,24 @@ const RecurringTaskList = ({ recurringTasks, onEdit, onDelete, isLoading = false
                   <TableCell className="hidden lg:table-cell align-top">
                     <div className="flex flex-col gap-1">
                       <span className="text-sm text-white">{updatedByInfo.name}</span>
-                      {task.updated_at && (
-                        <>
-                          <span className="text-xs text-gray-400 italic">
-                            {format(new Date(task.updated_at), 'dd-MM-yyyy hh:mm a')}
-                          </span>
-                          <Badge variant="outline" className={`${getDateBadgeColor(task.updated_at)} w-fit text-xs italic`}>
-                            {formatTimeAgo(task.updated_at)}
-                          </Badge>
-                        </>
-                      )}
+                      {task.updated_at && (() => {
+                        try {
+                          const date = new Date(task.updated_at);
+                          if (isNaN(date.getTime())) return null;
+                          return (
+                            <>
+                              <span className="text-xs text-gray-400 italic">
+                                {format(date, 'dd-MM-yyyy hh:mm a')}
+                              </span>
+                              <Badge variant="outline" className={`${getDateBadgeColor(task.updated_at)} w-fit text-xs italic`}>
+                                {formatTimeAgo(task.updated_at)}
+                              </Badge>
+                            </>
+                          );
+                        } catch {
+                          return null;
+                        }
+                      })()}
                     </div>
                   </TableCell>
 
@@ -203,16 +214,24 @@ const RecurringTaskList = ({ recurringTasks, onEdit, onDelete, isLoading = false
                   <TableCell className="hidden md:table-cell align-top">
                     <div className="flex flex-col gap-1">
                       <span className="text-sm text-white">{createdByInfo.name}</span>
-                      {task.created_at && (
-                        <>
-                          <span className="text-xs text-gray-400 italic">
-                            {format(new Date(task.created_at), 'dd-MM-yyyy hh:mm a')}
-                          </span>
-                          <Badge variant="outline" className={`${getDateBadgeColor(task.created_at)} text-xs w-fit italic`}>
-                            {formatTimeAgo(task.created_at)}
-                          </Badge>
-                        </>
-                      )}
+                      {task.created_at && (() => {
+                        try {
+                          const date = new Date(task.created_at);
+                          if (isNaN(date.getTime())) return null;
+                          return (
+                            <>
+                              <span className="text-xs text-gray-400 italic">
+                                {format(date, 'dd-MM-yyyy hh:mm a')}
+                              </span>
+                              <Badge variant="outline" className={`${getDateBadgeColor(task.created_at)} text-xs w-fit italic`}>
+                                {formatTimeAgo(task.created_at)}
+                              </Badge>
+                            </>
+                          );
+                        } catch {
+                          return null;
+                        }
+                      })()}
                     </div>
                   </TableCell>
 
@@ -226,7 +245,17 @@ const RecurringTaskList = ({ recurringTasks, onEdit, onDelete, isLoading = false
                   {/* START DATE */}
                   <TableCell className="hidden xl:table-cell align-top">
                     <span className="text-white">
-                      {format(new Date(task.start_date), 'MMM dd, yyyy')}
+                      {(() => {
+                        const startDate = task.recurrence_start_date || task.start_date;
+                        if (!startDate) return 'N/A';
+                        try {
+                          const date = new Date(startDate);
+                          if (isNaN(date.getTime())) return 'N/A';
+                          return format(date, 'MMM dd, yyyy');
+                        } catch {
+                          return 'N/A';
+                        }
+                      })()}
                     </span>
                   </TableCell>
 
@@ -234,76 +263,38 @@ const RecurringTaskList = ({ recurringTasks, onEdit, onDelete, isLoading = false
                   <TableCell className="hidden sm:table-cell align-top">
                     <div className="flex flex-col gap-1">
                       <span className="text-sm text-white">{assignedToInfo.name}</span>
-                      {task.created_at && (
-                        <>
-                          <span className="text-xs text-gray-400 italic">
-                            {format(new Date(task.created_at), 'dd-MM-yyyy hh:mm a')}
-                          </span>
-                          <Badge variant="outline" className={`${getDateBadgeColor(task.created_at)} text-xs w-fit italic`}>
-                            {formatTimeAgo(task.created_at)}
-                          </Badge>
-                        </>
-                      )}
+                      {task.created_at && (() => {
+                        try {
+                          const date = new Date(task.created_at);
+                          if (isNaN(date.getTime())) return null;
+                          return (
+                            <>
+                              <span className="text-xs text-gray-400 italic">
+                                {format(date, 'dd-MM-yyyy hh:mm a')}
+                              </span>
+                              <Badge variant="outline" className={`${getDateBadgeColor(task.created_at)} text-xs w-fit italic`}>
+                                {formatTimeAgo(task.created_at)}
+                              </Badge>
+                            </>
+                          );
+                        } catch {
+                          return null;
+                        }
+                      })()}
                     </div>
                   </TableCell>
 
                   {/* STATUS */}
                   <TableCell className="align-top">
                     <Badge
-                      variant={task.is_active ? 'default' : 'outline'}
-                      className={task.is_active
+                      variant={(task.recurrence_is_active !== undefined ? task.recurrence_is_active : task.is_active) ? 'default' : 'outline'}
+                      className={(task.recurrence_is_active !== undefined ? task.recurrence_is_active : task.is_active)
                         ? 'bg-green-500/20 text-green-300 border-green-500/50 hover:bg-green-500/30'
                         : 'bg-gray-500/20 text-gray-300 border-gray-500/50 hover:bg-gray-500/30'
                       }
                     >
-                      {task.is_active ? 'Active' : 'Inactive'}
+                      {(task.recurrence_is_active !== undefined ? task.recurrence_is_active : task.is_active) ? 'Active' : 'Inactive'}
                     </Badge>
-                  </TableCell>
-
-                  {/* ACTIONS */}
-                  <TableCell className="text-right align-top">
-                    <div className="flex items-center justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => onEdit(task)}
-                        className="text-gray-400 hover:text-white hover:bg-white/10"
-                        title="Edit"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-gray-400 hover:text-red-400 hover:bg-red-500/10"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent className="glass-pane border border-white/20">
-                          <AlertDialogHeader>
-                            <AlertDialogTitle className="text-white">Delete Recurring Task</AlertDialogTitle>
-                            <AlertDialogDescription className="text-gray-300">
-                              Are you sure you want to delete "{task.title}"? This will stop creating new tasks from this template.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel className="bg-white/10 text-white border-white/20 hover:bg-white/20">
-                              Cancel
-                            </AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => onDelete(task.id)}
-                              className="bg-red-600 hover:bg-red-700 text-white"
-                            >
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
                   </TableCell>
                 </TableRow>
               );

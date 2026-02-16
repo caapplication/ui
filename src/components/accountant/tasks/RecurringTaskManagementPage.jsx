@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useToast } from '@/components/ui/use-toast';
 import { Loader2, Plus, RefreshCw, ArrowLeft, Search, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -23,6 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 const RecurringTaskManagementPage = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const { user, loading: authLoading } = useAuth();
     const { toast } = useToast();
     const [view, setView] = useState('list'); // 'list', 'new', 'edit'
@@ -222,6 +223,18 @@ const RecurringTaskManagementPage = () => {
         }
     }, [view]);
 
+    // Check if we need to open edit mode from navigation state
+    useEffect(() => {
+        if (location.state?.editTaskId && recurringTasks.length > 0) {
+            const taskToEdit = recurringTasks.find(t => String(t.id) === String(location.state.editTaskId));
+            if (taskToEdit) {
+                handleEdit(taskToEdit);
+                // Clear the state to prevent reopening on refresh
+                navigate(location.pathname, { replace: true, state: {} });
+            }
+        }
+    }, [location.state, recurringTasks, navigate]);
+
     useEffect(() => {
         // Only fetch when user is available and auth is not loading
         if (authLoading) {
@@ -248,23 +261,28 @@ const RecurringTaskManagementPage = () => {
 
     const handleCreate = async (taskData, isEdit) => {
         try {
-            // Map NewTaskForm data to Recurring Task API format
+            // NewTaskForm already sends recurrence_* fields, but API expects old field names for mapping
+            // Map to old field names so API can map them back to recurrence_* fields
             const finalTaskData = {
                 title: taskData.title,
-                client_id: taskData.client_id,
-                service_id: taskData.service_id === 'none' ? null : taskData.service_id,
-                description: taskData.description,
-                assigned_to: taskData.assigned_to,
-                priority: taskData.priority,
-                tag_id: taskData.tag_id,
+                client_id: taskData.client_id || null,
+                service_id: taskData.service_id === 'none' || taskData.service_id === '' ? null : taskData.service_id,
+                description: taskData.description || null,
+                assigned_to: taskData.assigned_to || null,
+                priority: taskData.priority || null,
+                tag_id: taskData.tag_id || null,
+                checklist: taskData.checklist || null,
 
-                frequency: taskData.recurrence_frequency,
-                interval: taskData.recurrence_interval,
-                start_date: taskData.recurrence_start_date,
-                day_of_week: taskData.recurrence_day_of_week,
-                day_of_month: taskData.recurrence_day_of_month,
-                due_date_offset: taskData.due_date_offset,
-                target_date_offset: taskData.target_date_offset,
+                // Map recurrence_* fields to old field names for API mapping
+                frequency: taskData.recurrence_frequency || null,
+                interval: taskData.recurrence_interval !== undefined ? taskData.recurrence_interval : 1,
+                start_date: taskData.recurrence_start_date || null,
+                end_date: taskData.recurrence_end_date || null,
+                day_of_week: taskData.recurrence_day_of_week !== undefined ? taskData.recurrence_day_of_week : null,
+                day_of_month: taskData.recurrence_day_of_month !== undefined ? taskData.recurrence_day_of_month : null,
+                week_of_month: taskData.recurrence_week_of_month !== undefined ? taskData.recurrence_week_of_month : null,
+                due_date_offset: taskData.due_date_offset !== undefined ? taskData.due_date_offset : 0,
+                target_date_offset: taskData.target_date_offset !== undefined ? taskData.target_date_offset : null,
                 is_active: true
             };
 
@@ -292,21 +310,25 @@ const RecurringTaskManagementPage = () => {
 
             const finalTaskData = {
                 title: taskData.title,
-                client_id: taskData.client_id,
-                service_id: taskData.service_id === 'none' ? null : taskData.service_id,
-                description: taskData.description,
-                assigned_to: taskData.assigned_to,
-                priority: taskData.priority,
-                tag_id: taskData.tag_id,
+                client_id: taskData.client_id || null,
+                service_id: taskData.service_id === 'none' || taskData.service_id === '' ? null : taskData.service_id,
+                description: taskData.description || null,
+                assigned_to: taskData.assigned_to || null,
+                priority: taskData.priority || null,
+                tag_id: taskData.tag_id || null,
+                checklist: taskData.checklist || null,
 
-                frequency: taskData.recurrence_frequency,
-                interval: taskData.recurrence_interval,
-                start_date: taskData.recurrence_start_date,
-                day_of_week: taskData.recurrence_day_of_week,
-                day_of_month: taskData.recurrence_day_of_month,
-                due_date_offset: taskData.due_date_offset,
-                target_date_offset: taskData.target_date_offset,
-                is_active: editingTask.is_active // Preserve existing active state
+                // Map recurrence_* fields to old field names for API mapping
+                frequency: taskData.recurrence_frequency || null,
+                interval: taskData.recurrence_interval !== undefined ? taskData.recurrence_interval : 1,
+                start_date: taskData.recurrence_start_date || null,
+                end_date: taskData.recurrence_end_date || null,
+                day_of_week: taskData.recurrence_day_of_week !== undefined ? taskData.recurrence_day_of_week : null,
+                day_of_month: taskData.recurrence_day_of_month !== undefined ? taskData.recurrence_day_of_month : null,
+                week_of_month: taskData.recurrence_week_of_month !== undefined ? taskData.recurrence_week_of_month : null,
+                due_date_offset: taskData.due_date_offset !== undefined ? taskData.due_date_offset : 0,
+                target_date_offset: taskData.target_date_offset !== undefined ? taskData.target_date_offset : null,
+                is_active: (editingTask.recurrence_is_active !== undefined ? editingTask.recurrence_is_active : editingTask.is_active) !== undefined ? (editingTask.recurrence_is_active !== undefined ? editingTask.recurrence_is_active : editingTask.is_active) : true
             };
 
             await updateRecurringTask(editingTask.id, finalTaskData, agencyId, accessToken);
@@ -600,16 +622,21 @@ const RecurringTaskManagementPage = () => {
                             teamMembers={teamMembers}
                             tags={tags}
                             // Map existing recurring task to NewTaskForm expectation
+                            // Support both old field names (frequency, interval) and new unified names (recurrence_frequency, recurrence_interval)
                             task={editingTask ? {
                                 ...editingTask,
+                                service_id: editingTask.service_id || '',
+                                checklist: editingTask.checklist || { enabled: false, items: [] },
                                 is_recurring: true,
-                                recurrence_frequency: editingTask.frequency,
-                                recurrence_interval: editingTask.interval,
-                                recurrence_start_date: editingTask.start_date,
-                                recurrence_day_of_week: editingTask.day_of_week,
-                                recurrence_day_of_month: editingTask.day_of_month,
-                                due_date_offset: editingTask.due_date_offset,
-                                target_date_offset: editingTask.target_date_offset
+                                recurrence_frequency: editingTask.recurrence_frequency || editingTask.frequency,
+                                recurrence_interval: editingTask.recurrence_interval !== undefined ? editingTask.recurrence_interval : (editingTask.interval !== undefined ? editingTask.interval : 1),
+                                recurrence_start_date: editingTask.recurrence_start_date || editingTask.start_date,
+                                recurrence_end_date: editingTask.recurrence_end_date || editingTask.end_date,
+                                recurrence_day_of_week: editingTask.recurrence_day_of_week !== undefined ? editingTask.recurrence_day_of_week : editingTask.day_of_week,
+                                recurrence_day_of_month: editingTask.recurrence_day_of_month !== undefined ? editingTask.recurrence_day_of_month : editingTask.day_of_month,
+                                recurrence_week_of_month: editingTask.recurrence_week_of_month !== undefined ? editingTask.recurrence_week_of_month : editingTask.week_of_month,
+                                due_date_offset: editingTask.due_date_offset !== undefined ? editingTask.due_date_offset : 0,
+                                target_date_offset: editingTask.target_date_offset !== undefined ? editingTask.target_date_offset : null
                             } : null}
                             isRecurringOnly={true}
                         />

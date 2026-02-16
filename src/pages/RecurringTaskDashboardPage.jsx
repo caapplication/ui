@@ -1,13 +1,22 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth.jsx';
-import { getRecurringTask } from '@/lib/api';
+import { getRecurringTask, deleteRecurringTask } from '@/lib/api';
 import { useToast } from '@/components/ui/use-toast';
-import { Loader2, ArrowLeft, Calendar, User, Tag, Flag, CheckCircle, Briefcase, Users, Repeat } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Loader2, ArrowLeft, Edit, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { format } from 'date-fns';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import RecurringTaskExpandedView from '@/components/accountant/tasks/RecurringTaskExpandedView';
 
 const getStatusVariant = (isActive) => {
     return isActive ? 'default' : 'outline';
@@ -61,6 +70,7 @@ const formatOffset = (days) => {
 const RecurringTaskDashboardPage = () => {
     const { recurringTaskId } = useParams();
     const navigate = useNavigate();
+    const location = useLocation();
     const { user } = useAuth();
     const { toast } = useToast();
     const [task, setTask] = useState(null);
@@ -88,13 +98,31 @@ const RecurringTaskDashboardPage = () => {
         fetchTask();
     }, [fetchTask]);
 
-    const renderDetailItem = (Icon, label, value) => (
-        <div className="flex items-start text-sm">
-            <Icon className="w-4 h-4 mr-3 mt-1 text-gray-400 flex-shrink-0" />
-            <span className="font-semibold text-gray-300 w-24">{label}:</span>
-            <span className="text-white flex-grow">{value}</span>
-        </div>
-    );
+    const handleDelete = async () => {
+        try {
+            if (!user?.agency_id || !user?.access_token || !recurringTaskId) return;
+            await deleteRecurringTask(recurringTaskId, user.agency_id, user.access_token);
+            toast({
+                title: 'Recurring Task Deleted',
+                description: 'The recurring task has been deleted successfully.',
+            });
+            navigate('/tasks/recurring');
+        } catch (error) {
+            toast({
+                title: 'Error deleting recurring task',
+                description: error.message,
+                variant: 'destructive',
+            });
+        }
+    };
+
+    const handleEdit = () => {
+        navigate(`/tasks/recurring`, { state: { editTaskId: recurringTaskId } });
+    };
+
+    const handleRefresh = useCallback(async () => {
+        await fetchTask();
+    }, [fetchTask]);
 
     if (isLoading) {
         return (
@@ -116,91 +144,83 @@ const RecurringTaskDashboardPage = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
-            <div className="container mx-auto px-4 py-6 max-w-7xl">
-                {/* Header */}
-                <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-4">
-                        <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            onClick={() => navigate('/tasks/recurring')}
-                            className="text-white hover:bg-white/10"
-                        >
-                            <ArrowLeft className="h-6 w-6" />
-                        </Button>
-                        <div>
-                            <h1 className="text-3xl font-bold">{task.title}</h1>
-                            <p className="text-gray-400 mt-1">Recurring Task Details</p>
-                        </div>
-                    </div>
+        <div className="h-auto min-h-screen lg:h-[100dvh] p-4 md:p-8 text-white flex flex-col overflow-x-hidden lg:overflow-hidden">
+            {/* Header */}
+            <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-white/10 mb-6 flex-shrink-0">
+                <div className="flex items-center gap-4 w-full sm:w-auto">
+                    <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => {
+                            // Use location state if available (passed from navigating component)
+                            if (location.state?.fromService) {
+                                // Navigate back to services page - browser history will restore the service detail view
+                                navigate('/services', { state: { restoreServiceId: location.state.serviceId } });
+                            } else if (location.state?.fromApp) {
+                                navigate(-1); // Go back to previous page
+                            } else {
+                                // Default fallback to recurring tasks list if opened directly or external link
+                                navigate('/tasks/recurring');
+                            }
+                        }}
+                        className="flex-shrink-0"
+                    >
+                        <ArrowLeft className="h-5 w-5 sm:h-6 sm:w-6" />
+                    </Button>
+                    <h1 className="text-2xl sm:text-3xl font-bold truncate">
+                        {task.title}
+                    </h1>
                 </div>
-
-                {/* Content Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Main Content - 2 columns */}
-                    <div className="lg:col-span-2 space-y-6">
-                        {/* Task Overview */}
-                        <Card className="glass-pane">
-                            <CardHeader><CardTitle>Task Overview</CardTitle></CardHeader>
-                            <CardContent className="space-y-4">
-                                {task.client_id && renderDetailItem(Briefcase, 'Client', task.client?.name || 'N/A')}
-                                {task.service_id && renderDetailItem(Users, 'Service', task.service?.name || 'N/A')}
-                                {task.assigned_to && renderDetailItem(User, 'Assignee', task.assignee?.name || 'Unassigned')}
-                                {task.priority && renderDetailItem(Flag, 'Priority', <Badge variant={getPriorityVariant(task.priority)}>{task.priority}</Badge>)}
-                                {renderDetailItem(CheckCircle, 'Status', <Badge variant={getStatusVariant(task.is_active)}>{task.is_active ? 'Active' : 'Inactive'}</Badge>)}
-                            </CardContent>
-                        </Card>
-
-                        {/* Recurrence Details */}
-                        <Card className="glass-pane">
-                            <CardHeader><CardTitle>Recurrence Details</CardTitle></CardHeader>
-                            <CardContent className="space-y-4">
-                                {renderDetailItem(Repeat, 'Frequency', getFrequencyDescription(task))}
-                                {task.start_date && renderDetailItem(Calendar, 'Start Date', format(new Date(task.start_date), 'dd MMM yyyy'))}
-                                {task.end_date && renderDetailItem(Calendar, 'End Date', format(new Date(task.end_date), 'dd MMM yyyy'))}
-                                {renderDetailItem(Calendar, 'Due Date Offset', formatOffset(task.due_date_offset))}
-                                {renderDetailItem(Calendar, 'Target Date Offset', formatOffset(task.target_date_offset))}
-                            </CardContent>
-                        </Card>
-
-                        {/* Description */}
-                        {task.description && (
-                            <Card className="glass-pane">
-                                <CardHeader><CardTitle>Description</CardTitle></CardHeader>
-                                <CardContent>
-                                    <p className="text-gray-300 whitespace-pre-wrap">{task.description}</p>
-                                </CardContent>
-                            </Card>
-                        )}
-                    </div>
-
-                    {/* Sidebar - 1 column */}
-                    <div className="space-y-6">
-                        {/* Tag */}
-                        {task.tag_id && task.tag && (
-                            <Card className="glass-pane">
-                                <CardHeader><CardTitle>Tag</CardTitle></CardHeader>
-                                <CardContent>
-                                    <Badge style={{ backgroundColor: task.tag.color || '#888', color: 'white' }}>
-                                        {task.tag.name}
-                                    </Badge>
-                                </CardContent>
-                            </Card>
-                        )}
-
-                        {/* Metadata */}
-                        <Card className="glass-pane">
-                            <CardHeader><CardTitle>Metadata</CardTitle></CardHeader>
-                            <CardContent className="space-y-4">
-                                {task.created_at && renderDetailItem(Calendar, 'Created', format(new Date(task.created_at), 'dd MMM yyyy, HH:mm'))}
-                                {task.created_by && renderDetailItem(User, 'Created By', task.created_by_user?.name || 'N/A')}
-                                {task.updated_at && renderDetailItem(Calendar, 'Updated', format(new Date(task.updated_at), 'dd MMM yyyy, HH:mm'))}
-                                {task.last_created_at && renderDetailItem(Calendar, 'Last Created', format(new Date(task.last_created_at), 'dd MMM yyyy, HH:mm'))}
-                            </CardContent>
-                        </Card>
-                    </div>
+                <div className="flex items-center gap-2">
+                    <Button
+                        variant="outline"
+                        onClick={handleEdit}
+                        className="text-white border-white/20 hover:bg-white/10"
+                    >
+                        <Edit className="w-4 h-4 mr-2" />
+                        Edit
+                    </Button>
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button
+                                variant="outline"
+                                className="text-red-400 border-red-500/50 hover:bg-red-500/10"
+                            >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Delete
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent className="glass-pane border border-white/20">
+                            <AlertDialogHeader>
+                                <AlertDialogTitle className="text-white">Delete Recurring Task</AlertDialogTitle>
+                                <AlertDialogDescription className="text-gray-300">
+                                    Are you sure you want to delete "{task.title}"? This will stop creating new tasks from this template.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel className="bg-white/10 text-white border-white/20 hover:bg-white/20">
+                                    Cancel
+                                </AlertDialogCancel>
+                                <AlertDialogAction
+                                    onClick={handleDelete}
+                                    className="bg-red-600 hover:bg-red-700 text-white"
+                                >
+                                    Delete
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
                 </div>
+            </header>
+
+            {/* Common Expanded View */}
+            <div className="flex-1 min-h-0">
+                <RecurringTaskExpandedView 
+                    task={task} 
+                    onEdit={handleEdit} 
+                    onDelete={handleDelete}
+                    onRefresh={handleRefresh}
+                />
             </div>
         </div>
     );

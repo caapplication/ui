@@ -24,19 +24,26 @@ const FREQUENCY_LABELS = {
 };
 
 const getFrequencyDescription = (task) => {
-  if (!task?.frequency || !task?.interval) return "N/A";
-  let desc = `Every ${task.interval} ${FREQUENCY_LABELS[task.frequency] || task.frequency}`;
+  // Support both old field names (frequency, interval) and new unified names (recurrence_frequency, recurrence_interval)
+  const frequency = task?.recurrence_frequency || task?.frequency;
+  const interval = task?.recurrence_interval !== undefined ? task.recurrence_interval : (task?.interval !== undefined ? task.interval : null);
+  const dayOfWeek = task?.recurrence_day_of_week !== undefined ? task.recurrence_day_of_week : task?.day_of_week;
+  const dayOfMonth = task?.recurrence_day_of_month !== undefined ? task.recurrence_day_of_month : task?.day_of_month;
+  const weekOfMonth = task?.recurrence_week_of_month !== undefined ? task.recurrence_week_of_month : task?.week_of_month;
+  
+  if (!frequency || interval === null || interval === undefined) return "N/A";
+  let desc = `Every ${interval} ${FREQUENCY_LABELS[frequency] || frequency}`;
 
-  if (task.frequency === "weekly" && task.day_of_week !== null && task.day_of_week !== undefined) {
+  if (frequency === "weekly" && dayOfWeek !== null && dayOfWeek !== undefined) {
     const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-    desc += ` on ${days[task.day_of_week] || ""}`.trimEnd();
-  } else if (task.frequency === "monthly") {
-    if (task.day_of_month) {
-      desc += ` on day ${task.day_of_month}`;
-    } else if (task.week_of_month && task.day_of_week !== null && task.day_of_week !== undefined) {
+    desc += ` on ${days[dayOfWeek] || ""}`.trimEnd();
+  } else if (frequency === "monthly") {
+    if (dayOfMonth !== null && dayOfMonth !== undefined) {
+      desc += ` on day ${dayOfMonth}`;
+    } else if (weekOfMonth !== null && weekOfMonth !== undefined && dayOfWeek !== null && dayOfWeek !== undefined) {
       const weeks = ["first", "second", "third", "fourth"];
       const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-      desc = `${weeks[task.week_of_month - 1] || ""} ${days[task.day_of_week] || ""} of every ${task.interval} month(s)`.trim();
+      desc = `${weeks[weekOfMonth - 1] || ""} ${days[dayOfWeek] || ""} of every ${interval} month(s)`.trim();
     }
   }
 
@@ -83,7 +90,6 @@ const ServiceRecurringTasksTable = ({ recurringTasks = [], teamMembers = [], onE
               <TableHead className="hidden md:table-cell text-white">CREATED BY</TableHead>
               <TableHead className="hidden lg:table-cell text-white">RECURRING DETAILS</TableHead>
               <TableHead className="text-white">DUE DETAILS</TableHead>
-              <TableHead className="text-right text-white">ACTIONS</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -101,20 +107,29 @@ const ServiceRecurringTasksTable = ({ recurringTasks = [], teamMembers = [], onE
                         <Repeat className="w-3 h-3" />
                         {getFrequencyDescription(task)}
                       </span>
-                      {task.start_date && (
-                        <Badge variant="outline" className="bg-white/5 text-gray-200 border-white/10">
-                          Start: {format(new Date(task.start_date), "dd MMM yyyy")}
-                        </Badge>
-                      )}
+                      {(task.recurrence_start_date || task.start_date) && (() => {
+                        const startDate = task.recurrence_start_date || task.start_date;
+                        try {
+                          const date = new Date(startDate);
+                          if (!isNaN(date.getTime())) {
+                            return (
+                              <Badge variant="outline" className="bg-white/5 text-gray-200 border-white/10">
+                                Start: {format(date, "dd MMM yyyy")}
+                              </Badge>
+                            );
+                          }
+                        } catch {}
+                        return null;
+                      })()}
                       <Badge
-                        variant={task.is_active ? "default" : "outline"}
+                        variant={(task.recurrence_is_active !== undefined ? task.recurrence_is_active : task.is_active) ? "default" : "outline"}
                         className={
-                          task.is_active
+                          (task.recurrence_is_active !== undefined ? task.recurrence_is_active : task.is_active)
                             ? "bg-green-500/20 text-green-300 border-green-500/50"
                             : "bg-gray-500/20 text-gray-300 border-gray-500/50"
                         }
                       >
-                        {task.is_active ? "Active" : "Inactive"}
+                        {(task.recurrence_is_active !== undefined ? task.recurrence_is_active : task.is_active) ? "Active" : "Inactive"}
                       </Badge>
                     </div>
                   </div>
@@ -134,11 +149,20 @@ const ServiceRecurringTasksTable = ({ recurringTasks = [], teamMembers = [], onE
                 <TableCell className="hidden lg:table-cell align-top text-gray-300">
                   <div className="flex flex-col gap-1">
                     <span>{getFrequencyDescription(task)}</span>
-                    {task.start_date && (
-                      <span className="text-xs text-gray-400">
-                        Starts on {format(new Date(task.start_date), "dd MMM yyyy")}
-                      </span>
-                    )}
+                    {(task.recurrence_start_date || task.start_date) && (() => {
+                      const startDate = task.recurrence_start_date || task.start_date;
+                      try {
+                        const date = new Date(startDate);
+                        if (!isNaN(date.getTime())) {
+                          return (
+                            <span className="text-xs text-gray-400">
+                              Starts on {format(date, "dd MMM yyyy")}
+                            </span>
+                          );
+                        }
+                      } catch {}
+                      return null;
+                    })()}
                   </div>
                 </TableCell>
 
@@ -146,51 +170,6 @@ const ServiceRecurringTasksTable = ({ recurringTasks = [], teamMembers = [], onE
                   <div className="flex flex-col gap-1">
                     <span className="text-sm text-white">Due: {formatOffset(task.due_date_offset)}</span>
                     <span className="text-xs text-gray-400">Target: {formatOffset(task.target_date_offset)}</span>
-                  </div>
-                </TableCell>
-
-                <TableCell className="text-right align-top">
-                  <div className="flex items-center justify-end gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => onEdit?.(task)}
-                      className="text-gray-400 hover:text-white hover:bg-white/10"
-                      title="Edit"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-gray-400 hover:text-red-400 hover:bg-red-500/10"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent className="glass-pane border border-white/20">
-                        <AlertDialogHeader>
-                          <AlertDialogTitle className="text-white">Delete Recurring Task</AlertDialogTitle>
-                          <AlertDialogDescription className="text-gray-300">
-                            Are you sure you want to delete "{task.title}"? This will stop creating new tasks from this template.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel className="bg-white/10 text-white border-white/20 hover:bg-white/20">
-                            Cancel
-                          </AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => onDelete?.(task.id)}
-                            className="bg-red-600 hover:bg-red-700 text-white"
-                          >
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
                   </div>
                 </TableCell>
               </TableRow>

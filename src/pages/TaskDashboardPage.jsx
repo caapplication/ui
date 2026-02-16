@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth.jsx';
 import { useSocket } from '@/contexts/SocketContext.jsx';
 import { useOrganisation } from '@/hooks/useOrganisation';
 import { getTaskDetails, startTaskTimer, stopTaskTimer, getTaskHistory, /* addTaskSubtask, updateTaskSubtask, deleteTaskSubtask, */ updateTask, listClients, listServices, listTeamMembers, listTaskComments, createTaskComment, updateTaskComment, deleteTaskComment, addTaskCollaborator, removeTaskCollaborator, getTaskCollaborators, getCommentReadReceipts, requestTaskClosure, getClosureRequest, reviewClosureRequest, listTaskStages, listEntityUsers, getRecurringTask } from '@/lib/api';
+import RecurringTaskExpandedView from '@/components/accountant/tasks/RecurringTaskExpandedView';
 import { listOrgUsers } from '@/lib/api/organisation';
 import * as pdfjsLib from 'pdfjs-dist';
 import { useToast } from '@/components/ui/use-toast';
@@ -176,7 +177,7 @@ const TaskDashboardPage = () => {
     const [isRecurringTask, setIsRecurringTask] = useState(false);
 
     const fetchCollaborators = useCallback(async () => {
-        if (!user?.access_token || !taskId || isRecurringTask) return; // Skip for recurring tasks
+        if (!user?.access_token || !taskId) return; // Fetch for both regular and recurring tasks
         setIsLoadingCollaborators(true);
         try {
             const agencyId = user?.agency_id || null;
@@ -338,18 +339,23 @@ const TaskDashboardPage = () => {
 
 
     const fetchHistory = useCallback(async () => {
-        if (!user?.access_token || !taskId || isRecurringTask) return; // Skip for recurring tasks
+        if (!user?.access_token || !taskId) return;
         setIsHistoryLoading(true);
         try {
             const agencyId = user?.agency_id || null;
             const historyData = await getTaskHistory(taskId, agencyId, user.access_token);
             setHistory(historyData);
         } catch (error) {
-            toast({
-                title: 'Error fetching task history',
-                description: error.message,
-                variant: 'destructive',
-            });
+            // For recurring tasks, history might not be available - handle gracefully
+            if (isRecurringTask) {
+                setHistory([]); // Set empty history for recurring tasks
+            } else {
+                toast({
+                    title: 'Error fetching task history',
+                    description: error.message,
+                    variant: 'destructive',
+                });
+            }
         } finally {
             setIsHistoryLoading(false);
         }
@@ -601,12 +607,24 @@ const TaskDashboardPage = () => {
         fetchStages();
     }, [fetchTask, fetchStages]);
 
-    // Fetch task-specific data only after task is loaded and confirmed not recurring
+    // Fetch task-specific data only after task is loaded
+    // For recurring tasks, fetch collaborators and history (handle errors gracefully)
     useEffect(() => {
-        if (task && !isRecurringTask && !isLoading) {
-            fetchHistory();
-            fetchCollaborators();
-            fetchClosureRequest();
+        if (task && !isLoading) {
+            if (!isRecurringTask) {
+                // Regular tasks: fetch all data
+                fetchHistory();
+                fetchCollaborators();
+                fetchClosureRequest();
+            } else {
+                // Recurring tasks: fetch collaborators and history if available
+                // Note: Recurring tasks may not have activity logs or closure requests
+                fetchHistory(); // Will handle errors gracefully and set empty array
+                fetchCollaborators().catch(() => {
+                    // If collaborators API doesn't support recurring tasks, set empty array
+                    setCollaborators([]);
+                });
+            }
         }
     }, [task, isRecurringTask, isLoading, fetchHistory, fetchCollaborators, fetchClosureRequest]);
 
@@ -994,6 +1012,26 @@ const TaskDashboardPage = () => {
 
     const handleAddChecklistItem = async () => {
         if (!newChecklistItem.trim() || isAddingChecklistItem) return;
+        
+        // Don't allow adding checklist items for recurring tasks
+        if (isRecurringTask) {
+            toast({ 
+                title: "Cannot add checklist", 
+                description: "Checklist items cannot be added to recurring task templates.", 
+                variant: "destructive" 
+            });
+            return;
+        }
+
+        // Check if task exists
+        if (!task || !taskId) {
+            toast({ 
+                title: "Error adding item", 
+                description: "Task not found. Please refresh the page.", 
+                variant: "destructive" 
+            });
+            return;
+        }
 
         setIsAddingChecklistItem(true);
         try {
@@ -1004,8 +1042,8 @@ const TaskDashboardPage = () => {
             const newItem = {
                 name: newChecklistItem.trim(),
                 is_completed: false,
-                assigned_to: user?.id || null,
-                created_by: user?.id || null
+                assigned_to: user?.id || null
+                // Note: created_by is not part of ChecklistItem schema, but can be stored in JSON
             };
 
             const updatedChecklist = {
@@ -1029,7 +1067,36 @@ const TaskDashboardPage = () => {
             toast({ title: "Checklist Item Added", description: "The checklist item has been added successfully." });
         } catch (error) {
             console.error("Error adding checklist item:", error);
-            toast({ title: "Error adding item", description: error.message, variant: "destructive" });
+            const errorMessage = error.message || (error.response?.status === 404 ? "Task not found" : "Failed to add checklist item");
+            
+            // Even if there's an error, try to refresh the task data
+            // The backend might have saved the data but failed to return a proper response
+            try {
+                const refreshedTask = await getTaskDetails(taskId, user?.agency_id, user.access_token);
+                const refreshedHistory = await getTaskHistory(taskId, user?.agency_id, user.access_token);
+                setTask(refreshedTask);
+                setHistory(refreshedHistory);
+                
+                // Check if the item was actually added
+                const wasAdded = refreshedTask?.checklist?.items?.some(item => 
+                    item.name === newChecklistItem.trim()
+                );
+                
+                if (wasAdded) {
+                    // Item was added successfully despite the error
+                    setNewChecklistItem('');
+                    setShowAddChecklistDialog(false);
+                    toast({ 
+                        title: "Checklist Item Added", 
+                        description: "The checklist item has been added successfully." 
+                    });
+                    return;
+                }
+            } catch (refreshError) {
+                console.error("Error refreshing task after checklist add error:", refreshError);
+            }
+            
+            toast({ title: "Error adding item", description: errorMessage, variant: "destructive" });
         } finally {
             setIsAddingChecklistItem(false);
         }
@@ -1305,10 +1372,59 @@ const TaskDashboardPage = () => {
         }
     };
 
+    const formatFieldName = (fieldName) => {
+        return fieldName
+            .replace(/_/g, ' ')
+            .replace(/\b\w/g, l => l.toUpperCase());
+    };
+
+    const formatFieldValue = (field, value) => {
+        if (!value || value === 'None' || value === 'null') return 'Not set';
+        
+        // Handle objects (like checklist, document_request, etc.)
+        if (typeof value === 'object' && !Array.isArray(value) && value !== null) {
+            if (field === 'checklist') {
+                const itemCount = value.items?.length || 0;
+                return `${itemCount} item${itemCount !== 1 ? 's' : ''}`;
+            }
+            if (field === 'document_request') {
+                return value.enabled ? 'Enabled' : 'Disabled';
+            }
+            // For other objects, return a string representation
+            return JSON.stringify(value);
+        }
+        
+        // Handle arrays
+        if (Array.isArray(value)) {
+            return `${value.length} item${value.length !== 1 ? 's' : ''}`;
+        }
+        
+        // Format dates
+        if (field.includes('date') || field.includes('Date')) {
+            try {
+                const date = new Date(value);
+                if (!isNaN(date.getTime())) {
+                    return format(date, 'dd MMM yyyy');
+                }
+            } catch (e) {
+                // Fall through to default formatting
+            }
+        }
+        
+        // Format status/priority/enum values
+        if (field === 'status' || field === 'priority') {
+            return String(value).replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
+        
+        // Ensure we return a string
+        return String(value);
+    };
+
     const renderHistoryItem = (item) => {
         let eventText = item.action || `Task ${item.event_type?.replace(/_/g, ' ') || 'activity'}`;
         let EventIcon = History;
         let eventColor = "text-primary";
+        const hasDetailedChanges = item.from_value && item.to_value && Object.keys(item.from_value).length > 0 && item.event_type === 'task_updated';
 
         // Customize display based on event type
         switch (item.event_type) {
@@ -1339,10 +1455,12 @@ const TaskDashboardPage = () => {
                     if (toStatus === 'pending') toStatus = 'To Do';
 
                     eventText = `Status changed from "${fromStatus}" to "${toStatus}"`;
-                } else if (item.details) {
-                    eventText = item.details;
+                    eventColor = "text-blue-400";
+                } else {
+                    // For other updates, show the action text but we'll display detailed changes below
+                    eventText = item.action || 'Task updated';
+                    eventColor = "text-blue-400";
                 }
-                eventColor = "text-blue-400";
                 break;
             case 'task_deleted':
                 eventText = `Task deleted`;
@@ -1409,6 +1527,29 @@ const TaskDashboardPage = () => {
                 <EventIcon className={`h-5 w-5 ${eventColor} mt-1`} />
                 <div className="flex-1">
                     <p className="text-sm text-white font-medium">{eventText}</p>
+                    {hasDetailedChanges && !item.from_value?.hasOwnProperty('stage_id') && !item.from_value?.status ? (
+                        <div className="mt-2 space-y-1">
+                            {Object.keys(item.from_value).map((field) => {
+                                // Skip stage_id and status as they're handled above
+                                if (field === 'stage_id' || field === 'status') return null;
+                                
+                                const fromVal = item.from_value[field];
+                                const toVal = item.to_value[field];
+                                const fieldDisplay = formatFieldName(field);
+                                const fromDisplay = formatFieldValue(field, fromVal);
+                                const toDisplay = formatFieldValue(field, toVal);
+                                
+                                return (
+                                    <div key={field} className="text-xs text-gray-300 pl-2 border-l-2 border-white/20">
+                                        <span className="font-medium text-gray-400">{fieldDisplay}:</span>{' '}
+                                        <span className="text-red-300 line-through">{fromDisplay}</span>
+                                        {' → '}
+                                        <span className="text-green-300 font-medium">{toDisplay}</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ) : null}
                     <div className="flex items-center gap-2 mt-1">
                         <p className="text-xs text-gray-400">{format(new Date(item.created_at), 'dd MMM yyyy, HH:mm')}</p>
                         <span className="text-xs text-gray-500">•</span>
@@ -2225,7 +2366,7 @@ const TaskDashboardPage = () => {
                                     <TableHead>LAST UPDATE BY</TableHead>
                                     <TableHead>CREATED BY</TableHead>
                                     <TableHead>ASSIGNED TO</TableHead>
-                                    <TableHead>STATUS</TableHead>
+                                    {!isRecurringTask && <TableHead>STATUS</TableHead>}
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -2317,7 +2458,8 @@ const TaskDashboardPage = () => {
                                         </div>
                                     </TableCell>
 
-                                    {/* STATUS */}
+                                    {/* STATUS - Hidden for recurring tasks */}
+                                    {!isRecurringTask && (
                                     <TableCell>
                                         <div className="flex items-center gap-2">
                                             {isLoadingStages ? (
@@ -2396,6 +2538,7 @@ const TaskDashboardPage = () => {
                                             )}
                                         </div>
                                     </TableCell>
+                                    )}
                                 </TableRow>
                             </TableBody>
                         </Table>
@@ -2404,10 +2547,30 @@ const TaskDashboardPage = () => {
             </div>
 
             <div className="flex-1 min-h-0">
-                {/* Responsive Grid Layout: 1 col (mobile), 2 cols (tablet), 4 cols (desktop) */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 lg:grid-rows-2 gap-4 md:gap-6 h-auto lg:h-full min-h-0 overflow-visible lg:overflow-hidden">
-                    {/* Task Chat - Full width on mobile, 2 cols on desktop - Hidden for recurring tasks */}
-                    {!isRecurringTask && (
+                {/* For recurring tasks, use the common expanded view component */}
+                {isRecurringTask ? (
+                    <RecurringTaskExpandedView 
+                        task={task} 
+                        onEdit={handleEditRecurring}
+                        onDelete={() => {}}
+                        onRefresh={async () => {
+                            const agencyId = user?.agency_id || null;
+                            try {
+                                const recurringTaskData = await getRecurringTask(taskId, agencyId, user.access_token);
+                                setTask({
+                                    ...recurringTaskData,
+                                    is_recurring_task: true,
+                                    status: recurringTaskData.is_active ? 'active' : 'inactive'
+                                });
+                            } catch (error) {
+                                console.error('Error refreshing recurring task:', error);
+                            }
+                        }}
+                    />
+                ) : (
+                    /* Responsive Grid Layout: 1 col (mobile), 2 cols (tablet), 4 cols (desktop) */
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 lg:grid-rows-2 gap-4 md:gap-6 h-auto lg:h-full min-h-0 overflow-visible lg:overflow-hidden">
+                        {/* Task Chat - Full width on mobile, 2 cols on desktop */}
                         <Card className="glass-pane card-hover flex flex-col overflow-hidden rounded-2xl md:col-span-2 lg:row-span-2 h-[500px] lg:h-full">
                             <CardHeader className="flex-shrink-0"><CardTitle className="flex items-center gap-2"><MessageSquare className="w-5 h-5" /> Task Chat</CardTitle></CardHeader>
                             <CardContent className="flex-1 flex flex-col overflow-hidden min-h-0">
@@ -2749,7 +2912,6 @@ const TaskDashboardPage = () => {
                                 </div>
                             </CardContent>
                         </Card>
-                    )}
 
                     {/* Checklists - Column 3, Row 1 (col-span-1, row-span-1) - Green Box */}
                     <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col md:col-span-1 lg:col-span-1 lg:row-span-1 border-2 border-green-500/50 h-[400px] lg:h-full">
@@ -2760,7 +2922,7 @@ const TaskDashboardPage = () => {
                                     Checklists
                                 </CardTitle>
                                 <Dialog open={showAddChecklistDialog} onOpenChange={setShowAddChecklistDialog}>
-                                    {!isCompleted && (
+                                    {!isCompleted && !isRecurringTask && (
                                         <DialogTrigger asChild>
                                             <Button variant="ghost" size="sm" className="p-2">
                                                 <Plus className="w-4 h-4" />
@@ -2813,14 +2975,14 @@ const TaskDashboardPage = () => {
                                 </Dialog>
                             </div>
                         </CardHeader>
-                        <CardContent className="flex-1 min-h-0 overflow-hidden">
+                        <CardContent className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-2">
                             {isUpdatingChecklist && (
                                 <div className="flex justify-center items-center py-2 mb-2 flex-shrink-0">
                                     <Loader2 className="w-4 h-4 animate-spin text-primary" />
                                 </div>
                             )}
                             {task.checklist?.enabled && task.checklist?.items && task.checklist.items.length > 0 ? (
-                                <div className="space-y-2 h-full overflow-y-auto">
+                                <div className="space-y-2">
                                     {[...(task.checklist.items || [])]
                                         .map((item, index) => {
                                             // draggable related styles and handlers
@@ -2883,7 +3045,7 @@ const TaskDashboardPage = () => {
 
                     {/* Due Date & Recurring - Column 3, Row 2 (col-span-1, row-span-1) - Merged Card */}
                     <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col md:col-span-1 lg:col-span-1 lg:row-span-1 border-2 border-purple-500/50 h-[400px] lg:h-full">
-                        <CardContent className="flex-1 min-h-0 overflow-hidden flex flex-col p-6">
+                        <CardContent className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col p-6 pr-4">
                             {/* Due Date Section - Top */}
                             <div className="flex flex-col border-b border-white/10 pb-6 mb-6 flex-1 min-h-0">
                                 <div className="flex items-center justify-between mb-4 flex-shrink-0">
@@ -2891,7 +3053,11 @@ const TaskDashboardPage = () => {
                                         <CalendarIcon className="w-5 h-5" />
                                         Due Date
                                     </CardTitle>
-
+                                    {!isRecurringTask && !isCompleted && (
+                                        <Button variant="ghost" size="sm" className="p-2" onClick={handleEditDueDate}>
+                                            <Edit2 className="w-4 h-4" />
+                                        </Button>
+                                    )}
                                 </div>
                                 <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
                                     {task?.due_date ? (
@@ -2996,12 +3162,11 @@ const TaskDashboardPage = () => {
                         </CardContent>
                     </Card>
 
-                    {/* Collaborate - Column 4, Row 1 (col-span-1, row-span-1) - Red Box - Hidden for recurring tasks */}
-                    {!isRecurringTask && (
-                        <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col md:col-span-1 lg:col-span-1 lg:row-span-1 border-2 border-red-500/50 h-[400px] lg:h-full">
-                            <CardHeader className="flex-shrink-0">
-                                <div className="flex items-center justify-between">
-                                    <CardTitle>Collaborate</CardTitle>
+                    {/* Collaborate - Column 4, Row 1 (col-span-1, row-span-1) - Red Box */}
+                    <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col md:col-span-1 lg:col-span-1 lg:row-span-1 border-2 border-red-500/50 h-[400px] lg:h-full">
+                        <CardHeader className="flex-shrink-0">
+                            <div className="flex items-center justify-between">
+                                <CardTitle>Collaborate</CardTitle>
                                     <Dialog open={showAddCollaboratorDialog} onOpenChange={setShowAddCollaboratorDialog}>
                                         {!isCompleted && (
                                             <DialogTrigger asChild>
@@ -3037,7 +3202,7 @@ const TaskDashboardPage = () => {
 
                                                 {/* User Selection */}
                                                 <div>
-                                                    <Label className="mb-2 block flex items-center gap-2">
+                                                    <Label className="mb-2 flex items-center gap-2">
                                                         Collaborator
                                                         {loadingCollaboratorHostUsers && <Loader2 className="h-3 w-3 animate-spin text-gray-400" />}
                                                     </Label>
@@ -3102,15 +3267,15 @@ const TaskDashboardPage = () => {
                                             </DialogFooter>
                                         </DialogContent>
                                     </Dialog>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col pr-2">
+                            {isLoadingCollaborators ? (
+                                <div className="flex justify-center items-center py-4 flex-shrink-0">
+                                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
                                 </div>
-                            </CardHeader>
-                            <CardContent className="flex-1 min-h-0 overflow-hidden flex flex-col">
-                                {isLoadingCollaborators ? (
-                                    <div className="flex justify-center items-center py-4 flex-shrink-0">
-                                        <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                                    </div>
-                                ) : (
-                                    <div className="flex-1 min-h-0 overflow-y-auto space-y-2">
+                            ) : (
+                                <div className="space-y-2">
                                         {collaborators.length > 0 ? (
                                             collaborators.map((collab) => {
                                                 // Priority: 1. Direct from API (user_name), 2. Team Members list
@@ -3153,24 +3318,21 @@ const TaskDashboardPage = () => {
                                             })
                                         ) : (
                                             <p className="text-center text-gray-400 py-4">No collaborators yet. Add collaborators to share this task.</p>
-                                        )
-                                        }
+                                        )}
                                     </div>
                                 )}
-                            </CardContent>
-                        </Card>
-                    )}
+                        </CardContent>
+                    </Card>
 
-                    {/* Activity Log - Column 4, Row 2 (col-span-1, row-span-1) - Blue Box - Hidden for recurring tasks */}
-                    {!isRecurringTask && (
-                        <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col md:col-span-1 lg:col-span-1 lg:row-span-1 border-2 border-blue-500/50 h-[400px] lg:h-full">
+                    {/* Activity Log - Column 4, Row 2 (col-span-1, row-span-1) - Blue Box */}
+                    <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col md:col-span-1 lg:col-span-1 lg:row-span-1 border-2 border-blue-500/50 h-[400px] lg:h-full">
                             <CardHeader className="flex-shrink-0">
                                 <CardTitle className="flex items-center gap-2">
                                     <History className="w-5 h-5" />
                                     Activity Log
                                 </CardTitle>
                             </CardHeader>
-                            <CardContent className="flex-1 min-h-0 overflow-hidden flex flex-col">
+                            <CardContent className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col pr-2">
                                 {isHistoryLoading ? (
                                     <div className="flex justify-center items-center py-8 flex-shrink-0">
                                         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -3183,7 +3345,7 @@ const TaskDashboardPage = () => {
                                         item.event_type !== 'comment_deleted'
                                     );
                                     return filteredHistory.length > 0 ? (
-                                        <div className="flex-1 min-h-0 overflow-y-auto space-y-4">
+                                        <div className="space-y-4">
                                             {filteredHistory.map(renderHistoryItem)}
                                         </div>
                                     ) : (
@@ -3192,9 +3354,9 @@ const TaskDashboardPage = () => {
                                 })()}
                             </CardContent>
                         </Card>
-                    )}
-                </div >
-            </div >
+                    </div>
+                )}
+            </div>
 
             {/* Edit Due Date Dialog */}
             < Dialog open={showEditDueDateDialog} onOpenChange={setShowEditDueDateDialog} >

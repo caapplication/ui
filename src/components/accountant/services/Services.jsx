@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import ServiceList from '@/components/accountant/services/ServiceList';
 import ServiceDetail from '@/components/accountant/services/ServiceDetail';
 import AddServiceModal from '@/components/accountant/services/AddServiceModal';
@@ -11,6 +12,7 @@ import { Loader2 } from 'lucide-react';
 const Services = () => {
     const { user } = useAuth();
     const { toast } = useToast();
+    const location = useLocation();
     const [services, setServices] = useState([]);
     const [selectedService, setSelectedService] = useState(null);
     const [view, setView] = useState('list'); // 'list' | 'detail'
@@ -39,6 +41,17 @@ const Services = () => {
             fetchServices();
         }
     }, [fetchServices, selectedService]);
+
+    // Restore service detail view if coming back from a task
+    useEffect(() => {
+        if (location.state?.restoreServiceId && !selectedService && !isLoading && services.length > 0 && user) {
+            const serviceToRestore = services.find(s => s.id === location.state.restoreServiceId);
+            if (serviceToRestore) {
+                handleSelectService(serviceToRestore);
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [location.state?.restoreServiceId, services.length, selectedService, isLoading, user]);
 
     const handleSelectService = async (serviceStub) => {
         try {

@@ -37,6 +37,7 @@ const TeamMembers = lazy(() => import('@/components/accountant/team/TeamMembers.
 const Settings = lazy(() => import('@/components/accountant/settings/Settings.jsx'));
 const TaskManagementPage = lazy(() => import('@/components/accountant/tasks/TaskManagementPage.jsx'));
 const RecurringTaskManagementPage = lazy(() => import('@/components/accountant/tasks/RecurringTaskManagementPage.jsx'));
+const RecurringTaskDashboardPage = lazy(() => import('@/pages/RecurringTaskDashboardPage.jsx'));
 const TodoPage = lazy(() => import('@/components/accountant/tasks/TodoPage.jsx'));
 const ClientUsersPage = lazy(() => import('@/pages/ClientUsersPage.jsx'));
 const TaskDashboardPage = lazy(() => import('@/pages/TaskDashboardPage'));
@@ -321,6 +322,7 @@ const ProtectedContent = () => {
               <Route path="/bill-payment" element={<ClientBillPaymentPage entityId={currentEntity} />} />
               <Route path="/tasks" element={<TaskManagementPage entityId={currentEntity} entityName={getEntityName(currentEntity)} />} />
               <Route path="/tasks/recurring" element={<RecurringTaskManagementPage />} />
+              <Route path="/tasks/recurring/:recurringTaskId" element={<RecurringTaskDashboardPage />} />
               <Route path="/todos" element={<TodoPage />} />
               <Route path="/services" element={<Services />} />
               <Route path="/organisation" element={<Organisation />} />

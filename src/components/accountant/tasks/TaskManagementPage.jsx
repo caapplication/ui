@@ -7,7 +7,7 @@ import { Loader2, Repeat, LayoutGrid, List, Plus, History } from 'lucide-react';
 import TaskList from '@/components/accountant/tasks/TaskList.jsx';
 import TaskKanbanView from '@/components/accountant/tasks/TaskKanbanView.jsx';
 import NewTaskForm from '@/components/accountant/tasks/NewTaskForm.jsx';
-import { listTasks, createTask, updateTask, deleteTask as apiDeleteTask, listClients, listServices, listTeamMembers, getTags, listTaskStages, listAllClientUsers } from '@/lib/api';
+import { listTasks, createTask, updateTask, deleteTask as apiDeleteTask, listClients, listServices, listTeamMembers, getTags, listTaskStages, listAllClientUsers, listRecurringTasks } from '@/lib/api';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -36,6 +36,7 @@ const TaskManagementPage = ({ entityId, entityName }) => {
         return savedViewMode === 'kanban' ? 'kanban' : 'list';
     });
     const [tasks, setTasks] = useState([]);
+    const [recurringTasks, setRecurringTasks] = useState([]); // Separate state for recurring tasks
     const [clients, setClients] = useState([]);
     const [services, setServices] = useState([]);
     const [teamMembers, setTeamMembers] = useState([]);
@@ -82,6 +83,11 @@ const TaskManagementPage = ({ entityId, entityName }) => {
                 console.warn('Failed to fetch tasks:', err);
                 return { items: [] };
             });
+            // Fetch recurring tasks separately
+            const recurringTasksPromise = listRecurringTasks(agencyId, user.access_token, true, 1, 1000).catch(err => {
+                console.warn('Failed to fetch recurring tasks:', err);
+                return { items: [] };
+            });
             const teamPromise = listTeamMembers(user.access_token).catch(err => {
                 console.warn('Failed to fetch team members:', err);
                 return [];
@@ -107,17 +113,30 @@ const TaskManagementPage = ({ entityId, entityName }) => {
                 return [];
             });
 
-            // 2. CRITICAL PHASE: Wait ONLY for Tasks
+            // 2. CRITICAL PHASE: Wait ONLY for Tasks and Recurring Tasks
             // This is the minimum required data to render the main table structure usefully
             // We do NOT wait for team members here because it might fail for Client Users (403 Forbidden)
             // and we don't want to block the UI or show an error state just because of that.
-            const criticalResults = await Promise.allSettled([tasksPromise]);
+            const criticalResults = await Promise.allSettled([tasksPromise, recurringTasksPromise]);
 
             // Process Critical Data
             const tasksData = criticalResults[0].status === 'fulfilled' ? criticalResults[0].value : { items: [] };
+            const recurringTasksData = criticalResults[1].status === 'fulfilled' ? criticalResults[1].value : { items: [] };
 
             const tasksArray = Array.isArray(tasksData) ? tasksData : (tasksData?.items || []);
-            setTasks(tasksArray);
+            const recurringTasksArray = Array.isArray(recurringTasksData) ? recurringTasksData : (recurringTasksData?.items || []);
+            
+            // Get recurring task IDs to filter them out from regular tasks
+            const recurringTaskIds = new Set(recurringTasksArray.map(rt => String(rt.id)));
+            
+            // Filter out recurring tasks from regular tasks list
+            const regularTasksOnly = tasksArray.filter(task => {
+                // Exclude tasks that are recurring task templates
+                return !recurringTaskIds.has(String(task.id));
+            });
+            
+            setTasks(regularTasksOnly);
+            setRecurringTasks(recurringTasksArray);
 
             // Initialize teamMembers as empty array initially - will be populated in background
             setTeamMembers([]);
