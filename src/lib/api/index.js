@@ -144,6 +144,10 @@ export const {
   assignTeamMembers,
   removeTeamMember,
   getClientBillingInvoices,
+  getInvoicePaymentDetails,
+  uploadClientInvoicePaymentProof,
+  getPaymentProofUrl,
+  markInvoicePaid,
   getMyCompany,
   updateMyCompany,
   downloadInvoicePDF

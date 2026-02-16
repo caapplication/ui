@@ -334,6 +334,54 @@ export const getClientBillingInvoices = async (clientId, agencyId, token) => {
     return handleResponse(response);
 };
 
+/**
+ * Get payment details for an invoice (CA bank details + client details) for Make Payment modal
+ */
+export const getInvoicePaymentDetails = async (invoiceId, agencyId, token) => {
+    const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/${invoiceId}/payment-details`, {
+        method: 'GET',
+        headers: getAuthHeaders(token, 'application/json', agencyId)
+    });
+    return handleResponse(response);
+};
+
+/**
+ * Upload payment proof for a client billing invoice (client admin). Sets status to pending_verification.
+ */
+export const uploadClientInvoicePaymentProof = async (invoiceId, file, agencyId, token) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/${invoiceId}/payment-proof`, {
+        method: 'POST',
+        headers: getAuthHeaders(token, null, agencyId),
+        body: formData
+    });
+    return handleResponse(response);
+};
+
+/**
+ * Get payment proof URL for an invoice (CA only - to view/download proof)
+ */
+export const getPaymentProofUrl = async (invoiceId, agencyId, token) => {
+    const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/${invoiceId}/payment-proof-url`, {
+        method: 'GET',
+        headers: getAuthHeaders(token, 'application/json', agencyId)
+    });
+    return handleResponse(response);
+};
+
+/**
+ * Mark invoice as paid (CA only). Sets status to paid and paid_at.
+ */
+export const markInvoicePaid = async (invoiceId, agencyId, token) => {
+    const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/${invoiceId}/status`, {
+        method: 'PUT',
+        headers: getAuthHeaders(token, 'application/json', agencyId),
+        body: JSON.stringify({ status: 'paid' })
+    });
+    return handleResponse(response);
+};
+
 // ==================== Client Company Profile ====================
 
 /**

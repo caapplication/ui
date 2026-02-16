@@ -10,9 +10,10 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Search, Filter, ArrowLeft, CheckCircle, AlertCircle, Clock, Download } from 'lucide-react';
+import { Loader2, Search, Filter, ArrowLeft, CheckCircle, AlertCircle, Clock, Download, Check, CreditCard, Upload, X, Eye } from 'lucide-react';
 import { format } from 'date-fns';
-import { getClientBillingInvoices, listClients, downloadInvoicePDF } from '@/lib/api';
+import { getClientBillingInvoices, listClients, downloadInvoicePDF, markInvoicePaid, getPaymentProofUrl, uploadClientInvoicePaymentProof, getInvoicePaymentDetails } from '@/lib/api';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 
 const ClientsBillPage = () => {
     const { user } = useAuth();
@@ -29,6 +30,19 @@ const ClientsBillPage = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
     const [clientFilter, setClientFilter] = useState('all');
+    
+    // Modals
+    const [selectedInvoice, setSelectedInvoice] = useState(null);
+    const [isProofModalOpen, setIsProofModalOpen] = useState(false);
+    const [proofUrl, setProofUrl] = useState(null);
+    const [proofContentType, setProofContentType] = useState(null);
+    const [isLoadingProof, setIsLoadingProof] = useState(false);
+    
+    const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+    const [paymentDetails, setPaymentDetails] = useState(null);
+    const [isLoadingPaymentDetails, setIsLoadingPaymentDetails] = useState(false);
+    const [paymentFile, setPaymentFile] = useState(null);
+    const [isUploading, setIsUploading] = useState(false);
     
     useEffect(() => {
         loadData();
@@ -162,6 +176,143 @@ const ClientsBillPage = () => {
                 description: 'Failed to download invoice PDF. ' + (error.message || ''),
                 variant: 'destructive',
             });
+        }
+    };
+    
+    const handleMarkPaymentDone = async (invoice) => {
+        setSelectedInvoice(invoice);
+        setIsProofModalOpen(true);
+        setIsLoadingProof(true);
+        setProofUrl(null);
+        setProofContentType(null);
+        
+        try {
+            const proofData = await getPaymentProofUrl(invoice.id, agencyId, user.access_token);
+            const url = proofData.url;
+            setProofUrl(url);
+            
+            // Detect content type from URL or fetch headers
+            if (url.toLowerCase().endsWith('.pdf')) {
+                setProofContentType('application/pdf');
+            } else {
+                // Try to detect from URL extension
+                const extension = url.split('.').pop()?.toLowerCase();
+                if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension)) {
+                    setProofContentType(`image/${extension === 'jpg' ? 'jpeg' : extension}`);
+                } else {
+                    // Try fetching headers to detect content type
+                    try {
+                        const response = await fetch(url, { method: 'HEAD' });
+                        const contentType = response.headers.get('content-type');
+                        setProofContentType(contentType || 'image/jpeg');
+                    } catch (e) {
+                        // Default to image if can't detect
+                        setProofContentType('image/jpeg');
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error loading payment proof:', error);
+            toast({
+                title: 'Error',
+                description: 'Failed to load payment proof. ' + (error.message || ''),
+                variant: 'destructive',
+            });
+        } finally {
+            setIsLoadingProof(false);
+        }
+    };
+    
+    const handleConfirmMarkPaid = async () => {
+        if (!selectedInvoice?.id || !user?.access_token || !agencyId) return;
+        try {
+            await markInvoicePaid(selectedInvoice.id, agencyId, user.access_token);
+            toast({
+                title: 'Success',
+                description: 'Payment marked as done. Invoice status updated to Paid.',
+            });
+            setIsProofModalOpen(false);
+            setSelectedInvoice(null);
+            setProofUrl(null);
+            setProofContentType(null);
+            loadData();
+        } catch (error) {
+            console.error('Error marking payment done:', error);
+            toast({
+                title: 'Error',
+                description: 'Failed to update invoice. ' + (error.message || ''),
+                variant: 'destructive',
+            });
+        }
+    };
+    
+    const handleMakePayment = async (invoice) => {
+        setSelectedInvoice(invoice);
+        setIsPaymentModalOpen(true);
+        setPaymentDetails(null);
+        setPaymentFile(null);
+        setIsLoadingPaymentDetails(true);
+        try {
+            const details = await getInvoicePaymentDetails(invoice.id, agencyId, user.access_token);
+            setPaymentDetails(details);
+        } catch (error) {
+            console.error('Error loading payment details:', error);
+            toast({
+                title: 'Error',
+                description: 'Failed to load payment details. ' + (error.message || ''),
+                variant: 'destructive',
+            });
+        } finally {
+            setIsLoadingPaymentDetails(false);
+        }
+    };
+    
+    const handlePaymentFileChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            if (file.size > 10 * 1024 * 1024) {
+                toast({
+                    title: 'File too large',
+                    description: 'Please select a file smaller than 10MB',
+                    variant: 'destructive',
+                });
+                return;
+            }
+            setPaymentFile(file);
+        }
+    };
+    
+    const handleDonePayment = async () => {
+        if (!paymentFile) {
+            toast({
+                title: 'Required',
+                description: 'Please upload payment proof (screenshot or PDF)',
+                variant: 'destructive',
+            });
+            return;
+        }
+        if (!selectedInvoice?.id || !user?.access_token || !agencyId) return;
+        setIsUploading(true);
+        try {
+            await uploadClientInvoicePaymentProof(selectedInvoice.id, paymentFile, agencyId, user.access_token);
+            toast({
+                title: 'Success',
+                description: 'Payment proof uploaded. Status updated to Pending Verification.',
+            });
+            setIsPaymentModalOpen(false);
+            setSelectedInvoice(null);
+            setPaymentDetails(null);
+            setPaymentFile(null);
+            loadData();
+        } catch (error) {
+            console.error('Error uploading payment proof:', error);
+            toast({
+                title: 'Error',
+                description: 'Failed to upload payment proof. ' + (error.message || ''),
+                variant: 'destructive',
+            });
+        } finally {
+            setIsUploading(false);
         }
     };
     
@@ -326,7 +477,31 @@ const ClientsBillPage = () => {
                                                         ? format(new Date(invoice.due_date), 'dd MMM yyyy')
                                                         : '-'}
                                                 </TableCell>
-                                                <TableCell>
+                                                <TableCell className="flex items-center gap-2">
+                                                    {invoice.status === 'pending_verification' && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => handleMarkPaymentDone(invoice)}
+                                                            className="text-white hover:bg-white/10"
+                                                            title="Review proof and mark payment done"
+                                                        >
+                                                            <Check className="w-4 h-4 mr-2" />
+                                                            Mark payment done
+                                                        </Button>
+                                                    )}
+                                                    {(invoice.status === 'due' || invoice.status === 'overdue') && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => handleMakePayment(invoice)}
+                                                            className="text-white hover:bg-white/10"
+                                                            title="Upload payment proof"
+                                                        >
+                                                            <CreditCard className="w-4 h-4 mr-2" />
+                                                            Make Payment
+                                                        </Button>
+                                                    )}
                                                     <Button
                                                         variant="ghost"
                                                         size="sm"
@@ -346,6 +521,125 @@ const ClientsBillPage = () => {
                     </CardContent>
                 </Card>
             </motion.div>
+            
+            {/* Payment Proof Modal (for pending_verification) */}
+            <Dialog open={isProofModalOpen} onOpenChange={setIsProofModalOpen}>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-gray-900 border-white/10">
+                    <DialogHeader>
+                        <DialogTitle className="text-white">Review Payment Proof</DialogTitle>
+                        <DialogDescription className="text-gray-400">
+                            Invoice: {selectedInvoice?.invoice_number} — Amount: ₹{selectedInvoice?.invoice_amount != null ? parseFloat(selectedInvoice.invoice_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 }) : '0.00'}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        {isLoadingProof ? (
+                            <div className="flex items-center justify-center py-8">
+                                <Loader2 className="w-8 h-8 animate-spin text-white" />
+                            </div>
+                        ) : proofUrl ? (
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <h4 className="font-semibold text-white">Payment Proof</h4>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => window.open(proofUrl, '_blank')}
+                                        className="flex items-center gap-2"
+                                    >
+                                        <Download className="w-4 h-4" />
+                                        Download
+                                    </Button>
+                                </div>
+                                <div className="border border-white/10 rounded-lg overflow-hidden bg-gray-800 flex items-center justify-center min-h-[400px]">
+                                    {proofContentType?.toLowerCase().includes('pdf') || proofUrl.toLowerCase().endsWith('.pdf') ? (
+                                        <iframe
+                                            src={`${proofUrl}#toolbar=0`}
+                                            className="w-full h-[600px]"
+                                            title="Payment Proof"
+                                        />
+                                    ) : (
+                                        <img
+                                            src={proofUrl}
+                                            alt="Payment Proof"
+                                            className="max-w-full max-h-[600px] object-contain"
+                                            onError={(e) => {
+                                                console.error("Payment proof image failed to load:", e);
+                                                e.target.style.display = 'none';
+                                                const errorDiv = document.createElement('div');
+                                                errorDiv.className = 'text-gray-400 text-center p-4';
+                                                errorDiv.textContent = 'Failed to load payment proof image';
+                                                e.target.parentElement.appendChild(errorDiv);
+                                            }}
+                                        />
+                                    )}
+                                </div>
+                            </div>
+                        ) : (
+                            <p className="text-gray-400 text-center py-8">Payment proof not available</p>
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsProofModalOpen(false)} className="border-white/20 text-white">
+                            Cancel
+                        </Button>
+                        {proofUrl && (
+                            <Button onClick={handleConfirmMarkPaid} className="gap-2">
+                                <Check className="w-4 h-4" />
+                                Mark as Paid
+                            </Button>
+                        )}
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            
+            {/* Make Payment Modal (for CA on Due invoices) */}
+            <Dialog open={isPaymentModalOpen} onOpenChange={setIsPaymentModalOpen}>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-gray-900 border-white/10">
+                    <DialogHeader>
+                        <DialogTitle className="text-white">Make Payment</DialogTitle>
+                        <DialogDescription className="text-gray-400">
+                            Invoice: {selectedInvoice?.invoice_number} — Amount: ₹{selectedInvoice?.invoice_amount != null ? parseFloat(selectedInvoice.invoice_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 }) : '0.00'}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-6 py-4">
+                        {isLoadingPaymentDetails ? (
+                            <div className="flex items-center justify-center py-8">
+                                <Loader2 className="w-8 h-8 animate-spin text-white" />
+                            </div>
+                        ) : (
+                            <>
+                                {/* Upload payment proof */}
+                                <div className="space-y-2">
+                                    <Label className="text-white">Upload payment proof (screenshot or PDF) *</Label>
+                                    <div className="flex items-center gap-2">
+                                        <Input
+                                            type="file"
+                                            accept="image/*,.pdf"
+                                            onChange={handlePaymentFileChange}
+                                            className="flex-1 text-white file:mr-2 file:rounded file:border-0 file:bg-white/10 file:text-white"
+                                        />
+                                        {paymentFile && (
+                                            <Button type="button" variant="ghost" size="sm" onClick={() => setPaymentFile(null)} className="text-white">
+                                                <X className="w-4 h-4" />
+                                            </Button>
+                                        )}
+                                    </div>
+                                    {paymentFile && <p className="text-xs text-gray-500">Selected: {paymentFile.name}</p>}
+                                </div>
+                            </>
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsPaymentModalOpen(false)} disabled={isUploading} className="border-white/20 text-white">
+                            Cancel
+                        </Button>
+                        <Button onClick={handleDonePayment} disabled={isUploading || isLoadingPaymentDetails || !paymentFile} className="gap-2">
+                            {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                            Done
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };

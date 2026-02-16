@@ -38,6 +38,10 @@ const MyCompany = () => {
     const [logoPreview, setLogoPreview] = useState(null);
     const [existingLogoUrl, setExistingLogoUrl] = useState(null);
     
+    const [qrCodeFile, setQrCodeFile] = useState(null);
+    const [qrCodePreview, setQrCodePreview] = useState(null);
+    const [existingQrCodeUrl, setExistingQrCodeUrl] = useState(null);
+    
     // Crop dialog states
     const [showCropDialog, setShowCropDialog] = useState(false);
     const [imageToCrop, setImageToCrop] = useState(null);
@@ -46,6 +50,7 @@ const MyCompany = () => {
     const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
     
     const fileInputRef = useRef(null);
+    const qrCodeInputRef = useRef(null);
     const hasProfile = useRef(false);
 
     useEffect(() => {
@@ -60,8 +65,11 @@ const MyCompany = () => {
             if (logoPreview && logoPreview.startsWith('blob:')) {
                 URL.revokeObjectURL(logoPreview);
             }
+            if (qrCodePreview && qrCodePreview.startsWith('blob:')) {
+                URL.revokeObjectURL(qrCodePreview);
+            }
         };
-    }, [logoPreview]);
+    }, [logoPreview, qrCodePreview]);
 
     const loadCompanyProfile = async () => {
         setIsLoading(true);
@@ -85,6 +93,9 @@ const MyCompany = () => {
             });
             if (data.logo_url) {
                 setExistingLogoUrl(data.logo_url);
+            }
+            if (data.qr_code_url) {
+                setExistingQrCodeUrl(data.qr_code_url);
             }
         } catch (error) {
             // Check if it's a 404 error (profile doesn't exist yet)
@@ -177,6 +188,43 @@ const MyCompany = () => {
         }
     };
 
+    const handleQrCodeSelect = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            if (!file.type.startsWith('image/')) {
+                toast({
+                    title: 'Error',
+                    description: 'Please select an image file',
+                    variant: 'destructive',
+                });
+                return;
+            }
+            if (file.size > 5 * 1024 * 1024) {
+                toast({
+                    title: 'Error',
+                    description: 'File size must be less than 5MB',
+                    variant: 'destructive',
+                });
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = () => {
+                setQrCodePreview(reader.result);
+            };
+            reader.readAsDataURL(file);
+            setQrCodeFile(file);
+        }
+    };
+
+    const handleRemoveQrCode = () => {
+        setQrCodeFile(null);
+        setQrCodePreview(null);
+        setExistingQrCodeUrl(null);
+        if (qrCodeInputRef.current) {
+            qrCodeInputRef.current.value = '';
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsSaving(true);
@@ -186,6 +234,9 @@ const MyCompany = () => {
             formData.append('name', companyData.name);
             if (logoFile) {
                 formData.append('logo', logoFile);
+            }
+            if (qrCodeFile) {
+                formData.append('qr_code', qrCodeFile);
             }
             if (companyData.address) formData.append('address', companyData.address);
             if (companyData.city) formData.append('city', companyData.city);
@@ -215,14 +266,19 @@ const MyCompany = () => {
                 });
             }
             
-            // Clean up preview URL if it's a blob URL
+            // Clean up preview URLs if they're blob URLs
             if (logoPreview && logoPreview.startsWith('blob:')) {
                 URL.revokeObjectURL(logoPreview);
             }
-            // Reload to get updated logo URL
+            if (qrCodePreview && qrCodePreview.startsWith('blob:')) {
+                URL.revokeObjectURL(qrCodePreview);
+            }
+            // Reload to get updated logo and QR code URLs
             await loadCompanyProfile();
             setLogoFile(null);
             setLogoPreview(null);
+            setQrCodeFile(null);
+            setQrCodePreview(null);
         } catch (error) {
             console.error('Error saving company profile:', error);
             toast({
@@ -301,6 +357,60 @@ const MyCompany = () => {
                                 <Building2 className="w-4 h-4" />
                                 {companyData.city && companyData.state ? `${companyData.city}, ${companyData.state}` : 'Company Details'}
                             </p>
+                        </CardContent>
+                    </Card>
+
+                    {/* QR Code Card */}
+                    <Card className="glass-card mt-4">
+                        <CardHeader>
+                            <CardTitle>Payment QR Code</CardTitle>
+                            <CardDescription>Upload QR code image for payment.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="flex flex-col items-center">
+                            {(qrCodePreview || existingQrCodeUrl) ? (
+                                <div className="mb-4">
+                                    <img
+                                        src={qrCodePreview || existingQrCodeUrl}
+                                        alt="QR Code"
+                                        className="w-48 h-48 border-2 border-white/20 rounded-lg object-contain bg-white p-2"
+                                    />
+                                </div>
+                            ) : (
+                                <div className="mb-4 w-48 h-48 border-2 border-dashed border-white/20 rounded-lg flex items-center justify-center">
+                                    <p className="text-gray-400 text-sm">No QR code uploaded</p>
+                                </div>
+                            )}
+                            <div className="flex gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => qrCodeInputRef.current?.click()}
+                                    disabled={isSaving}
+                                    className="flex items-center gap-2"
+                                >
+                                    <Upload className="w-4 h-4" />
+                                    {qrCodePreview || existingQrCodeUrl ? 'Change QR Code' : 'Upload QR Code'}
+                                </Button>
+                                {(qrCodePreview || existingQrCodeUrl) && (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={handleRemoveQrCode}
+                                        disabled={isSaving}
+                                        className="flex items-center gap-2 text-red-400 hover:text-red-300"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                        Remove
+                                    </Button>
+                                )}
+                            </div>
+                            <Input
+                                type="file"
+                                ref={qrCodeInputRef}
+                                className="hidden"
+                                accept="image/*"
+                                onChange={handleQrCodeSelect}
+                            />
                         </CardContent>
                     </Card>
                 </div>

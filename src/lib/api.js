@@ -148,6 +148,10 @@ export const {
 export const {
     listClients,
     getClientBillingInvoices,
+    getInvoicePaymentDetails,
+    uploadClientInvoicePaymentProof,
+    getPaymentProofUrl,
+    markInvoicePaid,
     getMyCompany,
     updateMyCompany,
     downloadInvoicePDF,
