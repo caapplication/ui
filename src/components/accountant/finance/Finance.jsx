@@ -289,7 +289,8 @@ const AccountantFinance = () => {
                 {entities.map((entity) => {
                   const entityIdStr = String(entity.id);
                   const indicator = entityIndicators[entityIdStr];
-                  const hasNotification = indicator && (indicator.has_finance_pending || indicator.has_notice_unread);
+                  // On Finance page, only show dot for finance pending, not notices unread
+                  const hasNotification = indicator && indicator.has_finance_pending === true;
                   
                   // Debug logging
                   if (entity.name === 'The Abduz' || entity.name === 'Spic N Span') {

@@ -700,6 +700,19 @@ export const getFinancePendingCaApprovalIndicator = async (token) => {
     }
 };
 
+/** Lightweight indicator for sidebar: true if any voucher/invoice has status pending_master_admin_approval (CLIENT_MASTER_ADMIN only). */
+export const getFinancePendingMasterAdminApprovalIndicator = async (token) => {
+    try {
+        const response = await fetch(`${FINANCE_API_BASE_URL}/api/dashboard/pending-master-admin-approval`, {
+            headers: getAuthHeaders(token),
+        });
+        const data = await handleResponse(response);
+        return data?.has_pending === true;
+    } catch (error) {
+        return false;
+    }
+};
+
 /** Get per-entity indicators (finance pending, notices unread) for entity dropdowns. */
 export const getEntityIndicators = async (token) => {
     try {

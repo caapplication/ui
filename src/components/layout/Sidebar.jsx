@@ -28,7 +28,7 @@ import {
 import { useMediaQuery } from '@/hooks/useMediaQuery.jsx';
 import { Link, useLocation } from 'react-router-dom';
 import { useSocket } from '@/contexts/SocketContext.jsx';
-import { getUnreadNotificationCount, getUnreadNoticeCount } from '@/lib/api';
+import { getUnreadNotificationCount, getUnreadNoticeCount, getFinancePendingMasterAdminApprovalIndicator, getEntityIndicators } from '@/lib/api';
 
 import { listClients, listClientsByOrganization } from '@/lib/api/clients';
 
@@ -40,10 +40,12 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
   const { socket } = useSocket();
   const [unreadCount, setUnreadCount] = React.useState(0);
   const [unreadNoticeCount, setUnreadNoticeCount] = React.useState(0);
+  const [hasFinancePending, setHasFinancePending] = React.useState(false);
+  const [entityIndicators, setEntityIndicators] = React.useState({}); // { "entity_id": { has_finance_pending, has_notice_unread } }
   const [isBlinking, setIsBlinking] = React.useState(false);
   const [isNoticeBlinking, setIsNoticeBlinking] = React.useState(false);
 
-  // Fetch initial unread count
+  // Fetch initial unread count and finance pending indicator
   React.useEffect(() => {
     const fetchUnreadCounts = async () => {
       if (user?.access_token) {
@@ -51,13 +53,27 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
           // For client users, agency_id might be derived differently, but backend handles it via token user context usually
           const agencyId = user.agency_id || (user.entities && user.entities[0]?.agency_id);
 
-          const [taskCount, noticeCount] = await Promise.all([
+          // For CLIENT_MASTER_ADMIN, also fetch finance pending indicator
+          const promises = [
             getUnreadNotificationCount(agencyId, user.access_token),
             getUnreadNoticeCount(user.access_token)
-          ]);
+          ];
+          
+          if (user?.role === 'CLIENT_MASTER_ADMIN') {
+            promises.push(getFinancePendingMasterAdminApprovalIndicator(user.access_token));
+          }
 
+          const results = await Promise.all(promises);
+          const taskCount = results[0];
+          const noticeCount = results[1];
+          const financePending = user?.role === 'CLIENT_MASTER_ADMIN' ? results[2] : false;
+
+          console.log('[Sidebar] Fetched counts - Tasks:', taskCount, 'Notices:', noticeCount, 'Finance:', financePending);
+          console.log('[Sidebar] Will show notice dot:', noticeCount > 0);
+          console.log('[Sidebar] Will show finance dot:', financePending);
           setUnreadCount(taskCount);
           setUnreadNoticeCount(noticeCount);
+          setHasFinancePending(!!financePending);
         } catch (error) {
           console.error("Failed to fetch unread notification counts:", error);
         }
@@ -85,13 +101,17 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
       };
 
       const handleNoticeUnreadUpdate = (data) => {
-        if (typeof data.count === 'number') {
-          if (data.count > unreadNoticeCount) {
-            setIsNoticeBlinking(true);
-            setTimeout(() => setIsNoticeBlinking(false), 3000);
-          }
-          setUnreadNoticeCount(data.count);
+        console.log('[Sidebar] Socket notice_unread_update received:', data);
+        // Use unread_comments (chat messages) only, not closure_requests
+        const unreadComments = typeof data.unread_comments === 'number' 
+          ? data.unread_comments 
+          : (typeof data.count === 'number' ? data.count : 0);
+        console.log('[Sidebar] Parsed unread comments from socket:', unreadComments, 'current state:', unreadNoticeCount);
+        if (unreadComments > unreadNoticeCount) {
+          setIsNoticeBlinking(true);
+          setTimeout(() => setIsNoticeBlinking(false), 3000);
         }
+        setUnreadNoticeCount(unreadComments);
       };
 
       socket.on('global_unread_update', handleUnreadUpdate);
@@ -106,13 +126,20 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
 
   const menuItems = [
     { id: 'dashboard', path: '/', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'finance', path: '/finance', label: 'Finance', icon: Landmark },
+    { id: 'finance', path: '/finance', label: 'Finance', icon: Landmark, showDot: hasFinancePending },
     { id: 'bill-payment', path: '/bill-payment', label: 'Bill & Payment', icon: Receipt },
     { id: 'documents', path: '/documents', label: 'Documents', icon: FileText },
     { id: 'users', path: '/users', label: 'Manage Team', icon: UserCog, hidden: user?.role === 'CLIENT_USER' },
     { id: 'beneficiaries', path: '/beneficiaries', label: 'Beneficiaries', icon: Users },
     { id: 'organisation-bank', path: '/organisation-bank', label: 'Organisation Bank', icon: Banknote },
-    { id: 'notices', path: '/notices', label: 'Notices', icon: Bell, showDot: unreadNoticeCount > 0, blinking: isNoticeBlinking },
+    { 
+      id: 'notices', 
+      path: '/notices', 
+      label: 'Notices', 
+      icon: Bell, 
+      showDot: unreadNoticeCount > 0, 
+      blinking: isNoticeBlinking 
+    },
     {
       id: 'tasks',
       path: '/tasks',
@@ -166,6 +193,38 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
     // Fallback to user.entities for other roles or if clients is empty
     return (user.entities || []).filter(e => e.id && e.name);
   }, [user, clients]);
+
+  // Fetch entity indicators for dropdown dots (after entitiesToDisplay is defined)
+  React.useEffect(() => {
+    const fetchIndicators = async () => {
+      if (entitiesToDisplay.length > 0 && user?.access_token) {
+        try {
+          console.log('[Sidebar] Fetching entity indicators for', entitiesToDisplay.length, 'entities');
+          const indicators = await getEntityIndicators(user.access_token);
+          console.log('[Sidebar] Fetched entity indicators:', indicators);
+          
+          // Normalize entity IDs to strings for comparison
+          const normalizedIndicators = {};
+          Object.keys(indicators || {}).forEach(key => {
+            normalizedIndicators[String(key)] = indicators[key];
+          });
+          
+          console.log('[Sidebar] Normalized indicators:', normalizedIndicators);
+          setEntityIndicators(normalizedIndicators);
+        } catch (error) {
+          console.error('[Sidebar] Failed to fetch entity indicators:', error);
+          setEntityIndicators({});
+        }
+      } else {
+        setEntityIndicators({});
+      }
+    };
+    
+    fetchIndicators();
+    // Refresh indicators every 30 seconds
+    const interval = setInterval(fetchIndicators, 30000);
+    return () => clearInterval(interval);
+  }, [entitiesToDisplay, user?.access_token]);
 
   // Auto-select first entity if none selected OR if current selection is not in the list
   React.useEffect(() => {
@@ -243,11 +302,34 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
                     </div>
                   </SelectTrigger>
                   <SelectContent>
-                    {entitiesToDisplay.map((entity) => (
-                      <SelectItem key={entity.id} value={String(entity.id)}>
-                        {entity.name}
-                      </SelectItem>
-                    ))}
+                    {entitiesToDisplay.map((entity) => {
+                      const entityIdStr = String(entity.id);
+                      const indicator = entityIndicators[entityIdStr];
+                      // Show dot if entity has finance pending OR notices unread
+                      const hasNotification = indicator && (
+                        indicator.has_finance_pending === true || 
+                        indicator.has_notice_unread === true
+                      );
+                      
+                      return (
+                        <SelectItem 
+                          key={entity.id} 
+                          value={String(entity.id)}
+                          className={hasNotification ? "relative !pr-8" : "relative"}
+                        >
+                          <div className="flex items-center justify-between w-full gap-2">
+                            <span className="flex-1 truncate">{entity.name}</span>
+                            {hasNotification && (
+                              <span 
+                                className="w-2 h-2 rounded-full bg-amber-400 border border-[#1e293b] flex-shrink-0" 
+                                aria-hidden="true"
+                                style={{ minWidth: '8px', minHeight: '8px' }}
+                              />
+                            )}
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               )}
@@ -297,6 +379,10 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
                           </motion.span>
                         )}
                       </AnimatePresence>
+                      {/* Yellow dot for collapsed state */}
+                      {isCollapsed && item.showDot && (
+                        <span className={`absolute top-2 right-2 w-2.5 h-2.5 bg-amber-400 rounded-full border-2 border-[#1e293b] z-20 ${item.blinking ? 'animate-pulse' : ''}`} aria-hidden />
+                      )}
                       {isCollapsed && item.showDot && (
                         <span className={`absolute top-2 right-2 w-2.5 h-2.5 bg-amber-400 rounded-full border-2 border-[#1e293b] z-20 ${item.blinking ? 'animate-pulse' : ''}`} aria-hidden />
                       )}

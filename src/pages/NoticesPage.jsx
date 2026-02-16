@@ -244,7 +244,8 @@ const NoticesPage = () => {
                             }
                             const entityIdStr = String(option.value);
                             const indicator = entityIndicators[entityIdStr];
-                            const hasNotification = indicator && (indicator.has_finance_pending || indicator.has_notice_unread);
+                            // On Notices page, only show dot for unread notices, not finance pending
+                            const hasNotification = indicator && indicator.has_notice_unread === true;
                             return (
                                 <div className="flex items-center justify-between w-full">
                                     <span>{option.label}</span>

@@ -58,6 +58,7 @@ export const {
   getActivityLog,
   getAccountantDashboardStats,
   getFinancePendingCaApprovalIndicator,
+  getFinancePendingMasterAdminApprovalIndicator,
   getEntityIndicators,
   createActivityLog,
 } = finance;
