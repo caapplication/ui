@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ArrowLeft, Send, Paperclip, MoreVertical, FileText, UserPlus, X, Download, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RefreshCcw, Share2, Trash2, CheckCircle, XCircle, AlertCircle, Loader2, Eye, ImageIcon, Clock, MessageSquare, Maximize2 } from 'lucide-react';
+import { ArrowLeft, Send, Paperclip, MoreVertical, FileText, UserPlus, X, Download, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RefreshCcw, Share2, Trash2, CheckCircle, XCircle, AlertCircle, Loader2, ImageIcon, Clock, MessageSquare, Maximize2 } from 'lucide-react';
 import * as pdfjsLib from 'pdfjs-dist';
 
 // Configure PDF.js worker
@@ -182,8 +182,11 @@ const NoticeDetailsPage = () => {
                     pdfBlobUrlRef.current = blobUrl;
                     setPdfBlobUrl(blobUrl);
 
-                    // Load PDF with PDF.js
-                    const loadingTask = pdfjsLib.getDocument({ url: blobUrl });
+                    // Load PDF with PDF.js (lighter options for faster first paint)
+                    const loadingTask = pdfjsLib.getDocument({
+                        url: blobUrl,
+                        verbosity: 0,
+                    });
                     const pdf = await loadingTask.promise;
                     setPdfDoc(pdf);
                     setTotalPages(pdf.numPages);
@@ -220,7 +223,7 @@ const NoticeDetailsPage = () => {
 
         try {
             const page = await pdf.getPage(pageNum);
-            const viewport = page.getViewport({ scale: 1.5 });
+            const viewport = page.getViewport({ scale: 1.2 });
             const canvas = canvasRef.current;
             const context = canvas.getContext('2d');
 
@@ -802,23 +805,31 @@ const NoticeDetailsPage = () => {
                                                                     {msg.attachment_url && (
                                                                         <div className="mb-2">
                                                                             {msg.attachment_url.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?.*)?$/i) ? (
-                                                                                <div className="rounded-lg overflow-hidden relative group">
+                                                                                <button
+                                                                                    type="button"
+                                                                                    className="rounded-lg overflow-hidden relative block w-full text-left"
+                                                                                    onClick={() => setPreviewAttachment({
+                                                                                        url: msg.attachment_url,
+                                                                                        name: msg.attachment_name || 'Image',
+                                                                                        type: 'image'
+                                                                                    })}
+                                                                                >
                                                                                     <img
                                                                                         src={msg.attachment_url}
                                                                                         alt="Attachment"
                                                                                         className="max-w-full h-auto max-h-[200px] object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-                                                                                        onClick={() => setPreviewAttachment({
-                                                                                            url: msg.attachment_url,
-                                                                                            name: msg.attachment_name || 'Image',
-                                                                                            type: 'image'
-                                                                                        })}
                                                                                     />
-                                                                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-                                                                                        <Eye className="text-white w-8 h-8 drop-shadow-lg" />
-                                                                                    </div>
-                                                                                </div>
+                                                                                </button>
                                                                             ) : (
-                                                                                <div className="flex items-center gap-3 p-2 bg-white/5 border border-white/10 rounded-lg">
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => setPreviewAttachment({
+                                                                                        url: msg.attachment_url,
+                                                                                        name: msg.attachment_name || 'Document',
+                                                                                        type: msg.attachment_name?.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'document'
+                                                                                    })}
+                                                                                    className="w-full flex items-center gap-3 p-2 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors text-left cursor-pointer"
+                                                                                >
                                                                                     <div className="flex-shrink-0">
                                                                                         {msg.attachment_name?.toLowerCase().endsWith('.pdf') ? (
                                                                                             <FileText className="w-8 h-8 text-red-500" />
@@ -832,30 +843,7 @@ const NoticeDetailsPage = () => {
                                                                                         <p className="text-sm font-medium text-white truncate">{msg.attachment_name || 'Attachment'}</p>
                                                                                         <p className="text-xs text-gray-400">{msg.attachment_name?.split('.').pop()?.toUpperCase() || 'FILE'}</p>
                                                                                     </div>
-                                                                                    <div className="flex items-center gap-1">
-                                                                                        <button
-                                                                                            onClick={() => setPreviewAttachment({
-                                                                                                url: msg.attachment_url,
-                                                                                                name: msg.attachment_name || 'Document',
-                                                                                                type: 'document'
-                                                                                            })}
-                                                                                            className="flex-shrink-0 p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors text-white"
-                                                                                            title="Preview"
-                                                                                        >
-                                                                                            <Eye className="w-5 h-5" />
-                                                                                        </button>
-                                                                                        <a
-                                                                                            href={msg.attachment_url}
-                                                                                            download={msg.attachment_name || 'document'}
-                                                                                            target="_blank"
-                                                                                            rel="noopener noreferrer"
-                                                                                            className="flex-shrink-0 p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors text-white"
-                                                                                            title="Download"
-                                                                                        >
-                                                                                            <Download className="w-5 h-5" />
-                                                                                        </a>
-                                                                                    </div>
-                                                                                </div>
+                                                                                </button>
                                                                             )}
                                                                         </div>
                                                                     )}

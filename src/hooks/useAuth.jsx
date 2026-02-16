@@ -6,12 +6,25 @@ import { useNavigate } from 'react-router-dom';
 import { clearAttachmentCache } from '@/lib/cache';
 import { jwtDecode } from "jwt-decode";
 
-const AuthContext = createContext();
+// Default value when useAuth is used outside AuthProvider (e.g. lazy chunk context mismatch)
+const getDefaultAuthValue = () => ({
+  user: null,
+  loading: false,
+  login: async () => {},
+  verifyOtpAndFinishLogin: async () => {},
+  logout: () => {},
+  updateUser: () => {},
+});
+
+const AuthContext = createContext(null);
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'test') {
+      console.warn('useAuth was used outside AuthProvider. Ensure the app root wraps content with <AuthProvider>.');
+    }
+    return getDefaultAuthValue();
   }
   return context;
 };
@@ -47,10 +60,7 @@ export const AuthProvider = ({ children }) => {
       refreshIntervalRef.current = null;
     }
 
-    // Trigger storage event for cross-tab sync
-    localStorage.setItem('logout', Date.now().toString());
-    localStorage.removeItem('logout');
-
+    // Cross-tab sync: other tabs get storage event when 'user' is removed below, so no need to set 'logout' key
     window.dispatchEvent(new Event('logout'));
     const loginApiUrl = import.meta.env.VITE_LOGIN_API_URL || 'http://127.0.0.1:8001';
     navigate('/login');
@@ -109,6 +119,9 @@ export const AuthProvider = ({ children }) => {
 
 
   useEffect(() => {
+    // Clear any stale 'logout' key so it never triggers unwanted logouts (e.g. after crash or old tab)
+    localStorage.removeItem('logout');
+
     const initializeUser = async () => {
       const savedUser = localStorage.getItem('user');
       const accessToken = localStorage.getItem('accessToken');
@@ -156,30 +169,35 @@ export const AuthProvider = ({ children }) => {
     }
   }, [logout, startTokenRefresh]);
 
+  // Session timeout: 30 minutes inactivity for all accounts → logout and redirect to login
+  const INACTIVITY_MINUTES = 30;
+  const INACTIVITY_MS = INACTIVITY_MINUTES * 60 * 1000;
+
   useEffect(() => {
+    if (!user) return;
+
     let activityTimer;
 
     const resetTimer = () => {
       lastActivityRef.current = Date.now();
       clearTimeout(activityTimer);
       activityTimer = setTimeout(() => {
-        console.warn("Logging out due to 30 minutes of inactivity");
+        console.warn(`Session expired: ${INACTIVITY_MINUTES} minutes of inactivity`);
         logout();
-      }, 30 * 60 * 1000);
+      }, INACTIVITY_MS);
     };
 
-    const events = ['mousemove', 'keydown', 'scroll', 'click', 'touchstart', 'wheel'];
-
-    events.forEach(event => {
-      window.addEventListener(event, resetTimer, { passive: true });
-    });
-
-    // Also track visibility changes
-    document.addEventListener('visibilitychange', () => {
+    const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         resetTimer();
       }
+    };
+
+    const events = ['mousemove', 'keydown', 'scroll', 'click', 'touchstart', 'wheel'];
+    events.forEach(event => {
+      window.addEventListener(event, resetTimer, { passive: true });
     });
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     resetTimer();
 
@@ -188,14 +206,14 @@ export const AuthProvider = ({ children }) => {
       events.forEach(event => {
         window.removeEventListener(event, resetTimer);
       });
-      document.removeEventListener('visibilitychange', resetTimer);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [logout]);
+  }, [user, logout]);
 
-  // Synchronize logout across tabs
+  // Synchronize logout across tabs (when another tab clears 'user', log out here too)
   useEffect(() => {
     const handleStorageChange = (e) => {
-      if (e.key === 'logout' || (e.key === 'user' && e.newValue === null)) {
+      if (e.key === 'user' && e.newValue === null) {
         logout();
       }
     };

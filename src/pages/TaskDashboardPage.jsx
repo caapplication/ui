@@ -7,7 +7,7 @@ import { getTaskDetails, startTaskTimer, stopTaskTimer, getTaskHistory, /* addTa
 import { listOrgUsers } from '@/lib/api/organisation';
 import * as pdfjsLib from 'pdfjs-dist';
 import { useToast } from '@/components/ui/use-toast';
-import { Loader2, ArrowLeft, Paperclip, Clock, Calendar as CalendarIcon, User, Tag, Flag, CheckCircle, FileText, List, MessageSquare, Briefcase, Users, Play, Square, History, Plus, Trash2, Send, Edit2, Bell, UserPlus, X, Download, Image as ImageIcon, Eye, Maximize2, Repeat, LayoutGrid, CheckCircle2, XCircle } from 'lucide-react';
+import { Loader2, ArrowLeft, Paperclip, Clock, Calendar as CalendarIcon, User, Tag, Flag, CheckCircle, FileText, List, MessageSquare, Briefcase, Users, Play, Square, History, Plus, Trash2, Send, Edit2, Bell, UserPlus, X, Download, Image as ImageIcon, Maximize2, Repeat, LayoutGrid, CheckCircle2, XCircle } from 'lucide-react';
 import { Combobox } from '@/components/ui/combobox';
 import imageCompression from 'browser-image-compression';
 import { Badge } from '@/components/ui/badge';
@@ -530,8 +530,11 @@ const TaskDashboardPage = () => {
                     pdfBlobUrlRef.current = blobUrl;
                     setPdfBlobUrl(blobUrl);
 
-                    // Load PDF with PDF.js
-                    const loadingTask = pdfjsLib.getDocument({ url: blobUrl });
+                    // Load PDF with PDF.js (lighter options for faster first paint)
+                    const loadingTask = pdfjsLib.getDocument({
+                        url: blobUrl,
+                        verbosity: 0,
+                    });
                     const pdf = await loadingTask.promise;
                     setPdfDoc(pdf);
                     setTotalPages(pdf.numPages);
@@ -568,7 +571,7 @@ const TaskDashboardPage = () => {
 
         try {
             const page = await pdf.getPage(pageNum);
-            const viewport = page.getViewport({ scale: 1.5 });
+            const viewport = page.getViewport({ scale: 1.2 });
             const canvas = canvasRef.current;
             const context = canvas.getContext('2d');
 
@@ -2525,8 +2528,16 @@ const TaskDashboardPage = () => {
                                                                                 </div>
                                                                             </div>
                                                                         ) : (
-                                                                            // Non-image attachment - show download option like WhatsApp
-                                                                            <div className="flex items-center gap-3 p-2 bg-white/5 border border-white/10 rounded-lg">
+                                                                            // Non-image attachment - click whole block to open preview
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => setPreviewAttachment({
+                                                                                    url: comment.attachment_url,
+                                                                                    name: comment.attachment_name || 'Attachment',
+                                                                                    type: comment.attachment_type
+                                                                                })}
+                                                                                className="w-full flex items-center gap-3 p-2 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors text-left cursor-pointer"
+                                                                            >
                                                                                 <div className="flex-shrink-0">
                                                                                     {comment.attachment_type === 'application/pdf' ? (
                                                                                         <FileText className="w-8 h-8 text-red-500" />
@@ -2548,30 +2559,7 @@ const TaskDashboardPage = () => {
                                                                                         </p>
                                                                                     )}
                                                                                 </div>
-                                                                                <div className="flex items-center gap-1">
-                                                                                    <button
-                                                                                        onClick={() => setPreviewAttachment({
-                                                                                            url: comment.attachment_url,
-                                                                                            name: comment.attachment_name || 'Attachment',
-                                                                                            type: comment.attachment_type
-                                                                                        })}
-                                                                                        className="flex-shrink-0 p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
-                                                                                        title="Preview"
-                                                                                    >
-                                                                                        <Eye className="w-5 h-5 text-white" />
-                                                                                    </button>
-                                                                                    <a
-                                                                                        href={comment.attachment_url}
-                                                                                        download={comment.attachment_name}
-                                                                                        target="_blank"
-                                                                                        rel="noopener noreferrer"
-                                                                                        className="flex-shrink-0 p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
-                                                                                        title="Download"
-                                                                                    >
-                                                                                        <Download className="w-5 h-5 text-white" />
-                                                                                    </a>
-                                                                                </div>
-                                                                            </div>
+                                                                            </button>
                                                                         )}
                                                                     </div>
                                                                 )}
@@ -3605,43 +3593,55 @@ const TaskDashboardPage = () => {
                 </DialogContent>
             </Dialog >
 
-            {/* Attachment Preview Dialog */}
-            < Dialog open={!!previewAttachment} onOpenChange={() => {
-                setPreviewAttachment(null);
-                // Clean up blob URL when dialog closes
-                if (pdfBlobUrlRef.current) {
-                    URL.revokeObjectURL(pdfBlobUrlRef.current);
-                    pdfBlobUrlRef.current = null;
-                    setPdfBlobUrl(null);
+            {/* Attachment Preview Dialog - UI matched to Notice preview modal */}
+            <Dialog open={!!previewAttachment} onOpenChange={(open) => {
+                if (!open) {
+                    setPreviewAttachment(null);
+                    if (pdfBlobUrlRef.current) {
+                        URL.revokeObjectURL(pdfBlobUrlRef.current);
+                        pdfBlobUrlRef.current = null;
+                        setPdfBlobUrl(null);
+                    }
                 }
             }}>
-                <DialogContent className="glass-pane max-w-4xl w-[95vw] h-[90vh] flex flex-col p-0">
-                    <DialogHeader className="flex-shrink-0 px-6 pt-6 pb-4 border-b border-white/10">
+                <DialogContent className="glass-card border-white/10 text-white max-w-4xl w-[95vw] h-[90vh] flex flex-col p-0 overflow-hidden">
+                    <DialogHeader className="flex-shrink-0 px-6 pt-6 pb-4 border-b border-white/10 bg-black/40">
                         <div className="flex items-center justify-between">
-                            <DialogTitle className="text-lg">{previewAttachment?.name || 'Preview'}</DialogTitle>
+                            <DialogTitle className="text-white flex items-center gap-2">
+                                <FileText className="w-5 h-5" />
+                                Document
+                            </DialogTitle>
                             <div className="flex items-center gap-2">
-                                <a
-                                    href={previewAttachment?.url}
-                                    download={previewAttachment?.name}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-                                    title="Download"
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 gap-2 hover:bg-white/10 text-white"
+                                    onClick={() => {
+                                        const link = document.createElement('a');
+                                        link.href = previewAttachment?.url;
+                                        link.download = previewAttachment?.name || 'download';
+                                        document.body.appendChild(link);
+                                        link.click();
+                                        document.body.removeChild(link);
+                                    }}
                                 >
-                                    <Download className="w-5 h-5 text-white" />
-                                </a>
+                                    <Download className="w-4 h-4" /> Download
+                                </Button>
                                 <Button
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => setPreviewAttachment(null)}
-                                    className="text-white hover:bg-white/10"
+                                    className="text-white hover:bg-white/10 h-8 w-8"
                                 >
                                     <X className="w-5 h-5" />
                                 </Button>
                             </div>
                         </div>
+                        <DialogDescription className="sr-only">
+                            Preview of the selected attachment
+                        </DialogDescription>
                     </DialogHeader>
-                    <div className="flex-1 min-h-0 overflow-hidden p-6">
+                    <div className="flex-1 bg-black/60 flex items-center justify-center p-6 overflow-hidden relative min-h-0">
                         {previewAttachment && (
                             <>
                                 {previewAttachment.type?.startsWith('image/') || previewAttachment.url.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ? (
@@ -3677,11 +3677,11 @@ const TaskDashboardPage = () => {
                                                             size="sm"
                                                             onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                                                             disabled={currentPage === 1}
-                                                            className="bg-white/10 hover:bg-white/20 text-white"
+                                                            className="bg-white/10 hover:bg-white/20 text-white border-white/10"
                                                         >
                                                             Previous
                                                         </Button>
-                                                        <span className="text-white px-4">
+                                                        <span className="text-white px-4 text-sm font-medium">
                                                             Page {currentPage} of {totalPages}
                                                         </span>
                                                         <Button
@@ -3689,29 +3689,10 @@ const TaskDashboardPage = () => {
                                                             size="sm"
                                                             onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                                                             disabled={currentPage === totalPages}
-                                                            className="bg-white/10 hover:bg-white/20 text-white"
+                                                            className="bg-white/10 hover:bg-white/20 text-white border-white/10"
                                                         >
                                                             Next
                                                         </Button>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <a
-                                                            href={pdfBlobUrl || previewAttachment.url}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
-                                                        >
-                                                            <Maximize2 className="w-4 h-4" />
-                                                            Open in New Tab
-                                                        </a>
-                                                        <a
-                                                            href={pdfBlobUrl || previewAttachment.url}
-                                                            download={previewAttachment.name}
-                                                            className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
-                                                        >
-                                                            <Download className="w-4 h-4" />
-                                                            Download
-                                                        </a>
                                                     </div>
                                                 </div>
                                             </>
