@@ -251,9 +251,7 @@ const ProtectedContent = () => {
               <Route
                 path="/"
                 element={
-                  user.role === 'CA_TEAM' ? (
-                    <TeamMemberDashboard />
-                  ) : user.role === 'CA_ACCOUNTANT' ? (
+                  (user.role === 'CA_TEAM' || user.role === 'CA_ACCOUNTANT') ? (
                     <AccountantDashboard />
                   ) : (
                     <Dashboard
