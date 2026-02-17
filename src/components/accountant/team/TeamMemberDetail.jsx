@@ -41,6 +41,7 @@ const TeamMemberDetail = ({ member, onBack, clients = [], memberClientsMap = {} 
     const [taskStatusFilter, setTaskStatusFilter] = useState('all');
     const [taskSearch, setTaskSearch] = useState('');
     const [recurringSearch, setRecurringSearch] = useState('');
+    const [recurringClientFilter, setRecurringClientFilter] = useState('all');
     const [clientSearch, setClientSearch] = useState('');
     const [services, setServices] = useState([]);
     const [teamMembers, setTeamMembers] = useState([]);
@@ -252,8 +253,25 @@ const TeamMemberDetail = ({ member, onBack, clients = [], memberClientsMap = {} 
                 getServiceName(t.service_id).toLowerCase().includes(q)
             );
         }
+        if (recurringClientFilter !== 'all') {
+            list = list.filter(t => String(t.client_id || '') === String(recurringClientFilter));
+        }
         return list;
-    }, [recurringTasks, recurringSearch, services]);
+    }, [recurringTasks, recurringSearch, recurringClientFilter, services, clients]);
+
+    // Get unique clients from recurring tasks for filter dropdown
+    const recurringTaskClients = useMemo(() => {
+        const clientIds = new Set();
+        recurringTasks.forEach(task => {
+            if (task.client_id) {
+                clientIds.add(String(task.client_id));
+            }
+        });
+        return Array.from(clientIds)
+            .map(id => clients.find(c => String(c.id) === String(id)))
+            .filter(Boolean)
+            .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    }, [recurringTasks, clients]);
 
     const filteredClients = useMemo(() => {
         if (!clientSearch.trim()) return assignedClients;
@@ -534,6 +552,19 @@ const TeamMemberDetail = ({ member, onBack, clients = [], memberClientsMap = {} 
                                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                 <Input placeholder="Search recurring..." className="pl-8 h-9" value={recurringSearch} onChange={e => setRecurringSearch(e.target.value)} />
                             </div>
+                            <Select value={recurringClientFilter} onValueChange={setRecurringClientFilter}>
+                                <SelectTrigger className="w-48 h-9">
+                                    <SelectValue placeholder="Filter by Company" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Companies</SelectItem>
+                                    {recurringTaskClients.map((client) => (
+                                        <SelectItem key={client.id} value={String(client.id)}>
+                                            {client.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
                         <div className="glass-pane rounded-lg overflow-hidden border border-white/10">
                             <div className="overflow-x-auto">

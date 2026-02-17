@@ -229,8 +229,10 @@ const RecurringTaskManagementPage = () => {
             const taskToEdit = recurringTasks.find(t => String(t.id) === String(location.state.editTaskId));
             if (taskToEdit) {
                 handleEdit(taskToEdit);
-                // Clear the state to prevent reopening on refresh
-                navigate(location.pathname, { replace: true, state: {} });
+                // Preserve the original location state (like from, memberId, etc.) but clear editTaskId
+                const preservedState = { ...location.state };
+                delete preservedState.editTaskId;
+                navigate(location.pathname, { replace: true, state: preservedState });
             }
         }
     }, [location.state, recurringTasks, navigate]);
@@ -415,9 +417,28 @@ const RecurringTaskManagementPage = () => {
                     <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => navigate('/tasks')}
+                        onClick={() => {
+                            // If in edit/new mode, go back to previous page
+                            if (view === 'edit' || view === 'new') {
+                                // Check if we have preserved state indicating where we came from
+                                if (location.state?.from === '/team-members' && location.state?.memberId) {
+                                    navigate('/team-members', { state: { restoreMemberId: location.state.memberId } });
+                                } else if (location.state?.fromService && location.state?.serviceId) {
+                                    navigate('/services', { state: { restoreServiceId: location.state.serviceId } });
+                                } else if (editingTask?.id) {
+                                    // If we have the task ID, navigate back to its detail page
+                                    navigate(`/tasks/recurring/${editingTask.id}`);
+                                } else {
+                                    // Otherwise, go back to previous page
+                                    navigate(-1);
+                                }
+                            } else {
+                                // In list view, navigate to tasks page
+                                navigate('/tasks');
+                            }
+                        }}
                         className="text-white hover:bg-white/10"
-                        title="Back to Tasks"
+                        title={view === 'edit' || view === 'new' ? "Go Back" : "Back to Tasks"}
                     >
                         <ArrowLeft className="w-5 h-5" />
                     </Button>

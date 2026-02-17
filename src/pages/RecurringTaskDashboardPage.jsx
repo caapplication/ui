@@ -117,7 +117,15 @@ const RecurringTaskDashboardPage = () => {
     };
 
     const handleEdit = () => {
-        navigate(`/tasks/recurring`, { state: { editTaskId: recurringTaskId } });
+        // Preserve the original location state when navigating to edit
+        const preservedState = {
+            editTaskId: recurringTaskId,
+            ...(location.state?.from && { from: location.state.from }),
+            ...(location.state?.memberId && { memberId: location.state.memberId }),
+            ...(location.state?.fromService && { fromService: location.state.fromService }),
+            ...(location.state?.serviceId && { serviceId: location.state.serviceId }),
+        };
+        navigate(`/tasks/recurring`, { state: preservedState });
     };
 
     const handleRefresh = useCallback(async () => {
