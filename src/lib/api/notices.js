@@ -120,6 +120,15 @@ export const addNoticeCollaborator = async (noticeId, userId, token) => {
   return handleResponse(response);
 };
 
+export const removeNoticeCollaborator = async (noticeId, userId, token) => {
+  const response = await fetch(`${FINANCE_API_BASE_URL}/api/notices/${noticeId}/collaborators/${userId}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(token),
+  });
+  if (response.status === 204) return true;
+  return handleResponse(response);
+};
+
 export const getUnreadNoticeCount = async (token) => {
   try {
     const response = await fetch(`${FINANCE_API_BASE_URL}/api/notices/unread-count`, {

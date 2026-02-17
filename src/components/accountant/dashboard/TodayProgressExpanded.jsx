@@ -214,7 +214,8 @@ const TodayProgressExpanded = () => {
     const { toast } = useToast();
     
     // Check if accessed from dashboard click (viewing own activities only)
-    const viewOwnActivities = location.state?.userId === user.id;
+    const viewOwnActivities = location.state?.userId && user?.id &&
+      String(location.state.userId).toLowerCase() === String(user.id).toLowerCase();
 
     const handleExport = () => {
         if (filteredData.length === 0) {
@@ -310,8 +311,14 @@ const TodayProgressExpanded = () => {
             const periodNotices = noticesList.filter(n => n.status === 'closed' && isWithinRange(getActivityDate(n, 'notice')));
 
             // Filter team members: if viewOwnActivities, only show current user
+            const currentUserIdNorm = String(user.id || '').toLowerCase();
+            const currentUserNameNorm = String(user.full_name || user.name || '').toLowerCase().trim();
             const membersToShow = viewOwnActivities 
-                ? teamMembers.filter(m => String(m.user_id || m.id).toLowerCase() === String(user.id).toLowerCase())
+                ? teamMembers.filter(m => {
+                    const mId = String(m.user_id || m.id || '').toLowerCase();
+                    const mName = String(m.full_name || m.name || '').toLowerCase().trim();
+                    return mId === currentUserIdNorm || (currentUserNameNorm && mName === currentUserNameNorm);
+                })
                 : teamMembers.filter(m => {
                     // Only show CA_ACCOUNTANT and CA_TEAM members
                     const memberRole = m.role;
@@ -353,6 +360,11 @@ const TodayProgressExpanded = () => {
                     return String(userId) === String(mId);
                 });
 
+                const total = memberInvoices.length + memberVouchers.length + memberTasks.length + memberNotices.length;
+                const mIdNorm = String(mId || '').toLowerCase();
+                const mNameNorm = String(mName || '').toLowerCase().trim();
+                const isCurrentUser = mIdNorm === String(user.id || '').toLowerCase() ||
+                    (user.role === 'CA_TEAM' && currentUserNameNorm && mNameNorm === currentUserNameNorm);
                 return {
                     id: mId,
                     name: mName,
@@ -360,12 +372,20 @@ const TodayProgressExpanded = () => {
                     vouchers: memberVouchers.length,
                     tasks: memberTasks.length,
                     notices: memberNotices.length,
-                    total: memberInvoices.length + memberVouchers.length + memberTasks.length + memberNotices.length,
+                    total,
+                    isCurrentUser,
                     activityDetails: { tasks: memberTasks, vouchers: memberVouchers, invoices: memberInvoices, notices: memberNotices }
                 };
             }).filter(m => m.total > 0 || searchTerm === '');
 
-            setData(memberStats);
+            // Sort by total desc to assign rank, then reorder: current user first (keep rank)
+            const sortedByTotal = [...memberStats].sort((a, b) => b.total - a.total);
+            const withRank = sortedByTotal.map((row, idx) => ({ ...row, rank: idx + 1 }));
+            const currentUserRow = withRank.find(r => r.isCurrentUser);
+            const others = withRank.filter(r => !r.isCurrentUser);
+            const displayOrder = currentUserRow ? [currentUserRow, ...others] : withRank;
+
+            setData(displayOrder);
         } catch (error) {
             console.error('Error fetching today\'s progress:', error);
         } finally {
@@ -455,17 +475,18 @@ const TodayProgressExpanded = () => {
                                                 <TableRow 
                                                     className={cn(
                                                         "border-b border-white/5 hover:bg-white/5 transition-colors group",
-                                                        hasDetails && "cursor-pointer"
+                                                        hasDetails && "cursor-pointer",
+                                                        row.isCurrentUser && "bg-blue-500/10 border-l-4 border-l-blue-500"
                                                     )}
                                                     onClick={() => hasDetails && setExpandedRowId(isExpanded ? null : row.id)}
                                                 >
                                                     <TableCell className="py-4 pl-6 text-gray-500 font-mono text-xs w-10">
                                                         {hasDetails ? (isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />) : null}
                                                     </TableCell>
-                                                    <TableCell className="py-4 pl-2 text-gray-500 font-mono text-xs">
-                                                        {String((currentPage - 1) * itemsPerPage + idx + 1).padStart(2, '0')}
+                                                    <TableCell className={cn("py-4 pl-2 font-mono text-xs", row.isCurrentUser && "text-blue-300 font-bold")}>
+                                                        {String(row.rank || (currentPage - 1) * itemsPerPage + idx + 1).padStart(2, '0')}
                                                     </TableCell>
-                                                    <TableCell className="py-4 px-4 font-semibold text-white">
+                                                    <TableCell className={cn("py-4 px-4 font-semibold", row.isCurrentUser ? "text-blue-200" : "text-white")}>
                                                         {row.name}
                                                     </TableCell>
                                                     <TableCell className="py-4 px-4 text-right font-bold text-white text-base">
