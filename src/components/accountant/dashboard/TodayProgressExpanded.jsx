@@ -4,6 +4,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import {
     ChevronLeft,
     ChevronRight,
+    ChevronDown,
+    ChevronUp,
     Search,
     FileText,
     ClipboardCheck,
@@ -65,6 +67,101 @@ const TIME_FRAME_PRESETS = [
     { label: 'Custom Range', value: 'custom' },
 ];
 
+const getActivityDateForDisplay = (item, type) => {
+    if (type === 'task') return item.completed_at || item.updated_at || item.created_at;
+    if (type === 'voucher') return item.verified_at || item.updated_at || item.created_date || item.date;
+    if (type === 'invoice') return item.verified_at || item.updated_at || item.created_at || item.date;
+    return item.reviewed_at || item.updated_at || item.created_at;
+};
+
+const ActivityDetailsList = ({ details, navigate }) => (
+    <div className="space-y-3 text-sm">
+        {details.tasks?.length > 0 && (
+            <div>
+                <div className="text-blue-400 font-semibold mb-1 flex items-center gap-1.5">
+                    <ClipboardCheck className="w-4 h-4" /> Tasks ({details.tasks.length})
+                </div>
+                <ul className="space-y-1 ml-6">
+                    {details.tasks.map(t => (
+                        <li key={t.id} className="flex items-center justify-between gap-2 text-gray-300 hover:text-white">
+                            <span 
+                                className="cursor-pointer hover:underline truncate"
+                                onClick={(e) => { e.stopPropagation(); navigate(t.is_recurring ? `/tasks/recurring/${t.id}` : `/tasks/${t.id}`); }}
+                            >
+                                {t.title || 'Untitled'} {t.task_number ? `(T${t.task_number})` : ''}
+                            </span>
+                            <span className="text-xs text-gray-500 shrink-0">
+                                {getActivityDateForDisplay(t, 'task') ? format(new Date(getActivityDateForDisplay(t, 'task')), 'dd MMM yyyy, HH:mm') : ''}
+                            </span>
+                        </li>
+                    ))}
+                </ul>
+            </div>
+        )}
+        {details.vouchers?.length > 0 && (
+            <div>
+                <div className="text-emerald-400 font-semibold mb-1 flex items-center gap-1.5">
+                    <Receipt className="w-4 h-4" /> Vouchers ({details.vouchers.length})
+                </div>
+                <ul className="space-y-1 ml-6">
+                    {details.vouchers.map(v => (
+                        <li key={v.id} className="flex items-center justify-between gap-2 text-gray-300">
+                            <span 
+                                className="cursor-pointer hover:underline truncate"
+                                onClick={(e) => { e.stopPropagation(); navigate(`/finance/vouchers/${v.id}`); }}
+                            >
+                                {v.voucher_id || v.id} - ₹{Number(v.amount || 0).toLocaleString()}
+                            </span>
+                            <span className="text-xs text-gray-500 shrink-0">
+                                {getActivityDateForDisplay(v, 'voucher') ? format(new Date(getActivityDateForDisplay(v, 'voucher')), 'dd MMM yyyy') : ''}
+                            </span>
+                        </li>
+                    ))}
+                </ul>
+            </div>
+        )}
+        {details.invoices?.length > 0 && (
+            <div>
+                <div className="text-rose-400 font-semibold mb-1 flex items-center gap-1.5">
+                    <FileText className="w-4 h-4" /> Invoices ({details.invoices.length})
+                </div>
+                <ul className="space-y-1 ml-6">
+                    {details.invoices.map(i => (
+                        <li key={i.id} className="flex items-center justify-between gap-2 text-gray-300">
+                            <span 
+                                className="cursor-pointer hover:underline truncate"
+                                onClick={(e) => { e.stopPropagation(); navigate(`/invoices/ca/${i.id}`); }}
+                            >
+                                {i.bill_number || i.id} - ₹{Number(i.amount || 0).toLocaleString()}
+                            </span>
+                            <span className="text-xs text-gray-500 shrink-0">
+                                {getActivityDateForDisplay(i, 'invoice') ? format(new Date(getActivityDateForDisplay(i, 'invoice')), 'dd MMM yyyy') : ''}
+                            </span>
+                        </li>
+                    ))}
+                </ul>
+            </div>
+        )}
+        {details.notices?.length > 0 && (
+            <div>
+                <div className="text-amber-400 font-semibold mb-1 flex items-center gap-1.5">
+                    <Bell className="w-4 h-4" /> Notices ({details.notices.length})
+                </div>
+                <ul className="space-y-1 ml-6">
+                    {details.notices.map(n => (
+                        <li key={n.id} className="flex items-center justify-between gap-2 text-gray-300">
+                            <span className="truncate">{n.title || 'Untitled'}</span>
+                            <span className="text-xs text-gray-500 shrink-0">
+                                {getActivityDateForDisplay(n, 'notice') ? format(new Date(getActivityDateForDisplay(n, 'notice')), 'dd MMM yyyy') : ''}
+                            </span>
+                        </li>
+                    ))}
+                </ul>
+            </div>
+        )}
+    </div>
+);
+
 const getDateRange = (preset, start, end) => {
     const now = new Date();
     switch (preset) {
@@ -112,6 +209,7 @@ const TodayProgressExpanded = () => {
     const [customStartDate, setCustomStartDate] = useState(null);
     const [customEndDate, setCustomEndDate] = useState(null);
     const [dateError, setDateError] = useState('');
+    const [expandedRowId, setExpandedRowId] = useState(null);
     const itemsPerPage = 10;
     const { toast } = useToast();
     
@@ -198,23 +296,18 @@ const TodayProgressExpanded = () => {
                 return d >= rangeStart && d <= rangeEnd;
             };
 
-            // Use the same date field logic as dashboard for consistency
-            const periodInvoices = invoices.filter(i => {
-                const date = i.date || i.created_at || i.created_date;
-                return isWithinRange(date);
-            });
-            const periodVouchers = vouchers.filter(v => {
-                const date = v.date || v.created_at || v.created_date || v.timestamp;
-                return isWithinRange(date);
-            });
-            const periodTasks = tasksList.filter(t => {
-                const date = t.created_at || t.created_date;
-                return isWithinRange(date);
-            });
-            const periodNotices = noticesList.filter(n => {
-                const date = n.created_at || n.created_date;
-                return isWithinRange(date);
-            });
+            // Only completed/verified/closed items, using activity date
+            const getActivityDate = (item, type) => {
+                if (type === 'task') return item.completed_at || item.updated_at || item.created_at;
+                if (type === 'voucher') return item.verified_at || item.updated_at || item.created_date || item.date;
+                if (type === 'invoice') return item.verified_at || item.updated_at || item.created_at || item.date;
+                return item.reviewed_at || item.updated_at || item.created_at;
+            };
+            const periodInvoices = invoices.filter(i => i.status === 'verified' && isWithinRange(getActivityDate(i, 'invoice')));
+            const periodVouchers = vouchers.filter(v => v.status === 'verified' && isWithinRange(getActivityDate(v, 'voucher')));
+            const isTaskCompleted = (t) => t.status === 'completed' || (t.stage?.name && String(t.stage.name).toLowerCase() === 'complete');
+            const periodTasks = tasksList.filter(t => isTaskCompleted(t) && isWithinRange(getActivityDate(t, 'task')));
+            const periodNotices = noticesList.filter(n => n.status === 'closed' && isWithinRange(getActivityDate(n, 'notice')));
 
             // Filter team members: if viewOwnActivities, only show current user
             const membersToShow = viewOwnActivities 
@@ -241,32 +334,32 @@ const TodayProgressExpanded = () => {
                 const mId = member.user_id || member.id;
                 const mName = member.full_name || member.name || 'Unknown';
 
-                // Use owner_id for vouchers/invoices, created_by for tasks/notices
                 const memberInvoices = periodInvoices.filter(i => {
                     const userId = i.owner_id || i.created_by || i.created_by_id;
                     return String(userId) === String(mId);
-                }).length;
+                });
                 const memberVouchers = periodVouchers.filter(v => {
                     const userId = v.owner_id || v.created_by || v.created_by_id;
                     return String(userId) === String(mId);
-                }).length;
+                });
                 const memberTasks = periodTasks.filter(t => {
                     const userId = t.created_by || t.created_by_id || t.assigned_to;
                     return String(userId) === String(mId);
-                }).length;
+                });
                 const memberNotices = periodNotices.filter(n => {
                     const userId = n.created_by || n.created_by_id || n.owner_id;
                     return String(userId) === String(mId);
-                }).length;
+                });
 
                 return {
                     id: mId,
                     name: mName,
-                    invoices: memberInvoices,
-                    vouchers: memberVouchers,
-                    tasks: memberTasks,
-                    notices: memberNotices,
-                    total: memberInvoices + memberVouchers + memberTasks + memberNotices
+                    invoices: memberInvoices.length,
+                    vouchers: memberVouchers.length,
+                    tasks: memberTasks.length,
+                    notices: memberNotices.length,
+                    total: memberInvoices.length + memberVouchers.length + memberTasks.length + memberNotices.length,
+                    activityDetails: { tasks: memberTasks, vouchers: memberVouchers, invoices: memberInvoices, notices: memberNotices }
                 };
             }).filter(m => m.total > 0 || searchTerm === '');
 
@@ -331,7 +424,8 @@ const TodayProgressExpanded = () => {
                     <Table className="min-w-full">
                         <TableHeader className="sticky top-0 z-20 ">
                             <TableRow className="border-b border-white/10 text-gray-400 text-[10px] sm:text-xs font-medium uppercase tracking-wider bg-white/5">
-                                <TableHead className="py-4 pl-6 w-16 text-gray-400">Sr no.</TableHead>
+                                <TableHead className="py-4 pl-6 w-10 text-gray-400"></TableHead>
+                                <TableHead className="py-4 pl-2 w-16 text-gray-400">Sr no.</TableHead>
                                 <TableHead className="py-4 px-4 text-gray-400">Team Member</TableHead>
                                 <TableHead className="py-4 px-4 text-right text-gray-400">Total</TableHead>
                                 <TableHead className="py-4 px-4 text-right text-gray-400">Vouchers</TableHead>
@@ -343,40 +437,64 @@ const TodayProgressExpanded = () => {
                         <TableBody>
                             {loading ? (
                                 <TableRow>
-                                    <TableCell colSpan={7} className="text-center py-8 text-gray-400">
+                                    <TableCell colSpan={8} className="text-center py-8 text-gray-400">
                                         <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />
                                         Loading activity...
                                     </TableCell>
                                 </TableRow>
                             ) : paginatedData.length > 0 ? (
                                 <>
-                                    {paginatedData.map((row, idx) => (
-                                        <TableRow key={row.id} className="border-b border-white/5 hover:bg-white/5 transition-colors group cursor-pointer">
-                                            <TableCell className="py-4 pl-6 text-gray-500 font-mono text-xs">
-                                                {String((currentPage - 1) * itemsPerPage + idx + 1).padStart(2, '0')}
-                                            </TableCell>
-                                            <TableCell className="py-4 px-4 font-semibold text-white">
-                                                {row.name}
-                                            </TableCell>
-                                            <TableCell className="py-4 px-4 text-right font-bold text-white text-base">
-                                                {row.total}
-                                            </TableCell>
-                                            <TableCell className="py-4 px-4 text-right text-emerald-400 font-semibold">
-                                                {row.vouchers}
-                                            </TableCell>
-                                            <TableCell className="py-4 px-4 text-right text-rose-400 font-semibold">
-                                                {row.invoices}
-                                            </TableCell>
-                                            <TableCell className="py-4 px-4 text-right text-blue-400 font-semibold">
-                                                {row.tasks}
-                                            </TableCell>
-                                            <TableCell className="py-4 pr-6 text-right text-amber-400 font-semibold">
-                                                {row.notices}
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
+                                    {paginatedData.map((row, idx) => {
+                                        const isExpanded = expandedRowId === row.id;
+                                        const details = row.activityDetails || { tasks: [], vouchers: [], invoices: [], notices: [] };
+                                        const hasDetails = details.tasks?.length + details.vouchers?.length + details.invoices?.length + details.notices?.length > 0;
+                                        return (
+                                            <React.Fragment key={row.id}>
+                                                <TableRow 
+                                                    className={cn(
+                                                        "border-b border-white/5 hover:bg-white/5 transition-colors group",
+                                                        hasDetails && "cursor-pointer"
+                                                    )}
+                                                    onClick={() => hasDetails && setExpandedRowId(isExpanded ? null : row.id)}
+                                                >
+                                                    <TableCell className="py-4 pl-6 text-gray-500 font-mono text-xs w-10">
+                                                        {hasDetails ? (isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />) : null}
+                                                    </TableCell>
+                                                    <TableCell className="py-4 pl-2 text-gray-500 font-mono text-xs">
+                                                        {String((currentPage - 1) * itemsPerPage + idx + 1).padStart(2, '0')}
+                                                    </TableCell>
+                                                    <TableCell className="py-4 px-4 font-semibold text-white">
+                                                        {row.name}
+                                                    </TableCell>
+                                                    <TableCell className="py-4 px-4 text-right font-bold text-white text-base">
+                                                        {row.total}
+                                                    </TableCell>
+                                                    <TableCell className="py-4 px-4 text-right text-emerald-400 font-semibold">
+                                                        {row.vouchers}
+                                                    </TableCell>
+                                                    <TableCell className="py-4 px-4 text-right text-rose-400 font-semibold">
+                                                        {row.invoices}
+                                                    </TableCell>
+                                                    <TableCell className="py-4 px-4 text-right text-blue-400 font-semibold">
+                                                        {row.tasks}
+                                                    </TableCell>
+                                                    <TableCell className="py-4 pr-6 text-right text-amber-400 font-semibold">
+                                                        {row.notices}
+                                                    </TableCell>
+                                                </TableRow>
+                                                {isExpanded && hasDetails && (
+                                                    <TableRow className="bg-white/5 border-b border-white/5">
+                                                        <TableCell colSpan={8} className="py-4 px-6">
+                                                            <ActivityDetailsList details={details} navigate={navigate} />
+                                                        </TableCell>
+                                                    </TableRow>
+                                                )}
+                                            </React.Fragment>
+                                        );
+                                    })}
                                     <TableRow className="bg-white/5 border-t border-white/10 font-bold text-white">
-                                        <TableCell colSpan={2} className="py-4 pl-6 text-white font-bold uppercase text-xs tracking-wider">
+                                        <TableCell className="py-4 pl-6 w-10"></TableCell>
+                                        <TableCell colSpan={2} className="py-4 pl-2 text-white font-bold uppercase text-xs tracking-wider">
                                             Aggregate Sum
                                         </TableCell>
                                         <TableCell className="py-4 px-4 text-right text-white font-black text-lg">{totals.total}</TableCell>
@@ -388,7 +506,7 @@ const TodayProgressExpanded = () => {
                                 </>
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                                    <TableCell colSpan={8} className="text-center py-8 text-gray-500">
                                         No activity recorded for this period.
                                     </TableCell>
                                 </TableRow>
