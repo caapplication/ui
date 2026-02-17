@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
     ChevronLeft,
     ChevronRight,
@@ -43,9 +43,11 @@ import { cn } from '@/lib/utils';
 import {
     listTeamMembers,
     listAllEntities,
+    listEntities,
     getCATeamInvoicesBulk,
     getCATeamVouchersBulk,
     listTasks,
+    listRecurringTasks,
     getNotices
 } from '@/lib/api';
 import { format, startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, subMonths, startOfYear, differenceInDays, isAfter } from 'date-fns';
@@ -101,6 +103,7 @@ const getDateRange = (preset, start, end) => {
 const TodayProgressExpanded = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [data, setData] = useState([]);
@@ -111,6 +114,9 @@ const TodayProgressExpanded = () => {
     const [dateError, setDateError] = useState('');
     const itemsPerPage = 10;
     const { toast } = useToast();
+    
+    // Check if accessed from dashboard click (viewing own activities only)
+    const viewOwnActivities = location.state?.userId === user.id;
 
     const handleExport = () => {
         if (filteredData.length === 0) {
@@ -153,21 +159,31 @@ const TodayProgressExpanded = () => {
             const token = user.access_token;
             const agencyId = user.agency_id;
 
-            const [teamMembers, entities] = await Promise.all([
+            const [teamMembers, allEntities] = await Promise.all([
                 listTeamMembers(token).catch(() => []),
-                listAllEntities(token).catch(() => [])
+                // For CA_TEAM: Only get entities assigned to this user (same as dashboard)
+                user.role === 'CA_TEAM' 
+                    ? listEntities(null, token).catch(() => [])
+                    : listAllEntities(token).catch(() => [])
             ]);
 
-            const entityIds = entities.map(e => e.id);
+            const entityIds = allEntities.map(e => e.id);
 
-            const [invoices, vouchers, tasks, notices] = await Promise.all([
+            const [invoices, vouchers, tasks, recurringTasksData, notices] = await Promise.all([
                 entityIds.length > 0 ? getCATeamInvoicesBulk(entityIds, token).catch(() => []) : Promise.resolve([]),
                 entityIds.length > 0 ? getCATeamVouchersBulk(entityIds, token).catch(() => []) : Promise.resolve([]),
                 listTasks(agencyId, token).catch(() => []),
+                listRecurringTasks(agencyId, token, null, 1, 1000).catch(() => ({ items: [] })),
                 getNotices(null, token).catch(() => [])
             ]);
 
-            const tasksList = Array.isArray(tasks) ? tasks : (tasks?.items || []);
+            const regularTasks = Array.isArray(tasks) ? tasks : (tasks?.items || []);
+            const recurringTasks = Array.isArray(recurringTasksData) ? recurringTasksData : (recurringTasksData?.items || []);
+            const recurringTaskIds = new Set(recurringTasks.map(rt => String(rt.id)));
+            const tasksList = [
+                ...regularTasks.filter(t => !recurringTaskIds.has(String(t.id))),
+                ...recurringTasks
+            ];
             const noticesList = notices || [];
 
             const { start, end } = getDateRange(timeFrame, customStartDate, customEndDate);
@@ -175,23 +191,73 @@ const TodayProgressExpanded = () => {
             const isWithinRange = (dateStr) => {
                 if (!dateStr) return false;
                 if (!start || !end) return true;
-                const d = new Date(dateStr);
-                return d >= start && d <= end;
+                // Use startOfDay for consistent comparison with dashboard
+                const d = startOfDay(new Date(dateStr));
+                const rangeStart = startOfDay(start);
+                const rangeEnd = startOfDay(end);
+                return d >= rangeStart && d <= rangeEnd;
             };
 
-            const periodInvoices = invoices.filter(i => isWithinRange(i.created_at || i.created_date));
-            const periodVouchers = vouchers.filter(v => isWithinRange(v.created_at || v.timestamp));
-            const periodTasks = tasksList.filter(t => isWithinRange(t.created_at || t.created_date));
-            const periodNotices = noticesList.filter(n => isWithinRange(n.created_at || n.created_date));
+            // Use the same date field logic as dashboard for consistency
+            const periodInvoices = invoices.filter(i => {
+                const date = i.date || i.created_at || i.created_date;
+                return isWithinRange(date);
+            });
+            const periodVouchers = vouchers.filter(v => {
+                const date = v.date || v.created_at || v.created_date || v.timestamp;
+                return isWithinRange(date);
+            });
+            const periodTasks = tasksList.filter(t => {
+                const date = t.created_at || t.created_date;
+                return isWithinRange(date);
+            });
+            const periodNotices = noticesList.filter(n => {
+                const date = n.created_at || n.created_date;
+                return isWithinRange(date);
+            });
 
-            const memberStats = teamMembers.map(member => {
+            // Filter team members: if viewOwnActivities, only show current user
+            const membersToShow = viewOwnActivities 
+                ? teamMembers.filter(m => (m.user_id || m.id) === user.id)
+                : teamMembers.filter(m => {
+                    // Only show CA_ACCOUNTANT and CA_TEAM members
+                    const memberRole = m.role;
+                    return memberRole === 'CA_ACCOUNTANT' || memberRole === 'CA_TEAM';
+                });
+            
+            // If viewOwnActivities and user not in teamMembers, add them
+            if (viewOwnActivities && membersToShow.length === 0) {
+                membersToShow.push({
+                    id: user.id,
+                    user_id: user.id,
+                    name: user.name,
+                    full_name: user.full_name || user.name,
+                    email: user.email,
+                    role: user.role
+                });
+            }
+
+            const memberStats = membersToShow.map(member => {
                 const mId = member.user_id || member.id;
                 const mName = member.full_name || member.name || 'Unknown';
 
-                const memberInvoices = periodInvoices.filter(i => i.created_by === mId).length;
-                const memberVouchers = periodVouchers.filter(v => v.created_by === mId).length;
-                const memberTasks = periodTasks.filter(t => t.created_by === mId).length;
-                const memberNotices = periodNotices.filter(n => n.created_by === mId).length;
+                // Use owner_id for vouchers/invoices, created_by for tasks/notices
+                const memberInvoices = periodInvoices.filter(i => {
+                    const userId = i.owner_id || i.created_by || i.created_by_id;
+                    return String(userId) === String(mId);
+                }).length;
+                const memberVouchers = periodVouchers.filter(v => {
+                    const userId = v.owner_id || v.created_by || v.created_by_id;
+                    return String(userId) === String(mId);
+                }).length;
+                const memberTasks = periodTasks.filter(t => {
+                    const userId = t.created_by || t.created_by_id || t.assigned_to;
+                    return String(userId) === String(mId);
+                }).length;
+                const memberNotices = periodNotices.filter(n => {
+                    const userId = n.created_by || n.created_by_id || n.owner_id;
+                    return String(userId) === String(mId);
+                }).length;
 
                 return {
                     id: mId,
@@ -210,7 +276,7 @@ const TodayProgressExpanded = () => {
         } finally {
             setLoading(false);
         }
-    }, [user, timeFrame, searchTerm, customStartDate, customEndDate]);
+    }, [user, timeFrame, searchTerm, customStartDate, customEndDate, viewOwnActivities]);
 
     useEffect(() => {
         fetchData();
@@ -250,152 +316,14 @@ const TodayProgressExpanded = () => {
                     </Button>
                     <div>
                         <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-                            Today's Progress
+                            {viewOwnActivities ? 'My Activities' : "Today's Progress"}
                         </h1>
-                        <p className="text-gray-400 text-sm mt-0.5">Daily activity breakdown</p>
+                        <p className="text-gray-400 text-sm mt-0.5">
+                            {viewOwnActivities ? 'Your activity breakdown' : 'Daily activity breakdown'}
+                        </p>
                     </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-stretch flex-wrap sm:items-center gap-3 w-full sm:w-auto">
-                    <Button
-                        onClick={handleExport}
-                        className="h-9 rounded-xl bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm w-full sm:w-auto justify-center"
-                    >
-                        <Download className="w-4 h-4" />
-                        <span>Export</span>
-                    </Button>
-
-                    <Select value={timeFrame} onValueChange={(val) => {
-                        setTimeFrame(val);
-                        setCurrentPage(1);
-                        if (val === 'custom' && !customStartDate) {
-                            const end = new Date();
-                            const start = new Date();
-                            start.setMonth(start.getMonth() - 1);
-                            setCustomStartDate(start);
-                            setCustomEndDate(end);
-                        }
-                    }}>
-                        <SelectTrigger className="w-full sm:w-44 h-9 border-white/10 bg-white/5 text-white rounded-xl text-sm">
-                            <SelectValue placeholder="Time frame" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-[#1a1a2e] border-white/10 text-white rounded-xl">
-                            {TIME_FRAME_PRESETS.map(preset => (
-                                <SelectItem key={preset.value} value={preset.value} className="hover:bg-white/10 focus:bg-white/10 cursor-pointer rounded-lg">
-                                    {preset.label}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-
-                    {timeFrame === 'custom' && (
-                        <div className="flex flex-row items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                            <div className="flex items-center gap-2">
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            variant={"outline"}
-                                            className={cn(
-                                                "w-[120px] sm:w-[130px] h-9 gap-2 justify-start text-left font-normal bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl px-2 sm:px-3",
-                                                !customStartDate && "text-muted-foreground"
-                                            )}
-                                        >
-                                            <CalendarIcon className="h-3.5 w-3.5 text-blue-400 shrink-0" />
-                                            <span className="truncate text-xs sm:text-sm">{customStartDate ? format(customStartDate, "dd MMM yy") : "Start"}</span>
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0 bg-[#1a1a2e] border-white/10 shadow-2xl" align="start">
-                                        <Calendar
-                                            mode="single"
-                                            selected={customStartDate}
-                                            onSelect={(date) => {
-                                                setCustomStartDate(date);
-                                                if (date && customEndDate) {
-                                                    const days = differenceInDays(customEndDate, date);
-                                                    if (days > 365 || days < 0) {
-                                                        const newEnd = new Date(date);
-                                                        newEnd.setFullYear(newEnd.getFullYear() + 1);
-                                                        const limit = new Date();
-                                                        setCustomEndDate(newEnd > limit ? limit : newEnd);
-                                                    }
-                                                }
-                                            }}
-                                            fromYear={2020}
-                                            toYear={new Date().getFullYear()}
-                                            disabled={(date) => {
-                                                if (customEndDate) {
-                                                    const diff = differenceInDays(customEndDate, date);
-                                                    return diff < 0 || diff > 365 || isAfter(date, new Date());
-                                                }
-                                                return isAfter(date, new Date());
-                                            }}
-                                            initialFocus
-                                        />
-                                    </PopoverContent>
-                                </Popover>
-                                <span className="text-gray-500 text-[10px] sm:text-xs font-medium shrink-0 uppercase">to</span>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            variant={"outline"}
-                                            className={cn(
-                                                "w-[120px] sm:w-[130px] h-9 gap-2 justify-start text-left font-normal bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl px-2 sm:px-3",
-                                                !customEndDate && "text-muted-foreground"
-                                            )}
-                                        >
-                                            <CalendarIcon className="h-3.5 w-3.5 text-blue-400 shrink-0" />
-                                            <span className="truncate text-xs sm:text-sm">{customEndDate ? format(customEndDate, "dd MMM yy") : "End"}</span>
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0 bg-[#1a1a2e] border-white/10 shadow-2xl" align="start">
-                                        <Calendar
-                                            mode="single"
-                                            selected={customEndDate}
-                                            onSelect={(date) => {
-                                                setCustomEndDate(date);
-                                                if (customStartDate && date) {
-                                                    const days = differenceInDays(date, customStartDate);
-                                                    if (days > 365 || days < 0) {
-                                                        const newStart = new Date(date);
-                                                        newStart.setFullYear(newStart.getFullYear() - 1);
-                                                        setCustomStartDate(newStart);
-                                                    }
-                                                }
-                                            }}
-                                            fromYear={2020}
-                                            toYear={new Date().getFullYear()}
-                                            disabled={(date) => {
-                                                if (customStartDate) {
-                                                    const diff = differenceInDays(date, customStartDate);
-                                                    return diff < 0 || diff > 365 || isAfter(date, new Date());
-                                                }
-                                                return isAfter(date, new Date());
-                                            }}
-                                            initialFocus
-                                        />
-                                    </PopoverContent>
-                                </Popover>
-                            </div>
-
-                            {dateError && (
-                                <div className="flex items-center gap-1.5 text-xs text-red-400 bg-red-400/10 px-3 py-1.5 rounded-lg border border-red-400/20">
-                                    <AlertCircle className="w-3.5 h-3.5" />
-                                    <span>{dateError}</span>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    <div className="relative w-full sm:w-64">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <Input
-                            placeholder="Search team member..."
-                            className="pl-9 h-9 sm:h-10 border-white/10 bg-white/5 focus:bg-white/10 text-white placeholder:text-gray-500 rounded-xl text-sm"
-                            value={searchTerm}
-                            onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-                        />
-                    </div>
-                </div>
             </div>
 
             <div className="glass-card rounded-3xl overflow-hidden border border-white/5 flex flex-col">

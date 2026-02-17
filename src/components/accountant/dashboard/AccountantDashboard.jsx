@@ -19,6 +19,7 @@ import {
   getCATeamInvoicesBulk,
   getCATeamVouchersBulk,
   listTasks,
+  listRecurringTasks,
   getNotices,
   getClientBillingInvoices
 } from '@/lib/api';
@@ -75,7 +76,7 @@ const StatCard = ({ title, value, description, icon, color, delay, trend, meta, 
   );
 };
 
-const DetailBlock = ({ title, subtitle, count, data, columns, onViewMore, delay }) => {
+const DetailBlock = ({ title, subtitle, count, data, columns, onViewMore, delay, onRowClick, currentUserId }) => {
   return (
     <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5, delay }}>
       <Card className="glass-card flex flex-col h-full rounded-2xl border-white/5">
@@ -96,22 +97,41 @@ const DetailBlock = ({ title, subtitle, count, data, columns, onViewMore, delay 
                   No records found
                 </div>
               ) : (
-                data.slice(0, 8).map((row, idx) => (
-                  <div
-                    key={idx}
-                    className="grid grid-cols-12 items-center text-sm py-2 hover:bg-white/5 transition-all rounded px-1 group cursor-default border-b border-white/5 last:border-0"
-                  >
-                    <div className="col-span-2 text-gray-400 font-mono text-xs">
-                      {String(idx + 1).padStart(2, "0")}
+                data.slice(0, 8).map((row, idx) => {
+                  // Only highlight if currentUserId is provided AND row matches
+                  const isCurrentUser = currentUserId && (row.isCurrentUser || (row.id && String(row.id) === String(currentUserId)));
+                  const sNo = row.sNo !== undefined ? row.sNo : (row.rank !== undefined ? row.rank : idx + 1);
+                  
+                  return (
+                    <div
+                      key={row.id || idx}
+                      onClick={() => {
+                        if (onRowClick && isCurrentUser) {
+                          onRowClick(row);
+                        }
+                      }}
+                      className={`grid grid-cols-12 items-center text-sm py-2 transition-all rounded px-1 group border-b border-white/5 last:border-0 ${
+                        isCurrentUser 
+                          ? 'bg-blue-500/20 hover:bg-blue-500/30 cursor-pointer border-blue-400/30' 
+                          : 'hover:bg-white/5 cursor-default'
+                      }`}
+                    >
+                      <div className={`col-span-2 font-mono text-xs ${isCurrentUser ? 'text-blue-300 font-bold' : 'text-gray-400'}`}>
+                        {String(sNo).padStart(2, "0")}
+                      </div>
+                      <div className={`col-span-6 truncate pr-2 group-hover:scale-[1.01] transition-transform origin-left text-xs sm:text-sm ${
+                        isCurrentUser ? 'text-blue-200 font-semibold' : 'text-white'
+                      }`}>
+                        {row.col1}
+                      </div>
+                      <div className={`col-span-4 text-right font-semibold text-xs sm:text-sm ${
+                        isCurrentUser ? 'text-blue-200' : 'text-red-100'
+                      }`}>
+                        {typeof row.col2 === 'number' ? row.col2.toLocaleString() : row.col2}
+                      </div>
                     </div>
-                    <div className="col-span-6 text-white truncate pr-2 group-hover:scale-[1.01] transition-transform origin-left text-xs sm:text-sm">
-                      {row.col1}
-                    </div>
-                    <div className="col-span-4 text-right text-red-100 font-semibold text-xs sm:text-sm">
-                      {typeof row.col2 === 'number' ? row.col2.toLocaleString() : row.col2}
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
@@ -220,23 +240,71 @@ const AccountantDashboard = () => {
       ]);
 
       // 2. Fetch Historical Trend Data (Last 15 Days)
-      const [invoices, vouchers, tasks, notices] = await Promise.all([
+      const [invoices, vouchers, tasks, recurringTasksData, notices] = await Promise.all([
         entityIds.length > 0 ? getCATeamInvoicesBulk(entityIds, token).catch(() => []) : Promise.resolve([]),
         entityIds.length > 0 ? getCATeamVouchersBulk(entityIds, token).catch(() => []) : Promise.resolve([]),
         listTasks(agencyId, token).catch(() => []),
+        listRecurringTasks(agencyId, token, null, 1, 1000).catch(() => ({ items: [] })),
         getNotices(null, token).catch(() => [])
       ]);
 
-      const tasksList = Array.isArray(tasks) ? tasks : (tasks?.items || []);
+      const regularTasks = Array.isArray(tasks) ? tasks : (tasks?.items || []);
+      const recurringTasks = Array.isArray(recurringTasksData) ? recurringTasksData : (recurringTasksData?.items || []);
+      const recurringTaskIds = new Set(recurringTasks.map(rt => String(rt.id)));
+      const tasksList = [
+        ...regularTasks.filter(t => !recurringTaskIds.has(String(t.id))),
+        ...recurringTasks
+      ];
       const noticesList = notices || [];
 
       // Filter tasks and notices by entityIds
-      // For CA_TEAM: Also filter tasks by assigned_to user
-      let filteredTasks = tasksList.filter(t => entityIds.includes(t.entity_id) || entityIds.includes(t.client_id));
-      if (user.role === 'CA_TEAM') {
-        filteredTasks = filteredTasks.filter(t => t.assigned_to === user.id);
-      }
-      const filteredNotices = noticesList.filter(n => entityIds.includes(n.entity_id) || entityIds.includes(n.client_id));
+      // Tasks use client_id (which maps to entity_id in the system)
+      // For CA_TEAM: Filter tasks by assigned_to OR created_by (tasks they created or are assigned to)
+      // For CA_ACCOUNTANT: Show all tasks for their entities
+      let filteredTasks = tasksList.filter(t => {
+        // Check if task belongs to any of our entities (tasks use client_id which is entity_id)
+        const taskEntityId = t.entity_id || t.client_id;
+        let matchesEntity = true;
+        
+        if (entityIds.length > 0 && taskEntityId) {
+          // Check if task's entity/client matches any of our entities
+          matchesEntity = entityIds.includes(taskEntityId) || 
+                         entityIds.some(eId => String(eId) === String(taskEntityId)) ||
+                         entityIds.some(eId => String(eId).toLowerCase() === String(taskEntityId).toLowerCase());
+        }
+        // When task has no entity_id/client_id, include it (e.g. recurring tasks or unassigned)
+        
+        // For CA_TEAM: Also check if task is assigned to or created by this user
+        if (user.role === 'CA_TEAM') {
+          const taskUserId = t.assigned_to || t.created_by;
+          const matchesUser = taskUserId && (String(taskUserId) === String(user.id));
+          return matchesEntity && matchesUser;
+        }
+        
+        return matchesEntity;
+      });
+      
+      // Debug: Log task filtering results
+      console.log('DEBUG Task filtering:', {
+        totalTasks: tasksList.length,
+        filteredTasks: filteredTasks.length,
+        entityIds: entityIds,
+        userRole: user.role,
+        sampleTasks: tasksList.slice(0, 2).map(t => ({
+          id: t.id,
+          title: t.title,
+          client_id: t.client_id,
+          entity_id: t.entity_id,
+          created_by: t.created_by,
+          assigned_to: t.assigned_to,
+          created_at: t.created_at
+        }))
+      });
+      
+      const filteredNotices = noticesList.filter(n => {
+        const noticeEntityId = n.entity_id || n.client_id;
+        return entityIds.length === 0 || entityIds.includes(noticeEntityId) || entityIds.some(eId => String(eId) === String(noticeEntityId));
+      });
 
       // Compute Revenue & Due from current month billing invoices
       let totalRevenue = 0;
@@ -301,23 +369,59 @@ const AccountantDashboard = () => {
         });
       }
 
-      const processItems = (items, key, dateKey = 'created_at') => {
+      const processItems = (items, key, dateKey = 'created_at', filterByUser = false) => {
         items.forEach(item => {
-          const rawDate = item[dateKey] || item.created_at || item.created_date;
+          // For CA_TEAM: Only process items created by or assigned to the logged-in user
+          if (filterByUser && user.role === 'CA_TEAM') {
+            // Tasks: check created_by OR assigned_to
+            // Other items: check owner_id or created_by
+            let userId = null;
+            if (item.title) {
+              // Task: check if created by OR assigned to user
+              userId = item.created_by || item.assigned_to;
+            } else {
+              // Voucher, Invoice, Notice: check owner_id or created_by
+              userId = item.owner_id || item.created_by || item.created_by_id;
+            }
+            
+            if (!userId || String(userId) !== String(user.id)) {
+              return;
+            }
+          }
+          
+          const rawDate = item[dateKey] || item.created_at || item.created_date || item.date;
           if (!rawDate) return;
-          const itemDate = startOfDay(new Date(rawDate));
-          const day = last15Days.find(d => d.date.getTime() === itemDate.getTime());
-          if (day) {
-            day[key]++;
-            day.total++;
+          
+          try {
+            const itemDate = startOfDay(new Date(rawDate));
+            const day = last15Days.find(d => d.date.getTime() === itemDate.getTime());
+            if (day) {
+              day[key]++;
+              day.total++;
+            }
+          } catch (e) {
+            // Skip items with invalid dates
+            return;
           }
         });
       };
 
-      processItems(filteredTasks, 'tasks', 'created_at');
-      processItems(vouchers.filter(v => v.status === 'pending_ca_approval'), 'vouchers', 'date');
-      processItems(invoices.filter(i => i.status === 'pending_ca_approval'), 'invoices', 'date');
-      processItems(filteredNotices, 'notices', 'created_at');
+      // For CA_TEAM: Only show activities by the logged-in user
+      const shouldFilterByUser = user.role === 'CA_TEAM';
+      
+      // For activity trend, show all activities (not just pending) for CA_TEAM
+      // For CA_ACCOUNTANT, keep the original behavior (pending only for vouchers/invoices)
+      if (shouldFilterByUser) {
+        processItems(filteredTasks, 'tasks', 'created_at', true);
+        processItems(vouchers, 'vouchers', 'date', true);
+        processItems(invoices, 'invoices', 'date', true);
+        processItems(filteredNotices, 'notices', 'created_at', true);
+      } else {
+        processItems(filteredTasks, 'tasks', 'created_at', false);
+        processItems(vouchers.filter(v => v.status === 'pending_ca_approval'), 'vouchers', 'date', false);
+        processItems(invoices.filter(i => i.status === 'pending_ca_approval'), 'invoices', 'date', false);
+        processItems(filteredNotices, 'notices', 'created_at', false);
+      }
 
       setChartData(last15Days);
       const totalActivity = last15Days.reduce((sum, day) => sum + day.total, 0);
@@ -343,33 +447,183 @@ const AccountantDashboard = () => {
 
 
       const getTodayUserProgress = () => {
-        const allItems = [
-          ...filteredTasks.filter(t => t.status !== 'completed'),
-          ...vouchers.filter(v => v.status === 'pending_ca_approval'),
-          ...invoices.filter(i => i.status === 'pending_ca_approval'),
-          ...filteredNotices.filter(n => n.status !== 'closed')
-        ];
-        // For CA_TEAM: Only show progress for the current user
-        const itemsToCount = user.role === 'CA_TEAM' 
-          ? allItems.filter(item => {
-              const userId = item.created_by_id || item.created_by || item.assigned_to;
-              return userId === user.id;
-            })
-          : allItems;
+        const today = startOfDay(new Date());
+        const currentUserIdStr = String(user.id).toLowerCase().trim();
         
-        const counts = itemsToCount
-          .filter(item => {
-            const date = item.created_at || item.created_date || item.date;
-            return date && startOfDay(new Date(date)).getTime() === today.getTime();
-          })
-          .reduce((acc, item) => {
-            const userId = item.created_by_id || item.created_by || item.assigned_to;
-            if (userId) acc[userId] = (acc[userId] || 0) + 1;
-            return acc;
-          }, {});
-        return Object.entries(counts)
-          .map(([id, count]) => ({ col1: teamMap[id] || (id === user.id ? user.name || 'You' : 'Team Member'), col2: count }))
-          .sort((a, b) => b.col2 - a.col2);
+        // Get all CA_ACCOUNTANT and CA_TEAM members from teamData
+        // teamData structure: { id, name, email, role, ... } - API returns 'id' not 'user_id'
+        // Filter out invited users (they have id: null)
+        const allTeamMembers = teamData.filter(m => {
+          if (!m.id) return false; // Filter out invited users
+          const memberRole = m.role;
+          return memberRole === 'CA_ACCOUNTANT' || memberRole === 'CA_TEAM';
+        });
+        
+        // Remove duplicates FIRST using Map with normalized IDs
+        const uniqueMembersMap = new Map();
+        for (const member of allTeamMembers) {
+          const memberId = String(member.id).toLowerCase().trim();
+          if (!uniqueMembersMap.has(memberId)) {
+            uniqueMembersMap.set(memberId, {
+              ...member,
+              normalizedId: memberId
+            });
+          }
+        }
+        
+        // Check if current user is already in the unique list
+        const currentUserInTeam = uniqueMembersMap.has(currentUserIdStr);
+        
+        // Also include the current user if they're CA_ACCOUNTANT or CA_TEAM and not in teamData
+        if (!currentUserInTeam && (user.role === 'CA_ACCOUNTANT' || user.role === 'CA_TEAM')) {
+          uniqueMembersMap.set(currentUserIdStr, {
+            id: user.id,
+            name: user.name,
+            full_name: user.full_name || user.name,
+            email: user.email,
+            role: user.role,
+            normalizedId: currentUserIdStr
+          });
+        }
+        
+        const uniqueMembers = Array.from(uniqueMembersMap.values());
+        
+        // Get all items (not filtered by status for today's count)
+        const allItems = [
+          ...filteredTasks,
+          ...vouchers,
+          ...invoices,
+          ...filteredNotices
+        ];
+        
+        // Debug: Log all relevant data
+        console.log('DEBUG getTodayUserProgress:', {
+          filteredTasksCount: filteredTasks.length,
+          vouchersCount: vouchers.length,
+          invoicesCount: invoices.length,
+          noticesCount: filteredNotices.length,
+          allItemsCount: allItems.length,
+          today: today.toISOString(),
+          currentUserId: currentUserIdStr,
+          uniqueMembersCount: uniqueMembers.length,
+          entityIds: entityIds
+        });
+        
+        // Debug: Log sample tasks
+        if (filteredTasks.length > 0) {
+          console.log('DEBUG Today Progress - Sample filtered tasks:', filteredTasks.slice(0, 3).map(t => ({
+            id: t.id,
+            title: t.title,
+            created_by: t.created_by,
+            assigned_to: t.assigned_to,
+            created_at: t.created_at,
+            client_id: t.client_id,
+            entity_id: t.entity_id,
+            hasTitle: !!t.title
+          })));
+        }
+        
+        // Count activities for each team member
+        const memberCounts = uniqueMembers.map(member => {
+          const memberId = (member.normalizedId || String(member.id)).toLowerCase().trim();
+          const memberName = member.full_name || member.name || 'Unknown';
+          
+          const todayItems = allItems.filter(item => {
+            // Check if item is from today - use multiple date fields
+            const dateStr = item.date || item.created_at || item.created_date || item.timestamp;
+            if (!dateStr) {
+              return false;
+            }
+            
+            try {
+              // Parse date and compare only the date part (ignore time)
+              const itemDate = startOfDay(new Date(dateStr));
+              if (itemDate.getTime() !== today.getTime()) {
+                return false;
+              }
+            } catch (e) {
+              return false;
+            }
+            
+            // Check if item belongs to this member
+            // For tasks: count if member is creator (created_by) OR assignee (assigned_to)
+            // For vouchers/invoices: use owner_id or created_by
+            // For notices: use created_by or owner_id
+            let userId = null;
+            
+            // Tasks have title field, use created_by or assigned_to
+            if (item.title) {
+              // Task: count if created by OR assigned to this member
+              userId = item.created_by || item.assigned_to;
+            } else {
+              // Voucher, Invoice, or Notice: use owner_id or created_by
+              userId = item.owner_id || item.created_by || item.created_by_id;
+            }
+            
+            if (!userId) {
+              return false;
+            }
+            
+            // Normalize both IDs to lowercase strings for comparison
+            const normalizedUserId = String(userId).toLowerCase().trim();
+            const matches = normalizedUserId === memberId;
+            
+            // Debug for current user's items
+            if (memberId === currentUserIdStr) {
+              const isTask = !!item.title;
+              if (isTask || matches) {
+                console.log('DEBUG Today Progress - Item check for', memberName, {
+                  type: isTask ? 'task' : (item.voucher_id ? 'voucher' : (item.bill_number ? 'invoice' : 'notice')),
+                  title: item.title || item.voucher_id || item.bill_number,
+                  dateStr: dateStr,
+                  userId: normalizedUserId,
+                  memberId: memberId,
+                  matches: matches,
+                  created_by: item.created_by,
+                  assigned_to: item.assigned_to,
+                  owner_id: item.owner_id
+                });
+              }
+            }
+            
+            return matches;
+          });
+          
+          return {
+            id: memberId,
+            col1: memberName,
+            col2: todayItems.length,
+            isCurrentUser: memberId === currentUserIdStr
+          };
+        });
+        
+        // Final deduplication - remove any duplicates by ID
+        const finalDeduplicationMap = new Map();
+        for (const member of memberCounts) {
+          if (!finalDeduplicationMap.has(member.id)) {
+            finalDeduplicationMap.set(member.id, member);
+          }
+        }
+        const deduplicatedCounts = Array.from(finalDeduplicationMap.values());
+        
+        // Sort by activity count (descending)
+        const sortedByCount = [...deduplicatedCounts].sort((a, b) => b.col2 - a.col2);
+        
+        // Re-arrange: current user first, then others by rank
+        const currentUser = sortedByCount.find(item => item.isCurrentUser);
+        const others = sortedByCount.filter(item => !item.isCurrentUser);
+        
+        const finalList = currentUser ? [currentUser, ...others] : others;
+        
+        // Assign S.No based on actual rank, but show current user first
+        return finalList.map((item) => {
+          const actualRank = sortedByCount.findIndex(i => i.id === item.id) + 1;
+          return {
+            ...item,
+            rank: actualRank,
+            sNo: actualRank
+          };
+        });
       };
 
       // Pending verification: invoices + vouchers awaiting CA approval
@@ -419,8 +673,8 @@ const AccountantDashboard = () => {
         <p className="text-gray-400 mt-1">Real-time overview of your consultancy activity.</p>
       </motion.div>
 
-      {/* Row 1: 6 Metric Cards */}
-      {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
+      {/* Row 1: 6 Metric Cards - Only show for CA_ACCOUNTANT, not CA_TEAM */}
+      {user?.role === 'CA_ACCOUNTANT' && (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-6 gap-4 sm:gap-4 lg:gap-4 mb-6 lg:mb-8">
           <StatCard
             title="MY CLIENTS"
@@ -533,11 +787,18 @@ const AccountantDashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 pb-6">
         <DetailBlock
           title="Today's Progress"
-          subtitle="Recent activities recorded today"
+          subtitle="Leaderboard of today's activities"
           count={detailBlocks.todayProgress.reduce((acc, curr) => acc + curr.col2, 0)}
           data={detailBlocks.todayProgress}
           columns={['S.No', 'Team Member', 'Items']}
           onViewMore={() => navigate('/dashboard/today-progress')}
+          onRowClick={(row) => {
+            // Only allow viewing own activities
+            if (row.isCurrentUser || row.id === user.id) {
+              navigate('/dashboard/today-progress', { state: { userId: user.id } });
+            }
+          }}
+          currentUserId={user.id}
           delay={0.7}
         />
         <DetailBlock
