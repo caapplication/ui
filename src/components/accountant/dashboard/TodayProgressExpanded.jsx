@@ -303,15 +303,15 @@ const TodayProgressExpanded = () => {
                 if (type === 'invoice') return item.verified_at || item.updated_at || item.created_at || item.date;
                 return item.reviewed_at || item.updated_at || item.created_at;
             };
-            const periodInvoices = invoices.filter(i => i.status === 'verified' && isWithinRange(getActivityDate(i, 'invoice')));
-            const periodVouchers = vouchers.filter(v => v.status === 'verified' && isWithinRange(getActivityDate(v, 'voucher')));
+            const periodInvoices = invoices.filter(i => !i.is_deleted && i.status === 'verified' && isWithinRange(getActivityDate(i, 'invoice')));
+            const periodVouchers = vouchers.filter(v => !v.is_deleted && v.status === 'verified' && isWithinRange(getActivityDate(v, 'voucher')));
             const isTaskCompleted = (t) => t.status === 'completed' || (t.stage?.name && String(t.stage.name).toLowerCase() === 'complete');
             const periodTasks = tasksList.filter(t => isTaskCompleted(t) && isWithinRange(getActivityDate(t, 'task')));
             const periodNotices = noticesList.filter(n => n.status === 'closed' && isWithinRange(getActivityDate(n, 'notice')));
 
             // Filter team members: if viewOwnActivities, only show current user
             const membersToShow = viewOwnActivities 
-                ? teamMembers.filter(m => (m.user_id || m.id) === user.id)
+                ? teamMembers.filter(m => String(m.user_id || m.id).toLowerCase() === String(user.id).toLowerCase())
                 : teamMembers.filter(m => {
                     // Only show CA_ACCOUNTANT and CA_TEAM members
                     const memberRole = m.role;
@@ -335,12 +335,14 @@ const TodayProgressExpanded = () => {
                 const mName = member.full_name || member.name || 'Unknown';
 
                 const memberInvoices = periodInvoices.filter(i => {
-                    const userId = i.owner_id || i.created_by || i.created_by_id;
-                    return String(userId) === String(mId);
+                    // For verified: attribute to verified_by (CA who verified), else owner_id
+                    const userId = i.verified_by || i.owner_id || i.created_by || i.created_by_id;
+                    return userId && String(userId).toLowerCase() === String(mId).toLowerCase();
                 });
                 const memberVouchers = periodVouchers.filter(v => {
-                    const userId = v.owner_id || v.created_by || v.created_by_id;
-                    return String(userId) === String(mId);
+                    // For verified: attribute to verified_by (CA who verified), else owner_id
+                    const userId = v.verified_by || v.owner_id || v.created_by || v.created_by_id;
+                    return userId && String(userId).toLowerCase() === String(mId).toLowerCase();
                 });
                 const memberTasks = periodTasks.filter(t => {
                     const userId = t.created_by || t.created_by_id || t.assigned_to;

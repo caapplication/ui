@@ -367,9 +367,10 @@ const AccountantDashboard = () => {
       };
       const processItems = (items, key, isTask = false, filterByUser = false) => {
         items.forEach(item => {
+          if (item.is_deleted) return;
           if (!isCompletedActivity(item, isTask)) return;
           if (filterByUser && user.role === 'CA_TEAM') {
-            const itemUserId = isTask ? (item.created_by || item.assigned_to) : (item.owner_id || item.created_by);
+            const itemUserId = isTask ? (item.created_by || item.assigned_to) : (item.verified_by || item.owner_id || item.created_by);
             if (!itemUserId || String(itemUserId) !== String(user.id)) return;
           }
           const rawDate = getActivityDate(item, isTask);
@@ -531,7 +532,7 @@ const AccountantDashboard = () => {
             
             // Check if item belongs to this member
             // For tasks: count if member is creator (created_by) OR assignee (assigned_to)
-            // For vouchers/invoices: use owner_id or created_by
+            // For vouchers/invoices: attribute to verified_by (CA who verified), else owner_id
             // For notices: use created_by or owner_id
             let userId = null;
             
@@ -539,9 +540,12 @@ const AccountantDashboard = () => {
             if (item.title) {
               // Task: count if created by OR assigned to this member
               userId = item.created_by || item.assigned_to || item.created_by_id;
+            } else if (item.voucher_id || item.bill_number) {
+              // Voucher/Invoice: attribute to verified_by (CA who verified), else owner_id
+              userId = item.verified_by || item.owner_id || item.created_by || item.created_by_id;
             } else {
-              // Voucher, Invoice, or Notice: use owner_id or created_by
-              userId = item.owner_id || item.created_by || item.created_by_id;
+              // Notice: use created_by or owner_id
+              userId = item.created_by || item.owner_id || item.created_by_id;
             }
             
             if (!userId) {
