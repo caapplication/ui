@@ -153,7 +153,9 @@ const RecurringTaskDashboardPage = () => {
                         size="icon" 
                         onClick={() => {
                             // Use location state if available (passed from navigating component)
-                            if (location.state?.fromService) {
+                            if (location.state?.from === '/team-members' && location.state?.memberId) {
+                                navigate('/team-members', { state: { restoreMemberId: location.state.memberId } });
+                            } else if (location.state?.fromService) {
                                 // Navigate back to services page - browser history will restore the service detail view
                                 navigate('/services', { state: { restoreServiceId: location.state.serviceId } });
                             } else if (location.state?.fromApp) {

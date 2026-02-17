@@ -2,7 +2,7 @@ import { getAuthHeaders, handleResponse } from './utils';
 
 const TASKS_API_BASE_URL = import.meta.env.VITE_TASK_API_URL || 'http://127.0.0.1:8005';
 
-export const listRecurringTasks = async (agencyId, token, isActive = null, page = 1, limit = 10, serviceId = null) => {
+export const listRecurringTasks = async (agencyId, token, isActive = null, page = 1, limit = 10, serviceId = null, assignedTo = null) => {
     try {
         const params = new URLSearchParams();
         params.append('is_recurring', 'true');  // Filter for recurring task templates
@@ -12,6 +12,9 @@ export const listRecurringTasks = async (agencyId, token, isActive = null, page 
         }
         if (serviceId) {
             params.append('service_id', String(serviceId));
+        }
+        if (assignedTo) {
+            params.append('assigned_to', String(assignedTo));
         }
 
         // Backend expects 'skip' and 'limit'
