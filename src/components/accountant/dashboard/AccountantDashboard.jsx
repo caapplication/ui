@@ -76,7 +76,7 @@ const StatCard = ({ title, value, description, icon, color, delay, trend, meta, 
   );
 };
 
-const DetailBlock = ({ title, subtitle, count, data, columns, onViewMore, delay, onRowClick, currentUserId }) => {
+const DetailBlock = ({ title, subtitle, count, data, columns, onViewMore, delay, onRowClick, currentUserId, currentUserName }) => {
   return (
     <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5, delay }}>
       <Card className="glass-card flex flex-col h-full rounded-2xl border-white/5">
@@ -99,7 +99,11 @@ const DetailBlock = ({ title, subtitle, count, data, columns, onViewMore, delay,
               ) : (
                 data.slice(0, 8).map((row, idx) => {
                   // Only highlight if currentUserId is provided AND row matches
-                  const isCurrentUser = currentUserId && (row.isCurrentUser || (row.id && String(row.id) === String(currentUserId)));
+                  const isCurrentUser = currentUserId && (
+                    row.isCurrentUser ||
+                    (row.id && String(row.id).toLowerCase() === String(currentUserId).toLowerCase()) ||
+                    (currentUserName && row.col1 && String(row.col1).toLowerCase().trim() === currentUserName)
+                  );
                   const sNo = row.sNo !== undefined ? row.sNo : (row.rank !== undefined ? row.rank : idx + 1);
                   
                   return (
@@ -354,7 +358,7 @@ const AccountantDashboard = () => {
       }
 
       const getActivityDate = (item, isTask) => {
-        if (isTask) return item.completed_at || item.updated_at;
+        if (isTask) return item.completed_at || item.updated_at || item.created_at;
         if (item.voucher_id) return item.verified_at || item.updated_at || item.created_date || item.date;
         if (item.bill_number) return item.verified_at || item.updated_at || item.created_at || item.date;
         return item.reviewed_at || item.updated_at || item.created_at;
@@ -371,13 +375,14 @@ const AccountantDashboard = () => {
           if (!isCompletedActivity(item, isTask)) return;
           if (filterByUser && user.role === 'CA_TEAM') {
             const itemUserId = isTask ? (item.created_by || item.assigned_to) : (item.verified_by || item.owner_id || item.created_by);
-            if (!itemUserId || String(itemUserId) !== String(user.id)) return;
+            if (!itemUserId || String(itemUserId).toLowerCase() !== String(user.id).toLowerCase()) return;
           }
           const rawDate = getActivityDate(item, isTask);
           if (!rawDate) return;
           try {
             const itemDate = startOfDay(new Date(rawDate));
-            const day = last15Days.find(d => d.date.getTime() === itemDate.getTime());
+            const itemDateStr = format(itemDate, 'yyyy-MM-dd');
+            const day = last15Days.find(d => format(d.date, 'yyyy-MM-dd') === itemDateStr);
             if (!day) return;
             day[key]++;
             day.total++;
@@ -559,11 +564,16 @@ const AccountantDashboard = () => {
             return matches;
           });
           
+          const currentUserName = (user.full_name || user.name || '').toLowerCase().trim();
+          const memberNameNorm = (memberName || '').toLowerCase().trim();
+          const isCurrentUser = memberId === currentUserIdStr ||
+            (member.email && user.email && String(member.email).toLowerCase().trim() === String(user.email).toLowerCase().trim()) ||
+            (user.role === 'CA_TEAM' && currentUserName && memberNameNorm && memberNameNorm === currentUserName);
           return {
             id: memberId,
             col1: memberName,
             col2: todayItems.length,
-            isCurrentUser: memberId === currentUserIdStr
+            isCurrentUser
           };
         });
         
@@ -585,13 +595,15 @@ const AccountantDashboard = () => {
         
         const finalList = currentUser ? [currentUser, ...others] : others;
         
-        // Assign S.No based on actual rank, but show current user first
-        return finalList.map((item) => {
+        // Assign S.No based on actual rank, show current user first, ensure first row is highlighted
+        return finalList.map((item, idx) => {
           const actualRank = sortedByCount.findIndex(i => i.id === item.id) + 1;
+          const isFirstRow = currentUser && idx === 0;
           return {
             ...item,
             rank: actualRank,
-            sNo: actualRank
+            sNo: actualRank,
+            isCurrentUser: isFirstRow || item.isCurrentUser
           };
         });
       };
@@ -771,6 +783,7 @@ const AccountantDashboard = () => {
             }
           }}
           currentUserId={user.id}
+          currentUserName={String(user.full_name || user.name || '').toLowerCase().trim()}
           delay={0.7}
         />
         <DetailBlock
