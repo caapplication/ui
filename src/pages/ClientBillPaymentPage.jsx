@@ -478,6 +478,12 @@ const ClientBillPaymentPage = ({ entityId }) => {
                                             src={paymentDetails.qr_code_url}
                                             alt="Payment QR Code"
                                             className="w-48 h-48 border-2 border-white/20 rounded-lg object-contain bg-white p-2"
+                                            onError={(e) => {
+                                                console.error('QR code image failed to load:', paymentDetails.qr_code_url);
+                                                e.target.style.display = 'none';
+                                                e.target.parentElement.innerHTML = '<p className="text-red-400">QR code image could not be loaded. Please try refreshing the page.</p>';
+                                            }}
+                                            crossOrigin="anonymous"
                                         />
                                     </div>
                                 )}
