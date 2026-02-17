@@ -373,10 +373,21 @@ const AccountantDashboard = () => {
         items.forEach(item => {
           if (item.is_deleted) return;
           if (!isCompletedActivity(item, isTask)) return;
+          
+          // For vouchers and invoices: Always filter by verified_by matching logged-in user ID
+          if (key === 'vouchers' || key === 'invoices') {
+            const verifiedById = item.verified_by;
+            if (!verifiedById || String(verifiedById).toLowerCase() !== String(user.id).toLowerCase()) {
+              return; // Skip if not verified by logged-in user
+            }
+          }
+          
+          // For tasks and notices: Apply role-based filtering
           if (filterByUser && user.role === 'CA_TEAM') {
-            const itemUserId = isTask ? (item.created_by || item.assigned_to) : (item.verified_by || item.owner_id || item.created_by);
+            const itemUserId = isTask ? (item.created_by || item.assigned_to) : (item.created_by || item.owner_id);
             if (!itemUserId || String(itemUserId).toLowerCase() !== String(user.id).toLowerCase()) return;
           }
+          
           const rawDate = getActivityDate(item, isTask);
           if (!rawDate) return;
           try {
