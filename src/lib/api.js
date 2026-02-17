@@ -122,7 +122,8 @@ export const {
     addSupportingFile,
     deleteSupportingFile,
     getClientCountForService,
-    listAssignedClientIdsForService
+    listAssignedClientIdsForService,
+    getServiceDeletionStatus
 } = services;
 
 export const {

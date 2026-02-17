@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { listAssignedClientIdsForService, listClients, getAllClientTeamMembers, listTeamMembers, createActivityLog, listOrganisations, listAllEntityUsers } from "@/lib/api";
 
-const AssignedClientsTab = ({ service }) => {
+const AssignedClientsTab = ({ service, onDataChange }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
@@ -83,7 +83,11 @@ const AssignedClientsTab = ({ service }) => {
       }
     };
     load();
-  }, [service?.id, user?.agency_id, user?.access_token, toast]);
+    // Notify parent when data is loaded/changed
+    if (onDataChange) {
+      onDataChange();
+    }
+  }, [service?.id, user?.agency_id, user?.access_token, toast, onDataChange]);
 
   useEffect(() => {
     const fetchAllAssignments = async () => {

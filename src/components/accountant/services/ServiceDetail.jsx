@@ -1,10 +1,11 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ArrowLeft, Trash2, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth.jsx';
-import { deleteService as apiDeleteService, createActivityLog } from '@/lib/api';
+import { deleteService as apiDeleteService, createActivityLog, getServiceDeletionStatus } from '@/lib/api';
 
 import RecurringTaskTab from './RecurringTaskTab';
 import AssignedClientsTab from "./AssignedClientsTab";
@@ -15,6 +16,38 @@ const ServiceDetail = ({ service, onBack, onDelete, onUpdate }) => {
     const { user } = useAuth();
     const [isDeleting, setIsDeleting] = React.useState(false);
     const [activeSubTab, setActiveSubTab] = React.useState("Recurring tasks");
+    const [deletionStatus, setDeletionStatus] = React.useState({ can_delete: true, reasons: [] });
+    const [isLoadingDeletionStatus, setIsLoadingDeletionStatus] = React.useState(true);
+
+    // Function to refresh deletion status
+    const refreshDeletionStatus = React.useCallback(async () => {
+        if (!user?.access_token || !user?.agency_id || !service?.id) return;
+        setIsLoadingDeletionStatus(true);
+        try {
+            const status = await getServiceDeletionStatus(service.id, user.agency_id, user.access_token);
+            setDeletionStatus(status);
+        } catch (error) {
+            console.error('Error fetching deletion status:', error);
+            // Default to allowing deletion if check fails
+            setDeletionStatus({ can_delete: true, reasons: [] });
+        } finally {
+            setIsLoadingDeletionStatus(false);
+        }
+    }, [service?.id, user?.access_token, user?.agency_id]);
+
+    // Fetch deletion status when component mounts or service changes
+    React.useEffect(() => {
+        refreshDeletionStatus();
+    }, [refreshDeletionStatus]);
+
+    // Refresh deletion status when tab changes (in case data was modified)
+    React.useEffect(() => {
+        // Small delay to allow tab content to load/update
+        const timer = setTimeout(() => {
+            refreshDeletionStatus();
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [activeSubTab, refreshDeletionStatus]);
 
     const handleDelete = async () => {
         setIsDeleting(true);
@@ -60,26 +93,44 @@ const ServiceDetail = ({ service, onBack, onDelete, onUpdate }) => {
                         <span className="text-gray-400 cursor-pointer" onClick={onBack}>Services / </span>{service.name}
                     </h1>
                 </div>
-                <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                        <Button variant="destructive" disabled={isDeleting}>
-                            {isDeleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
-                            Delete
-                        </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                This action cannot be undone. This will permanently delete the service.
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <div>
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button 
+                                            variant="destructive" 
+                                            disabled={isDeleting || isLoadingDeletionStatus || !deletionStatus.can_delete}
+                                        >
+                                            {isDeleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                                            Delete
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                This action cannot be undone. This will permanently delete the service.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </div>
+                        </TooltipTrigger>
+                        {!deletionStatus.can_delete && deletionStatus.reasons.length > 0 && (
+                            <TooltipContent>
+                                <p className="max-w-xs">
+                                    Cannot delete: {deletionStatus.reasons.join(', ')}
+                                </p>
+                            </TooltipContent>
+                        )}
+                    </Tooltip>
+                </TooltipProvider>
             </div>
 
             <div className="flex-grow overflow-y-auto no-scrollbar pr-2 space-y-6">
@@ -105,10 +156,10 @@ const ServiceDetail = ({ service, onBack, onDelete, onUpdate }) => {
 
                 <div>
                     {activeSubTab === "Recurring tasks" && (
-                        <RecurringTaskTab service={service} onUpdate={onUpdate} />
+                        <RecurringTaskTab service={service} onUpdate={onUpdate} onDataChange={refreshDeletionStatus} />
                     )}
                     {activeSubTab === "Assigned Clients" && (
-                        <AssignedClientsTab service={service} />
+                        <AssignedClientsTab service={service} onDataChange={refreshDeletionStatus} />
                     )}
                     {activeSubTab === "Activity logs" && (
                         <div className="glass-pane p-6 rounded-lg">

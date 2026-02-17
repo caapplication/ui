@@ -25,7 +25,7 @@ import {
 } from '@/lib/api';
 import ServiceRecurringTasksTable from "@/components/accountant/services/ServiceRecurringTasksTable.jsx";
 
-const RecurringTaskTab = ({ service, onUpdate }) => {
+const RecurringTaskTab = ({ service, onUpdate, onDataChange }) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -159,6 +159,7 @@ const RecurringTaskTab = ({ service, onUpdate }) => {
       });
       setIsModalOpen(false);
       fetchData(); // Refresh list
+      if (onDataChange) onDataChange(); // Notify parent to refresh deletion status
     } catch (error) {
       toast({
         title: 'Error creating recurring task',
@@ -203,6 +204,7 @@ const RecurringTaskTab = ({ service, onUpdate }) => {
       setIsModalOpen(false);
       setEditingTask(null);
       fetchData();
+      if (onDataChange) onDataChange(); // Notify parent to refresh deletion status
     } catch (error) {
       toast({
         title: 'Error updating recurring task',
@@ -220,6 +222,7 @@ const RecurringTaskTab = ({ service, onUpdate }) => {
         description: 'The recurring task has been deleted successfully.',
       });
       fetchData();
+      if (onDataChange) onDataChange(); // Notify parent to refresh deletion status
     } catch (error) {
       toast({
         title: 'Error deleting recurring task',

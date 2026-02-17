@@ -147,3 +147,11 @@ export const listAssignedClientIdsForService = async (serviceId, agencyId, token
     });
     return handleResponse(response);
 };
+
+export const getServiceDeletionStatus = async (serviceId, agencyId, token) => {
+    const response = await fetch(`${SERVICES_API_URL}/services/${serviceId}/deletion-status`, {
+        method: 'GET',
+        headers: getAuthHeaders(token, 'application/json', agencyId),
+    });
+    return handleResponse(response);
+};
