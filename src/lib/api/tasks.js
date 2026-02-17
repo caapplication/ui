@@ -2,18 +2,28 @@ import { getAuthHeaders, handleResponse } from './utils';
 
 const TASKS_API_BASE_URL = import.meta.env.VITE_TASK_API_URL || 'http://127.0.0.1:8005';
 
-export const listTasks = async (agencyId, token) => {
+export const listTasks = async (agencyId, token, options = {}) => {
     try {
-        const response = await fetch(`${TASKS_API_BASE_URL}/tasks/`, {
+        const params = new URLSearchParams();
+        if (options.assigned_to) params.append('assigned_to', options.assigned_to);
+        if (options.client_id) params.append('client_id', options.client_id);
+        if (options.status) params.append('status', options.status);
+        if (options.skip != null) params.append('skip', String(options.skip));
+        if (options.limit != null) params.append('limit', String(options.limit));
+        const query = params.toString();
+        const url = query ? `${TASKS_API_BASE_URL}/tasks/?${query}` : `${TASKS_API_BASE_URL}/tasks/`;
+        const response = await fetch(url, {
             method: 'GET',
             headers: getAuthHeaders(token, 'application/json', agencyId),
         });
-        return handleResponse(response);
+        const data = await handleResponse(response);
+        if (Array.isArray(data)) return { items: data };
+        return data;
     } catch (error) {
         // Handle network errors (service not running, CORS, etc.)
-        if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError') || error.name === 'TypeError') {
+        if (error.message?.includes('Failed to fetch') || error.name === 'TypeError') {
             console.warn('Task service not available at', TASKS_API_BASE_URL, '- returning empty array');
-            return { items: [] }; // Return empty array format to match expected structure
+            return { items: [] };
         }
         throw error;
     }

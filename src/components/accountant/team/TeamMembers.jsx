@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,15 +9,20 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Plus, Edit, Trash2, UserPlus, Loader2, Building2 } from 'lucide-react';
+import { Plus, Edit, Trash2, UserPlus, Loader2, Building2, ChevronRight } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { listTeamMembers, inviteTeamMember, updateTeamMember, deleteTeamMember, resendInvite } from '@/lib/api';
 import { getAllClientTeamMembers, listClients } from '@/lib/api';
+import { AnimatePresence, motion } from 'framer-motion';
+import TeamMemberDetail from './TeamMemberDetail';
 
 const TeamMembers = () => {
+    const location = useLocation();
     const [team, setTeam] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [view, setView] = useState('list');
+    const [selectedMember, setSelectedMember] = useState(null);
     const [showInviteDialog, setShowInviteDialog] = useState(false);
     const [showEditDialog, setShowEditDialog] = useState(false);
     const [editingUser, setEditingUser] = useState(null);
@@ -62,12 +68,21 @@ const TeamMembers = () => {
                 });
             });
             setMemberClientsMap(memberToClients);
+            
+            // Restore detail view if restoreMemberId is in location state
+            if (location.state?.restoreMemberId) {
+                const memberToRestore = filteredMembers.find(m => String(m.id || m.user_id) === String(location.state.restoreMemberId));
+                if (memberToRestore) {
+                    setSelectedMember(memberToRestore);
+                    setView('detail');
+                }
+            }
         } catch (error) {
             toast({ title: "Error", description: `Failed to fetch team members: ${error.message}`, variant: "destructive" });
         } finally {
             setLoading(false);
         }
-    }, [user?.access_token, user?.email, agencyId, toast]);
+    }, [user?.access_token, user?.email, agencyId, toast, location.state]);
 
     useEffect(() => {
         fetchTeamMembers();
@@ -144,6 +159,16 @@ const TeamMembers = () => {
         }
     };
 
+    const handleSelectMember = (member) => {
+        if (!member?.id) return;
+        setSelectedMember(member);
+        setView('detail');
+    };
+    const handleBackToList = () => {
+        setSelectedMember(null);
+        setView('list');
+    };
+
     const handleStatusChange = async (member, newStatus) => {
         if (!member.id) return;
         const originalTeam = [...team];
@@ -163,6 +188,32 @@ const TeamMembers = () => {
 
     return (
         <div className="p-8 h-full flex flex-col">
+            <AnimatePresence mode="wait">
+                {view === 'detail' && selectedMember ? (
+                    <motion.div
+                        key="detail"
+                        initial={{ opacity: 0, x: 300 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -300 }}
+                        transition={{ duration: 0.3, ease: 'easeInOut' }}
+                        className="h-full"
+                    >
+                        <TeamMemberDetail
+                            member={selectedMember}
+                            onBack={handleBackToList}
+                            clients={clients}
+                            memberClientsMap={memberClientsMap}
+                        />
+                    </motion.div>
+                ) : (
+                    <motion.div
+                        key="list"
+                        initial={{ opacity: 0, x: -300 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 300 }}
+                        transition={{ duration: 0.3, ease: 'easeInOut' }}
+                        className="h-full flex flex-col"
+                    >
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-3xl font-bold text-white">Team Members</h1>
                 <Button onClick={handleInvite}><UserPlus className="w-4 h-4 mr-2" /> Invite User</Button>
@@ -181,6 +232,7 @@ const TeamMembers = () => {
                                 <TableHead>Clients Assigned</TableHead>
                                 <TableHead>Status</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
+                                <TableHead className="w-10"></TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -190,9 +242,14 @@ const TeamMembers = () => {
                                 const assignedClients = assignedClientIds
                                     .map(clientId => clients.find(c => String(c.id) === String(clientId)))
                                     .filter(Boolean);
+                                const canOpenDetail = !!member.id;
                                 
                                 return (
-                                <TableRow key={member.id || member.email} className="border-none hover:bg-white/5">
+                                <TableRow
+                                    key={member.id || member.email}
+                                    className={`border-none hover:bg-white/5 ${canOpenDetail ? 'cursor-pointer' : ''}`}
+                                    onClick={() => canOpenDetail && handleSelectMember(member)}
+                                >
                                     <TableCell className="font-medium">{member.name}</TableCell>
                                     <TableCell>{member.email}</TableCell>
                                     <TableCell>
@@ -227,7 +284,7 @@ const TeamMembers = () => {
                                             </div>
                                         )}
                                     </TableCell>
-                                    <TableCell>
+                                    <TableCell onClick={e => e.stopPropagation()}>
                                         {member.id ? (
                                             <div className="flex items-center gap-2">
                                                 <Switch
@@ -242,7 +299,7 @@ const TeamMembers = () => {
                                             <span className='text-yellow-400'>Invited</span>
                                         )}
                                     </TableCell>
-                                    <TableCell className="text-right">
+                                    <TableCell className="text-right" onClick={e => e.stopPropagation()}>
                                         {member.id ? (
                                             <>
                                                <div className="flex items-center justify-end gap-1 sm:gap-2">
@@ -250,7 +307,7 @@ const TeamMembers = () => {
     variant="ghost"
     size="icon"
     className="h-9 w-9 sm:h-8 sm:w-8"
-    onClick={() => handleEdit(member)}
+    onClick={(e) => { e.stopPropagation(); handleEdit(member); }}
   >
     <Edit className="h-4 w-4" />
   </Button>
@@ -261,6 +318,7 @@ const TeamMembers = () => {
         variant="ghost"
         size="icon"
         className="h-9 w-9 sm:h-8 sm:w-8 text-red-500"
+        onClick={(e) => e.stopPropagation()}
       >
         <Trash2 className="h-4 w-4" />
       </Button>
@@ -289,7 +347,7 @@ const TeamMembers = () => {
                                             </>
                                         ) : (
                                             <>
-                                                <Button variant="outline" size="sm" onClick={() => handleResendInvite(member.email)}>Resend Invite</Button>
+                                                <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handleResendInvite(member.email); }}>Resend Invite</Button>
                                                 <AlertDialog>
                                                     <AlertDialogTrigger asChild>
                                                         <Button variant="ghost" size="icon" className="text-red-500"><Trash2 className="w-4 h-4" /></Button>
@@ -310,12 +368,18 @@ const TeamMembers = () => {
                                             </>
                                         )}
                                     </TableCell>
+                                    <TableCell className="w-10" onClick={e => e.stopPropagation()}>
+                                        {canOpenDetail && <ChevronRight className="w-4 h-4 text-gray-500" />}
+                                    </TableCell>
                                 </TableRow>
                             )})}
                         </TableBody>
                     </Table>
                 )}
             </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             <Dialog open={showInviteDialog} onOpenChange={setShowInviteDialog}>
                 <DialogContent>

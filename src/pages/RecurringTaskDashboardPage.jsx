@@ -117,7 +117,15 @@ const RecurringTaskDashboardPage = () => {
     };
 
     const handleEdit = () => {
-        navigate(`/tasks/recurring`, { state: { editTaskId: recurringTaskId } });
+        // Preserve the original location state when navigating to edit
+        const preservedState = {
+            editTaskId: recurringTaskId,
+            ...(location.state?.from && { from: location.state.from }),
+            ...(location.state?.memberId && { memberId: location.state.memberId }),
+            ...(location.state?.fromService && { fromService: location.state.fromService }),
+            ...(location.state?.serviceId && { serviceId: location.state.serviceId }),
+        };
+        navigate(`/tasks/recurring`, { state: preservedState });
     };
 
     const handleRefresh = useCallback(async () => {
@@ -153,7 +161,9 @@ const RecurringTaskDashboardPage = () => {
                         size="icon" 
                         onClick={() => {
                             // Use location state if available (passed from navigating component)
-                            if (location.state?.fromService) {
+                            if (location.state?.from === '/team-members' && location.state?.memberId) {
+                                navigate('/team-members', { state: { restoreMemberId: location.state.memberId } });
+                            } else if (location.state?.fromService) {
                                 // Navigate back to services page - browser history will restore the service detail view
                                 navigate('/services', { state: { restoreServiceId: location.state.serviceId } });
                             } else if (location.state?.fromApp) {

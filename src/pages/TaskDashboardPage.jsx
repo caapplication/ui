@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useSocket } from '@/contexts/SocketContext.jsx';
 import { useOrganisation } from '@/hooks/useOrganisation';
@@ -96,6 +96,7 @@ const OverviewCard = ({ Icon, label, value, colorClass }) => (
 const TaskDashboardPage = () => {
     const { taskId } = useParams();
     const navigate = useNavigate();
+    const location = useLocation();
     const { user } = useAuth();
     const { toast } = useToast();
     const { selectedOrg, organisations, selectedEntity, entities } = useOrganisation();
@@ -2284,7 +2285,9 @@ const TaskDashboardPage = () => {
                 <div className="flex items-center gap-4 w-full sm:w-auto">
                     <Button variant="ghost" size="icon" onClick={() => {
                         // Use location state if available (passed from navigating component)
-                        if (location.state?.fromApp) {
+                        if (location.state?.from === '/team-members' && location.state?.memberId) {
+                            navigate('/team-members', { state: { restoreMemberId: location.state.memberId } });
+                        } else if (location.state?.fromApp) {
                             navigate(-1);
                         } else {
                             // Default fallback to tasks list if opened directly or external link
