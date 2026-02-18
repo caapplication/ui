@@ -198,7 +198,7 @@ const ClientMyCompany = ({ readOnly = false }) => {
                 }
             });
 
-            await updateMyCompany(updateData, user.access_token);
+            await updateMyCompany(updateData, user.access_token, activeEntityId);
 
             toast({
                 title: 'Success',

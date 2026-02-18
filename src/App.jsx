@@ -167,6 +167,7 @@ const ProtectedContent = () => {
   useEffect(() => {
     if (currentEntity) {
       localStorage.setItem('entityId', currentEntity);
+      window.dispatchEvent(new Event('entityChange'));
     }
   }, [currentEntity]);
 

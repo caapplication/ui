@@ -411,8 +411,12 @@ export const getMyCompany = async (token, clientId = null) => {
 /**
  * Update logged-in client admin's company details
  */
-export const updateMyCompany = async (companyData, token) => {
-    const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/my-company`, {
+export const updateMyCompany = async (companyData, token, clientId = null) => {
+    let url = `${CLIENTS_API_BASE_URL}/clients/my-company`;
+    if (clientId) {
+        url += `?client_id=${clientId}`;
+    }
+    const response = await fetch(url, {
         method: 'PATCH',
         headers: getAuthHeaders(token, 'application/json'),
         body: JSON.stringify(companyData)
