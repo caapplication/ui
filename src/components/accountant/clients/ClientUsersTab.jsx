@@ -13,6 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/components/ui/use-toast';
 import { formatToIST } from '@/lib/dateUtils';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const ClientUsersTab = ({ client, onUserInvited, onUserDeleted }) => {
     const { user } = useAuth();
@@ -20,6 +21,7 @@ const ClientUsersTab = ({ client, onUserInvited, onUserDeleted }) => {
     const [loadingUserId, setLoadingUserId] = useState(null);
     const [showInviteDialog, setShowInviteDialog] = useState(false);
     const [inviteEmail, setInviteEmail] = useState('');
+    const [inviteRole, setInviteRole] = useState('CLIENT_USER');
     const [searchTerm, setSearchTerm] = useState('');
     const [userFilter, setUserFilter] = useState('all'); // all, joined, invited
     const [isInviting, setIsInviting] = useState(false);
@@ -148,10 +150,11 @@ const ClientUsersTab = ({ client, onUserInvited, onUserDeleted }) => {
         setIsInviting(true);
         try {
             const entityId = client.id || client.entity_id;
-            await inviteEntityUser(entityId, inviteEmail, user.access_token);
-            toast({ title: "Success", description: `Invitation sent to ${inviteEmail}.` });
+            await inviteEntityUser(entityId, inviteEmail, user.access_token, inviteRole);
+            toast({ title: "Success", description: `Invitation sent to ${inviteEmail} as ${inviteRole === 'CLIENT_MASTER_ADMIN' ? 'Admin' : 'User'}.` });
             setShowInviteDialog(false);
             setInviteEmail('');
+            setInviteRole('CLIENT_USER');
 
             // Refresh local list
             fetchUsers();
@@ -220,8 +223,6 @@ const ClientUsersTab = ({ client, onUserInvited, onUserDeleted }) => {
         }
     };
 
-
-
     return (
         <div className="glass-pane p-4 rounded-lg">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
@@ -254,7 +255,7 @@ const ClientUsersTab = ({ client, onUserInvited, onUserDeleted }) => {
                                     className={`flex items-center gap-2 px-4 py-2 text-left hover:bg-[#23263A] transition-colors w-full ${userFilter === 'all' ? 'font-bold' : ''}`}
                                     onClick={() => setUserFilter('all')}
                                 >
-                                    <span className="inline-block w-3 h-3 rounded-full border border-white flex items-center justify-center">
+                                    <span className="inline-flex w-3 h-3 rounded-full border border-white items-center justify-center">
                                         {userFilter === 'all' && <span className="w-2 h-2 bg-white rounded-full block"></span>}
                                     </span>
                                     All
@@ -263,7 +264,7 @@ const ClientUsersTab = ({ client, onUserInvited, onUserDeleted }) => {
                                     className={`flex items-center gap-2 px-4 py-2 text-left hover:bg-[#23263A] transition-colors w-full ${userFilter === 'invited' ? 'font-bold' : ''}`}
                                     onClick={() => setUserFilter('invited')}
                                 >
-                                    <span className="inline-block w-3 h-3 rounded-full border border-white flex items-center justify-center">
+                                    <span className="inline-flex w-3 h-3 rounded-full border border-white items-center justify-center">
                                         {userFilter === 'invited' && <span className="w-2 h-2 bg-white rounded-full block"></span>}
                                     </span>
                                     Invited
@@ -272,7 +273,7 @@ const ClientUsersTab = ({ client, onUserInvited, onUserDeleted }) => {
                                     className={`flex items-center gap-2 px-4 py-2 text-left hover:bg-[#23263A] transition-colors w-full ${userFilter === 'joined' ? 'font-bold' : ''}`}
                                     onClick={() => setUserFilter('joined')}
                                 >
-                                    <span className="inline-block w-3 h-3 rounded-full border border-white flex items-center justify-center">
+                                    <span className="inline-flex w-3 h-3 rounded-full border border-white items-center justify-center">
                                         {userFilter === 'joined' && <span className="w-2 h-2 bg-white rounded-full block"></span>}
                                     </span>
                                     Joined
@@ -396,6 +397,18 @@ const ClientUsersTab = ({ client, onUserInvited, onUserDeleted }) => {
                         <div>
                             <Label htmlFor="inviteEmail">Email Address</Label>
                             <Input id="inviteEmail" type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} className="mt-2" placeholder="user@example.com" />
+                        </div>
+                        <div>
+                            <Label htmlFor="inviteRole">Role</Label>
+                            <Select value={inviteRole} onValueChange={setInviteRole}>
+                                <SelectTrigger className="mt-2">
+                                    <SelectValue placeholder="Select role" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="CLIENT_MASTER_ADMIN">Client Admin (Can edit company details)</SelectItem>
+                                    <SelectItem value="CLIENT_USER">Client User (View only)</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
                     </div>
                     <DialogFooter>

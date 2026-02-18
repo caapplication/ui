@@ -15,6 +15,7 @@ import { getProfile, updateName, updatePassword, toggle2FA, verify2FA, uploadPro
 import Cropper from 'react-easy-crop';
 import { getCroppedImg } from '@/lib/imageUtils';
 import MyCompany from './MyCompany';
+import ClientMyCompany from './ClientMyCompany';
 
 const PasswordInput = ({ id, value, onChange, ...props }) => {
     const [showPassword, setShowPassword] = useState(false);
@@ -67,7 +68,7 @@ const Profile = () => {
     const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
 
     const fileInputRef = useRef(null);
-    
+
     const isCAUser = user?.role === 'CA_ACCOUNTANT' || user?.role === 'AGENCY_ADMIN';
 
     const fetchProfileData = useCallback(async (token) => {
@@ -262,130 +263,130 @@ const Profile = () => {
 
                     <TabsContent value="my-profile">
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <div className="lg:col-span-1">
-                        <Card className="glass-card">
-                            <CardContent className="pt-6 flex flex-col items-center text-center">
-                                <div className="mb-4">
-                                    <Avatar className="w-32 h-32 text-4xl border-4 border-white/20">
-                                        <AvatarImage
-                                            src={user?.photo_url}
-                                            alt={user?.name}
-                                            key={user?.photo_url}
+                            <div className="lg:col-span-1">
+                                <Card className="glass-card">
+                                    <CardContent className="pt-6 flex flex-col items-center text-center">
+                                        <div className="mb-4">
+                                            <Avatar className="w-32 h-32 text-4xl border-4 border-white/20">
+                                                <AvatarImage
+                                                    src={user?.photo_url}
+                                                    alt={user?.name}
+                                                    key={user?.photo_url}
+                                                />
+                                                <AvatarFallback className="bg-gradient-to-br from-sky-500 to-indigo-600 text-white">
+                                                    {user?.name?.charAt(0).toUpperCase() || user?.sub?.charAt(0).toUpperCase()}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                        </div>
+                                        <div className="flex gap-2 mb-4">
+                                            <Button
+                                                size="icon"
+                                                className="rounded-full w-10 h-10 bg-white/20 text-white hover:bg-white/30 backdrop-blur-sm border border-white/30"
+                                                onClick={() => fileInputRef.current.click()}
+                                                disabled={isSubmitting}
+                                            >
+                                                <Camera className="w-5 h-5" />
+                                            </Button>
+                                            {user?.photo_url && (
+                                                <Button
+                                                    size="icon"
+                                                    className="rounded-full w-10 h-10 bg-red-500/20 text-white hover:bg-red-500/30 backdrop-blur-sm border border-red-500/30"
+                                                    onClick={handleRemovePicture}
+                                                    disabled={isSubmitting}
+                                                >
+                                                    <Trash2 className="w-5 h-5" />
+                                                </Button>
+                                            )}
+                                        </div>
+                                        <Input
+                                            type="file"
+                                            ref={fileInputRef}
+                                            className="hidden"
+                                            accept="image/*"
+                                            onChange={handlePictureSelect}
                                         />
-                                        <AvatarFallback className="bg-gradient-to-br from-sky-500 to-indigo-600 text-white">
-                                            {user?.name?.charAt(0).toUpperCase() || user?.sub?.charAt(0).toUpperCase()}
-                                        </AvatarFallback>
-                                    </Avatar>
-                                </div>
-                                <div className="flex gap-2 mb-4">
-                                    <Button
-                                        size="icon"
-                                        className="rounded-full w-10 h-10 bg-white/20 text-white hover:bg-white/30 backdrop-blur-sm border border-white/30"
-                                        onClick={() => fileInputRef.current.click()}
-                                        disabled={isSubmitting}
-                                    >
-                                        <Camera className="w-5 h-5" />
-                                    </Button>
-                                    {user?.photo_url && (
-                                        <Button
-                                            size="icon"
-                                            className="rounded-full w-10 h-10 bg-red-500/20 text-white hover:bg-red-500/30 backdrop-blur-sm border border-red-500/30"
-                                            onClick={handleRemovePicture}
-                                            disabled={isSubmitting}
-                                        >
-                                            <Trash2 className="w-5 h-5" />
+                                        <h2 className="text-2xl font-bold text-white">{user?.name || 'User'}</h2>
+                                        <p className="text-sm text-gray-400 mt-2 flex items-center justify-center gap-2"><Mail className="w-4 h-4" />{user?.sub}</p>
+                                    </CardContent>
+                                </Card>
+                            </div>
+
+                            <div className="lg:col-span-2 space-y-8">
+                                <Card className="glass-card">
+                                    <CardHeader>
+                                        <CardTitle>Personal Information</CardTitle>
+                                        <CardDescription>Update your name.</CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <form onSubmit={handleNameUpdate} className="space-y-4">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                <div>
+                                                    <Label htmlFor="first-name">First Name</Label>
+                                                    <Input id="first-name" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+                                                </div>
+                                                <div>
+                                                    <Label htmlFor="last-name">Last Name</Label>
+                                                    <Input id="last-name" value={lastName} onChange={(e) => setLastName(e.target.value)} />
+                                                </div>
+                                            </div>
+                                            <div className="flex justify-end">
+                                                <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Saving...' : 'Save Changes'}</Button>
+                                            </div>
+                                        </form>
+                                    </CardContent>
+                                </Card>
+
+                                <Card className="glass-card">
+                                    <CardHeader>
+                                        <CardTitle>Change Password</CardTitle>
+                                        <CardDescription>For your security, we recommend a strong, unique password.</CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <form onSubmit={handlePasswordUpdate} className="space-y-4">
+                                            <div>
+                                                <Label htmlFor="current-password">Current Password</Label>
+                                                <PasswordInput id="current-password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
+                                            </div>
+                                            <div>
+                                                <Label htmlFor="new-password">New Password</Label>
+                                                <PasswordInput id="new-password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+                                            </div>
+                                            <div>
+                                                <Label htmlFor="confirm-password">Confirm New Password</Label>
+                                                <PasswordInput id="confirm-password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+                                            </div>
+                                            <div className="flex justify-end">
+                                                <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Updating...' : 'Update Password'}</Button>
+                                            </div>
+                                        </form>
+                                    </CardContent>
+                                </Card>
+
+                                <Card className="glass-card">
+                                    <CardHeader>
+                                        <CardTitle>Two-Factor Authentication</CardTitle>
+                                        <CardDescription>Add an extra layer of security to your account.</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="flex items-center justify-between">
+                                        <p className="text-gray-300">Status: <span className={user?.is_2fa_enabled ? 'text-green-400 font-semibold' : 'text-red-400 font-semibold'}>{user?.is_2fa_enabled ? 'Enabled' : 'Disabled'}</span></p>
+                                        <Button onClick={handleToggle2FA} variant={user?.is_2fa_enabled ? "destructive" : "default"} disabled={isSubmitting}>
+                                            {isSubmitting ? 'Processing...' : (user?.is_2fa_enabled ? 'Disable 2FA' : 'Enable 2FA')}
                                         </Button>
-                                    )}
-                                </div>
-                                <Input
-                                    type="file"
-                                    ref={fileInputRef}
-                                    className="hidden"
-                                    accept="image/*"
-                                    onChange={handlePictureSelect}
-                                />
-                                <h2 className="text-2xl font-bold text-white">{user?.name || 'User'}</h2>
-                                <p className="text-sm text-gray-400 mt-2 flex items-center justify-center gap-2"><Mail className="w-4 h-4" />{user?.sub}</p>
-                            </CardContent>
-                        </Card>
-                    </div>
+                                    </CardContent>
+                                </Card>
 
-                    <div className="lg:col-span-2 space-y-8">
-                        <Card className="glass-card">
-                            <CardHeader>
-                                <CardTitle>Personal Information</CardTitle>
-                                <CardDescription>Update your name.</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <form onSubmit={handleNameUpdate} className="space-y-4">
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <div>
-                                            <Label htmlFor="first-name">First Name</Label>
-                                            <Input id="first-name" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
-                                        </div>
-                                        <div>
-                                            <Label htmlFor="last-name">Last Name</Label>
-                                            <Input id="last-name" value={lastName} onChange={(e) => setLastName(e.target.value)} />
-                                        </div>
-                                    </div>
-                                    <div className="flex justify-end">
-                                        <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Saving...' : 'Save Changes'}</Button>
-                                    </div>
-                                </form>
-                            </CardContent>
-                        </Card>
-
-                        <Card className="glass-card">
-                            <CardHeader>
-                                <CardTitle>Change Password</CardTitle>
-                                <CardDescription>For your security, we recommend a strong, unique password.</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <form onSubmit={handlePasswordUpdate} className="space-y-4">
-                                    <div>
-                                        <Label htmlFor="current-password">Current Password</Label>
-                                        <PasswordInput id="current-password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
-                                    </div>
-                                    <div>
-                                        <Label htmlFor="new-password">New Password</Label>
-                                        <PasswordInput id="new-password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
-                                    </div>
-                                    <div>
-                                        <Label htmlFor="confirm-password">Confirm New Password</Label>
-                                        <PasswordInput id="confirm-password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
-                                    </div>
-                                    <div className="flex justify-end">
-                                        <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Updating...' : 'Update Password'}</Button>
-                                    </div>
-                                </form>
-                            </CardContent>
-                        </Card>
-
-                        <Card className="glass-card">
-                            <CardHeader>
-                                <CardTitle>Two-Factor Authentication</CardTitle>
-                                <CardDescription>Add an extra layer of security to your account.</CardDescription>
-                            </CardHeader>
-                            <CardContent className="flex items-center justify-between">
-                                <p className="text-gray-300">Status: <span className={user?.is_2fa_enabled ? 'text-green-400 font-semibold' : 'text-red-400 font-semibold'}>{user?.is_2fa_enabled ? 'Enabled' : 'Disabled'}</span></p>
-                                <Button onClick={handleToggle2FA} variant={user?.is_2fa_enabled ? "destructive" : "default"} disabled={isSubmitting}>
-                                    {isSubmitting ? 'Processing...' : (user?.is_2fa_enabled ? 'Disable 2FA' : 'Enable 2FA')}
-                                </Button>
-                            </CardContent>
-                        </Card>
-
-                    </div>
-                </div>
+                            </div>
+                        </div>
                     </TabsContent>
 
-                    {isCAUser && (
-                    <TabsContent value="my-company">
-                        {isCAUser ? (
-                            <MyCompany />
-                        ) : (user?.role === 'CLIENT_USER' || user?.role === 'CLIENT_ADMIN' || user?.role === 'CLIENT_MASTER_ADMIN') ? (
-                            <ClientMyCompany />
-                        ) : null}
-                    </TabsContent>
+                    {(isCAUser || ['CLIENT_USER', 'CLIENT_ADMIN', 'CLIENT_MASTER_ADMIN'].includes(user?.role)) && (
+                        <TabsContent value="my-company">
+                            {isCAUser ? (
+                                <MyCompany />
+                            ) : (
+                                <ClientMyCompany readOnly={user?.role === 'CLIENT_USER'} />
+                            )}
+                        </TabsContent>
                     )}
                 </Tabs>
             </motion.div>

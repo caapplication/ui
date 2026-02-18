@@ -396,8 +396,12 @@ export const updateClientBillingInvoice = async (invoiceId, invoiceData, agencyI
 /**
  * Get logged-in client admin's company details
  */
-export const getMyCompany = async (token) => {
-    const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/my-company`, {
+export const getMyCompany = async (token, clientId = null) => {
+    let url = `${CLIENTS_API_BASE_URL}/clients/my-company`;
+    if (clientId) {
+        url += `?client_id=${clientId}`;
+    }
+    const response = await fetch(url, {
         method: 'GET',
         headers: getAuthHeaders(token, 'application/json')
     });
@@ -424,14 +428,14 @@ export const downloadInvoicePDF = async (invoiceId, agencyId, token) => {
         method: 'GET',
         headers: getAuthHeaders(token, 'application/json', agencyId)
     });
-    
+
     if (!response.ok) {
         throw new Error(`Failed to download PDF: ${response.statusText}`);
     }
-    
+
     // Get blob from response
     const blob = await response.blob();
-    
+
     // Create download link
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
