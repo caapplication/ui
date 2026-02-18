@@ -357,13 +357,15 @@ const AccountantDashboard = () => {
         due: totalDue
       });
 
-      // Process Trend Data - same chart for all roles (Tasks, Vouchers, Invoices, Notices)
+      // Process Trend Data - use data from the 4 analytics APIs
       const last15Days = [];
       for (let i = 14; i >= 0; i--) {
         const date = subDays(startOfDay(new Date()), i);
+        const dateStr = format(date, 'yyyy-MM-dd');
         last15Days.push({
           date,
           name: format(date, 'MMM dd'),
+          dateStr,
           tasks: 0,
           vouchers: 0,
           invoices: 0,
@@ -372,74 +374,28 @@ const AccountantDashboard = () => {
         });
       }
 
-      const getActivityDate = (item, isTask) => {
-        if (isTask) return item.completed_at || item.updated_at || item.created_at;
-        if (item.voucher_id) return item.verified_at || item.updated_at || item.created_date || item.date;
-        if (item.bill_number) return item.verified_at || item.updated_at || item.created_at || item.date;
-        return item.reviewed_at || item.updated_at || item.created_at;
-      };
-      const isCompletedActivity = (item, isTask) => {
-        if (isTask) return item.status === 'completed' || (item.stage?.name && String(item.stage.name).toLowerCase() === 'complete');
-        if (item.voucher_id) return item.status === 'verified';
-        if (item.bill_number) return item.status === 'verified';
-        return item.status === 'closed';
-      };
-      const processItems = (items, key, isTask = false, filterByUser = false) => {
-        items.forEach(item => {
-          if (item.is_deleted) return;
-          if (!isCompletedActivity(item, isTask)) return;
-
-          // For vouchers and invoices: Always filter by verified_by matching logged-in user ID
-          if (key === 'vouchers' || key === 'invoices') {
-            const verifiedById = item.verified_by;
-            if (!verifiedById || String(verifiedById).toLowerCase() !== String(user.id).toLowerCase()) {
-              return; // Skip if not verified by logged-in user
-            }
+      // Helper: merge API activity_trend data into chart days
+      const mergeApiTrend = (trendData, key) => {
+        if (!Array.isArray(trendData)) return;
+        trendData.forEach(({ date, count }) => {
+          if (!date || !count) return;
+          const day = last15Days.find(d => d.dateStr === date);
+          if (day) {
+            day[key] += count;
+            day.total += count;
           }
-
-          // For tasks and notices: Apply role-based filtering
-          if (filterByUser && user.role === 'CA_TEAM') {
-            const itemUserId = isTask ? (item.created_by || item.assigned_to) : (item.created_by || item.owner_id);
-            if (!itemUserId || String(itemUserId).toLowerCase() !== String(user.id).toLowerCase()) return;
-          }
-
-          const rawDate = getActivityDate(item, isTask);
-          if (!rawDate) return;
-          try {
-            const itemDate = startOfDay(new Date(rawDate));
-            const itemDateStr = format(itemDate, 'yyyy-MM-dd');
-            const day = last15Days.find(d => format(d.date, 'yyyy-MM-dd') === itemDateStr);
-            if (!day) return;
-            day[key]++;
-            day.total++;
-          } catch (e) { return; }
         });
       };
 
-      // For CA_TEAM: use entity-filtered tasks (all team activity); for CA_ACCOUNTANT: filteredTasks
-      const tasksForChart = user.role === 'CA_TEAM' ? tasksList.filter(t => {
-        const taskEntityId = t.entity_id || t.client_id;
-        if (entityIds.length > 0 && taskEntityId) {
-          return entityIds.includes(taskEntityId) || entityIds.some(eId => String(eId) === String(taskEntityId));
-        }
-        return true;
-      }) : filteredTasks;
-
-      if (user.role === 'CA_TEAM') {
-        processItems(tasksForChart, 'tasks', true, true);
-        processItems(vouchers, 'vouchers', false, true);
-        processItems(invoices, 'invoices', false, true);
-        processItems(filteredNotices, 'notices', false, true);
-      } else {
-        processItems(tasksForChart, 'tasks', true, false);
-        processItems(vouchers, 'vouchers', false, false);
-        processItems(invoices, 'invoices', false, false);
-        processItems(filteredNotices, 'notices', false, false);
-      }
+      mergeApiTrend(taskAnalytics.activity_trend, 'tasks');
+      mergeApiTrend(noticeAnalytics.activity_trend, 'notices');
+      mergeApiTrend(invoiceAnalytics.activity_trend, 'invoices');
+      mergeApiTrend(voucherAnalytics.activity_trend, 'vouchers');
 
       setChartData(last15Days);
       const totalActivity = last15Days.reduce((sum, day) => sum + day.total, 0);
       setAverageActivity(totalActivity / 15);
+
 
       // 3. Process Detail Blocks
       // Build entityMap from relevantEntities + also extract entity names from nested objects in invoices/vouchers/tasks/notices
@@ -457,16 +413,7 @@ const AccountantDashboard = () => {
           entityMap[String(item.entity_id)] = `Entity ${item.entity_id}`;
         }
       });
-      // Supplement from tasks (client_id = entity_id)
-      tasksList.forEach(t => {
-        const eId = t.entity_id || t.client_id;
-        if (eId && !entityMap[String(eId)]) entityMap[String(eId)] = `Entity ${eId}`;
-      });
-      // Supplement from notices
-      filteredNotices.forEach(n => {
-        const eId = n.entity_id || n.client_id;
-        if (eId && !entityMap[String(eId)]) entityMap[String(eId)] = `Entity ${eId}`;
-      });
+
 
       const today = startOfDay(new Date());
 
@@ -486,21 +433,7 @@ const AccountantDashboard = () => {
           .sort((a, b) => b.col2 - a.col2);
       };
 
-      // Pending Verification: invoices + vouchers awaiting CA approval
-      const pendingItems = [
-        ...invoices.filter(i => !i.is_deleted && i.status === 'pending_ca_approval'),
-        ...vouchers.filter(v => !v.is_deleted && v.status === 'pending_ca_approval')
-      ];
 
-      // Ongoing Tasks: non-completed tasks (filtered by entity/user already)
-      const ongoingTaskItems = filteredTasks.filter(t =>
-        t.status !== 'completed' && !t.is_deleted
-      );
-
-      // Ongoing Notices: non-closed notices (filtered by entity already)
-      const ongoingNoticeItems = filteredNotices.filter(n =>
-        n.status !== 'closed' && !n.is_deleted
-      );
 
       const getTodayUserProgress = () => {
         const today = startOfDay(new Date());
