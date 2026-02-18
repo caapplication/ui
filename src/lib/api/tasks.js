@@ -342,3 +342,11 @@ export const reviewClosureRequest = async (taskId, requestId, status, reason, ag
     });
     return handleResponse(response);
 };
+
+export const getTaskDashboardAnalytics = async (days, agencyId, token) => {
+    const response = await fetch(`${TASKS_API_BASE_URL}/tasks/dashboard-analytics?days=${days}`, {
+        method: 'GET',
+        headers: getAuthHeaders(token, 'application/json', agencyId),
+    });
+    return handleResponse(response);
+};

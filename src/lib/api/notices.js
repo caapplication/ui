@@ -1,5 +1,7 @@
-import { FINANCE_API_BASE_URL } from '../api';
 import { getAuthHeaders, handleResponse } from './utils';
+
+const FINANCE_API_BASE_URL = import.meta.env.VITE_FINANCE_API_URL || 'http://127.0.0.1:8003';
+
 
 export const getNotices = async (entityId, token) => {
   let url = `${FINANCE_API_BASE_URL}/api/notices/`;
@@ -138,14 +140,14 @@ export const getUnreadNoticeCount = async (token) => {
     // Return only unread_comments count, not closure_requests
     // This ensures the dot only shows for actual unread chat messages
     // Handle both cases: when unread_comments exists, or fallback to 0 if only count exists
-    const unreadComments = (typeof data.unread_comments === 'number') 
-      ? data.unread_comments 
+    const unreadComments = (typeof data.unread_comments === 'number')
+      ? data.unread_comments
       : ((typeof data.count === 'number' && typeof data.unread_comments === 'undefined') ? 0 : 0);
-    
+
     console.log('[getUnreadNoticeCount] Full response:', data);
     console.log('[getUnreadNoticeCount] unread_comments:', data.unread_comments, 'closure_requests:', data.closure_requests, 'total count:', data.count);
     console.log('[getUnreadNoticeCount] Returning unread comments:', unreadComments);
-    
+
     return unreadComments;
   } catch (error) {
     console.error('[getUnreadNoticeCount] Error:', error);
@@ -176,3 +178,11 @@ export const deleteNotice = async (noticeId, token) => {
   if (response.status === 204) return true;
   return handleResponse(response);
 };
+
+export const getNoticeDashboardAnalytics = async (days, token) => {
+  const response = await fetch(`${FINANCE_API_BASE_URL}/api/notices/dashboard-analytics?days=${days}`, {
+    headers: getAuthHeaders(token),
+  });
+  return handleResponse(response);
+};
+

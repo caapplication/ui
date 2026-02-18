@@ -1,5 +1,8 @@
 import { handleResponse, getAuthHeaders } from './utils';
-import { FINANCE_API_BASE_URL } from '../api';
+
+
+const FINANCE_API_BASE_URL = import.meta.env.VITE_FINANCE_API_URL || 'http://127.0.0.1:8003';
+
 
 export const listTemplates = async (token) => {
   const response = await fetch(`${FINANCE_API_BASE_URL}/api/folder-templates/`, {

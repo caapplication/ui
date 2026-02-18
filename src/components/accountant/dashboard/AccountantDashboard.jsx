@@ -21,7 +21,11 @@ import {
   listTasks,
   listRecurringTasks,
   getNotices,
-  getClientBillingInvoices
+  getClientBillingInvoices,
+  getTaskDashboardAnalytics,
+  getNoticeDashboardAnalytics,
+  getInvoiceAnalytics,
+  getVoucherAnalytics
 } from '@/lib/api';
 import { useOrganisation } from "@/hooks/useOrganisation";
 
@@ -29,7 +33,7 @@ const StatCard = ({ title, value, description, icon, color, delay, trend, meta, 
   const Icon = icon;
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay }}>
-      <Card 
+      <Card
         className={`glass-card card-hover overflow-hidden h-full relative group rounded-3xl border-white/5 ${onClick ? 'cursor-pointer' : ''}`}
         onClick={onClick}
       >
@@ -105,7 +109,7 @@ const DetailBlock = ({ title, subtitle, count, data, columns, onViewMore, delay,
                     (currentUserName && row.col1 && String(row.col1).toLowerCase().trim() === currentUserName)
                   );
                   const sNo = row.sNo !== undefined ? row.sNo : (row.rank !== undefined ? row.rank : idx + 1);
-                  
+
                   return (
                     <div
                       key={row.id || idx}
@@ -114,23 +118,20 @@ const DetailBlock = ({ title, subtitle, count, data, columns, onViewMore, delay,
                           onRowClick(row);
                         }
                       }}
-                      className={`grid grid-cols-12 items-center text-sm py-2 transition-all rounded px-1 group border-b border-white/5 last:border-0 ${
-                        isCurrentUser 
-                          ? 'bg-blue-500/20 hover:bg-blue-500/30 cursor-pointer border-blue-400/30' 
-                          : 'hover:bg-white/5 cursor-default'
-                      }`}
+                      className={`grid grid-cols-12 items-center text-sm py-2 transition-all rounded px-1 group border-b border-white/5 last:border-0 ${isCurrentUser
+                        ? 'bg-blue-500/20 hover:bg-blue-500/30 cursor-pointer border-blue-400/30'
+                        : 'hover:bg-white/5 cursor-default'
+                        }`}
                     >
                       <div className={`col-span-2 font-mono text-xs ${isCurrentUser ? 'text-blue-300 font-bold' : 'text-gray-400'}`}>
                         {String(sNo).padStart(2, "0")}
                       </div>
-                      <div className={`col-span-6 truncate pr-2 group-hover:scale-[1.01] transition-transform origin-left text-xs sm:text-sm ${
-                        isCurrentUser ? 'text-blue-200 font-semibold' : 'text-white'
-                      }`}>
+                      <div className={`col-span-6 truncate pr-2 group-hover:scale-[1.01] transition-transform origin-left text-xs sm:text-sm ${isCurrentUser ? 'text-blue-200 font-semibold' : 'text-white'
+                        }`}>
                         {row.col1}
                       </div>
-                      <div className={`col-span-4 text-right font-semibold text-xs sm:text-sm ${
-                        isCurrentUser ? 'text-blue-200' : 'text-red-100'
-                      }`}>
+                      <div className={`col-span-4 text-right font-semibold text-xs sm:text-sm ${isCurrentUser ? 'text-blue-200' : 'text-red-100'
+                        }`}>
                         {typeof row.col2 === 'number' ? row.col2.toLocaleString() : row.col2}
                       </div>
                     </div>
@@ -244,12 +245,26 @@ const AccountantDashboard = () => {
       ]);
 
       // 2. Fetch Historical Trend Data (Last 15 Days)
-      const [invoices, vouchers, tasks, recurringTasksData, notices] = await Promise.all([
+      const [
+        invoices,
+        vouchers,
+        tasks,
+        recurringTasksData,
+        notices,
+        taskAnalytics,
+        noticeAnalytics,
+        invoiceAnalytics,
+        voucherAnalytics
+      ] = await Promise.all([
         entityIds.length > 0 ? getCATeamInvoicesBulk(entityIds, token).catch(() => []) : Promise.resolve([]),
         entityIds.length > 0 ? getCATeamVouchersBulk(entityIds, token).catch(() => []) : Promise.resolve([]),
         listTasks(agencyId, token).catch(() => []),
         listRecurringTasks(agencyId, token, null, 1, 1000).catch(() => ({ items: [] })),
-        getNotices(null, token).catch(() => [])
+        getNotices(null, token).catch(() => []),
+        getTaskDashboardAnalytics(15, agencyId, token).catch(() => ({ activity_trend: [], ongoing_stats: [] })),
+        getNoticeDashboardAnalytics(15, token).catch(() => ({ activity_trend: [], ongoing_stats: [] })),
+        getInvoiceAnalytics(15, token).catch(() => ({ activity_trend: [], pending_stats: [] })),
+        getVoucherAnalytics(15, token).catch(() => ({ activity_trend: [], pending_stats: [] }))
       ]);
 
       const regularTasks = Array.isArray(tasks) ? tasks : (tasks?.items || []);
@@ -269,26 +284,26 @@ const AccountantDashboard = () => {
         // Check if task belongs to any of our entities (tasks use client_id which is entity_id)
         const taskEntityId = t.entity_id || t.client_id;
         let matchesEntity = true;
-        
+
         if (entityIds.length > 0 && taskEntityId) {
           // Check if task's entity/client matches any of our entities
-          matchesEntity = entityIds.includes(taskEntityId) || 
-                         entityIds.some(eId => String(eId) === String(taskEntityId)) ||
-                         entityIds.some(eId => String(eId).toLowerCase() === String(taskEntityId).toLowerCase());
+          matchesEntity = entityIds.includes(taskEntityId) ||
+            entityIds.some(eId => String(eId) === String(taskEntityId)) ||
+            entityIds.some(eId => String(eId).toLowerCase() === String(taskEntityId).toLowerCase());
         }
         // When task has no entity_id/client_id, include it (e.g. recurring tasks or unassigned)
-        
+
         // For CA_TEAM: Also check if task is assigned to or created by this user
         if (user.role === 'CA_TEAM') {
           const taskUserId = t.assigned_to || t.created_by;
           const matchesUser = taskUserId && (String(taskUserId) === String(user.id));
           return matchesEntity && matchesUser;
         }
-        
+
         return matchesEntity;
       });
-      
-      
+
+
       const filteredNotices = noticesList.filter(n => {
         const noticeEntityId = n.entity_id || n.client_id;
         return entityIds.length === 0 || entityIds.includes(noticeEntityId) || entityIds.some(eId => String(eId) === String(noticeEntityId));
@@ -297,15 +312,15 @@ const AccountantDashboard = () => {
       // Compute Revenue & Due from current month billing invoices
       let totalRevenue = 0;
       let totalDue = 0;
-      
+
       try {
         const currentDate = new Date();
         const currentMonth = currentDate.getMonth();
         const currentYear = currentDate.getFullYear();
-        
+
         // Get all clients for this CA
         const allClients = Array.isArray(clientsData) ? clientsData : (clientsData?.results || []);
-        
+
         // Fetch invoices for all clients and calculate current month totals
         for (const client of allClients) {
           try {
@@ -317,7 +332,7 @@ const AccountantDashboard = () => {
                 if (invoiceDate.getMonth() === currentMonth && invoiceDate.getFullYear() === currentYear) {
                   const amount = parseFloat(invoice.invoice_amount || 0);
                   totalRevenue += amount;
-                  
+
                   // Add to due if status is due or overdue
                   if (invoice.status === 'due' || invoice.status === 'overdue') {
                     totalDue += amount;
@@ -373,7 +388,7 @@ const AccountantDashboard = () => {
         items.forEach(item => {
           if (item.is_deleted) return;
           if (!isCompletedActivity(item, isTask)) return;
-          
+
           // For vouchers and invoices: Always filter by verified_by matching logged-in user ID
           if (key === 'vouchers' || key === 'invoices') {
             const verifiedById = item.verified_by;
@@ -381,13 +396,13 @@ const AccountantDashboard = () => {
               return; // Skip if not verified by logged-in user
             }
           }
-          
+
           // For tasks and notices: Apply role-based filtering
           if (filterByUser && user.role === 'CA_TEAM') {
             const itemUserId = isTask ? (item.created_by || item.assigned_to) : (item.created_by || item.owner_id);
             if (!itemUserId || String(itemUserId).toLowerCase() !== String(user.id).toLowerCase()) return;
           }
-          
+
           const rawDate = getActivityDate(item, isTask);
           if (!rawDate) return;
           try {
@@ -427,28 +442,70 @@ const AccountantDashboard = () => {
       setAverageActivity(totalActivity / 15);
 
       // 3. Process Detail Blocks
-      const entityMap = relevantEntities.reduce((acc, e) => ({ ...acc, [e.id]: e.name, [String(e.id)]: e.name }), {});
-      const teamMap = teamData.reduce((acc, t) => ({ ...acc, [t.user_id || t.id]: t.full_name || t.name || 'Unknown' }), {});
+      // Build entityMap from relevantEntities + also extract entity names from nested objects in invoices/vouchers/tasks/notices
+      const entityMap = {};
+      // From relevantEntities (primary source)
+      relevantEntities.forEach(e => {
+        if (e.id) entityMap[String(e.id)] = e.name || `Entity ${e.id}`;
+      });
+      // Supplement from nested entity objects in invoices/vouchers (they have entity relationship loaded)
+      [...invoices, ...vouchers].forEach(item => {
+        if (item.entity && item.entity.id) {
+          entityMap[String(item.entity.id)] = item.entity.name || entityMap[String(item.entity.id)] || `Entity ${item.entity.id}`;
+        }
+        if (item.entity_id && !entityMap[String(item.entity_id)]) {
+          entityMap[String(item.entity_id)] = `Entity ${item.entity_id}`;
+        }
+      });
+      // Supplement from tasks (client_id = entity_id)
+      tasksList.forEach(t => {
+        const eId = t.entity_id || t.client_id;
+        if (eId && !entityMap[String(eId)]) entityMap[String(eId)] = `Entity ${eId}`;
+      });
+      // Supplement from notices
+      filteredNotices.forEach(n => {
+        const eId = n.entity_id || n.client_id;
+        if (eId && !entityMap[String(eId)]) entityMap[String(eId)] = `Entity ${eId}`;
+      });
+
       const today = startOfDay(new Date());
 
+      // Helper: group items by entity and count, returns sorted [{col1: entityName, col2: count}]
       const getEntityCounts = (items, filterFn = () => true) => {
         const counts = items.filter(filterFn).reduce((acc, item) => {
-          const eId = item.entity_id || item.client_id || item.entity;
-          if (eId && eId !== 'undefined' && eId !== 'null') {
-            acc[eId] = (acc[eId] || 0) + 1;
+          // Support entity_id directly, or client_id (tasks), or nested entity object
+          const eId = item.entity_id || item.client_id || item.entity?.id || item.entity;
+          const eIdStr = eId ? String(eId) : null;
+          if (eIdStr && eIdStr !== 'undefined' && eIdStr !== 'null') {
+            acc[eIdStr] = (acc[eIdStr] || 0) + 1;
           }
           return acc;
         }, {});
         return Object.entries(counts)
-          .map(([id, count]) => ({ col1: entityMap[id] || `Entity ${id}`, col2: count }))
+          .map(([id, count]) => ({ col1: entityMap[id] || `Entity ${id}`, col2: count, id }))
           .sort((a, b) => b.col2 - a.col2);
       };
 
+      // Pending Verification: invoices + vouchers awaiting CA approval
+      const pendingItems = [
+        ...invoices.filter(i => !i.is_deleted && i.status === 'pending_ca_approval'),
+        ...vouchers.filter(v => !v.is_deleted && v.status === 'pending_ca_approval')
+      ];
+
+      // Ongoing Tasks: non-completed tasks (filtered by entity/user already)
+      const ongoingTaskItems = filteredTasks.filter(t =>
+        t.status !== 'completed' && !t.is_deleted
+      );
+
+      // Ongoing Notices: non-closed notices (filtered by entity already)
+      const ongoingNoticeItems = filteredNotices.filter(n =>
+        n.status !== 'closed' && !n.is_deleted
+      );
 
       const getTodayUserProgress = () => {
         const today = startOfDay(new Date());
         const currentUserIdStr = String(user.id).toLowerCase().trim();
-        
+
         // Get all CA_ACCOUNTANT and CA_TEAM members from teamData
         // Use user_id || id as canonical user ID (API may return either)
         // Filter out invited users (they have id: null)
@@ -458,7 +515,7 @@ const AccountantDashboard = () => {
           const memberRole = m.role;
           return memberRole === 'CA_ACCOUNTANT' || memberRole === 'CA_TEAM';
         });
-        
+
         // Remove duplicates using canonical user ID (user_id takes precedence over id)
         const uniqueMembersMap = new Map();
         for (const member of allTeamMembers) {
@@ -470,7 +527,7 @@ const AccountantDashboard = () => {
             });
           }
         }
-        
+
         // Also include current user if CA_ACCOUNTANT/CA_TEAM and not already in team
         const existingEmails = new Set(Array.from(uniqueMembersMap.values()).map(m => (m.email || '').toLowerCase().trim()));
         const currentUserEmail = (user.email || '').toLowerCase().trim();
@@ -486,24 +543,24 @@ const AccountantDashboard = () => {
             normalizedId: currentUserIdStr
           });
         }
-        
+
         const uniqueMembers = Array.from(uniqueMembersMap.values());
-        
+
         // For Today's Progress: use tasks filtered by entity only (not by current user)
         // so we count ALL team members' activities (CA. Varun's tasks, Vishal's, etc.)
         const tasksForProgress = user.role === 'CA_TEAM'
           ? tasksList.filter(t => {
-              const taskEntityId = t.entity_id || t.client_id;
-              if (entityIds.length > 0 && taskEntityId) {
-                const matchesEntity = entityIds.includes(taskEntityId) ||
-                  entityIds.some(eId => String(eId) === String(taskEntityId)) ||
-                  entityIds.some(eId => String(eId).toLowerCase() === String(taskEntityId).toLowerCase());
-                if (!matchesEntity) return false;
-              }
-              return true;
-            })
+            const taskEntityId = t.entity_id || t.client_id;
+            if (entityIds.length > 0 && taskEntityId) {
+              const matchesEntity = entityIds.includes(taskEntityId) ||
+                entityIds.some(eId => String(eId) === String(taskEntityId)) ||
+                entityIds.some(eId => String(eId).toLowerCase() === String(taskEntityId).toLowerCase());
+              if (!matchesEntity) return false;
+            }
+            return true;
+          })
           : filteredTasks;
-        
+
         const isTaskCompleted = (t) => t.status === 'completed' || (t.stage?.name && String(t.stage.name).toLowerCase() === 'complete');
         const completedTasks = tasksForProgress.filter(isTaskCompleted);
         const verifiedVouchers = vouchers.filter(v => v.status === 'verified');
@@ -515,13 +572,13 @@ const AccountantDashboard = () => {
           ...verifiedInvoices,
           ...closedNotices
         ];
-        
-        
+
+
         // Count activities for each team member
         const memberCounts = uniqueMembers.map(member => {
           const memberId = (member.normalizedId || String(member.user_id ?? member.id)).toLowerCase().trim();
           const memberName = member.full_name || member.name || 'Unknown';
-          
+
           const todayItems = allItems.filter(item => {
             // Use activity date: completed_at for tasks, verified_at for vouchers/invoices, reviewed_at for notices
             let dateStr = null;
@@ -535,7 +592,7 @@ const AccountantDashboard = () => {
               dateStr = item.reviewed_at || item.updated_at || item.created_at;
             }
             if (!dateStr) return false;
-            
+
             try {
               // Parse date and compare only the date part (ignore time)
               const itemDate = startOfDay(new Date(dateStr));
@@ -545,13 +602,13 @@ const AccountantDashboard = () => {
             } catch (e) {
               return false;
             }
-            
+
             // Check if item belongs to this member
             // For tasks: count if member is creator (created_by) OR assignee (assigned_to)
             // For vouchers/invoices: attribute to verified_by (CA who verified), else owner_id
             // For notices: use created_by or owner_id
             let userId = null;
-            
+
             // Tasks have title field, use created_by or assigned_to
             if (item.title) {
               // Task: count if created by OR assigned to this member
@@ -563,18 +620,18 @@ const AccountantDashboard = () => {
               // Notice: use created_by or owner_id
               userId = item.created_by || item.owner_id || item.created_by_id;
             }
-            
+
             if (!userId) {
               return false;
             }
-            
+
             // Normalize both IDs to lowercase strings for comparison
             const normalizedUserId = String(userId).toLowerCase().trim();
             const matches = normalizedUserId === memberId;
-            
+
             return matches;
           });
-          
+
           const currentUserName = (user.full_name || user.name || '').toLowerCase().trim();
           const memberNameNorm = (memberName || '').toLowerCase().trim();
           const isCurrentUser = memberId === currentUserIdStr ||
@@ -587,7 +644,7 @@ const AccountantDashboard = () => {
             isCurrentUser
           };
         });
-        
+
         // Final deduplication - remove any duplicates by ID
         const finalDeduplicationMap = new Map();
         for (const member of memberCounts) {
@@ -596,16 +653,16 @@ const AccountantDashboard = () => {
           }
         }
         const deduplicatedCounts = Array.from(finalDeduplicationMap.values());
-        
+
         // Sort by activity count (descending)
         const sortedByCount = [...deduplicatedCounts].sort((a, b) => b.col2 - a.col2);
-        
+
         // Re-arrange: current user first, then others by rank
         const currentUser = sortedByCount.find(item => item.isCurrentUser);
         const others = sortedByCount.filter(item => !item.isCurrentUser);
-        
+
         const finalList = currentUser ? [currentUser, ...others] : others;
-        
+
         // Assign S.No based on actual rank, show current user first, ensure first row is highlighted
         return finalList.map((item, idx) => {
           const actualRank = sortedByCount.findIndex(i => i.id === item.id) + 1;
@@ -619,17 +676,34 @@ const AccountantDashboard = () => {
         });
       };
 
-      // Pending verification: invoices + vouchers awaiting CA approval
-      const pendingItems = [
-        ...invoices.filter(i => i.status === 'pending_ca_approval'),
-        ...vouchers.filter(v => v.status === 'pending_ca_approval')
-      ];
-
       setDetailBlocks({
         todayProgress: getTodayUserProgress(),
-        pendingVerification: getEntityCounts(pendingItems),
-        ongoingTasks: getEntityCounts(filteredTasks, t => t.status !== 'completed'),
-        ongoingNotices: getEntityCounts(filteredNotices, n => n.status !== 'closed')
+        pendingVerification: [
+          ...(invoiceAnalytics.pending_stats || []),
+          ...(voucherAnalytics.pending_stats || [])
+        ].reduce((acc, item) => {
+          const existing = acc.find(x => x.id === item.entity_id);
+          if (existing) {
+            existing.col2 += item.count;
+          } else {
+            acc.push({
+              col1: item.entity_name || entityMap[item.entity_id] || `Entity ${item.entity_id}`,
+              col2: item.count,
+              id: item.entity_id
+            });
+          }
+          return acc;
+        }, []).sort((a, b) => b.col2 - a.col2),
+        ongoingTasks: (taskAnalytics.ongoing_stats || []).map(item => ({
+          col1: item.entity_name || entityMap[item.entity_id] || `Entity ${item.entity_id}`,
+          col2: item.count,
+          id: item.entity_id
+        })),
+        ongoingNotices: (noticeAnalytics.ongoing_stats || []).map(item => ({
+          col1: item.entity_name || entityMap[item.entity_id] || `Entity ${item.entity_id}`,
+          col2: item.count,
+          id: item.entity_id
+        }))
       });
 
     } catch (error) {
@@ -721,7 +795,7 @@ const AccountantDashboard = () => {
       {/* Row 2: Chart Section */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.6 }} className="mb-6">
         <Card className="glass-card overflow-hidden border-white/5 rounded-3xl">
-            <CardHeader className="p-4 sm:px-6 py-3 pb-0">
+          <CardHeader className="p-4 sm:px-6 py-3 pb-0">
             <CardTitle className="text-lg font-bold">Activity Trend</CardTitle>
             <CardDescription className="text-xs">
               Completed tasks, verified vouchers & invoices, closed notices (by activity date)
