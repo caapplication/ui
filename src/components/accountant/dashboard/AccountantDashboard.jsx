@@ -627,12 +627,12 @@ const AccountantDashboard = () => {
           }
           return acc;
         }, []).sort((a, b) => b.col2 - a.col2),
-        ongoingTasks: (taskAnalytics.ongoing_stats || []).map(item => ({
+        ongoingTasks: (taskAnalytics.ongoing_stats || []).filter(item => item.entity_id !== null && item.entity_id !== undefined).map(item => ({
           col1: item.entity_name || entityMap[item.entity_id] || `Entity ${item.entity_id}`,
           col2: item.count,
           id: item.entity_id
         })),
-        ongoingNotices: (noticeAnalytics.ongoing_stats || []).map(item => ({
+        ongoingNotices: (noticeAnalytics.ongoing_stats || []).filter(item => item.entity_id !== null && item.entity_id !== undefined).map(item => ({
           col1: item.entity_name || entityMap[item.entity_id] || `Entity ${item.entity_id}`,
           col2: item.count,
           id: item.entity_id
