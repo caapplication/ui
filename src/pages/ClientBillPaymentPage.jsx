@@ -10,9 +10,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Loader2, Search, Filter, CheckCircle, AlertCircle, Clock, Download, CreditCard, Upload, X } from 'lucide-react';
+import { Loader2, Search, Filter, CheckCircle, AlertCircle, Clock, Download, CreditCard, Upload, X, Eye, Pencil, FileDown } from 'lucide-react';
 import { format } from 'date-fns';
-import { getClientBillingInvoices, listClientsByOrganization, downloadInvoicePDF, getInvoicePaymentDetails, uploadClientInvoicePaymentProof } from '@/lib/api';
+import { getClientBillingInvoices, listClientsByOrganization, getInvoicePDFBlob, getInvoicePaymentDetails, getPaymentProofUrl, uploadClientInvoicePaymentProof } from '@/lib/api';
 
 const ClientBillPaymentPage = ({ entityId }) => {
     const { user } = useAuth();
@@ -45,6 +45,11 @@ const ClientBillPaymentPage = ({ entityId }) => {
     const [isLoadingPaymentDetails, setIsLoadingPaymentDetails] = useState(false);
     const [paymentFile, setPaymentFile] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
+    
+    // Bill PDF preview modal (click Download -> preview then download)
+    const [billPreview, setBillPreview] = useState({ open: false, blobUrl: null, invoiceNumber: '', loading: false });
+    // Proof preview modal (View upload -> preview + download)
+    const [proofPreview, setProofPreview] = useState({ open: false, url: null, contentType: null });
     
     // Update clientId when entityId prop changes
     useEffect(() => {
@@ -171,6 +176,7 @@ const ClientBillPaymentPage = ({ entityId }) => {
             due: { label: 'Due', variant: 'default', icon: Clock, className: 'bg-yellow-500/20 text-yellow-400' },
             overdue: { label: 'Overdue', variant: 'destructive', icon: AlertCircle, className: 'bg-red-500/20 text-red-400' },
             pending_verification: { label: 'Pending Verification', variant: 'default', icon: Clock, className: 'bg-blue-500/20 text-blue-400' },
+            rejected: { label: 'Rejected', variant: 'destructive', icon: AlertCircle, className: 'bg-orange-500/20 text-orange-400' },
         };
         
         const config = statusConfig[status] || statusConfig.due;
@@ -189,32 +195,41 @@ const ClientBillPaymentPage = ({ entityId }) => {
             acc.total += parseFloat(inv.invoice_amount || 0);
             if (inv.status === 'paid') {
                 acc.paid += parseFloat(inv.invoice_amount || 0);
-            } else if (inv.status === 'due' || inv.status === 'overdue') {
+            } else if (inv.status === 'due' || inv.status === 'overdue' || inv.status === 'rejected') {
                 acc.due += parseFloat(inv.invoice_amount || 0);
             }
             return acc;
         }, { total: 0, paid: 0, due: 0 });
     };
     
-    const handleDownloadPDF = async (invoiceId) => {
-        if (!user?.access_token) return;
-        
+    const handleOpenBillPreview = async (invoice) => {
+        if (!user?.access_token || !invoice?.id) return;
         const agencyId = user?.agency_id || localStorage.getItem('agency_id');
-        
+        setBillPreview({ open: true, blobUrl: null, invoiceNumber: invoice.invoice_number || '', loading: true });
         try {
-            await downloadInvoicePDF(invoiceId, agencyId, user.access_token);
-            toast({
-                title: 'Success',
-                description: 'Invoice PDF downloaded successfully',
-            });
+            const { url } = await getInvoicePDFBlob(invoice.id, agencyId, user.access_token);
+            setBillPreview(prev => ({ ...prev, blobUrl: url, loading: false }));
         } catch (error) {
-            console.error('Error downloading PDF:', error);
-            toast({
-                title: 'Error',
-                description: 'Failed to download invoice PDF. ' + (error.message || ''),
-                variant: 'destructive',
-            });
+            console.error('Error loading PDF:', error);
+            toast({ title: 'Error', description: 'Failed to load invoice PDF. ' + (error?.message || ''), variant: 'destructive' });
+            setBillPreview(prev => ({ ...prev, open: false, loading: false }));
         }
+    };
+
+    const closeBillPreview = () => {
+        if (billPreview.blobUrl) window.URL.revokeObjectURL(billPreview.blobUrl);
+        setBillPreview({ open: false, blobUrl: null, invoiceNumber: '', loading: false });
+    };
+
+    const handleDownloadFromBillPreview = () => {
+        if (!billPreview.blobUrl) return;
+        const a = document.createElement('a');
+        a.href = billPreview.blobUrl;
+        a.download = `invoice_${billPreview.invoiceNumber || 'bill'}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        toast({ title: 'Downloaded', description: 'Invoice PDF downloaded.' });
     };
     
     const handleMakePayment = async (invoice) => {
@@ -288,7 +303,48 @@ const ClientBillPaymentPage = ({ entityId }) => {
             setIsUploading(false);
         }
     };
-    
+
+    const handleExportCSV = () => {
+        const headers = ['Invoice Date', 'Invoice No.', 'Particulars', 'HSN/SAC', 'Amount', 'Status', 'Due Date'];
+        const rows = filteredInvoices.map(inv => [
+            inv.invoice_date ? format(new Date(inv.invoice_date), 'yyyy-MM-dd') : '',
+            (inv.invoice_number || '').replace(/,/g, ';'),
+            (inv.billing_head || '').replace(/,/g, ';'),
+            (inv.hsn_sac_code || '').replace(/,/g, ';'),
+            parseFloat(inv.invoice_amount || 0).toFixed(2),
+            inv.status || '',
+            inv.due_date ? format(new Date(inv.due_date), 'yyyy-MM-dd') : ''
+        ]);
+        const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+        const link = document.createElement('a');
+        link.setAttribute('href', encodeURI(csvContent));
+        link.setAttribute('download', `invoices_${new Date().getTime()}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast({ title: 'Exported', description: 'Invoices exported as CSV' });
+    };
+
+    const handleViewUpload = async (invoice) => {
+        const agencyId = user?.agency_id || localStorage.getItem('agency_id');
+        if (!invoice?.id || !user?.access_token || !agencyId) return;
+        try {
+            const proofData = await getPaymentProofUrl(invoice.id, agencyId, user.access_token);
+            if (proofData?.url) {
+                const url = proofData.url;
+                const isPdf = url.toLowerCase().endsWith('.pdf');
+                setProofPreview({ open: true, url, contentType: isPdf ? 'application/pdf' : 'image' });
+            }
+        } catch (error) {
+            console.error('Error loading payment proof:', error);
+            toast({
+                title: 'Error',
+                description: 'Failed to load payment proof. ' + (error?.message || ''),
+                variant: 'destructive',
+            });
+        }
+    };
+
     const totals = calculateTotals();
     
     if (isLoading) {
@@ -311,25 +367,9 @@ const ClientBillPaymentPage = ({ entityId }) => {
                     <p className="text-gray-400 mt-1">View and manage your billing invoices</p>
                 </div>
                 
-                {/* Summary Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-                    <Card className="glass-card border-white/5">
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-sm text-gray-400">Total Invoices</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold text-white">{filteredInvoices.length}</div>
-                        </CardContent>
-                    </Card>
-                    <Card className="glass-card border-white/5">
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-sm text-gray-400">Total Amount</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold text-white">₹{totals.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
-                        </CardContent>
-                    </Card>
-                    <Card className="glass-card border-white/5">
+                {/* Due Amount and Filters on one line */}
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
+                    <Card className="glass-card border-white/5 sm:max-w-[220px]">
                         <CardHeader className="pb-2">
                             <CardTitle className="text-sm text-gray-400">Due Amount</CardTitle>
                         </CardHeader>
@@ -337,54 +377,57 @@ const ClientBillPaymentPage = ({ entityId }) => {
                             <div className="text-2xl font-bold text-yellow-400">₹{totals.due.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
                         </CardContent>
                     </Card>
-                </div>
-                
-                {/* Filters */}
-                <Card className="glass-card border-white/5 mb-6">
-                    <CardHeader>
-                        <CardTitle className="text-lg text-white flex items-center gap-2">
-                            <Filter className="w-5 h-5" />
-                            Filters
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <Label htmlFor="search" className="text-sm text-gray-400 mb-2 block">Search</Label>
-                                <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                    <Input
-                                        id="search"
-                                        placeholder="Search by invoice number..."
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                        className="pl-10 glass-input text-white"
-                                    />
+                    <Card className="glass-card border-white/5 flex-1">
+                        <CardHeader className="py-3">
+                            <CardTitle className="text-lg text-white flex items-center gap-2">
+                                <Filter className="w-5 h-5" />
+                                Filters
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-0">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <Label htmlFor="search" className="text-sm text-gray-400 mb-2 block">Search</Label>
+                                    <div className="relative">
+                                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                        <Input
+                                            id="search"
+                                            placeholder="Search by invoice number..."
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                            className="pl-10 glass-input text-white"
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <Label htmlFor="status" className="text-sm text-gray-400 mb-2 block">Status</Label>
+                                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                                        <SelectTrigger className="glass-input text-white">
+                                            <SelectValue placeholder="All Statuses" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All Statuses</SelectItem>
+                                            <SelectItem value="due">Due</SelectItem>
+                                            <SelectItem value="overdue">Overdue</SelectItem>
+                                            <SelectItem value="paid">Paid</SelectItem>
+                                            <SelectItem value="pending_verification">Pending Verification</SelectItem>
+                                            <SelectItem value="rejected">Rejected</SelectItem>
+                                        </SelectContent>
+                                    </Select>
                                 </div>
                             </div>
-                            <div>
-                                <Label htmlFor="status" className="text-sm text-gray-400 mb-2 block">Status</Label>
-                                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                                    <SelectTrigger className="glass-input text-white">
-                                        <SelectValue placeholder="All Statuses" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">All Statuses</SelectItem>
-                                        <SelectItem value="due">Due</SelectItem>
-                                        <SelectItem value="overdue">Overdue</SelectItem>
-                                        <SelectItem value="paid">Paid</SelectItem>
-                                        <SelectItem value="pending_verification">Pending Verification</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+                        </CardContent>
+                    </Card>
+                </div>
                 
                 {/* Table */}
                 <Card className="glass-card border-white/5">
-                    <CardHeader>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0">
                         <CardTitle className="text-lg text-white">Invoices</CardTitle>
+                        <Button variant="outline" size="sm" onClick={handleExportCSV} className="gap-2 border-white/20 text-white hover:bg-white/10">
+                            <FileDown className="w-4 h-4" />
+                            Export CSV
+                        </Button>
                     </CardHeader>
                     <CardContent>
                         {filteredInvoices.length === 0 ? (
@@ -434,12 +477,34 @@ const ClientBillPaymentPage = ({ entityId }) => {
                                                             <CreditCard className="w-4 h-4" />
                                                         </Button>
                                                     )}
+                                                    {(invoice.status === 'pending_verification' || invoice.status === 'rejected') && (
+                                                        <>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                onClick={() => handleViewUpload(invoice)}
+                                                                className="text-white hover:bg-white/10 h-8 w-8"
+                                                                title="View upload"
+                                                            >
+                                                                <Eye className="w-4 h-4" />
+                                                            </Button>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                onClick={() => handleMakePayment(invoice)}
+                                                                className="text-white hover:bg-white/10 h-8 w-8"
+                                                                title="Make changes (re-upload)"
+                                                            >
+                                                                <Pencil className="w-4 h-4" />
+                                                            </Button>
+                                                        </>
+                                                    )}
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
-                                                        onClick={() => handleDownloadPDF(invoice.id)}
+                                                        onClick={() => handleOpenBillPreview(invoice)}
                                                         className="text-white hover:bg-white/10 h-8 w-8"
-                                                        title="Download PDF"
+                                                        title="View / Download PDF"
                                                     >
                                                         <Download className="w-4 h-4" />
                                                     </Button>
@@ -458,7 +523,9 @@ const ClientBillPaymentPage = ({ entityId }) => {
             <Dialog open={isPaymentModalOpen} onOpenChange={setIsPaymentModalOpen}>
                 <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-gray-900 border-white/10">
                     <DialogHeader>
-                        <DialogTitle className="text-white">Make Payment</DialogTitle>
+                        <DialogTitle className="text-white">
+                            {(selectedInvoice?.status === 'pending_verification' || selectedInvoice?.status === 'rejected') ? 'View / Update payment proof' : 'Make Payment'}
+                        </DialogTitle>
                         <DialogDescription className="text-gray-400">
                             Invoice: {selectedInvoice?.invoice_number} — Amount: ₹{selectedInvoice?.invoice_amount != null ? parseFloat(selectedInvoice.invoice_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 }) : '0.00'}
                         </DialogDescription>
@@ -526,7 +593,9 @@ const ClientBillPaymentPage = ({ entityId }) => {
                                 )}
                                 {/* Upload payment proof */}
                                 <div className="space-y-2">
-                                    <Label className="text-white">Upload payment proof (screenshot or PDF) *</Label>
+                                    <Label className="text-white">
+                                        {(selectedInvoice?.status === 'pending_verification' || selectedInvoice?.status === 'rejected') ? 'Upload new payment proof to replace (screenshot or PDF) *' : 'Upload payment proof (screenshot or PDF) *'}
+                                    </Label>
                                     <div className="flex items-center gap-2">
                                         <Input
                                             type="file"
@@ -551,9 +620,67 @@ const ClientBillPaymentPage = ({ entityId }) => {
                         </Button>
                         <Button onClick={handleDonePayment} disabled={isUploading || isLoadingPaymentDetails || !paymentFile} className="gap-2">
                             {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                            Done
+                            {(selectedInvoice?.status === 'pending_verification' || selectedInvoice?.status === 'rejected') ? 'Update proof' : 'Done'}
                         </Button>
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Bill PDF Preview Modal */}
+            <Dialog open={billPreview.open} onOpenChange={(open) => { if (!open) closeBillPreview(); }}>
+                <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col bg-gray-900 border-white/10 p-0 overflow-hidden">
+                    <DialogHeader className="flex-shrink-0 px-6 py-4 border-b border-white/10 flex flex-row items-center justify-between">
+                        <DialogTitle className="text-white">Invoice PDF</DialogTitle>
+                        <div className="flex items-center gap-2">
+                            {billPreview.blobUrl && (
+                                <Button variant="outline" size="sm" onClick={handleDownloadFromBillPreview} className="gap-2 border-white/20 text-white hover:bg-white/10">
+                                    <Download className="w-4 h-4" />
+                                    Download
+                                </Button>
+                            )}
+                            <Button variant="ghost" size="icon" onClick={closeBillPreview} className="text-white hover:bg-white/10 h-8 w-8">
+                                <X className="w-5 h-5" />
+                            </Button>
+                        </div>
+                    </DialogHeader>
+                    <div className="flex-1 min-h-[60vh] overflow-auto p-4 bg-black/40">
+                        {billPreview.loading ? (
+                            <div className="flex items-center justify-center py-16">
+                                <Loader2 className="w-10 h-10 animate-spin text-white" />
+                            </div>
+                        ) : billPreview.blobUrl ? (
+                            <iframe src={billPreview.blobUrl} className="w-full h-[70vh] rounded border border-white/10" title="Invoice PDF" />
+                        ) : null}
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Proof Preview Modal (View upload) */}
+            <Dialog open={proofPreview.open} onOpenChange={(open) => { if (!open) setProofPreview({ open: false, url: null, contentType: null }); }}>
+                <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col bg-gray-900 border-white/10 p-0 overflow-hidden">
+                    <DialogHeader className="flex-shrink-0 px-6 py-4 border-b border-white/10 flex flex-row items-center justify-between">
+                        <DialogTitle className="text-white">Payment Proof</DialogTitle>
+                        <div className="flex items-center gap-2">
+                            {proofPreview.url && (
+                                <Button variant="outline" size="sm" onClick={() => { window.open(proofPreview.url, '_blank'); }} className="gap-2 border-white/20 text-white hover:bg-white/10">
+                                    <Download className="w-4 h-4" />
+                                    Download
+                                </Button>
+                            )}
+                            <Button variant="ghost" size="icon" onClick={() => setProofPreview({ open: false, url: null, contentType: null })} className="text-white hover:bg-white/10 h-8 w-8">
+                                <X className="w-5 h-5" />
+                            </Button>
+                        </div>
+                    </DialogHeader>
+                    <div className="flex-1 min-h-[400px] overflow-auto p-4 bg-black/40 flex items-center justify-center">
+                        {proofPreview.url && (
+                            proofPreview.contentType === 'application/pdf' ? (
+                                <iframe src={`${proofPreview.url}#toolbar=0`} className="w-full h-[600px] rounded border border-white/10" title="Payment Proof" />
+                            ) : (
+                                <img src={proofPreview.url} alt="Payment Proof" className="max-w-full max-h-[600px] object-contain rounded" onError={(e) => { e.target.style.display = 'none'; }} />
+                            )
+                        )}
+                    </div>
                 </DialogContent>
             </Dialog>
         </div>

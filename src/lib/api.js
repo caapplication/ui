@@ -4,4 +4,5 @@
 
 export const FINANCE_API_BASE_URL = import.meta.env.VITE_FINANCE_API_URL || 'http://127.0.0.1:8003';
 
+// Re-export everything from the modular api/ folder
 export * from './api/index.js';

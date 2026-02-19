@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2, CheckCircle, AlertCircle, Clock, Download, Check, CreditCard, Upload, X, Pencil } from 'lucide-react';
-import { getClientBillingInvoices, downloadInvoicePDF, markInvoicePaid, getPaymentProofUrl, uploadClientInvoicePaymentProof, getInvoicePaymentDetails, updateClientBillingInvoice } from '@/lib/api';
+import { getClientBillingInvoices, downloadInvoicePDF, markInvoicePaid, updateClientBillingInvoiceStatus, getPaymentProofUrl, uploadClientInvoicePaymentProof, getInvoicePaymentDetails, updateClientBillingInvoice } from '@/lib/api';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 
@@ -151,6 +151,29 @@ const ClientInvoicesPaymentsTab = ({ client }) => {
             toast({
                 title: 'Error',
                 description: 'Failed to update invoice. ' + (error.message || ''),
+                variant: 'destructive',
+            });
+        }
+    };
+
+    const handleRejectPayment = async () => {
+        if (!selectedInvoice?.id || !user?.access_token || !agencyId) return;
+        try {
+            await updateClientBillingInvoiceStatus(selectedInvoice.id, 'rejected', agencyId, user.access_token);
+            toast({
+                title: 'Payment rejected',
+                description: 'Client can re-upload payment proof.',
+            });
+            setIsProofModalOpen(false);
+            setSelectedInvoice(null);
+            setProofUrl(null);
+            setProofContentType(null);
+            loadInvoices();
+        } catch (error) {
+            console.error('Error rejecting payment:', error);
+            toast({
+                title: 'Error',
+                description: 'Failed to reject payment. ' + (error?.message || ''),
                 variant: 'destructive',
             });
         }
@@ -300,6 +323,7 @@ const ClientInvoicesPaymentsTab = ({ client }) => {
             overdue: { label: 'Overdue', variant: 'destructive', icon: AlertCircle },
             paid: { label: 'Paid', variant: 'success', icon: CheckCircle },
             pending_verification: { label: 'Pending Verification', variant: 'secondary', icon: Clock },
+            rejected: { label: 'Rejected', variant: 'destructive', icon: AlertCircle },
         };
 
         const config = statusConfig[status] || statusConfig.due;
@@ -468,10 +492,15 @@ const ClientInvoicesPaymentsTab = ({ client }) => {
                             Cancel
                         </Button>
                         {proofUrl && (
-                            <Button onClick={handleConfirmMarkPaid} className="gap-2">
-                                <Check className="w-4 h-4" />
-                                Mark as Paid
-                            </Button>
+                            <>
+                                <Button variant="outline" onClick={handleRejectPayment} className="border-red-500/50 text-red-600 hover:bg-red-500/10">
+                                    Reject
+                                </Button>
+                                <Button onClick={handleConfirmMarkPaid} className="gap-2">
+                                    <Check className="w-4 h-4" />
+                                    Mark as Paid
+                                </Button>
+                            </>
                         )}
                     </DialogFooter>
                 </DialogContent>
