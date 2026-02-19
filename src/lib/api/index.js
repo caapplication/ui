@@ -190,9 +190,6 @@ export {
 } from './clients';
 
 // Client Billing
-// Also export updateClientBillingInvoice directly to ensure it's available
-export { updateClientBillingInvoice, getInvoicePDFBlob } from './clients';
-
 export {
   getClientBillingSetup,
   createOrUpdateClientBilling,
