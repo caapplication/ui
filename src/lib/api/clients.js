@@ -382,6 +382,18 @@ export const markInvoicePaid = async (invoiceId, agencyId, token) => {
     return handleResponse(response);
 };
 
+/**
+ * Update invoice status (CA only). Use for rejected: { status: 'rejected' }.
+ */
+export const updateClientBillingInvoiceStatus = async (invoiceId, status, agencyId, token) => {
+    const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/${invoiceId}/status`, {
+        method: 'PUT',
+        headers: getAuthHeaders(token, 'application/json', agencyId),
+        body: JSON.stringify({ status })
+    });
+    return handleResponse(response);
+};
+
 export const updateClientBillingInvoice = async (invoiceId, invoiceData, agencyId, token) => {
     const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/${invoiceId}`, {
         method: 'PUT',
@@ -417,23 +429,24 @@ export const updateMyCompany = async (companyData, token) => {
 };
 
 /**
- * Download invoice PDF
+ * Fetch invoice PDF as blob (for preview modal). Returns { blob, url } where url is object URL; caller must revoke it when done.
  */
-export const downloadInvoicePDF = async (invoiceId, agencyId, token) => {
+export const getInvoicePDFBlob = async (invoiceId, agencyId, token) => {
     const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/${invoiceId}/download-pdf`, {
         method: 'GET',
         headers: getAuthHeaders(token, 'application/json', agencyId)
     });
-    
-    if (!response.ok) {
-        throw new Error(`Failed to download PDF: ${response.statusText}`);
-    }
-    
-    // Get blob from response
+    if (!response.ok) throw new Error(`Failed to load PDF: ${response.statusText}`);
     const blob = await response.blob();
-    
-    // Create download link
     const url = window.URL.createObjectURL(blob);
+    return { blob, url };
+};
+
+/**
+ * Download invoice PDF (triggers browser download)
+ */
+export const downloadInvoicePDF = async (invoiceId, agencyId, token) => {
+    const { url } = await getInvoicePDFBlob(invoiceId, agencyId, token);
     const a = document.createElement('a');
     a.href = url;
     a.download = `invoice_${invoiceId}.pdf`;

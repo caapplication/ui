@@ -10,9 +10,9 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Search, Filter, ArrowLeft, CheckCircle, AlertCircle, Clock, Download, Check, CreditCard, Upload, X, Eye, Pencil } from 'lucide-react';
+import { Loader2, Search, Filter, ArrowLeft, CheckCircle, AlertCircle, Clock, Download, Check, CreditCard, Upload, X, Eye, Pencil, FileDown } from 'lucide-react';
 import { format } from 'date-fns';
-import { getClientBillingInvoices, listClients, downloadInvoicePDF, markInvoicePaid, getPaymentProofUrl, uploadClientInvoicePaymentProof, getInvoicePaymentDetails, updateClientBillingInvoice } from '@/lib/api';
+import { getClientBillingInvoices, listClients, getInvoicePDFBlob, markInvoicePaid, updateClientBillingInvoiceStatus, getPaymentProofUrl, uploadClientInvoicePaymentProof, getInvoicePaymentDetails, updateClientBillingInvoice } from '@/lib/api';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 
 const ClientsBillPage = () => {
@@ -57,6 +57,9 @@ const ClientsBillPage = () => {
         state: ''
     });
     const [isSavingEdit, setIsSavingEdit] = useState(false);
+    
+    // Bill PDF preview modal (click Download -> preview then download)
+    const [billPreview, setBillPreview] = useState({ open: false, blobUrl: null, invoiceNumber: '', loading: false });
     
     useEffect(() => {
         loadData();
@@ -149,6 +152,7 @@ const ClientsBillPage = () => {
             due: { label: 'Due', variant: 'default', icon: Clock, className: 'bg-yellow-500/20 text-yellow-400' },
             overdue: { label: 'Overdue', variant: 'destructive', icon: AlertCircle, className: 'bg-red-500/20 text-red-400' },
             pending_verification: { label: 'Pending Verification', variant: 'default', icon: Clock, className: 'bg-blue-500/20 text-blue-400' },
+            rejected: { label: 'Rejected', variant: 'destructive', icon: AlertCircle, className: 'bg-orange-500/20 text-orange-400' },
         };
         
         const config = statusConfig[status] || statusConfig.due;
@@ -174,23 +178,33 @@ const ClientsBillPage = () => {
         }, { total: 0, paid: 0, due: 0 });
     };
     
-    const handleDownloadPDF = async (invoiceId) => {
-        if (!user?.access_token || !agencyId) return;
-        
+    const handleOpenBillPreview = async (invoice) => {
+        if (!user?.access_token || !agencyId || !invoice?.id) return;
+        setBillPreview({ open: true, blobUrl: null, invoiceNumber: invoice.invoice_number || '', loading: true });
         try {
-            await downloadInvoicePDF(invoiceId, agencyId, user.access_token);
-            toast({
-                title: 'Success',
-                description: 'Invoice PDF downloaded successfully',
-            });
+            const { url } = await getInvoicePDFBlob(invoice.id, agencyId, user.access_token);
+            setBillPreview(prev => ({ ...prev, blobUrl: url, loading: false }));
         } catch (error) {
-            console.error('Error downloading PDF:', error);
-            toast({
-                title: 'Error',
-                description: 'Failed to download invoice PDF. ' + (error.message || ''),
-                variant: 'destructive',
-            });
+            console.error('Error loading PDF:', error);
+            toast({ title: 'Error', description: 'Failed to load invoice PDF. ' + (error?.message || ''), variant: 'destructive' });
+            setBillPreview(prev => ({ ...prev, open: false, loading: false }));
         }
+    };
+
+    const closeBillPreview = () => {
+        if (billPreview.blobUrl) window.URL.revokeObjectURL(billPreview.blobUrl);
+        setBillPreview({ open: false, blobUrl: null, invoiceNumber: '', loading: false });
+    };
+
+    const handleDownloadFromBillPreview = () => {
+        if (!billPreview.blobUrl) return;
+        const a = document.createElement('a');
+        a.href = billPreview.blobUrl;
+        a.download = `invoice_${billPreview.invoiceNumber || 'bill'}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        toast({ title: 'Downloaded', description: 'Invoice PDF downloaded.' });
     };
     
     const handleMarkPaymentDone = async (invoice) => {
@@ -255,6 +269,29 @@ const ClientsBillPage = () => {
             toast({
                 title: 'Error',
                 description: 'Failed to update invoice. ' + (error.message || ''),
+                variant: 'destructive',
+            });
+        }
+    };
+
+    const handleRejectPayment = async () => {
+        if (!selectedInvoice?.id || !user?.access_token || !agencyId) return;
+        try {
+            await updateClientBillingInvoiceStatus(selectedInvoice.id, 'rejected', agencyId, user.access_token);
+            toast({
+                title: 'Payment rejected',
+                description: 'Invoice payment proof rejected. Client can re-upload proof.',
+            });
+            setIsProofModalOpen(false);
+            setSelectedInvoice(null);
+            setProofUrl(null);
+            setProofContentType(null);
+            loadData();
+        } catch (error) {
+            console.error('Error rejecting payment:', error);
+            toast({
+                title: 'Error',
+                description: 'Failed to reject payment. ' + (error?.message || ''),
                 variant: 'destructive',
             });
         }
@@ -379,6 +416,28 @@ const ClientsBillPage = () => {
             setIsSavingEdit(false);
         }
     };
+
+    const handleExportCSV = () => {
+        const headers = ['Invoice Date', 'Invoice No.', 'Client', 'Particulars', 'HSN/SAC', 'Amount', 'Status', 'Due Date'];
+        const rows = filteredInvoices.map(inv => [
+            inv.invoice_date ? format(new Date(inv.invoice_date), 'yyyy-MM-dd') : '',
+            (inv.invoice_number || '').replace(/,/g, ';'),
+            (inv.client_name || '').replace(/,/g, ';'),
+            (inv.billing_head || '').replace(/,/g, ';'),
+            (inv.hsn_sac_code || '').replace(/,/g, ';'),
+            parseFloat(inv.invoice_amount || 0).toFixed(2),
+            inv.status || '',
+            inv.due_date ? format(new Date(inv.due_date), 'yyyy-MM-dd') : ''
+        ]);
+        const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+        const link = document.createElement('a');
+        link.setAttribute('href', encodeURI(csvContent));
+        link.setAttribute('download', `clients_invoices_${new Date().getTime()}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast({ title: 'Exported', description: 'Invoices exported as CSV' });
+    };
     
     const totals = calculateTotals();
     
@@ -475,6 +534,7 @@ const ClientsBillPage = () => {
                                         <SelectItem value="overdue">Overdue</SelectItem>
                                         <SelectItem value="paid">Paid</SelectItem>
                                         <SelectItem value="pending_verification">Pending Verification</SelectItem>
+                                        <SelectItem value="rejected">Rejected</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -500,8 +560,12 @@ const ClientsBillPage = () => {
                 
                 {/* Table */}
                 <Card className="glass-card border-white/5">
-                    <CardHeader>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0">
                         <CardTitle className="text-lg text-white">Invoices</CardTitle>
+                        <Button variant="outline" size="sm" onClick={handleExportCSV} className="gap-2 border-white/20 text-white hover:bg-white/10">
+                            <FileDown className="w-4 h-4" />
+                            Export CSV
+                        </Button>
                     </CardHeader>
                     <CardContent>
                         {filteredInvoices.length === 0 ? (
@@ -578,9 +642,9 @@ const ClientsBillPage = () => {
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
-                                                        onClick={() => handleDownloadPDF(invoice.id)}
+                                                        onClick={() => handleOpenBillPreview(invoice)}
                                                         className="text-white hover:bg-white/10 h-8 w-8"
-                                                        title="Download PDF"
+                                                        title="View / Download PDF"
                                                     >
                                                         <Download className="w-4 h-4" />
                                                     </Button>
@@ -656,10 +720,15 @@ const ClientsBillPage = () => {
                             Cancel
                         </Button>
                         {proofUrl && (
-                            <Button onClick={handleConfirmMarkPaid} className="gap-2">
-                                <Check className="w-4 h-4" />
-                                Mark as Paid
-                            </Button>
+                            <>
+                                <Button variant="outline" onClick={handleRejectPayment} className="border-red-500/50 text-red-400 hover:bg-red-500/20 gap-2">
+                                    Reject
+                                </Button>
+                                <Button onClick={handleConfirmMarkPaid} className="gap-2">
+                                    <Check className="w-4 h-4" />
+                                    Mark as Paid
+                                </Button>
+                            </>
                         )}
                     </DialogFooter>
                 </DialogContent>
@@ -822,6 +891,35 @@ const ClientsBillPage = () => {
                             Save Changes
                         </Button>
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Bill PDF Preview Modal */}
+            <Dialog open={billPreview.open} onOpenChange={(open) => { if (!open) closeBillPreview(); }}>
+                <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col bg-gray-900 border-white/10 p-0 overflow-hidden">
+                    <DialogHeader className="flex-shrink-0 px-6 py-4 border-b border-white/10 flex flex-row items-center justify-between">
+                        <DialogTitle className="text-white">Invoice PDF</DialogTitle>
+                        <div className="flex items-center gap-2">
+                            {billPreview.blobUrl && (
+                                <Button variant="outline" size="sm" onClick={handleDownloadFromBillPreview} className="gap-2 border-white/20 text-white hover:bg-white/10">
+                                    <Download className="w-4 h-4" />
+                                    Download
+                                </Button>
+                            )}
+                            <Button variant="ghost" size="icon" onClick={closeBillPreview} className="text-white hover:bg-white/10 h-8 w-8">
+                                <X className="w-5 h-5" />
+                            </Button>
+                        </div>
+                    </DialogHeader>
+                    <div className="flex-1 min-h-[60vh] overflow-auto p-4 bg-black/40">
+                        {billPreview.loading ? (
+                            <div className="flex items-center justify-center py-16">
+                                <Loader2 className="w-10 h-10 animate-spin text-white" />
+                            </div>
+                        ) : billPreview.blobUrl ? (
+                            <iframe src={billPreview.blobUrl} className="w-full h-[70vh] rounded border border-white/10" title="Invoice PDF" />
+                        ) : null}
+                    </div>
                 </DialogContent>
             </Dialog>
         </div>

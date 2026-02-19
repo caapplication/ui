@@ -152,8 +152,10 @@ export const {
   uploadClientInvoicePaymentProof,
   getPaymentProofUrl,
   markInvoicePaid,
+  updateClientBillingInvoiceStatus,
   getMyCompany,
   updateMyCompany,
+  getInvoicePDFBlob,
   downloadInvoicePDF,
   updateClientBillingInvoice,
   lockClient,
@@ -161,7 +163,7 @@ export const {
 } = clients;
 
 // Also export updateClientBillingInvoice directly to ensure it's available
-export { updateClientBillingInvoice } from './clients';
+export { updateClientBillingInvoice, getInvoicePDFBlob } from './clients';
 
 export {
   getClientBillingSetup,
