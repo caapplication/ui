@@ -316,8 +316,8 @@ const ClientMyCompany = ({ readOnly = false }) => {
                                                 className="pl-9"
                                                 value={companyData.name}
                                                 onChange={(e) => setCompanyData({ ...companyData, name: e.target.value })}
-                                                disabled={readOnly}
-                                                required
+                                                disabled={true}
+                                                required // Keeping required though disabled for semantics
                                             />
                                         </div>
                                     </div>
@@ -339,7 +339,7 @@ const ClientMyCompany = ({ readOnly = false }) => {
                                             id="pan"
                                             value={companyData.pan}
                                             onChange={(e) => setCompanyData({ ...companyData, pan: e.target.value.toUpperCase() })}
-                                            disabled={readOnly}
+                                            disabled={true}
                                             maxLength={10}
                                         />
                                     </div>
@@ -350,7 +350,7 @@ const ClientMyCompany = ({ readOnly = false }) => {
                                             id="gstin"
                                             value={companyData.gstin}
                                             onChange={(e) => setCompanyData({ ...companyData, gstin: e.target.value.toUpperCase() })}
-                                            disabled={readOnly}
+                                            disabled={true}
                                             maxLength={15}
                                         />
                                     </div>
