@@ -50,9 +50,12 @@ import {
     getCATeamVouchersBulk,
     listTasks,
     listRecurringTasks,
-    getNotices
+    getNotices,
+    getTaskDashboardAnalytics,
+    getNoticeDashboardAnalytics
 } from '@/lib/api';
 import { format, startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, subMonths, startOfYear, differenceInDays, isAfter } from 'date-fns';
+
 
 const TIME_FRAME_PRESETS = [
     { label: 'Today', value: 'today' },
@@ -84,7 +87,7 @@ const ActivityDetailsList = ({ details, navigate }) => (
                 <ul className="space-y-1 ml-6">
                     {details.tasks.map(t => (
                         <li key={t.id} className="flex items-center justify-between gap-2 text-gray-300 hover:text-white">
-                            <span 
+                            <span
                                 className="cursor-pointer hover:underline truncate"
                                 onClick={(e) => { e.stopPropagation(); navigate(t.is_recurring ? `/tasks/recurring/${t.id}` : `/tasks/${t.id}`); }}
                             >
@@ -106,7 +109,7 @@ const ActivityDetailsList = ({ details, navigate }) => (
                 <ul className="space-y-1 ml-6">
                     {details.vouchers.map(v => (
                         <li key={v.id} className="flex items-center justify-between gap-2 text-gray-300">
-                            <span 
+                            <span
                                 className="cursor-pointer hover:underline truncate"
                                 onClick={(e) => { e.stopPropagation(); navigate(`/finance/vouchers/${v.id}`); }}
                             >
@@ -128,7 +131,7 @@ const ActivityDetailsList = ({ details, navigate }) => (
                 <ul className="space-y-1 ml-6">
                     {details.invoices.map(i => (
                         <li key={i.id} className="flex items-center justify-between gap-2 text-gray-300">
-                            <span 
+                            <span
                                 className="cursor-pointer hover:underline truncate"
                                 onClick={(e) => { e.stopPropagation(); navigate(`/invoices/ca/${i.id}`); }}
                             >
@@ -212,10 +215,10 @@ const TodayProgressExpanded = () => {
     const [expandedRowId, setExpandedRowId] = useState(null);
     const itemsPerPage = 10;
     const { toast } = useToast();
-    
+
     // Check if accessed from dashboard click (viewing own activities only)
     const viewOwnActivities = location.state?.userId && user?.id &&
-      String(location.state.userId).toLowerCase() === String(user.id).toLowerCase();
+        String(location.state.userId).toLowerCase() === String(user.id).toLowerCase();
 
     const handleExport = () => {
         if (filteredData.length === 0) {
@@ -261,19 +264,25 @@ const TodayProgressExpanded = () => {
             const [teamMembers, allEntities] = await Promise.all([
                 listTeamMembers(token).catch(() => []),
                 // For CA_TEAM: Only get entities assigned to this user (same as dashboard)
-                user.role === 'CA_TEAM' 
+                user.role === 'CA_TEAM'
                     ? listEntities(null, token).catch(() => [])
                     : listAllEntities(token).catch(() => [])
             ]);
 
             const entityIds = allEntities.map(e => e.id);
 
-            const [invoices, vouchers, tasks, recurringTasksData, notices] = await Promise.all([
+            // Conditional fetching: 
+            // If today, we fetch analytics for accurate counts.
+            // We ALWAYS fetch lists for the expanded details view.
+
+            const [invoices, vouchers, tasks, recurringTasksData, notices, taskAnalytics, noticeAnalytics] = await Promise.all([
                 entityIds.length > 0 ? getCATeamInvoicesBulk(entityIds, token).catch(() => []) : Promise.resolve([]),
                 entityIds.length > 0 ? getCATeamVouchersBulk(entityIds, token).catch(() => []) : Promise.resolve([]),
                 listTasks(agencyId, token).catch(() => []),
                 listRecurringTasks(agencyId, token, null, 1, 1000).catch(() => ({ items: [] })),
-                getNotices(null, token).catch(() => [])
+                getNotices(null, token).catch(() => []),
+                timeFrame === 'today' ? getTaskDashboardAnalytics(15, agencyId, token).catch(() => null) : Promise.resolve(null),
+                timeFrame === 'today' ? getNoticeDashboardAnalytics(15, agencyId, token).catch(() => null) : Promise.resolve(null)
             ]);
 
             const regularTasks = Array.isArray(tasks) ? tasks : (tasks?.items || []);
@@ -310,21 +319,53 @@ const TodayProgressExpanded = () => {
             const periodTasks = tasksList.filter(t => isTaskCompleted(t) && isWithinRange(getActivityDate(t, 'task')));
             const periodNotices = noticesList.filter(n => n.status === 'closed' && isWithinRange(getActivityDate(n, 'notice')));
 
+            // Create analytics maps if available
+            const taskAnalyticsMap = {};
+            if (taskAnalytics?.todays_progress) {
+                taskAnalytics.todays_progress.forEach(item => {
+                    taskAnalyticsMap[String(item.id)] = item.count;
+                });
+            }
+
+            const noticeAnalyticsMap = {};
+            if (noticeAnalytics?.todays_progress) {
+                noticeAnalytics.todays_progress.forEach(item => {
+                    noticeAnalyticsMap[String(item.id)] = item.count;
+                });
+            }
+
             // Filter team members: if viewOwnActivities, only show current user
             const currentUserIdNorm = String(user.id || '').toLowerCase();
             const currentUserNameNorm = String(user.full_name || user.name || '').toLowerCase().trim();
-            const membersToShow = viewOwnActivities 
+            const membersToShow = viewOwnActivities
                 ? teamMembers.filter(m => {
                     const mId = String(m.user_id || m.id || '').toLowerCase();
                     const mName = String(m.full_name || m.name || '').toLowerCase().trim();
                     return mId === currentUserIdNorm || (currentUserNameNorm && mName === currentUserNameNorm);
                 })
                 : teamMembers.filter(m => {
-                    // Only show CA_ACCOUNTANT and CA_TEAM members
+                    // Show CA_TEAM and CA_ACCOUNTANT members
                     const memberRole = m.role;
-                    return memberRole === 'CA_ACCOUNTANT' || memberRole === 'CA_TEAM';
+                    return memberRole === 'CA_TEAM' || memberRole === 'CA_ACCOUNTANT';
                 });
-            
+
+            // If viewOwnActivities OR user is CA_ACCOUNTANT (admin), ensure they are in the list
+            // Admins might not be in the 'teamMembers' list returned by the API
+            const currentUserInList = membersToShow.find(m =>
+                String(m.id || m.user_id).toLowerCase() === String(user.id).toLowerCase()
+            );
+
+            if (!currentUserInList && (viewOwnActivities || user.role === 'CA_ACCOUNTANT' || user.role === 'CA_TEAM')) {
+                membersToShow.push({
+                    id: user.id,
+                    user_id: user.id,
+                    name: user.name,
+                    full_name: user.full_name || user.name,
+                    email: user.email,
+                    role: user.role
+                });
+            }
+
             // If viewOwnActivities and user not in teamMembers, add them
             if (viewOwnActivities && membersToShow.length === 0) {
                 membersToShow.push({
@@ -360,7 +401,19 @@ const TodayProgressExpanded = () => {
                     return String(userId) === String(mId);
                 });
 
-                const total = memberInvoices.length + memberVouchers.length + memberTasks.length + memberNotices.length;
+                // Use analytics counts if available (Today only), else use calculated counts
+                const taskCount = (timeFrame === 'today' && taskAnalytics)
+                    ? (taskAnalyticsMap[String(mId)] || 0)
+                    : memberTasks.length;
+
+                // For notices, the dashboard works on reviewed_by. 
+                // The frontend logic filtered by created_by/owner_id which might be wrong for "Progress" (reviews).
+                // Dashboard analytics is the source of truth for "Progress".
+                const noticeCount = (timeFrame === 'today' && noticeAnalytics)
+                    ? (noticeAnalyticsMap[String(mId)] || 0)
+                    : memberNotices.length;
+
+                const total = memberInvoices.length + memberVouchers.length + taskCount + noticeCount;
                 const mIdNorm = String(mId || '').toLowerCase();
                 const mNameNorm = String(mName || '').toLowerCase().trim();
                 const isCurrentUser = mIdNorm === String(user.id || '').toLowerCase() ||
@@ -370,13 +423,13 @@ const TodayProgressExpanded = () => {
                     name: mName,
                     invoices: memberInvoices.length,
                     vouchers: memberVouchers.length,
-                    tasks: memberTasks.length,
-                    notices: memberNotices.length,
+                    tasks: taskCount,
+                    notices: noticeCount,
                     total,
                     isCurrentUser,
                     activityDetails: { tasks: memberTasks, vouchers: memberVouchers, invoices: memberInvoices, notices: memberNotices }
                 };
-            }).filter(m => m.total > 0 || searchTerm === '');
+            }).filter(m => m.total > 0 || searchTerm === '' || (viewOwnActivities && m.isCurrentUser));
 
             // Sort by total desc to assign rank, then reorder: current user first (keep rank)
             const sortedByTotal = [...memberStats].sort((a, b) => b.total - a.total);
@@ -396,6 +449,15 @@ const TodayProgressExpanded = () => {
     useEffect(() => {
         fetchData();
     }, [fetchData]);
+
+    // When opened from dashboard with userId (view own activities), auto-expand current user row like CA panel
+    useEffect(() => {
+        if (!viewOwnActivities || !data.length) return;
+        const currentUserRow = data.find(r => r.isCurrentUser);
+        if (currentUserRow?.id) {
+            setExpandedRowId(currentUserRow.id);
+        }
+    }, [viewOwnActivities, data]);
 
     const filteredData = useMemo(() => {
         return data.filter(item =>
@@ -472,7 +534,7 @@ const TodayProgressExpanded = () => {
                                         const hasDetails = details.tasks?.length + details.vouchers?.length + details.invoices?.length + details.notices?.length > 0;
                                         return (
                                             <React.Fragment key={row.id}>
-                                                <TableRow 
+                                                <TableRow
                                                     className={cn(
                                                         "border-b border-white/5 hover:bg-white/5 transition-colors group",
                                                         hasDetails && "cursor-pointer",

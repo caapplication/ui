@@ -14,10 +14,10 @@ import { getCroppedImg } from '@/lib/imageUtils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { uploadClientPhoto } from '@/lib/api';
 
-const ClientMyCompany = () => {
+const ClientMyCompany = ({ readOnly = false }) => {
     const { user } = useAuth();
     const { toast } = useToast();
-    
+
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [companyData, setCompanyData] = useState({
@@ -39,22 +39,41 @@ const ClientMyCompany = () => {
     const [photoFile, setPhotoFile] = useState(null);
     const [photoPreview, setPhotoPreview] = useState(null);
     const [existingPhotoUrl, setExistingPhotoUrl] = useState(null);
-    
+
     // Crop dialog states
     const [showCropDialog, setShowCropDialog] = useState(false);
     const [imageToCrop, setImageToCrop] = useState(null);
     const [crop, setCrop] = useState({ x: 0, y: 0 });
     const [zoom, setZoom] = useState(1);
     const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
-    
+
     const fileInputRef = useRef(null);
     const [clientId, setClientId] = useState(null);
+    const [activeEntityId, setActiveEntityId] = useState(() => localStorage.getItem('entityId'));
+
+    useEffect(() => {
+        const handleStorageChange = () => {
+            const newEntityId = localStorage.getItem('entityId');
+            if (newEntityId !== activeEntityId) {
+                setActiveEntityId(newEntityId);
+            }
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+        // Also listen to custom event if app uses one
+        window.addEventListener('entityChange', handleStorageChange);
+
+        return () => {
+            window.removeEventListener('storage', handleStorageChange);
+            window.removeEventListener('entityChange', handleStorageChange);
+        };
+    }, [activeEntityId]);
 
     useEffect(() => {
         if (user?.access_token) {
             loadCompanyProfile();
         }
-    }, [user?.access_token]);
+    }, [user?.access_token, activeEntityId]);
 
     // Cleanup blob URLs on unmount
     useEffect(() => {
@@ -68,7 +87,7 @@ const ClientMyCompany = () => {
     const loadCompanyProfile = async () => {
         setIsLoading(true);
         try {
-            const data = await getMyCompany(user.access_token);
+            const data = await getMyCompany(user.access_token, activeEntityId);
             setClientId(data.id);
             setCompanyData({
                 name: data.name || '',
@@ -93,7 +112,7 @@ const ClientMyCompany = () => {
             console.error('Error loading company profile:', error);
             toast({
                 title: 'Error',
-                description: 'Failed to load company profile',
+                description: 'Failed to load company profile. Please ensure you have selected a valid client.',
                 variant: 'destructive',
             });
         } finally {
@@ -102,6 +121,7 @@ const ClientMyCompany = () => {
     };
 
     const handlePhotoSelect = (e) => {
+        if (readOnly) return;
         const file = e.target.files[0];
         if (file) {
             if (!file.type.startsWith('image/')) {
@@ -144,6 +164,7 @@ const ClientMyCompany = () => {
     };
 
     const handleRemovePhoto = () => {
+        if (readOnly) return;
         setPhotoFile(null);
         setPhotoPreview(null);
         setExistingPhotoUrl(null);
@@ -154,6 +175,7 @@ const ClientMyCompany = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (readOnly) return;
         if (!user?.access_token) return;
 
         setIsSaving(true);
@@ -176,13 +198,13 @@ const ClientMyCompany = () => {
                 }
             });
 
-            await updateMyCompany(updateData, user.access_token);
-            
+            await updateMyCompany(updateData, user.access_token, activeEntityId);
+
             toast({
                 title: 'Success',
                 description: 'Company profile updated successfully',
             });
-            
+
             // Reload to get updated photo URL
             await loadCompanyProfile();
         } catch (error) {
@@ -213,262 +235,247 @@ const ClientMyCompany = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
         >
-            <Card className="glass-card">
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Building2 className="w-5 h-5" />
-                        My Company Profile
-                    </CardTitle>
-                    <CardDescription>
-                        Update your company details. These details are used for invoicing and communication.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        {/* Company Logo/Photo */}
-                        <div className="flex flex-col items-center gap-4 pb-6 border-b border-white/10">
-                            <div className="relative">
-                                <Avatar className="w-32 h-32 border-2 border-white/20">
-                                    <AvatarImage src={photoPreview || existingPhotoUrl} />
-                                    <AvatarFallback className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white text-2xl">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Left Column - Company Identity */}
+                <div className="lg:col-span-1">
+                    <Card className="glass-card">
+                        <CardContent className="pt-6 flex flex-col items-center text-center">
+                            <div className="mb-4 relative">
+                                <Avatar className="w-32 h-32 text-4xl border-4 border-white/20">
+                                    <AvatarImage src={photoPreview || existingPhotoUrl} key={photoPreview || existingPhotoUrl} />
+                                    <AvatarFallback className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white">
                                         {companyData.name ? companyData.name.charAt(0).toUpperCase() : 'C'}
                                     </AvatarFallback>
                                 </Avatar>
-                                <Button
-                                    type="button"
-                                    size="icon"
-                                    className="absolute bottom-0 right-0 rounded-full bg-blue-600 hover:bg-blue-700"
-                                    onClick={() => fileInputRef.current?.click()}
-                                >
-                                    <Camera className="w-4 h-4" />
-                                </Button>
-                            </div>
-                            <div className="flex gap-2">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => fileInputRef.current?.click()}
-                                >
-                                    Change Photo
-                                </Button>
-                                {(photoPreview || existingPhotoUrl) && (
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={handleRemovePhoto}
-                                    >
-                                        <Trash2 className="w-4 h-4 mr-2" />
-                                        Remove
-                                    </Button>
+
+                                {!readOnly && (
+                                    <div className="absolute -bottom-2 -right-2 flex gap-2">
+                                        <Button
+                                            size="icon"
+                                            className="rounded-full w-10 h-10 bg-white/20 text-white hover:bg-white/30 backdrop-blur-sm border border-white/30"
+                                            onClick={() => fileInputRef.current?.click()}
+                                            type="button"
+                                        >
+                                            <Camera className="w-5 h-5" />
+                                        </Button>
+                                        {(photoPreview || existingPhotoUrl) && (
+                                            <Button
+                                                size="icon"
+                                                className="rounded-full w-10 h-10 bg-red-500/20 text-white hover:bg-red-500/30 backdrop-blur-sm border border-red-500/30"
+                                                onClick={handleRemovePhoto}
+                                                type="button"
+                                            >
+                                                <Trash2 className="w-5 h-5" />
+                                            </Button>
+                                        )}
+                                    </div>
                                 )}
                             </div>
-                            <Input
-                                ref={fileInputRef}
+
+                            <input
                                 type="file"
+                                ref={fileInputRef}
                                 className="hidden"
                                 accept="image/*"
                                 onChange={handlePhotoSelect}
                             />
-                        </div>
 
-                        {/* Company Details */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="md:col-span-2">
-                                <Label htmlFor="name">Company Name *</Label>
-                                <Input
-                                    id="name"
-                                    value={companyData.name}
-                                    onChange={(e) => setCompanyData({ ...companyData, name: e.target.value })}
-                                    required
-                                />
-                            </div>
+                            <h2 className="text-2xl font-bold text-white break-words w-full px-4">{companyData.name || 'Company Name'}</h2>
+                            <p className="text-sm text-gray-400 mt-2 flex items-center justify-center gap-2 break-all px-4">
+                                <Building2 className="w-4 h-4 flex-shrink-0" />
+                                {companyData.email || 'No email provided'}
+                            </p>
 
-                            <div>
-                                <Label htmlFor="pan">PAN</Label>
-                                <Input
-                                    id="pan"
-                                    value={companyData.pan || ''}
-                                    onChange={(e) => setCompanyData({ ...companyData, pan: e.target.value })}
-                                    placeholder="ABCDE1234F"
-                                    maxLength={10}
-                                />
-                            </div>
+                            {readOnly && (
+                                <div className="mt-6 px-4 py-3 bg-blue-500/10 border border-blue-500/20 rounded-lg text-sm text-blue-200 w-full">
+                                    View-only access. Contact master admin to edit.
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
 
-                            <div>
-                                <Label htmlFor="gstin">GSTIN</Label>
-                                <Input
-                                    id="gstin"
-                                    value={companyData.gstin || ''}
-                                    onChange={(e) => setCompanyData({ ...companyData, gstin: e.target.value })}
-                                    placeholder="29ABCDE1234F1Z5"
-                                    maxLength={15}
-                                />
-                            </div>
+                {/* Right Column - Company Details Form */}
+                <div className="lg:col-span-2 space-y-8">
+                    <Card className="glass-card">
+                        <CardHeader>
+                            <CardTitle>Company Information</CardTitle>
+                            <CardDescription>
+                                Update your company details used for invoicing and communication.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <form onSubmit={handleSubmit} className="space-y-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="name">Company Name *</Label>
+                                        <div className="relative">
+                                            <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                                            <Input
+                                                id="name"
+                                                className="pl-9"
+                                                value={companyData.name}
+                                                onChange={(e) => setCompanyData({ ...companyData, name: e.target.value })}
+                                                disabled={readOnly}
+                                                required
+                                            />
+                                        </div>
+                                    </div>
 
-                            <div>
-                                <Label htmlFor="mobile">Mobile Number</Label>
-                                <Input
-                                    id="mobile"
-                                    type="tel"
-                                    value={companyData.mobile || ''}
-                                    onChange={(e) => setCompanyData({ ...companyData, mobile: e.target.value })}
-                                    placeholder="10-digit mobile number"
-                                />
-                            </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="email">Email Address</Label>
+                                        <Input
+                                            id="email"
+                                            type="email"
+                                            value={companyData.email}
+                                            onChange={(e) => setCompanyData({ ...companyData, email: e.target.value })}
+                                            disabled={readOnly}
+                                        />
+                                    </div>
 
-                            <div>
-                                <Label htmlFor="secondary_phone">Secondary Phone</Label>
-                                <Input
-                                    id="secondary_phone"
-                                    type="tel"
-                                    value={companyData.secondary_phone || ''}
-                                    onChange={(e) => setCompanyData({ ...companyData, secondary_phone: e.target.value })}
-                                    placeholder="Alternative phone number"
-                                />
-                            </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="pan">PAN Number</Label>
+                                        <Input
+                                            id="pan"
+                                            value={companyData.pan}
+                                            onChange={(e) => setCompanyData({ ...companyData, pan: e.target.value.toUpperCase() })}
+                                            disabled={readOnly}
+                                            maxLength={10}
+                                        />
+                                    </div>
 
-                            <div className="md:col-span-2">
-                                <Label htmlFor="email">Email</Label>
-                                <Input
-                                    id="email"
-                                    type="email"
-                                    value={companyData.email || ''}
-                                    onChange={(e) => setCompanyData({ ...companyData, email: e.target.value })}
-                                    placeholder="company@example.com"
-                                />
-                            </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="gstin">GSTIN</Label>
+                                        <Input
+                                            id="gstin"
+                                            value={companyData.gstin}
+                                            onChange={(e) => setCompanyData({ ...companyData, gstin: e.target.value.toUpperCase() })}
+                                            disabled={readOnly}
+                                            maxLength={15}
+                                        />
+                                    </div>
 
-                            <div className="md:col-span-2">
-                                <Label htmlFor="address_line1">Address Line 1</Label>
-                                <Input
-                                    id="address_line1"
-                                    value={companyData.address_line1 || ''}
-                                    onChange={(e) => setCompanyData({ ...companyData, address_line1: e.target.value })}
-                                    placeholder="Street address"
-                                />
-                            </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="mobile">Mobile Number</Label>
+                                        <Input
+                                            id="mobile"
+                                            value={companyData.mobile}
+                                            onChange={(e) => setCompanyData({ ...companyData, mobile: e.target.value })}
+                                            disabled={readOnly}
+                                        />
+                                    </div>
 
-                            <div className="md:col-span-2">
-                                <Label htmlFor="address_line2">Address Line 2</Label>
-                                <Input
-                                    id="address_line2"
-                                    value={companyData.address_line2 || ''}
-                                    onChange={(e) => setCompanyData({ ...companyData, address_line2: e.target.value })}
-                                    placeholder="Apartment, suite, etc."
-                                />
-                            </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="secondary_phone">Secondary Phone</Label>
+                                        <Input
+                                            id="secondary_phone"
+                                            value={companyData.secondary_phone}
+                                            onChange={(e) => setCompanyData({ ...companyData, secondary_phone: e.target.value })}
+                                            disabled={readOnly}
+                                        />
+                                    </div>
 
-                            <div>
-                                <Label htmlFor="city">City</Label>
-                                <Input
-                                    id="city"
-                                    value={companyData.city || ''}
-                                    onChange={(e) => setCompanyData({ ...companyData, city: e.target.value })}
-                                    placeholder="City"
-                                />
-                            </div>
+                                    <div className="space-y-2 md:col-span-2">
+                                        <Label htmlFor="address_line1">Address Line 1</Label>
+                                        <Input
+                                            id="address_line1"
+                                            value={companyData.address_line1}
+                                            onChange={(e) => setCompanyData({ ...companyData, address_line1: e.target.value })}
+                                            disabled={readOnly}
+                                        />
+                                    </div>
 
-                            <div>
-                                <Label htmlFor="state">State</Label>
-                                <Input
-                                    id="state"
-                                    value={companyData.state || ''}
-                                    onChange={(e) => setCompanyData({ ...companyData, state: e.target.value })}
-                                    placeholder="State"
-                                />
-                            </div>
+                                    <div className="space-y-2 md:col-span-2">
+                                        <Label htmlFor="address_line2">Address Line 2</Label>
+                                        <Input
+                                            id="address_line2"
+                                            value={companyData.address_line2}
+                                            onChange={(e) => setCompanyData({ ...companyData, address_line2: e.target.value })}
+                                            disabled={readOnly}
+                                        />
+                                    </div>
 
-                            <div>
-                                <Label htmlFor="postal_code">Postal Code</Label>
-                                <Input
-                                    id="postal_code"
-                                    value={companyData.postal_code || ''}
-                                    onChange={(e) => setCompanyData({ ...companyData, postal_code: e.target.value })}
-                                    placeholder="PIN/ZIP code"
-                                />
-                            </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="city">City</Label>
+                                        <Input
+                                            id="city"
+                                            value={companyData.city}
+                                            onChange={(e) => setCompanyData({ ...companyData, city: e.target.value })}
+                                            disabled={readOnly}
+                                        />
+                                    </div>
 
-                            <div>
-                                <Label htmlFor="date_of_birth">Date of Birth</Label>
-                                <Input
-                                    id="date_of_birth"
-                                    type="date"
-                                    value={companyData.date_of_birth || ''}
-                                    onChange={(e) => setCompanyData({ ...companyData, date_of_birth: e.target.value })}
-                                />
-                            </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="state">State</Label>
+                                        <Input
+                                            id="state"
+                                            value={companyData.state}
+                                            onChange={(e) => setCompanyData({ ...companyData, state: e.target.value })}
+                                            disabled={readOnly}
+                                        />
+                                    </div>
 
-                            <div>
-                                <Label htmlFor="contact_person_name">Contact Person Name</Label>
-                                <Input
-                                    id="contact_person_name"
-                                    value={companyData.contact_person_name || ''}
-                                    onChange={(e) => setCompanyData({ ...companyData, contact_person_name: e.target.value })}
-                                    placeholder="Primary contact person"
-                                />
-                            </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="postal_code">Postal Code</Label>
+                                        <Input
+                                            id="postal_code"
+                                            value={companyData.postal_code}
+                                            onChange={(e) => setCompanyData({ ...companyData, postal_code: e.target.value })}
+                                            disabled={readOnly}
+                                        />
+                                    </div>
 
-                            <div>
-                                <Label htmlFor="contact_person_phone">Contact Person Phone</Label>
-                                <Input
-                                    id="contact_person_phone"
-                                    type="tel"
-                                    value={companyData.contact_person_phone || ''}
-                                    onChange={(e) => setCompanyData({ ...companyData, contact_person_phone: e.target.value })}
-                                    placeholder="Contact person phone"
-                                />
-                            </div>
-                        </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="dob">Date of Incorporation/Birth</Label>
+                                        <Input
+                                            id="dob"
+                                            type="date"
+                                            value={companyData.date_of_birth}
+                                            onChange={(e) => setCompanyData({ ...companyData, date_of_birth: e.target.value })}
+                                            disabled={readOnly}
+                                        />
+                                    </div>
+                                </div>
 
-                        <div className="flex justify-end gap-4 pt-4 border-t border-white/10">
-                            <Button
-                                type="submit"
-                                disabled={isSaving}
-                                className="bg-blue-600 hover:bg-blue-700"
-                            >
-                                {isSaving ? (
-                                    <>
-                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                        Saving...
-                                    </>
-                                ) : (
-                                    'Save Changes'
+                                {!readOnly && (
+                                    <div className="flex justify-end pt-4 border-t border-white/10">
+                                        <Button type="submit" disabled={isSaving}>
+                                            {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                                            {isSaving ? 'Saving Changes...' : 'Save Changes'}
+                                        </Button>
+                                    </div>
                                 )}
-                            </Button>
-                        </div>
-                    </form>
-                </CardContent>
-            </Card>
+                            </form>
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
 
-            {/* Crop Dialog */}
+            {/* Image Crop Dialog */}
             <Dialog open={showCropDialog} onOpenChange={setShowCropDialog}>
-                <DialogContent className="max-w-2xl">
+                <DialogContent className="max-w-xl">
                     <DialogHeader>
-                        <DialogTitle>Crop Photo</DialogTitle>
+                        <DialogTitle>Crop Company Logo</DialogTitle>
                     </DialogHeader>
-                    <div className="relative w-full h-96 bg-black rounded-lg overflow-hidden">
+                    <div className="relative w-full h-80 bg-black rounded-lg overflow-hidden">
                         {imageToCrop && (
                             <Cropper
                                 image={imageToCrop}
                                 crop={crop}
                                 zoom={zoom}
                                 aspect={1}
+                                cropShape="round"
+                                showGrid={false}
                                 onCropChange={setCrop}
                                 onZoomChange={setZoom}
                                 onCropComplete={onCropComplete}
                             />
                         )}
                     </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setShowCropDialog(false)}>
-                            Cancel
-                        </Button>
-                        <Button onClick={handleCropComplete}>
-                            Crop & Use
-                        </Button>
-                    </DialogFooter>
+                    <div className="flex justify-end gap-2 mt-4">
+                        <Button variant="ghost" onClick={() => setShowCropDialog(false)}>Cancel</Button>
+                        <Button onClick={handleCropComplete}>Save Photo</Button>
+                    </div>
                 </DialogContent>
             </Dialog>
         </motion.div>

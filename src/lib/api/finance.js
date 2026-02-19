@@ -543,6 +543,20 @@ export const getCATeamInvoicesBulk = async (entityIds, token) => {
     return Array.isArray(invoices) ? invoices : [];
 };
 
+export const getInvoiceAnalytics = async (days, token) => {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/invoices/dashboard-analytics?days=${days}`, {
+        headers: getAuthHeaders(token),
+    });
+    return handleResponse(response);
+};
+
+export const getVoucherAnalytics = async (days, token) => {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/vouchers/dashboard-analytics?days=${days}`, {
+        headers: getAuthHeaders(token),
+    });
+    return handleResponse(response);
+};
+
 export const exportVouchersToTallyXML = async (entityId, token) => {
     const response = await fetch(`${FINANCE_API_BASE_URL}/api/ca_team/vouchers/export_tally?entity_id=${entityId}`, {
         headers: getAuthHeaders(token),

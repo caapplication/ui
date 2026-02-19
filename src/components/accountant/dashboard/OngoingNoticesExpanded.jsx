@@ -1,17 +1,12 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
     ChevronLeft,
     ChevronRight,
     Search,
-    Clock,
-    Users,
     Bell,
     Loader2,
-    Download,
-    AlertCircle,
-    Calendar as CalendarIcon
+    Download
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -32,74 +27,15 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
-import { cn } from '@/lib/utils';
-import { listTeamMembers, listAllEntities, getNotices } from '@/lib/api';
-import {
-    differenceInDays,
-    startOfDay,
-    endOfDay,
-    subDays,
-    startOfMonth,
-    endOfMonth,
-    subMonths,
-    startOfYear,
-    isAfter,
-    format
-} from 'date-fns';
+import { getNoticeDashboardAnalytics } from '@/lib/api';
 
 const TIME_FRAME_PRESETS = [
-    { label: 'Today', value: 'today' },
-    { label: 'Yesterday', value: 'yesterday' },
-    { label: 'Last 7 Days', value: 'last_7_days' },
-    { label: 'Last 30 Days', value: 'last_30_days' },
-    { label: 'This Month', value: 'this_month' },
-    { label: 'Last Month', value: 'last_month' },
-    { label: 'Last 3 Months', value: 'last_3_months' },
-    { label: 'Last 6 Months', value: 'last_6_months' },
-    { label: 'This Year', value: 'this_year' },
-    { label: 'Custom Range', value: 'custom' },
+    { label: 'Last 7 Days', value: 7 },
+    { label: 'Last 15 Days', value: 15 },
+    { label: 'Last 30 Days', value: 30 },
+    { label: 'Last 60 Days', value: 60 },
+    { label: 'Last 90 Days', value: 90 },
 ];
-
-const getDateRange = (preset, start, end) => {
-    const now = new Date();
-    switch (preset) {
-        case 'today':
-            return { start: startOfDay(now), end: endOfDay(now) };
-        case 'yesterday': {
-            const yesterday = subDays(now, 1);
-            return { start: startOfDay(yesterday), end: endOfDay(yesterday) };
-        }
-        case 'last_7_days':
-            return { start: startOfDay(subDays(now, 7)), end: endOfDay(now) };
-        case 'last_30_days':
-            return { start: startOfDay(subDays(now, 30)), end: endOfDay(now) };
-        case 'this_month':
-            return { start: startOfMonth(now), end: endOfDay(now) };
-        case 'last_month': {
-            const lastMonth = subMonths(now, 1);
-            return { start: startOfMonth(lastMonth), end: endOfMonth(lastMonth) };
-        }
-        case 'last_3_months':
-            return { start: startOfDay(subMonths(now, 3)), end: endOfDay(now) };
-        case 'last_6_months':
-            return { start: startOfDay(subMonths(now, 6)), end: endOfDay(now) };
-        case 'this_year':
-            return { start: startOfYear(now), end: endOfDay(now) };
-        case 'custom':
-            return {
-                start: start ? startOfDay(start) : null,
-                end: end ? endOfDay(end) : null
-            };
-        default:
-            return { start: null, end: null };
-    }
-};
 
 const OngoingNoticesExpanded = () => {
     const { user } = useAuth();
@@ -108,10 +44,7 @@ const OngoingNoticesExpanded = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [data, setData] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
-    const [timeFrame, setTimeFrame] = useState('last_30_days');
-    const [customStartDate, setCustomStartDate] = useState(null);
-    const [customEndDate, setCustomEndDate] = useState(null);
-    const [dateError, setDateError] = useState('');
+    const [timeFrame, setTimeFrame] = useState(30);
     const itemsPerPage = 10;
     const { toast } = useToast();
 
@@ -125,13 +58,11 @@ const OngoingNoticesExpanded = () => {
             return;
         }
 
-        const headers = ["Sr No", "Entity", "Total Notices", "Avg Processing Time (Days)", "Primary Handler"];
+        const headers = ["Sr No", "Entity", "Total Notices"];
         const rows = filteredData.map((row, idx) => [
             String(idx + 1).padStart(2, '0'),
             row.entity.replace(/,/g, ";"),
             row.total,
-            row.avgTime,
-            row.teamMember.replace(/,/g, ";")
         ]);
 
         const csvContent = "data:text/csv;charset=utf-8,"
@@ -152,67 +83,26 @@ const OngoingNoticesExpanded = () => {
         setLoading(true);
         try {
             const token = user.access_token;
-            const today = startOfDay(new Date());
 
-            const [teamMembers, entities, notices] = await Promise.all([
-                listTeamMembers(token).catch(() => []),
-                listAllEntities(token).catch(() => []),
-                getNotices(null, token).catch(() => [])
-            ]);
+            const analytics = await getNoticeDashboardAnalytics(timeFrame, token)
+                .catch(() => ({ ongoing_stats: [] }));
 
-            const teamMap = teamMembers.reduce((acc, t) => ({ ...acc, [t.user_id || t.id]: t.full_name || t.name || 'Unknown' }), {});
+            // Map API response — filter out General / No Entity (entity_id === null)
+            const result = (analytics.ongoing_stats || [])
+                .filter(item => item.entity_id !== null && item.entity_id !== undefined)
+                .map(item => ({
+                    id: item.entity_id,
+                    entity: item.entity_name || `Entity ${item.entity_id}`,
+                    total: item.count || 0,
+                }));
 
-            const activeNotices = notices.filter(n => n.status !== 'closed');
-
-            const { start, end } = getDateRange(timeFrame, customStartDate, customEndDate);
-            const isWithinRange = (dateStr) => {
-                if (!dateStr) return false;
-                if (!start || !end) return true;
-                const d = new Date(dateStr);
-                return d >= start && d <= end;
-            };
-
-            const filteredNotices = activeNotices.filter(n => isWithinRange(n.created_at || n.created_date));
-
-            // Aggregate by Entity
-            const entityStats = entities.map(entity => {
-                const eId = entity.id;
-                const eName = entity.name;
-
-                const entityNotices = filteredNotices.filter(n => (n.entity_id || n.entity) === eId);
-                if (entityNotices.length === 0) return null;
-
-                // Calculate Average Processing Time (Days since creation)
-                const totalDays = entityNotices.reduce((sum, notice) => {
-                    const createdAt = new Date(notice.created_at || notice.created_date);
-                    return sum + Math.max(0, differenceInDays(today, startOfDay(createdAt)));
-                }, 0);
-                const avgDays = Math.round(totalDays / entityNotices.length);
-
-                // Find primary team member (most notices created)
-                const counts = entityNotices.reduce((acc, n) => {
-                    acc[n.created_by] = (acc[n.created_by] || 0) + 1;
-                    return acc;
-                }, {});
-                const primaryId = Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b, 0);
-                const primaryMember = teamMap[primaryId] || 'Unknown';
-
-                return {
-                    id: eId,
-                    entity: eName,
-                    total: entityNotices.length,
-                    avgTime: avgDays,
-                    teamMember: primaryMember
-                };
-            }).filter(e => e !== null);
-
-            setData(entityStats);
+            setData(result);
         } catch (error) {
             console.error('Error fetching ongoing notices:', error);
         } finally {
             setLoading(false);
         }
-    }, [user, timeFrame, customStartDate, customEndDate]);
+    }, [user, timeFrame]);
 
     useEffect(() => {
         fetchData();
@@ -264,13 +154,6 @@ const OngoingNoticesExpanded = () => {
                     <Select value={timeFrame} onValueChange={(val) => {
                         setTimeFrame(val);
                         setCurrentPage(1);
-                        if (val === 'custom' && !customStartDate) {
-                            const end = new Date();
-                            const start = new Date();
-                            start.setMonth(start.getMonth() - 1);
-                            setCustomStartDate(start);
-                            setCustomEndDate(end);
-                        }
                     }}>
                         <SelectTrigger className="w-full sm:w-44 h-9 border-white/10 bg-white/5 text-white rounded-xl text-sm">
                             <SelectValue placeholder="Time frame" />
@@ -283,104 +166,6 @@ const OngoingNoticesExpanded = () => {
                             ))}
                         </SelectContent>
                     </Select>
-
-                    {timeFrame === 'custom' && (
-                        <div className="flex flex-row items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                            <div className="flex items-center gap-2">
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            variant={"outline"}
-                                            className={cn(
-                                                "w-[120px] sm:w-[130px] h-9 gap-2 justify-start text-left font-normal bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl px-2 sm:px-3",
-                                                !customStartDate && "text-muted-foreground"
-                                            )}
-                                        >
-                                            <CalendarIcon className="h-3.5 w-3.5 text-blue-400 shrink-0" />
-                                            <span className="truncate text-xs sm:text-sm">{customStartDate ? format(customStartDate, "dd MMM yy") : "Start"}</span>
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0 bg-[#1a1a2e] border-white/10 shadow-2xl" align="start">
-                                        <Calendar
-                                            mode="single"
-                                            selected={customStartDate}
-                                            onSelect={(date) => {
-                                                setCustomStartDate(date);
-                                                if (date && customEndDate) {
-                                                    const days = differenceInDays(customEndDate, date);
-                                                    if (days > 365 || days < 0) {
-                                                        const newEnd = new Date(date);
-                                                        newEnd.setFullYear(newEnd.getFullYear() + 1);
-                                                        const limit = new Date();
-                                                        setCustomEndDate(newEnd > limit ? limit : newEnd);
-                                                    }
-                                                }
-                                            }}
-                                            fromYear={2020}
-                                            toYear={new Date().getFullYear()}
-                                            disabled={(date) => {
-                                                if (customEndDate) {
-                                                    const diff = differenceInDays(customEndDate, date);
-                                                    return diff < 0 || diff > 365 || isAfter(date, new Date());
-                                                }
-                                                return isAfter(date, new Date());
-                                            }}
-                                            initialFocus
-                                        />
-                                    </PopoverContent>
-                                </Popover>
-                                <span className="text-gray-500 text-[10px] sm:text-xs font-medium shrink-0 uppercase">to</span>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            variant={"outline"}
-                                            className={cn(
-                                                "w-[120px] sm:w-[130px] h-9 gap-2 justify-start text-left font-normal bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl px-2 sm:px-3",
-                                                !customEndDate && "text-muted-foreground"
-                                            )}
-                                        >
-                                            <CalendarIcon className="h-3.5 w-3.5 text-blue-400 shrink-0" />
-                                            <span className="truncate text-xs sm:text-sm">{customEndDate ? format(customEndDate, "dd MMM yy") : "End"}</span>
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0 bg-[#1a1a2e] border-white/10 shadow-2xl" align="start">
-                                        <Calendar
-                                            mode="single"
-                                            selected={customEndDate}
-                                            onSelect={(date) => {
-                                                setCustomEndDate(date);
-                                                if (customStartDate && date) {
-                                                    const days = differenceInDays(date, customStartDate);
-                                                    if (days > 365 || days < 0) {
-                                                        const newStart = new Date(date);
-                                                        newStart.setFullYear(newStart.getFullYear() - 1);
-                                                        setCustomStartDate(newStart);
-                                                    }
-                                                }
-                                            }}
-                                            fromYear={2020}
-                                            toYear={new Date().getFullYear()}
-                                            disabled={(date) => {
-                                                if (customStartDate) {
-                                                    const diff = differenceInDays(date, customStartDate);
-                                                    return diff < 0 || diff > 365 || isAfter(date, new Date());
-                                                }
-                                                return isAfter(date, new Date());
-                                            }}
-                                            initialFocus
-                                        />
-                                    </PopoverContent>
-                                </Popover>
-                            </div>
-
-                            {dateError && (
-                                <div className="flex items-center gap-1.5 text-xs text-red-400 bg-red-400/10 px-3 py-1.5 rounded-lg border border-red-400/20">
-                                    <AlertCircle className="w-3.5 h-3.5" />
-                                    <span>{dateError}</span>
-                                </div>
-                            )}
-                        </div>
-                    )}
 
                     <div className="relative w-full sm:w-64">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -397,19 +182,17 @@ const OngoingNoticesExpanded = () => {
             <div className="glass-card rounded-3xl overflow-hidden border border-white/5 flex flex-col">
                 <div className="overflow-x-auto">
                     <Table className="min-w-full">
-                        <TableHeader className="sticky top-0 z-20 ">
+                        <TableHeader className="sticky top-0 z-20">
                             <TableRow className="border-b border-white/10 text-gray-400 text-[10px] sm:text-xs font-medium uppercase tracking-wider bg-white/5">
                                 <TableHead className="py-4 pl-6 w-16 text-gray-400">Sr no.</TableHead>
                                 <TableHead className="py-4 px-4 text-gray-400">Entity</TableHead>
                                 <TableHead className="py-4 px-4 text-center text-gray-400">Total Notices</TableHead>
-                                <TableHead className="py-4 px-4 text-center text-gray-400">Avg Processing Time</TableHead>
-                                <TableHead className="py-4 pr-6 text-right text-gray-400">Primary Handler</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {loading ? (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="text-center py-8 text-gray-400">
+                                    <TableCell colSpan={3} className="text-center py-8 text-gray-400">
                                         <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />
                                         Loading notices...
                                     </TableCell>
@@ -429,15 +212,6 @@ const OngoingNoticesExpanded = () => {
                                                     {row.total}
                                                 </span>
                                             </TableCell>
-                                            <TableCell className="py-4 px-4 text-center">
-                                                <div className="flex flex-col items-center">
-                                                    <span className="text-base font-bold text-white">{row.avgTime}</span>
-                                                    <span className="text-[9px] text-gray-500 uppercase tracking-tighter">Days Open</span>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell className="py-4 pr-6 text-right text-white font-medium italic">
-                                                {row.teamMember}
-                                            </TableCell>
                                         </TableRow>
                                     ))}
                                     <TableRow className="bg-white/5 border-t border-white/10 font-bold text-white">
@@ -445,12 +219,11 @@ const OngoingNoticesExpanded = () => {
                                             Aggregate Notice Sum
                                         </TableCell>
                                         <TableCell className="py-4 px-4 text-center text-white font-black text-xl">{totalNotices}</TableCell>
-                                        <TableCell colSpan={2} className="py-4 pr-6" />
                                     </TableRow>
                                 </>
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                                    <TableCell colSpan={3} className="text-center py-8 text-gray-500">
                                         No active notices found for this period.
                                     </TableCell>
                                 </TableRow>
@@ -505,4 +278,3 @@ const OngoingNoticesExpanded = () => {
 };
 
 export default OngoingNoticesExpanded;
-

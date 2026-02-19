@@ -616,6 +616,9 @@ const VoucherDetailsCA = () => {
         if (!voucherList || !Array.isArray(voucherList)) return [];
 
         return voucherList.filter(v => {
+            // Filter out deleted vouchers
+            if (v.is_deleted) return false;
+
             // CA Team/Accountant should only see pending_ca_approval
             if (user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') {
                 return v.status === 'pending_ca_approval';
@@ -695,6 +698,7 @@ const VoucherDetailsCA = () => {
 
         if (updatedList) {
             sourceList = updatedList.filter(v => {
+                if (v.is_deleted) return false;
                 if (user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') {
                     return v.status === 'pending_ca_approval';
                 }
@@ -759,7 +763,7 @@ const VoucherDetailsCA = () => {
                     // Use getCATeamInvoices with entityId to fetch invoices
                     const invoices = await getCATeamInvoices(entityId, user.access_token);
                     console.log("Fetched invoices:", invoices?.length || 0);
-                    const pendingInvoices = (invoices || []).filter(inv => inv.status === 'pending_ca_approval');
+                    const pendingInvoices = (invoices || []).filter(inv => inv.status === 'pending_ca_approval' && !inv.is_deleted);
                     console.log("Pending CA invoices found:", pendingInvoices.length);
 
                     if (pendingInvoices.length > 0) {

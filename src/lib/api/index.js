@@ -1,20 +1,5 @@
-import { handleResponse, getAuthHeaders } from './utils';
-import * as auth from './auth';
-import * as finance from './finance';
-import * as documents from './documents';
-import * as services from './services';
-import * as organisation from './organisation';
-import * as clients from './clients';
-import * as settings from './settings';
-import * as team from './team';
-import * as tasks from './tasks';
-import * as recurringTasks from './recurringTasks';
-import * as notices from './notices';
-
-const API_BASE_URL = import.meta.env.VITE_LOGIN_API_URL || 'http://127.0.0.1:8001';
-const FINANCE_API_BASE_URL = import.meta.env.VITE_FINANCE_API_URL || 'http://127.0.0.1:8003';
-
-export const {
+// Auth
+export {
   refreshToken,
   requestPasswordReset,
   confirmPasswordReset,
@@ -23,47 +8,80 @@ export const {
   updatePassword,
   toggle2FA,
   verify2FA,
-  resend2FA
-} = auth;
+  resend2FA,
+  get2FAStatus,
+  uploadProfilePicture,
+  deleteProfilePicture,
+  verifyToken,
+  acceptInvitation,
+} from './auth';
 
-export const {
+// Finance
+export {
   getEntities,
   getDashboardData,
   getBeneficiaries,
   getBeneficiariesForCA,
+  getBeneficiary,
   addBeneficiary,
+  updateBeneficiary,
   deleteBeneficiary,
   getBankAccountsForBeneficiary,
+  getBankAccountsForBeneficiaryDropdown,
   addBankAccount,
+  deactivateBankAccount,
+  reactivateBankAccount,
   deleteBankAccount,
   getOrganisationBankAccounts,
+  getOrganisationBankAccountsDropdown,
   getOrganisationBankAccountsForCA,
   addOrganisationBankAccount,
+  updateOrganisationBankAccount,
   deleteOrganisationBankAccount,
+  getInvoicesList,
   getInvoices,
   addInvoice,
   updateInvoice,
   deleteInvoice,
   getInvoiceAttachment,
+  getInvoicePdf,
+  getVouchersList,
   getVouchers,
   addVoucher,
   updateVoucher,
   deleteVoucher,
+  getCAVoucher,
+  updateCAVoucher,
+  deleteCAVoucher,
+  getVoucherQuick,
+  getVoucher,
+  getVoucherAttachment,
+  getVoucherPdf,
   getCATeamVouchers,
   getCATeamInvoices,
   getCATeamVouchersBulk,
   getCATeamInvoicesBulk,
   getCATeamInvoiceAttachment,
   exportVouchersToTallyXML,
+  exportVouchers,
+  exportInvoices,
   getActivityLog,
+  createActivityLog,
+  getClientDocumentActivityLogs,
   getAccountantDashboardStats,
   getFinancePendingCaApprovalIndicator,
   getFinancePendingMasterAdminApprovalIndicator,
   getEntityIndicators,
-  createActivityLog,
-} = finance;
+  getInvoiceAnalytics,
+  getVoucherAnalytics,
+  getNoticeAttachment,
+  getCACompanyProfile,
+  createCACompanyProfile,
+  updateCACompanyProfile,
+} from './finance';
 
-export const {
+// Documents
+export {
   getDocuments,
   createFolder,
   uploadFile,
@@ -81,18 +99,21 @@ export const {
   viewPublicDocument,
   shareFolder,
   createCAFolder,
-  uploadCAFile
-} = documents;
+  uploadCAFile,
+  renameFolder,
+} from './documents';
 
-export const {
+// Services
+export {
   createService,
   listServices,
   getServiceDetails,
   deleteService,
   updateServiceSettings,
-  getChecklists,
+  getChecklist,
   addChecklistItem,
   deleteChecklistItem,
+  updateChecklistItem,
   getSubtasks,
   addSubtask,
   deleteSubtask,
@@ -101,10 +122,11 @@ export const {
   deleteSupportingFile,
   getClientCountForService,
   listAssignedClientIdsForService,
-  getServiceDeletionStatus
-} = services;
+  getServiceDeletionStatus,
+} from './services';
 
-export const {
+// Organisation
+export {
   listOrganisations,
   createOrganisation,
   updateOrganisation,
@@ -123,10 +145,15 @@ export const {
   deleteEntityUser,
   deleteInvitedOrgUser,
   listAllEntityUsers,
-  listAllClientUsers
-} = organisation;
+  listAllClientUsers,
+  addEntityUsers,
+  inviteCaTeamMember,
+  deleteCaTeamMember,
+  listAllAccessibleEntityUsers,
+} from './organisation';
 
-export const {
+// Clients
+export {
   listClients,
   listClientsByOrganization,
   createClient,
@@ -159,9 +186,10 @@ export const {
   downloadInvoicePDF,
   updateClientBillingInvoice,
   lockClient,
-  unlockClient
-} = clients;
+  unlockClient,
+} from './clients';
 
+// Client Billing
 // Also export updateClientBillingInvoice directly to ensure it's available
 export { updateClientBillingInvoice, getInvoicePDFBlob } from './clients';
 
@@ -170,25 +198,21 @@ export {
   createOrUpdateClientBilling,
   updateClientBilling,
   bulkUpdateServiceBillings,
-  generateInvoicesNow
+  generateInvoicesNow,
 } from './clientBilling';
 
+// Payments
 export {
   getInvoicesWithPaymentStatus,
   getPaymentQRCode,
   uploadPaymentProof,
   getPaymentQRSettings,
   createPaymentQRSettings,
-  updatePaymentQRSettings
+  updatePaymentQRSettings,
 } from './payments';
 
+// Settings
 export {
-  getCACompanyProfile,
-  createCACompanyProfile,
-  updateCACompanyProfile
-} from './finance';
-
-export const {
   getGeneralSettings,
   updateGeneralSettings,
   getTags,
@@ -205,19 +229,22 @@ export const {
   getFinanceHeaders,
   createFinanceHeader,
   updateFinanceHeader,
-  deleteFinanceHeader
-} = settings;
+  deleteFinanceHeader,
+} from './settings';
 
-export const {
+// Team
+export {
   inviteTeamMember,
   listTeamMembers,
   listCATeamForClient,
   updateTeamMember,
   deleteTeamMember,
-  listDepartments
-} = team;
+  resendInvite,
+  listDepartments,
+} from './team';
 
-export const {
+// Tasks
+export {
   listTasks,
   createTask,
   getTaskDetails,
@@ -242,19 +269,29 @@ export const {
   createTaskComment,
   updateTaskComment,
   deleteTaskComment,
-  getUnreadNotificationCount
-} = tasks;
+  getUnreadNotificationCount,
+  getTaskDashboardAnalytics,
+  addTaskCollaborator,
+  removeTaskCollaborator,
+  getTaskCollaborators,
+  getCommentReadReceipts,
+  requestTaskClosure,
+  getClosureRequest,
+  reviewClosureRequest,
+} from './tasks';
 
-export const {
+// Recurring Tasks
+export {
   listRecurringTasks,
   getRecurringTask,
   createRecurringTask,
   updateRecurringTask,
   deleteRecurringTask,
-  triggerRecurringTaskScheduler
-} = recurringTasks;
+  triggerRecurringTaskScheduler,
+} from './recurringTasks';
 
-export const {
+// Notices
+export {
   getNotices,
   getNotice,
   createNotice,
@@ -265,7 +302,19 @@ export const {
   getNoticeComments,
   addNoticeComment,
   addNoticeCollaborator,
+  removeNoticeCollaborator,
+  deleteNotice,
   getUnreadNoticeCount,
   markNoticeCommentAsRead,
-  getNoticeCommentReadReceipts
-} = notices;
+  getNoticeCommentReadReceipts,
+  getNoticeDashboardAnalytics,
+} from './notices';
+
+// Folder Templates
+export {
+  listTemplates,
+  createTemplate,
+  updateTemplate,
+  deleteTemplate,
+  applyTemplate,
+} from './folderTemplates';

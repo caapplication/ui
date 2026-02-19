@@ -1,7 +1,20 @@
-// Bridge file: re-exports everything from the modular api/ folder.
-// Components that import from '@/lib/api.js' (with .js extension) will resolve here.
-// FINANCE_API_BASE_URL is also exported here for components that need it directly.
+import { handleResponse, getAuthHeaders } from './api/utils';
+import * as auth from './api/auth';
+import * as finance from './api/finance';
+import * as documents from './api/documents';
+import * as services from './api/services';
+import * as organisation from './api/organisation';
+import * as clients from './api/clients';
+import * as settings from './api/settings';
+import * as team from './api/team';
+import * as tasks from './api/tasks';
+import * as notices from './api/notices';
+import * as recurringTasks from './api/recurringTasks';
+import * as folderTemplates from './api/folderTemplates';
+import * as clientBilling from './api/clientBilling';
+import * as payments from './api/payments';
 
+const API_BASE_URL = import.meta.env.VITE_LOGIN_API_URL || 'http://127.0.0.1:8001';
 export const FINANCE_API_BASE_URL = import.meta.env.VITE_FINANCE_API_URL || 'http://127.0.0.1:8003';
 
 export const {
@@ -143,10 +156,8 @@ export const {
     uploadClientInvoicePaymentProof,
     getPaymentProofUrl,
     markInvoicePaid,
-    updateClientBillingInvoiceStatus,
     getMyCompany,
     updateMyCompany,
-    getInvoicePDFBlob,
     downloadInvoicePDF,
     updateClientBillingInvoice,
     createClient,

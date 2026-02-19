@@ -123,17 +123,23 @@ export const inviteOrganizationUser = async (orgId, email, agencyId, token) => {
     return handleResponse(response);
 };
 
-export const inviteEntityUser = async (entityId, email, token) => {
+export const inviteEntityUser = async (entityId, email, token, role = null) => {
     const url = `${API_BASE_URL}/invites/entity-user`;
     const headers = {
         'accept': 'application/json',
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/x-www-form-urlencoded'
     };
-    const body = new URLSearchParams({
+
+    const params = {
         email,
         entity_id: entityId
-    });
+    };
+    if (role) {
+        params.role = role;
+    }
+
+    const body = new URLSearchParams(params);
 
     const response = await fetch(url, {
         method: 'POST',
