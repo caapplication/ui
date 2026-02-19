@@ -244,70 +244,26 @@ const AccountantDashboard = () => {
         listServices(agencyId, token).catch(() => [])
       ]);
 
-      // 2. Fetch Historical Trend Data (Last 15 Days)
       const [
-        invoices,
-        vouchers,
-        tasks,
         recurringTasksData,
-        notices,
         taskAnalytics,
         noticeAnalytics,
         invoiceAnalytics,
         voucherAnalytics
       ] = await Promise.all([
-        entityIds.length > 0 ? getCATeamInvoicesBulk(entityIds, token).catch(() => []) : Promise.resolve([]),
-        entityIds.length > 0 ? getCATeamVouchersBulk(entityIds, token).catch(() => []) : Promise.resolve([]),
-        listTasks(agencyId, token).catch(() => []),
         listRecurringTasks(agencyId, token, null, 1, 1000).catch(() => ({ items: [] })),
-        getNotices(null, token).catch(() => []),
-        getTaskDashboardAnalytics(15, agencyId, token).catch(() => ({ activity_trend: [], ongoing_stats: [] })),
-        getNoticeDashboardAnalytics(15, token).catch(() => ({ activity_trend: [], ongoing_stats: [] })),
-        getInvoiceAnalytics(15, token).catch(() => ({ activity_trend: [], pending_stats: [] })),
-        getVoucherAnalytics(15, token).catch(() => ({ activity_trend: [], pending_stats: [] }))
+        getTaskDashboardAnalytics(15, agencyId, token).catch(() => ({ activity_trend: [], ongoing_stats: [], todays_progress: [] })),
+        getNoticeDashboardAnalytics(15, agencyId, token).catch(() => ({ activity_trend: [], ongoing_stats: [], todays_progress: [] })),
+        getInvoiceAnalytics(15, token).catch(() => ({ activity_trend: [], pending_stats: [], todays_progress: [] })),
+        getVoucherAnalytics(15, token).catch(() => ({ activity_trend: [], pending_stats: [], todays_progress: [] }))
       ]);
 
-      const regularTasks = Array.isArray(tasks) ? tasks : (tasks?.items || []);
       const recurringTasks = Array.isArray(recurringTasksData) ? recurringTasksData : (recurringTasksData?.items || []);
-      const recurringTaskIds = new Set(recurringTasks.map(rt => String(rt.id)));
-      const tasksList = [
-        ...regularTasks.filter(t => !recurringTaskIds.has(String(t.id))),
-        ...recurringTasks
-      ];
-      const noticesList = notices || [];
 
-      // Filter tasks and notices by entityIds
-      // Tasks use client_id (which maps to entity_id in the system)
-      // For CA_TEAM: Filter tasks by assigned_to OR created_by (tasks they created or are assigned to)
-      // For CA_ACCOUNTANT: Show all tasks for their entities
-      let filteredTasks = tasksList.filter(t => {
-        // Check if task belongs to any of our entities (tasks use client_id which is entity_id)
-        const taskEntityId = t.entity_id || t.client_id;
-        let matchesEntity = true;
-
-        if (entityIds.length > 0 && taskEntityId) {
-          // Check if task's entity/client matches any of our entities
-          matchesEntity = entityIds.includes(taskEntityId) ||
-            entityIds.some(eId => String(eId) === String(taskEntityId)) ||
-            entityIds.some(eId => String(eId).toLowerCase() === String(taskEntityId).toLowerCase());
-        }
-        // When task has no entity_id/client_id, include it (e.g. recurring tasks or unassigned)
-
-        // For CA_TEAM: Also check if task is assigned to or created by this user
-        if (user.role === 'CA_TEAM') {
-          const taskUserId = t.assigned_to || t.created_by;
-          const matchesUser = taskUserId && (String(taskUserId) === String(user.id));
-          return matchesEntity && matchesUser;
-        }
-
-        return matchesEntity;
-      });
-
-
-      const filteredNotices = noticesList.filter(n => {
-        const noticeEntityId = n.entity_id || n.client_id;
-        return entityIds.length === 0 || entityIds.includes(noticeEntityId) || entityIds.some(eId => String(eId) === String(noticeEntityId));
-      });
+      const invoices = []; // Removed bulk call
+      const vouchers = []; // Removed bulk call
+      const filteredTasks = []; // Removed listTasks call
+      const filteredNotices = []; // Removed getNotices call
 
       // Compute Revenue & Due from current month billing invoices
       let totalRevenue = 0;
@@ -400,12 +356,11 @@ const AccountantDashboard = () => {
       // 3. Process Detail Blocks
       // Build entityMap from relevantEntities + also extract entity names from nested objects in invoices/vouchers/tasks/notices
       const entityMap = {};
-      // From relevantEntities (primary source)
       relevantEntities.forEach(e => {
         if (e.id) entityMap[String(e.id)] = e.name || `Entity ${e.id}`;
       });
-      // Supplement from nested entity objects in invoices/vouchers (they have entity relationship loaded)
-      [...invoices, ...vouchers].forEach(item => {
+      // Supplement from nested entity objects in tasks/notices (they have entity relationship loaded)
+      [...filteredTasks, ...filteredNotices].forEach(item => {
         if (item.entity && item.entity.id) {
           entityMap[String(item.entity.id)] = item.entity.name || entityMap[String(item.entity.id)] || `Entity ${item.entity.id}`;
         }
@@ -417,51 +372,27 @@ const AccountantDashboard = () => {
 
       const today = startOfDay(new Date());
 
-      // Helper: group items by entity and count, returns sorted [{col1: entityName, col2: count}]
-      const getEntityCounts = (items, filterFn = () => true) => {
-        const counts = items.filter(filterFn).reduce((acc, item) => {
-          // Support entity_id directly, or client_id (tasks), or nested entity object
-          const eId = item.entity_id || item.client_id || item.entity?.id || item.entity;
-          const eIdStr = eId ? String(eId) : null;
-          if (eIdStr && eIdStr !== 'undefined' && eIdStr !== 'null') {
-            acc[eIdStr] = (acc[eIdStr] || 0) + 1;
-          }
-          return acc;
-        }, {});
-        return Object.entries(counts)
-          .map(([id, count]) => ({ col1: entityMap[id] || `Entity ${id}`, col2: count, id }))
-          .sort((a, b) => b.col2 - a.col2);
-      };
-
-
-
       const getTodayUserProgress = () => {
-        const today = startOfDay(new Date());
         const currentUserIdStr = String(user.id).toLowerCase().trim();
 
         // Get all CA_ACCOUNTANT and CA_TEAM members from teamData
-        // Use user_id || id as canonical user ID (API may return either)
-        // Filter out invited users (they have id: null)
         const allTeamMembers = teamData.filter(m => {
           const uid = m.user_id ?? m.id;
-          if (!uid) return false; // Filter out invited users
+          if (!uid) return false;
           const memberRole = m.role;
           return memberRole === 'CA_ACCOUNTANT' || memberRole === 'CA_TEAM';
         });
 
-        // Remove duplicates using canonical user ID (user_id takes precedence over id)
+        // Duplication removal and normalized map
         const uniqueMembersMap = new Map();
         for (const member of allTeamMembers) {
           const canonicalId = String(member.user_id ?? member.id).toLowerCase().trim();
           if (!uniqueMembersMap.has(canonicalId)) {
-            uniqueMembersMap.set(canonicalId, {
-              ...member,
-              normalizedId: canonicalId
-            });
+            uniqueMembersMap.set(canonicalId, { ...member, normalizedId: canonicalId });
           }
         }
 
-        // Also include current user if CA_ACCOUNTANT/CA_TEAM and not already in team
+        // Include current user if they are CA_ACCOUNTANT/CA_TEAM and not in list
         const existingEmails = new Set(Array.from(uniqueMembersMap.values()).map(m => (m.email || '').toLowerCase().trim()));
         const currentUserEmail = (user.email || '').toLowerCase().trim();
         const alreadyInTeam = uniqueMembersMap.has(currentUserIdStr) || (currentUserEmail && existingEmails.has(currentUserEmail));
@@ -479,106 +410,46 @@ const AccountantDashboard = () => {
 
         const uniqueMembers = Array.from(uniqueMembersMap.values());
 
-        // For Today's Progress: use tasks filtered by entity only (not by current user)
-        // so we count ALL team members' activities (CA. Varun's tasks, Vishal's, etc.)
-        const tasksForProgress = user.role === 'CA_TEAM'
-          ? tasksList.filter(t => {
-            const taskEntityId = t.entity_id || t.client_id;
-            if (entityIds.length > 0 && taskEntityId) {
-              const matchesEntity = entityIds.includes(taskEntityId) ||
-                entityIds.some(eId => String(eId) === String(taskEntityId)) ||
-                entityIds.some(eId => String(eId).toLowerCase() === String(taskEntityId).toLowerCase());
-              if (!matchesEntity) return false;
-            }
-            return true;
-          })
-          : filteredTasks;
+        // Process Analytics Data for Today's Progress
+        // Create maps of user_id -> count for each type
+        const taskCounts = {};
+        (taskAnalytics.todays_progress || []).forEach(item => taskCounts[String(item.id).toLowerCase()] = item.count);
 
-        const isTaskCompleted = (t) => t.status === 'completed' || (t.stage?.name && String(t.stage.name).toLowerCase() === 'complete');
-        const completedTasks = tasksForProgress.filter(isTaskCompleted);
-        const verifiedVouchers = vouchers.filter(v => v.status === 'verified');
-        const verifiedInvoices = invoices.filter(i => i.status === 'verified');
-        const closedNotices = filteredNotices.filter(n => n.status === 'closed');
-        const allItems = [
-          ...completedTasks,
-          ...verifiedVouchers,
-          ...verifiedInvoices,
-          ...closedNotices
-        ];
+        const noticeCounts = {};
+        (noticeAnalytics.todays_progress || []).forEach(item => noticeCounts[String(item.id).toLowerCase()] = item.count);
 
+        const invoiceCounts = {};
+        (invoiceAnalytics.todays_progress || []).forEach(item => invoiceCounts[String(item.id).toLowerCase()] = item.count);
 
-        // Count activities for each team member
+        const voucherCounts = {};
+        (voucherAnalytics.todays_progress || []).forEach(item => voucherCounts[String(item.id).toLowerCase()] = item.count);
+
+        // Count activities for each team member using analytics data
         const memberCounts = uniqueMembers.map(member => {
           const memberId = (member.normalizedId || String(member.user_id ?? member.id)).toLowerCase().trim();
           const memberName = member.full_name || member.name || 'Unknown';
 
-          const todayItems = allItems.filter(item => {
-            // Use activity date: completed_at for tasks, verified_at for vouchers/invoices, reviewed_at for notices
-            let dateStr = null;
-            if (item.title) {
-              dateStr = item.completed_at || item.updated_at;
-            } else if (item.voucher_id) {
-              dateStr = item.verified_at || item.updated_at || item.created_date || item.date;
-            } else if (item.bill_number) {
-              dateStr = item.verified_at || item.updated_at || item.created_at || item.date;
-            } else {
-              dateStr = item.reviewed_at || item.updated_at || item.created_at;
-            }
-            if (!dateStr) return false;
-
-            try {
-              // Parse date and compare only the date part (ignore time)
-              const itemDate = startOfDay(new Date(dateStr));
-              if (itemDate.getTime() !== today.getTime()) {
-                return false;
-              }
-            } catch (e) {
-              return false;
-            }
-
-            // Check if item belongs to this member
-            // For tasks: count if member is creator (created_by) OR assignee (assigned_to)
-            // For vouchers/invoices: attribute to verified_by (CA who verified), else owner_id
-            // For notices: use created_by or owner_id
-            let userId = null;
-
-            // Tasks have title field, use created_by or assigned_to
-            if (item.title) {
-              // Task: count if created by OR assigned to this member
-              userId = item.created_by || item.assigned_to || item.created_by_id;
-            } else if (item.voucher_id || item.bill_number) {
-              // Voucher/Invoice: attribute to verified_by (CA who verified), else owner_id
-              userId = item.verified_by || item.owner_id || item.created_by || item.created_by_id;
-            } else {
-              // Notice: use created_by or owner_id
-              userId = item.created_by || item.owner_id || item.created_by_id;
-            }
-
-            if (!userId) {
-              return false;
-            }
-
-            // Normalize both IDs to lowercase strings for comparison
-            const normalizedUserId = String(userId).toLowerCase().trim();
-            const matches = normalizedUserId === memberId;
-
-            return matches;
-          });
+          const tCount = taskCounts[memberId] || 0;
+          const nCount = noticeCounts[memberId] || 0;
+          const iCount = invoiceCounts[memberId] || 0;
+          const vCount = voucherCounts[memberId] || 0;
+          const total = tCount + nCount + iCount + vCount;
 
           const currentUserName = (user.full_name || user.name || '').toLowerCase().trim();
           const memberNameNorm = (memberName || '').toLowerCase().trim();
           const isCurrentUser = memberId === currentUserIdStr ||
             (member.email && user.email && String(member.email).toLowerCase().trim() === String(user.email).toLowerCase().trim()) ||
             (user.role === 'CA_TEAM' && currentUserName && memberNameNorm && memberNameNorm === currentUserName);
+
           return {
             id: memberId,
             col1: memberName,
-            col2: todayItems.length,
+            col2: total,
             isCurrentUser
           };
         });
 
-        // Final deduplication - remove any duplicates by ID
+        // Final deduplication
         const finalDeduplicationMap = new Map();
         for (const member of memberCounts) {
           if (!finalDeduplicationMap.has(member.id)) {
@@ -587,16 +458,11 @@ const AccountantDashboard = () => {
         }
         const deduplicatedCounts = Array.from(finalDeduplicationMap.values());
 
-        // Sort by activity count (descending)
         const sortedByCount = [...deduplicatedCounts].sort((a, b) => b.col2 - a.col2);
-
-        // Re-arrange: current user first, then others by rank
         const currentUser = sortedByCount.find(item => item.isCurrentUser);
         const others = sortedByCount.filter(item => !item.isCurrentUser);
-
         const finalList = currentUser ? [currentUser, ...others] : others;
 
-        // Assign S.No based on actual rank, show current user first, ensure first row is highlighted
         return finalList.map((item, idx) => {
           const actualRank = sortedByCount.findIndex(i => i.id === item.id) + 1;
           const isFirstRow = currentUser && idx === 0;
