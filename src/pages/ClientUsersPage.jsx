@@ -14,6 +14,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { getActivityLog } from '@/lib/api/finance';
+import { listTasks } from '@/lib/api/tasks';
+import { getNotices } from '@/lib/api/notices';
+import { getVouchers } from '@/lib/api/finance';
+import { getInvoices } from '@/lib/api/finance';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -52,6 +56,9 @@ const ClientUsersPage = ({ entityId }) => {
 
     // Action Loading States
     const [loadingUserId, setLoadingUserId] = useState(null);
+    
+    // Pending items check - map of user_id -> hasPending
+    const [userPendingStatus, setUserPendingStatus] = useState({});
 
     const fetchUsers = async () => {
         if (!entityId || !user?.access_token) {
@@ -72,6 +79,55 @@ const ClientUsersPage = ({ entityId }) => {
             });
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    // Check if user has pending items (direct assignments only, not collaborators)
+    const checkUserPendingItems = async (userId) => {
+        if (!entityId || !userId || !user?.access_token || !user?.agency_id) return false;
+        
+        try {
+            // Check pending tasks (assigned_to = userId, status != completed)
+            // TaskStatus: pending, in_progress, hold, completed
+            const tasks = await listTasks(user.agency_id, user.access_token, {
+                assigned_to: userId,
+                client_id: entityId,
+                limit: 100  // Get more to filter by status
+            }).catch(() => ({ items: [] }));
+            
+            const pendingTasks = tasks?.items?.filter(t => 
+                t.status !== 'completed' && String(t.assigned_to) === String(userId)
+            ) || [];
+            if (pendingTasks.length > 0) return true;
+            
+            // Check pending notices (created_by = userId, status != closed)
+            const notices = await getNotices(entityId, user.access_token).catch(() => []);
+            const pendingNotices = Array.isArray(notices) ? notices.filter(n => 
+                (String(n.created_by) === String(userId) || String(n.created_by_id) === String(userId) || String(n.owner_id) === String(userId)) &&
+                n.status !== 'closed' && n.status !== 'completed'
+            ) : [];
+            if (pendingNotices.length > 0) return true;
+            
+            // Check pending vouchers (created_by/owner_id = userId, status != verified/closed)
+            const vouchers = await getVouchers(entityId, user.access_token).catch(() => []);
+            const pendingVouchers = Array.isArray(vouchers) ? vouchers.filter(v =>
+                (String(v.created_by) === String(userId) || String(v.created_by_id) === String(userId) || String(v.owner_id) === String(userId)) &&
+                v.status !== 'verified' && v.status !== 'closed' && v.status !== 'approved'
+            ) : [];
+            if (pendingVouchers.length > 0) return true;
+            
+            // Check pending invoices (created_by/owner_id = userId, status != verified/closed)
+            const invoices = await getInvoices(entityId, user.access_token).catch(() => []);
+            const pendingInvoices = Array.isArray(invoices) ? invoices.filter(i =>
+                (String(i.created_by) === String(userId) || String(i.created_by_id) === String(userId) || String(i.owner_id) === String(userId)) &&
+                i.status !== 'verified' && i.status !== 'closed' && i.status !== 'approved'
+            ) : [];
+            if (pendingInvoices.length > 0) return true;
+            
+            return false;
+        } catch (error) {
+            console.error('Error checking pending items:', error);
+            return false; // Fail open - allow delete if check fails
         }
     };
 
@@ -121,6 +177,24 @@ const ClientUsersPage = ({ entityId }) => {
 
         return filtered;
     }, [allUsers, userFilter, searchTerm]);
+
+    // Check pending items for all joined users (after allUsers is defined)
+    useEffect(() => {
+        const checkAllUsersPending = async () => {
+            if (!entityId || !user?.access_token || !allUsers || allUsers.length === 0) return;
+            
+            const pendingMap = {};
+            for (const u of allUsers) {
+                if (u.status === 'Joined' && u.user_id) {
+                    const hasPending = await checkUserPendingItems(u.user_id);
+                    pendingMap[u.user_id] = hasPending;
+                }
+            }
+            setUserPendingStatus(pendingMap);
+        };
+        
+        checkAllUsersPending();
+    }, [allUsers, entityId, user?.access_token, user?.agency_id]);
 
     const handleInviteUser = async () => {
         if (!inviteEmail.trim() || !inviteEmail.includes('@')) {
@@ -386,6 +460,7 @@ const ClientUsersPage = ({ entityId }) => {
                                                             {(() => {
                                                                 const isSelf = user?.email === u.email;
                                                                 const userRole = user?.role;
+                                                                const hasPending = u.user_id && userPendingStatus[u.user_id];
 
                                                                 if (userRole === 'CLIENT_USER') {
                                                                     return null;
@@ -399,9 +474,10 @@ const ClientUsersPage = ({ entityId }) => {
                                                                     <Button
                                                                         variant="ghost"
                                                                         size="sm"
-                                                                        className="text-red-400 hover:text-red-300 hover:bg-red-500/20"
-                                                                        onClick={() => handleDeleteUser(u)}
-                                                                        disabled={loadingUserId === (u.user_id || u.email)}
+                                                                        className={`${hasPending ? 'text-gray-500 cursor-not-allowed' : 'text-red-400 hover:text-red-300 hover:bg-red-500/20'}`}
+                                                                        onClick={() => !hasPending && handleDeleteUser(u)}
+                                                                        disabled={loadingUserId === (u.user_id || u.email) || hasPending}
+                                                                        title={hasPending ? 'Cannot delete: User has pending tasks, notices, vouchers, or invoices' : 'Delete user'}
                                                                     >
                                                                         {loadingUserId === (u.user_id || u.email) ? (
                                                                             <Loader2 className="w-4 h-4 animate-spin" />
