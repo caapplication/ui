@@ -80,7 +80,16 @@ const StatCard = ({ title, value, description, icon, color, delay, trend, meta, 
   );
 };
 
-const DetailBlock = ({ title, subtitle, count, data, columns, onViewMore, delay, onRowClick, currentUserId, currentUserName }) => {
+// Normalize users.id (uuid) for comparison - same as DB users table id
+const normalizeUserId = (id) => (id == null || id === '') ? '' : String(id).toLowerCase().trim();
+const normalizeName = (s) => (s == null || s === '') ? '' : String(s).toLowerCase().trim();
+const normalizeEmail = (s) => (s == null || s === '') ? '' : String(s).toLowerCase().trim();
+
+const DetailBlock = ({ title, subtitle, count, data, columns, onViewMore, delay, onRowClick, currentUserId, currentUserName, currentUserEmail }) => {
+  const currentIdNorm = normalizeUserId(currentUserId);
+  const currentNameNorm = normalizeName(currentUserName);
+  const currentEmailNorm = normalizeEmail(currentUserEmail);
+
   return (
     <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5, delay }}>
       <Card className="glass-card flex flex-col h-full rounded-2xl border-white/5">
@@ -102,11 +111,15 @@ const DetailBlock = ({ title, subtitle, count, data, columns, onViewMore, delay,
                 </div>
               ) : (
                 data.slice(0, 8).map((row, idx) => {
-                  // Only highlight if currentUserId is provided AND row matches
-                  const isCurrentUser = currentUserId && (
+                  // Match current user using same fields as users table: id (uuid), name, email
+                  const rowIdNorm = normalizeUserId(row.id);
+                  const rowNameNorm = normalizeName(row.col1);
+                  const rowEmailNorm = normalizeEmail(row.email);
+                  const isCurrentUser = currentIdNorm && (
                     row.isCurrentUser ||
-                    (row.id && String(row.id).toLowerCase() === String(currentUserId).toLowerCase()) ||
-                    (currentUserName && row.col1 && String(row.col1).toLowerCase().trim() === currentUserName)
+                    (rowIdNorm && rowIdNorm === currentIdNorm) ||
+                    (currentNameNorm && rowNameNorm && rowNameNorm === currentNameNorm) ||
+                    (currentEmailNorm && rowEmailNorm && rowEmailNorm === currentEmailNorm)
                   );
                   const sNo = row.sNo !== undefined ? row.sNo : (row.rank !== undefined ? row.rank : idx + 1);
 
@@ -119,7 +132,7 @@ const DetailBlock = ({ title, subtitle, count, data, columns, onViewMore, delay,
                         }
                       }}
                       className={`grid grid-cols-12 items-center text-sm py-2 transition-all rounded px-1 group border-b border-white/5 last:border-0 ${isCurrentUser
-                        ? 'bg-blue-500/20 hover:bg-blue-500/30 cursor-pointer border-blue-400/30'
+                        ? 'bg-blue-500/20 hover:bg-blue-500/30 cursor-pointer border-l-4 border-l-blue-500 border-blue-400/30'
                         : 'hover:bg-white/5 cursor-default'
                         }`}
                     >
@@ -373,7 +386,11 @@ const AccountantDashboard = () => {
       const today = startOfDay(new Date());
 
       const getTodayUserProgress = () => {
-        const currentUserIdStr = String(user.id).toLowerCase().trim();
+        // Use user_id from login response when id is missing (e.g. CA_TEAM previously used data.sub)
+        const effectiveUserId = user.id ?? user.user_id;
+        const currentUserIdStr = (effectiveUserId != null && effectiveUserId !== '')
+          ? String(effectiveUserId).toLowerCase().trim()
+          : '';
 
         // Get all CA_ACCOUNTANT and CA_TEAM members from teamData
         const allTeamMembers = teamData.filter(m => {
@@ -425,9 +442,12 @@ const AccountantDashboard = () => {
         (voucherAnalytics.todays_progress || []).forEach(item => voucherCounts[String(item.id).toLowerCase()] = item.count);
 
         // Count activities for each team member using analytics data
+        // Match current user same way for both CA_ACCOUNTANT and CA_TEAM: id, email, or (fallback) name for CA_TEAM
+        const currentUserNameNorm = (user.full_name || user.name || '').toLowerCase().trim();
         const memberCounts = uniqueMembers.map(member => {
           const memberId = (member.normalizedId || String(member.user_id ?? member.id)).toLowerCase().trim();
           const memberName = member.full_name || member.name || 'Unknown';
+          const memberNameNorm = (memberName || '').toLowerCase().trim();
 
           const tCount = taskCounts[memberId] || 0;
           const nCount = noticeCounts[memberId] || 0;
@@ -435,16 +455,19 @@ const AccountantDashboard = () => {
           const vCount = voucherCounts[memberId] || 0;
           const total = tCount + nCount + iCount + vCount;
 
-          const currentUserName = (user.full_name || user.name || '').toLowerCase().trim();
-          const memberNameNorm = (memberName || '').toLowerCase().trim();
-          const isCurrentUser = memberId === currentUserIdStr ||
-            (member.email && user.email && String(member.email).toLowerCase().trim() === String(user.email).toLowerCase().trim()) ||
-            (user.role === 'CA_TEAM' && currentUserName && memberNameNorm && memberNameNorm === currentUserName);
+          // Match using users table fields: id (uuid), email, name (same as DB)
+          const currentUserEmailNorm = (user.email || '').toLowerCase().trim();
+          const memberEmailNorm = (member.email || '').toLowerCase().trim();
+          const isCurrentUser =
+            memberId === currentUserIdStr ||
+            (currentUserEmailNorm && memberEmailNorm && memberEmailNorm === currentUserEmailNorm) ||
+            (currentUserNameNorm && memberNameNorm && memberNameNorm === currentUserNameNorm);
 
           return {
             id: memberId,
             col1: memberName,
             col2: total,
+            email: member.email ?? undefined,
             isCurrentUser
           };
         });
@@ -661,13 +684,14 @@ const AccountantDashboard = () => {
           columns={['S.No', 'Team Member', 'Items']}
           onViewMore={() => navigate('/dashboard/today-progress')}
           onRowClick={(row) => {
-            // Only allow viewing own activities
-            if (row.isCurrentUser || row.id === user.id) {
-              navigate('/dashboard/today-progress', { state: { userId: user.id } });
+            const effectiveId = user.id ?? user.user_id;
+            if (row.isCurrentUser || normalizeUserId(row.id) === normalizeUserId(effectiveId)) {
+              navigate('/dashboard/today-progress', { state: { userId: effectiveId } });
             }
           }}
-          currentUserId={user.id}
-          currentUserName={String(user.full_name || user.name || '').toLowerCase().trim()}
+          currentUserId={user.id ?? user.user_id}
+          currentUserName={user.full_name || user.name}
+          currentUserEmail={user.email}
           delay={0.7}
         />
         <DetailBlock

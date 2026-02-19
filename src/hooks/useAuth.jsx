@@ -478,7 +478,8 @@ export const AuthProvider = ({ children }) => {
         logout();
         throw new Error('Your account is inactive. Please contact support.');
       }
-      const fullUserData = { ...data, ...profileData, id: data.sub };
+      // Use user_id from login response (users.id UUID); data.sub is JWT subject (email), not user id
+      const fullUserData = { ...data, ...profileData, id: data.user_id ?? data.sub ?? profileData?.id };
       const is2FA = twoFactorStatus?.status === 'Enabled' || twoFactorStatus?.is_2fa_enabled === true;
 
       if (is2FA && !otp) {
@@ -496,7 +497,8 @@ export const AuthProvider = ({ children }) => {
         logout();
         throw new Error('Your account is inactive. Please contact support.');
       }
-      const fullUserData = { ...data, ...profileData, id: data.sub };
+      // Use user_id from login response (users.id UUID); data.sub is JWT subject (email), not user id
+      const fullUserData = { ...data, ...profileData, id: data.user_id ?? data.sub ?? profileData?.id };
       const is2FA = twoFactorStatus?.status === 'Enabled' || twoFactorStatus?.is_2fa_enabled === true;
 
       if (is2FA && !otp) {

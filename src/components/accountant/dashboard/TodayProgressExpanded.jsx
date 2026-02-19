@@ -429,7 +429,7 @@ const TodayProgressExpanded = () => {
                     isCurrentUser,
                     activityDetails: { tasks: memberTasks, vouchers: memberVouchers, invoices: memberInvoices, notices: memberNotices }
                 };
-            }).filter(m => m.total > 0 || searchTerm === '');
+            }).filter(m => m.total > 0 || searchTerm === '' || (viewOwnActivities && m.isCurrentUser));
 
             // Sort by total desc to assign rank, then reorder: current user first (keep rank)
             const sortedByTotal = [...memberStats].sort((a, b) => b.total - a.total);
@@ -449,6 +449,15 @@ const TodayProgressExpanded = () => {
     useEffect(() => {
         fetchData();
     }, [fetchData]);
+
+    // When opened from dashboard with userId (view own activities), auto-expand current user row like CA panel
+    useEffect(() => {
+        if (!viewOwnActivities || !data.length) return;
+        const currentUserRow = data.find(r => r.isCurrentUser);
+        if (currentUserRow?.id) {
+            setExpandedRowId(currentUserRow.id);
+        }
+    }, [viewOwnActivities, data]);
 
     const filteredData = useMemo(() => {
         return data.filter(item =>
