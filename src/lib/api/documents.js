@@ -281,3 +281,30 @@ export const listExpiringDocuments = async (token, entityId) => {
     });
     return handleResponse(response);
 };
+
+export const renewDocument = async (documentId, folderId, entityId, file, expiryDate, token, name) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (entityId) {
+        formData.append('entity_id', entityId);
+    }
+    if (folderId && folderId !== 'root') {
+        formData.append('folder_id', folderId);
+    }
+    if (expiryDate) {
+        const formattedDate = expiryDate.toISOString().split('T')[0];
+        formData.append('expiry_date', formattedDate);
+    }
+    if (name) {
+        formData.append('document_name', name);
+    }
+
+    const url = `${FINANCE_API_BASE_URL}/api/documents/${documentId}/renew`;
+
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: getAuthHeaders(token, null),
+        body: formData,
+    });
+    return handleResponse(response);
+};

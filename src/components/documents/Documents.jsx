@@ -120,7 +120,7 @@ import {
   listTemplates, createTemplate, deleteTemplate, applyTemplate, updateTemplate, renameFolder,
   listTeamMembers, listOrgUsers, listCATeamForClient
 } from '../../lib/api';
-import { createPublicShareTokenDocument, createPublicShareTokenFolder, listExpiringDocuments } from '@/lib/api/documents';
+import { createPublicShareTokenDocument, createPublicShareTokenFolder, listExpiringDocuments, renewDocument } from '@/lib/api/documents';
 import { cn } from '@/lib/utils';
 import { Calendar } from '@/components/ui/calendar';
 
@@ -332,6 +332,12 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   const [showRenameFolder, setShowRenameFolder] = useState(false);
   const [folderToRename, setFolderToRename] = useState(null);
   const [renameFolderName, setRenameFolderName] = useState('');
+  const [showRenewal, setShowRenewal] = useState(false);
+  const [renewalDoc, setRenewalDoc] = useState(null);
+  const [renewalExpiryDate, setRenewalExpiryDate] = useState(null);
+  const [renewalWithoutExpiryDate, setRenewalWithoutExpiryDate] = useState(false);
+  const [renewalDocumentName, setRenewalDocumentName] = useState('');
+  const [renewalFileExtension, setRenewalFileExtension] = useState('');
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [shareDoc, setShareDoc] = useState(null);
   const [shareEmails, setShareEmails] = useState('');
@@ -921,6 +927,64 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
         return updateFolder(prev);
       });
       toast({ title: "Upload Failed", description: error.message, variant: "destructive" });
+    } finally {
+      setIsMutating(false);
+    }
+  };
+
+  const handleRenewal = async (e) => {
+    e.preventDefault();
+    if (!renewalDoc) return;
+    
+    setIsMutating(true);
+    const formData = new FormData(e.target);
+    const file = formData.get('file');
+    if (!file || file.size === 0) {
+      toast({ title: "No file selected", description: "Please select a file to renew.", variant: "destructive" });
+      setIsMutating(false);
+      return;
+    }
+
+    const finalDocumentName = renewalDocumentName.trim() ? `${renewalDocumentName.trim()}${renewalFileExtension}` : file.name;
+
+    // Validate that at least one option is selected (either checkbox OR expiry date)
+    if (!renewalWithoutExpiryDate && !renewalExpiryDate) {
+      toast({ title: "Expiry date required", description: "Please select an expiry date or check 'Without expiry date'.", variant: "destructive" });
+      setIsMutating(false);
+      return;
+    }
+
+    try {
+      const expiryDateToSend = renewalWithoutExpiryDate ? null : renewalExpiryDate;
+      const folderId = renewalDoc.folder_id || null;
+      const entityIdToUse = user?.role === 'CA_ACCOUNTANT' ? realSelectedClientId : entityId;
+      
+      await renewDocument(
+        renewalDoc.id,
+        folderId,
+        entityIdToUse,
+        file,
+        expiryDateToSend,
+        user.access_token,
+        finalDocumentName
+      );
+
+      toast({ title: "Document Renewed", description: "Document has been successfully renewed." });
+      setShowRenewal(false);
+      e.target.reset();
+      setRenewalExpiryDate(null);
+      setRenewalWithoutExpiryDate(false);
+      setRenewalDocumentName('');
+      setRenewalFileExtension('');
+      setRenewalDoc(null);
+      
+      // Refresh documents and renewal list
+      await Promise.all([
+        fetchDocuments(true).catch(err => console.error('Background refresh failed:', err)),
+        fetchRenewalDocuments().catch(err => console.error('Background renewal refresh failed:', err))
+      ]);
+    } catch (error) {
+      toast({ title: "Renewal Failed", description: error.message || "Failed to renew document.", variant: "destructive" });
     } finally {
       setIsMutating(false);
     }
@@ -2112,6 +2176,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
               <TableHead className="text-gray-400 text-xs sm:text-sm hidden sm:table-cell">STATUS</TableHead>
               <TableHead className="text-gray-400 text-xs sm:text-sm hidden md:table-cell">LOCATION</TableHead>
               <TableHead className="text-gray-400 text-xs sm:text-sm hidden lg:table-cell">EXPIRY DATE</TableHead>
+              <TableHead className="text-gray-400 text-right text-xs sm:text-sm">ACTION</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -2120,20 +2185,19 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
               return (
                 <TableRow
                   key={doc.id}
-                  className="hover:bg-white/5 cursor-pointer"
-                  onClick={() => handleView(doc)}
+                  className="hover:bg-white/5"
                 >
                   <TableCell className="text-gray-500 font-mono text-xs sm:text-sm">
                     {String(index + 1).padStart(2, '0')}
                   </TableCell>
-                  <TableCell className="text-white font-medium text-xs sm:text-sm">
+                  <TableCell className="text-white font-medium text-xs sm:text-sm cursor-pointer" onClick={() => handleView(doc)}>
                     <div className="flex items-center gap-2">
                       <FileText className="w-4 h-4 text-blue-400 shrink-0" />
                       <span className="truncate">{doc.name}</span>
                     </div>
                     <span className={`text-xs sm:hidden mt-1 block ${status.color}`}>{status.label}</span>
                   </TableCell>
-                  <TableCell className={`text-xs sm:text-sm hidden sm:table-cell font-medium ${status.color}`}>
+                  <TableCell className={`text-xs sm:text-sm hidden sm:table-cell font-medium ${status.color} cursor-pointer`} onClick={() => handleView(doc)}>
                     {status.label}
                   </TableCell>
                   <TableCell className="text-xs sm:text-sm hidden md:table-cell">
@@ -2156,14 +2220,39 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                       );
                     })()}
                   </TableCell>
-                  <TableCell className="text-gray-400 text-xs sm:text-sm hidden lg:table-cell">
+                  <TableCell className="text-gray-400 text-xs sm:text-sm hidden lg:table-cell cursor-pointer" onClick={() => handleView(doc)}>
                     {doc.expiry_date ? new Date(doc.expiry_date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'}
+                  </TableCell>
+                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="bg-blue-600 hover:bg-blue-700 text-white border-blue-600 h-7 sm:h-8 text-xs"
+                      onClick={() => {
+                        setRenewalDoc(doc);
+                        // Pre-fill document name without extension
+                        const lastDotIndex = doc.name.lastIndexOf('.');
+                        if (lastDotIndex !== -1) {
+                          setRenewalDocumentName(doc.name.substring(0, lastDotIndex));
+                          setRenewalFileExtension(doc.name.substring(lastDotIndex));
+                        } else {
+                          setRenewalDocumentName(doc.name);
+                          setRenewalFileExtension('');
+                        }
+                        setRenewalExpiryDate(null);
+                        setRenewalWithoutExpiryDate(false);
+                        setShowRenewal(true);
+                      }}
+                    >
+                      <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                      Renew
+                    </Button>
                   </TableCell>
                 </TableRow>
               );
             }) : (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-12">
+                <TableCell colSpan={6} className="text-center py-12">
                   <CalendarDays className="w-10 h-10 text-gray-600 mx-auto mb-3" />
                   <p className="text-gray-400 text-sm">No expiring or expired documents found.</p>
                 </TableCell>
@@ -2472,6 +2561,142 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                   Rename
                 </Button>
               </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={showRenewal} onOpenChange={(open) => {
+            setShowRenewal(open);
+            if (!open) {
+              setRenewalExpiryDate(null);
+              setRenewalWithoutExpiryDate(false);
+              setRenewalDocumentName('');
+              setRenewalFileExtension('');
+              setRenewalDoc(null);
+            }
+          }}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Renew Document: {renewalDoc?.name}</DialogTitle>
+                <DialogDescription>
+                  Upload a new file to replace the expired/expiring document. The old document will be deleted and the new one will be saved in the same location.
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleRenewal} className="space-y-4 py-4">
+                <div>
+                  <Label htmlFor="renewal-file">Select New File</Label>
+                  <Input
+                    id="renewal-file"
+                    name="file"
+                    type="file"
+                    required
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (file) {
+                        const lastDotIndex = file.name.lastIndexOf('.');
+                        if (lastDotIndex !== -1) {
+                          setRenewalDocumentName(file.name.substring(0, lastDotIndex));
+                          setRenewalFileExtension(file.name.substring(lastDotIndex));
+                        } else {
+                          setRenewalDocumentName(file.name);
+                          setRenewalFileExtension('');
+                        }
+                      }
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="renewal-document-name">Document Name</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="renewal-document-name"
+                      value={renewalDocumentName}
+                      onChange={(e) => setRenewalDocumentName(e.target.value)}
+                      placeholder="Enter document name"
+                      className="flex-1"
+                    />
+                    {renewalFileExtension && (
+                      <span className="text-sm text-gray-500 font-medium whitespace-nowrap bg-muted px-2 py-2 rounded-md border">
+                        {renewalFileExtension}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="renewal-without-expiry"
+                      checked={renewalWithoutExpiryDate}
+                      onCheckedChange={(checked) => {
+                        setRenewalWithoutExpiryDate(checked);
+                        if (checked) {
+                          setRenewalExpiryDate(null);
+                        }
+                      }}
+                    />
+                    <Label htmlFor="renewal-without-expiry" className="text-sm font-normal cursor-pointer">
+                      Without expiry date
+                    </Label>
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="renewal-expiry-date" className="text-right">
+                      Expiry Date <span className="text-red-500">*</span>
+                    </Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant={"outline"}
+                          className="col-span-3 justify-start text-left font-normal"
+                          disabled={renewalWithoutExpiryDate}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {renewalExpiryDate ? format(renewalExpiryDate, "PPP") : <span>Pick a date</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <Calendar
+                          mode="single"
+                          selected={renewalExpiryDate}
+                          onSelect={(date) => {
+                            setRenewalExpiryDate(date);
+                            if (date) {
+                              setRenewalWithoutExpiryDate(false);
+                            }
+                          }}
+                          disabled={(date) => date < new Date().setHours(0, 0, 0, 0)}
+                          fromDate={new Date()}
+                          fromYear={new Date().getFullYear()}
+                          toYear={new Date().getFullYear() + 10}
+                          captionLayout="dropdown-buttons"
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="ghost" type="button" onClick={() => {
+                    setShowRenewal(false);
+                    setRenewalExpiryDate(null);
+                    setRenewalWithoutExpiryDate(false);
+                    setRenewalDocumentName('');
+                    setRenewalFileExtension('');
+                    setRenewalDoc(null);
+                  }} disabled={isMutating}>Cancel</Button>
+                  <Button type="submit" disabled={isMutating}>
+                    {isMutating ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Renewing...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        Renew Document
+                      </>
+                    )}
+                  </Button>
+                </DialogFooter>
+              </form>
             </DialogContent>
           </Dialog>
 
