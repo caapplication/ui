@@ -660,6 +660,9 @@ const VoucherDetailsPage = () => {
         if (!voucherList || !Array.isArray(voucherList)) return [];
 
         return voucherList.filter(v => {
+            // Filter out deleted vouchers
+            if (v.is_deleted) return false;
+
             // CA Team/Accountant should only see pending_ca_approval
             if (user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') {
                 return v.status === 'pending_ca_approval';
@@ -715,6 +718,7 @@ const VoucherDetailsPage = () => {
 
         if (updatedList) {
             sourceList = updatedList.filter(v => {
+                if (v.is_deleted) return false;
                 if (user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') {
                     return v.status === 'pending_ca_approval';
                 }
@@ -755,7 +759,7 @@ const VoucherDetailsPage = () => {
                     const entityId = voucher?.entity_id || localStorage.getItem('entityId');
                     if (entityId) {
                         const invoices = await getInvoices(entityId, user.access_token);
-                        const pendingInvoices = invoices.filter(inv => inv.status === 'pending_master_admin_approval');
+                        const pendingInvoices = invoices.filter(inv => inv.status === 'pending_master_admin_approval' && !inv.is_deleted);
 
                         if (pendingInvoices.length > 0) {
                             setCompletionModalType('go_to_invoices');

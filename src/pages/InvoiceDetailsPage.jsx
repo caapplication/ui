@@ -617,6 +617,7 @@ const InvoiceDetailsPage = () => {
         if (!invoices || !Array.isArray(invoices)) return [];
 
         return invoices.filter(inv => {
+            if (inv.is_deleted) return false;
             if (user?.role === 'CLIENT_MASTER_ADMIN') {
                 return inv.status === 'pending_master_admin_approval';
             }
@@ -680,7 +681,7 @@ const InvoiceDetailsPage = () => {
         if (user?.role === 'CLIENT_MASTER_ADMIN') {
             // Filter out the current one and any that are not pending
             const pending = invoices.filter(inv =>
-                inv.status === 'pending_master_admin_approval' && String(inv.id) !== String(invoiceId)
+                inv.status === 'pending_master_admin_approval' && String(inv.id) !== String(invoiceId) && !inv.is_deleted
             );
 
             if (pending.length > 0) {
@@ -698,7 +699,7 @@ const InvoiceDetailsPage = () => {
                     const entityId = invoiceDetails?.entity_id || localStorage.getItem('entityId');
                     if (entityId) {
                         const vouchers = await getVouchers(entityId, user.access_token);
-                        const pendingVouchers = vouchers.filter(v => v.status === 'pending_master_admin_approval');
+                        const pendingVouchers = vouchers.filter(v => v.status === 'pending_master_admin_approval' && !v.is_deleted);
 
                         if (pendingVouchers.length > 0) {
                             setCompletionModalType('go_to_vouchers');

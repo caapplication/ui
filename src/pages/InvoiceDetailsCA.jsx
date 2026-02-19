@@ -461,7 +461,7 @@ const InvoiceDetailsCA = () => {
     const filteredInvoices = React.useMemo(() => {
         if (!invoices || !Array.isArray(invoices)) return [];
 
-        return invoices.filter(inv => inv.status === 'pending_ca_approval');
+        return invoices.filter(inv => inv.status === 'pending_ca_approval' && !inv.is_deleted);
     }, [invoices]);
 
     // Check if we have invoices to navigate - show arrows if we have multiple invoices
@@ -549,7 +549,7 @@ const InvoiceDetailsCA = () => {
                 if (entityId) {
                     const vouchers = await getVouchers(entityId, user.access_token);
                     console.log('Fetched vouchers:', vouchers);
-                    const pendingVouchers = vouchers.filter(v => v.status === 'pending_ca_approval');
+                    const pendingVouchers = vouchers.filter(v => v.status === 'pending_ca_approval' && !v.is_deleted);
                     console.log('Pending CA vouchers:', pendingVouchers);
 
                     if (pendingVouchers.length > 0) {
