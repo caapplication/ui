@@ -146,17 +146,21 @@ export const verifyToken = async (token) => {
  * @param {string} name
  * @param {string} email
  * @param {string} password
+ * @param {boolean} termsAccepted
+ * @param {string} [clientIp] - optional; server also captures IP from request
  * @returns {Promise<any>}
  */
-export const acceptInvitation = async (token, name, email, password) => {
+export const acceptInvitation = async (token, name, email, password, termsAccepted, clientIp = null) => {
     const encryptedPassword = await encryptData(password);
+    const params = { token, name, email, password: encryptedPassword, terms_accepted: termsAccepted ? 'true' : 'false' };
+    if (clientIp) params.client_ip = clientIp;
     const response = await fetch(`${API_BASE_URL}/auth/verify?token=${encodeURIComponent(token)}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
             'accept': 'application/json'
         },
-        body: new URLSearchParams({ name, email, password: encryptedPassword })
+        body: new URLSearchParams(params)
     });
     return handleResponse(response);
 };

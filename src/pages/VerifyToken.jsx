@@ -20,6 +20,7 @@ const VerifyToken = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [postError, setPostError] = useState("");
   const verifiedTokenRef = useRef(null);
 
@@ -62,7 +63,7 @@ const VerifyToken = () => {
     setStatus("submitting");
     setPostError("");
     try {
-      await acceptInvitation(token, name, email, password);
+      await acceptInvitation(token, name, email, password, acceptedTerms);
       setStatus("done");
       setMessage("Account setup successful! You can now log in.");
     } catch (err) {
@@ -218,6 +219,24 @@ const VerifyToken = () => {
                       </Button>
                     </div>
                   </div>
+
+                  <div className="space-y-3 rounded-lg border border-white/20 bg-white/5 p-4">
+                    <label className="flex items-start gap-3 cursor-pointer group">
+                      <input
+                        type="checkbox"
+                        checked={acceptedTerms}
+                        onChange={(e) => setAcceptedTerms(e.target.checked)}
+                        className="mt-1 h-4 w-4 rounded border-white/30 bg-white/5 text-blue-500 focus:ring-blue-500 focus:ring-offset-0"
+                      />
+                      <span className="text-sm text-gray-300 group-hover:text-gray-200">
+                        I accept the{" "}
+                        <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">General Software Usage Agreement</a>,{" "}
+                        <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">Privacy Policy</a>,{" "}
+                        <a href="/data-policy" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">Data Policy</a>, and other standard terms to proceed.
+                      </span>
+                    </label>
+                  </div>
+
                   {postError && (
                     <div className="text-red-400 text-sm bg-red-500/10 p-3 rounded-md border border-red-500/20">{postError}</div>
                   )}
@@ -225,7 +244,7 @@ const VerifyToken = () => {
                     <Button
                       type="submit"
                       className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-3 text-base rounded-lg transition-all duration-300 shadow-lg hover:shadow-blue-500/40"
-                      disabled={status === "submitting"}
+                      disabled={status === "submitting" || !acceptedTerms}
                     >
                       {status === "submitting" ? (
                         <>
