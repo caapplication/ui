@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, Suspense, lazy } from 'react';
 import { Helmet, HelmetProvider } from 'react-helmet-async';
-import { Routes, Route, Navigate, useSearchParams, BrowserRouter, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useSearchParams, BrowserRouter, useNavigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/hooks/useAuth.jsx';
 import { Toaster } from '@/components/ui/toaster';
 import { ApiCacheProvider } from '@/contexts/ApiCacheContext.jsx';
@@ -8,8 +8,9 @@ import { SocketProvider } from '@/contexts/SocketContext.jsx';
 import { FinanceSocketProvider } from '@/contexts/FinanceSocketContext.jsx';
 import { getOrganisationBankAccounts } from '@/lib/api/finance';
 import { listClientsByOrganization } from '@/lib/api/clients';
-import { Menu } from 'lucide-react';
+import { Menu, Receipt } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useMediaQuery } from '@/hooks/useMediaQuery.jsx';
 
 const LoginForm = lazy(() => import('@/components/auth/LoginForm'));
@@ -91,12 +92,29 @@ const ProtectedContent = () => {
   const [searchParams] = useSearchParams();
   const isDesktop = useMediaQuery('(min-width: 1024px)');
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [currentEntity, setCurrentEntity] = useState(null);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [organisationBankAccounts, setOrganisationBankAccounts] = useState([]);
   const [cachedClients, setCachedClients] = useState([]); // Cache for client names
+
+  // Locked client: can only use /bill-payment; non-closeable modal on other routes
+  const isClientLocked = useMemo(() => {
+    if (!user || (user.role !== 'CLIENT_USER' && user.role !== 'CLIENT_MASTER_ADMIN')) return false;
+    const entityId = currentEntity || user.entities?.[0]?.id;
+    const sources = cachedClients?.length ? cachedClients : (user.entities || []);
+    const entity = sources.find((e) => e.id === entityId);
+    if (!entity) return false;
+    let locked = !!entity.is_locked;
+    if (entity.unlock_until) {
+      locked = new Date() > new Date(entity.unlock_until);
+    }
+    return locked;
+  }, [user, currentEntity, cachedClients]);
+
+  const showLockedClientModal = isClientLocked && location.pathname !== '/bill-payment';
 
   // Fetch clients for name resolution (CLIENT_USER / CLIENT_MASTER_ADMIN)
   useEffect(() => {
@@ -349,6 +367,33 @@ const ProtectedContent = () => {
       <Suspense fallback={null}>
         <GlobalFAB />
       </Suspense>
+
+      {/* Locked client: non-closeable modal; only "Go to Bill & Payment" is allowed */}
+      <Dialog open={showLockedClientModal} onOpenChange={() => {}}>
+        <DialogContent
+          className="bg-gray-900 border-white/10 max-w-md"
+          closeDisabled
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+          onPointerDownOutside={(e) => e.preventDefault()}
+        >
+          <DialogHeader>
+            <DialogTitle className="text-white text-xl">Pay your due invoice and get access</DialogTitle>
+            <DialogDescription className="text-gray-400 mt-2">
+              Your profile is locked due to overdue bills. Upload payment proof for your due invoices to get full access again.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-6 flex flex-col gap-3">
+            <Button
+              className="w-full gap-2"
+              onClick={() => navigate('/bill-payment')}
+            >
+              <Receipt className="w-5 h-5" />
+              Go to Bill & Payment
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

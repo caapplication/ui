@@ -149,34 +149,7 @@ export const AuthProvider = ({ children }) => {
             logout();
             return;
           }
-          // For CLIENT_USER and CLIENT_MASTER_ADMIN, check if any client is locked
-          if ((parsedUser.role === 'CLIENT_USER' || parsedUser.role === 'CLIENT_MASTER_ADMIN') && parsedUser.entities) {
-            try {
-              // Check entities for lock status
-              for (const entity of parsedUser.entities) {
-                if (entity.is_locked) {
-                  // Check if unlock period has expired
-                  let isLocked = entity.is_locked;
-                  if (entity.unlock_until) {
-                    const unlockUntil = new Date(entity.unlock_until);
-                    if (new Date() > unlockUntil) {
-                      isLocked = true; // Unlock period expired
-                    } else {
-                      isLocked = false; // Still within unlock period
-                    }
-                  }
-                  
-                  if (isLocked) {
-                    console.warn('User account is locked, logging out');
-                    logout();
-                    return;
-                  }
-                }
-              }
-            } catch (error) {
-              console.warn('Error checking lock status on app load:', error);
-            }
-          }
+          // Locked clients are allowed to stay logged in; they see a pay-due modal and only /bill-payment access.
           
           setUser({ ...parsedUser, access_token: accessToken });
           if (parsedUser.refresh_token) {
@@ -252,62 +225,7 @@ export const AuthProvider = ({ children }) => {
   }, [logout]);
 
   const finishLogin = async (userData) => {
-    // For CLIENT_USER and CLIENT_MASTER_ADMIN, check if any client is locked
-    if ((userData.role === 'CLIENT_USER' || userData.role === 'CLIENT_MASTER_ADMIN') && userData.entities) {
-      try {
-        const { listClientsByOrganization } = await import('@/lib/api/clients');
-        const agencyId = userData.agency_id;
-        const token = userData.access_token;
-        
-        // Check all organizations the user belongs to
-        const orgIds = new Set();
-        if (userData.organization_id) {
-          orgIds.add(userData.organization_id);
-        }
-        userData.entities?.forEach(entity => {
-          if (entity.organization_id) {
-            orgIds.add(entity.organization_id);
-          }
-        });
-        
-        // Check all clients in all organizations
-        for (const orgId of orgIds) {
-          try {
-            const clients = await listClientsByOrganization(orgId, token);
-            for (const client of clients) {
-              if (client.is_locked) {
-                // Check if unlock period has expired
-                let isLocked = client.is_locked;
-                if (client.unlock_until) {
-                  const unlockUntil = new Date(client.unlock_until);
-                  if (new Date() > unlockUntil) {
-                    isLocked = true; // Unlock period expired
-                  } else {
-                    isLocked = false; // Still within unlock period
-                  }
-                }
-                
-                if (isLocked) {
-                  logout();
-                  throw new Error('Your account is locked. Please pay your due bills and contact your CA to unlock your account.');
-                }
-              }
-            }
-          } catch (error) {
-            // If we can't check, continue (fail open)
-            console.warn(`Could not check lock status for org ${orgId}:`, error);
-          }
-        }
-      } catch (error) {
-        // If error message indicates lock, re-throw to show to user
-        if (error.message && error.message.includes('locked')) {
-          throw error;
-        }
-        // Otherwise, log and continue
-        console.warn('Error checking client lock status after login:', error);
-      }
-    }
-    
+    // Locked clients are allowed to login; they will see pay-due modal and only /bill-payment access.
     setUser(userData);
     localStorage.setItem('user', JSON.stringify(userData));
     localStorage.setItem('accessToken', userData.access_token);
