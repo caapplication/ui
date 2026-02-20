@@ -20,7 +20,7 @@ const DialogOverlay = React.forwardRef(({ className, ...props }, ref) => (
 ));
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
-const DialogContent = React.forwardRef(({ className, children, closeDisabled = false, ...props }, ref) => (
+const DialogContent = React.forwardRef(({ className, children, closeDisabled = false, hideClose = false, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
@@ -35,15 +35,17 @@ const DialogContent = React.forwardRef(({ className, children, closeDisabled = f
       {...props}
     >
       {children}
-      <DialogPrimitive.Close
-        className="absolute right-2 top-2 sm:right-4 sm:top-4 rounded-full w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center bg-white/10 text-gray-400 hover:text-white hover:bg-white/20 active:bg-white/30 transition-all z-[60]"
-        style={{ touchAction: 'manipulation' }}
-        disabled={closeDisabled}
-        aria-label="Close dialog"
-      >
-        <X className="h-5 w-5 sm:h-4 sm:w-4" />
-        <span className="sr-only">Close</span>
-      </DialogPrimitive.Close>
+      {!hideClose && (
+        <DialogPrimitive.Close
+          className="absolute right-2 top-2 sm:right-4 sm:top-4 rounded-full w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center bg-white/10 text-gray-400 hover:text-white hover:bg-white/20 active:bg-white/30 transition-all z-[60]"
+          style={{ touchAction: 'manipulation' }}
+          disabled={closeDisabled}
+          aria-label="Close dialog"
+        >
+          <X className="h-5 w-5 sm:h-4 sm:w-4" />
+          <span className="sr-only">Close</span>
+        </DialogPrimitive.Close>
+      )}
     </DialogPrimitive.Content>
   </DialogPortal>
 ));

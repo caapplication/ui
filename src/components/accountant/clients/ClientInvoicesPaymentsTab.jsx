@@ -7,9 +7,10 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2, CheckCircle, AlertCircle, Clock, Download, Check, CreditCard, Upload, X, Pencil } from 'lucide-react';
-import { getClientBillingInvoices, downloadInvoicePDF, markInvoicePaid, updateClientBillingInvoiceStatus, getPaymentProofUrl, uploadClientInvoicePaymentProof, getInvoicePaymentDetails, updateClientBillingInvoice } from '@/lib/api';
+import { getClientBillingInvoices, getInvoicePDFBlob, markInvoicePaid, updateClientBillingInvoiceStatus, getPaymentProofUrl, uploadClientInvoicePaymentProof, getInvoicePaymentDetails, updateClientBillingInvoice } from '@/lib/api';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
+import { FileDown } from 'lucide-react';
 
 const ClientInvoicesPaymentsTab = ({ client }) => {
     const { toast } = useToast();
@@ -44,6 +45,9 @@ const ClientInvoicesPaymentsTab = ({ client }) => {
         state: ''
     });
     const [isSavingEdit, setIsSavingEdit] = useState(false);
+
+    // Bill PDF preview modal (same as clients-bill)
+    const [billPreview, setBillPreview] = useState({ open: false, blobUrl: null, invoiceNumber: '', loading: false });
 
     useEffect(() => {
         if (client?.id && user?.access_token) {
@@ -249,24 +253,56 @@ const ClientInvoicesPaymentsTab = ({ client }) => {
         }
     };
 
-    const handleDownloadPDF = async (invoiceId) => {
-        if (!user?.access_token || !agencyId) return;
+    const handleOpenBillPreview = async (invoice) => {
+        if (!user?.access_token || !agencyId || !invoice?.id) return;
+        setBillPreview({ open: true, blobUrl: null, invoiceNumber: invoice.bill_number || '', loading: true });
         try {
-            await downloadInvoicePDF(invoiceId, agencyId, user.access_token);
-            toast({
-                title: 'Success',
-                description: 'Invoice PDF downloaded successfully',
-            });
+            const { url } = await getInvoicePDFBlob(invoice.id, agencyId, user.access_token);
+            setBillPreview(prev => ({ ...prev, blobUrl: url, loading: false }));
         } catch (error) {
-            console.error('Error downloading PDF:', error);
-            toast({
-                title: 'Error',
-                description: 'Failed to download invoice PDF. ' + (error.message || ''),
-                variant: 'destructive',
-            });
+            console.error('Error loading PDF:', error);
+            toast({ title: 'Error', description: 'Failed to load invoice PDF. ' + (error?.message || ''), variant: 'destructive' });
+            setBillPreview(prev => ({ ...prev, open: false, loading: false }));
         }
     };
-    
+
+    const closeBillPreview = () => {
+        if (billPreview.blobUrl) window.URL.revokeObjectURL(billPreview.blobUrl);
+        setBillPreview({ open: false, blobUrl: null, invoiceNumber: '', loading: false });
+    };
+
+    const handleDownloadFromBillPreview = () => {
+        if (!billPreview.blobUrl) return;
+        const a = document.createElement('a');
+        a.href = billPreview.blobUrl;
+        a.download = `invoice_${billPreview.invoiceNumber || 'bill'}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        toast({ title: 'Downloaded', description: 'Invoice PDF downloaded.' });
+    };
+
+    const handleExportCSV = () => {
+        const headers = ['Invoice Date', 'Invoice No.', 'Particulars', 'HSN/SAC', 'Amount', 'Status', 'Due Date'];
+        const rows = invoices.map(inv => [
+            inv.date ? format(new Date(inv.date), 'yyyy-MM-dd') : '',
+            (inv.bill_number || '').replace(/,/g, ';'),
+            (inv.billing_head || '').replace(/,/g, ';'),
+            (inv.hsn_sac_code || '').replace(/,/g, ';'),
+            parseFloat(inv.amount || 0).toFixed(2),
+            inv.payment_status || inv.status || '',
+            inv.due_date ? format(new Date(inv.due_date), 'yyyy-MM-dd') : ''
+        ]);
+        const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+        const link = document.createElement('a');
+        link.setAttribute('href', encodeURI(csvContent));
+        link.setAttribute('download', `invoices_${client?.name || 'client'}_${new Date().getTime()}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast({ title: 'Exported', description: 'Invoices exported as CSV' });
+    };
+
     const handleEditInvoice = (invoice) => {
         setSelectedInvoice(invoice);
         setEditFormData({
@@ -347,11 +383,17 @@ const ClientInvoicesPaymentsTab = ({ client }) => {
     }
 
     return (
-        <div className="glass-pane p-6 rounded-lg">
-            <h3 className="text-lg font-semibold mb-4">Invoices & Payments</h3>
+        <div className="glass-pane p-6 rounded-lg space-y-4">
+            <div className="flex flex-row items-center justify-between flex-wrap gap-4">
+                <h3 className="text-lg font-semibold">Invoices & Payments</h3>
+                <Button variant="outline" size="sm" onClick={handleExportCSV} className="gap-2" disabled={!invoices.length}>
+                    <FileDown className="w-4 h-4" />
+                    Export CSV
+                </Button>
+            </div>
 
             {invoices.length === 0 ? (
-                <div className="text-center py-8 text-gray-400">
+                <div className="text-center py-8 text-muted-foreground">
                     No invoices found for this client.
                 </div>
             ) : (
@@ -418,9 +460,9 @@ const ClientInvoicesPaymentsTab = ({ client }) => {
                                     <Button
                                         size="icon"
                                         variant="ghost"
-                                        onClick={() => handleDownloadPDF(invoice.id)}
+                                        onClick={() => handleOpenBillPreview(invoice)}
                                         className="h-8 w-8"
-                                        title="Download PDF"
+                                        title="View / Download PDF"
                                     >
                                         <Download className="w-4 h-4" />
                                     </Button>
@@ -655,6 +697,30 @@ const ClientInvoicesPaymentsTab = ({ client }) => {
                             Save Changes
                         </Button>
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Bill PDF Preview Modal (same as clients-bill) */}
+            <Dialog open={billPreview.open} onOpenChange={(open) => { if (!open) closeBillPreview(); }}>
+                <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+                    <DialogHeader className="flex-shrink-0 px-6 py-4 border-b flex flex-row items-center justify-between">
+                        <DialogTitle>Invoice PDF</DialogTitle>
+                        {billPreview.blobUrl && (
+                            <Button variant="outline" size="sm" onClick={handleDownloadFromBillPreview} className="gap-2">
+                                <Download className="w-4 h-4" />
+                                Download
+                            </Button>
+                        )}
+                    </DialogHeader>
+                    <div className="flex-1 min-h-[60vh] overflow-auto p-4">
+                        {billPreview.loading ? (
+                            <div className="flex items-center justify-center py-16">
+                                <Loader2 className="w-10 h-10 animate-spin" />
+                            </div>
+                        ) : billPreview.blobUrl ? (
+                            <iframe src={billPreview.blobUrl} className="w-full h-[70vh] rounded border" title="Invoice PDF" />
+                        ) : null}
+                    </div>
                 </DialogContent>
             </Dialog>
         </div>

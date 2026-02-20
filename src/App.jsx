@@ -8,7 +8,7 @@ import { SocketProvider } from '@/contexts/SocketContext.jsx';
 import { FinanceSocketProvider } from '@/contexts/FinanceSocketContext.jsx';
 import { getOrganisationBankAccounts } from '@/lib/api/finance';
 import { listClientsByOrganization } from '@/lib/api/clients';
-import { Menu, Receipt } from 'lucide-react';
+import { Menu, Receipt, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useMediaQuery } from '@/hooks/useMediaQuery.jsx';
@@ -372,15 +372,20 @@ const ProtectedContent = () => {
       <Dialog open={showLockedClientModal} onOpenChange={() => {}}>
         <DialogContent
           className="bg-gray-900 border-white/10 max-w-md"
-          closeDisabled
+          hideClose
           onInteractOutside={(e) => e.preventDefault()}
           onEscapeKeyDown={(e) => e.preventDefault()}
           onPointerDownOutside={(e) => e.preventDefault()}
         >
-          <DialogHeader>
-            <DialogTitle className="text-white text-xl">Pay your due invoice and get access</DialogTitle>
-            <DialogDescription className="text-gray-400 mt-2">
-              Your profile is locked due to overdue bills. Upload payment proof for your due invoices to get full access again.
+          <DialogHeader className="text-center">
+            <DialogTitle className="text-white text-xl">Account Locked</DialogTitle>
+            <div className="flex justify-center my-4">
+              <div className="w-24 h-24 rounded-full bg-white/10 flex items-center justify-center">
+                <Lock className="w-14 h-14 text-white" />
+              </div>
+            </div>
+            <DialogDescription className="text-gray-400 mt-2 text-center">
+              Your account has been temporarily locked due to overdue invoices. Please clear the outstanding dues to regain full access to your profile.
             </DialogDescription>
           </DialogHeader>
           <div className="mt-6 flex flex-col gap-3">

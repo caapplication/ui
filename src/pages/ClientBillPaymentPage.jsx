@@ -631,17 +631,12 @@ const ClientBillPaymentPage = ({ entityId }) => {
                 <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col bg-gray-900 border-white/10 p-0 overflow-hidden">
                     <DialogHeader className="flex-shrink-0 px-6 py-4 border-b border-white/10 flex flex-row items-center justify-between">
                         <DialogTitle className="text-white">Invoice PDF</DialogTitle>
-                        <div className="flex items-center gap-2">
-                            {billPreview.blobUrl && (
-                                <Button variant="outline" size="sm" onClick={handleDownloadFromBillPreview} className="gap-2 border-white/20 text-white hover:bg-white/10">
-                                    <Download className="w-4 h-4" />
-                                    Download
-                                </Button>
-                            )}
-                            <Button variant="ghost" size="icon" onClick={closeBillPreview} className="text-white hover:bg-white/10 h-8 w-8">
-                                <X className="w-5 h-5" />
+                        {billPreview.blobUrl && (
+                            <Button variant="outline" size="sm" onClick={handleDownloadFromBillPreview} className="gap-2 border-white/20 text-white hover:bg-white/10">
+                                <Download className="w-4 h-4" />
+                                Download
                             </Button>
-                        </div>
+                        )}
                     </DialogHeader>
                     <div className="flex-1 min-h-[60vh] overflow-auto p-4 bg-black/40">
                         {billPreview.loading ? (
@@ -660,17 +655,12 @@ const ClientBillPaymentPage = ({ entityId }) => {
                 <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col bg-gray-900 border-white/10 p-0 overflow-hidden">
                     <DialogHeader className="flex-shrink-0 px-6 py-4 border-b border-white/10 flex flex-row items-center justify-between">
                         <DialogTitle className="text-white">Payment Proof</DialogTitle>
-                        <div className="flex items-center gap-2">
-                            {proofPreview.url && (
-                                <Button variant="outline" size="sm" onClick={() => { window.open(proofPreview.url, '_blank'); }} className="gap-2 border-white/20 text-white hover:bg-white/10">
-                                    <Download className="w-4 h-4" />
-                                    Download
-                                </Button>
-                            )}
-                            <Button variant="ghost" size="icon" onClick={() => setProofPreview({ open: false, url: null, contentType: null })} className="text-white hover:bg-white/10 h-8 w-8">
-                                <X className="w-5 h-5" />
+                        {proofPreview.url && (
+                            <Button variant="outline" size="sm" onClick={() => { window.open(proofPreview.url, '_blank'); }} className="gap-2 border-white/20 text-white hover:bg-white/10">
+                                <Download className="w-4 h-4" />
+                                Download
                             </Button>
-                        </div>
+                        )}
                     </DialogHeader>
                     <div className="flex-1 min-h-[400px] overflow-auto p-4 bg-black/40 flex items-center justify-center">
                         {proofPreview.url && (
