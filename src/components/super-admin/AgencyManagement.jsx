@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Building,
@@ -32,6 +33,7 @@ import { useToast } from '@/components/ui/use-toast';
 const AgencyManagement = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [agencies, setAgencies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -223,16 +225,24 @@ const AgencyManagement = () => {
                   </tr>
                 ) : (
                   filteredAgencies.map((agency) => (
-                    <tr key={agency.id} className="hover:bg-white/5 transition-colors group">
+                    <tr
+                      key={agency.id}
+                      className="hover:bg-white/5 transition-colors group cursor-pointer"
+                      onClick={() => navigate(`/agencies/${agency.id}`)}
+                    >
                       <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500">
+                        <Link
+                          to={`/agencies/${agency.id}`}
+                          className="flex items-center gap-3"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500 group-hover:bg-blue-500 group-hover:text-white transition-all">
                             <Building className="w-5 h-5" />
                           </div>
                           <div>
-                            <div className="text-sm font-medium text-white">{agency.name}</div>
+                            <div className="text-sm font-medium text-white group-hover:text-primary-light transition-colors">{agency.name}</div>
                           </div>
-                        </div>
+                        </Link>
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-xs font-mono text-gray-400 bg-white/5 px-2 py-1 rounded w-fit">
@@ -252,12 +262,18 @@ const AgencyManagement = () => {
                               variant="ghost"
                               size="icon"
                               className="text-gray-400 hover:text-red-500 hover:bg-red-500/10"
-                              onClick={() => setAgencyToDelete(agency)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setAgencyToDelete(agency);
+                              }}
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
                           </DialogTrigger>
-                          <DialogContent className="glass-effect border-red-500/20 text-white">
+                          <DialogContent
+                            className="glass-effect border-red-500/20 text-white"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <DialogHeader>
                               <DialogTitle className="flex items-center gap-2 text-red-500">
                                 <AlertTriangle className="w-5 h-5" />
@@ -274,7 +290,10 @@ const AgencyManagement = () => {
                               <Button variant="ghost" onClick={() => setAgencyToDelete(null)}>Cancel</Button>
                               <Button
                                 className="bg-red-600 hover:bg-red-700 text-white"
-                                onClick={handleDeleteAgency}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteAgency();
+                                }}
                                 disabled={actionLoading}
                               >
                                 {actionLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}

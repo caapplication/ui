@@ -34,6 +34,13 @@ export const deleteAgency = async (agencyId, token) => {
   return handleResponse(response);
 };
 
+export const getAgencyDetails = async (agencyId, token) => {
+  const response = await fetch(`${LOGIN_API_URL}/agencies/${agencyId}/details`, {
+    headers: getAuthHeaders(token)
+  });
+  return handleResponse(response);
+};
+
 /**
  * User Management
  */

@@ -56,6 +56,7 @@ const AgencyManagement = lazy(() => import('@/components/super-admin/AgencyManag
 const CAManagement = lazy(() => import('@/components/super-admin/CAManagement.jsx'));
 const AdminUserList = lazy(() => import('@/components/super-admin/AdminUserList.jsx'));
 const SuperAdminSidebar = lazy(() => import('@/components/layout/SuperAdminSidebar.jsx'));
+const AgencyDetails = lazy(() => import('@/components/super-admin/AgencyDetails.jsx'));
 
 const BeneficiaryDetailsPage = lazy(() => import('@/pages/BeneficiaryDetailsPage.jsx'));
 const BeneficiaryLedger = lazy(() => import('@/components/beneficiaries/BeneficiaryLedger.jsx'));
@@ -297,6 +298,7 @@ const ProtectedContent = () => {
               />
               {/* Super Admin Routes */}
               <Route path="/agencies" element={<AgencyManagement />} />
+              <Route path="/agencies/:id" element={<AgencyDetails />} />
               <Route path="/cas" element={<CAManagement />} />
               <Route path="/admin/users" element={<AdminUserList />} />
               <Route path="/dashboard/today-progress" element={<TodayProgressExpanded />} />
