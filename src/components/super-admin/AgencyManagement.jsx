@@ -255,7 +255,8 @@ const AgencyManagement = () => {
                           {new Date(agency.created_at).toLocaleDateString()}
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-right">
+                      {/* Hide Delete for now as requested */}
+                      {/* <td className="px-6 py-4 text-right">
                         <Dialog>
                           <DialogTrigger asChild>
                             <Button
@@ -302,7 +303,7 @@ const AgencyManagement = () => {
                             </DialogFooter>
                           </DialogContent>
                         </Dialog>
-                      </td>
+                      </td> */}
                     </tr>
                   ))
                 )}

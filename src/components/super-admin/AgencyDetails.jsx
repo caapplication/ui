@@ -12,14 +12,17 @@ import {
   Clock,
   Loader2,
   ExternalLink,
-  ChevronRight
+  ChevronRight,
+  Lock,
+  Unlock,
+  RefreshCcw
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/useAuth.jsx';
-import { getAgencyDetails } from '@/lib/api/admin';
+import { getAgencyDetails, lockUser, unlockUser } from '@/lib/api/admin';
 import { useToast } from '@/components/ui/use-toast';
 
 const AgencyDetails = () => {
@@ -29,6 +32,47 @@ const AgencyDetails = () => {
   const { toast } = useToast();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [activeUserFilter, setActiveUserFilter] = useState('all');
+  const [actionLoading, setActionLoading] = useState(null);
+
+  const consolidatedUsers = React.useMemo(() => {
+    if (!data) return [];
+    const { users, invites } = data;
+    const list = [];
+
+    // Non-admin roles
+    users.ca_accountants.forEach(u => list.push({ ...u, category: 'CA Accountant', role_key: 'ca' }));
+    users.ca_team_members.forEach(u => list.push({ ...u, category: 'CA Team Member', role_key: 'team' }));
+    users.client_master_admins.forEach(u => list.push({ ...u, category: 'Client Admin', role_key: 'client_admin' }));
+    users.client_users.forEach(u => list.push({ ...u, category: 'Client User', role_key: 'client_user' }));
+
+    // Pending invites (mapping them to user-like objects)
+    invites.forEach(inv => {
+      let category = inv.role.replace('_', ' ');
+      let role_key = 'invite';
+      if (inv.role === 'CA_ACCOUNTANT') role_key = 'ca';
+      if (inv.role === 'CA_TEAM') role_key = 'team';
+      if (inv.role === 'CLIENT_MASTER_ADMIN') role_key = 'client_admin';
+      if (inv.role === 'CLIENT_USER') role_key = 'client_user';
+
+      list.push({
+        id: `invite-${inv.email}`,
+        email: inv.email,
+        name: 'Pending Invitation',
+        is_pending: true,
+        is_active: false,
+        category: category,
+        role_key: role_key,
+        created_at: inv.created_at
+      });
+    });
+
+    if (activeUserFilter === 'all') return list;
+    return list.filter(u => {
+      if (activeUserFilter === 'invites') return u.is_pending;
+      return u.role_key === activeUserFilter;
+    });
+  }, [data, activeUserFilter]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -52,6 +96,31 @@ const AgencyDetails = () => {
     }
   }, [id, user]);
 
+  const handleToggleLock = async (targetUser) => {
+    try {
+      setActionLoading(targetUser.id);
+      if (targetUser.is_locked) {
+        await unlockUser(targetUser.id, user.access_token);
+        toast({ title: "User Unlocked", description: `${targetUser.name || targetUser.email} can now login.` });
+      } else {
+        await lockUser(targetUser.id, user.access_token);
+        toast({ title: "User Locked", description: `${targetUser.name || targetUser.email}'s access has been revoked.` });
+      }
+
+      // Refresh data
+      const result = await getAgencyDetails(id, user.access_token);
+      setData(result);
+    } catch (error) {
+      toast({
+        title: "Action Failed",
+        description: error.message || "Failed to update user status.",
+        variant: "destructive"
+      });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex h-[600px] items-center justify-center">
@@ -64,13 +133,14 @@ const AgencyDetails = () => {
 
   const { agency, users, invites } = data;
 
-  const UserTable = ({ users, roleLabel }) => (
+  const UserTable = ({ users, roleLabel, showRole = false }) => (
     <div className="overflow-x-auto">
       <table className="w-full text-left text-sm">
         <thead>
           <tr className="border-b border-white/5 bg-white/5 text-gray-400 text-[10px] uppercase tracking-wider">
             <th className="px-6 py-4 font-semibold">User Info</th>
             <th className="px-6 py-4 font-semibold">Email</th>
+            {showRole && <th className="px-6 py-4 font-semibold">Role</th>}
             <th className="px-6 py-4 font-semibold">Status</th>
             <th className="px-6 py-4 font-semibold text-right">Actions</th>
           </tr>
@@ -78,8 +148,8 @@ const AgencyDetails = () => {
         <tbody className="divide-y divide-white/5">
           {users.length === 0 ? (
             <tr>
-              <td colSpan="4" className="px-6 py-8 text-center text-gray-500 italic">
-                No {roleLabel} found.
+              <td colSpan={showRole ? 5 : 4} className="px-6 py-8 text-center text-gray-500 italic">
+                No records found.
               </td>
             </tr>
           ) : (
@@ -87,19 +157,53 @@ const AgencyDetails = () => {
               <tr key={u.id} className="hover:bg-white/5 transition-colors group">
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-[10px] font-bold border border-primary/20">
-                      {u.name ? u.name.charAt(0).toUpperCase() : u.email.charAt(0).toUpperCase()}
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold border ${u.is_pending ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' : 'bg-primary/10 text-primary border-primary/20'}`}>
+                      {(u.name && u.name !== 'Pending Invitation') ? u.name.charAt(0).toUpperCase() : u.email.charAt(0).toUpperCase()}
                     </div>
-                    <div className="font-medium text-white">{u.name || 'N/A'}</div>
+                    <div>
+                      <div className={`font-medium ${u.is_pending ? 'text-gray-400 italic' : 'text-white'}`}>{u.name}</div>
+                      {u.is_pending && <div className="text-[10px] text-yellow-500/50 uppercase tracking-tight font-semibold">Invitation Sent</div>}
+                    </div>
                   </div>
                 </td>
                 <td className="px-6 py-4 text-gray-400">{u.email}</td>
+                {showRole && (
+                  <td className="px-6 py-4">
+                    <Badge variant="outline" className="text-[9px] border-white/10 uppercase tracking-tight text-gray-400">
+                      {u.category}
+                    </Badge>
+                  </td>
+                )}
                 <td className="px-6 py-4">
-                  <Badge variant={u.is_active ? "outline" : "destructive"} className={u.is_active ? "bg-green-500/10 text-green-500 border-green-500/20 px-2 py-0 text-[10px]" : "px-2 py-0 text-[10px]"}>
-                    {u.is_active ? "Active" : "Locked"}
-                  </Badge>
+                  {u.is_pending ? (
+                    <Badge className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20 px-2 py-0 text-[10px]">
+                      Pending
+                    </Badge>
+                  ) : (
+                    <Badge variant={u.is_locked ? "destructive" : "outline"} className={!u.is_locked ? "bg-green-500/10 text-green-500 border-green-500/20 px-2 py-0 text-[10px]" : "bg-red-500/10 text-red-500 border-red-500/20 px-2 py-0 text-[10px]"}>
+                      {u.is_locked ? "Locked" : "Active"}
+                    </Badge>
+                  )}
                 </td>
                 <td className="px-6 py-4 text-right">
+                  {!u.is_pending && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className={`h-8 w-8 mr-2 ${u.is_locked ? 'text-green-500 hover:text-green-400' : 'text-red-500 hover:text-red-400'} hover:bg-white/5`}
+                      onClick={() => handleToggleLock(u)}
+                      disabled={actionLoading === u.id}
+                      title={u.is_locked ? "Unlock User" : "Lock User"}
+                    >
+                      {actionLoading === u.id ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : u.is_locked ? (
+                        <Unlock className="w-3.5 h-3.5" />
+                      ) : (
+                        <Lock className="w-3.5 h-3.5" />
+                      )}
+                    </Button>
+                  )}
                   <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-white hover:bg-white/5">
                     <ExternalLink className="w-3.5 h-3.5" />
                   </Button>
@@ -145,10 +249,7 @@ const AgencyDetails = () => {
         <TabsList className="bg-white/5 border border-white/10 p-1 text-gray-400">
           <TabsTrigger value="overview" className="data-[state=active]:bg-primary data-[state=active]:text-white px-6">Overview</TabsTrigger>
           <TabsTrigger value="admins" className="data-[state=active]:bg-primary data-[state=active]:text-white px-6">Admins</TabsTrigger>
-          <TabsTrigger value="cas" className="data-[state=active]:bg-primary data-[state=active]:text-white px-6">CAs</TabsTrigger>
-          <TabsTrigger value="team" className="data-[state=active]:bg-primary data-[state=active]:text-white px-6">Team</TabsTrigger>
-          <TabsTrigger value="clients" className="data-[state=active]:bg-primary data-[state=active]:text-white px-6">Clients</TabsTrigger>
-          <TabsTrigger value="invites" className="data-[state=active]:bg-primary data-[state=active]:text-white px-6">Invites</TabsTrigger>
+          <TabsTrigger value="users" className="data-[state=active]:bg-primary data-[state=active]:text-white px-6">Users</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="pt-6">
@@ -219,75 +320,33 @@ const AgencyDetails = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="cas" className="pt-6">
-          <Card className="glass-effect border-white/5 overflow-hidden">
-            <UserTable users={users.ca_accountants} roleLabel="CA Accountants" />
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="team" className="pt-6">
-          <Card className="glass-effect border-white/5 overflow-hidden">
-            <UserTable users={users.ca_team_members} roleLabel="Team Members" />
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="clients" className="pt-6">
-          <div className="space-y-6">
-            <Card className="glass-effect border-white/5 overflow-hidden">
-              <CardHeader className="bg-white/5 border-b border-white/5 py-3">
-                <CardTitle className="text-sm font-semibold text-white">Client Master Admins</CardTitle>
-              </CardHeader>
-              <UserTable users={users.client_master_admins} roleLabel="Master Admins" />
-            </Card>
-            <Card className="glass-effect border-white/5 overflow-hidden">
-              <CardHeader className="bg-white/5 border-b border-white/5 py-3">
-                <CardTitle className="text-sm font-semibold text-white">Client Users</CardTitle>
-              </CardHeader>
-              <UserTable users={users.client_users} roleLabel="Client Users" />
-            </Card>
+        <TabsContent value="users" className="pt-6 space-y-4">
+          <div className="flex flex-wrap gap-2">
+            {[
+              { id: 'all', label: 'All Users' },
+              { id: 'ca', label: 'CA Accountants' },
+              { id: 'team', label: 'Team Members' },
+              { id: 'client_admin', label: 'Client Admins' },
+              { id: 'client_user', label: 'Client Users' },
+              { id: 'invites', label: 'Invitations' },
+            ].map(filter => (
+              <Button
+                key={filter.id}
+                variant={activeUserFilter === filter.id ? "default" : "outline"}
+                size="sm"
+                className={`text-[10px] h-7 px-3 uppercase tracking-wider font-semibold ${activeUserFilter === filter.id
+                  ? "bg-primary text-white border-primary"
+                  : "bg-white/5 text-gray-400 border-white/10 hover:text-white"
+                  }`}
+                onClick={() => setActiveUserFilter(filter.id)}
+              >
+                {filter.label}
+              </Button>
+            ))}
           </div>
-        </TabsContent>
 
-        <TabsContent value="invites" className="pt-6">
           <Card className="glass-effect border-white/5 overflow-hidden">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-white/5 bg-white/5 text-gray-400 text-[10px] uppercase tracking-wider">
-                  <th className="px-6 py-4 font-semibold">Email</th>
-                  <th className="px-6 py-4 font-semibold">Role</th>
-                  <th className="px-6 py-4 font-semibold">Sent Date</th>
-                  <th className="px-6 py-4 font-semibold text-right">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {invites.length === 0 ? (
-                  <tr>
-                    <td colSpan="4" className="px-6 py-8 text-center text-gray-500 italic">
-                      No pending invites found.
-                    </td>
-                  </tr>
-                ) : (
-                  invites.map((inv, idx) => (
-                    <tr key={idx} className="hover:bg-white/5 transition-colors group">
-                      <td className="px-6 py-4 text-white font-medium">{inv.email}</td>
-                      <td className="px-6 py-4">
-                        <Badge variant="outline" className="text-[10px] border-white/10 uppercase tracking-tight">
-                          {inv.role.replace('_', ' ')}
-                        </Badge>
-                      </td>
-                      <td className="px-6 py-4 text-gray-500 text-xs">
-                        {new Date(inv.created_at).toLocaleDateString()}
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <Badge className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20 text-[10px] font-medium px-2 py-0">
-                          Pending
-                        </Badge>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+            <UserTable users={consolidatedUsers} roleLabel="Users" showRole={true} />
           </Card>
         </TabsContent>
       </Tabs>
