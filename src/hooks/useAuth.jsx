@@ -10,10 +10,10 @@ import { jwtDecode } from "jwt-decode";
 const getDefaultAuthValue = () => ({
   user: null,
   loading: false,
-  login: async () => {},
-  verifyOtpAndFinishLogin: async () => {},
-  logout: () => {},
-  updateUser: () => {},
+  login: async () => { },
+  verifyOtpAndFinishLogin: async () => { },
+  logout: () => { },
+  updateUser: () => { },
 });
 
 const AuthContext = createContext(null);
@@ -150,7 +150,7 @@ export const AuthProvider = ({ children }) => {
             return;
           }
           // Locked clients are allowed to stay logged in; they see a pay-due modal and only /bill-payment access.
-          
+
           setUser({ ...parsedUser, access_token: accessToken });
           if (parsedUser.refresh_token) {
             startTokenRefresh(parsedUser.refresh_token);
@@ -426,11 +426,41 @@ export const AuthProvider = ({ children }) => {
         return { twoFactorEnabled: false };
       }
     } else if (data.role === 'SUPER_ADMIN') {
-      window.location.href = 'https://admin.fynivo.in';
-      return { twoFactorEnabled: false };
+      const [profileData, twoFactorStatus] = await Promise.all([
+        apiGetProfile(data.access_token),
+        apiGet2FAStatus(data.access_token)
+      ]);
+      if (!profileData.is_active) {
+        logout();
+        throw new Error('Your account is inactive. Please contact support.');
+      }
+      const fullUserData = { ...data, ...profileData };
+      const is2FA = twoFactorStatus?.status === 'Enabled' || twoFactorStatus?.is_2fa_enabled === true;
+
+      if (is2FA && !otp) {
+        return { twoFactorEnabled: true, loginData: fullUserData };
+      } else {
+        finishLogin(fullUserData);
+        return { twoFactorEnabled: false };
+      }
     } else if (data.role === 'AGENCY_ADMIN') {
-      window.location.href = 'https://agency.fynivo.in';
-      return { twoFactorEnabled: false };
+      const [profileData, twoFactorStatus] = await Promise.all([
+        apiGetProfile(data.access_token),
+        apiGet2FAStatus(data.access_token)
+      ]);
+      if (!profileData.is_active) {
+        logout();
+        throw new Error('Your account is inactive. Please contact support.');
+      }
+      const fullUserData = { ...data, ...profileData };
+      const is2FA = twoFactorStatus?.status === 'Enabled' || twoFactorStatus?.is_2fa_enabled === true;
+
+      if (is2FA && !otp) {
+        return { twoFactorEnabled: true, loginData: fullUserData };
+      } else {
+        finishLogin(fullUserData);
+        return { twoFactorEnabled: false };
+      }
     } else {
       throw new Error('Permission Denied. Your user role is not supported.');
     }
