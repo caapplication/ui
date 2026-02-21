@@ -128,6 +128,22 @@ export const AuthProvider = ({ children }) => {
             finishLogin(fullUserData);
             return { twoFactorEnabled: false };
         }
+    } else if (data.role === 'CLIENT_HANDOVER') {
+        const profileData = await apiGetProfile(data.access_token);
+        const fullUserData = {
+            ...data,
+            ...profileData,
+            id: data.user_id ?? data.sub ?? profileData?.id,
+            entity_id: data.entity_id ?? profileData?.entity_id,
+            department_id: data.department_id ?? profileData?.department_id,
+            entities: data.entity_id ? [{ id: data.entity_id, name: data.entity_name }] : []
+        };
+        if (profileData.is_2fa_enabled) {
+            return { twoFactorEnabled: true, loginData: fullUserData };
+        } else {
+            finishLogin(fullUserData);
+            return { twoFactorEnabled: false };
+        }
     } else {
         throw new Error('Permission Denied. Your user role is not supported.');
     }

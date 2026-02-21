@@ -22,6 +22,7 @@ const Sidebar = lazy(() => import('@/components/layout/Sidebar'));
 const EntitySidebar = lazy(() => import('@/components/layout/EntitySidebar'));
 const TeamSidebar = lazy(() => import('@/components/layout/TeamSidebar.jsx'));
 const AccountantSidebar = lazy(() => import('@/components/layout/AccountantSidebar.jsx'));
+const HandoverSidebar = lazy(() => import('@/components/layout/HandoverSidebar.jsx'));
 const Dashboard = lazy(() => import('@/components/dashboard/Dashboard'));
 const Documents = lazy(() => import('@/components/documents/Documents'));
 const ClientFinance = lazy(() => import('@/components/finance/ClientFinance'));
@@ -37,6 +38,8 @@ const Organisation = lazy(() => import('@/components/accountant/organisation/Org
 const TeamMembers = lazy(() => import('@/components/accountant/team/TeamMembers.jsx'));
 const Settings = lazy(() => import('@/components/accountant/settings/Settings.jsx'));
 const ClientSettingsPage = lazy(() => import('@/pages/ClientSettingsPage.jsx'));
+const HandoverPage = lazy(() => import('@/pages/HandoverPage.jsx'));
+const ClientHandoverPage = lazy(() => import('@/pages/ClientHandoverPage.jsx'));
 const TaskManagementPage = lazy(() => import('@/components/accountant/tasks/TaskManagementPage.jsx'));
 const RecurringTaskManagementPage = lazy(() => import('@/components/accountant/tasks/RecurringTaskManagementPage.jsx'));
 const RecurringTaskDashboardPage = lazy(() => import('@/pages/RecurringTaskDashboardPage.jsx'));
@@ -240,6 +243,8 @@ const ProtectedContent = () => {
     SidebarComponent = TeamSidebar;
   } else if (user.role === 'ENTITY_USER') {
     SidebarComponent = EntitySidebar;
+  } else if (user.role === 'CLIENT_HANDOVER') {
+    SidebarComponent = HandoverSidebar;
   } else if (user.role === 'SUPER_ADMIN') {
     SidebarComponent = SuperAdminSidebar;
   }
@@ -252,7 +257,7 @@ const ProtectedContent = () => {
           setIsCollapsed={setIsSidebarCollapsed}
           isOpen={isMobileSidebarOpen}
           setIsOpen={setIsMobileSidebarOpen}
-          {...(user.role !== 'ENTITY_USER' && {
+          {...(user.role !== 'ENTITY_USER' && user.role !== 'CLIENT_HANDOVER' && {
             currentEntity: currentEntity,
             setCurrentEntity: setCurrentEntity,
             getEntityName: getEntityName,
@@ -282,7 +287,9 @@ const ProtectedContent = () => {
               <Route
                 path="/"
                 element={
-                  user.role === 'SUPER_ADMIN' ? (
+                  user.role === 'CLIENT_HANDOVER' ? (
+                    <Navigate to="/handover" replace />
+                  ) : user.role === 'SUPER_ADMIN' ? (
                     <SuperAdminDashboard />
                   ) : (user.role === 'CA_TEAM' || user.role === 'CA_ACCOUNTANT') ? (
                     <AccountantDashboard />
@@ -365,6 +372,16 @@ const ProtectedContent = () => {
               <Route path="/organisation" element={<Organisation />} />
               <Route path="/team-members" element={<TeamMembers />} />
               <Route path="/users" element={<ClientUsersPage entityId={currentEntity} />} />
+              <Route
+                path="/handover"
+                element={
+                  user?.role === 'CLIENT_HANDOVER' ? (
+                    <HandoverPage />
+                  ) : (
+                    <ClientHandoverPage entityId={currentEntity} />
+                  )
+                }
+              />
               <Route
                 path="/settings/*"
                 element={

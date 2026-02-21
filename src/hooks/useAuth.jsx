@@ -425,6 +425,30 @@ export const AuthProvider = ({ children }) => {
         finishLogin(fullUserData);
         return { twoFactorEnabled: false };
       }
+    } else if (data.role === 'CLIENT_HANDOVER') {
+      const [profileData, twoFactorStatus] = await Promise.all([
+        apiGetProfile(data.access_token),
+        apiGet2FAStatus(data.access_token)
+      ]);
+      if (!profileData.is_active) {
+        logout();
+        throw new Error('Your account is inactive. Please contact support.');
+      }
+      const fullUserData = {
+        ...data,
+        ...profileData,
+        id: data.user_id ?? data.sub ?? profileData?.id,
+        entity_id: data.entity_id ?? profileData?.entity_id,
+        department_id: data.department_id ?? profileData?.department_id,
+        entities: data.entity_id ? [{ id: data.entity_id, name: data.entity_name }] : (profileData.entities || [])
+      };
+      const is2FA = twoFactorStatus?.status === 'Enabled' || twoFactorStatus?.is_2fa_enabled === true;
+      if (is2FA && !otp) {
+        return { twoFactorEnabled: true, loginData: fullUserData };
+      } else {
+        finishLogin(fullUserData);
+        return { twoFactorEnabled: false };
+      }
     } else if (data.role === 'SUPER_ADMIN') {
       const [profileData, twoFactorStatus] = await Promise.all([
         apiGetProfile(data.access_token),
