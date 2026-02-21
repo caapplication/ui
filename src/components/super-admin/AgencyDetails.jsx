@@ -43,7 +43,7 @@ const AgencyDetails = () => {
     // Non-admin roles
     users.ca_accountants.forEach(u => list.push({ ...u, category: 'CA Accountant', role_key: 'ca' }));
     users.ca_team_members.forEach(u => list.push({ ...u, category: 'CA Team Member', role_key: 'team' }));
-    users.client_master_admins.forEach(u => list.push({ ...u, category: 'Client Admin', role_key: 'client_admin' }));
+    users.client_master_admins.forEach(u => list.push({ ...u, category: 'Client Admin', role_key: 'client_user' }));
     users.client_users.forEach(u => list.push({ ...u, category: 'Client User', role_key: 'client_user' }));
 
     // Pending invites (mapping them to user-like objects)
@@ -52,7 +52,7 @@ const AgencyDetails = () => {
       let role_key = 'invite';
       if (inv.role === 'CA_ACCOUNTANT') role_key = 'ca';
       if (inv.role === 'CA_TEAM') role_key = 'team';
-      if (inv.role === 'CLIENT_MASTER_ADMIN') role_key = 'client_admin';
+      if (inv.role === 'CLIENT_MASTER_ADMIN') role_key = 'client_user';
       if (inv.role === 'CLIENT_USER') role_key = 'client_user';
 
       list.push({
@@ -216,6 +216,54 @@ const AgencyDetails = () => {
     </div>
   );
 
+  const ClientTable = ({ clients }) => (
+    <div className="overflow-x-auto">
+      <table className="w-full text-left text-sm">
+        <thead>
+          <tr className="border-b border-white/5 bg-white/5 text-gray-400 text-[10px] uppercase tracking-wider">
+            <th className="px-6 py-4 font-semibold">Client Name</th>
+            <th className="px-6 py-4 font-semibold">Customer ID</th>
+            <th className="px-6 py-4 font-semibold">Email</th>
+            <th className="px-6 py-4 font-semibold whitespace-nowrap">Status</th>
+            <th className="px-6 py-4 font-semibold text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-white/5">
+          {clients.length === 0 ? (
+            <tr>
+              <td colSpan={5} className="px-6 py-8 text-center text-gray-500 italic">No clients found.</td>
+            </tr>
+          ) : (
+            clients.map((c) => (
+              <tr key={c.id} className="hover:bg-white/5 transition-colors group">
+                <td className="px-6 py-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold border bg-primary/10 text-primary border-primary/20">
+                      {(c.name || 'C').charAt(0).toUpperCase()}
+                    </div>
+                    <div className="font-medium text-white">{c.name}</div>
+                  </div>
+                </td>
+                <td className="px-6 py-4 text-gray-400 font-mono text-xs">{c.customer_id}</td>
+                <td className="px-6 py-4 text-gray-400">{c.email}</td>
+                <td className="px-6 py-4">
+                  <Badge variant={c.is_active ? "outline" : "destructive"} className={c.is_active ? "bg-green-500/10 text-green-500 border-green-500/20 px-2 py-0 text-[10px]" : "bg-red-500/10 text-red-500 border-red-500/20 px-2 py-0 text-[10px]"}>
+                    {c.is_active ? "Active" : "Inactive"}
+                  </Badge>
+                </td>
+                <td className="px-6 py-4 text-right">
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-white hover:bg-white/5">
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </Button>
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center gap-4">
@@ -250,6 +298,7 @@ const AgencyDetails = () => {
           <TabsTrigger value="overview" className="data-[state=active]:bg-primary data-[state=active]:text-white px-6">Overview</TabsTrigger>
           <TabsTrigger value="admins" className="data-[state=active]:bg-primary data-[state=active]:text-white px-6">Admins</TabsTrigger>
           <TabsTrigger value="users" className="data-[state=active]:bg-primary data-[state=active]:text-white px-6">Users</TabsTrigger>
+          <TabsTrigger value="clients_tab" className="data-[state=active]:bg-primary data-[state=active]:text-white px-6">Clients</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="pt-6">
@@ -326,7 +375,6 @@ const AgencyDetails = () => {
               { id: 'all', label: 'All Users' },
               { id: 'ca', label: 'CA Accountants' },
               { id: 'team', label: 'Team Members' },
-              { id: 'client_admin', label: 'Client Admins' },
               { id: 'client_user', label: 'Client Users' },
               { id: 'invites', label: 'Invitations' },
             ].map(filter => (
@@ -347,6 +395,12 @@ const AgencyDetails = () => {
 
           <Card className="glass-effect border-white/5 overflow-hidden">
             <UserTable users={consolidatedUsers} roleLabel="Users" showRole={true} />
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="clients_tab" className="pt-6">
+          <Card className="glass-effect border-white/5 overflow-hidden">
+            <ClientTable clients={data.clients || []} />
           </Card>
         </TabsContent>
       </Tabs>
