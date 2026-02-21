@@ -362,12 +362,29 @@ export const uploadClientInvoicePaymentProof = async (invoiceId, file, agencyId,
 /**
  * Get payment proof URL for an invoice (CA only - to view/download proof)
  */
-export const getPaymentProofUrl = async (invoiceId, agencyId, token) => {
-    const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/${invoiceId}/payment-proof-url`, {
+export const getPaymentProofUrl = async (invoiceId, agencyId, token, download = false) => {
+    let url = `${CLIENTS_API_BASE_URL}/clients/${invoiceId}/payment-proof-url`;
+    if (download) url += '?download=true';
+    const response = await fetch(url, {
         method: 'GET',
         headers: getAuthHeaders(token, 'application/json', agencyId)
     });
     return handleResponse(response);
+};
+
+/**
+ * Fetch payment proof as blob via backend proxy (to avoid iframe framing issues)
+ */
+export const getPaymentProofBlob = async (invoiceId, agencyId, token) => {
+    const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/${invoiceId}/payment-proof`, {
+        method: 'GET',
+        headers: getAuthHeaders(token, 'application/json', agencyId)
+    });
+
+    if (!response.ok) throw new Error(`Failed to load payment proof: ${response.statusText}`);
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    return { blob, url };
 };
 
 /**

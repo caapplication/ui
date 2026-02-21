@@ -178,6 +178,7 @@ export {
   getInvoicePaymentDetails,
   uploadClientInvoicePaymentProof,
   getPaymentProofUrl,
+  getPaymentProofBlob,
   markInvoicePaid,
   updateClientBillingInvoiceStatus,
   getMyCompany,

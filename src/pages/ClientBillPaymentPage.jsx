@@ -12,12 +12,12 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Loader2, Search, Filter, CheckCircle, AlertCircle, Clock, Download, CreditCard, Upload, X, Eye, Pencil, FileDown } from 'lucide-react';
 import { format } from 'date-fns';
-import { getClientBillingInvoices, listClientsByOrganization, getInvoicePDFBlob, getInvoicePaymentDetails, getPaymentProofUrl, uploadClientInvoicePaymentProof } from '@/lib/api';
+import { getClientBillingInvoices, listClientsByOrganization, getInvoicePDFBlob, getInvoicePaymentDetails, getPaymentProofUrl, getPaymentProofBlob, uploadClientInvoicePaymentProof } from '@/lib/api';
 
 const ClientBillPaymentPage = ({ entityId }) => {
     const { user } = useAuth();
     const { toast } = useToast();
-    
+
     // For client users, get client_id from multiple sources
     // Priority: entityId prop > user.entities[0].id > localStorage entityId > fetch from API
     const getClientId = () => {
@@ -27,17 +27,17 @@ const ClientBillPaymentPage = ({ entityId }) => {
         if (storedEntityId) return storedEntityId;
         return null;
     };
-    
+
     const [clientId, setClientId] = useState(getClientId());
-    
+
     const [invoices, setInvoices] = useState([]);
     const [filteredInvoices, setFilteredInvoices] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    
+
     // Filters
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
-    
+
     // Make Payment modal
     const [selectedInvoice, setSelectedInvoice] = useState(null);
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -45,12 +45,12 @@ const ClientBillPaymentPage = ({ entityId }) => {
     const [isLoadingPaymentDetails, setIsLoadingPaymentDetails] = useState(false);
     const [paymentFile, setPaymentFile] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
-    
+
     // Bill PDF preview modal (click Download -> preview then download)
     const [billPreview, setBillPreview] = useState({ open: false, blobUrl: null, invoiceNumber: '', loading: false });
     // Proof preview modal (View upload -> preview + download)
-    const [proofPreview, setProofPreview] = useState({ open: false, url: null, contentType: null });
-    
+    const [proofPreview, setProofPreview] = useState({ open: false, url: null, blobUrl: null, contentType: null, loading: false });
+
     // Update clientId when entityId prop changes
     useEffect(() => {
         if (entityId) {
@@ -64,7 +64,7 @@ const ClientBillPaymentPage = ({ entityId }) => {
             }
         }
     }, [entityId, user?.entities]);
-    
+
     // Fetch client_id if not available
     useEffect(() => {
         const fetchClientId = async () => {
@@ -81,42 +81,42 @@ const ClientBillPaymentPage = ({ entityId }) => {
                 }
             }
         };
-        
+
         if (!clientId && user) {
             fetchClientId();
         }
     }, [clientId, user]);
-    
+
     useEffect(() => {
         if (clientId && user?.access_token) {
             loadInvoices();
         }
     }, [clientId, user?.access_token]);
-    
+
     useEffect(() => {
         applyFilters();
     }, [invoices, searchTerm, statusFilter]);
-    
+
     const loadInvoices = async () => {
         if (!user?.access_token) return;
-        
+
         // Get client_id - try multiple sources
         const finalClientId = clientId || user?.entities?.[0]?.id || user?.entity_id || localStorage.getItem('entityId');
-        
+
         if (!finalClientId) {
             console.log('Waiting for client_id...', { clientId, userEntities: user?.entities, entityId });
             setIsLoading(false);
             return;
         }
-        
+
         setIsLoading(true);
         try {
             // Get agency_id from user (for CA context) or use a default
             // For client users, we might need to get agency_id differently
             const agencyId = user?.agency_id || localStorage.getItem('agency_id');
-            
+
             const data = await getClientBillingInvoices(finalClientId, agencyId, user.access_token);
-            
+
             // Map to frontend format
             const mappedInvoices = (Array.isArray(data) ? data : []).map(inv => ({
                 id: inv.id,
@@ -130,14 +130,14 @@ const ClientBillPaymentPage = ({ entityId }) => {
                 status: inv.status,
                 paid_at: inv.paid_at,
             }));
-            
+
             // Sort by invoice date (newest first)
             mappedInvoices.sort((a, b) => {
                 const dateA = new Date(a.invoice_date);
                 const dateB = new Date(b.invoice_date);
                 return dateB - dateA;
             });
-            
+
             setInvoices(mappedInvoices);
         } catch (error) {
             console.error('Error loading invoices:', error);
@@ -150,10 +150,10 @@ const ClientBillPaymentPage = ({ entityId }) => {
             setIsLoading(false);
         }
     };
-    
+
     const applyFilters = () => {
         let filtered = [...invoices];
-        
+
         // Search filter (invoice number)
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
@@ -161,15 +161,15 @@ const ClientBillPaymentPage = ({ entityId }) => {
                 inv.invoice_number?.toLowerCase().includes(term)
             );
         }
-        
+
         // Status filter
         if (statusFilter !== 'all') {
             filtered = filtered.filter(inv => inv.status === statusFilter);
         }
-        
+
         setFilteredInvoices(filtered);
     };
-    
+
     const getStatusBadge = (status) => {
         const statusConfig = {
             paid: { label: 'Paid', variant: 'default', icon: CheckCircle, className: 'bg-green-500/20 text-green-400' },
@@ -178,10 +178,10 @@ const ClientBillPaymentPage = ({ entityId }) => {
             pending_verification: { label: 'Pending Verification', variant: 'default', icon: Clock, className: 'bg-blue-500/20 text-blue-400' },
             rejected: { label: 'Rejected', variant: 'destructive', icon: AlertCircle, className: 'bg-orange-500/20 text-orange-400' },
         };
-        
+
         const config = statusConfig[status] || statusConfig.due;
         const Icon = config.icon;
-        
+
         return (
             <Badge className={config.className}>
                 <Icon className="w-3 h-3 mr-1" />
@@ -189,7 +189,7 @@ const ClientBillPaymentPage = ({ entityId }) => {
             </Badge>
         );
     };
-    
+
     const calculateTotals = () => {
         return filteredInvoices.reduce((acc, inv) => {
             acc.total += parseFloat(inv.invoice_amount || 0);
@@ -201,7 +201,7 @@ const ClientBillPaymentPage = ({ entityId }) => {
             return acc;
         }, { total: 0, paid: 0, due: 0 });
     };
-    
+
     const handleOpenBillPreview = async (invoice) => {
         if (!user?.access_token || !invoice?.id) return;
         const agencyId = user?.agency_id || localStorage.getItem('agency_id');
@@ -231,7 +231,7 @@ const ClientBillPaymentPage = ({ entityId }) => {
         document.body.removeChild(a);
         toast({ title: 'Downloaded', description: 'Invoice PDF downloaded.' });
     };
-    
+
     const handleMakePayment = async (invoice) => {
         setSelectedInvoice(invoice);
         setIsPaymentModalOpen(true);
@@ -253,7 +253,7 @@ const ClientBillPaymentPage = ({ entityId }) => {
             setIsLoadingPaymentDetails(false);
         }
     };
-    
+
     const handlePaymentFileChange = (e) => {
         const file = e.target.files[0];
         if (file) {
@@ -268,7 +268,7 @@ const ClientBillPaymentPage = ({ entityId }) => {
             setPaymentFile(file);
         }
     };
-    
+
     const handleDonePayment = async () => {
         if (!paymentFile) {
             toast({
@@ -328,13 +328,26 @@ const ClientBillPaymentPage = ({ entityId }) => {
     const handleViewUpload = async (invoice) => {
         const agencyId = user?.agency_id || localStorage.getItem('agency_id');
         if (!invoice?.id || !user?.access_token || !agencyId) return;
+        setSelectedInvoice(invoice);
+        setProofPreview({ open: true, url: null, blobUrl: null, contentType: null, fileName: '', loading: true });
         try {
+            // First get the metadata to check file type
             const proofData = await getPaymentProofUrl(invoice.id, agencyId, user.access_token);
-            if (proofData?.url) {
-                const url = proofData.url;
-                const isPdf = url.toLowerCase().endsWith('.pdf');
-                setProofPreview({ open: true, url, contentType: isPdf ? 'application/pdf' : 'image' });
-            }
+            const fileKey = proofData?.file_key || '';
+            const isPdf = fileKey.toLowerCase().endsWith('.pdf');
+            const fileName = fileKey.split('/').pop() || 'payment_proof';
+
+            // Fetch via proxy to avoid iframe blocks
+            const { url: blobUrl } = await getPaymentProofBlob(invoice.id, agencyId, user.access_token);
+
+            setProofPreview({
+                open: true,
+                url: proofData.url,
+                blobUrl: blobUrl,
+                contentType: isPdf ? 'application/pdf' : 'image',
+                fileName: fileName,
+                loading: false
+            });
         } catch (error) {
             console.error('Error loading payment proof:', error);
             toast({
@@ -342,11 +355,23 @@ const ClientBillPaymentPage = ({ entityId }) => {
                 description: 'Failed to load payment proof. ' + (error?.message || ''),
                 variant: 'destructive',
             });
+            setProofPreview(prev => ({ ...prev, open: false, loading: false }));
         }
     };
 
+    const handleDownloadProof = () => {
+        if (!proofPreview.blobUrl) return;
+        const a = document.createElement('a');
+        a.href = proofPreview.blobUrl;
+        a.download = proofPreview.fileName || 'payment_proof';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        toast({ title: 'Downloaded', description: 'Payment proof downloaded.' });
+    };
+
     const totals = calculateTotals();
-    
+
     if (isLoading) {
         return (
             <div className="h-full w-full flex items-center justify-center">
@@ -354,7 +379,7 @@ const ClientBillPaymentPage = ({ entityId }) => {
             </div>
         );
     }
-    
+
     return (
         <div className="p-4 sm:p-6 lg:p-8">
             <motion.div
@@ -366,7 +391,7 @@ const ClientBillPaymentPage = ({ entityId }) => {
                     <h1 className="text-3xl sm:text-4xl font-bold text-white">Bill & Payment</h1>
                     <p className="text-gray-400 mt-1">View and manage your billing invoices</p>
                 </div>
-                
+
                 {/* Due Amount and Filters on one line */}
                 <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
                     <Card className="glass-card border-white/5 sm:max-w-[220px]">
@@ -419,7 +444,7 @@ const ClientBillPaymentPage = ({ entityId }) => {
                         </CardContent>
                     </Card>
                 </div>
-                
+
                 {/* Table */}
                 <Card className="glass-card border-white/5">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0">
@@ -518,7 +543,7 @@ const ClientBillPaymentPage = ({ entityId }) => {
                     </CardContent>
                 </Card>
             </motion.div>
-            
+
             {/* Make Payment Modal */}
             <Dialog open={isPaymentModalOpen} onOpenChange={setIsPaymentModalOpen}>
                 <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-gray-900 border-white/10">
@@ -554,7 +579,7 @@ const ClientBillPaymentPage = ({ entityId }) => {
                                         />
                                     </div>
                                 )}
-                                
+
                                 {/* CA Bank Details */}
                                 {paymentDetails?.ca_bank_details && Object.keys(paymentDetails.ca_bank_details).length > 0 && (
                                     <div className="p-4 rounded-lg border border-white/10 space-y-2">
@@ -655,19 +680,23 @@ const ClientBillPaymentPage = ({ entityId }) => {
                 <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col bg-gray-900 border-white/10 p-0 overflow-hidden">
                     <DialogHeader className="flex-shrink-0 px-6 py-4 border-b border-white/10 flex flex-row items-center justify-between">
                         <DialogTitle className="text-white">Payment Proof</DialogTitle>
-                        {proofPreview.url && (
-                            <Button variant="outline" size="sm" onClick={() => { window.open(proofPreview.url, '_blank'); }} className="gap-2 border-white/20 text-white hover:bg-white/10">
+                        {proofPreview.blobUrl && (
+                            <Button variant="outline" size="sm" onClick={handleDownloadProof} className="gap-2 border-white/20 text-white hover:bg-white/10">
                                 <Download className="w-4 h-4" />
                                 Download
                             </Button>
                         )}
                     </DialogHeader>
                     <div className="flex-1 min-h-[400px] overflow-auto p-4 bg-black/40 flex items-center justify-center">
-                        {proofPreview.url && (
+                        {proofPreview.loading ? (
+                            <div className="flex items-center justify-center py-12">
+                                <Loader2 className="w-8 h-8 animate-spin text-white" />
+                            </div>
+                        ) : proofPreview.blobUrl && (
                             proofPreview.contentType === 'application/pdf' ? (
-                                <iframe src={`${proofPreview.url}#toolbar=0`} className="w-full h-[600px] rounded border border-white/10" title="Payment Proof" />
+                                <iframe src={proofPreview.blobUrl} className="w-full h-[600px] rounded border border-white/10" title="Payment Proof" />
                             ) : (
-                                <img src={proofPreview.url} alt="Payment Proof" className="max-w-full max-h-[600px] object-contain rounded" onError={(e) => { e.target.style.display = 'none'; }} />
+                                <img src={proofPreview.blobUrl} alt="Payment Proof" className="max-w-full max-h-[600px] object-contain rounded" onError={(e) => { e.target.style.display = 'none'; }} />
                             )
                         )}
                     </div>

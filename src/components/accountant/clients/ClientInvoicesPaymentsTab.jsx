@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2, CheckCircle, AlertCircle, Clock, Download, Check, CreditCard, Upload, X, Pencil } from 'lucide-react';
-import { getClientBillingInvoices, getInvoicePDFBlob, markInvoicePaid, updateClientBillingInvoiceStatus, getPaymentProofUrl, uploadClientInvoicePaymentProof, getInvoicePaymentDetails, updateClientBillingInvoice } from '@/lib/api';
+import { getClientBillingInvoices, getInvoicePDFBlob, markInvoicePaid, updateClientBillingInvoiceStatus, getPaymentProofUrl, getPaymentProofBlob, uploadClientInvoicePaymentProof, getInvoicePaymentDetails, updateClientBillingInvoice } from '@/lib/api';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { FileDown } from 'lucide-react';
@@ -18,20 +18,21 @@ const ClientInvoicesPaymentsTab = ({ client }) => {
     const agencyId = user?.agency_id || localStorage.getItem('agency_id');
     const [invoices, setInvoices] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    
+
     // Modals
     const [selectedInvoice, setSelectedInvoice] = useState(null);
     const [isProofModalOpen, setIsProofModalOpen] = useState(false);
     const [proofUrl, setProofUrl] = useState(null);
+    const [proofBlobUrl, setProofBlobUrl] = useState(null);
     const [proofContentType, setProofContentType] = useState(null);
     const [isLoadingProof, setIsLoadingProof] = useState(false);
-    
+
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [paymentDetails, setPaymentDetails] = useState(null);
     const [isLoadingPaymentDetails, setIsLoadingPaymentDetails] = useState(false);
     const [paymentFile, setPaymentFile] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
-    
+
     // Edit invoice modal
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editFormData, setEditFormData] = useState({
@@ -61,7 +62,7 @@ const ClientInvoicesPaymentsTab = ({ client }) => {
         try {
             // Get invoices directly from Client service
             const data = await getClientBillingInvoices(client.id, agencyId, user.access_token);
-            
+
             // Map Client service response format to frontend expected format
             const mappedInvoices = (data || []).map(inv => ({
                 id: inv.id,
@@ -79,7 +80,7 @@ const ClientInvoicesPaymentsTab = ({ client }) => {
                 gst_percent: inv.gst_percent,
                 state: inv.state,
             }));
-            
+
             setInvoices(mappedInvoices);
         } catch (error) {
             console.error('Error loading invoices:', error);
@@ -98,32 +99,24 @@ const ClientInvoicesPaymentsTab = ({ client }) => {
         setIsProofModalOpen(true);
         setIsLoadingProof(true);
         setProofUrl(null);
+        setProofBlobUrl(null);
         setProofContentType(null);
-        
+        const fileName = (invoice.payment_proof_file_key || '').split('/').pop() || 'payment_proof';
+
         try {
             const proofData = await getPaymentProofUrl(invoice.id, agencyId, user.access_token);
-            const url = proofData.url;
-            setProofUrl(url);
-            
-            // Detect content type from URL or fetch headers
-            if (url.toLowerCase().endsWith('.pdf')) {
+            setProofUrl(proofData.url);
+
+            // Fetch via proxy
+            const { url: blobUrl } = await getPaymentProofBlob(invoice.id, agencyId, user.access_token);
+            setProofBlobUrl(blobUrl);
+
+            // Detect content type from file_key
+            const fileKey = proofData.file_key || '';
+            if (fileKey.toLowerCase().endsWith('.pdf')) {
                 setProofContentType('application/pdf');
             } else {
-                // Try to detect from URL extension
-                const extension = url.split('.').pop()?.toLowerCase();
-                if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension)) {
-                    setProofContentType(`image/${extension === 'jpg' ? 'jpeg' : extension}`);
-                } else {
-                    // Try fetching headers to detect content type
-                    try {
-                        const response = await fetch(url, { method: 'HEAD' });
-                        const contentType = response.headers.get('content-type');
-                        setProofContentType(contentType || 'image/jpeg');
-                    } catch (e) {
-                        // Default to image if can't detect
-                        setProofContentType('image/jpeg');
-                    }
-                }
+                setProofContentType('image/jpeg');
             }
         } catch (error) {
             console.error('Error loading payment proof:', error);
@@ -136,7 +129,19 @@ const ClientInvoicesPaymentsTab = ({ client }) => {
             setIsLoadingProof(false);
         }
     };
-    
+
+    const handleDownloadProof = () => {
+        if (!proofBlobUrl) return;
+        const a = document.createElement('a');
+        a.href = proofBlobUrl;
+        const fileName = (selectedInvoice?.payment_proof_file_key || '').split('/').pop() || 'payment_proof';
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        toast({ title: 'Downloaded', description: 'Payment proof downloaded.' });
+    };
+
     const handleConfirmMarkPaid = async () => {
         if (!selectedInvoice?.id || !user?.access_token || !agencyId) return;
         try {
@@ -182,7 +187,7 @@ const ClientInvoicesPaymentsTab = ({ client }) => {
             });
         }
     };
-    
+
     const handleMakePayment = async (invoice) => {
         setSelectedInvoice(invoice);
         setIsPaymentModalOpen(true);
@@ -203,7 +208,7 @@ const ClientInvoicesPaymentsTab = ({ client }) => {
             setIsLoadingPaymentDetails(false);
         }
     };
-    
+
     const handlePaymentFileChange = (e) => {
         const file = e.target.files[0];
         if (file) {
@@ -218,7 +223,7 @@ const ClientInvoicesPaymentsTab = ({ client }) => {
             setPaymentFile(file);
         }
     };
-    
+
     const handleDonePayment = async () => {
         if (!paymentFile) {
             toast({
@@ -317,10 +322,10 @@ const ClientInvoicesPaymentsTab = ({ client }) => {
         });
         setIsEditModalOpen(true);
     };
-    
+
     const handleSaveEdit = async () => {
         if (!selectedInvoice?.id || !user?.access_token || !agencyId) return;
-        
+
         // Validate required fields
         if (!editFormData.invoice_number || !editFormData.invoice_date || !editFormData.monthly_charges_ex_gst || !editFormData.gst_percent) {
             toast({
@@ -330,7 +335,7 @@ const ClientInvoicesPaymentsTab = ({ client }) => {
             });
             return;
         }
-        
+
         setIsSavingEdit(true);
         try {
             await updateClientBillingInvoice(selectedInvoice.id, editFormData, agencyId, user.access_token);
@@ -472,7 +477,7 @@ const ClientInvoicesPaymentsTab = ({ client }) => {
                     </TableBody>
                 </Table>
             )}
-            
+
             {/* Payment Proof Modal (for pending_verification) */}
             <Dialog open={isProofModalOpen} onOpenChange={setIsProofModalOpen}>
                 <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -494,7 +499,7 @@ const ClientInvoicesPaymentsTab = ({ client }) => {
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        onClick={() => window.open(proofUrl, '_blank')}
+                                        onClick={handleDownloadProof}
                                         className="flex items-center gap-2"
                                     >
                                         <Download className="w-4 h-4" />
@@ -502,15 +507,15 @@ const ClientInvoicesPaymentsTab = ({ client }) => {
                                     </Button>
                                 </div>
                                 <div className="border rounded-lg overflow-hidden bg-gray-50 flex items-center justify-center min-h-[400px]">
-                                    {proofContentType?.toLowerCase().includes('pdf') || proofUrl.toLowerCase().endsWith('.pdf') ? (
+                                    {proofContentType === 'application/pdf' ? (
                                         <iframe
-                                            src={`${proofUrl}#toolbar=0`}
+                                            src={proofBlobUrl}
                                             className="w-full h-[600px]"
                                             title="Payment Proof"
                                         />
                                     ) : (
                                         <img
-                                            src={proofUrl}
+                                            src={proofBlobUrl}
                                             alt="Payment Proof"
                                             className="max-w-full max-h-[600px] object-contain"
                                             onError={(e) => {
@@ -547,7 +552,7 @@ const ClientInvoicesPaymentsTab = ({ client }) => {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-            
+
             {/* Make Payment Modal (for CA on Due invoices) */}
             <Dialog open={isPaymentModalOpen} onOpenChange={setIsPaymentModalOpen}>
                 <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -596,7 +601,7 @@ const ClientInvoicesPaymentsTab = ({ client }) => {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-            
+
             {/* Edit Invoice Modal */}
             <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
                 <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
