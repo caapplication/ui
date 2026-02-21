@@ -60,3 +60,16 @@ export const unlockUser = async (userId, token) => {
   });
   return handleResponse(response);
 };
+
+export const inviteCA = async (email, agencyId, token) => {
+  const params = new URLSearchParams();
+  params.append('email', email);
+  params.append('agency_id', agencyId);
+
+  const response = await fetch(`${LOGIN_API_URL}/invites/ca-accountant`, {
+    method: 'POST',
+    headers: getAuthHeaders(token, 'application/x-www-form-urlencoded'),
+    body: params
+  });
+  return handleResponse(response);
+};

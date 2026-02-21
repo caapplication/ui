@@ -231,10 +231,6 @@ const AgencyManagement = () => {
                           </div>
                           <div>
                             <div className="text-sm font-medium text-white">{agency.name}</div>
-                            <div className="text-xs text-gray-500 flex items-center gap-1">
-                              <Mail className="w-3 h-3" />
-                              {agency.admin_email || 'No admin email'}
-                            </div>
                           </div>
                         </div>
                       </td>
