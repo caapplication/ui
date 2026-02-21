@@ -53,6 +53,14 @@ const InvoiceDetailsCAPage = lazy(() => import('@/pages/InvoiceDetailsCA.jsx'));
 const ClientsBillPage = lazy(() => import('@/pages/ClientsBillPage.jsx'));
 const ClientBillPaymentPage = lazy(() => import('@/pages/ClientBillPaymentPage.jsx'));
 
+// Super Admin
+const SuperAdminDashboard = lazy(() => import('@/pages/super-admin/SuperAdminDashboard.jsx'));
+const AgencyManagement = lazy(() => import('@/components/super-admin/AgencyManagement.jsx'));
+const CAManagement = lazy(() => import('@/components/super-admin/CAManagement.jsx'));
+const AdminUserList = lazy(() => import('@/components/super-admin/AdminUserList.jsx'));
+const SuperAdminSidebar = lazy(() => import('@/components/layout/SuperAdminSidebar.jsx'));
+const AgencyDetails = lazy(() => import('@/components/super-admin/AgencyDetails.jsx'));
+
 const BeneficiaryDetailsPage = lazy(() => import('@/pages/BeneficiaryDetailsPage.jsx'));
 const BeneficiaryLedger = lazy(() => import('@/components/beneficiaries/BeneficiaryLedger.jsx'));
 const BeneficiaryIndividualLedger = lazy(() => import('@/components/beneficiaries/BeneficiaryIndividualLedger.jsx'));
@@ -237,6 +245,8 @@ const ProtectedContent = () => {
     SidebarComponent = EntitySidebar;
   } else if (user.role === 'CLIENT_HANDOVER') {
     SidebarComponent = HandoverSidebar;
+  } else if (user.role === 'SUPER_ADMIN') {
+    SidebarComponent = SuperAdminSidebar;
   }
 
   return (
@@ -279,6 +289,8 @@ const ProtectedContent = () => {
                 element={
                   user.role === 'CLIENT_HANDOVER' ? (
                     <Navigate to="/handover" replace />
+                  ) : user.role === 'SUPER_ADMIN' ? (
+                    <SuperAdminDashboard />
                   ) : (user.role === 'CA_TEAM' || user.role === 'CA_ACCOUNTANT') ? (
                     <AccountantDashboard />
                   ) : (
@@ -291,6 +303,11 @@ const ProtectedContent = () => {
                   )
                 }
               />
+              {/* Super Admin Routes */}
+              <Route path="/agencies" element={<AgencyManagement />} />
+              <Route path="/agencies/:id" element={<AgencyDetails />} />
+              <Route path="/cas" element={<CAManagement />} />
+              <Route path="/admin/users" element={<AdminUserList />} />
               <Route path="/dashboard/today-progress" element={<TodayProgressExpanded />} />
               <Route path="/dashboard/pending-verification" element={<PendingVerificationExpanded />} />
               <Route path="/dashboard/ongoing-tasks" element={<OngoingTasksExpanded />} />
@@ -396,7 +413,7 @@ const ProtectedContent = () => {
       </Suspense>
 
       {/* Locked client: non-closeable modal; only "Go to Bill & Payment" is allowed */}
-      <Dialog open={showLockedClientModal} onOpenChange={() => {}}>
+      <Dialog open={showLockedClientModal} onOpenChange={() => { }}>
         <DialogContent
           className="bg-gray-900 border-white/10 max-w-md"
           hideClose
