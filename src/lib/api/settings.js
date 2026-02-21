@@ -230,3 +230,63 @@ export const deleteDepartment = async (clientId, id, token) => {
     if (response.status === 204 || response.ok) return { success: true };
     return handleResponse(response);
 };
+
+// ---------- Handovers (CLIENT_HANDOVER) ----------
+export const listHandovers = async (clientId, token, params = {}) => {
+    const q = new URLSearchParams(params);
+    const url = `${CLIENTS_API_BASE_URL}/clients/${clientId}/handovers${q.toString() ? '?' + q : ''}`;
+    const response = await fetch(url, { method: 'GET', headers: getAuthHeaders(token) });
+    return handleResponse(response);
+};
+
+export const createHandover = async (clientId, data, token) => {
+    const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/${clientId}/handovers`, {
+        method: 'POST',
+        headers: getAuthHeaders(token),
+        body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+};
+
+export const handoversSummary = async (clientId, handoverDate, token) => {
+    const response = await fetch(
+        `${CLIENTS_API_BASE_URL}/clients/${clientId}/handovers/summary?handover_date=${handoverDate}`,
+        { method: 'GET', headers: getAuthHeaders(token) }
+    );
+    return handleResponse(response);
+};
+
+export const approveHandover = async (clientId, handoverId, body, token) => {
+    const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/${clientId}/handovers/${handoverId}/approve`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(token),
+        body: JSON.stringify(body || {}),
+    });
+    return handleResponse(response);
+};
+
+export const rejectHandover = async (clientId, handoverId, body, token) => {
+    const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/${clientId}/handovers/${handoverId}/reject`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(token),
+        body: JSON.stringify(body),
+    });
+    return handleResponse(response);
+};
+
+// ---------- Cashier Reports (CLIENT_USER) ----------
+export const listCashierReports = async (clientId, token, params = {}) => {
+    const q = new URLSearchParams(params);
+    const url = `${CLIENTS_API_BASE_URL}/clients/${clientId}/cashier-reports${q.toString() ? '?' + q : ''}`;
+    const response = await fetch(url, { method: 'GET', headers: getAuthHeaders(token) });
+    return handleResponse(response);
+};
+
+export const createCashierReport = async (clientId, data, token) => {
+    const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/${clientId}/cashier-reports`, {
+        method: 'POST',
+        headers: getAuthHeaders(token),
+        body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+};
