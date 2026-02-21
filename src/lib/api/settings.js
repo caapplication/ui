@@ -159,3 +159,74 @@ export const deleteFinanceHeader = async (id, agencyId, token) => {
     }
     return handleResponse(response);
 };
+
+// ---------- Entity (client) settings: payment methods & departments (client admin) ----------
+export const listPaymentMethods = async (clientId, token) => {
+    const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/${clientId}/payment-methods`, {
+        method: 'GET',
+        headers: getAuthHeaders(token),
+    });
+    return handleResponse(response);
+};
+
+export const createPaymentMethod = async (clientId, data, token) => {
+    const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/${clientId}/payment-methods`, {
+        method: 'POST',
+        headers: getAuthHeaders(token),
+        body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+};
+
+export const updatePaymentMethod = async (clientId, id, data, token) => {
+    const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/${clientId}/payment-methods/${id}`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(token),
+        body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+};
+
+export const deletePaymentMethod = async (clientId, id, token) => {
+    const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/${clientId}/payment-methods/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(token),
+    });
+    if (response.status === 204 || response.ok) return { success: true };
+    return handleResponse(response);
+};
+
+export const listDepartments = async (clientId, token) => {
+    const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/${clientId}/departments`, {
+        method: 'GET',
+        headers: getAuthHeaders(token),
+    });
+    return handleResponse(response);
+};
+
+export const createDepartment = async (clientId, data, token) => {
+    const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/${clientId}/departments`, {
+        method: 'POST',
+        headers: getAuthHeaders(token),
+        body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+};
+
+export const updateDepartment = async (clientId, id, data, token) => {
+    const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/${clientId}/departments/${id}`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(token),
+        body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+};
+
+export const deleteDepartment = async (clientId, id, token) => {
+    const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/${clientId}/departments/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(token),
+    });
+    if (response.status === 204 || response.ok) return { success: true };
+    return handleResponse(response);
+};

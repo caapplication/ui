@@ -123,7 +123,7 @@ export const inviteOrganizationUser = async (orgId, email, agencyId, token) => {
     return handleResponse(response);
 };
 
-export const inviteEntityUser = async (entityId, email, token, role = null) => {
+export const inviteEntityUser = async (entityId, email, token, role = null, departmentId = null) => {
     const url = `${API_BASE_URL}/invites/entity-user`;
     const headers = {
         'accept': 'application/json',
@@ -137,6 +137,9 @@ export const inviteEntityUser = async (entityId, email, token, role = null) => {
     };
     if (role) {
         params.role = role;
+    }
+    if (departmentId) {
+        params.department_id = departmentId;
     }
 
     const body = new URLSearchParams(params);

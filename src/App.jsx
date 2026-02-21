@@ -36,6 +36,7 @@ const Clients = lazy(() => import('@/components/accountant/clients/Clients.jsx')
 const Organisation = lazy(() => import('@/components/accountant/organisation/Organisation.jsx'));
 const TeamMembers = lazy(() => import('@/components/accountant/team/TeamMembers.jsx'));
 const Settings = lazy(() => import('@/components/accountant/settings/Settings.jsx'));
+const ClientSettingsPage = lazy(() => import('@/pages/ClientSettingsPage.jsx'));
 const TaskManagementPage = lazy(() => import('@/components/accountant/tasks/TaskManagementPage.jsx'));
 const RecurringTaskManagementPage = lazy(() => import('@/components/accountant/tasks/RecurringTaskManagementPage.jsx'));
 const RecurringTaskDashboardPage = lazy(() => import('@/pages/RecurringTaskDashboardPage.jsx'));
@@ -347,7 +348,16 @@ const ProtectedContent = () => {
               <Route path="/organisation" element={<Organisation />} />
               <Route path="/team-members" element={<TeamMembers />} />
               <Route path="/users" element={<ClientUsersPage entityId={currentEntity} />} />
-              <Route path="/settings/*" element={<Settings />} />
+              <Route
+                path="/settings/*"
+                element={
+                  user?.role === 'CLIENT_MASTER_ADMIN' ? (
+                    <ClientSettingsPage entityId={currentEntity} />
+                  ) : (
+                    <Settings />
+                  )
+                }
+              />
               <Route path="/tasks/:taskId" element={<TaskDashboardPage />} />
               <Route path="/invoices/:invoiceId" element={<InvoiceDetailsPage />} />
               <Route path="/finance/vouchers/:voucherId" element={<VoucherDetailsPage />} />

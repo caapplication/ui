@@ -13,7 +13,8 @@ import {
   ListTodo,
   UserCog,
   Bell,
-  Receipt
+  Receipt,
+  Settings
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { Button } from '@/components/ui/button';
@@ -148,6 +149,7 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
       showDot: unreadCount > 0,
       blinking: isBlinking
     },
+    { id: 'settings', path: '/settings', label: 'Settings', icon: Settings, hidden: user?.role === 'CLIENT_USER' },
   ];
 
   // Fetch clients from Clients table (NOT entities table)

@@ -9,6 +9,8 @@ import { Search, UserPlus, Filter, Loader2, Trash2, RefreshCw, UserCheck, Histor
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/ui/use-toast';
 import { listEntityUsers, inviteEntityUser, deleteEntityUser, deleteInvitedOrgUser, resendToken, listAllAccessibleEntityUsers, addEntityUsers } from '@/lib/api/organisation';
+import { listDepartments } from '@/lib/api/settings';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -42,6 +44,9 @@ const ClientUsersPage = ({ entityId }) => {
     // Invite Dialog State
     const [showInviteDialog, setShowInviteDialog] = useState(false);
     const [inviteEmail, setInviteEmail] = useState('');
+    const [inviteRole, setInviteRole] = useState('CLIENT_USER');
+    const [inviteDepartmentId, setInviteDepartmentId] = useState('');
+    const [departmentsList, setDepartmentsList] = useState([]);
     const [isInviting, setIsInviting] = useState(false);
 
     // Add Existing Users State
@@ -81,6 +86,20 @@ const ClientUsersPage = ({ entityId }) => {
             setIsLoading(false);
         }
     };
+
+    // Fetch departments when invite dialog opens (for Client Handover role)
+    useEffect(() => {
+        if (!showInviteDialog || !entityId || !user?.access_token) return;
+        const load = async () => {
+            try {
+                const list = await listDepartments(entityId, user.access_token);
+                setDepartmentsList(Array.isArray(list) ? list : []);
+            } catch {
+                setDepartmentsList([]);
+            }
+        };
+        load();
+    }, [showInviteDialog, entityId, user?.access_token]);
 
     // Check if user has pending items (direct assignments only, not collaborators)
     const checkUserPendingItems = async (userId) => {
@@ -207,12 +226,19 @@ const ClientUsersPage = ({ entityId }) => {
             return;
         }
 
+        if (inviteRole === 'CLIENT_HANDOVER' && !inviteDepartmentId) {
+            toast({ title: "Department Required", description: "Please select a department for Client Handover role.", variant: "destructive" });
+            return;
+        }
+
         setIsInviting(true);
         try {
-            await inviteEntityUser(entityId, inviteEmail, user.access_token);
+            await inviteEntityUser(entityId, inviteEmail, user.access_token, inviteRole, inviteDepartmentId || null);
             toast({ title: "Invitation Sent", description: `Invited ${inviteEmail} successfully.` });
             setShowInviteDialog(false);
             setInviteEmail('');
+            setInviteRole('CLIENT_USER');
+            setInviteDepartmentId('');
             fetchUsers();
         } catch (error) {
             toast({ title: "Invitation Failed", description: error.message, variant: "destructive" });
@@ -428,9 +454,11 @@ const ClientUsersPage = ({ entityId }) => {
                                                         ? 'Client Admin'
                                                         : u.role === 'CLIENT_ADMIN' || u.role === 'ENTITY_ADMIN'
                                                             ? 'Organization Owner'
-                                                            : u.role === 'ENTITY_USER'
-                                                                ? 'Entity User'
-                                                                : 'Member'}
+                                                            : u.role === 'CLIENT_HANDOVER'
+                                                                ? 'Client Handover'
+                                                                : u.role === 'ENTITY_USER'
+                                                                    ? 'Entity User'
+                                                                    : 'Member'}
                                                 </TableCell>
                                                 <TableCell>
                                                     <Badge variant={u.status === 'Joined' ? 'default' : 'secondary'} className={u.status === 'Joined' ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' : 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30'}>
@@ -511,22 +539,54 @@ const ClientUsersPage = ({ entityId }) => {
             </Tabs>
 
             {/* Invite New User Dialog */}
-            <Dialog open={showInviteDialog} onOpenChange={setShowInviteDialog}>
+            <Dialog open={showInviteDialog} onOpenChange={(open) => { setShowInviteDialog(open); if (!open) { setInviteRole('CLIENT_USER'); setInviteDepartmentId(''); } }}>
                 <DialogContent className="glass-pane border-white/10 text-white">
                     <DialogHeader>
                         <DialogTitle>Invite New User</DialogTitle>
                     </DialogHeader>
-                    <div className="py-4">
-                        <Label htmlFor="email" className="text-gray-300">Email Address</Label>
-                        <Input
-                            id="email"
-                            type="email"
-                            placeholder="colleague@company.com"
-                            className="mt-2 glass-input"
-                            value={inviteEmail}
-                            onChange={(e) => setInviteEmail(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleInviteUser()}
-                        />
+                    <div className="py-4 space-y-4">
+                        <div>
+                            <Label htmlFor="email" className="text-gray-300">Email Address</Label>
+                            <Input
+                                id="email"
+                                type="email"
+                                placeholder="colleague@company.com"
+                                className="mt-2 glass-input"
+                                value={inviteEmail}
+                                onChange={(e) => setInviteEmail(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleInviteUser()}
+                            />
+                        </div>
+                        <div>
+                            <Label className="text-gray-300">User Role</Label>
+                            <Select value={inviteRole} onValueChange={(v) => { setInviteRole(v); if (v !== 'CLIENT_HANDOVER') setInviteDepartmentId(''); }}>
+                                <SelectTrigger className="mt-2 glass-input border-white/10 text-white">
+                                    <SelectValue placeholder="Select role" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-[#181C2A] border-gray-700">
+                                    <SelectItem value="CLIENT_USER">Client User</SelectItem>
+                                    <SelectItem value="CLIENT_HANDOVER">Client Handover</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        {inviteRole === 'CLIENT_HANDOVER' && (
+                            <div>
+                                <Label className="text-gray-300">Department</Label>
+                                <Select value={inviteDepartmentId} onValueChange={setInviteDepartmentId}>
+                                    <SelectTrigger className="mt-2 glass-input border-white/10 text-white">
+                                        <SelectValue placeholder="Select department" />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-[#181C2A] border-gray-700">
+                                        {departmentsList.map((d) => (
+                                            <SelectItem key={d.id} value={String(d.id)}>{d.name}</SelectItem>
+                                        ))}
+                                        {departmentsList.length === 0 && (
+                                            <span className="px-2 py-1.5 text-sm text-gray-500">No departments — add in Settings</span>
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
                     </div>
                     <DialogFooter>
                         <DialogClose asChild>
