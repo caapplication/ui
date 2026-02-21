@@ -73,3 +73,15 @@ export const inviteCA = async (email, agencyId, token) => {
   });
   return handleResponse(response);
 };
+
+export const resendCAInvite = async (email, token) => {
+  const params = new URLSearchParams();
+  params.append('email', email);
+
+  const response = await fetch(`${LOGIN_API_URL}/invites/ca-accountant/resend`, {
+    method: 'POST',
+    headers: getAuthHeaders(token, 'application/x-www-form-urlencoded'),
+    body: params
+  });
+  return handleResponse(response);
+};

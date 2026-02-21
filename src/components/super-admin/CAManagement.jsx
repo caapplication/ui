@@ -12,7 +12,8 @@ import {
   Plus,
   Loader2,
   CheckCircle2,
-  XCircle
+  XCircle,
+  RefreshCcw
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,7 +29,7 @@ import {
 } from '@/components/ui/dialog';
 import { Combobox } from "@/components/ui/combobox";
 import { useAuth } from '@/hooks/useAuth.jsx';
-import { listAllUsers, lockUser, unlockUser, inviteCA, listAgencies } from '@/lib/api/admin';
+import { listAllUsers, lockUser, unlockUser, inviteCA, listAgencies, resendCAInvite } from '@/lib/api/admin';
 import { useToast } from '@/components/ui/use-toast';
 import { Badge } from '@/components/ui/badge';
 
@@ -114,6 +115,25 @@ const CAManagement = () => {
       });
     } finally {
       setInviteLoading(false);
+    }
+  };
+
+  const handleResendInvite = async (email) => {
+    try {
+      setActionLoading(email); // Borrowing actionLoading for resend status
+      await resendCAInvite(email, user.access_token);
+      toast({
+        title: "Invite Resent",
+        description: `Invitation email sent again to ${email}.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Resend Failed",
+        description: error.message || "Failed to resend invitation.",
+        variant: "destructive"
+      });
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -235,22 +255,23 @@ const CAManagement = () => {
               <thead>
                 <tr className="border-b border-white/5 bg-white/5 text-gray-400 text-xs uppercase tracking-wider">
                   <th className="px-6 py-4 font-semibold">CA Name & Email</th>
+                  <th className="px-6 py-4 font-semibold">Agency</th>
                   <th className="px-6 py-4 font-semibold">Status</th>
                   <th className="px-6 py-4 font-semibold">Joined At</th>
-                  <th className="px-6 py-4 font-semibold text-right">Access Control</th>
+                  <th className="px-0 py-4 font-semibold text-right whitespace-nowrap">Access Control</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
                 {loading ? (
                   <tr>
-                    <td colSpan="4" className="px-6 py-12 text-center text-gray-500">
+                    <td colSpan="5" className="px-6 py-12 text-center text-gray-500">
                       <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-primary" />
                       Loading CA list...
                     </td>
                   </tr>
                 ) : filteredCAs.length === 0 ? (
                   <tr>
-                    <td colSpan="4" className="px-6 py-12 text-center text-gray-500 italic">
+                    <td colSpan="5" className="px-6 py-12 text-center text-gray-500 italic">
                       No CA Accountants found.
                     </td>
                   </tr>
@@ -269,6 +290,12 @@ const CAManagement = () => {
                               {ca.email}
                             </div>
                           </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm text-gray-400 flex items-center gap-2">
+                          <Building className="w-4 h-4 text-purple-500/50" />
+                          {ca.agency_name || 'Individual / Unknown'}
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -295,28 +322,45 @@ const CAManagement = () => {
                           {ca.created_at ? new Date(ca.created_at).toLocaleDateString() : 'N/A'}
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-right">
-                        {!ca.is_invited && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className={ca.is_locked ? "text-green-500 hover:bg-green-500/10" : "text-red-500 hover:bg-red-500/10"}
-                            onClick={() => handleToggleLock(ca)}
-                            disabled={actionLoading === ca.id}
-                          >
-                            {actionLoading === ca.id ? (
-                              <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                            ) : ca.is_locked ? (
-                              <Unlock className="w-4 h-4 mr-2" />
-                            ) : (
-                              <Lock className="w-4 h-4 mr-2" />
-                            )}
-                            {ca.is_locked ? "Unlock" : "Lock Access"}
-                          </Button>
-                        )}
-                        {ca.is_invited && (
-                          <span className="text-xs text-gray-500 italic">Registration Pending</span>
-                        )}
+                      <td className="px-0 py-4">
+                        <div className="flex justify-end gap-2 pr-6">
+                          {!ca.is_invited && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className={ca.is_locked
+                                ? "bg-green-600 text-white border-green-600 hover:bg-green-700"
+                                : "bg-red-600 text-white border-red-600 hover:bg-red-700"}
+                              onClick={() => handleToggleLock(ca)}
+                              disabled={actionLoading === ca.id}
+                            >
+                              {actionLoading === ca.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                              ) : ca.is_locked ? (
+                                <Unlock className="w-4 h-4 mr-2" />
+                              ) : (
+                                <Lock className="w-4 h-4 mr-2" />
+                              )}
+                              {ca.is_locked ? "Unlock User" : "Lock Access"}
+                            </Button>
+                          )}
+                          {ca.is_invited && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="bg-blue-600 text-white border-blue-600 hover:bg-blue-700 font-medium"
+                              onClick={() => handleResendInvite(ca.email)}
+                              disabled={actionLoading === ca.email}
+                            >
+                              {actionLoading === ca.email ? (
+                                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                              ) : (
+                                <RefreshCcw className="w-4 h-4 mr-2" />
+                              )}
+                              Resend Invite
+                            </Button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))
