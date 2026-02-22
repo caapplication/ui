@@ -48,12 +48,22 @@ const AgencyDetails = () => {
 
     // Pending invites (mapping them to user-like objects)
     invites.forEach(inv => {
-      let category = inv.role.replace('_', ' ');
       let role_key = 'invite';
-      if (inv.role === 'CA_ACCOUNTANT') role_key = 'ca';
-      if (inv.role === 'CA_TEAM') role_key = 'team';
-      if (inv.role === 'CLIENT_MASTER_ADMIN') role_key = 'client_user';
-      if (inv.role === 'CLIENT_USER') role_key = 'client_user';
+      let category = inv.role.replace('_', ' ');
+
+      if (inv.role === 'CA_ACCOUNTANT') {
+        role_key = 'ca';
+        category = 'CA Accountant';
+      } else if (inv.role === 'CA_TEAM') {
+        role_key = 'team';
+        category = 'CA Team Member';
+      } else if (inv.role === 'CLIENT_MASTER_ADMIN') {
+        role_key = 'client_user';
+        category = 'Client Admin';
+      } else if (inv.role === 'CLIENT_USER') {
+        role_key = 'client_user';
+        category = 'Client User';
+      }
 
       list.push({
         id: `invite-${inv.email}`,
@@ -142,13 +152,12 @@ const AgencyDetails = () => {
             <th className="px-6 py-4 font-semibold">Email</th>
             {showRole && <th className="px-6 py-4 font-semibold">Role</th>}
             <th className="px-6 py-4 font-semibold">Status</th>
-            <th className="px-6 py-4 font-semibold text-right">Actions</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-white/5">
           {users.length === 0 ? (
             <tr>
-              <td colSpan={showRole ? 5 : 4} className="px-6 py-8 text-center text-gray-500 italic">
+              <td colSpan={showRole ? 4 : 3} className="px-6 py-8 text-center text-gray-500 italic">
                 No records found.
               </td>
             </tr>
@@ -185,29 +194,6 @@ const AgencyDetails = () => {
                     </Badge>
                   )}
                 </td>
-                <td className="px-6 py-4 text-right">
-                  {!u.is_pending && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className={`h-8 w-8 mr-2 ${u.is_locked ? 'text-green-500 hover:text-green-400' : 'text-red-500 hover:text-red-400'} hover:bg-white/5`}
-                      onClick={() => handleToggleLock(u)}
-                      disabled={actionLoading === u.id}
-                      title={u.is_locked ? "Unlock User" : "Lock User"}
-                    >
-                      {actionLoading === u.id ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : u.is_locked ? (
-                        <Unlock className="w-3.5 h-3.5" />
-                      ) : (
-                        <Lock className="w-3.5 h-3.5" />
-                      )}
-                    </Button>
-                  )}
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-white hover:bg-white/5">
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </Button>
-                </td>
               </tr>
             ))
           )}
@@ -223,15 +209,13 @@ const AgencyDetails = () => {
           <tr className="border-b border-white/5 bg-white/5 text-gray-400 text-[10px] uppercase tracking-wider">
             <th className="px-6 py-4 font-semibold">Client Name</th>
             <th className="px-6 py-4 font-semibold">Customer ID</th>
-            <th className="px-6 py-4 font-semibold">Email</th>
             <th className="px-6 py-4 font-semibold whitespace-nowrap">Status</th>
-            <th className="px-6 py-4 font-semibold text-right">Actions</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-white/5">
           {clients.length === 0 ? (
             <tr>
-              <td colSpan={5} className="px-6 py-8 text-center text-gray-500 italic">No clients found.</td>
+              <td colSpan={3} className="px-6 py-8 text-center text-gray-500 italic">No clients found.</td>
             </tr>
           ) : (
             clients.map((c) => (
@@ -245,16 +229,10 @@ const AgencyDetails = () => {
                   </div>
                 </td>
                 <td className="px-6 py-4 text-gray-400 font-mono text-xs">{c.customer_id}</td>
-                <td className="px-6 py-4 text-gray-400">{c.email}</td>
                 <td className="px-6 py-4">
                   <Badge variant={c.is_active ? "outline" : "destructive"} className={c.is_active ? "bg-green-500/10 text-green-500 border-green-500/20 px-2 py-0 text-[10px]" : "bg-red-500/10 text-red-500 border-red-500/20 px-2 py-0 text-[10px]"}>
                     {c.is_active ? "Active" : "Inactive"}
                   </Badge>
-                </td>
-                <td className="px-6 py-4 text-right">
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-white hover:bg-white/5">
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </Button>
                 </td>
               </tr>
             ))
@@ -322,8 +300,8 @@ const AgencyDetails = () => {
               color="pink"
             />
             <StatsCard
-              label="CLIENT MASTERS"
-              value={users.client_master_admins.length}
+              label="CLIENT USERS"
+              value={users.client_master_admins.length + users.client_users.length}
               icon={<UserCheck className="w-4 h-4 text-green-400" />}
               color="green"
             />
