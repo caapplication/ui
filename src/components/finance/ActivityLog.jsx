@@ -300,7 +300,7 @@ const ActivityLog = ({ itemId, itemType, showFilter = true, excludeTypes = [] })
                             </div>
                             <div className="flex-1 min-w-0">
                                 <p className="text-sm text-white">
-                                    <span className="font-semibold">{userDisplay}</span> {actionDisplay} {itemTypeDisplay}.
+                                    <span className="font-semibold">{userDisplay}</span> {actionDisplay}{itemType !== 'client' ? ` ${itemTypeDisplay}` : ''}.
                                 </p>
                                 {log.details &&
                                     log.details !== "Voucher created" &&
