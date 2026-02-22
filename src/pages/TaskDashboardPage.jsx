@@ -1013,23 +1013,23 @@ const TaskDashboardPage = () => {
 
     const handleAddChecklistItem = async () => {
         if (!newChecklistItem.trim() || isAddingChecklistItem) return;
-        
+
         // Don't allow adding checklist items for recurring tasks
         if (isRecurringTask) {
-            toast({ 
-                title: "Cannot add checklist", 
-                description: "Checklist items cannot be added to recurring task templates.", 
-                variant: "destructive" 
+            toast({
+                title: "Cannot add checklist",
+                description: "Checklist items cannot be added to recurring task templates.",
+                variant: "destructive"
             });
             return;
         }
 
         // Check if task exists
         if (!task || !taskId) {
-            toast({ 
-                title: "Error adding item", 
-                description: "Task not found. Please refresh the page.", 
-                variant: "destructive" 
+            toast({
+                title: "Error adding item",
+                description: "Task not found. Please refresh the page.",
+                variant: "destructive"
             });
             return;
         }
@@ -1069,7 +1069,7 @@ const TaskDashboardPage = () => {
         } catch (error) {
             console.error("Error adding checklist item:", error);
             const errorMessage = error.message || (error.response?.status === 404 ? "Task not found" : "Failed to add checklist item");
-            
+
             // Even if there's an error, try to refresh the task data
             // The backend might have saved the data but failed to return a proper response
             try {
@@ -1077,26 +1077,26 @@ const TaskDashboardPage = () => {
                 const refreshedHistory = await getTaskHistory(taskId, user?.agency_id, user.access_token);
                 setTask(refreshedTask);
                 setHistory(refreshedHistory);
-                
+
                 // Check if the item was actually added
-                const wasAdded = refreshedTask?.checklist?.items?.some(item => 
+                const wasAdded = refreshedTask?.checklist?.items?.some(item =>
                     item.name === newChecklistItem.trim()
                 );
-                
+
                 if (wasAdded) {
                     // Item was added successfully despite the error
                     setNewChecklistItem('');
                     setShowAddChecklistDialog(false);
-                    toast({ 
-                        title: "Checklist Item Added", 
-                        description: "The checklist item has been added successfully." 
+                    toast({
+                        title: "Checklist Item Added",
+                        description: "The checklist item has been added successfully."
                     });
                     return;
                 }
             } catch (refreshError) {
                 console.error("Error refreshing task after checklist add error:", refreshError);
             }
-            
+
             toast({ title: "Error adding item", description: errorMessage, variant: "destructive" });
         } finally {
             setIsAddingChecklistItem(false);
@@ -1381,7 +1381,7 @@ const TaskDashboardPage = () => {
 
     const formatFieldValue = (field, value) => {
         if (!value || value === 'None' || value === 'null') return 'Not set';
-        
+
         // Handle objects (like checklist, document_request, etc.)
         if (typeof value === 'object' && !Array.isArray(value) && value !== null) {
             if (field === 'checklist') {
@@ -1394,12 +1394,12 @@ const TaskDashboardPage = () => {
             // For other objects, return a string representation
             return JSON.stringify(value);
         }
-        
+
         // Handle arrays
         if (Array.isArray(value)) {
             return `${value.length} item${value.length !== 1 ? 's' : ''}`;
         }
-        
+
         // Format dates
         if (field.includes('date') || field.includes('Date')) {
             try {
@@ -1411,12 +1411,12 @@ const TaskDashboardPage = () => {
                 // Fall through to default formatting
             }
         }
-        
+
         // Format status/priority/enum values
         if (field === 'status' || field === 'priority') {
             return String(value).replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
         }
-        
+
         // Ensure we return a string
         return String(value);
     };
@@ -1533,13 +1533,13 @@ const TaskDashboardPage = () => {
                             {Object.keys(item.from_value).map((field) => {
                                 // Skip stage_id and status as they're handled above
                                 if (field === 'stage_id' || field === 'status') return null;
-                                
+
                                 const fromVal = item.from_value[field];
                                 const toVal = item.to_value[field];
                                 const fieldDisplay = formatFieldName(field);
                                 const fromDisplay = formatFieldValue(field, fromVal);
                                 const toDisplay = formatFieldValue(field, toVal);
-                                
+
                                 return (
                                     <div key={field} className="text-xs text-gray-300 pl-2 border-l-2 border-white/20">
                                         <span className="font-medium text-gray-400">{fieldDisplay}:</span>{' '}
@@ -2463,84 +2463,84 @@ const TaskDashboardPage = () => {
 
                                     {/* STATUS - Hidden for recurring tasks */}
                                     {!isRecurringTask && (
-                                    <TableCell>
-                                        <div className="flex items-center gap-2">
-                                            {isLoadingStages ? (
-                                                <Loader2 className="w-4 h-4 animate-spin text-white/70" />
-                                            ) : availableStages.length > 0 ? (
-                                                <div className="relative flex items-center gap-2">
-                                                    {isUpdatingStage && (
-                                                        <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-lg z-10">
-                                                            <Loader2 className="w-4 h-4 animate-spin text-white/70" />
-                                                        </div>
-                                                    )}
-                                                    <Combobox
-                                                        options={availableStages.map(stage => ({
-                                                            value: String(stage.id),
-                                                            label: getDisplayStageName(stage.name) || 'Open',
-                                                        }))}
-                                                        value={task.stage_id ? String(task.stage_id) : ''}
-                                                        onValueChange={handleStageChange}
-                                                        placeholder={displayStatusName || "Select Stage"}
-                                                        className="w-[180px]"
-                                                        disabled={isUpdatingStage || displayStatusName === 'Close' || statusName?.toLowerCase() === 'complete' || statusName?.toLowerCase() === 'completed'}
-                                                        displayValue={(option) => {
-                                                            const stage = stages.find(s => String(s.id) === String(option.value));
-                                                            return getDisplayStageName(stage?.name) || option.label || 'Open';
-                                                        }}
-                                                        style={getStageColorStyles()}
-                                                    />
-                                                    {/* Close Button - Show for assigned user if task is not completed and no pending request */}
+                                        <TableCell>
+                                            <div className="flex items-center gap-2">
+                                                {isLoadingStages ? (
+                                                    <Loader2 className="w-4 h-4 animate-spin text-white/70" />
+                                                ) : availableStages.length > 0 ? (
+                                                    <div className="relative flex items-center gap-2">
+                                                        {isUpdatingStage && (
+                                                            <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-lg z-10">
+                                                                <Loader2 className="w-4 h-4 animate-spin text-white/70" />
+                                                            </div>
+                                                        )}
+                                                        <Combobox
+                                                            options={availableStages.map(stage => ({
+                                                                value: String(stage.id),
+                                                                label: getDisplayStageName(stage.name) || 'Open',
+                                                            }))}
+                                                            value={task.stage_id ? String(task.stage_id) : ''}
+                                                            onValueChange={handleStageChange}
+                                                            placeholder={displayStatusName || "Select Stage"}
+                                                            className="w-[180px]"
+                                                            disabled={isUpdatingStage || displayStatusName === 'Close' || statusName?.toLowerCase() === 'complete' || statusName?.toLowerCase() === 'completed'}
+                                                            displayValue={(option) => {
+                                                                const stage = stages.find(s => String(s.id) === String(option.value));
+                                                                return getDisplayStageName(stage?.name) || option.label || 'Open';
+                                                            }}
+                                                            style={getStageColorStyles()}
+                                                        />
+                                                        {/* Close Button - Show for assigned user if task is not completed and no pending request */}
 
-                                                    {/* Creator Closure Actions - Show when stage is 'Request to Close' */}
-                                                    {isTaskCreator && (stages.find(s => String(s.id) === String(task.stage_id))?.name || '').toLowerCase() === 'request to close' && (
-                                                        <div className="flex items-center gap-1 ml-2">
-                                                            <Button
-                                                                onClick={async () => {
-                                                                    const completeStage = stages.find(s => (s.name || '').toLowerCase() === 'complete' || (s.name || '').toLowerCase() === 'completed');
-                                                                    if (completeStage) {
-                                                                        await updateStageTo(completeStage.id);
-                                                                    } else {
-                                                                        toast({ title: "Error", description: "Complete stage not found", variant: "destructive" });
-                                                                    }
-                                                                }}
-                                                                variant="outline"
-                                                                size="icon"
-                                                                className="h-8 w-8 bg-green-500/20 text-green-300 border-green-500/50 hover:bg-green-500/30"
-                                                                title="Approve & Complete"
-                                                            >
-                                                                <CheckCircle2 className="w-4 h-4" />
-                                                            </Button>
-                                                            <Button
-                                                                onClick={async () => {
-                                                                    const reviewStage = stages.find(s => (s.name || '').toLowerCase() === 'need review' || (s.name || '').toLowerCase() === 'needs review');
-                                                                    if (reviewStage) {
-                                                                        await updateStageTo(reviewStage.id);
-                                                                    } else {
-                                                                        toast({ title: "Error", description: "'Need Review' stage not found", variant: "destructive" });
-                                                                    }
-                                                                }}
-                                                                variant="outline"
-                                                                size="icon"
-                                                                className="h-8 w-8 bg-red-500/20 text-red-300 border-red-500/50 hover:bg-red-500/30"
-                                                                title="Reject & Request Review"
-                                                            >
-                                                                <XCircle className="w-4 h-4" />
-                                                            </Button>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            ) : (
-                                                <Badge
-                                                    variant="outline"
-                                                    className={task.stage?.color ? '' : `inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-medium w-fit ${getStatusColor(task).className || ''}`}
-                                                    style={task.stage?.color ? getStatusColor(task) : {}}
-                                                >
-                                                    {displayStatusName}
-                                                </Badge>
-                                            )}
-                                        </div>
-                                    </TableCell>
+                                                        {/* Creator Closure Actions - Show when stage is 'Request to Close' */}
+                                                        {isTaskCreator && (stages.find(s => String(s.id) === String(task.stage_id))?.name || '').toLowerCase() === 'request to close' && (
+                                                            <div className="flex items-center gap-1 ml-2">
+                                                                <Button
+                                                                    onClick={async () => {
+                                                                        const completeStage = stages.find(s => (s.name || '').toLowerCase() === 'complete' || (s.name || '').toLowerCase() === 'completed');
+                                                                        if (completeStage) {
+                                                                            await updateStageTo(completeStage.id);
+                                                                        } else {
+                                                                            toast({ title: "Error", description: "Complete stage not found", variant: "destructive" });
+                                                                        }
+                                                                    }}
+                                                                    variant="outline"
+                                                                    size="icon"
+                                                                    className="h-8 w-8 bg-green-500/20 text-green-300 border-green-500/50 hover:bg-green-500/30"
+                                                                    title="Approve & Complete"
+                                                                >
+                                                                    <CheckCircle2 className="w-4 h-4" />
+                                                                </Button>
+                                                                <Button
+                                                                    onClick={async () => {
+                                                                        const reviewStage = stages.find(s => (s.name || '').toLowerCase() === 'need review' || (s.name || '').toLowerCase() === 'needs review');
+                                                                        if (reviewStage) {
+                                                                            await updateStageTo(reviewStage.id);
+                                                                        } else {
+                                                                            toast({ title: "Error", description: "'Need Review' stage not found", variant: "destructive" });
+                                                                        }
+                                                                    }}
+                                                                    variant="outline"
+                                                                    size="icon"
+                                                                    className="h-8 w-8 bg-red-500/20 text-red-300 border-red-500/50 hover:bg-red-500/30"
+                                                                    title="Reject & Request Review"
+                                                                >
+                                                                    <XCircle className="w-4 h-4" />
+                                                                </Button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <Badge
+                                                        variant="outline"
+                                                        className={task.stage?.color ? '' : `inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-medium w-fit ${getStatusColor(task).className || ''}`}
+                                                        style={task.stage?.color ? getStatusColor(task) : {}}
+                                                    >
+                                                        {displayStatusName}
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                        </TableCell>
                                     )}
                                 </TableRow>
                             </TableBody>
@@ -2552,10 +2552,10 @@ const TaskDashboardPage = () => {
             <div className="flex-1 min-h-0">
                 {/* For recurring tasks, use the common expanded view component */}
                 {isRecurringTask ? (
-                    <RecurringTaskExpandedView 
-                        task={task} 
+                    <RecurringTaskExpandedView
+                        task={task}
                         onEdit={handleEditRecurring}
-                        onDelete={() => {}}
+                        onDelete={() => { }}
                         onRefresh={async () => {
                             const agencyId = user?.agency_id || null;
                             try {
@@ -2916,260 +2916,260 @@ const TaskDashboardPage = () => {
                             </CardContent>
                         </Card>
 
-                    {/* Checklists - Column 3, Row 1 (col-span-1, row-span-1) - Green Box */}
-                    <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col md:col-span-1 lg:col-span-1 lg:row-span-1 border-2 border-green-500/50 h-[400px] lg:h-full">
-                        <CardHeader className="flex-shrink-0">
-                            <div className="flex items-center justify-between">
-                                <CardTitle className="flex items-center gap-2">
-                                    <CheckCircle className="w-5 h-5" />
-                                    Checklists
-                                </CardTitle>
-                                <Dialog open={showAddChecklistDialog} onOpenChange={setShowAddChecklistDialog}>
-                                    {!isCompleted && !isRecurringTask && (
-                                        <DialogTrigger asChild>
-                                            <Button variant="ghost" size="sm" className="p-2">
-                                                <Plus className="w-4 h-4" />
-                                            </Button>
-                                        </DialogTrigger>
-                                    )}
-                                    <DialogContent className="glass-pane">
-                                        <DialogHeader>
-                                            <DialogTitle>Add New Checklist Item</DialogTitle>
-                                            <DialogDescription>Enter the checklist item name below</DialogDescription>
-                                        </DialogHeader>
-                                        <div className="py-4">
-                                            <Input
-                                                placeholder="Add a new checklist item..."
-                                                value={newChecklistItem}
-                                                onChange={(e) => setNewChecklistItem(e.target.value)}
-                                                onKeyPress={(e) => e.key === 'Enter' && !isAddingChecklistItem && handleAddChecklistItem()}
-                                                className="glass-input"
-                                                disabled={isAddingChecklistItem}
-                                            />
-                                        </div>
-                                        <DialogFooter>
-                                            <Button
-                                                variant="ghost"
-                                                onClick={() => {
-                                                    setShowAddChecklistDialog(false);
-                                                    setNewChecklistItem('');
-                                                }}
-                                                disabled={isAddingChecklistItem}
-                                            >
-                                                Cancel
-                                            </Button>
-                                            <Button
-                                                onClick={handleAddChecklistItem}
-                                                disabled={!newChecklistItem.trim() || isAddingChecklistItem}
-                                            >
-                                                {isAddingChecklistItem ? (
-                                                    <>
-                                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                                        Adding...
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <Plus className="w-4 h-4 mr-2" /> Add
-                                                    </>
-                                                )}
-                                            </Button>
-                                        </DialogFooter>
-                                    </DialogContent>
-                                </Dialog>
-                            </div>
-                        </CardHeader>
-                        <CardContent className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-2">
-                            {isUpdatingChecklist && (
-                                <div className="flex justify-center items-center py-2 mb-2 flex-shrink-0">
-                                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                                </div>
-                            )}
-                            {task.checklist?.enabled && task.checklist?.items && task.checklist.items.length > 0 ? (
-                                <div className="space-y-2">
-                                    {[...(task.checklist.items || [])]
-                                        .map((item, index) => {
-                                            // draggable related styles and handlers
-                                            const isDragging = draggedChecklistIndex === index;
-
-                                            // Use created_by if available, otherwise assigned_to, otherwise task.created_by
-                                            const checklistCreatorId = item.created_by || item.assigned_to || task.created_by;
-                                            const checklistCreator = getUserInfo(checklistCreatorId);
-                                            return (
-                                                <div
-                                                    key={index}
-                                                    className={`flex flex-col gap-1 p-2 rounded-md bg-white/5 transition-colors hover:bg-white/10 ${isDragging ? 'opacity-50' : ''}`}
-                                                    draggable={!isUpdatingChecklist && !isCompleted}
-                                                    onDragStart={(e) => handleChecklistDragStart(e, index)}
-                                                    onDragOver={handleChecklistDragOver}
-                                                    onDrop={(e) => handleChecklistDrop(e, index)}
-                                                >
-                                                    <div className="flex items-center gap-3">
-                                                        <Checkbox
-                                                            id={`checklist-${index}`}
-                                                            checked={item.is_completed || false}
-                                                            onCheckedChange={(checked) => handleToggleChecklistItem(index, checked)}
-                                                            disabled={isUpdatingChecklist || isCompleted}
-                                                        />
-                                                        <label htmlFor={`checklist-${index}`} className={`flex-grow text-sm ${item.is_completed ? 'line-through text-gray-500' : 'text-white'}`}>
-                                                            {item.name}
-                                                        </label>
-                                                        <AlertDialog>
-                                                            {!isCompleted && (
-                                                                <AlertDialogTrigger asChild>
-                                                                    <Button variant="ghost" size="icon" className="text-gray-400 hover:text-red-500 h-8 w-8">
-                                                                        <Trash2 className="w-4 h-4" />
-                                                                    </Button>
-                                                                </AlertDialogTrigger>
-                                                            )}
-                                                            <AlertDialogContent className="glass-pane">
-                                                                <AlertDialogHeader>
-                                                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                                    <AlertDialogDescription>This will permanently delete the checklist item.</AlertDialogDescription>
-                                                                </AlertDialogHeader>
-                                                                <AlertDialogFooter>
-                                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                                    <AlertDialogAction onClick={() => handleDeleteChecklistItem(index)} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
-                                                                </AlertDialogFooter>
-                                                            </AlertDialogContent>
-                                                        </AlertDialog>
-                                                    </div>
-                                                    <p className="text-xs text-gray-400 italic ml-7">
-                                                        Added by <span className="text-white">{checklistCreator.name}</span>
-                                                    </p>
-                                                </div>
-                                            );
-                                        })}
-                                </div>
-                            ) : (
-                                <p className="text-center text-gray-400 py-4">No checklist items yet.</p>
-                            )}
-                        </CardContent>
-                    </Card>
-
-                    {/* Due Date & Recurring - Column 3, Row 2 (col-span-1, row-span-1) - Merged Card */}
-                    <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col md:col-span-1 lg:col-span-1 lg:row-span-1 border-2 border-purple-500/50 h-[400px] lg:h-full">
-                        <CardContent className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col p-6 pr-4">
-                            {/* Due Date Section - Top */}
-                            <div className="flex flex-col border-b border-white/10 pb-6 mb-6 flex-1 min-h-0">
-                                <div className="flex items-center justify-between mb-4 flex-shrink-0">
+                        {/* Checklists - Column 3, Row 1 (col-span-1, row-span-1) - Green Box */}
+                        <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col md:col-span-1 lg:col-span-1 lg:row-span-1 border-2 border-green-500/50 h-[400px] lg:h-full">
+                            <CardHeader className="flex-shrink-0">
+                                <div className="flex items-center justify-between">
                                     <CardTitle className="flex items-center gap-2">
-                                        <CalendarIcon className="w-5 h-5" />
-                                        Due Date
+                                        <CheckCircle className="w-5 h-5" />
+                                        Checklists
                                     </CardTitle>
-                                    {!isRecurringTask && !isCompleted && (
-                                        <Button variant="ghost" size="sm" className="p-2" onClick={handleEditDueDate}>
-                                            <Edit2 className="w-4 h-4" />
-                                        </Button>
-                                    )}
-                                </div>
-                                <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
-                                    {task?.due_date ? (
-                                        <div className="text-center space-y-2">
-                                            <div className="text-xl font-bold text-white">
-                                                {format(new Date(task.due_date), 'MMM dd, yyyy')}
+                                    <Dialog open={showAddChecklistDialog} onOpenChange={setShowAddChecklistDialog}>
+                                        {!isCompleted && !isRecurringTask && (
+                                            <DialogTrigger asChild>
+                                                <Button variant="ghost" size="sm" className="p-2">
+                                                    <Plus className="w-4 h-4" />
+                                                </Button>
+                                            </DialogTrigger>
+                                        )}
+                                        <DialogContent className="glass-pane">
+                                            <DialogHeader>
+                                                <DialogTitle>Add New Checklist Item</DialogTitle>
+                                                <DialogDescription>Enter the checklist item name below</DialogDescription>
+                                            </DialogHeader>
+                                            <div className="py-4">
+                                                <Input
+                                                    placeholder="Add a new checklist item..."
+                                                    value={newChecklistItem}
+                                                    onChange={(e) => setNewChecklistItem(e.target.value)}
+                                                    onKeyPress={(e) => e.key === 'Enter' && !isAddingChecklistItem && handleAddChecklistItem()}
+                                                    className="glass-input"
+                                                    disabled={isAddingChecklistItem}
+                                                />
                                             </div>
-                                            {(() => {
-                                                const days = getDaysUntilDueDate();
-                                                if (days === null) return null;
-                                                const isOverdue = days < 0;
-                                                const isToday = days === 0;
-                                                const isSoon = days > 0 && days <= 7;
+                                            <DialogFooter>
+                                                <Button
+                                                    variant="ghost"
+                                                    onClick={() => {
+                                                        setShowAddChecklistDialog(false);
+                                                        setNewChecklistItem('');
+                                                    }}
+                                                    disabled={isAddingChecklistItem}
+                                                >
+                                                    Cancel
+                                                </Button>
+                                                <Button
+                                                    onClick={handleAddChecklistItem}
+                                                    disabled={!newChecklistItem.trim() || isAddingChecklistItem}
+                                                >
+                                                    {isAddingChecklistItem ? (
+                                                        <>
+                                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                            Adding...
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Plus className="w-4 h-4 mr-2" /> Add
+                                                        </>
+                                                    )}
+                                                </Button>
+                                            </DialogFooter>
+                                        </DialogContent>
+                                    </Dialog>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-2">
+                                {isUpdatingChecklist && (
+                                    <div className="flex justify-center items-center py-2 mb-2 flex-shrink-0">
+                                        <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                                    </div>
+                                )}
+                                {task.checklist?.enabled && task.checklist?.items && task.checklist.items.length > 0 ? (
+                                    <div className="space-y-2">
+                                        {[...(task.checklist.items || [])]
+                                            .map((item, index) => {
+                                                // draggable related styles and handlers
+                                                const isDragging = draggedChecklistIndex === index;
 
+                                                // Use created_by if available, otherwise assigned_to, otherwise task.created_by
+                                                const checklistCreatorId = item.created_by || item.assigned_to || task.created_by;
+                                                const checklistCreator = getUserInfo(checklistCreatorId);
                                                 return (
-                                                    <div className={`text-sm font-semibold ${isOverdue ? 'text-red-400' :
-                                                        isToday ? 'text-yellow-400' :
-                                                            isSoon ? 'text-orange-400' :
-                                                                'text-green-400'
-                                                        }`}>
-                                                        {isOverdue ? `${Math.abs(days)} days overdue` :
-                                                            isToday ? 'Due today' :
-                                                                isSoon ? `${days} days remaining` :
-                                                                    `${days} days remaining`}
+                                                    <div
+                                                        key={index}
+                                                        className={`flex flex-col gap-1 p-2 rounded-md bg-white/5 transition-colors hover:bg-white/10 ${isDragging ? 'opacity-50' : ''}`}
+                                                        draggable={!isUpdatingChecklist && !isCompleted}
+                                                        onDragStart={(e) => handleChecklistDragStart(e, index)}
+                                                        onDragOver={handleChecklistDragOver}
+                                                        onDrop={(e) => handleChecklistDrop(e, index)}
+                                                    >
+                                                        <div className="flex items-center gap-3">
+                                                            <Checkbox
+                                                                id={`checklist-${index}`}
+                                                                checked={item.is_completed || false}
+                                                                onCheckedChange={(checked) => handleToggleChecklistItem(index, checked)}
+                                                                disabled={isUpdatingChecklist || isCompleted}
+                                                            />
+                                                            <label htmlFor={`checklist-${index}`} className={`flex-grow text-sm ${item.is_completed ? 'line-through text-gray-500' : 'text-white'}`}>
+                                                                {item.name}
+                                                            </label>
+                                                            <AlertDialog>
+                                                                {!isCompleted && (
+                                                                    <AlertDialogTrigger asChild>
+                                                                        <Button variant="ghost" size="icon" className="text-gray-400 hover:text-red-500 h-8 w-8">
+                                                                            <Trash2 className="w-4 h-4" />
+                                                                        </Button>
+                                                                    </AlertDialogTrigger>
+                                                                )}
+                                                                <AlertDialogContent className="glass-pane">
+                                                                    <AlertDialogHeader>
+                                                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                                        <AlertDialogDescription>This will permanently delete the checklist item.</AlertDialogDescription>
+                                                                    </AlertDialogHeader>
+                                                                    <AlertDialogFooter>
+                                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                                        <AlertDialogAction onClick={() => handleDeleteChecklistItem(index)} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
+                                                                    </AlertDialogFooter>
+                                                                </AlertDialogContent>
+                                                            </AlertDialog>
+                                                        </div>
+                                                        <p className="text-xs text-gray-400 italic ml-7">
+                                                            Added by <span className="text-white">{checklistCreator.name}</span>
+                                                        </p>
                                                     </div>
                                                 );
-                                            })()}
-                                        </div>
-                                    ) : (
-                                        <div className="text-center text-gray-400">
-                                            <p className="text-sm">No due date set</p>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
+                                            })}
+                                    </div>
+                                ) : (
+                                    <p className="text-center text-gray-400 py-4">No checklist items yet.</p>
+                                )}
+                            </CardContent>
+                        </Card>
 
-                            {/* Recurring Section - Bottom */}
-                            <div className="flex flex-col flex-1 min-h-0">
-                                <div className="flex items-center justify-between mb-4 flex-shrink-0">
-                                    <CardTitle className="flex items-center gap-2">
-                                        <Repeat className="w-5 h-5" />
-                                        Recurring
-                                    </CardTitle>
-                                    {isTaskCreator && !isCompleted && (
-                                        <Button variant="ghost" size="sm" className="p-2" onClick={handleEditRecurring}>
-                                            <Edit2 className="w-4 h-4" />
-                                        </Button>
-                                    )}
+                        {/* Due Date & Recurring - Column 3, Row 2 (col-span-1, row-span-1) - Merged Card */}
+                        <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col md:col-span-1 lg:col-span-1 lg:row-span-1 border-2 border-purple-500/50 h-[400px] lg:h-full">
+                            <CardContent className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col p-6 pr-4">
+                                {/* Due Date Section - Top */}
+                                <div className="flex flex-col border-b border-white/10 pb-6 mb-6 flex-1 min-h-0">
+                                    <div className="flex items-center justify-between mb-4 flex-shrink-0">
+                                        <CardTitle className="flex items-center gap-2">
+                                            <CalendarIcon className="w-5 h-5" />
+                                            Due Date
+                                        </CardTitle>
+                                        {!isRecurringTask && !isCompleted && (
+                                            <Button variant="ghost" size="sm" className="p-2" onClick={handleEditDueDate}>
+                                                <Edit2 className="w-4 h-4" />
+                                            </Button>
+                                        )}
+                                    </div>
+                                    <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
+                                        {task?.due_date ? (
+                                            <div className="text-center space-y-2">
+                                                <div className="text-xl font-bold text-white">
+                                                    {format(new Date(task.due_date), 'MMM dd, yyyy')}
+                                                </div>
+                                                {(() => {
+                                                    const days = getDaysUntilDueDate();
+                                                    if (days === null) return null;
+                                                    const isOverdue = days < 0;
+                                                    const isToday = days === 0;
+                                                    const isSoon = days > 0 && days <= 7;
+
+                                                    return (
+                                                        <div className={`text-sm font-semibold ${isOverdue ? 'text-red-400' :
+                                                            isToday ? 'text-yellow-400' :
+                                                                isSoon ? 'text-orange-400' :
+                                                                    'text-green-400'
+                                                            }`}>
+                                                            {isOverdue ? `${Math.abs(days)} days overdue` :
+                                                                isToday ? 'Due today' :
+                                                                    isSoon ? `${days} days remaining` :
+                                                                        `${days} days remaining`}
+                                                        </div>
+                                                    );
+                                                })()}
+                                            </div>
+                                        ) : (
+                                            <div className="text-center text-gray-400">
+                                                <p className="text-sm">No due date set</p>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
-                                <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
-                                    {(task?.is_recurring || task?.is_recurring === 1 || task?.is_recurring === '1' || task?.is_recurring_task) ? (
-                                        (() => {
-                                            // For recurring tasks, show frequency info directly
-                                            if (task?.is_recurring_task && task?.frequency) {
-                                                const FREQUENCY_LABELS = {
-                                                    daily: "Daily",
-                                                    weekly: "Weekly",
-                                                    monthly: "Monthly",
-                                                    yearly: "Yearly",
-                                                };
-                                                let desc = `Every ${task.interval || 1} ${FREQUENCY_LABELS[task.frequency] || task.frequency}`;
-                                                if (task.frequency === "weekly" && task.day_of_week !== null && task.day_of_week !== undefined) {
-                                                    const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-                                                    desc += ` on ${days[task.day_of_week] || ""}`.trimEnd();
-                                                } else if (task.frequency === "monthly") {
-                                                    if (task.day_of_month) {
-                                                        desc += ` on day ${task.day_of_month}`;
+
+                                {/* Recurring Section - Bottom */}
+                                <div className="flex flex-col flex-1 min-h-0">
+                                    <div className="flex items-center justify-between mb-4 flex-shrink-0">
+                                        <CardTitle className="flex items-center gap-2">
+                                            <Repeat className="w-5 h-5" />
+                                            Recurring
+                                        </CardTitle>
+                                        {isTaskCreator && !isCompleted && (
+                                            <Button variant="ghost" size="sm" className="p-2" onClick={handleEditRecurring}>
+                                                <Edit2 className="w-4 h-4" />
+                                            </Button>
+                                        )}
+                                    </div>
+                                    <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
+                                        {(task?.is_recurring || task?.is_recurring === 1 || task?.is_recurring === '1' || task?.is_recurring_task) ? (
+                                            (() => {
+                                                // For recurring tasks, show frequency info directly
+                                                if (task?.is_recurring_task && task?.frequency) {
+                                                    const FREQUENCY_LABELS = {
+                                                        daily: "Daily",
+                                                        weekly: "Weekly",
+                                                        monthly: "Monthly",
+                                                        yearly: "Yearly",
+                                                    };
+                                                    let desc = `Every ${task.interval || 1} ${FREQUENCY_LABELS[task.frequency] || task.frequency}`;
+                                                    if (task.frequency === "weekly" && task.day_of_week !== null && task.day_of_week !== undefined) {
+                                                        const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+                                                        desc += ` on ${days[task.day_of_week] || ""}`.trimEnd();
+                                                    } else if (task.frequency === "monthly") {
+                                                        if (task.day_of_month) {
+                                                            desc += ` on day ${task.day_of_month}`;
+                                                        }
                                                     }
+                                                    return (
+                                                        <div className="text-center space-y-2">
+                                                            <div className="text-xl font-bold text-white">
+                                                                {desc}
+                                                            </div>
+                                                            {task.start_date && (
+                                                                <div className="text-sm font-semibold text-blue-400">
+                                                                    Starts: {format(new Date(task.start_date), 'dd MMM yyyy')}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
                                                 }
+                                                const { main, sub } = formatRecurringDetails();
                                                 return (
                                                     <div className="text-center space-y-2">
                                                         <div className="text-xl font-bold text-white">
-                                                            {desc}
+                                                            {main || 'Recurring'}
                                                         </div>
-                                                        {task.start_date && (
-                                                            <div className="text-sm font-semibold text-blue-400">
-                                                                Starts: {format(new Date(task.start_date), 'dd MMM yyyy')}
-                                                            </div>
-                                                        )}
+                                                        <div className="text-sm font-semibold text-blue-400">
+                                                            {sub}
+                                                        </div>
                                                     </div>
                                                 );
-                                            }
-                                            const { main, sub } = formatRecurringDetails();
-                                            return (
-                                                <div className="text-center space-y-2">
-                                                    <div className="text-xl font-bold text-white">
-                                                        {main || 'Recurring'}
-                                                    </div>
-                                                    <div className="text-sm font-semibold text-blue-400">
-                                                        {sub}
-                                                    </div>
-                                                </div>
-                                            );
-                                        })()
-                                    ) : (
-                                        <div className="text-center text-gray-400">
-                                            <p className="text-sm">Not a recurring task</p>
-                                        </div>
-                                    )}
+                                            })()
+                                        ) : (
+                                            <div className="text-center text-gray-400">
+                                                <p className="text-sm">Not a recurring task</p>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-                        </CardContent>
-                    </Card>
+                            </CardContent>
+                        </Card>
 
-                    {/* Collaborate - Column 4, Row 1 (col-span-1, row-span-1) - Red Box */}
-                    <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col md:col-span-1 lg:col-span-1 lg:row-span-1 border-2 border-red-500/50 h-[400px] lg:h-full">
-                        <CardHeader className="flex-shrink-0">
-                            <div className="flex items-center justify-between">
-                                <CardTitle>Collaborate</CardTitle>
+                        {/* Collaborate - Column 4, Row 1 (col-span-1, row-span-1) - Red Box */}
+                        <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col md:col-span-1 lg:col-span-1 lg:row-span-1 border-2 border-red-500/50 h-[400px] lg:h-full">
+                            <CardHeader className="flex-shrink-0">
+                                <div className="flex items-center justify-between">
+                                    <CardTitle>Collaborate</CardTitle>
                                     <Dialog open={showAddCollaboratorDialog} onOpenChange={setShowAddCollaboratorDialog}>
                                         {!isCompleted && (
                                             <DialogTrigger asChild>
@@ -3184,9 +3184,13 @@ const TaskDashboardPage = () => {
                                                 <DialogDescription>Select a user to add as a collaborator</DialogDescription>
                                             </DialogHeader>
                                             <div className="py-4 space-y-4">
-                                                {/* Client Selection (Optional) */}
+                                                {/* Client/Business Selection (Optional) */}
                                                 <div>
-                                                    <Label className="mb-2 block">Client (Optional)</Label>
+                                                    <Label className="mb-2 block">
+                                                        {(user?.role === 'CLIENT_MASTER_ADMIN' || user?.role === 'CLIENT_USER')
+                                                            ? 'Business (Optional)'
+                                                            : 'Client (Optional)'}
+                                                    </Label>
                                                     <Combobox
                                                         options={clients.map(c => ({
                                                             value: String(c.id),
@@ -3197,9 +3201,21 @@ const TaskDashboardPage = () => {
                                                             setSelectedCollaboratorHostClient(val);
                                                             setSelectedCollaboratorId(''); // Reset user selection when client changes
                                                         }}
-                                                        placeholder="Select a client..."
-                                                        searchPlaceholder="Search clients..."
-                                                        emptyText="No clients found."
+                                                        placeholder={
+                                                            (user?.role === 'CLIENT_MASTER_ADMIN' || user?.role === 'CLIENT_USER')
+                                                                ? 'Select a business...'
+                                                                : 'Select a client...'
+                                                        }
+                                                        searchPlaceholder={
+                                                            (user?.role === 'CLIENT_MASTER_ADMIN' || user?.role === 'CLIENT_USER')
+                                                                ? 'Search businesses...'
+                                                                : 'Search clients...'
+                                                        }
+                                                        emptyText={
+                                                            (user?.role === 'CLIENT_MASTER_ADMIN' || user?.role === 'CLIENT_USER')
+                                                                ? 'No businesses found.'
+                                                                : 'No clients found.'
+                                                        }
                                                     />
                                                 </div>
 
@@ -3270,15 +3286,15 @@ const TaskDashboardPage = () => {
                                             </DialogFooter>
                                         </DialogContent>
                                     </Dialog>
-                            </div>
-                        </CardHeader>
-                        <CardContent className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col pr-2">
-                            {isLoadingCollaborators ? (
-                                <div className="flex justify-center items-center py-4 flex-shrink-0">
-                                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
                                 </div>
-                            ) : (
-                                <div className="space-y-2">
+                            </CardHeader>
+                            <CardContent className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col pr-2">
+                                {isLoadingCollaborators ? (
+                                    <div className="flex justify-center items-center py-4 flex-shrink-0">
+                                        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2">
                                         {collaborators.length > 0 ? (
                                             collaborators.map((collab) => {
                                                 // Priority: 1. Direct from API (user_name), 2. Team Members list
@@ -3324,11 +3340,11 @@ const TaskDashboardPage = () => {
                                         )}
                                     </div>
                                 )}
-                        </CardContent>
-                    </Card>
+                            </CardContent>
+                        </Card>
 
-                    {/* Activity Log - Column 4, Row 2 (col-span-1, row-span-1) - Blue Box */}
-                    <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col md:col-span-1 lg:col-span-1 lg:row-span-1 border-2 border-blue-500/50 h-[400px] lg:h-full">
+                        {/* Activity Log - Column 4, Row 2 (col-span-1, row-span-1) - Blue Box */}
+                        <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col md:col-span-1 lg:col-span-1 lg:row-span-1 border-2 border-blue-500/50 h-[400px] lg:h-full">
                             <CardHeader className="flex-shrink-0">
                                 <CardTitle className="flex items-center gap-2">
                                     <History className="w-5 h-5" />
