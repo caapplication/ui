@@ -19,13 +19,17 @@ import {
     Calendar,
     Eye,
     TrendingUp,
-    CreditCard
+    CreditCard,
+    ChevronLeft,
+    ChevronRight,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useMediaQuery } from "@/hooks/useMediaQuery.jsx";
 import { useAuth } from "@/hooks/useAuth.jsx";
 import { useToast } from "@/components/ui/use-toast.js";
 import { getDashboardData, getVouchersList } from "@/lib/api.js";
+import { getFundInHand } from "@/lib/api/settings.js";
+import { format, parseISO } from "date-fns";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -44,7 +48,6 @@ import {
     LabelList,
     ReferenceLine,
 } from "recharts";
-import { format } from 'date-fns';
 
 const StatCard = ({
     title,
@@ -188,6 +191,12 @@ const TransactionItem = ({ transaction, remarks, onClick, index, name }) => {
     );
 };
 
+const formatINR = (num) => `₹ ${(Number(num) || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const formatDateDDMMYYYY = (iso) => {
+    if (!iso) return "—";
+    try { return format(parseISO(iso), "dd-MM-yyyy"); } catch { return iso; }
+};
+
 const Dashboard = ({
     entityId,
     entityName,
@@ -199,11 +208,15 @@ const Dashboard = ({
     const [vouchers, setVouchers] = useState([]);
     // Expiring docs moved to Documents section Renewals tab
     const [expensePeriod, setExpensePeriod] = useState("1month"); // Default to 1 month
+    const [fundInHand, setFundInHand] = useState(null);
+    const [fundInHandLoading, setFundInHandLoading] = useState(false);
+    const [fundSlide, setFundSlide] = useState(0);
 
     const isMobile = useMediaQuery("(max-width: 640px)");
     const { user } = useAuth();
     const { toast } = useToast();
     const navigate = useNavigate();
+    const isClientAdmin = user?.role === "CLIENT_MASTER_ADMIN";
 
     const fabItems = [
         { label: "Beneficiaries", icon: Users, path: "/beneficiaries", state: { quickAction: 'add-beneficiary', returnToDashboard: true } },
@@ -239,6 +252,26 @@ const Dashboard = ({
     useEffect(() => {
         fetchDashboardData();
     }, [fetchDashboardData]);
+
+    const fetchFundInHand = useCallback(async () => {
+        if (!isClientAdmin || !entityId || !user?.access_token) return;
+        const banks = Array.isArray(organisationBankAccounts) ? organisationBankAccounts.filter((b) => b.is_active !== false) : [];
+        const bankIds = banks.map((b) => b.id).join(",");
+        setFundInHandLoading(true);
+        try {
+            const data = await getFundInHand(entityId, bankIds || undefined, user.access_token);
+            setFundInHand(data);
+        } catch (e) {
+            toast({ variant: "destructive", title: "Error", description: e?.message || "Failed to load Fund In Hand." });
+            setFundInHand(null);
+        } finally {
+            setFundInHandLoading(false);
+        }
+    }, [isClientAdmin, entityId, user?.access_token, organisationBankAccounts, toast]);
+
+    useEffect(() => {
+        fetchFundInHand();
+    }, [fetchFundInHand]);
 
     // Calculate total expenses and stats based on selected time period
     const calculateExpenseStats = useCallback(() => {
@@ -463,6 +496,81 @@ const Dashboard = ({
                                 />
                             ))}
                         </div>
+
+                        {isClientAdmin && (
+                            <Card className="glass-card border-white/5 mb-6 sm:mb-8 w-2/3 max-w-md overflow-hidden">
+                                <div className="relative">
+                                    {fundInHandLoading ? (
+                                        <div className="flex items-center justify-center min-h-[140px] py-6">
+                                            <Loader2 className="w-6 h-6 animate-spin text-white" />
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="absolute right-1.5 top-1.5 flex items-center gap-0.5 z-10">
+                                                <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-400 hover:text-white" onClick={() => setFundSlide(0)} disabled={fundSlide === 0}>
+                                                    <ChevronLeft className="w-3.5 h-3.5" />
+                                                </Button>
+                                                <span className="text-[10px] text-gray-500">{fundSlide + 1}/2</span>
+                                                <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-400 hover:text-white" onClick={() => setFundSlide(1)} disabled={fundSlide === 1}>
+                                                    <ChevronRight className="w-3.5 h-3.5" />
+                                                </Button>
+                                            </div>
+                                            {fundSlide === 0 && (
+                                                <div className="p-3 sm:p-4">
+                                                    <h3 className="text-xs sm:text-sm font-semibold text-gray-300 mb-1">Fund In Hand</h3>
+                                                    <div className="text-lg sm:text-xl font-bold text-white mb-2">
+                                                        {formatINR(fundInHand?.total ?? 0)}
+                                                    </div>
+                                                    <div className="border-t border-white/10 pt-2 space-y-2">
+                                                        <div className="flex justify-between items-start">
+                                                            <div>
+                                                                <p className="text-xs font-medium text-gray-300">Cash Balance</p>
+                                                                <p className="text-[10px] text-gray-500">{formatDateDDMMYYYY(fundInHand?.cash_as_of_date)}</p>
+                                                            </div>
+                                                            <span className="text-xs font-medium text-white">{formatINR(fundInHand?.cash_balance ?? 0)}</span>
+                                                        </div>
+                                                        <div className="border-t border-white/10 pt-2 flex justify-between items-start">
+                                                            <div>
+                                                                <p className="text-xs font-medium text-gray-300">Bank Balance</p>
+                                                                <p className="text-[10px] text-gray-500">
+                                                                    {fundInHand?.bank_accounts?.length ? formatDateDDMMYYYY(fundInHand.bank_accounts[0]?.as_of_date) : "—"}
+                                                                </p>
+                                                            </div>
+                                                            <span className="text-xs font-medium text-white">{formatINR(fundInHand?.total_bank ?? 0)}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {fundSlide === 1 && (
+                                                <div className="p-3 sm:p-4">
+                                                    <h3 className="text-xs sm:text-sm font-semibold text-gray-300 mb-1">{entityName || "Entity"} - Bank Balance</h3>
+                                                    <div className="text-base sm:text-lg font-bold text-white mb-2">
+                                                        {formatINR(fundInHand?.total_bank ?? 0)}
+                                                    </div>
+                                                    <div className="max-h-[180px] overflow-y-auto border-t border-white/10 pt-2 space-y-0">
+                                                        {(fundInHand?.bank_accounts ?? []).map((ba) => {
+                                                            const bank = (organisationBankAccounts || []).find((b) => String(b.id) === String(ba.bank_account_id));
+                                                            return (
+                                                                <div key={ba.bank_account_id} className="flex justify-between items-start py-2 border-b border-white/10 last:border-0">
+                                                                    <div>
+                                                                        <p className="text-xs font-medium text-white">{bank?.bank_name ?? "—"}</p>
+                                                                        <p className="text-[10px] text-gray-500">{bank?.account_number ?? "—"}</p>
+                                                                    </div>
+                                                                    <span className="text-xs font-medium text-white">{formatINR(ba.closing_balance)}</span>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                        {(!fundInHand?.bank_accounts || fundInHand.bank_accounts.length === 0) && (
+                                                            <p className="text-xs text-gray-500 py-3">No bank tally data yet.</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
+                                </div>
+                            </Card>
+                        )}
 
                         <Card className="glass-card mb-8">
                             <CardHeader className="p-4 sm:p-6">

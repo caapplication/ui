@@ -274,6 +274,97 @@ export const rejectHandover = async (clientId, handoverId, body, token) => {
     return handleResponse(response);
 };
 
+export const approveHandoverAdmin = async (clientId, handoverId, body, token) => {
+    const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/${clientId}/handovers/${handoverId}/admin-approve`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(token),
+        body: JSON.stringify(body || {}),
+    });
+    return handleResponse(response);
+};
+
+export const rejectHandoverAdmin = async (clientId, handoverId, body, token) => {
+    const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/${clientId}/handovers/${handoverId}/admin-reject`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(token),
+        body: JSON.stringify(body),
+    });
+    return handleResponse(response);
+};
+
+// ---------- Bank Tally (CLIENT_MASTER_ADMIN) ----------
+export const getBankTally = async (clientId, reportDate, bankAccountIds, token) => {
+    const ids = Array.isArray(bankAccountIds) ? bankAccountIds.join(',') : (bankAccountIds || '');
+    const response = await fetch(
+        `${CLIENTS_API_BASE_URL}/clients/${clientId}/bank-tally?report_date=${reportDate}&bank_account_ids=${encodeURIComponent(ids)}`,
+        { method: 'GET', headers: getAuthHeaders(token) }
+    );
+    return handleResponse(response);
+};
+
+export const saveBankTally = async (clientId, data, token) => {
+    const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/${clientId}/bank-tally`, {
+        method: 'POST',
+        headers: getAuthHeaders(token),
+        body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+};
+
+// ---------- Cash denominations (Settings) ----------
+export const listCashDenominations = async (clientId, token) => {
+    const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/${clientId}/cash-denominations`, { method: 'GET', headers: getAuthHeaders(token) });
+    return handleResponse(response);
+};
+export const createCashDenomination = async (clientId, data, token) => {
+    const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/${clientId}/cash-denominations`, {
+        method: 'POST',
+        headers: getAuthHeaders(token),
+        body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+};
+export const updateCashDenomination = async (clientId, id, data, token) => {
+    const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/${clientId}/cash-denominations/${id}`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(token),
+        body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+};
+export const deleteCashDenomination = async (clientId, id, token) => {
+    const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/${clientId}/cash-denominations/${id}`, { method: 'DELETE', headers: getAuthHeaders(token) });
+    if (response.status === 204 || response.ok) return { success: true };
+    return handleResponse(response);
+};
+
+// ---------- Cash Tally (CLIENT_MASTER_ADMIN) ----------
+export const getCashTally = async (clientId, reportDate, token) => {
+    const response = await fetch(
+        `${CLIENTS_API_BASE_URL}/clients/${clientId}/cash-tally?report_date=${reportDate}`,
+        { method: 'GET', headers: getAuthHeaders(token) }
+    );
+    return handleResponse(response);
+};
+export const saveCashTally = async (clientId, data, token) => {
+    const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/${clientId}/cash-tally`, {
+        method: 'POST',
+        headers: getAuthHeaders(token),
+        body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+};
+
+// ---------- Fund In Hand (CLIENT_MASTER_ADMIN dashboard) ----------
+export const getFundInHand = async (clientId, bankAccountIds, token) => {
+    const q = bankAccountIds ? `?bank_account_ids=${encodeURIComponent(bankAccountIds)}` : '';
+    const response = await fetch(
+        `${CLIENTS_API_BASE_URL}/clients/${clientId}/fund-in-hand${q}`,
+        { method: 'GET', headers: getAuthHeaders(token) }
+    );
+    return handleResponse(response);
+};
+
 // ---------- Cashier Reports (CLIENT_USER) ----------
 export const listCashierReports = async (clientId, token, params = {}) => {
     const q = new URLSearchParams(params);

@@ -17,6 +17,7 @@ const HandoverPage = () => {
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [breakdownRow, setBreakdownRow] = useState(null);
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [submitting, setSubmitting] = useState(false);
 
@@ -41,6 +42,11 @@ const HandoverPage = () => {
   }, [entityId, user?.access_token, toast]);
 
   useEffect(() => { fetchList(); }, [fetchList]);
+
+  useEffect(() => {
+    if (!entityId || !user?.access_token) return;
+    listPaymentMethods(entityId, user.access_token).then(pm => setPaymentMethods(Array.isArray(pm) ? pm : [])).catch(() => setPaymentMethods([]));
+  }, [entityId, user?.access_token]);
 
   const openModal = async () => {
     setShowModal(true);
@@ -157,7 +163,15 @@ const HandoverPage = () => {
                   <TableCell>{new Date(row.handover_date).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })}</TableCell>
                   <TableCell>{row.created_by_name || user?.name || '—'}</TableCell>
                   <TableCell>{row.department_name || '—'}</TableCell>
-                  <TableCell>₹ {Number(row.grand_total || 0).toLocaleString('en-IN')}</TableCell>
+                  <TableCell>
+                    <button
+                      type="button"
+                      className="underline decoration-dotted hover:no-underline cursor-pointer"
+                      onClick={() => setBreakdownRow(row)}
+                    >
+                      ₹ {Number(row.grand_total || 0).toLocaleString('en-IN')}
+                    </button>
+                  </TableCell>
                   <TableCell>
                     <span className={`inline-flex px-2 py-0.5 rounded text-sm ${
                       row.status === 'approved' ? 'bg-green-500/20 text-green-400' :
@@ -300,6 +314,41 @@ const HandoverPage = () => {
             <DialogClose asChild><Button variant="ghost" disabled={submitting}>Cancel</Button></DialogClose>
             <Button onClick={handleSubmit} disabled={submitting}>{submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Submit</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!breakdownRow} onOpenChange={() => setBreakdownRow(null)}>
+        <DialogContent className="glass-pane border-white/10 text-white max-w-md">
+          <DialogHeader><DialogTitle>Amount – Breakdown</DialogTitle></DialogHeader>
+          <div className="py-2 space-y-3">
+            {breakdownRow && (
+              <>
+                <div className="border border-white/10 rounded p-2">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-gray-400 border-b border-white/10">
+                        <th className="text-left py-1">Method</th>
+                        <th className="text-right py-1">Amount ₹</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Object.entries(breakdownRow.collection_details || {}).map(([pmId, amt]) => (
+                        <tr key={pmId} className="border-b border-white/5">
+                          <td className="py-1">{paymentMethods.find(p => p.id === pmId)?.name || pmId}</td>
+                          <td className="text-right py-1">{Number(amt).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {breakdownRow.remarks && (
+                  <p className="text-gray-400 text-sm">
+                    <span className="font-medium text-gray-300">Remark:</span> {breakdownRow.remarks}
+                  </p>
+                )}
+              </>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
