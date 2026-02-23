@@ -10,12 +10,14 @@ import { useToast } from '@/components/ui/use-toast';
 import {
   listPaymentMethods,
   listDepartments,
+  listCashierReports,
   createCashierReport,
   handoversSummary,
   approveHandover,
   rejectHandover,
   approveHandoverAdmin,
   rejectHandoverAdmin,
+  updateHandover,
   getBankTally,
   saveBankTally,
   getCashTally,
@@ -27,7 +29,7 @@ import { getOrganisationBankAccounts } from '@/lib/api';
 import { getVouchersCashTotalForDate, getVouchersReportByDate } from '@/lib/api/finance';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeftRight, Loader2, Check, X, Search } from 'lucide-react';
+import { ArrowLeftRight, Loader2, Check, X, Search, MoreVertical } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 
 const toDDMMYYYY = (dateStr) => {
@@ -73,7 +75,7 @@ const ClientHandoverPage = ({ entityId, entityName }) => {
             <TabsTrigger value="report" className="text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-white">Report</TabsTrigger>
           </TabsList>
           <TabsContent value="handover">
-            <HandoverTab clientId={clientId} token={user?.access_token} toast={toast} isAdminView />
+            <HandoverTab clientId={clientId} token={user?.access_token} toast={toast} isAdminView userRole={user?.role} />
           </TabsContent>
           <TabsContent value="bank-tally">
             <BankTallyTab clientId={clientId} token={user?.access_token} toast={toast} />
@@ -95,7 +97,7 @@ const ClientHandoverPage = ({ entityId, entityName }) => {
             <CashierReportTab clientId={clientId} token={user?.access_token} toast={toast} />
           </TabsContent>
           <TabsContent value="handover">
-            <HandoverTab clientId={clientId} token={user?.access_token} toast={toast} />
+            <HandoverTab clientId={clientId} token={user?.access_token} toast={toast} userRole={user?.role} />
           </TabsContent>
         </Tabs>
       )}
@@ -171,6 +173,9 @@ function BankTallyTab({ clientId, token, toast }) {
     return closing - opening;
   };
 
+  const today = new Date().toISOString().slice(0, 10);
+  const isPastDate = reportDate < today;
+
   const handleSave = async () => {
     if (!clientId || !token) return;
     setSaving(true);
@@ -214,9 +219,12 @@ function BankTallyTab({ clientId, token, toast }) {
         <div className="flex flex-wrap items-center gap-2">
           <Label className="text-gray-400 text-sm">Date</Label>
           <Input type="date" className="h-9 sm:h-10 text-sm glass-input w-40 text-white" value={reportDate} onChange={e => setReportDate(e.target.value)} />
+          {isPastDate && <span className="text-amber-400 text-xs">Past date — view only</span>}
+          {!isPastDate && (
           <Button onClick={handleSave} disabled={saving} className="h-9 sm:h-10 text-sm">
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save
           </Button>
+          )}
         </div>
       </CardHeader>
       <CardContent className="p-0 sm:p-6 pt-0">
@@ -250,7 +258,7 @@ function BankTallyTab({ clientId, token, toast }) {
                           <Input type="number" readOnly className="h-9 sm:h-10 text-sm glass-input w-28 sm:w-32 bg-white/5 text-white" value={opening} />
                         </TableCell>
                         <TableCell>
-                          <Input type="number" min={0} step={0.01} className="h-9 sm:h-10 text-sm glass-input w-28 sm:w-32 text-white" value={closingVal} onChange={e => setClosing(bank.id, e.target.value)} placeholder="Closing" />
+                          <Input type="number" min={0} step={0.01} readOnly={isPastDate} className={`h-9 sm:h-10 text-sm glass-input w-28 sm:w-32 text-white ${isPastDate ? 'bg-white/5 cursor-default' : ''}`} value={closingVal} onChange={e => setClosing(bank.id, e.target.value)} placeholder="Closing" />
                         </TableCell>
                         <TableCell>
                           <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input w-28 sm:w-32 bg-white/5 text-white" value={diff != null ? diff.toLocaleString('en-IN', { minimumFractionDigits: 2 }) : '—'} />
@@ -302,6 +310,8 @@ function CashTallyTab({ clientId, entityId, token, toast }) {
 
   const cashInOtherNum = parseFloat(cashInOther) || 0;
   const closingBalance = openingBalance + cashInHandover + cashInOtherNum - cashOut;
+  const today = new Date().toISOString().slice(0, 10);
+  const isPastDate = reportDate < today;
 
   const loadData = useCallback(async () => {
     if (!clientId || !token) return;
@@ -378,32 +388,28 @@ function CashTallyTab({ clientId, entityId, token, toast }) {
             <CardTitle className="text-lg sm:text-xl text-white">Cash Tally</CardTitle>
             <CardDescription className="text-sm text-gray-400">Cash in hand, denomination breakdown and remarks.</CardDescription>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Label className="text-gray-400 text-sm">Date</Label>
             <Input type="date" className="h-9 sm:h-10 text-sm glass-input w-40 text-white" value={reportDate} onChange={e => setReportDate(e.target.value)} />
+            {isPastDate && <span className="text-amber-400 text-xs">Past date — view only</span>}
           </div>
         </CardHeader>
         <CardContent className="space-y-6 pt-0">
-          {/* Cash in hand */}
+          {/* Cash in hand - all 5 inputs in one line */}
           <div>
             <h3 className="text-sm font-semibold text-white mb-3 border-b border-white/10 pb-2">Cash in hand</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
               <div>
                 <Label className="text-gray-400 text-xs">Opening Balance</Label>
                 <Input type="number" readOnly className="h-9 sm:h-10 text-sm glass-input mt-1 bg-white/5 text-white" value={openingBalance} />
               </div>
-              <div className="md:col-span-2 space-y-2">
-                <Label className="text-gray-400 text-xs block">Cash In</Label>
-                <div className="space-y-2">
-                  <div>
-                    <span className="text-gray-500 text-xs block">Approved handover</span>
-                    <Input type="number" readOnly className="h-9 sm:h-10 text-sm glass-input bg-white/5 text-white" value={cashInHandover || ''} placeholder="—" />
-                  </div>
-                  <div>
-                    <span className="text-gray-500 text-xs block">Other Cash In</span>
-                    <Input type="number" min={0} step={0.01} className="h-9 sm:h-10 text-sm glass-input text-white" value={cashInOther} onChange={e => setCashInOther(e.target.value)} placeholder="0" />
-                  </div>
-                </div>
+              <div>
+                <Label className="text-gray-400 text-xs">Cash In – Approved handover</Label>
+                <Input type="number" readOnly className="h-9 sm:h-10 text-sm glass-input mt-1 bg-white/5 text-white" value={cashInHandover || ''} placeholder="—" />
+              </div>
+              <div>
+                <Label className="text-gray-400 text-xs">Cash In – Other</Label>
+                <Input type="number" min={0} step={0.01} readOnly={isPastDate} className={`h-9 sm:h-10 text-sm glass-input mt-1 text-white ${isPastDate ? 'bg-white/5 cursor-default' : ''}`} value={cashInOther} onChange={e => setCashInOther(e.target.value)} placeholder="0" />
               </div>
               <div>
                 <Label className="text-gray-400 text-xs">Cash Out</Label>
@@ -442,7 +448,7 @@ function CashTallyTab({ clientId, entityId, token, toast }) {
                           <TableRow key={d.id} className="border-white/10">
                             <TableCell className="text-xs sm:text-sm font-medium text-white">₹ {Number(d.value).toLocaleString('en-IN')} x</TableCell>
                             <TableCell>
-                              <Input type="number" min={0} step={1} className="h-9 sm:h-10 text-sm glass-input w-24 text-white" value={units || ''} onChange={e => setUnits(d.id, e.target.value)} placeholder="0" />
+                              <Input type="number" min={0} step={1} readOnly={isPastDate} className={`h-9 sm:h-10 text-sm glass-input w-24 text-white ${isPastDate ? 'bg-white/5 cursor-default' : ''}`} value={units || ''} onChange={e => setUnits(d.id, e.target.value)} placeholder="0" />
                             </TableCell>
                             <TableCell>
                               <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input w-32 bg-white/5 text-white" value={total.toLocaleString('en-IN', { minimumFractionDigits: 2 })} />
@@ -469,12 +475,14 @@ function CashTallyTab({ clientId, entityId, token, toast }) {
 
           <div>
             <Label className="text-gray-400 text-sm">Remarks</Label>
-            <Textarea className="h-9 sm:min-h-[80px] text-sm glass-input mt-1 text-white" value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="Remarks..." />
+            <Textarea readOnly={isPastDate} className={`h-9 sm:min-h-[80px] text-sm glass-input mt-1 text-white ${isPastDate ? 'bg-white/5 cursor-default' : ''}`} value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="Remarks..." />
           </div>
 
+          {!isPastDate && (
           <Button onClick={handleSubmit} disabled={saving || loading} className="h-9 sm:h-10 text-sm">
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Submit
           </Button>
+          )}
         </CardContent>
       </Card>
     </div>
@@ -488,6 +496,8 @@ function CashierReportTab({ clientId, token, toast }) {
   const [matrix, setMatrix] = useState({});
   const [remarks, setRemarks] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [readOnly, setReadOnly] = useState(false);
+  const [loadingReport, setLoadingReport] = useState(false);
 
   const load = useCallback(async () => {
     if (!clientId || !token) return;
@@ -505,7 +515,50 @@ function CashierReportTab({ clientId, token, toast }) {
 
   useEffect(() => { load(); }, [load]);
 
+  // Load cashier report and handover status when date changes
+  useEffect(() => {
+    if (!clientId || !token || departments.length === 0 || paymentMethods.length === 0) return;
+    const loadReport = async () => {
+      setLoadingReport(true);
+      try {
+        const [reports, summary] = await Promise.all([
+          listCashierReports(clientId, token, { report_date: reportDate }),
+          handoversSummary(clientId, reportDate, token).catch(() => ({ items: [] })),
+        ]);
+        const list = Array.isArray(reports) ? reports : [];
+        if (list.length > 0) {
+          const r = list[0];
+          const details = r.details || {};
+          const nextMatrix = {};
+          departments.forEach(d => {
+            nextMatrix[d.id] = {};
+            paymentMethods.forEach(p => {
+              const v = details[d.id]?.[p.id];
+              nextMatrix[d.id][p.id] = v != null ? String(v) : '';
+            });
+          });
+          setMatrix(nextMatrix);
+          setRemarks(r.remarks || '');
+        } else {
+          setMatrix({});
+          setRemarks('');
+        }
+        const items = summary?.items || [];
+        const approved = items.length > 0 && items.every(i => i.status === 'approved');
+        setReadOnly(approved);
+      } catch (e) {
+        setMatrix({});
+        setRemarks('');
+        setReadOnly(false);
+      } finally {
+        setLoadingReport(false);
+      }
+    };
+    loadReport();
+  }, [clientId, token, reportDate, departments, paymentMethods]);
+
   const setCell = (deptId, pmId, value) => {
+    if (readOnly) return;
     setMatrix(prev => ({
       ...prev,
       [deptId]: { ...(prev[deptId] || {}), [pmId]: value },
@@ -521,7 +574,7 @@ function CashierReportTab({ clientId, token, toast }) {
     departments.reduce((s, d) => s + rowTotal(d.id), 0);
 
   const handleSubmit = async () => {
-    if (!clientId || !token) return;
+    if (!clientId || !token || readOnly) return;
     const details = {};
     departments.forEach(d => {
       details[d.id] = {};
@@ -534,7 +587,7 @@ function CashierReportTab({ clientId, token, toast }) {
     try {
       await createCashierReport(clientId, { report_date: reportDate, details, remarks }, token);
       toast({ title: 'Success', description: 'Cashier report submitted.' });
-      setMatrix({});
+      if (!matrix || Object.keys(matrix).length === 0) setMatrix({});
     } catch (e) {
       toast({ variant: 'destructive', title: 'Error', description: e?.message || 'Submit failed.' });
     } finally {
@@ -551,13 +604,18 @@ function CashierReportTab({ clientId, token, toast }) {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Label className="text-gray-400 text-sm">Date</Label>
-          <Input type="date" className="h-9 sm:h-10 text-sm glass-input w-40 text-white" value={reportDate} onChange={e => setReportDate(e.target.value)} />
-          <Button onClick={handleSubmit} disabled={submitting} className="h-9 sm:h-10 text-sm">
+          <Input type="date" className="h-9 sm:h-10 text-sm glass-input w-40 text-white" value={reportDate} onChange={e => setReportDate(e.target.value)} disabled={loadingReport} />
+          <Button onClick={handleSubmit} disabled={submitting || readOnly} className="h-9 sm:h-10 text-sm">
             {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Submit
           </Button>
+          {readOnly && <span className="text-xs text-amber-400">Handover approved — view only</span>}
         </div>
       </CardHeader>
       <CardContent className="p-0 sm:p-6 pt-0 space-y-4">
+        {loadingReport && (
+          <div className="flex items-center justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-white" /></div>
+        )}
+        {!loadingReport && (
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
@@ -575,7 +633,7 @@ function CashierReportTab({ clientId, token, toast }) {
                   <TableCell className="text-xs sm:text-sm font-medium text-white bg-white/5">{d.name}</TableCell>
                   {paymentMethods.map(p => (
                     <TableCell key={p.id}>
-                      <Input type="number" min={0} step={0.01} className="h-9 sm:h-10 text-sm glass-input w-24 text-white" value={getCell(d.id, p.id)} onChange={e => setCell(d.id, p.id, e.target.value)} />
+                      <Input type="number" min={0} step={0.01} readOnly={readOnly} className={`h-9 sm:h-10 text-sm glass-input w-24 text-white ${readOnly ? 'cursor-default opacity-90' : ''}`} value={getCell(d.id, p.id)} onChange={e => setCell(d.id, p.id, e.target.value)} />
                     </TableCell>
                   ))}
                   <TableCell className="text-xs sm:text-sm font-medium text-white bg-amber-500/10">{rowTotal(d.id).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
@@ -591,27 +649,28 @@ function CashierReportTab({ clientId, token, toast }) {
             </TableBody>
           </Table>
         </div>
+        )}
         <div>
           <Label className="text-gray-400 text-sm">Remarks</Label>
-          <Input className="h-9 sm:h-10 text-sm glass-input mt-1 text-white" value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="Remarks" />
+          <Input readOnly={readOnly} className={`h-9 sm:h-10 text-sm glass-input mt-1 text-white ${readOnly ? 'cursor-default opacity-90' : ''}`} value={remarks} onChange={e => !readOnly && setRemarks(e.target.value)} placeholder="Remarks" />
         </div>
       </CardContent>
     </Card>
   );
 }
 
-function HandoverTab({ clientId, token, toast, isAdminView = false }) {
+function HandoverTab({ clientId, token, toast, isAdminView = false, userRole }) {
   const [summaryDate, setSummaryDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [items, setItems] = useState([]);
   const [usersMap, setUsersMap] = useState({});
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [approveModal, setApproveModal] = useState(null);
-  const [rejectModal, setRejectModal] = useState(null);
+  const [actionModal, setActionModal] = useState(null);
   const [breakdownModal, setBreakdownModal] = useState(null);
-  const [approveRemark, setApproveRemark] = useState('');
-  const [rejectRemark, setRejectRemark] = useState('');
+  const [actionRemark, setActionRemark] = useState('');
   const [actioning, setActioning] = useState(false);
+  const [breakdownEdit, setBreakdownEdit] = useState({});
+  const [savingBreakdown, setSavingBreakdown] = useState(false);
 
   const fetchSummary = useCallback(async () => {
     if (!clientId || !token) return;
@@ -647,17 +706,17 @@ function HandoverTab({ clientId, token, toast, isAdminView = false }) {
   }, [clientId, token, items]);
 
   const handleApprove = async () => {
-    if (!approveModal || !clientId || !token) return;
+    if (!actionModal || !clientId || !token) return;
     setActioning(true);
     try {
       if (isAdminView) {
-        await approveHandoverAdmin(clientId, approveModal.handover_id, { remark: approveRemark }, token);
+        await approveHandoverAdmin(clientId, actionModal.handover_id, { remark: actionRemark }, token);
       } else {
-        await approveHandover(clientId, approveModal.handover_id, { remark: approveRemark }, token);
+        await approveHandover(clientId, actionModal.handover_id, { remark: actionRemark }, token);
       }
       toast({ title: 'Approved', description: 'Handover approved.' });
-      setApproveModal(null);
-      setApproveRemark('');
+      setActionModal(null);
+      setActionRemark('');
       fetchSummary();
     } catch (e) {
       toast({ variant: 'destructive', title: 'Error', description: e?.message || 'Failed.' });
@@ -667,20 +726,20 @@ function HandoverTab({ clientId, token, toast, isAdminView = false }) {
   };
 
   const handleReject = async () => {
-    if (!rejectModal || !rejectRemark.trim() || !clientId || !token) {
+    if (!actionModal || !actionRemark.trim() || !clientId || !token) {
       toast({ variant: 'destructive', title: 'Validation', description: 'Rejection remark is required.' });
       return;
     }
     setActioning(true);
     try {
       if (isAdminView) {
-        await rejectHandoverAdmin(clientId, rejectModal.handover_id, { remark: rejectRemark }, token);
+        await rejectHandoverAdmin(clientId, actionModal.handover_id, { remark: actionRemark }, token);
       } else {
-        await rejectHandover(clientId, rejectModal.handover_id, { remark: rejectRemark }, token);
+        await rejectHandover(clientId, actionModal.handover_id, { remark: actionRemark }, token);
       }
       toast({ title: 'Rejected', description: 'Handover rejected.' });
-      setRejectModal(null);
-      setRejectRemark('');
+      setActionModal(null);
+      setActionRemark('');
       fetchSummary();
     } catch (e) {
       toast({ variant: 'destructive', title: 'Error', description: e?.message || 'Failed.' });
@@ -690,8 +749,25 @@ function HandoverTab({ clientId, token, toast, isAdminView = false }) {
   };
 
   const pmName = (id) => paymentMethods.find(p => p.id === id)?.name || id;
-  const hasPending = items.some(row => row.status === 'pending');
-  const colSpan = hasPending ? 9 : 8;
+  const showActionColumn = isAdminView ? items.some(row => row.status === 'pending') : true;
+  const canAct = (row) => isAdminView ? row.status === 'pending' : row.client_user_status !== 'approved';
+  const statusLabel = (row) => {
+    if (row.status === 'approved') return 'Approved';
+    if (row.status === 'rejected') return 'Rejected';
+    if (!isAdminView) {
+      if (row.client_user_status === 'pending') return 'Pending Approval';
+      return 'Admin Pending Approval';
+    }
+    return 'Pending Admin';
+  };
+  const colSpan = showActionColumn ? 9 : 8;
+  const isBreakdownEditable = (row) => {
+    if (row.status === 'approved') return false;
+    if (isAdminView) return true;
+    if (userRole === 'CLIENT_HANDOVER') return true;
+    return false;
+  };
+  const isBreakdownViewOnly = (row) => !isAdminView && userRole !== 'CLIENT_HANDOVER';
 
   return (
     <Card className="glass-card border-white/5">
@@ -717,7 +793,7 @@ function HandoverTab({ clientId, token, toast, isAdminView = false }) {
                 <TableHead className="text-xs sm:text-sm text-gray-300">As Per System</TableHead>
                 <TableHead className="text-xs sm:text-sm text-gray-300">Variance</TableHead>
                 <TableHead className="text-xs sm:text-sm text-gray-300">Status</TableHead>
-                {hasPending && <TableHead className="text-right text-xs sm:text-sm text-gray-300">Action</TableHead>}
+                {showActionColumn && <TableHead className="text-right text-xs sm:text-sm text-gray-300">Action</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -748,17 +824,14 @@ function HandoverTab({ clientId, token, toast, isAdminView = false }) {
                     <TableCell className="text-xs sm:text-sm text-white">₹ {Number(row.variance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
                     <TableCell className="text-xs sm:text-sm">
                       <span className={`inline-flex px-2 py-0.5 rounded text-xs sm:text-sm ${row.status === 'approved' ? 'bg-green-500/20 text-green-400' : row.status === 'rejected' ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'}`}>
-                        {row.status === 'pending' ? (isAdminView ? 'Pending Admin' : 'Pending Approval') : row.status === 'approved' ? 'Approved' : 'Rejected'}
+                        {statusLabel(row)}
                       </span>
                     </TableCell>
-                    {hasPending && (
+                    {showActionColumn && (
                       <TableCell className="text-right">
-                        {row.status === 'pending' ? (
-                          <div className="flex justify-end gap-1 sm:gap-2">
-                            <Button size="sm" variant="ghost" className="h-8 text-green-400 hover:text-green-300" onClick={() => setApproveModal(row)}><Check className="w-4 h-4" /> Approve</Button>
-                            <Button size="sm" variant="ghost" className="h-8 text-red-400 hover:text-red-300" onClick={() => setRejectModal(row)}><X className="w-4 h-4" /> Reject</Button>
-                          </div>
-                        ) : null}
+                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => { if (canAct(row)) { setActionRemark(''); setActionModal(row); } }} disabled={!canAct(row)} title={canAct(row) ? 'Approve or Reject' : 'No action'}>
+                          <MoreVertical className="w-4 h-4 text-gray-400" />
+                        </Button>
                       </TableCell>
                     )}
                   </TableRow>
@@ -769,50 +842,38 @@ function HandoverTab({ clientId, token, toast, isAdminView = false }) {
         </div>
       </CardContent>
 
-      <Dialog open={!!approveModal} onOpenChange={() => setApproveModal(null)}>
+      <Dialog open={!!actionModal} onOpenChange={(open) => { if (!open) { setActionModal(null); setActionRemark(''); } }}>
         <DialogContent className="max-w-lg w-[95vw] sm:w-full bg-gray-900 border-white/10">
           <DialogHeader>
-            <DialogTitle className="text-lg sm:text-xl text-white">Approve Handover</DialogTitle>
-            <DialogDescription className="text-sm text-gray-400">Optional remark will be stored with the approval.</DialogDescription>
+            <DialogTitle className="text-lg sm:text-xl text-white">Approve or Reject Handover</DialogTitle>
+            <DialogDescription className="text-sm text-gray-400">Optional remark for approval; rejection requires a reason.</DialogDescription>
           </DialogHeader>
-          <div className="py-4">
-            <Label className="text-sm text-gray-300">Remark (optional)</Label>
-            <Input className="mt-2 h-9 sm:h-10 text-sm glass-input text-white" value={approveRemark} onChange={e => setApproveRemark(e.target.value)} placeholder="Remark" />
+          <div className="py-4 space-y-4">
+            <div>
+              <Label className="text-sm text-gray-300">Remark (optional for Approve, required for Reject)</Label>
+              <Input className="mt-2 h-9 sm:h-10 text-sm glass-input text-white" value={actionRemark} onChange={e => setActionRemark(e.target.value)} placeholder="Remark" />
+            </div>
           </div>
           <DialogFooter>
             <DialogClose asChild><Button variant="ghost" className="h-9 sm:h-10 text-sm text-white">Cancel</Button></DialogClose>
-            <Button onClick={handleApprove} disabled={actioning} className="h-9 sm:h-10 text-sm">{actioning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Approve</Button>
+            <Button onClick={handleApprove} disabled={actioning} className="h-9 sm:h-10 text-sm text-green-400">{actioning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Approve</Button>
+            <Button variant="destructive" onClick={handleReject} disabled={actioning || !actionRemark.trim()} className="h-9 sm:h-10 text-sm">{actioning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Reject</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!rejectModal} onOpenChange={() => setRejectModal(null)}>
-        <DialogContent className="max-w-lg w-[95vw] sm:w-full bg-gray-900 border-white/10">
-          <DialogHeader>
-            <DialogTitle className="text-lg sm:text-xl text-white">Reject Handover</DialogTitle>
-            <DialogDescription className="text-sm text-gray-400">Rejection reason is required.</DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <Label className="text-sm text-gray-300">Remark (required)</Label>
-            <Input className="mt-2 h-9 sm:h-10 text-sm glass-input text-white" value={rejectRemark} onChange={e => setRejectRemark(e.target.value)} placeholder="Reason for rejection" />
-          </div>
-          <DialogFooter>
-            <DialogClose asChild><Button variant="ghost" className="h-9 sm:h-10 text-sm text-white">Cancel</Button></DialogClose>
-            <Button variant="destructive" onClick={handleReject} disabled={actioning || !rejectRemark.trim()} className="h-9 sm:h-10 text-sm">{actioning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Reject</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!breakdownModal} onOpenChange={() => setBreakdownModal(null)}>
+      <Dialog open={!!breakdownModal} onOpenChange={(open) => { if (!open) setBreakdownModal(null); setBreakdownEdit({}); }}>
         <DialogContent className="max-w-md w-[95vw] sm:w-full bg-gray-900 border-white/10">
           <DialogHeader>
             <DialogTitle className="text-lg sm:text-xl text-white">
-              {breakdownModal?.type === 'department' ? 'As Per Department – Breakdown' : 'As Per System – Breakdown'}
+              {breakdownModal?.type === 'department' ? 'Update Handover Details' : 'As Per System – Breakdown'}
             </DialogTitle>
-            <DialogDescription className="text-sm text-gray-400">Payment method wise amount.</DialogDescription>
+            <DialogDescription className="text-sm text-gray-400">
+              {breakdownModal?.type === 'system' ? 'Payment method wise amount (from system).' : breakdownModal?.row && (breakdownModal.row.status === 'approved' || isBreakdownViewOnly(breakdownModal.row)) ? 'Handover data (view only — already approved).' : 'Same as add handover data. Edit amounts and remarks below; save when status is not yet approved.'}
+            </DialogDescription>
           </DialogHeader>
           <div className="py-2 space-y-3">
-            {breakdownModal?.row && (
+            {breakdownModal?.row && breakdownModal?.type === 'system' && (
               <>
                 <div className="border border-white/10 rounded p-2">
                   <table className="w-full text-sm">
@@ -823,10 +884,7 @@ function HandoverTab({ clientId, token, toast, isAdminView = false }) {
                       </tr>
                     </thead>
                     <tbody>
-                      {Object.entries(breakdownModal.type === 'department'
-                        ? (breakdownModal.row.as_per_department_breakdown || {})
-                        : (breakdownModal.row.as_per_system_breakdown || {})
-                      ).map(([pmId, amt]) => (
+                      {Object.entries(breakdownModal.row.as_per_system_breakdown || {}).map(([pmId, amt]) => (
                         <tr key={pmId} className="border-b border-white/5">
                           <td className="py-1">{pmName(pmId)}</td>
                           <td className="text-right py-1">{Number(amt).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
@@ -835,14 +893,80 @@ function HandoverTab({ clientId, token, toast, isAdminView = false }) {
                     </tbody>
                   </table>
                 </div>
-                <p className="text-gray-400 text-sm">
-                  <span className="font-medium text-gray-300">Remark:</span>{' '}
-                  {breakdownModal.type === 'department'
-                    ? (breakdownModal.row.handover_remarks || '—')
-                    : (breakdownModal.row.cashier_remarks || '—')}
-                </p>
+                <p className="text-gray-400 text-sm"><span className="font-medium text-gray-300">Remark:</span> {breakdownModal.row.cashier_remarks || '—'}</p>
               </>
             )}
+            {breakdownModal?.row && breakdownModal?.type === 'department' && (() => {
+              const row = breakdownModal.row;
+              const editable = isBreakdownEditable(row);
+              const viewOnly = isBreakdownViewOnly(row);
+              const breakdown = row.as_per_department_breakdown || {};
+              const defaultEdit = {};
+              paymentMethods.forEach(p => { defaultEdit[p.id] = breakdown[p.id] != null ? String(breakdown[p.id]) : ''; });
+              const editValues = breakdownEdit[row.handover_id] ?? defaultEdit;
+              const editRemarks = (breakdownEdit[row.handover_id + '_remarks'] !== undefined) ? breakdownEdit[row.handover_id + '_remarks'] : (row.handover_remarks || '');
+              const setEdit = (pmId, value) => setBreakdownEdit(prev => ({ ...prev, [row.handover_id]: { ...(prev[row.handover_id] || {}), [pmId]: value } }));
+              const setEditRem = (v) => setBreakdownEdit(prev => ({ ...prev, [row.handover_id + '_remarks']: v }));
+              const handleSaveBreakdown = async () => {
+                if (!clientId || !token || !editable) return;
+                setSavingBreakdown(true);
+                try {
+                  const collection_details = {};
+                  paymentMethods.forEach(p => { collection_details[p.id] = parseFloat(editValues[p.id]) || 0; });
+                  await updateHandover(clientId, row.handover_id, { collection_details, remarks: editRemarks }, token);
+                  toast({ title: 'Saved', description: 'Handover updated.' });
+                  fetchSummary();
+                  setBreakdownModal(null);
+                  setBreakdownEdit({});
+                } catch (e) {
+                  toast({ variant: 'destructive', title: 'Error', description: e?.message || 'Failed to save.' });
+                } finally {
+                  setSavingBreakdown(false);
+                }
+              };
+              return (
+                <>
+                  <p className="text-sm text-gray-400">Department: <span className="text-white">{row.department_name || '—'}</span></p>
+                  <div className="border border-white/10 rounded p-2">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-gray-400 border-b border-white/10">
+                          <th className="text-left py-1">Method</th>
+                          <th className="text-right py-1">Amount ₹</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paymentMethods.map(p => (
+                          <tr key={p.id} className="border-b border-white/5">
+                            <td className="py-1">{p.name}</td>
+                            <td className="text-right py-1">
+                              {viewOnly || !editable ? (
+                                <span>{Number(editValues[p.id] || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                              ) : (
+                                <Input type="number" min={0} step={0.01} className="h-8 text-sm glass-input w-28 text-white inline-block text-right" value={editValues[p.id] ?? ''} onChange={e => setEdit(p.id, e.target.value)} />
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-400">Remarks</Label>
+                    {viewOnly || !editable ? (
+                      <p className="text-sm text-white mt-1">{editRemarks || '—'}</p>
+                    ) : (
+                      <Input className="mt-1 h-9 text-sm glass-input text-white" value={editRemarks} onChange={e => setEditRem(e.target.value)} placeholder="Remarks" />
+                    )}
+                  </div>
+                  {editable && !viewOnly && (
+                    <DialogFooter>
+                      <Button onClick={handleSaveBreakdown} disabled={savingBreakdown}>{savingBreakdown && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save</Button>
+                    </DialogFooter>
+                  )}
+                </>
+              );
+            })()}
           </div>
         </DialogContent>
       </Dialog>
