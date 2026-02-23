@@ -63,6 +63,7 @@ const NoticeDetailsPage = () => {
     const [closureReason, setClosureReason] = useState('');
     const [previewAttachment, setPreviewAttachment] = useState(null); // { url, name, type }
     const [isProcessingAction, setIsProcessingAction] = useState(false);
+    const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
     const [loadingImages, setLoadingImages] = useState(new Set());
     const [readReceipts, setReadReceipts] = useState({}); // { commentId: [{ user_id, user_name, read_at }] }
@@ -469,12 +470,16 @@ const NoticeDetailsPage = () => {
         }
     }
 
-    const handleDelete = async () => {
-        if (!confirm("Are you sure you want to delete this notice? This action cannot be undone.")) return;
+    const handleDelete = () => {
+        setIsDeleteConfirmOpen(true);
+    };
+
+    const handleConfirmDelete = async () => {
         setIsProcessingAction(true);
         try {
             await deleteNotice(noticeId, token);
             toast({ title: "Success", description: "Notice deleted successfully" });
+            setIsDeleteConfirmOpen(false);
             navigate('/notices');
         } catch (error) {
             console.error("Failed to delete notice", error);
@@ -1228,6 +1233,35 @@ const NoticeDetailsPage = () => {
                     </DialogFooter>
                 </DialogContent>
             </Dialog >
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+                <DialogContent className="glass-card border-white/10 text-white sm:max-w-[400px]">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-red-500">
+                            <AlertCircle className="w-5 h-5" />
+                            Confirm Deletion
+                        </DialogTitle>
+                        <DialogDescription className="text-gray-400 py-2">
+                            Are you sure you want to delete this notice? This action is permanent and cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button variant="ghost" onClick={() => setIsDeleteConfirmOpen(false)} className="hover:bg-white/10 border-white/10">
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={handleConfirmDelete}
+                            disabled={isProcessingAction}
+                            className="bg-red-600 hover:bg-red-700"
+                        >
+                            {isProcessingAction ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                            Delete Permanently
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <CollaboratorsDialog
                 isOpen={isCollaborateOpen}
