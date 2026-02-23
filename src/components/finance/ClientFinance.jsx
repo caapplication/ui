@@ -116,8 +116,8 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction, entityName: en
   const path = location.pathname;
   const tabFromPath = path.replace(/^\/finance\/?/, '').split('/')[0] || 'vouchers';
   const allowedTabs = isAdmin
-    ? ['vouchers', 'invoices', 'handover', 'bank-tally', 'cash-tally', 'report']
-    : ['vouchers', 'invoices', 'cashier', 'handover'];
+    ? ['vouchers', 'invoices', 'handover', 'bank-tally', 'cash-tally', 'report', 'cashier']
+    : ['vouchers', 'invoices', 'cashier', 'handover', 'cash-tally', 'report'];
   const activeTab = allowedTabs.includes(tabFromPath) ? tabFromPath : 'vouchers';
 
   useEffect(() => {
@@ -531,6 +531,7 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction, entityName: en
               <TabsTrigger value="invoices" className="text-sm sm:text-base">Invoices</TabsTrigger>
               {isAdmin && (
                 <>
+                  <TabsTrigger value="cashier" className="text-sm sm:text-base">Cashier Report</TabsTrigger>
                   <TabsTrigger value="handover" className="text-sm sm:text-base">Handover</TabsTrigger>
                   <TabsTrigger value="bank-tally" className="text-sm sm:text-base">Bank Tally</TabsTrigger>
                   <TabsTrigger value="cash-tally" className="text-sm sm:text-base">Cash Tally</TabsTrigger>
@@ -541,6 +542,8 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction, entityName: en
                 <>
                   <TabsTrigger value="cashier" className="text-sm sm:text-base">Cashier Report</TabsTrigger>
                   <TabsTrigger value="handover" className="text-sm sm:text-base">Handover</TabsTrigger>
+                  <TabsTrigger value="cash-tally" className="text-sm sm:text-base">Cash Tally</TabsTrigger>
+                  <TabsTrigger value="report" className="text-sm sm:text-base">Report</TabsTrigger>
                 </>
               )}
             </TabsList>
@@ -610,6 +613,7 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction, entityName: en
               />
               {isAdmin && (
                 <>
+                  <Route path="cashier" element={<CashierReportTab clientId={entityId} token={user?.access_token} toast={toast} />} />
                   <Route path="handover" element={<HandoverTab clientId={entityId} token={user?.access_token} toast={toast} isAdminView userRole={user?.role} />} />
                   <Route path="bank-tally" element={<BankTallyTab clientId={entityId} token={user?.access_token} toast={toast} />} />
                   <Route path="cash-tally" element={<CashTallyTab clientId={entityId} entityId={entityId} token={user?.access_token} toast={toast} />} />
@@ -620,6 +624,8 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction, entityName: en
                 <>
                   <Route path="cashier" element={<CashierReportTab clientId={entityId} token={user?.access_token} toast={toast} />} />
                   <Route path="handover" element={<HandoverTab clientId={entityId} token={user?.access_token} toast={toast} userRole={user?.role} />} />
+                  <Route path="cash-tally" element={<CashTallyTab clientId={entityId} entityId={entityId} token={user?.access_token} toast={toast} />} />
+                  <Route path="report" element={<ReportTab clientId={entityId} entityId={entityId} entityName={entityNameProp} token={user?.access_token} toast={toast} />} />
                 </>
               )}
             </Routes>
