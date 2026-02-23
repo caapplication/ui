@@ -935,7 +935,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   const handleRenewal = async (e) => {
     e.preventDefault();
     if (!renewalDoc) return;
-    
+
     setIsMutating(true);
     const formData = new FormData(e.target);
     const file = formData.get('file');
@@ -958,7 +958,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
       const expiryDateToSend = renewalWithoutExpiryDate ? null : renewalExpiryDate;
       const folderId = renewalDoc.folder_id || null;
       const entityIdToUse = user?.role === 'CA_ACCOUNTANT' ? realSelectedClientId : entityId;
-      
+
       await renewDocument(
         renewalDoc.id,
         folderId,
@@ -977,7 +977,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
       setRenewalDocumentName('');
       setRenewalFileExtension('');
       setRenewalDoc(null);
-      
+
       // Refresh documents and renewal list
       await Promise.all([
         fetchDocuments(true).catch(err => console.error('Background refresh failed:', err)),
@@ -2151,6 +2151,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
 
     // Build full folder path like "Main Folder / Sub Folder"
     const getFolderPathInfo = (doc) => {
+      if (doc.folder_path) return { label: doc.folder_path, folderId: doc.folder_id };
       if (!doc.folder_id) return { label: 'Root', folderId: 'root' };
       const path = findPath(documentsState, doc.folder_id);
       if (path.length > 1) {
