@@ -33,6 +33,7 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
 
   const [teamUsers, setTeamUsers] = useState([]);
   const [selectedClientUsers, setSelectedClientUsers] = useState([]); // Users for the currently selected client
+  const [caTeamUsers, setCaTeamUsers] = useState([]); // CA Team members for the client user
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [loadingClientUsers, setLoadingClientUsers] = useState(false);
 
@@ -166,6 +167,44 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
 
     fetchTeamUsers();
   }, [user?.access_token, user?.role, teamMembers]); // Added teamMembers to dependency
+
+  // =========================
+  // Fetch CA Team for Client Users
+  // =========================
+  useEffect(() => {
+    const fetchCaTeam = async () => {
+      const isClientUser = user?.role === 'CLIENT_MASTER_ADMIN' || user?.role === 'CLIENT_ADMIN' || user?.role === 'CLIENT_USER';
+      if (!user?.access_token || !isClientUser) return;
+
+      try {
+        const { listCATeamForClient } = await import('@/lib/api');
+        const response = await listCATeamForClient(user.access_token);
+
+        let caUsers = [];
+        if (Array.isArray(response)) {
+          caUsers = response;
+        } else if (response?.data && Array.isArray(response.data)) {
+          caUsers = response.data;
+        } else if (response?.items && Array.isArray(response.items)) {
+          caUsers = response.items;
+        }
+
+        const formattedCaUsers = caUsers.map(u => ({
+          id: u.user_id || u.id,
+          name: u.name || u.full_name || u.email,
+          email: u.email,
+          role: u.role
+        })).filter(u => !!u.id);
+
+        setCaTeamUsers(formattedCaUsers);
+      } catch (error) {
+        console.error("[CATeam] fetch failed:", error);
+        setCaTeamUsers([]);
+      }
+    };
+
+    fetchCaTeam();
+  }, [user?.access_token, user?.role]);
 
   // =========================
   // Fetch users for the selected client when client_id changes
@@ -323,6 +362,21 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
             label: `${u.name || u.email} ${roleLabel}`
           };
         });
+
+      // Add CA team members to the options list for Client Users
+      if (isClientUser && caTeamUsers.length > 0) {
+        caTeamUsers.forEach(u => {
+          if (!u?.id) return;
+          if (currentUserId && String(u.id) === String(currentUserId)) return;
+
+          let roleLabel = u.role === 'CA_ACCOUNTANT' ? '(CA Accountant)' : '(CA Team)';
+          options.push({
+            value: String(u.id),
+            label: `${u.name || u.email} ${roleLabel}`
+          });
+        });
+      }
+
       return options;
     }
 

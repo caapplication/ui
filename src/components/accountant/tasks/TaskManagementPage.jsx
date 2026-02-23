@@ -88,10 +88,12 @@ const TaskManagementPage = ({ entityId, entityName }) => {
                 console.warn('Failed to fetch recurring tasks:', err);
                 return { items: [] };
             });
-            const teamPromise = listTeamMembers(user.access_token).catch(err => {
+            const isCAUser = user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM';
+
+            const teamPromise = isCAUser ? listTeamMembers(user.access_token).catch(err => {
                 console.warn('Failed to fetch team members:', err);
                 return [];
-            });
+            }) : Promise.resolve([]);
             const clientsPromise = listClients(agencyId, user.access_token).catch(err => {
                 console.warn('Failed to fetch clients:', err);
                 return [];
@@ -125,16 +127,16 @@ const TaskManagementPage = ({ entityId, entityName }) => {
 
             const tasksArray = Array.isArray(tasksData) ? tasksData : (tasksData?.items || []);
             const recurringTasksArray = Array.isArray(recurringTasksData) ? recurringTasksData : (recurringTasksData?.items || []);
-            
+
             // Get recurring task IDs to filter them out from regular tasks
             const recurringTaskIds = new Set(recurringTasksArray.map(rt => String(rt.id)));
-            
+
             // Filter out recurring tasks from regular tasks list
             const regularTasksOnly = tasksArray.filter(task => {
                 // Exclude tasks that are recurring task templates
                 return !recurringTaskIds.has(String(task.id));
             });
-            
+
             setTasks(regularTasksOnly);
             setRecurringTasks(recurringTasksArray);
 
