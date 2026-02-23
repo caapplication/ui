@@ -377,6 +377,8 @@ const ProtectedContent = () => {
                 element={
                   user?.role === 'CLIENT_HANDOVER' ? (
                     <HandoverPage />
+                  ) : (user?.role === 'CLIENT_MASTER_ADMIN' || user?.role === 'CLIENT_USER') ? (
+                    <Navigate to="/finance/handover" replace />
                   ) : (
                     <ClientHandoverPage entityId={currentEntity} entityName={getEntityName(currentEntity)} />
                   )

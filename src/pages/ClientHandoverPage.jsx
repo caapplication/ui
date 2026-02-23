@@ -1252,3 +1252,4 @@ function ReportTab({ clientId, entityId, entityName, token, toast }) {
 }
 
 export default ClientHandoverPage;
+export { HandoverTab, BankTallyTab, CashTallyTab, ReportTab, CashierReportTab };
