@@ -378,7 +378,7 @@ const ProtectedContent = () => {
                   user?.role === 'CLIENT_HANDOVER' ? (
                     <HandoverPage />
                   ) : (
-                    <ClientHandoverPage entityId={currentEntity} />
+                    <ClientHandoverPage entityId={currentEntity} entityName={getEntityName(currentEntity)} />
                   )
                 }
               />

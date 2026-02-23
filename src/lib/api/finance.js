@@ -337,6 +337,26 @@ export const getVouchers = async (entityId, token) => {
     return Array.isArray(vouchers) ? vouchers : [];
 };
 
+/** Cash voucher total for entity and date (for Cash Tally cash out). */
+export const getVouchersCashTotalForDate = async (entityId, reportDate, token) => {
+    const response = await fetch(
+        `${FINANCE_API_BASE_URL}/api/vouchers/cash-total?entity_id=${entityId}&report_date=${reportDate}`,
+        { method: 'GET', headers: getAuthHeaders(token) }
+    );
+    const data = await handleResponse(response);
+    return data?.total ?? 0;
+};
+
+/** Vouchers for report by date: voucher_type = 'cash' | 'debit'. */
+export const getVouchersReportByDate = async (entityId, reportDate, voucherType, token) => {
+    const response = await fetch(
+        `${FINANCE_API_BASE_URL}/api/vouchers/report-by-date?entity_id=${entityId}&report_date=${reportDate}&voucher_type=${voucherType}`,
+        { method: 'GET', headers: getAuthHeaders(token) }
+    );
+    const data = await handleResponse(response);
+    return Array.isArray(data) ? data : [];
+};
+
 export const addVoucher = async (voucherFormData, token) => {
     const headers = getAuthHeaders(token);
     delete headers['Content-Type'];

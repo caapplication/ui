@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate, Routes, Route } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { Settings as SettingsIcon, ChevronLeft, CreditCard, Building2, Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
+import { Settings as SettingsIcon, CreditCard, Building2, Plus, Trash2, Loader2, Banknote, FilePen } from 'lucide-react';
 import {
     listPaymentMethods,
     createPaymentMethod,
@@ -17,24 +19,24 @@ import {
     createDepartment,
     updateDepartment,
     deleteDepartment,
+    listCashDenominations,
+    createCashDenomination,
+    updateCashDenomination,
+    deleteCashDenomination,
 } from '@/lib/api/settings';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+
+const TAB_PATHS = { 'payment-methods': 'payment-methods', 'departments': 'departments', 'cash-denomination': 'cash-denomination' };
 
 const ClientSettingsPage = ({ entityId }) => {
     const navigate = useNavigate();
+    const location = useLocation();
     const { user } = useAuth();
     const { toast } = useToast();
     const clientId = entityId;
+
+    const pathTab = location.pathname.replace(/^\/settings\/?/, '') || 'payment-methods';
+    const activeTab = TAB_PATHS[pathTab] ? pathTab : 'payment-methods';
 
     if (!clientId) {
         return (
@@ -48,75 +50,33 @@ const ClientSettingsPage = ({ entityId }) => {
         );
     }
 
-    const settingsNav = [
-        { path: 'payment-methods', name: 'Payment Method', icon: CreditCard, component: PaymentMethodsTab },
-        { path: 'departments', name: 'Department', icon: Building2, component: DepartmentsTab },
-    ];
-
     return (
-        <Routes>
-            <Route
-                path="/"
-                element={
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="p-4 sm:p-6 lg:p-8"
-                    >
-                        <div className="max-w-7xl mx-auto">
-                            <h1 className="text-3xl font-bold text-white mb-6 flex items-center gap-3">
-                                <SettingsIcon className="h-8 w-8" /> Settings
-                            </h1>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {settingsNav.map((item) => {
-                                    const Icon = item.icon;
-                                    return (
-                                        <button
-                                            key={item.path}
-                                            type="button"
-                                            onClick={() => navigate(`/settings/${item.path}`)}
-                                            className="glass-pane p-6 rounded-xl text-left hover:bg-white/5 transition"
-                                        >
-                                            <div className="flex items-center gap-4">
-                                                <div className="p-3 bg-primary/20 rounded-lg">
-                                                    <Icon className="h-6 w-6 text-primary" />
-                                                </div>
-                                                <h2 className="text-xl font-semibold text-white">{item.name}</h2>
-                                            </div>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    </motion.div>
-                }
-            />
-            {settingsNav.map((item) => (
-                <Route
-                    key={item.path}
-                    path={`${item.path}`}
-                    element={
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="p-4 sm:p-6 lg:p-8"
-                        >
-                            <div className="max-w-7xl mx-auto">
-                                <Button
-                                    variant="ghost"
-                                    onClick={() => navigate('/settings')}
-                                    className="mb-4 text-white hover:bg-white/10"
-                                >
-                                    <ChevronLeft className="mr-2 h-4 w-4" />
-                                    Back to Settings
-                                </Button>
-                                <item.component clientId={clientId} token={user?.access_token} toast={toast} />
-                            </div>
-                        </motion.div>
-                    }
-                />
-            ))}
-        </Routes>
+        <div className="p-4 sm:p-6 lg:p-8">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-7xl mx-auto">
+                <div className="mb-6 sm:mb-8">
+                    <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-2">Settings</h1>
+                    <p className="text-gray-400 text-sm sm:text-base">Payment methods, departments and cash denominations for this entity.</p>
+                </div>
+                <Tabs value={activeTab} onValueChange={(v) => navigate(`/settings/${v}`)} className="w-full">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                        <TabsList className="text-xs sm:text-sm bg-white/5 border border-white/10">
+                            <TabsTrigger value="payment-methods" className="text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-white">Payment Method</TabsTrigger>
+                            <TabsTrigger value="departments" className="text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-white">Department</TabsTrigger>
+                            <TabsTrigger value="cash-denomination" className="text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-white">Cash Denomination</TabsTrigger>
+                        </TabsList>
+                    </div>
+                    <TabsContent value="payment-methods">
+                        <PaymentMethodsTab clientId={clientId} token={user?.access_token} toast={toast} />
+                    </TabsContent>
+                    <TabsContent value="departments">
+                        <DepartmentsTab clientId={clientId} token={user?.access_token} toast={toast} />
+                    </TabsContent>
+                    <TabsContent value="cash-denomination">
+                        <CashDenominationsTab clientId={clientId} token={user?.access_token} toast={toast} />
+                    </TabsContent>
+                </Tabs>
+            </motion.div>
+        </div>
     );
 };
 
@@ -183,65 +143,91 @@ function PaymentMethodsTab({ clientId, token, toast }) {
     };
 
     return (
-        <div className="text-white">
-            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-                <CreditCard className="h-7 w-7" /> Payment Method
-            </h2>
-            <div className="flex justify-end mb-4">
-                <Button onClick={openCreate} className="bg-primary hover:bg-primary/90">
-                    <Plus className="mr-2 h-4 w-4" /> Add
-                </Button>
-            </div>
-            <div className="glass-pane p-4 rounded-lg">
-                {loading ? (
-                    <div className="flex justify-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-                ) : items.length === 0 ? (
-                    <p className="text-gray-400 py-6 text-center">No payment methods yet. Add UPI, Bank, Cash, etc.</p>
-                ) : (
-                    <ul className="divide-y divide-white/10">
-                        {items.map((row) => (
-                            <li key={row.id} className="flex items-center justify-between py-3 first:pt-0">
-                                <span className="font-medium">{row.name}</span>
-                                <div className="flex gap-2">
-                                    <Button variant="ghost" size="sm" onClick={() => openEdit(row)}><Pencil className="h-4 w-4" /></Button>
-                                    <Button variant="ghost" size="sm" className="text-red-400 hover:text-red-300" onClick={() => setDeleteTarget(row)}><Trash2 className="h-4 w-4" /></Button>
-                                </div>
-                            </li>
-                        ))}
-                    </ul>
-                )}
-            </div>
+        <>
+            <Card className="glass-card border-white/5">
+                <CardHeader className="p-4 sm:p-6 flex flex-row items-center justify-between space-y-0">
+                    <div>
+                        <CardTitle className="text-lg sm:text-xl text-white">Payment Method</CardTitle>
+                        <CardDescription className="text-sm sm:text-base text-gray-400">Add or edit payment methods (e.g. UPI, Bank, Cash).</CardDescription>
+                    </div>
+                    <Button onClick={openCreate} className="h-9 sm:h-10 text-sm flex-shrink-0">
+                        <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+                        Add
+                    </Button>
+                </CardHeader>
+                <CardContent className="p-0 sm:p-6 pt-0">
+                    {loading ? (
+                        <div className="flex justify-center items-center h-64">
+                            <Loader2 className="w-8 h-8 animate-spin text-white" />
+                        </div>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow className="hover:bg-transparent border-white/10">
+                                        <TableHead className="text-xs sm:text-sm text-gray-300">Name</TableHead>
+                                        <TableHead className="text-right text-xs sm:text-sm text-gray-300">Actions</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {items.length > 0 ? (
+                                        items.map((row) => (
+                                            <TableRow key={row.id} className="border-white/10">
+                                                <TableCell className="text-xs sm:text-sm font-medium text-white">{row.name}</TableCell>
+                                                <TableCell className="text-right">
+                                                    <div className="flex items-center justify-end gap-1 sm:gap-2">
+                                                        <Button size="icon" variant="ghost" onClick={() => openEdit(row)} className="h-7 w-7 sm:h-8 sm:w-8">
+                                                            <FilePen className="w-4 h-4 sm:w-5 sm:h-5 text-sky-400" />
+                                                        </Button>
+                                                        <Button size="icon" variant="ghost" onClick={() => setDeleteTarget(row)} className="h-7 w-7 sm:h-8 sm:w-8">
+                                                            <Trash2 className="w-4 h-4 sm:w-5 sm:h-5 text-red-400" />
+                                                        </Button>
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : (
+                                        <TableRow>
+                                            <TableCell colSpan={2} className="text-center text-gray-400 py-8 text-sm">No payment methods yet. Add UPI, Bank, Cash, etc.</TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogContent className="glass-pane border-white/10 text-white">
+                <DialogContent className="max-w-lg w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto bg-gray-900 border-white/10">
                     <DialogHeader>
-                        <DialogTitle>{editing ? 'Edit Payment Method' : 'Add Payment Method'}</DialogTitle>
+                        <DialogTitle className="text-lg sm:text-xl text-white">{editing ? 'Edit Payment Method' : 'Add Payment Method'}</DialogTitle>
+                        <DialogDescription className="text-sm text-gray-400">Used in cashier report and handover.</DialogDescription>
                     </DialogHeader>
-                    <div className="py-4">
-                        <Label className="text-gray-300">Name</Label>
-                        <Input
-                            className="mt-2 glass-input"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            placeholder="e.g. UPI, Bank, Cash"
-                        />
+                    <div className="space-y-4 pt-4">
+                        <div>
+                            <Label htmlFor="pm-name" className="text-sm sm:text-base text-gray-300">Name</Label>
+                            <Input id="pm-name" className="mt-2 h-9 sm:h-10 text-sm glass-input text-white" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. UPI, Bank, Cash" />
+                        </div>
                     </div>
                     <DialogFooter>
-                        <DialogClose asChild><Button variant="ghost" disabled={saving}>Cancel</Button></DialogClose>
-                        <Button onClick={handleSave} disabled={saving}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save</Button>
+                        <DialogClose asChild><Button variant="ghost" className="h-9 sm:h-10 text-sm text-white">Cancel</Button></DialogClose>
+                        <Button onClick={handleSave} disabled={saving} className="h-9 sm:h-10 text-sm">{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-            <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
-                <AlertDialogContent className="glass-pane border-white/10 text-white">
-                    <AlertDialogTitle>Delete payment method?</AlertDialogTitle>
-                    <AlertDialogDescription>This cannot be undone.</AlertDialogDescription>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => deleteTarget && handleDelete(deleteTarget)} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-        </div>
+            <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+                <DialogContent className="w-[95vw] sm:w-full max-w-md bg-gray-900 border-white/10">
+                    <DialogHeader>
+                        <DialogTitle className="text-lg sm:text-xl text-white">Are you sure?</DialogTitle>
+                        <DialogDescription className="text-sm text-gray-400">This will permanently remove this payment method. This action cannot be undone.</DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="ghost" onClick={() => setDeleteTarget(null)} className="h-9 sm:h-10 text-sm text-white">Cancel</Button>
+                        <Button variant="destructive" onClick={() => deleteTarget && handleDelete(deleteTarget)} className="h-9 sm:h-10 text-sm">Delete</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </>
     );
 }
 
@@ -308,65 +294,242 @@ function DepartmentsTab({ clientId, token, toast }) {
     };
 
     return (
-        <div className="text-white">
-            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-                <Building2 className="h-7 w-7" /> Department
-            </h2>
-            <div className="flex justify-end mb-4">
-                <Button onClick={openCreate} className="bg-primary hover:bg-primary/90">
-                    <Plus className="mr-2 h-4 w-4" /> Add
-                </Button>
-            </div>
-            <div className="glass-pane p-4 rounded-lg">
-                {loading ? (
-                    <div className="flex justify-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-                ) : items.length === 0 ? (
-                    <p className="text-gray-400 py-6 text-center">No departments yet. Add Office, Cashier, etc.</p>
-                ) : (
-                    <ul className="divide-y divide-white/10">
-                        {items.map((row) => (
-                            <li key={row.id} className="flex items-center justify-between py-3 first:pt-0">
-                                <span className="font-medium">{row.name}</span>
-                                <div className="flex gap-2">
-                                    <Button variant="ghost" size="sm" onClick={() => openEdit(row)}><Pencil className="h-4 w-4" /></Button>
-                                    <Button variant="ghost" size="sm" className="text-red-400 hover:text-red-300" onClick={() => setDeleteTarget(row)}><Trash2 className="h-4 w-4" /></Button>
-                                </div>
-                            </li>
-                        ))}
-                    </ul>
-                )}
-            </div>
+        <>
+            <Card className="glass-card border-white/5">
+                <CardHeader className="p-4 sm:p-6 flex flex-row items-center justify-between space-y-0">
+                    <div>
+                        <CardTitle className="text-lg sm:text-xl text-white">Department</CardTitle>
+                        <CardDescription className="text-sm sm:text-base text-gray-400">Add or edit departments (e.g. Office, Cashier).</CardDescription>
+                    </div>
+                    <Button onClick={openCreate} className="h-9 sm:h-10 text-sm flex-shrink-0">
+                        <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+                        Add
+                    </Button>
+                </CardHeader>
+                <CardContent className="p-0 sm:p-6 pt-0">
+                    {loading ? (
+                        <div className="flex justify-center items-center h-64">
+                            <Loader2 className="w-8 h-8 animate-spin text-white" />
+                        </div>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow className="hover:bg-transparent border-white/10">
+                                        <TableHead className="text-xs sm:text-sm text-gray-300">Name</TableHead>
+                                        <TableHead className="text-right text-xs sm:text-sm text-gray-300">Actions</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {items.length > 0 ? (
+                                        items.map((row) => (
+                                            <TableRow key={row.id} className="border-white/10">
+                                                <TableCell className="text-xs sm:text-sm font-medium text-white">{row.name}</TableCell>
+                                                <TableCell className="text-right">
+                                                    <div className="flex items-center justify-end gap-1 sm:gap-2">
+                                                        <Button size="icon" variant="ghost" onClick={() => openEdit(row)} className="h-7 w-7 sm:h-8 sm:w-8">
+                                                            <FilePen className="w-4 h-4 sm:w-5 sm:h-5 text-sky-400" />
+                                                        </Button>
+                                                        <Button size="icon" variant="ghost" onClick={() => setDeleteTarget(row)} className="h-7 w-7 sm:h-8 sm:w-8">
+                                                            <Trash2 className="w-4 h-4 sm:w-5 sm:h-5 text-red-400" />
+                                                        </Button>
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : (
+                                        <TableRow>
+                                            <TableCell colSpan={2} className="text-center text-gray-400 py-8 text-sm">No departments yet. Add Office, Cashier, etc.</TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogContent className="glass-pane border-white/10 text-white">
+                <DialogContent className="max-w-lg w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto bg-gray-900 border-white/10">
                     <DialogHeader>
-                        <DialogTitle>{editing ? 'Edit Department' : 'Add Department'}</DialogTitle>
+                        <DialogTitle className="text-lg sm:text-xl text-white">{editing ? 'Edit Department' : 'Add Department'}</DialogTitle>
+                        <DialogDescription className="text-sm text-gray-400">Used in cashier report and handover.</DialogDescription>
                     </DialogHeader>
-                    <div className="py-4">
-                        <Label className="text-gray-300">Name</Label>
-                        <Input
-                            className="mt-2 glass-input"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            placeholder="e.g. Office, Cashier"
-                        />
+                    <div className="space-y-4 pt-4">
+                        <div>
+                            <Label htmlFor="dept-name" className="text-sm sm:text-base text-gray-300">Name</Label>
+                            <Input id="dept-name" className="mt-2 h-9 sm:h-10 text-sm glass-input text-white" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Office, Cashier" />
+                        </div>
                     </div>
                     <DialogFooter>
-                        <DialogClose asChild><Button variant="ghost" disabled={saving}>Cancel</Button></DialogClose>
-                        <Button onClick={handleSave} disabled={saving}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save</Button>
+                        <DialogClose asChild><Button variant="ghost" className="h-9 sm:h-10 text-sm text-white">Cancel</Button></DialogClose>
+                        <Button onClick={handleSave} disabled={saving} className="h-9 sm:h-10 text-sm">{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-            <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
-                <AlertDialogContent className="glass-pane border-white/10 text-white">
-                    <AlertDialogTitle>Delete department?</AlertDialogTitle>
-                    <AlertDialogDescription>This cannot be undone.</AlertDialogDescription>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => deleteTarget && handleDelete(deleteTarget)} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-        </div>
+            <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+                <DialogContent className="w-[95vw] sm:w-full max-w-md bg-gray-900 border-white/10">
+                    <DialogHeader>
+                        <DialogTitle className="text-lg sm:text-xl text-white">Are you sure?</DialogTitle>
+                        <DialogDescription className="text-sm text-gray-400">This will permanently remove this department. This action cannot be undone.</DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="ghost" onClick={() => setDeleteTarget(null)} className="h-9 sm:h-10 text-sm text-white">Cancel</Button>
+                        <Button variant="destructive" onClick={() => deleteTarget && handleDelete(deleteTarget)} className="h-9 sm:h-10 text-sm">Delete</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </>
+    );
+}
+
+function CashDenominationsTab({ clientId, token, toast }) {
+    const [items, setItems] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [dialogOpen, setDialogOpen] = useState(false);
+    const [editing, setEditing] = useState(null);
+    const [value, setValue] = useState('');
+    const [saving, setSaving] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState(null);
+
+    const fetchItems = useCallback(async () => {
+        if (!clientId || !token) return;
+        setLoading(true);
+        try {
+            const data = await listCashDenominations(clientId, token);
+            setItems(Array.isArray(data) ? data : []);
+        } catch (e) {
+            toast({ variant: 'destructive', title: 'Error', description: e?.message || 'Failed to load cash denominations.' });
+        } finally {
+            setLoading(false);
+        }
+    }, [clientId, token, toast]);
+
+    useEffect(() => { fetchItems(); }, [fetchItems]);
+
+    const openCreate = () => { setEditing(null); setValue(''); setDialogOpen(true); };
+    const openEdit = (row) => { setEditing(row); setValue(String(row.value)); setDialogOpen(true); };
+
+    const handleSave = async () => {
+        const num = parseFloat(value);
+        if (isNaN(num) || num <= 0) {
+            toast({ variant: 'destructive', title: 'Validation', description: 'Enter a positive number (e.g. 500, 200).' });
+            return;
+        }
+        setSaving(true);
+        try {
+            if (editing) {
+                await updateCashDenomination(clientId, editing.id, { value: num }, token);
+                toast({ title: 'Success', description: 'Denomination updated.' });
+            } else {
+                await createCashDenomination(clientId, { value: num }, token);
+                toast({ title: 'Success', description: 'Denomination added.' });
+            }
+            setDialogOpen(false);
+            fetchItems();
+        } catch (e) {
+            toast({ variant: 'destructive', title: 'Error', description: e?.message || 'Save failed.' });
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleDelete = async (row) => {
+        try {
+            await deleteCashDenomination(clientId, row.id, token);
+            toast({ title: 'Success', description: 'Denomination removed.' });
+            setDeleteTarget(null);
+            fetchItems();
+        } catch (e) {
+            toast({ variant: 'destructive', title: 'Error', description: e?.message || 'Delete failed.' });
+        }
+    };
+
+    return (
+        <>
+            <Card className="glass-card border-white/5">
+                <CardHeader className="p-4 sm:p-6 flex flex-row items-center justify-between space-y-0">
+                    <div>
+                        <CardTitle className="text-lg sm:text-xl text-white">Cash Denomination</CardTitle>
+                        <CardDescription className="text-sm sm:text-base text-gray-400">Add note/coin values (e.g. ₹500, ₹200). Used in Cash Tally.</CardDescription>
+                    </div>
+                    <Button onClick={openCreate} className="h-9 sm:h-10 text-sm flex-shrink-0">
+                        <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+                        Add
+                    </Button>
+                </CardHeader>
+                <CardContent className="p-0 sm:p-6 pt-0">
+                    {loading ? (
+                        <div className="flex justify-center items-center h-64">
+                            <Loader2 className="w-8 h-8 animate-spin text-white" />
+                        </div>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow className="hover:bg-transparent border-white/10">
+                                        <TableHead className="text-xs sm:text-sm text-gray-300">Value (₹)</TableHead>
+                                        <TableHead className="text-right text-xs sm:text-sm text-gray-300">Actions</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {items.length > 0 ? (
+                                        items.map((row) => (
+                                            <TableRow key={row.id} className="border-white/10">
+                                                <TableCell className="text-xs sm:text-sm font-medium text-white">₹ {Number(row.value).toLocaleString('en-IN')}</TableCell>
+                                                <TableCell className="text-right">
+                                                    <div className="flex items-center justify-end gap-1 sm:gap-2">
+                                                        <Button size="icon" variant="ghost" onClick={() => openEdit(row)} className="h-7 w-7 sm:h-8 sm:w-8">
+                                                            <FilePen className="w-4 h-4 sm:w-5 sm:h-5 text-sky-400" />
+                                                        </Button>
+                                                        <Button size="icon" variant="ghost" onClick={() => setDeleteTarget(row)} className="h-7 w-7 sm:h-8 sm:w-8">
+                                                            <Trash2 className="w-4 h-4 sm:w-5 sm:h-5 text-red-400" />
+                                                        </Button>
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : (
+                                        <TableRow>
+                                            <TableCell colSpan={2} className="text-center text-gray-400 py-8 text-sm">No denominations yet. Add ₹500, ₹200, ₹100, etc.</TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                <DialogContent className="max-w-lg w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto bg-gray-900 border-white/10">
+                    <DialogHeader>
+                        <DialogTitle className="text-lg sm:text-xl text-white">{editing ? 'Edit Denomination' : 'Add Denomination'}</DialogTitle>
+                        <DialogDescription className="text-sm text-gray-400">Value in rupees. Used in Cash Tally denomination table.</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 pt-4">
+                        <div>
+                            <Label htmlFor="denom-value" className="text-sm sm:text-base text-gray-300">Value (₹)</Label>
+                            <Input id="denom-value" type="number" min={0.01} step={1} className="mt-2 h-9 sm:h-10 text-sm glass-input text-white" value={value} onChange={(e) => setValue(e.target.value)} placeholder="e.g. 500, 200, 100" />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <DialogClose asChild><Button variant="ghost" className="h-9 sm:h-10 text-sm text-white">Cancel</Button></DialogClose>
+                        <Button onClick={handleSave} disabled={saving} className="h-9 sm:h-10 text-sm">{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+                <DialogContent className="w-[95vw] sm:w-full max-w-md bg-gray-900 border-white/10">
+                    <DialogHeader>
+                        <DialogTitle className="text-lg sm:text-xl text-white">Are you sure?</DialogTitle>
+                        <DialogDescription className="text-sm text-gray-400">This will remove this denomination. It will no longer appear in Cash Tally.</DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="ghost" onClick={() => setDeleteTarget(null)} className="h-9 sm:h-10 text-sm text-white">Cancel</Button>
+                        <Button variant="destructive" onClick={() => deleteTarget && handleDelete(deleteTarget)} className="h-9 sm:h-10 text-sm">Delete</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </>
     );
 }
 
