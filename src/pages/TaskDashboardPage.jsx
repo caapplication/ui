@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useSocket } from '@/contexts/SocketContext.jsx';
 import { useOrganisation } from '@/hooks/useOrganisation';
-import { getTaskDetails, startTaskTimer, stopTaskTimer, getTaskHistory, /* addTaskSubtask, updateTaskSubtask, deleteTaskSubtask, */ updateTask, listClients, listServices, listTeamMembers, listTaskComments, createTaskComment, updateTaskComment, deleteTaskComment, addTaskCollaborator, removeTaskCollaborator, getTaskCollaborators, getCommentReadReceipts, requestTaskClosure, getClosureRequest, reviewClosureRequest, listTaskStages, listEntityUsers, getRecurringTask } from '@/lib/api';
+import { getTaskDetails, startTaskTimer, stopTaskTimer, getTaskHistory, /* addTaskSubtask, updateTaskSubtask, deleteTaskSubtask, */ updateTask, listClients, listServices, listTeamMembers, listTaskComments, createTaskComment, updateTaskComment, deleteTaskComment, addTaskCollaborator, removeTaskCollaborator, getTaskCollaborators, getCommentReadReceipts, requestTaskClosure, getClosureRequest, reviewClosureRequest, listTaskStages, listEntityUsers, getRecurringTask, listCATeamForClient } from '@/lib/api';
 import RecurringTaskExpandedView from '@/components/accountant/tasks/RecurringTaskExpandedView';
 import { listOrgUsers } from '@/lib/api/organisation';
 import * as pdfjsLib from 'pdfjs-dist';
@@ -106,6 +106,7 @@ const TaskDashboardPage = () => {
     const [clients, setClients] = useState([]);
     const [services, setServices] = useState([]);
     const [teamMembers, setTeamMembers] = useState([]);
+    const [caTeamMembers, setCaTeamMembers] = useState([]);
     const [orgUsers, setOrgUsers] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSendingComment, setIsSendingComment] = useState(false);
@@ -250,10 +251,11 @@ const TaskDashboardPage = () => {
         const loadRelatedData = async () => {
             try {
                 const agencyId = user?.agency_id || null;
-                const [clientsData, servicesData, teamData, orgUsersData] = await Promise.allSettled([
+                const [clientsData, servicesData, teamData, caTeamData, orgUsersData] = await Promise.allSettled([
                     clients.length === 0 ? listClients(agencyId, user.access_token).catch(() => ({ status: 'rejected' })) : Promise.resolve({ status: 'fulfilled', value: clients }),
                     services.length === 0 ? listServices(agencyId, user.access_token).catch(() => ({ status: 'rejected' })) : Promise.resolve({ status: 'fulfilled', value: services }),
                     teamMembers.length === 0 ? listTeamMembers(user.access_token).catch(() => ({ status: 'rejected' })) : Promise.resolve({ status: 'fulfilled', value: teamMembers }),
+                    (caTeamMembers.length === 0 && (user?.role === 'CLIENT_USER' || user?.role === 'CLIENT_MASTER_ADMIN')) ? listCATeamForClient(user.access_token).catch(() => ({ status: 'rejected' })) : Promise.resolve({ status: 'fulfilled', value: caTeamMembers }),
                     (selectedOrg && orgUsers.length === 0 && (user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM')) ? listOrgUsers(selectedOrg, user.access_token).catch(() => ({ status: 'rejected' })) : Promise.resolve({ status: 'fulfilled', value: orgUsers }),
                 ]);
 
@@ -268,6 +270,10 @@ const TaskDashboardPage = () => {
                 if (teamData.status === 'fulfilled' && teamMembers.length === 0) {
                     const teamList = Array.isArray(teamData.value) ? teamData.value : (teamData.value?.items || []);
                     setTeamMembers(teamList);
+                }
+                if (caTeamData.status === 'fulfilled' && caTeamMembers.length === 0) {
+                    const caTeamList = Array.isArray(caTeamData.value) ? caTeamData.value : (caTeamData.value?.items || []);
+                    setCaTeamMembers(caTeamList);
                 }
                 if (orgUsersData.status === 'fulfilled' && orgUsers.length === 0 && selectedOrg) {
                     const orgUsersResponse = orgUsersData.value;
@@ -3226,7 +3232,7 @@ const TaskDashboardPage = () => {
                                                         {loadingCollaboratorHostUsers && <Loader2 className="h-3 w-3 animate-spin text-gray-400" />}
                                                     </Label>
                                                     <Combobox
-                                                        options={(selectedCollaboratorHostClient ? collaboratorHostClientUsers : teamMembers)
+                                                        options={(selectedCollaboratorHostClient ? collaboratorHostClientUsers : ((user?.role === 'CLIENT_MASTER_ADMIN' || user?.role === 'CLIENT_USER') ? caTeamMembers : teamMembers))
                                                             .filter(m => {
                                                                 // Exclude already assigned user, creator, and existing collaborators
                                                                 const userId = m.user_id || m.id;
@@ -3239,7 +3245,7 @@ const TaskDashboardPage = () => {
                                                             })
                                                             .map(m => ({
                                                                 value: m.user_id || m.id,
-                                                                label: `${m.name || m.full_name || m.email} ${(selectedCollaboratorHostClient) ? '(Client User)' : `(${m.role || m.department || 'N/A'})`}`
+                                                                label: `${m.name || m.full_name || m.email} ${(selectedCollaboratorHostClient) ? '(Client User)' : `(${m.role || m.department || m.status || 'N/A'})`}`
                                                             }))}
                                                         value={selectedCollaboratorId}
                                                         onValueChange={setSelectedCollaboratorId}
