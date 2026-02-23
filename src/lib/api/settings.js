@@ -292,6 +292,15 @@ export const rejectHandoverAdmin = async (clientId, handoverId, body, token) => 
     return handleResponse(response);
 };
 
+export const updateHandover = async (clientId, handoverId, data, token) => {
+    const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/${clientId}/handovers/${handoverId}`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(token),
+        body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+};
+
 // ---------- Bank Tally (CLIENT_MASTER_ADMIN) ----------
 export const getBankTally = async (clientId, reportDate, bankAccountIds, token) => {
     const ids = Array.isArray(bankAccountIds) ? bankAccountIds.join(',') : (bankAccountIds || '');

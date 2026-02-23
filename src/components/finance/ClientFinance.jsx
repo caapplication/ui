@@ -28,6 +28,13 @@ import {
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useToast } from '@/components/ui/use-toast';
 import {
+  HandoverTab,
+  BankTallyTab,
+  CashTallyTab,
+  ReportTab,
+  CashierReportTab,
+} from '@/pages/ClientHandoverPage';
+import {
   getBeneficiaries,
   getInvoices,
   getInvoicesList,
@@ -82,7 +89,7 @@ const setCache = (key, data) => {
   }
 };
 
-const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
+const ClientFinance = ({ entityId, quickAction, clearQuickAction, entityName: entityNameProp }) => {
   const [showInvoiceDialog, setShowInvoiceDialog] = useState(false);
   const [showVoucherDialog, setShowVoucherDialog] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState(null);
@@ -105,9 +112,13 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
   const location = useLocation();
 
 
-  const activeTab = location.pathname.includes('/invoices')
-    ? 'invoices'
-    : 'vouchers';
+  const isAdmin = user?.role === 'CLIENT_MASTER_ADMIN';
+  const path = location.pathname;
+  const tabFromPath = path.replace(/^\/finance\/?/, '').split('/')[0] || 'vouchers';
+  const allowedTabs = isAdmin
+    ? ['vouchers', 'invoices', 'handover', 'bank-tally', 'cash-tally', 'report']
+    : ['vouchers', 'invoices', 'cashier', 'handover'];
+  const activeTab = allowedTabs.includes(tabFromPath) ? tabFromPath : 'vouchers';
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -515,12 +526,26 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
           className="w-full"
         >
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-            <TabsList className="w-full sm:w-auto grid grid-cols-2 sm:inline-flex">
+            <TabsList className={`w-full sm:w-auto ${isAdmin ? 'grid grid-cols-2 sm:grid-cols-3 lg:inline-flex' : 'grid grid-cols-2 sm:inline-flex'} flex-wrap`}>
               <TabsTrigger value="vouchers" className="text-sm sm:text-base">Vouchers</TabsTrigger>
               <TabsTrigger value="invoices" className="text-sm sm:text-base">Invoices</TabsTrigger>
+              {isAdmin && (
+                <>
+                  <TabsTrigger value="handover" className="text-sm sm:text-base">Handover</TabsTrigger>
+                  <TabsTrigger value="bank-tally" className="text-sm sm:text-base">Bank Tally</TabsTrigger>
+                  <TabsTrigger value="cash-tally" className="text-sm sm:text-base">Cash Tally</TabsTrigger>
+                  <TabsTrigger value="report" className="text-sm sm:text-base">Report</TabsTrigger>
+                </>
+              )}
+              {!isAdmin && (user?.role === 'CLIENT_USER') && (
+                <>
+                  <TabsTrigger value="cashier" className="text-sm sm:text-base">Cashier Report</TabsTrigger>
+                  <TabsTrigger value="handover" className="text-sm sm:text-base">Handover</TabsTrigger>
+                </>
+              )}
             </TabsList>
 
-            {/* Refresh Button and Add Dropdown - Moved here */}
+            {/* Refresh Button and Add Dropdown - only for vouchers/invoices */}
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -583,6 +608,20 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction }) => {
                   )
                 }
               />
+              {isAdmin && (
+                <>
+                  <Route path="handover" element={<HandoverTab clientId={entityId} token={user?.access_token} toast={toast} isAdminView userRole={user?.role} />} />
+                  <Route path="bank-tally" element={<BankTallyTab clientId={entityId} token={user?.access_token} toast={toast} />} />
+                  <Route path="cash-tally" element={<CashTallyTab clientId={entityId} entityId={entityId} token={user?.access_token} toast={toast} />} />
+                  <Route path="report" element={<ReportTab clientId={entityId} entityId={entityId} entityName={entityNameProp} token={user?.access_token} toast={toast} />} />
+                </>
+              )}
+              {!isAdmin && user?.role === 'CLIENT_USER' && (
+                <>
+                  <Route path="cashier" element={<CashierReportTab clientId={entityId} token={user?.access_token} toast={toast} />} />
+                  <Route path="handover" element={<HandoverTab clientId={entityId} token={user?.access_token} toast={toast} userRole={user?.role} />} />
+                </>
+              )}
             </Routes>
           </div>
         </Tabs>

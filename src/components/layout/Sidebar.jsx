@@ -151,7 +151,7 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
       blinking: isBlinking
     },
     { id: 'settings', path: '/settings', label: 'Settings', icon: Settings, hidden: user?.role === 'CLIENT_USER' },
-    { id: 'handover', path: '/handover', label: 'Handover', icon: ArrowLeftRight, hidden: user?.role !== 'CLIENT_USER' && user?.role !== 'CLIENT_MASTER_ADMIN' },
+    { id: 'handover', path: '/handover', label: 'Handover', icon: ArrowLeftRight, hidden: user?.role !== 'CLIENT_HANDOVER' },
   ];
 
   // Fetch clients from Clients table (NOT entities table)

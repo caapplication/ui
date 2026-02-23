@@ -87,9 +87,9 @@ const ClientUsersPage = ({ entityId }) => {
         }
     };
 
-    // Fetch departments when invite dialog opens (for Client Handover role)
+    // Fetch departments for invite dialog and Team Members table (Department column)
     useEffect(() => {
-        if (!showInviteDialog || !entityId || !user?.access_token) return;
+        if (!entityId || !user?.access_token) return;
         const load = async () => {
             try {
                 const list = await listDepartments(entityId, user.access_token);
@@ -99,7 +99,7 @@ const ClientUsersPage = ({ entityId }) => {
             }
         };
         load();
-    }, [showInviteDialog, entityId, user?.access_token]);
+    }, [entityId, user?.access_token]);
 
     // Check if user has pending items (direct assignments only, not collaborators)
     const checkUserPendingItems = async (userId) => {
@@ -227,7 +227,7 @@ const ClientUsersPage = ({ entityId }) => {
         }
 
         if (inviteRole === 'CLIENT_HANDOVER' && !inviteDepartmentId) {
-            toast({ title: "Department Required", description: "Please select a department for Client Handover role.", variant: "destructive" });
+            toast({ title: "Department Required", description: "Please select a department for Department Handover role.", variant: "destructive" });
             return;
         }
 
@@ -428,6 +428,7 @@ const ClientUsersPage = ({ entityId }) => {
                                     <TableRow className="border-white/10 hover:bg-white/5">
                                         <TableHead className="text-gray-300">User</TableHead>
                                         <TableHead className="text-gray-300">Role</TableHead>
+                                        <TableHead className="text-gray-300">Department</TableHead>
                                         <TableHead className="text-gray-300">Status</TableHead>
                                         <TableHead className="text-gray-300">Last Login</TableHead>
                                         {user?.role !== 'CLIENT_USER' && <TableHead className="text-right text-gray-300">Actions</TableHead>}
@@ -436,7 +437,7 @@ const ClientUsersPage = ({ entityId }) => {
                                 <TableBody>
                                     {isLoading && filteredUsers.length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan={user?.role !== 'CLIENT_USER' ? 4 : 3} className="h-24 text-center">
+                                            <TableCell colSpan={user?.role !== 'CLIENT_USER' ? 5 : 4} className="h-24 text-center">
                                                 <Loader2 className="w-6 h-6 animate-spin mx-auto text-primary" />
                                             </TableCell>
                                         </TableRow>
@@ -455,10 +456,15 @@ const ClientUsersPage = ({ entityId }) => {
                                                         : u.role === 'CLIENT_ADMIN' || u.role === 'ENTITY_ADMIN'
                                                             ? 'Organization Owner'
                                                             : u.role === 'CLIENT_HANDOVER'
-                                                                ? 'Client Handover'
+                                                                ? 'Department Handover'
                                                                 : u.role === 'ENTITY_USER'
                                                                     ? 'Entity User'
-                                                                    : 'Member'}
+                                                                    : 'Finance User'}
+                                                </TableCell>
+                                                <TableCell className="text-gray-300">
+                                                    {u.department_id
+                                                        ? (departmentsList.find(d => String(d.id) === String(u.department_id))?.name ?? '—')
+                                                        : '—'}
                                                 </TableCell>
                                                 <TableCell>
                                                     <Badge variant={u.status === 'Joined' ? 'default' : 'secondary'} className={u.status === 'Joined' ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' : 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30'}>
@@ -522,7 +528,7 @@ const ClientUsersPage = ({ entityId }) => {
                                         ))
                                     ) : (
                                         <TableRow>
-                                            <TableCell colSpan={user?.role !== 'CLIENT_USER' ? 4 : 3} className="h-24 text-center text-gray-400">
+                                            <TableCell colSpan={user?.role !== 'CLIENT_USER' ? 5 : 4} className="h-24 text-center text-gray-400">
                                                 No users found.
                                             </TableCell>
                                         </TableRow>
@@ -564,8 +570,8 @@ const ClientUsersPage = ({ entityId }) => {
                                     <SelectValue placeholder="Select role" />
                                 </SelectTrigger>
                                 <SelectContent className="bg-[#181C2A] border-gray-700">
-                                    <SelectItem value="CLIENT_USER">Client User</SelectItem>
-                                    <SelectItem value="CLIENT_HANDOVER">Client Handover</SelectItem>
+                                    <SelectItem value="CLIENT_USER">Finance User</SelectItem>
+                                    <SelectItem value="CLIENT_HANDOVER">Department Handover</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>

@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/ui/use-toast';
-import { listHandovers, createHandover } from '@/lib/api/settings';
+import { listHandovers, createHandover, updateHandover } from '@/lib/api/settings';
 import { listPaymentMethods } from '@/lib/api/settings';
 import { ArrowLeftRight, Plus, Loader2 } from 'lucide-react';
 
@@ -17,7 +17,7 @@ const HandoverPage = () => {
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [breakdownRow, setBreakdownRow] = useState(null);
+  const [editingRow, setEditingRow] = useState(null);
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [submitting, setSubmitting] = useState(false);
 
@@ -48,7 +48,8 @@ const HandoverPage = () => {
     listPaymentMethods(entityId, user.access_token).then(pm => setPaymentMethods(Array.isArray(pm) ? pm : [])).catch(() => setPaymentMethods([]));
   }, [entityId, user?.access_token]);
 
-  const openModal = async () => {
+  const openAddModal = async () => {
+    setEditingRow(null);
     setShowModal(true);
     setHandoverDate(new Date().toISOString().slice(0, 10));
     setCollectionAmounts({});
@@ -65,6 +66,22 @@ const HandoverPage = () => {
       }
     }
   };
+
+  const openEditModal = (row) => {
+    const dateStr = row.handover_date ? (typeof row.handover_date === 'string' ? row.handover_date.slice(0, 10) : new Date(row.handover_date).toISOString().slice(0, 10)) : new Date().toISOString().slice(0, 10);
+    setHandoverDate(dateStr);
+    const amounts = {};
+    Object.entries(row.collection_details || {}).forEach(([k, v]) => { amounts[k] = v != null ? String(v) : ''; });
+    setCollectionAmounts(amounts);
+    setPhysicalCashAtDesk(row.physical_cash_at_desk != null ? String(row.physical_cash_at_desk) : '');
+    setImprestAmount(row.imprest_amount != null ? String(row.imprest_amount) : '');
+    setLessPayment(row.less_payment != null ? String(row.less_payment) : '');
+    setRemarks(row.remarks || '');
+    setEditingRow(row);
+    setShowModal(true);
+  };
+
+  const isViewOnly = editingRow && editingRow.status === 'approved';
 
   const cashPm = paymentMethods.find(p => p.name && p.name.toUpperCase() === 'CASH');
   const cashId = cashPm?.id ?? paymentMethods[0]?.id;
@@ -84,28 +101,34 @@ const HandoverPage = () => {
       const v = collectionAmounts[p.id];
       if (v != null && String(v).trim() !== '') details[p.id] = parseFloat(v) || 0;
     });
-    if (grandTotal <= 0) {
+    if (grandTotal <= 0 && !editingRow) {
       toast({ variant: 'destructive', title: 'Validation', description: 'Enter at least one collection amount.' });
       return;
     }
     setSubmitting(true);
     try {
-      await createHandover(entityId, {
-        handover_date: handoverDate,
-        collection_details: details,
-        grand_total: grandTotal,
-        cash_collection: numCash,
-        physical_cash_at_desk: physicalCashAtDesk ? physicalNum : null,
-        imprest_amount: imprestAmount ? imprestNum : null,
-        less_payment: lessPayment ? lessNum : null,
-        remarks: remarks || null,
-        ...(user?.department_id && { department_id: user.department_id }),
-      }, user.access_token);
-      toast({ title: 'Success', description: 'Handover submitted.' });
+      if (editingRow) {
+        await updateHandover(entityId, editingRow.id, { collection_details: details, remarks: remarks || null }, user.access_token);
+        toast({ title: 'Success', description: 'Handover updated.' });
+      } else {
+        await createHandover(entityId, {
+          handover_date: handoverDate,
+          collection_details: details,
+          grand_total: grandTotal,
+          cash_collection: numCash,
+          physical_cash_at_desk: physicalCashAtDesk ? physicalNum : null,
+          imprest_amount: imprestAmount ? imprestNum : null,
+          less_payment: lessPayment ? lessNum : null,
+          remarks: remarks || null,
+          ...(user?.department_id && { department_id: user.department_id }),
+        }, user.access_token);
+        toast({ title: 'Success', description: 'Handover submitted.' });
+      }
       setShowModal(false);
+      setEditingRow(null);
       fetchList();
     } catch (e) {
-      toast({ variant: 'destructive', title: 'Error', description: e?.message || 'Submit failed.' });
+      toast({ variant: 'destructive', title: 'Error', description: e?.message || (editingRow ? 'Update failed.' : 'Submit failed.') });
     } finally {
       setSubmitting(false);
     }
@@ -130,7 +153,7 @@ const HandoverPage = () => {
           <h1 className="text-3xl font-bold">Handover</h1>
           <p className="text-gray-400 mt-1">Submit and view your department handovers.</p>
         </div>
-        <Button onClick={openModal} className="bg-primary hover:bg-primary/90 gap-2">
+        <Button onClick={openAddModal} className="bg-primary hover:bg-primary/90 gap-2">
           <Plus className="w-4 h-4" /> Handover
         </Button>
       </div>
@@ -167,7 +190,7 @@ const HandoverPage = () => {
                     <button
                       type="button"
                       className="underline decoration-dotted hover:no-underline cursor-pointer"
-                      onClick={() => setBreakdownRow(row)}
+                      onClick={() => openEditModal(row)}
                     >
                       ₹ {Number(row.grand_total || 0).toLocaleString('en-IN')}
                     </button>
@@ -187,15 +210,16 @@ const HandoverPage = () => {
         </Table>
       </div>
 
-      <Dialog open={showModal} onOpenChange={setShowModal}>
+      <Dialog open={showModal} onOpenChange={(open) => { setShowModal(open); if (!open) setEditingRow(null); }}>
         <DialogContent className="glass-pane border-white/10 text-white max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Update Handover Details</DialogTitle>
+            {editingRow && <p className="text-sm text-gray-400 mt-1">{isViewOnly ? 'View only — handover already approved.' : 'Edit amounts and save when not yet approved.'}</p>}
           </DialogHeader>
           <div className="space-y-6 py-4">
             <div>
               <Label className="text-gray-300">Date</Label>
-              <Input type="date" className="mt-2 glass-input" value={handoverDate} onChange={e => setHandoverDate(e.target.value)} />
+              <Input type="date" readOnly={isViewOnly || !!editingRow} className={`mt-2 glass-input ${(isViewOnly || editingRow) ? 'cursor-default opacity-90' : ''}`} value={handoverDate} onChange={e => !editingRow && setHandoverDate(e.target.value)} />
             </div>
 
             <div>
@@ -215,14 +239,18 @@ const HandoverPage = () => {
                         <td className="p-2">{String.fromCharCode(65 + i)}</td>
                         <td className="p-2">{p.name}</td>
                         <td className="p-2">
-                          <Input
-                            type="number"
-                            min={0}
-                            step={0.01}
-                            className="glass-input w-32"
-                            value={collectionAmounts[p.id] ?? ''}
-                            onChange={e => setCollectionAmounts(prev => ({ ...prev, [p.id]: e.target.value }))}
-                          />
+                          {isViewOnly ? (
+                            <span>{Number(collectionAmounts[p.id] || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                          ) : (
+                            <Input
+                              type="number"
+                              min={0}
+                              step={0.01}
+                              className="glass-input w-32"
+                              value={collectionAmounts[p.id] ?? ''}
+                              onChange={e => setCollectionAmounts(prev => ({ ...prev, [p.id]: e.target.value }))}
+                            />
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -256,7 +284,7 @@ const HandoverPage = () => {
                       <td className="p-2">B</td>
                       <td className="p-2">PHYSICAL CASH AT DESK</td>
                       <td className="p-2">
-                        <Input type="number" min={0} step={0.01} className="glass-input w-32" value={physicalCashAtDesk} onChange={e => setPhysicalCashAtDesk(e.target.value)} />
+                        {isViewOnly ? <span>{physicalNum.toFixed(2)}</span> : <Input type="number" min={0} step={0.01} className="glass-input w-32" value={physicalCashAtDesk} onChange={e => setPhysicalCashAtDesk(e.target.value)} />}
                       </td>
                     </tr>
                     <tr className="border-t border-white/10">
@@ -285,14 +313,14 @@ const HandoverPage = () => {
                       <td className="p-2">A</td>
                       <td className="p-2">IMPREST AMOUNT</td>
                       <td className="p-2">
-                        <Input type="number" min={0} step={0.01} className="glass-input w-32" value={imprestAmount} onChange={e => setImprestAmount(e.target.value)} />
+                        {isViewOnly ? <span>{imprestNum.toFixed(2)}</span> : <Input type="number" min={0} step={0.01} className="glass-input w-32" value={imprestAmount} onChange={e => setImprestAmount(e.target.value)} />}
                       </td>
                     </tr>
                     <tr className="border-t border-white/10">
                       <td className="p-2">B</td>
                       <td className="p-2">LESS PAYMENT</td>
                       <td className="p-2">
-                        <Input type="number" min={0} step={0.01} className="glass-input w-32" value={lessPayment} onChange={e => setLessPayment(e.target.value)} />
+                        {isViewOnly ? <span>{lessNum.toFixed(2)}</span> : <Input type="number" min={0} step={0.01} className="glass-input w-32" value={lessPayment} onChange={e => setLessPayment(e.target.value)} />}
                       </td>
                     </tr>
                     <tr className="border-t border-white/10">
@@ -307,48 +335,15 @@ const HandoverPage = () => {
 
             <div>
               <Label className="text-gray-300">Remarks</Label>
-              <textarea className="mt-2 w-full min-h-[80px] glass-input rounded-md p-2" value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="Remarks..." />
+              {isViewOnly ? <p className="mt-2 text-sm text-white">{remarks || '—'}</p> : <textarea className="mt-2 w-full min-h-[80px] glass-input rounded-md p-2" value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="Remarks..." />}
             </div>
           </div>
-          <DialogFooter>
-            <DialogClose asChild><Button variant="ghost" disabled={submitting}>Cancel</Button></DialogClose>
-            <Button onClick={handleSubmit} disabled={submitting}>{submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Submit</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!breakdownRow} onOpenChange={() => setBreakdownRow(null)}>
-        <DialogContent className="glass-pane border-white/10 text-white max-w-md">
-          <DialogHeader><DialogTitle>Amount – Breakdown</DialogTitle></DialogHeader>
-          <div className="py-2 space-y-3">
-            {breakdownRow && (
-              <>
-                <div className="border border-white/10 rounded p-2">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-gray-400 border-b border-white/10">
-                        <th className="text-left py-1">Method</th>
-                        <th className="text-right py-1">Amount ₹</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {Object.entries(breakdownRow.collection_details || {}).map(([pmId, amt]) => (
-                        <tr key={pmId} className="border-b border-white/5">
-                          <td className="py-1">{paymentMethods.find(p => p.id === pmId)?.name || pmId}</td>
-                          <td className="text-right py-1">{Number(amt).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                {breakdownRow.remarks && (
-                  <p className="text-gray-400 text-sm">
-                    <span className="font-medium text-gray-300">Remark:</span> {breakdownRow.remarks}
-                  </p>
-                )}
-              </>
-            )}
-          </div>
+          {!isViewOnly && (
+            <DialogFooter>
+              <DialogClose asChild><Button variant="ghost" disabled={submitting}>Cancel</Button></DialogClose>
+              <Button onClick={handleSubmit} disabled={submitting}>{submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{editingRow ? 'Save' : 'Submit'}</Button>
+            </DialogFooter>
+          )}
         </DialogContent>
       </Dialog>
     </div>

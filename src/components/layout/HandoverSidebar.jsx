@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LogOut, ArrowLeftRight } from 'lucide-react';
+import { LogOut, ArrowLeftRight, ListTodo, FileText } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -15,6 +15,8 @@ const HandoverSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) => 
 
   const menuItems = [
     { id: 'handover', path: '/handover', label: 'Handover', icon: ArrowLeftRight },
+    { id: 'tasks', path: '/tasks', label: 'Task', icon: ListTodo },
+    { id: 'documents', path: '/documents', label: 'Document', icon: FileText },
   ];
 
   return (

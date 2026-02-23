@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
     Card,
@@ -28,7 +28,7 @@ import { useMediaQuery } from "@/hooks/useMediaQuery.jsx";
 import { useAuth } from "@/hooks/useAuth.jsx";
 import { useToast } from "@/components/ui/use-toast.js";
 import { getDashboardData, getVouchersList } from "@/lib/api.js";
-import { getFundInHand } from "@/lib/api/settings.js";
+import { getFundInHand, listHandovers, handoversSummary, listPaymentMethods } from "@/lib/api/settings.js";
 import { format, parseISO } from "date-fns";
 import {
     DropdownMenu,
@@ -211,6 +211,8 @@ const Dashboard = ({
     const [fundInHand, setFundInHand] = useState(null);
     const [fundInHandLoading, setFundInHandLoading] = useState(false);
     const [fundSlide, setFundSlide] = useState(0);
+    const [handoverCard, setHandoverCard] = useState(null);
+    const [handoverCardLoading, setHandoverCardLoading] = useState(false);
 
     const isMobile = useMediaQuery("(max-width: 640px)");
     const { user } = useAuth();
@@ -272,6 +274,77 @@ const Dashboard = ({
     useEffect(() => {
         fetchFundInHand();
     }, [fetchFundInHand]);
+
+    const fetchHandoverCard = useCallback(async () => {
+        if (!isClientAdmin || !entityId || !user?.access_token) return;
+        setHandoverCardLoading(true);
+        try {
+            const list = await listHandovers(entityId, user.access_token);
+            const rows = Array.isArray(list) ? list : [];
+            if (rows.length === 0) {
+                setHandoverCard(null);
+                return;
+            }
+            const lastDateRaw = rows[0].handover_date;
+            const lastDate = typeof lastDateRaw === "string" ? lastDateRaw.slice(0, 10) : new Date(lastDateRaw).toISOString().slice(0, 10);
+            const [summaryRes, pmList] = await Promise.all([
+                handoversSummary(entityId, lastDate, user.access_token),
+                listPaymentMethods(entityId, user.access_token),
+            ]);
+            const items = summaryRes?.items || [];
+            let total = 0;
+            const breakdown = {};
+            items.forEach((item) => {
+                total += Number(item.as_per_department) || 0;
+                const b = item.as_per_department_breakdown || {};
+                Object.entries(b).forEach(([pmId, amt]) => {
+                    breakdown[pmId] = (breakdown[pmId] || 0) + Number(amt);
+                });
+            });
+            setHandoverCard({
+                lastDate,
+                total,
+                breakdown,
+                paymentMethods: Array.isArray(pmList) ? pmList : [],
+            });
+        } catch (e) {
+            toast({ variant: "destructive", title: "Error", description: e?.message || "Failed to load handover." });
+            setHandoverCard(null);
+        } finally {
+            setHandoverCardLoading(false);
+        }
+    }, [isClientAdmin, entityId, user?.access_token, toast]);
+
+    useEffect(() => {
+        fetchHandoverCard();
+    }, [fetchHandoverCard]);
+
+    const todayStart = useMemo(() => {
+        const d = new Date();
+        d.setHours(0, 0, 0, 0);
+        return d;
+    }, []);
+    const todayEnd = useMemo(() => {
+        const d = new Date();
+        d.setHours(23, 59, 59, 999);
+        return d;
+    }, []);
+    const fundOutToday = useMemo(() => {
+        if (!vouchers || vouchers.length === 0) return { total: 0, byCash: 0, byBank: 0 };
+        let total = 0;
+        let byCash = 0;
+        let byBank = 0;
+        vouchers.forEach((v) => {
+            const vDate = new Date(v.created_date || v.created_at);
+            if (vDate < todayStart || vDate > todayEnd) return;
+            const amt = parseFloat(v.amount) || 0;
+            total += amt;
+            const type = (v.voucher_type || "").toLowerCase();
+            if (type === "cash") byCash += amt;
+            else if (type === "debit") byBank += amt;
+        });
+        return { total, byCash, byBank };
+    }, [vouchers, todayStart, todayEnd]);
 
     // Calculate total expenses and stats based on selected time period
     const calculateExpenseStats = useCallback(() => {
@@ -498,78 +571,137 @@ const Dashboard = ({
                         </div>
 
                         {isClientAdmin && (
-                            <Card className="glass-card border-white/5 mb-6 sm:mb-8 w-2/3 max-w-md overflow-hidden">
-                                <div className="relative">
-                                    {fundInHandLoading ? (
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+                                <Card className="glass-card border-white/5 overflow-hidden">
+                                    <div className="relative">
+                                        {fundInHandLoading ? (
+                                            <div className="flex items-center justify-center min-h-[140px] py-6">
+                                                <Loader2 className="w-6 h-6 animate-spin text-white" />
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <div className="absolute right-1.5 top-1.5 flex items-center gap-0.5 z-10">
+                                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-400 hover:text-white" onClick={() => setFundSlide(0)} disabled={fundSlide === 0}>
+                                                        <ChevronLeft className="w-3.5 h-3.5" />
+                                                    </Button>
+                                                    <span className="text-[10px] text-gray-500">{fundSlide + 1}/2</span>
+                                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-400 hover:text-white" onClick={() => setFundSlide(1)} disabled={fundSlide === 1}>
+                                                        <ChevronRight className="w-3.5 h-3.5" />
+                                                    </Button>
+                                                </div>
+                                                {fundSlide === 0 && (
+                                                    <div className="p-3 sm:p-4">
+                                                        <h3 className="text-xs sm:text-sm font-semibold text-gray-300 mb-1">Fund In Hand</h3>
+                                                        <div className="text-lg sm:text-xl font-bold text-white mb-2">
+                                                            {formatINR(fundInHand?.total ?? 0)}
+                                                        </div>
+                                                        <div className="border-t border-white/10 pt-2 space-y-2">
+                                                            <div className="flex justify-between items-start">
+                                                                <div>
+                                                                    <p className="text-xs font-medium text-gray-300">Cash Balance</p>
+                                                                    <p className="text-[10px] text-gray-500">{formatDateDDMMYYYY(fundInHand?.cash_as_of_date)}</p>
+                                                                </div>
+                                                                <span className="text-xs font-medium text-white">{formatINR(fundInHand?.cash_balance ?? 0)}</span>
+                                                            </div>
+                                                            <div className="border-t border-white/10 pt-2 flex justify-between items-start">
+                                                                <div>
+                                                                    <p className="text-xs font-medium text-gray-300">Bank Balance</p>
+                                                                    <p className="text-[10px] text-gray-500">
+                                                                        {fundInHand?.bank_accounts?.length ? formatDateDDMMYYYY(fundInHand.bank_accounts[0]?.as_of_date) : "—"}
+                                                                    </p>
+                                                                </div>
+                                                                <span className="text-xs font-medium text-white">{formatINR(fundInHand?.total_bank ?? 0)}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {fundSlide === 1 && (
+                                                    <div className="p-3 sm:p-4">
+                                                        <h3 className="text-xs sm:text-sm font-semibold text-gray-300 mb-1">{entityName || "Entity"} - Bank Balance</h3>
+                                                        <div className="text-base sm:text-lg font-bold text-white mb-2">
+                                                            {formatINR(fundInHand?.total_bank ?? 0)}
+                                                        </div>
+                                                        <div className="max-h-[180px] overflow-y-auto border-t border-white/10 pt-2 space-y-0">
+                                                            {(fundInHand?.bank_accounts ?? []).map((ba) => {
+                                                                const bank = (organisationBankAccounts || []).find((b) => String(b.id) === String(ba.bank_account_id));
+                                                                return (
+                                                                    <div key={ba.bank_account_id} className="flex justify-between items-start py-2 border-b border-white/10 last:border-0">
+                                                                        <div>
+                                                                            <p className="text-xs font-medium text-white">{bank?.bank_name ?? "—"}</p>
+                                                                            <p className="text-[10px] text-gray-500">{bank?.account_number ?? "—"}</p>
+                                                                        </div>
+                                                                        <span className="text-xs font-medium text-white">{formatINR(ba.closing_balance)}</span>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                            {(!fundInHand?.bank_accounts || fundInHand.bank_accounts.length === 0) && (
+                                                                <p className="text-xs text-gray-500 py-3">No bank tally data yet.</p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
+                                </Card>
+
+                                <Card className="glass-card border-white/5 overflow-hidden">
+                                    {handoverCardLoading ? (
                                         <div className="flex items-center justify-center min-h-[140px] py-6">
                                             <Loader2 className="w-6 h-6 animate-spin text-white" />
                                         </div>
-                                    ) : (
-                                        <>
-                                            <div className="absolute right-1.5 top-1.5 flex items-center gap-0.5 z-10">
-                                                <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-400 hover:text-white" onClick={() => setFundSlide(0)} disabled={fundSlide === 0}>
-                                                    <ChevronLeft className="w-3.5 h-3.5" />
-                                                </Button>
-                                                <span className="text-[10px] text-gray-500">{fundSlide + 1}/2</span>
-                                                <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-400 hover:text-white" onClick={() => setFundSlide(1)} disabled={fundSlide === 1}>
-                                                    <ChevronRight className="w-3.5 h-3.5" />
-                                                </Button>
+                                    ) : handoverCard ? (
+                                        <div className="p-3 sm:p-4">
+                                            <h3 className="text-xs sm:text-sm font-semibold text-gray-300 mb-1">{entityName || "Entity"} - Handover</h3>
+                                            <div className="text-lg sm:text-xl font-bold text-white mb-2">
+                                                {formatINR(handoverCard.total)}
                                             </div>
-                                            {fundSlide === 0 && (
-                                                <div className="p-3 sm:p-4">
-                                                    <h3 className="text-xs sm:text-sm font-semibold text-gray-300 mb-1">Fund In Hand</h3>
-                                                    <div className="text-lg sm:text-xl font-bold text-white mb-2">
-                                                        {formatINR(fundInHand?.total ?? 0)}
-                                                    </div>
-                                                    <div className="border-t border-white/10 pt-2 space-y-2">
-                                                        <div className="flex justify-between items-start">
-                                                            <div>
-                                                                <p className="text-xs font-medium text-gray-300">Cash Balance</p>
-                                                                <p className="text-[10px] text-gray-500">{formatDateDDMMYYYY(fundInHand?.cash_as_of_date)}</p>
+                                            <p className="text-[10px] text-gray-500 mb-2">Last handover: {formatDateDDMMYYYY(handoverCard.lastDate)}</p>
+                                            <div className="max-h-[180px] overflow-y-auto border-t border-white/10 pt-2 space-y-0">
+                                                {Object.entries(handoverCard.breakdown)
+                                                    .filter(([, amt]) => Number(amt) > 0)
+                                                    .map(([pmId, amt]) => {
+                                                        const pm = (handoverCard.paymentMethods || []).find((p) => String(p.id) === String(pmId));
+                                                        return (
+                                                            <div key={pmId} className="flex justify-between items-center py-2 border-b border-white/10 last:border-0">
+                                                                <span className="text-xs font-medium text-gray-300">{pm?.name ?? pmId}</span>
+                                                                <span className="text-xs font-medium text-white">{formatINR(amt)}</span>
                                                             </div>
-                                                            <span className="text-xs font-medium text-white">{formatINR(fundInHand?.cash_balance ?? 0)}</span>
-                                                        </div>
-                                                        <div className="border-t border-white/10 pt-2 flex justify-between items-start">
-                                                            <div>
-                                                                <p className="text-xs font-medium text-gray-300">Bank Balance</p>
-                                                                <p className="text-[10px] text-gray-500">
-                                                                    {fundInHand?.bank_accounts?.length ? formatDateDDMMYYYY(fundInHand.bank_accounts[0]?.as_of_date) : "—"}
-                                                                </p>
-                                                            </div>
-                                                            <span className="text-xs font-medium text-white">{formatINR(fundInHand?.total_bank ?? 0)}</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            )}
-                                            {fundSlide === 1 && (
-                                                <div className="p-3 sm:p-4">
-                                                    <h3 className="text-xs sm:text-sm font-semibold text-gray-300 mb-1">{entityName || "Entity"} - Bank Balance</h3>
-                                                    <div className="text-base sm:text-lg font-bold text-white mb-2">
-                                                        {formatINR(fundInHand?.total_bank ?? 0)}
-                                                    </div>
-                                                    <div className="max-h-[180px] overflow-y-auto border-t border-white/10 pt-2 space-y-0">
-                                                        {(fundInHand?.bank_accounts ?? []).map((ba) => {
-                                                            const bank = (organisationBankAccounts || []).find((b) => String(b.id) === String(ba.bank_account_id));
-                                                            return (
-                                                                <div key={ba.bank_account_id} className="flex justify-between items-start py-2 border-b border-white/10 last:border-0">
-                                                                    <div>
-                                                                        <p className="text-xs font-medium text-white">{bank?.bank_name ?? "—"}</p>
-                                                                        <p className="text-[10px] text-gray-500">{bank?.account_number ?? "—"}</p>
-                                                                    </div>
-                                                                    <span className="text-xs font-medium text-white">{formatINR(ba.closing_balance)}</span>
-                                                                </div>
-                                                            );
-                                                        })}
-                                                        {(!fundInHand?.bank_accounts || fundInHand.bank_accounts.length === 0) && (
-                                                            <p className="text-xs text-gray-500 py-3">No bank tally data yet.</p>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </>
+                                                        );
+                                                    })}
+                                                {Object.keys(handoverCard.breakdown).filter((k) => Number(handoverCard.breakdown[k]) > 0).length === 0 && (
+                                                    <p className="text-xs text-gray-500 py-2">No breakdown</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="p-3 sm:p-4">
+                                            <h3 className="text-xs sm:text-sm font-semibold text-gray-300 mb-1">{entityName || "Entity"} - Handover</h3>
+                                            <p className="text-xs text-gray-500 py-4">No handover data yet.</p>
+                                        </div>
                                     )}
-                                </div>
-                            </Card>
+                                </Card>
+
+                                <Card className="glass-card border-white/5 overflow-hidden">
+                                    <div className="p-3 sm:p-4">
+                                        <h3 className="text-xs sm:text-sm font-semibold text-gray-300 mb-1">Fund Out</h3>
+                                        <p className="text-[10px] text-gray-500 mb-1">Today&apos;s vouchers total</p>
+                                        <div className="text-lg sm:text-xl font-bold text-white mb-2">
+                                            {formatINR(fundOutToday.total)}
+                                        </div>
+                                        <div className="border-t border-white/10 pt-2 space-y-2">
+                                            <div className="flex justify-between items-center py-1 border-b border-white/10">
+                                                <span className="text-xs font-medium text-gray-300">By Cash</span>
+                                                <span className="text-xs font-medium text-white">{formatINR(fundOutToday.byCash)}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center py-1">
+                                                <span className="text-xs font-medium text-gray-300">By Bank</span>
+                                                <span className="text-xs font-medium text-white">{formatINR(fundOutToday.byBank)}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </Card>
+                            </div>
                         )}
 
                         <Card className="glass-card mb-8">
