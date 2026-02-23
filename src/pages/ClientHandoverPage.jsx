@@ -105,7 +105,7 @@ const ClientHandoverPage = ({ entityId, entityName }) => {
   );
 };
 
-function BankTallyTab({ clientId, token, toast }) {
+function BankTallyTab({ clientId, token, toast, readOnly = false }) {
   const [reportDate, setReportDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [banks, setBanks] = useState([]);
   const [banksLoaded, setBanksLoaded] = useState(false);
@@ -175,6 +175,7 @@ function BankTallyTab({ clientId, token, toast }) {
 
   const today = new Date().toISOString().slice(0, 10);
   const isPastDate = reportDate < today;
+  const isReadOnly = readOnly || isPastDate;
 
   const handleSave = async () => {
     if (!clientId || !token) return;
@@ -219,11 +220,10 @@ function BankTallyTab({ clientId, token, toast }) {
         <div className="flex flex-wrap items-center gap-2">
           <Label className="text-gray-400 text-sm">Date</Label>
           <Input type="date" className="h-9 sm:h-10 text-sm glass-input w-40 text-white" value={reportDate} onChange={e => setReportDate(e.target.value)} />
-          {isPastDate && <span className="text-amber-400 text-xs">Past date — view only</span>}
-          {!isPastDate && (
-          <Button onClick={handleSave} disabled={saving} className="h-9 sm:h-10 text-sm">
-            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save
-          </Button>
+          {!isReadOnly && (
+            <Button onClick={handleSave} disabled={saving} className="h-9 sm:h-10 text-sm">
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save
+            </Button>
           )}
         </div>
       </CardHeader>
@@ -258,7 +258,7 @@ function BankTallyTab({ clientId, token, toast }) {
                           <Input type="number" readOnly className="h-9 sm:h-10 text-sm glass-input w-28 sm:w-32 bg-white/5 text-white" value={opening} />
                         </TableCell>
                         <TableCell>
-                          <Input type="number" min={0} step={0.01} readOnly={isPastDate} className={`h-9 sm:h-10 text-sm glass-input w-28 sm:w-32 text-white ${isPastDate ? 'bg-white/5 cursor-default' : ''}`} value={closingVal} onChange={e => setClosing(bank.id, e.target.value)} placeholder="Closing" />
+                          <Input type="number" min={0} step={0.01} readOnly={isReadOnly} className={`h-9 sm:h-10 text-sm glass-input w-28 sm:w-32 text-white ${isReadOnly ? 'bg-white/5 cursor-default' : ''}`} value={closingVal} onChange={e => setClosing(bank.id, e.target.value)} placeholder="Closing" />
                         </TableCell>
                         <TableCell>
                           <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input w-28 sm:w-32 bg-white/5 text-white" value={diff != null ? diff.toLocaleString('en-IN', { minimumFractionDigits: 2 }) : '—'} />
@@ -296,7 +296,7 @@ function BankTallyTab({ clientId, token, toast }) {
   );
 }
 
-function CashTallyTab({ clientId, entityId, token, toast }) {
+function CashTallyTab({ clientId, entityId, token, toast, readOnly = false }) {
   const [reportDate, setReportDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [openingBalance, setOpeningBalance] = useState(0);
   const [cashInHandover, setCashInHandover] = useState(0);
@@ -312,6 +312,7 @@ function CashTallyTab({ clientId, entityId, token, toast }) {
   const closingBalance = openingBalance + cashInHandover + cashInOtherNum - cashOut;
   const today = new Date().toISOString().slice(0, 10);
   const isPastDate = reportDate < today;
+  const isReadOnly = readOnly || isPastDate;
 
   const loadData = useCallback(async () => {
     if (!clientId || !token) return;
@@ -391,7 +392,6 @@ function CashTallyTab({ clientId, entityId, token, toast }) {
           <div className="flex items-center gap-2 flex-wrap">
             <Label className="text-gray-400 text-sm">Date</Label>
             <Input type="date" className="h-9 sm:h-10 text-sm glass-input w-40 text-white" value={reportDate} onChange={e => setReportDate(e.target.value)} />
-            {isPastDate && <span className="text-amber-400 text-xs">Past date — view only</span>}
           </div>
         </CardHeader>
         <CardContent className="space-y-6 pt-0">
@@ -409,7 +409,7 @@ function CashTallyTab({ clientId, entityId, token, toast }) {
               </div>
               <div>
                 <Label className="text-gray-400 text-xs">Cash In – Other</Label>
-                <Input type="number" min={0} step={0.01} readOnly={isPastDate} className={`h-9 sm:h-10 text-sm glass-input mt-1 text-white ${isPastDate ? 'bg-white/5 cursor-default' : ''}`} value={cashInOther} onChange={e => setCashInOther(e.target.value)} placeholder="0" />
+                <Input type="number" min={0} step={0.01} readOnly={isReadOnly} className={`h-9 sm:h-10 text-sm glass-input mt-1 text-white ${isReadOnly ? 'bg-white/5 cursor-default' : ''}`} value={cashInOther} onChange={e => setCashInOther(e.target.value)} placeholder="0" />
               </div>
               <div>
                 <Label className="text-gray-400 text-xs">Cash Out</Label>
@@ -448,7 +448,7 @@ function CashTallyTab({ clientId, entityId, token, toast }) {
                           <TableRow key={d.id} className="border-white/10">
                             <TableCell className="text-xs sm:text-sm font-medium text-white">₹ {Number(d.value).toLocaleString('en-IN')} x</TableCell>
                             <TableCell>
-                              <Input type="number" min={0} step={1} readOnly={isPastDate} className={`h-9 sm:h-10 text-sm glass-input w-24 text-white ${isPastDate ? 'bg-white/5 cursor-default' : ''}`} value={units || ''} onChange={e => setUnits(d.id, e.target.value)} placeholder="0" />
+                              <Input type="number" min={0} step={1} readOnly={isReadOnly} className={`h-9 sm:h-10 text-sm glass-input w-24 text-white ${isReadOnly ? 'bg-white/5 cursor-default' : ''}`} value={units || ''} onChange={e => setUnits(d.id, e.target.value)} placeholder="0" />
                             </TableCell>
                             <TableCell>
                               <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input w-32 bg-white/5 text-white" value={total.toLocaleString('en-IN', { minimumFractionDigits: 2 })} />
@@ -475,13 +475,13 @@ function CashTallyTab({ clientId, entityId, token, toast }) {
 
           <div>
             <Label className="text-gray-400 text-sm">Remarks</Label>
-            <Textarea readOnly={isPastDate} className={`h-9 sm:min-h-[80px] text-sm glass-input mt-1 text-white ${isPastDate ? 'bg-white/5 cursor-default' : ''}`} value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="Remarks..." />
+            <Textarea readOnly={isReadOnly} className={`h-9 sm:min-h-[80px] text-sm glass-input mt-1 text-white ${isReadOnly ? 'bg-white/5 cursor-default' : ''}`} value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="Remarks..." />
           </div>
 
-          {!isPastDate && (
-          <Button onClick={handleSubmit} disabled={saving || loading} className="h-9 sm:h-10 text-sm">
-            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Submit
-          </Button>
+          {!isReadOnly && (
+            <Button onClick={handleSubmit} disabled={saving || loading} className="h-9 sm:h-10 text-sm">
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Submit
+            </Button>
           )}
         </CardContent>
       </Card>
@@ -616,39 +616,39 @@ function CashierReportTab({ clientId, token, toast }) {
           <div className="flex items-center justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-white" /></div>
         )}
         {!loadingReport && (
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent border-white/10">
-                <TableHead className="text-xs sm:text-sm text-gray-300 bg-white/5">Department</TableHead>
-                {paymentMethods.map(p => (
-                  <TableHead key={p.id} className="text-xs sm:text-sm text-gray-300 bg-white/5">{p.name}</TableHead>
-                ))}
-                <TableHead className="text-xs sm:text-sm text-gray-300 bg-amber-500/20">Total</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {departments.map(d => (
-                <TableRow key={d.id} className="border-white/10">
-                  <TableCell className="text-xs sm:text-sm font-medium text-white bg-white/5">{d.name}</TableCell>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent border-white/10">
+                  <TableHead className="text-xs sm:text-sm text-gray-300 bg-white/5">Department</TableHead>
                   {paymentMethods.map(p => (
-                    <TableCell key={p.id}>
-                      <Input type="number" min={0} step={0.01} readOnly={readOnly} className={`h-9 sm:h-10 text-sm glass-input w-24 text-white ${readOnly ? 'cursor-default opacity-90' : ''}`} value={getCell(d.id, p.id)} onChange={e => setCell(d.id, p.id, e.target.value)} />
-                    </TableCell>
+                    <TableHead key={p.id} className="text-xs sm:text-sm text-gray-300 bg-white/5">{p.name}</TableHead>
                   ))}
-                  <TableCell className="text-xs sm:text-sm font-medium text-white bg-amber-500/10">{rowTotal(d.id).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
+                  <TableHead className="text-xs sm:text-sm text-gray-300 bg-amber-500/20">Total</TableHead>
                 </TableRow>
-              ))}
-              <TableRow className="border-white/10 bg-amber-500/10 font-medium">
-                <TableCell className="text-xs sm:text-sm text-gray-300">Total</TableCell>
-                {paymentMethods.map(p => (
-                  <TableCell key={p.id} className="text-xs sm:text-sm text-white">{colTotal(p.id).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
+              </TableHeader>
+              <TableBody>
+                {departments.map(d => (
+                  <TableRow key={d.id} className="border-white/10">
+                    <TableCell className="text-xs sm:text-sm font-medium text-white bg-white/5">{d.name}</TableCell>
+                    {paymentMethods.map(p => (
+                      <TableCell key={p.id}>
+                        <Input type="number" min={0} step={0.01} readOnly={readOnly} className={`h-9 sm:h-10 text-sm glass-input w-24 text-white ${readOnly ? 'cursor-default opacity-90' : ''}`} value={getCell(d.id, p.id)} onChange={e => setCell(d.id, p.id, e.target.value)} />
+                      </TableCell>
+                    ))}
+                    <TableCell className="text-xs sm:text-sm font-medium text-white bg-amber-500/10">{rowTotal(d.id).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
+                  </TableRow>
                 ))}
-                <TableCell className="text-xs sm:text-sm text-white">{grandTotal().toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </div>
+                <TableRow className="border-white/10 bg-amber-500/10 font-medium">
+                  <TableCell className="text-xs sm:text-sm text-gray-300">Total</TableCell>
+                  {paymentMethods.map(p => (
+                    <TableCell key={p.id} className="text-xs sm:text-sm text-white">{colTotal(p.id).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
+                  ))}
+                  <TableCell className="text-xs sm:text-sm text-white">{grandTotal().toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
         )}
         <div>
           <Label className="text-gray-400 text-sm">Remarks</Label>
@@ -659,7 +659,7 @@ function CashierReportTab({ clientId, token, toast }) {
   );
 }
 
-function HandoverTab({ clientId, token, toast, isAdminView = false, userRole }) {
+function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, readOnly = false }) {
   const [summaryDate, setSummaryDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [items, setItems] = useState([]);
   const [usersMap, setUsersMap] = useState({});
@@ -702,7 +702,7 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole }) 
       const map = {};
       joined.forEach(u => { map[u.user_id] = u.name || u.email; });
       setUsersMap(map);
-    }).catch(() => {});
+    }).catch(() => { });
   }, [clientId, token, items]);
 
   const handleApprove = async () => {
@@ -749,8 +749,8 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole }) 
   };
 
   const pmName = (id) => paymentMethods.find(p => p.id === id)?.name || id;
-  const showActionColumn = isAdminView ? items.some(row => row.status === 'pending') : true;
-  const canAct = (row) => isAdminView ? row.status === 'pending' : row.client_user_status !== 'approved';
+  const showActionColumn = !readOnly && (isAdminView ? items.some(row => row.status === 'pending') : true);
+  const canAct = (row) => !readOnly && (isAdminView ? row.status === 'pending' : row.client_user_status !== 'approved');
   const statusLabel = (row) => {
     if (row.status === 'approved') return 'Approved';
     if (row.status === 'rejected') return 'Rejected';
@@ -762,12 +762,13 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole }) 
   };
   const colSpan = showActionColumn ? 9 : 8;
   const isBreakdownEditable = (row) => {
+    if (readOnly) return false;
     if (row.status === 'approved') return false;
     if (isAdminView) return true;
     if (userRole === 'CLIENT_HANDOVER') return true;
     return false;
   };
-  const isBreakdownViewOnly = (row) => !isAdminView && userRole !== 'CLIENT_HANDOVER';
+  const isBreakdownViewOnly = (row) => readOnly || (!isAdminView && userRole !== 'CLIENT_HANDOVER');
 
   return (
     <Card className="glass-card border-white/5">

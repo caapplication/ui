@@ -13,12 +13,13 @@ import Vouchers from './Vouchers';
 import Invoices from './Invoices';
 import ExportTallyModal from '@/components/finance/ExportTallyModal';
 import * as XLSX from 'xlsx';
+import { HandoverTab, BankTallyTab, CashTallyTab, ReportTab } from '@/pages/ClientHandoverPage';
 
 const FinancePage = () => {
   const location = useLocation();
   const params = new URLSearchParams(location.search);
   const tabParam = params.get('tab');
-  const [activeTab, setActiveTab] = useState(tabParam === 'invoices' ? 'invoices' : 'vouchers');
+  const [activeTab, setActiveTab] = useState(['invoices', 'handover', 'bank-tally', 'cash-tally', 'report'].includes(tabParam) ? tabParam : 'vouchers');
   const {
     organisations,
     selectedOrg,
@@ -105,13 +106,13 @@ const FinancePage = () => {
           const indicators = await getEntityIndicators(user.access_token);
           console.log('FinancePage: Fetched entity indicators:', indicators);
           console.log('FinancePage: Clients:', clients.map(c => ({ id: String(c.id), name: c.name })));
-          
+
           // Normalize entity IDs to strings for comparison
           const normalizedIndicators = {};
           Object.keys(indicators || {}).forEach(key => {
             normalizedIndicators[String(key)] = indicators[key];
           });
-          
+
           console.log('FinancePage: Normalized indicators:', normalizedIndicators);
           setEntityIndicators(normalizedIndicators);
         } catch (error) {
@@ -168,23 +169,23 @@ const FinancePage = () => {
                 const indicator = entityIndicators[entityIdStr];
                 // On Finance page, only show dot for finance pending, not notices unread
                 const hasNotification = indicator && indicator.has_finance_pending === true;
-                
+
                 // Debug logging
                 if (hasNotification) {
                   console.log(`FinancePage: Client ${client.name} (${entityIdStr}) has notification:`, indicator);
                 }
-                
+
                 return (
-                  <SelectItem 
-                    key={client.id} 
+                  <SelectItem
+                    key={client.id}
                     value={client.id}
                     className={hasNotification ? "relative !pr-8" : "relative"}
                   >
                     <div className="flex items-center justify-between w-full gap-2">
                       <span className="flex-1 truncate">{client.name}</span>
                       {hasNotification && (
-                        <span 
-                          className="w-2 h-2 rounded-full bg-amber-400 border border-[#1e293b] flex-shrink-0" 
+                        <span
+                          className="w-2 h-2 rounded-full bg-amber-400 border border-[#1e293b] flex-shrink-0"
                           aria-hidden="true"
                           style={{ minWidth: '8px', minHeight: '8px' }}
                         />
@@ -216,9 +217,13 @@ const FinancePage = () => {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="flex items-center justify-between mb-8">
-          <TabsList className="inline-flex items-center justify-center gap-4 text-lg">
-            <TabsTrigger value="vouchers" className="px-4 py-2 transition-all duration-300 ease-in-out">Vouchers</TabsTrigger>
-            <TabsTrigger value="invoices" className="px-4 py-2 transition-all duration-300 ease-in-out">Invoices</TabsTrigger>
+          <TabsList className="flex-wrap inline-flex items-center justify-center gap-2 sm:gap-4 text-sm sm:text-lg">
+            <TabsTrigger value="vouchers" className="px-3 sm:px-4 py-2 transition-all duration-300 ease-in-out">Vouchers</TabsTrigger>
+            <TabsTrigger value="invoices" className="px-3 sm:px-4 py-2 transition-all duration-300 ease-in-out">Invoices</TabsTrigger>
+            <TabsTrigger value="handover" className="px-3 sm:px-4 py-2 transition-all duration-300 ease-in-out">Handover</TabsTrigger>
+            <TabsTrigger value="bank-tally" className="px-3 sm:px-4 py-2 transition-all duration-300 ease-in-out">Bank Tally</TabsTrigger>
+            <TabsTrigger value="cash-tally" className="px-3 sm:px-4 py-2 transition-all duration-300 ease-in-out">Cash Tally</TabsTrigger>
+            <TabsTrigger value="report" className="px-3 sm:px-4 py-2 transition-all duration-300 ease-in-out">Report</TabsTrigger>
           </TabsList>
         </div>
         <TabsContent value="vouchers">
@@ -242,6 +247,22 @@ const FinancePage = () => {
             isActive={activeTab === 'invoices'}
           />
         </TabsContent>
+        {selectedClient && (
+          <>
+            <TabsContent value="handover">
+              <HandoverTab clientId={selectedClient} token={user?.access_token} toast={toast} readOnly={true} />
+            </TabsContent>
+            <TabsContent value="bank-tally">
+              <BankTallyTab clientId={selectedClient} token={user?.access_token} toast={toast} readOnly={true} />
+            </TabsContent>
+            <TabsContent value="cash-tally">
+              <CashTallyTab clientId={selectedClient} entityId={selectedClient} token={user?.access_token} toast={toast} readOnly={true} />
+            </TabsContent>
+            <TabsContent value="report">
+              <ReportTab clientId={selectedClient} entityId={selectedClient} entityName={clients.find(c => c.id === selectedClient)?.name} token={user?.access_token} toast={toast} />
+            </TabsContent>
+          </>
+        )}
       </Tabs>
     </div>
   );
