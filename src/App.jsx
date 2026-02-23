@@ -424,7 +424,7 @@ const ProtectedContent = () => {
           onPointerDownOutside={(e) => e.preventDefault()}
         >
           <DialogHeader className="text-center">
-            <DialogTitle className="text-white text-xl">Account Locked</DialogTitle>
+            <DialogTitle className="text-white text-xl text-center w-full">Account Locked</DialogTitle>
             <div className="flex justify-center my-4">
               <div className="w-24 h-24 rounded-full bg-white/10 flex items-center justify-center">
                 <Lock className="w-14 h-14 text-white" />
