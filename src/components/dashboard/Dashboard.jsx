@@ -218,7 +218,7 @@ const Dashboard = ({
     const { user } = useAuth();
     const { toast } = useToast();
     const navigate = useNavigate();
-    const isClientAdmin = user?.role === "CLIENT_MASTER_ADMIN";
+    const isClientAdmin = user?.role === "CLIENT_MASTER_ADMIN" || user?.role === "CLIENT_USER";
 
     const fabItems = [
         { label: "Beneficiaries", icon: Users, path: "/beneficiaries", state: { quickAction: 'add-beneficiary', returnToDashboard: true } },
