@@ -101,8 +101,8 @@ const HandoverPage = () => {
       const v = collectionAmounts[p.id];
       if (v != null && String(v).trim() !== '') details[p.id] = parseFloat(v) || 0;
     });
-    if (grandTotal <= 0 && !editingRow) {
-      toast({ variant: 'destructive', title: 'Validation', description: 'Enter at least one collection amount.' });
+    if (grandTotal < 0 && !editingRow) {
+      toast({ variant: 'destructive', title: 'Validation', description: 'Collection amount cannot be negative.' });
       return;
     }
     setSubmitting(true);
@@ -196,10 +196,9 @@ const HandoverPage = () => {
                     </button>
                   </TableCell>
                   <TableCell>
-                    <span className={`inline-flex px-2 py-0.5 rounded text-sm ${
-                      row.status === 'approved' ? 'bg-green-500/20 text-green-400' :
-                      row.status === 'rejected' ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'
-                    }`}>
+                    <span className={`inline-flex px-2 py-0.5 rounded text-sm ${row.status === 'approved' ? 'bg-green-500/20 text-green-400' :
+                        row.status === 'rejected' ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'
+                      }`}>
                       {row.status === 'pending' ? 'Pending' : row.status === 'approved' ? 'Approved' : 'Rejected'}
                     </span>
                   </TableCell>
