@@ -15,16 +15,28 @@ import {
   ChevronRight,
   Lock,
   Unlock,
-  RefreshCcw
+  RefreshCcw,
+  Plus
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger
+} from '@/components/ui/dialog';
 import { useAuth } from '@/hooks/useAuth.jsx';
-import { getAgencyDetails, lockUser, unlockUser } from '@/lib/api/admin';
+import { getAgencyDetails, lockUser, unlockUser, inviteCA } from '@/lib/api/admin';
 import { useToast } from '@/components/ui/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+
 
 const AgencyDetails = () => {
   const { id } = useParams();
@@ -35,6 +47,33 @@ const AgencyDetails = () => {
   const [loading, setLoading] = useState(true);
   const [activeUserFilter, setActiveUserFilter] = useState('all');
   const [actionLoading, setActionLoading] = useState(null);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteLoading, setInviteLoading] = useState(false);
+
+
+  const consolidatedAdmins = React.useMemo(() => {
+    if (!data) return [];
+    const { users, invites } = data;
+    const list = [...users.agency_admins.map(u => ({ ...u, category: 'Agency Admin', role_key: 'admin' }))];
+
+    invites.forEach(inv => {
+      if (inv.role === 'AGENCY_ADMIN') {
+        list.push({
+          id: `invite-${inv.email}`,
+          email: inv.email,
+          name: 'Pending Invitation',
+          is_pending: true,
+          is_active: false,
+          category: 'Agency Admin',
+          role_key: 'admin',
+          created_at: inv.created_at
+        });
+      }
+    });
+
+    return list;
+  }, [data]);
 
   const consolidatedUsers = React.useMemo(() => {
     if (!data) return [];
@@ -49,6 +88,8 @@ const AgencyDetails = () => {
 
     // Pending invites (mapping them to user-like objects)
     invites.forEach(inv => {
+      if (inv.role === 'AGENCY_ADMIN') return; // Skip agency admins in Users tab
+
       let role_key = 'invite';
       let category = inv.role.replace('_', ' ');
 
@@ -84,6 +125,7 @@ const AgencyDetails = () => {
       return u.role_key === activeUserFilter;
     });
   }, [data, activeUserFilter]);
+
 
   useEffect(() => {
     const fetchData = async () => {
@@ -131,6 +173,35 @@ const AgencyDetails = () => {
       setActionLoading(null);
     }
   };
+
+  const handleInviteCA = async (e) => {
+    e.preventDefault();
+    if (!inviteEmail) return;
+
+    try {
+      setInviteLoading(true);
+      await inviteCA(inviteEmail, id, user.access_token);
+      toast({
+        title: "Invitation Sent",
+        description: `An invitation has been sent to ${inviteEmail}.`,
+      });
+      setIsInviteModalOpen(false);
+      setInviteEmail('');
+
+      // Refresh data to show the new invite
+      const result = await getAgencyDetails(id, user.access_token);
+      setData(result);
+    } catch (error) {
+      toast({
+        title: "Invitation Failed",
+        description: error.message || "Failed to send invitation.",
+        variant: "destructive"
+      });
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
 
   if (loading) {
     return (
@@ -352,32 +423,83 @@ const AgencyDetails = () => {
 
         <TabsContent value="admins" className="pt-6">
           <Card className="glass-card overflow-hidden">
-            <UserTable users={users.agency_admins} roleLabel="Agency Admins" />
+            <UserTable users={consolidatedAdmins} roleLabel="Agency Admins" showRole={true} />
           </Card>
         </TabsContent>
 
+
         <TabsContent value="users" className="pt-6 space-y-4">
-          <div className="flex flex-wrap gap-2">
-            {[
-              { id: 'all', label: 'All Users' },
-              { id: 'ca', label: 'CA Accountants' },
-              { id: 'team', label: 'Team Members' },
-              { id: 'client_user', label: 'Client Users' },
-              { id: 'invites', label: 'Invitations' },
-            ].map(filter => (
-              <Button
-                key={filter.id}
-                variant={activeUserFilter === filter.id ? "default" : "outline"}
-                size="sm"
-                className={`text-[10px] h-7 px-3 uppercase tracking-wider font-semibold ${activeUserFilter === filter.id
-                  ? "bg-primary text-white border-primary"
-                  : "bg-white/5 text-gray-400 border-white/10 hover:text-white"
-                  }`}
-                onClick={() => setActiveUserFilter(filter.id)}
-              >
-                {filter.label}
-              </Button>
-            ))}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex flex-wrap gap-2">
+              {[
+                { id: 'all', label: 'All Users' },
+                { id: 'ca', label: 'CA Accountants' },
+                { id: 'team', label: 'Team Members' },
+                { id: 'client_user', label: 'Client Users' },
+                { id: 'invites', label: 'Invitations' },
+              ].map(filter => (
+                <Button
+                  key={filter.id}
+                  variant={activeUserFilter === filter.id ? "default" : "outline"}
+                  size="sm"
+                  className={`text-[10px] h-7 px-3 uppercase tracking-wider font-semibold ${activeUserFilter === filter.id
+                    ? "bg-primary text-white border-primary"
+                    : "bg-white/5 text-gray-400 border-white/10 hover:text-white"
+                    }`}
+                  onClick={() => setActiveUserFilter(filter.id)}
+                >
+                  {filter.label}
+                </Button>
+              ))}
+            </div>
+
+            <Dialog open={isInviteModalOpen} onOpenChange={setIsInviteModalOpen}>
+              <DialogTrigger asChild>
+                <Button className="bg-primary hover:bg-primary/90 text-white gap-2 text-xs h-8">
+                  <Plus className="w-3.5 h-3.5" />
+                  Add CA
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="glass-effect border-white/10 text-white">
+                <DialogHeader>
+                  <DialogTitle>Invite CA Accountant</DialogTitle>
+                  <DialogDescription className="text-gray-400">
+                    Send an email invitation to a new Chartered Accountant and assign them to {agency.name}.
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleInviteCA} className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">CA Email Address</label>
+                    <Input
+                      type="email"
+                      placeholder="ca@example.com"
+                      value={inviteEmail}
+                      onChange={(e) => setInviteEmail(e.target.value)}
+                      className="bg-white/5 border-white/10 text-white"
+                      required
+                    />
+                  </div>
+                  <DialogFooter className="pt-4">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => setIsInviteModalOpen(false)}
+                      className="text-gray-400 hover:text-white"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={inviteLoading}
+                      className="bg-primary text-white"
+                    >
+                      {inviteLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                      Send Invitation
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
           </div>
 
           <Card className="glass-card overflow-hidden">
