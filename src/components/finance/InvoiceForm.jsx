@@ -162,18 +162,22 @@ const InvoiceForm = ({ entityId, beneficiaries, isLoading, onSave, onCancel, inv
                                         placeholder="Select beneficiary..."
                                         searchPlaceholder="Search beneficiaries..."
                                         emptyText="No beneficiaries found."
-                                        footer={
+                                        footer={({ close }) => (
                                             <Button
                                                 type="button"
                                                 variant="secondary"
                                                 size="sm"
                                                 className="w-full h-8 text-xs mt-1"
-                                                onClick={() => setShowAddBeneficiaryDialog(true)}
+                                                onClick={() => {
+                                                    setShowAddBeneficiaryDialog(true);
+                                                    close();
+                                                }}
                                             >
                                                 <Plus className="w-3 h-3 mr-1" />
                                                 Add New Beneficiary
                                             </Button>
-                                        }
+                                        )}
+
                                         disabled={isLoading}
                                     />
                                 )}

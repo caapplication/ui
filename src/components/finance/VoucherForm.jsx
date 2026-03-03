@@ -326,18 +326,22 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
                                     placeholder="Select beneficiary..."
                                     searchPlaceholder="Search beneficiaries..."
                                     emptyText="No beneficiaries found."
-                                    footer={
+                                    footer={({ close }) => (
                                         <Button
                                             type="button"
                                             variant="secondary"
                                             size="sm"
                                             className="w-full h-8 text-xs mt-1"
-                                            onClick={() => setShowAddBeneficiaryDialog(true)}
+                                            onClick={() => {
+                                                setShowAddBeneficiaryDialog(true);
+                                                close();
+                                            }}
                                         >
                                             <Plus className="w-3 h-3 mr-1" />
                                             Add New Beneficiary
                                         </Button>
-                                    }
+                                    )}
+
                                     disabled={isLoading}
                                 />
                             )}
@@ -381,18 +385,22 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
                                                 placeholder="Select your bank account..."
                                                 searchPlaceholder="Search bank accounts..."
                                                 emptyText="No bank accounts found."
-                                                footer={
+                                                footer={({ close }) => (
                                                     <Button
                                                         type="button"
                                                         variant="secondary"
                                                         size="sm"
                                                         className="w-full h-8 text-xs mt-1"
-                                                        onClick={() => setShowAddOrgBankAccountDialog(true)}
+                                                        onClick={() => {
+                                                            setShowAddOrgBankAccountDialog(true);
+                                                            close();
+                                                        }}
                                                     >
                                                         <Plus className="w-3 h-3 mr-1" />
                                                         Add New Organization Bank
                                                     </Button>
-                                                }
+                                                )}
+
                                                 disabled={isLoading || isLoadingOrgAccounts}
                                             />
                                         )}
@@ -432,18 +440,22 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
                                                 placeholder="Select beneficiary's account..."
                                                 searchPlaceholder="Search beneficiary accounts..."
                                                 emptyText="No bank accounts found."
-                                                footer={
+                                                footer={({ close }) => (
                                                     <Button
                                                         type="button"
                                                         variant="secondary"
                                                         size="sm"
                                                         className="w-full h-8 text-xs mt-1"
-                                                        onClick={() => setShowAddBankAccountDialog(true)}
+                                                        onClick={() => {
+                                                            setShowAddBankAccountDialog(true);
+                                                            close();
+                                                        }}
                                                     >
                                                         <Plus className="w-3 h-3 mr-1" />
                                                         Add New Bank Account
                                                     </Button>
-                                                }
+                                                )}
+
                                                 disabled={isLoading || isLoadingBeneficiaryAccounts}
                                             />
                                         )}

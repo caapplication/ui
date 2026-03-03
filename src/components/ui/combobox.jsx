@@ -85,7 +85,12 @@ export function Combobox({
               ))}
             </CommandGroup>
           </CommandList>
-          {footer && <div className="p-1 border-t border-white/10">{footer}</div>}
+          {footer && (
+            <div className="p-1 border-t border-white/10">
+              {typeof footer === "function" ? footer({ close: () => setOpen(false) }) : footer}
+            </div>
+          )}
+
         </Command>
       </PopoverContent>
     </Popover>
