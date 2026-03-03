@@ -23,6 +23,8 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction,
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showToggleActiveDialog, setShowToggleActiveDialog] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const [newAccountType, setNewAccountType] = useState("");
   const [visibleAccounts, setVisibleAccounts] = useState({});
   const [activeTab, setActiveTab] = useState("active");
@@ -65,7 +67,8 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction,
 
   const handleAddAccount = async (e) => {
     e.preventDefault();
-    if (!entityId) return;
+    if (!entityId || isSubmitting) return;
+    setIsSubmitting(true);
     const formData = new FormData(e.target);
     const data = Object.fromEntries(formData.entries());
     const finalData = { ...data, entity_id: entityId, account_type: newAccountType };
@@ -81,12 +84,16 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction,
         description: `Failed to add bank account: ${error.message}`,
         variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
+
   const handleEditAccount = async (e) => {
     e.preventDefault();
-    if (!selectedAccount) return;
+    if (!selectedAccount || isSubmitting) return;
+    setIsSubmitting(true);
     const formData = new FormData(e.target);
     const data = Object.fromEntries(formData.entries());
     const finalData = { ...data, account_type: newAccountType };
@@ -102,11 +109,15 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction,
         description: `Failed to update bank account: ${error.message}`,
         variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
+
   const handleDeleteAccount = async () => {
-    if (!selectedAccount) return;
+    if (!selectedAccount || isSubmitting) return;
+    setIsSubmitting(true);
     try {
       await deleteOrganisationBankAccount(selectedAccount.id, user.access_token);
       toast({ title: "Success", description: "Bank account deleted successfully." });
@@ -118,15 +129,19 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction,
         description: `Failed to delete bank account: ${error.message}`,
         variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
+
 
   const toggleMask = (accountId) => {
     setVisibleAccounts(prev => ({ ...prev, [accountId]: !prev[accountId] }));
   };
 
   const handleToggleActive = async () => {
-    if (!selectedAccount) return;
+    if (!selectedAccount || isSubmitting) return;
+    setIsSubmitting(true);
     try {
       await updateOrganisationBankAccount(selectedAccount.id, { is_active: !selectedAccount.is_active }, user.access_token);
       toast({ title: "Success", description: "Bank account status updated successfully." });
@@ -138,8 +153,11 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction,
         description: `Failed to update bank account status: ${error.message}`,
         variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
+
 
   const activeAccounts = bankAccounts.filter(acc => acc.is_active);
   const inactiveAccounts = bankAccounts.filter(acc => !acc.is_active);
@@ -347,9 +365,13 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction,
               </Select>
             </div>
             <DialogFooter>
-              <DialogClose asChild><Button variant="ghost" className="h-9 sm:h-10 text-sm sm:text-base">Cancel</Button></DialogClose>
-              <Button type="submit" className="h-9 sm:h-10 text-sm sm:text-base"><Plus className="w-4 h-4 mr-2" />Add Account</Button>
+              <DialogClose asChild><Button variant="ghost" className="h-9 sm:h-10 text-sm sm:text-base" disabled={isSubmitting}>Cancel</Button></DialogClose>
+              <Button type="submit" className="h-9 sm:h-10 text-sm sm:text-base" disabled={isSubmitting}>
+                {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}
+                {isSubmitting ? "Adding..." : "Add Account"}
+              </Button>
             </DialogFooter>
+
           </form>
         </DialogContent>
       </Dialog>
@@ -397,9 +419,13 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction,
               </Select>
             </div>
             <DialogFooter>
-              <DialogClose asChild><Button variant="ghost" className="h-9 sm:h-10 text-sm sm:text-base">Cancel</Button></DialogClose>
-              <Button type="submit" className="h-9 sm:h-10 text-sm sm:text-base">Save Changes</Button>
+              <DialogClose asChild><Button variant="ghost" className="h-9 sm:h-10 text-sm sm:text-base" disabled={isSubmitting}>Cancel</Button></DialogClose>
+              <Button type="submit" className="h-9 sm:h-10 text-sm sm:text-base" disabled={isSubmitting}>
+                {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                {isSubmitting ? "Saving..." : "Save Changes"}
+              </Button>
             </DialogFooter>
+
           </form>
         </DialogContent>
       </Dialog>
@@ -413,13 +439,15 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction,
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setShowDeleteDialog(false)} className="h-9 sm:h-10 text-sm sm:text-base">
+            <Button variant="ghost" onClick={() => setShowDeleteDialog(false)} className="h-9 sm:h-10 text-sm sm:text-base" disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDeleteAccount} className="h-9 sm:h-10 text-sm sm:text-base">
-              Delete
+            <Button variant="destructive" onClick={handleDeleteAccount} className="h-9 sm:h-10 text-sm sm:text-base" disabled={isSubmitting}>
+              {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+              {isSubmitting ? "Deleting..." : "Delete"}
             </Button>
           </DialogFooter>
+
         </DialogContent>
       </Dialog>
 
@@ -432,13 +460,15 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction,
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setShowToggleActiveDialog(false)} className="h-9 sm:h-10 text-sm sm:text-base">
+            <Button variant="ghost" onClick={() => setShowToggleActiveDialog(false)} className="h-9 sm:h-10 text-sm sm:text-base" disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button onClick={handleToggleActive} className="h-9 sm:h-10 text-sm sm:text-base">
-              Confirm
+            <Button onClick={handleToggleActive} className="h-9 sm:h-10 text-sm sm:text-base" disabled={isSubmitting}>
+              {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+              {isSubmitting ? "Processing..." : "Confirm"}
             </Button>
           </DialogFooter>
+
         </DialogContent>
       </Dialog>
     </div>
