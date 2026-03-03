@@ -393,8 +393,8 @@ const ClientBillPaymentPage = ({ entityId }) => {
                 </div>
 
                 {/* Due Amount and Filters on one line */}
-                <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
-                    <Card className="glass-card border-white/5 sm:max-w-[220px]">
+                <div className="flex flex-col sm:flex-row items-stretch gap-4 mb-6">
+                    <Card className="glass-card border-white/5 w-full sm:w-[250px] shrink-0 flex flex-col justify-center">
                         <CardHeader className="pb-2">
                             <CardTitle className="text-sm text-gray-400">Due Amount</CardTitle>
                         </CardHeader>

@@ -136,7 +136,7 @@ const ClientTeamMembersTab = ({ client, teamMembers = [], onTeamMemberChanged })
 
     return (
         <div className="space-y-4">
-            <Card className="glass-pane border-none shadow-none">
+            <Card className="glass-pane rounded-lg border-white/10 overflow-hidden">
                 <CardHeader>
                     <div className="flex justify-between items-center">
                         <CardTitle className="text-white">Team Members ({assignedMembers.length})</CardTitle>
@@ -218,7 +218,7 @@ const ClientTeamMembersTab = ({ client, teamMembers = [], onTeamMemberChanged })
                         </Dialog>
                     </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-0">
                     {assignedMembers.length === 0 ? (
                         <div className="text-center py-12">
                             <User className="mx-auto w-12 h-12 text-gray-400 mb-4" />
@@ -246,16 +246,16 @@ const ClientTeamMembersTab = ({ client, teamMembers = [], onTeamMemberChanged })
                                                         {member.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'}
                                                     </AvatarFallback>
                                                 </Avatar>
-                                                <span className="font-medium">{member.name || 'Unknown'}</span>
+                                                <span className="font-medium whitespace-nowrap">{member.name || 'Unknown'}</span>
                                             </div>
                                         </TableCell>
-                                        <TableCell>{member.email || 'N/A'}</TableCell>
-                                        <TableCell>
+                                        <TableCell className="whitespace-nowrap">{member.email || 'N/A'}</TableCell>
+                                        <TableCell className="whitespace-nowrap">
                                             <span className="px-2 py-1 rounded bg-blue-500/20 text-blue-300 text-sm">
                                                 {member.role || 'Team Member'}
                                             </span>
                                         </TableCell>
-                                        <TableCell className="text-right">
+                                        <TableCell className="text-right whitespace-nowrap">
                                             <Button
                                                 variant="ghost"
                                                 size="icon"

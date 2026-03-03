@@ -401,11 +401,11 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
 
     return (
         <div className="h-full flex flex-col">
-            <div className="glass-pane rounded-lg flex-grow flex flex-col overflow-hidden">
+            <div className={cn("rounded-lg flex-grow flex flex-col overflow-hidden", !isHistoryView && "glass-pane")}>
                 <div className="p-4 border-b border-white/10">
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                        <h2 className="text-xl font-semibold">All Tasks</h2>
-                        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto flex-wrap items-center">
+                    <div className={cn("flex flex-col xl:flex-row items-start lg:items-center gap-4", isHistoryView ? "justify-end" : "justify-between")}>
+                        {!isHistoryView && <h2 className="text-xl font-semibold">All Tasks</h2>}
+                        <div className="flex flex-col lg:flex-row gap-2 w-full xl:w-auto flex-wrap items-center">
                             {/* Client Filter */}
                             <Select value={clientIdFilter} onValueChange={setClientIdFilter}>
                                 <SelectTrigger className="w-full sm:w-[150px]">
@@ -482,6 +482,7 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                                             // Dynamically populate from stages
                                             stages
                                                 .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+                                                .filter(stage => stage.name?.toLowerCase() !== 'complete')
                                                 .map((stage) => (
                                                     <SelectItem key={stage.id} value={stage.name?.toLowerCase() || ''}>
                                                         {stage.name}
@@ -492,7 +493,7 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                                             <>
                                                 <SelectItem value="pending">Pending</SelectItem>
                                                 <SelectItem value="in progress">In Progress</SelectItem>
-                                                <SelectItem value="completed">Completed</SelectItem>
+                                                {/* <SelectItem value="completed">Completed</SelectItem> */}
                                                 <SelectItem value="hold">Hold</SelectItem>
                                             </>
                                         )}
@@ -704,47 +705,41 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                     </Table>
                 </div>
                 {filteredTasks.length > 0 && (
-                    <div className="p-4 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <div className="p-4 sm:p-6 border-t border-white/5 flex flex-col sm:flex-row justify-between items-center gap-4">
+                        <p className="text-xs sm:text-sm text-gray-400">
+                            Page {currentPage} of {totalPages || 1} {filteredTasks.length > 0 ? `(${filteredTasks.length} total)` : ''}
+                        </p>
                         <div className="flex items-center gap-2">
-                            <span className="text-sm text-gray-400">Items per page:</span>
-                            <Select value={String(pageSize)} onValueChange={(value) => {
-                                setPageSize(Number(value));
-                                setCurrentPage(1);
-                            }}>
-                                <SelectTrigger className="w-20 h-8">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="10">10</SelectItem>
-                                    <SelectItem value="25">25</SelectItem>
-                                    <SelectItem value="50">50</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="flex items-center gap-4">
-                            <span className="text-sm text-gray-400">
-                                Page {currentPage} of {totalPages} ({filteredTasks.length} total)
-                            </span>
-                            <div className="flex items-center gap-2">
-                                <Button
-                                    variant="outline"
-                                    size="icon"
-                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                    disabled={currentPage === 1}
-                                    className="h-8 w-8"
-                                >
-                                    <ChevronLeft className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    size="icon"
-                                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                                    disabled={currentPage === totalPages}
-                                    className="h-8 w-8"
-                                >
-                                    <ChevronRight className="w-4 h-4" />
-                                </Button>
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                            >
+                                <ChevronLeft className="w-4 h-4" />
+                            </Button>
+                            <div className="flex items-center gap-1">
+                                {[...Array(totalPages)].map((_, i) => (
+                                    <Button
+                                        key={i}
+                                        variant={currentPage === i + 1 ? "default" : "ghost"}
+                                        className={`h-8 w-8 sm:h-9 sm:w-9 rounded-xl text-xs ${currentPage === i + 1 ? 'bg-primary text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                                        onClick={() => setCurrentPage(i + 1)}
+                                    >
+                                        {i + 1}
+                                    </Button>
+                                )).slice(Math.max(0, currentPage - 3), Math.min(totalPages, currentPage + 2))}
                             </div>
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                disabled={currentPage === totalPages || totalPages === 0}
+                            >
+                                <ChevronRight className="w-4 h-4" />
+                            </Button>
                         </div>
                     </div>
                 )}

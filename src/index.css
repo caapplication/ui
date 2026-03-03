@@ -145,7 +145,7 @@ body {
 }
 
 .glass-pane {
-  @apply bg-black/30 backdrop-blur-2xl border border-white/20 shadow-2xl shadow-black/50;
+  @apply bg-black/30 backdrop-blur-2xl border border-white/20  ;
 }
 
 .glass-card {
@@ -256,4 +256,16 @@ h6 {
   border-color: rgba(255, 255, 255, 0.15);
   transform: translateY(-5px);
 
+}
+
+/* Hide arrow spinners for number inputs */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
 }

@@ -89,14 +89,14 @@ const SuperAdminSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) =
                         {isActive && (
                           <motion.div
                             layoutId="active-nav-glow-admin"
-                            className="absolute inset-0 bg-primary/20 rounded-lg "
+                            className="absolute inset-0 bg-white/10 rounded-lg "
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                           ></motion.div>
                         )}
                       </AnimatePresence>
-                      <Icon className={`w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0 z-10 ${isCollapsed ? 'mx-auto' : 'mr-3 sm:mr-4'} ${isActive ? 'text-primary' : ''}`} />
+                      <Icon className={`w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0 z-10 ${isCollapsed ? 'mx-auto' : 'mr-3 sm:mr-4'} `} />
                       <AnimatePresence>
                         {!isCollapsed && (
                           <motion.span variants={textVariants} initial="collapsed" animate="expanded" exit="collapsed" className="flex-1 font-medium z-10">

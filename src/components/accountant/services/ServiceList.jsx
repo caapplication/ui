@@ -15,7 +15,7 @@ const ServiceRow = ({ service, onSelectService, index }) => {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: index * 0.05 }}
-            className="border-none hover:bg-white/5 cursor-pointer"
+            className="border-b border-white/10 hover:bg-white/5 cursor-pointer w-full"
             onClick={() => onSelectService(service)}
         >
             <TableCell className="font-medium">
@@ -84,29 +84,31 @@ const ServiceList = ({ services, onSelectService, onAddService }) => {
                 </div>
             </div>
 
-            <div className="flex-grow overflow-y-auto glass-pane p-1 rounded-lg">
-                <Table>
-                    <TableHeader>
-                        <TableRow className="border-b border-white/10">
-                            <TableHead className="w-[40%]">Service</TableHead>
-                            <TableHead>Recurring</TableHead>
-                            <TableHead className="text-center">Assigned Clients</TableHead>
-                            <TableHead className="text-center">Status</TableHead>
-                            <TableHead className="w-[50px]"></TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {filteredServices.map((service, index) => (
-                            <ServiceRow key={service.id} service={service} onSelectService={onSelectService} index={index} />
-                        ))}
-                    </TableBody>
-                </Table>
-                {filteredServices.length === 0 && (
-                    <div className="text-center py-16 text-gray-500">
-                        <p className="text-lg">No services found.</p>
-                        <p>Try adjusting your search or filter.</p>
-                    </div>
-                )}
+            <div className="flex-grow glass-pane rounded-lg overflow-hidden flex flex-col min-h-0">
+                <div className="flex-grow overflow-y-auto  custom-scrollbar">
+                    <Table>
+                        <TableHeader>
+                            <TableRow className="border-b border-white/10">
+                                <TableHead className="w-[40%]">Service</TableHead>
+                                <TableHead>Recurring</TableHead>
+                                <TableHead className="text-center">Assigned Clients</TableHead>
+                                <TableHead className="text-center">Status</TableHead>
+                                <TableHead className="w-[50px]"></TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {filteredServices.map((service, index) => (
+                                <ServiceRow key={service.id} service={service} onSelectService={onSelectService} index={index} />
+                            ))}
+                        </TableBody>
+                    </Table>
+                    {filteredServices.length === 0 && (
+                        <div className="text-center py-16 text-gray-500">
+                            <p className="text-lg">No services found.</p>
+                            <p>Try adjusting your search or filter.</p>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );

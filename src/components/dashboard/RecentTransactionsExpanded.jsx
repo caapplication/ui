@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useNavigate } from 'react-router-dom';
 import {
     ChevronLeft,
@@ -362,116 +363,116 @@ const RecentTransactionsExpanded = ({ entityId }) => {
             <Card className="glass-card overflow-hidden border-white/5 rounded-3xl flex flex-col">
                 <CardContent className="p-0 flex flex-col">
                     <div className="overflow-auto custom-scrollbar">
-                        <table className="w-full text-left border-collapse">
-                            <thead className="sticky top-0 z-20">
-                                <tr className="border-b border-white/10 text-gray-400 text-[10px] sm:text-xs font-medium uppercase tracking-wider bg-white/5">
-                                    <th className="py-4 pl-6 w-16">S.No</th>
-                                    <th
+                        <Table className="w-full text-left border-collapse">
+                            <TableHeader className="sticky top-0 z-20">
+                                <TableRow className="border-b border-white/10 text-gray-400 text-[10px] sm:text-xs font-medium uppercase tracking-wider bg-white/5">
+                                    <TableHead className="py-4 pl-6 w-16">S.No</TableHead>
+                                    <TableHead
                                         className="py-4 px-4 cursor-pointer select-none hover:text-white transition-colors"
                                         onClick={() => handleSort('beneficiary_name')}
                                     >
                                         Beneficiary <SortIcon column="beneficiary_name" />
-                                    </th>
-                                    <th className="py-4 px-4">Remarks</th>
-                                    <th
+                                    </TableHead>
+                                    <TableHead className="py-4 px-4">Remarks</TableHead>
+                                    <TableHead
                                         className="py-4 px-4 cursor-pointer select-none hover:text-white transition-colors"
                                         onClick={() => handleSort('created_date')}
                                     >
                                         Date <SortIcon column="created_date" />
-                                    </th>
-                                    <th
+                                    </TableHead>
+                                    <TableHead
                                         className="py-4 pr-6 text-right cursor-pointer select-none hover:text-white transition-colors"
                                         onClick={() => handleSort('amount')}
                                     >
                                         Amount <SortIcon column="amount" />
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="text-sm">
+                                    </TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody className="text-sm">
                                 {loading ? (
-                                    <tr>
-                                        <td colSpan="5" className="py-12 text-center text-gray-400">
+                                    <TableRow>
+                                        <TableCell colSpan="5" className="py-12 text-center text-gray-400">
                                             <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />
                                             Loading...
-                                        </td>
-                                    </tr>
+                                        </TableCell>
+                                    </TableRow>
                                 ) : paginatedData.length > 0 ? (
                                     paginatedData.map((v, idx) => {
                                         const beneficiaryName = v.beneficiary_name || v.beneficiary?.name || v.beneficiary?.company_name || '-';
                                         const vDate = v.created_date || v.created_at;
                                         return (
-                                            <tr
+                                            <TableRow
                                                 key={v.id || idx}
                                                 className="border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer"
                                                 onClick={() => navigate(`/finance/vouchers/${v.id}`)}
                                             >
-                                                <td className="py-4 pl-6 text-gray-500 font-mono">
+                                                <TableCell className="py-4 pl-6 text-gray-500 font-mono">
                                                     {String((currentPage - 1) * itemsPerPage + idx + 1).padStart(2, '0')}
-                                                </td>
-                                                <td className="py-4 px-4 text-white font-medium">
+                                                </TableCell>
+                                                <TableCell className="py-4 px-4 text-white font-medium">
                                                     {beneficiaryName}
-                                                </td>
-                                                <td className="py-4 px-4 text-gray-400 max-w-[200px] truncate">
+                                                </TableCell>
+                                                <TableCell className="py-4 px-4 text-gray-400 max-w-[200px] truncate">
                                                     {v.remarks || '-'}
-                                                </td>
-                                                <td className="py-4 px-4 text-gray-400 whitespace-nowrap">
+                                                </TableCell>
+                                                <TableCell className="py-4 px-4 text-gray-400 whitespace-nowrap">
                                                     {vDate ? format(new Date(vDate), 'dd MMM yyyy') : '-'}
-                                                </td>
-                                                <td className="py-4 pr-6 text-right text-red-400 font-semibold whitespace-nowrap">
+                                                </TableCell>
+                                                <TableCell className="py-4 pr-6 text-right text-red-400 font-semibold whitespace-nowrap">
                                                     ₹{Math.round(parseFloat(v.amount) || 0).toLocaleString('en-IN')}
-                                                </td>
-                                            </tr>
+                                                </TableCell>
+                                            </TableRow>
                                         );
                                     })
                                 ) : (
-                                    <tr>
-                                        <td colSpan="5" className="py-8 text-center text-gray-500">
+                                    <TableRow>
+                                        <TableCell colSpan="5" className="py-8 text-center text-gray-500">
                                             No transactions found.
-                                        </td>
-                                    </tr>
+                                        </TableCell>
+                                    </TableRow>
                                 )}
-                            </tbody>
+                            </TableBody>
                             {filteredData.length > 0 && (
                                 <tfoot>
-                                    <tr className="bg-white/5 font-bold text-white border-t border-white/10">
-                                        <td colSpan="4" className="py-4 pl-6 text-right pr-4 uppercase tracking-wider text-xs">
+                                    <TableRow className="bg-white/5 font-bold text-white border-t border-white/10">
+                                        <TableCell colSpan="4" className="py-4 pl-6 text-right pr-4 uppercase tracking-wider text-xs">
                                             Total ({filteredData.length} transactions)
-                                        </td>
-                                        <td className="py-4 pr-6 text-right text-red-400 font-bold text-base">
+                                        </TableCell>
+                                        <TableCell className="py-4 pr-6 text-right text-red-400 font-bold text-base">
                                             ₹{Math.round(totalAmount).toLocaleString('en-IN')}
-                                        </td>
-                                    </tr>
+                                        </TableCell>
+                                    </TableRow>
                                 </tfoot>
                             )}
-                        </table>
+                        </Table>
                     </div>
                 </CardContent>
 
                 {/* Pagination */}
                 {totalPages > 1 && (
                     <div className="p-4 sm:p-6 border-t border-white/5 flex justify-between items-center bg-white/5">
-                        <p className="text-xs text-gray-400">
-                            Showing {paginatedData.length} of {filteredData.length} records
+                        <p className="text-sm text-gray-400">
+                            Page {currentPage} of {totalPages}
                         </p>
                         <div className="flex items-center gap-2">
                             <Button
                                 variant="outline"
                                 size="icon"
-                                className="h-8 w-8 border-white/10 bg-transparent hover:bg-white/10 text-white"
+                                className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
                                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                                 disabled={currentPage === 1}
                             >
                                 <ChevronLeft className="w-4 h-4" />
                             </Button>
-                            <div className="flex items-center gap-1.5 px-3 py-1 bg-white/5 rounded-lg border border-white/10">
+                            {/* <div className="flex items-center gap-1.5 px-3 py-1 bg-white/5 rounded-lg border border-white/10">
                                 <span className="text-xs font-bold text-white">{currentPage}</span>
                                 <span className="text-[10px] text-gray-500">/</span>
                                 <span className="text-[10px] text-gray-500 font-medium">{totalPages}</span>
-                            </div>
+                            </div> */}
                             <Button
                                 variant="outline"
                                 size="icon"
-                                className="h-8 w-8 border-white/10 bg-transparent hover:bg-white/10 text-white"
+                                className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
                                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                                 disabled={currentPage === totalPages}
                             >

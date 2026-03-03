@@ -1156,24 +1156,24 @@ const NoticeDetailsPage = () => {
                                                     <div className="flex items-center gap-2">
                                                         <Button
                                                             variant="outline"
-                                                            size="sm"
+                                                            size="icon"
                                                             onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                                                             disabled={currentPage === 1}
-                                                            className="bg-white/10 hover:bg-white/20 text-white border-white/10"
+                                                            className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
                                                         >
-                                                            Previous
+                                                            <ChevronLeft className="w-4 h-4" />
                                                         </Button>
                                                         <span className="text-white px-4 text-sm font-medium">
                                                             Page {currentPage} of {totalPages}
                                                         </span>
                                                         <Button
                                                             variant="outline"
-                                                            size="sm"
+                                                            size="icon"
                                                             onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                                                             disabled={currentPage === totalPages}
-                                                            className="bg-white/10 hover:bg-white/20 text-white border-white/10"
+                                                            className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
                                                         >
-                                                            Next
+                                                            <ChevronRight className="w-4 h-4" />
                                                         </Button>
                                                     </div>
 

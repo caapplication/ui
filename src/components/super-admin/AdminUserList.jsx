@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { motion } from 'framer-motion';
 import {
   Users,
@@ -10,7 +11,10 @@ import {
   Loader2,
   CheckCircle2,
   XCircle,
-  Filter
+  Filter,
+  ChevronLeft,
+  ChevronRight,
+  ArrowLeft
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -35,6 +39,8 @@ const AdminUserList = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('ALL');
   const [actionLoading, setActionLoading] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const fetchUsers = async () => {
     try {
@@ -89,17 +95,27 @@ const AdminUserList = () => {
     return matchesSearch && matchesRole;
   }) : [];
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, roleFilter]);
+
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+  const paginatedUsers = filteredUsers.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   const roles = Array.isArray(users) ? [...new Set(users.map(u => u.role))] : [];
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8">
       <div>
         <h1 className="text-3xl font-bold text-white mb-1">Global User Management</h1>
         <p className="text-gray-400 text-sm">View and control every user account across all agencies and clients.</p>
       </div>
 
-      <Card className="glass-effect border-white/5">
-        <CardHeader className="pb-3 text-white border-b border-white/5">
+      <Card className="glass-card overflow-hidden">
+        <CardHeader className="pb-3 text-white">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
@@ -133,33 +149,33 @@ const AdminUserList = () => {
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="border-b border-white/5 bg-white/5 text-gray-400 text-xs uppercase tracking-wider">
-                  <th className="px-6 py-4 font-semibold">User</th>
-                  <th className="px-6 py-4 font-semibold">Role</th>
-                  <th className="px-6 py-4 font-semibold">Status</th>
-                  <th className="px-6 py-4 font-semibold text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-xs sm:text-sm">User</TableHead>
+                  <TableHead className="text-xs sm:text-sm">Role</TableHead>
+                  <TableHead className="text-xs sm:text-sm">Status</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {loading ? (
-                  <tr>
-                    <td colSpan="4" className="px-6 py-12 text-center text-gray-500">
+                  <TableRow>
+                    <TableCell colSpan="4" className="py-12 text-center text-gray-500">
                       <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-primary" />
                       Loading system users...
-                    </td>
-                  </tr>
-                ) : filteredUsers.length === 0 ? (
-                  <tr>
-                    <td colSpan="4" className="px-6 py-12 text-center text-gray-500 italic">
+                    </TableCell>
+                  </TableRow>
+                ) : paginatedUsers.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan="4" className="py-12 text-center text-gray-500 italic">
                       No users found.
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ) : (
-                  filteredUsers.map((u) => (
-                    <tr key={u.id} className="hover:bg-white/5 transition-colors group">
-                      <td className="px-6 py-4">
+                  paginatedUsers.map((u) => (
+                    <TableRow key={u.id}>
+                      <TableCell className="text-xs sm:text-sm">
                         <div className="flex items-center gap-3">
                           <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
                             <Users className="w-4 h-4" />
@@ -169,13 +185,13 @@ const AdminUserList = () => {
                             <div className="text-xs text-gray-500 truncate max-w-[200px]">{u.email}</div>
                           </div>
                         </div>
-                      </td>
-                      <td className="px-6 py-4">
+                      </TableCell>
+                      <TableCell className="text-xs sm:text-sm">
                         <Badge variant="outline" className="text-[10px] uppercase font-bold text-gray-400 border-white/10">
                           {u.role}
                         </Badge>
-                      </td>
-                      <td className="px-6 py-4">
+                      </TableCell>
+                      <TableCell className="text-xs sm:text-sm">
                         {u.is_locked ? (
                           <div className="flex items-center text-red-500 gap-1.5 text-xs font-medium">
                             <XCircle className="w-3.5 h-3.5" />
@@ -187,8 +203,8 @@ const AdminUserList = () => {
                             Active
                           </div>
                         )}
-                      </td>
-                      <td className="px-6 py-4 text-right">
+                      </TableCell>
+                      <TableCell className="text-right text-xs sm:text-sm">
                         <Button
                           variant="ghost"
                           size="sm"
@@ -204,13 +220,40 @@ const AdminUserList = () => {
                             <Lock className="w-4 h-4" />
                           )}
                         </Button>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))
                 )}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
+          {totalPages > 1 && (
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-0 p-4 sm:p-6 pb-4 border-t border-white/10">
+              <div>
+                <p className="text-xs sm:text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

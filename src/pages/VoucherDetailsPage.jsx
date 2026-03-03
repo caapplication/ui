@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useApiCache } from '@/contexts/ApiCacheContext.jsx';
 import * as pdfjsLib from 'pdfjs-dist';
@@ -146,26 +147,26 @@ const VoucherPDF = React.forwardRef(({ voucher, organizationName, entityName, fr
                 )}
             </div>
 
-            <table className="w-full mb-8 text-base">
-                <thead>
-                    <tr className="bg-blue-600 text-white">
-                        <th className="p-4 text-left text-base font-semibold">Particulars</th>
-                        <th className="p-4 text-right text-base font-semibold">Amount (INR)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td className="p-4 border-b text-base">{voucher.remarks || 'N/A'}</td>
-                        <td className="p-4 border-b text-right text-base">₹{parseFloat(voucher.amount).toFixed(2)}</td>
-                    </tr>
-                </tbody>
+            <Table className="w-full mb-8 text-base">
+                <TableHeader>
+                    <TableRow className="bg-blue-600 text-white">
+                        <TableHead className="p-4 text-left text-base font-semibold">Particulars</TableHead>
+                        <TableHead className="p-4 text-right text-base font-semibold">Amount (INR)</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    <TableRow>
+                        <TableCell className="p-4 border-b text-base">{voucher.remarks || 'N/A'}</TableCell>
+                        <TableCell className="p-4 border-b text-right text-base">₹{parseFloat(voucher.amount).toFixed(2)}</TableCell>
+                    </TableRow>
+                </TableBody>
                 <tfoot>
-                    <tr className="bg-blue-600 text-white font-bold">
-                        <td className="p-4 text-left text-base">Total</td>
-                        <td className="p-4 text-right text-base">₹{parseFloat(voucher.amount).toFixed(2)}</td>
-                    </tr>
+                    <TableRow className="bg-blue-600 text-white font-bold">
+                        <TableCell className="p-4 text-left text-base">Total</TableCell>
+                        <TableCell className="p-4 text-right text-base">₹{parseFloat(voucher.amount).toFixed(2)}</TableCell>
+                    </TableRow>
                 </tfoot>
-            </table>
+            </Table>
 
             <div>
                 <h2 className="text-lg font-bold mb-2">Payment Details:</h2>
@@ -655,10 +656,16 @@ const VoucherDetailsPage = () => {
         }
     };
 
-    // Filter vouchers based on role to ensure consistent navigation
+    // Use the voucher list from the table (location.state) if available to respect table ordering/filters
     const filteredVouchers = useMemo(() => {
         if (!voucherList || !Array.isArray(voucherList)) return [];
 
+        // If we received vouchers from location state, they are exactly from the list view (with all user filters/sorting applied)
+        if (location.state?.vouchers) {
+            return voucherList;
+        }
+
+        // Fallback: If fetched directly via URL, apply default role-based filtering
         return voucherList.filter(v => {
             // Filter out deleted vouchers
             if (v.is_deleted) return false;
@@ -673,7 +680,7 @@ const VoucherDetailsPage = () => {
             }
             return true;
         });
-    }, [voucherList, user?.role]);
+    }, [voucherList, user?.role, location.state?.vouchers]);
 
     // Update currentIndex when filteredVouchers changes
     useEffect(() => {
@@ -701,8 +708,7 @@ const VoucherDetailsPage = () => {
             navigate(`/finance/vouchers/${nextVoucher.id}`, {
                 state: {
                     voucher: nextVoucher,
-                    // Pass the UDPATED full list so consistent navigation works in next screen
-                    vouchers: updatedList || voucherList,
+                    vouchers: location.state?.vouchers || voucherList,
                     organisationId,
                     entityName,
                 }
@@ -1102,7 +1108,7 @@ const VoucherDetailsPage = () => {
         <div className="h-screen w-full flex flex-col text-white bg-transparent p-3 sm:p-4 md:p-6" style={{ paddingBottom: hasVouchers ? '6rem' : '1.5rem' }}>
             <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 pb-3 sm:pb-4 border-b border-white/10 mb-3 sm:mb-4">
                 <div className="flex items-center gap-3 sm:gap-4">
-                    <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="h-9 w-9 sm:h-10 sm:w-10">
+                    <Button variant="ghost" size="icon" onClick={() => navigate('/finance')} className="h-9 w-9 sm:h-10 sm:w-10">
                         <ArrowLeft className="h-5 w-5 sm:h-6 sm:w-6" />
                     </Button>
                     <div>
@@ -1207,9 +1213,9 @@ const VoucherDetailsPage = () => {
                 <ResizableHandle withHandle />
                 <ResizablePanel defaultSize={40} minSize={30}>
                     <div className="relative flex h-full flex-col">
-                        <div className="flex-1 overflow-y-auto px-4 py-6 sm:p-6 hide-scrollbar" style={{ paddingBottom: hasVouchers ? '8rem' : '2rem' }}>
-                            <Tabs defaultValue={defaultTab} className="w-full">
-                                <TabsList className={`grid w-full ${cols} text-xs sm:text-sm`}>
+                        <div className="flex-1 overflow-y-auto px-4 py-6 sm:p-4 xl:px-6 hide-scrollbar" style={{ paddingBottom: hasVouchers ? '8rem' : '2rem' }}>
+                            <Tabs defaultValue={defaultTab} className="w-full   ">
+                                <TabsList className={`grid w-full ${cols} text-xs sm:text-sm grid-cols-1 sm:grid-cols-2 xl:grid-cols-3   `}>
                                     <TabsTrigger value="details" className="text-xs sm:text-sm">Details</TabsTrigger>
                                     <TabsTrigger value="activity" className="text-xs sm:text-sm">Activity Log</TabsTrigger>
                                     <TabsTrigger value="beneficiary" className="text-xs sm:text-sm">Beneficiary</TabsTrigger>
@@ -1354,12 +1360,12 @@ const VoucherDetailsPage = () => {
 
 
                                                 {/* Voucher Details Card */}
-                                                <Card className="w-full glass-pane border-none shadow-none bg-gray-800 text-white">
+                                                <Card className="w-full glass-card text-white">
                                                     <CardHeader className="p-4 sm:p-6">
                                                         <CardTitle className="text-lg sm:text-xl">{beneficiaryName}</CardTitle>
                                                         <CardDescription className="text-xs sm:text-sm flex items-center gap-2">
                                                             <span>Created on {new Date(voucherDetails.created_date).toLocaleDateString()}</span>
-                                                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(voucherDetails.status)}`}>
+                                                            <span className={`px-2 py-0.5 rounded-full text-xs text-center font-medium border ${getStatusColor(voucherDetails.status)}`}>
                                                                 {formatStatus(voucherDetails.status)}
                                                             </span>
                                                         </CardDescription>
@@ -1497,7 +1503,7 @@ const VoucherDetailsPage = () => {
 
                                                     <div className="flex items-center gap-3 pb-4 mb-20 sm:mb-16 md:mb-4 justify-center relative z-[100] px-4 sm:px-6 action-buttons-container">
                                                         {/* Action buttons on right */}
-                                                        <div className="flex items-center gap-3 relative z-[100]">
+                                                        <div className="flex items-center gap-3 relative z-[100] flex-wrap">
                                                             <TooltipProvider>
                                                                 {!isReadOnly && !hideClientActions && !(user?.role === 'CLIENT_MASTER_ADMIN' && voucher?.status === 'verified') && !voucherDetails.is_deleted && voucherDetails.status !== 'deleted' && (
                                                                     <Tooltip>
@@ -1595,7 +1601,7 @@ const VoucherDetailsPage = () => {
                                     )}
                                 </TabsContent>
                                 <TabsContent value="activity" className="mt-4">
-                                    <div className="p-2 sm:p-4" ref={activityLogRef}>
+                                    <div className="p-2 " ref={activityLogRef}>
                                         <ActivityLog itemId={voucherDetails.voucher_id || voucherId} itemType="voucher" showFilter={false} />
                                     </div>
                                 </TabsContent>
@@ -1614,7 +1620,7 @@ const VoucherDetailsPage = () => {
                                             if (found) beneficiaryObj = found;
                                         }
                                         return (
-                                            <Card className="w-full glass-pane border-none shadow-none bg-gray-800 text-white">
+                                            <Card className="w-full glass-card text-white">
                                                 <CardHeader className="p-4 sm:p-6">
                                                     <CardTitle className="text-lg sm:text-xl">Beneficiary Details</CardTitle>
                                                 </CardHeader>
@@ -1729,9 +1735,9 @@ const VoucherDetailsPage = () => {
                 <div className="flex-1 overflow-y-auto border border-white/10 rounded-lg p-4 hide-scrollbar" style={{ paddingBottom: hasVouchers ? '6rem' : '2rem' }}>
                     <Tabs defaultValue={defaultTab} className="w-full">
                         <TabsList className={`grid w-full ${cols} text-xs sm:text-sm`}>
-                            {!isClientUser && (
+                            {/* {!isClientUser && (
                                 <TabsTrigger value="preview" className="text-xs sm:text-sm">Preview</TabsTrigger>
-                            )}
+                            )} */}
                             <TabsTrigger value="details" className="text-xs sm:text-sm">Details</TabsTrigger>
                             <TabsTrigger value="activity" className="text-xs sm:text-sm">Activity</TabsTrigger>
                             <TabsTrigger value="beneficiary" className="text-xs sm:text-sm">Beneficiary</TabsTrigger>
@@ -1877,7 +1883,7 @@ const VoucherDetailsPage = () => {
                                 <div className="w-full space-y-4">
 
                                     {/* Voucher Details Card */}
-                                    <Card className="w-full glass-pane border-none shadow-none text-white">
+                                    <Card className="w-full glass-pane border-none shadow-none text-white rounded-lg">
                                         <CardHeader className="p-4">
                                             <CardTitle className="text-lg">{beneficiaryName}</CardTitle>
                                             <CardDescription className="text-xs flex items-center gap-2">
@@ -2107,7 +2113,7 @@ const VoucherDetailsPage = () => {
                                     if (found) beneficiaryObj = found;
                                 }
                                 return (
-                                    <Card className="w-full glass-pane border-none shadow-none text-white">
+                                    <Card className="w-full glass-pane border-none shadow-none text-white rounded-lg">
                                         <CardHeader className="p-4">
                                             <CardTitle className="text-lg sm:text-xl">Beneficiary Details</CardTitle>
                                         </CardHeader>

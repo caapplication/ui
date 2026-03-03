@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
     Card,
     CardContent,
@@ -559,7 +559,7 @@ const Dashboard = ({
                     </div>
                 ) : (
                     <>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8 mb-6 sm:mb-8 lg:mb-10">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-4 lg:gap-4 xl:gap-4 mb-6 sm:mb-8 lg:mb-10">
                             {stats.map((stat, index) => (
                                 <StatCard
                                     key={stat.title}
@@ -589,57 +589,77 @@ const Dashboard = ({
                                                         <ChevronRight className="w-3.5 h-3.5" />
                                                     </Button>
                                                 </div>
-                                                {fundSlide === 0 && (
-                                                    <div className="p-3 sm:p-4">
-                                                        <h3 className="text-xs sm:text-sm font-semibold text-gray-300 mb-1">Fund In Hand</h3>
-                                                        <div className="text-lg sm:text-xl font-bold text-white mb-2">
-                                                            {formatINR(fundInHand?.total ?? 0)}
-                                                        </div>
-                                                        <div className="border-t border-white/10 pt-2 space-y-2">
-                                                            <div className="flex justify-between items-start">
-                                                                <div>
-                                                                    <p className="text-xs font-medium text-gray-300">Cash Balance</p>
-                                                                    <p className="text-[10px] text-gray-500">{formatDateDDMMYYYY(fundInHand?.cash_as_of_date)}</p>
-                                                                </div>
-                                                                <span className="text-xs font-medium text-white">{formatINR(fundInHand?.cash_balance ?? 0)}</span>
-                                                            </div>
-                                                            <div className="border-t border-white/10 pt-2 flex justify-between items-start">
-                                                                <div>
-                                                                    <p className="text-xs font-medium text-gray-300">Bank Balance</p>
-                                                                    <p className="text-[10px] text-gray-500">
-                                                                        {fundInHand?.bank_accounts?.length ? formatDateDDMMYYYY(fundInHand.bank_accounts[0]?.as_of_date) : "—"}
-                                                                    </p>
-                                                                </div>
-                                                                <span className="text-xs font-medium text-white">{formatINR(fundInHand?.total_bank ?? 0)}</span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                )}
-                                                {fundSlide === 1 && (
-                                                    <div className="p-3 sm:p-4">
-                                                        <h3 className="text-xs sm:text-sm font-semibold text-gray-300 mb-1">{entityName || "Entity"} - Bank Balance</h3>
-                                                        <div className="text-base sm:text-lg font-bold text-white mb-2">
-                                                            {formatINR(fundInHand?.total_bank ?? 0)}
-                                                        </div>
-                                                        <div className="max-h-[180px] overflow-y-auto border-t border-white/10 pt-2 space-y-0">
-                                                            {(fundInHand?.bank_accounts ?? []).map((ba) => {
-                                                                const bank = (organisationBankAccounts || []).find((b) => String(b.id) === String(ba.bank_account_id));
-                                                                return (
-                                                                    <div key={ba.bank_account_id} className="flex justify-between items-start py-2 border-b border-white/10 last:border-0">
-                                                                        <div>
-                                                                            <p className="text-xs font-medium text-white">{bank?.bank_name ?? "—"}</p>
-                                                                            <p className="text-[10px] text-gray-500">{bank?.account_number ?? "—"}</p>
-                                                                        </div>
-                                                                        <span className="text-xs font-medium text-white">{formatINR(ba.closing_balance)}</span>
+                                                <div className="overflow-hidden w-full relative touch-pan-y cursor-grab active:cursor-grabbing">
+                                                    <AnimatePresence mode="wait">
+                                                        <motion.div
+                                                            key={fundSlide}
+                                                            initial={{ opacity: 0, x: fundSlide === 0 ? -20 : 20 }}
+                                                            animate={{ opacity: 1, x: 0 }}
+                                                            exit={{ opacity: 0, x: fundSlide === 0 ? 20 : -20 }}
+                                                            transition={{ duration: 0.2, ease: "easeInOut" }}
+                                                            drag="x"
+                                                            dragConstraints={{ left: 0, right: 0 }}
+                                                            dragElastic={0.1}
+                                                            onDragEnd={(e, { offset }) => {
+                                                                const swipe = offset.x;
+                                                                if (swipe < -40 && fundSlide === 0) setFundSlide(1);
+                                                                else if (swipe > 40 && fundSlide === 1) setFundSlide(0);
+                                                            }}
+                                                            className="w-full will-change-transform"
+                                                        >
+                                                            {fundSlide === 0 ? (
+                                                                <div className="p-3 sm:p-4">
+                                                                    <h3 className="text-xs sm:text-sm font-semibold text-gray-300 mb-1">Fund In Hand</h3>
+                                                                    <div className="text-lg sm:text-xl font-bold text-white mb-2">
+                                                                        {formatINR(fundInHand?.total ?? 0)}
                                                                     </div>
-                                                                );
-                                                            })}
-                                                            {(!fundInHand?.bank_accounts || fundInHand.bank_accounts.length === 0) && (
-                                                                <p className="text-xs text-gray-500 py-3">No bank tally data yet.</p>
+                                                                    <div className="border-t border-white/10 pt-2 space-y-2">
+                                                                        <div className="flex justify-between items-start">
+                                                                            <div>
+                                                                                <p className="text-xs font-medium text-gray-300">Cash Balance</p>
+                                                                                <p className="text-[10px] text-gray-500">{formatDateDDMMYYYY(fundInHand?.cash_as_of_date)}</p>
+                                                                            </div>
+                                                                            <span className="text-xs font-medium text-white">{formatINR(fundInHand?.cash_balance ?? 0)}</span>
+                                                                        </div>
+                                                                        <div className="border-t border-white/10 pt-2 flex justify-between items-start">
+                                                                            <div>
+                                                                                <p className="text-xs font-medium text-gray-300">Bank Balance</p>
+                                                                                <p className="text-[10px] text-gray-500">
+                                                                                    {fundInHand?.bank_accounts?.length ? formatDateDDMMYYYY(fundInHand.bank_accounts[0]?.as_of_date) : "—"}
+                                                                                </p>
+                                                                            </div>
+                                                                            <span className="text-xs font-medium text-white">{formatINR(fundInHand?.total_bank ?? 0)}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="p-3 sm:p-4">
+                                                                    <h3 className="text-xs sm:text-sm font-semibold text-gray-300 mb-1">{entityName || "Entity"} - Bank Balance</h3>
+                                                                    <div className="text-base sm:text-lg font-bold text-white mb-2">
+                                                                        {formatINR(fundInHand?.total_bank ?? 0)}
+                                                                    </div>
+                                                                    <div className="max-h-[180px] overflow-y-auto border-t border-white/10 pt-2 space-y-0 custom-scrollbar overscroll-contain" onPointerDown={(e) => e.stopPropagation()}>
+                                                                        {(fundInHand?.bank_accounts ?? []).map((ba) => {
+                                                                            const bank = (organisationBankAccounts || []).find((b) => String(b.id) === String(ba.bank_account_id));
+                                                                            return (
+                                                                                <div key={ba.bank_account_id} className="flex justify-between items-start py-2 border-b border-white/10 last:border-0">
+                                                                                    <div>
+                                                                                        <p className="text-xs font-medium text-white">{bank?.bank_name ?? "—"}</p>
+                                                                                        <p className="text-[10px] text-gray-500">{bank?.account_number ?? "—"}</p>
+                                                                                    </div>
+                                                                                    <span className="text-xs font-medium text-white">{formatINR(ba.closing_balance)}</span>
+                                                                                </div>
+                                                                            );
+                                                                        })}
+                                                                        {(!fundInHand?.bank_accounts || fundInHand.bank_accounts.length === 0) && (
+                                                                            <p className="text-xs text-gray-500 py-3">No bank tally data yet.</p>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
                                                             )}
-                                                        </div>
-                                                    </div>
-                                                )}
+                                                        </motion.div>
+                                                    </AnimatePresence>
+                                                </div>
                                             </>
                                         )}
                                     </div>
@@ -797,7 +817,7 @@ const Dashboard = ({
                             </CardContent>
                         </Card>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-2 sm:gap-4 lg:gap-4">
                             <Card className="glass-card flex flex-col">
                                 <CardHeader className="p-4 sm:p-6 pb-2 sm:pb-3">
                                     <CardTitle className="text-lg sm:text-xl">

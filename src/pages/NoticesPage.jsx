@@ -279,12 +279,12 @@ const NoticesPage = () => {
                                     : 'Select a Client to View Notices'}
                             </h2>
                             {/* Toggle Button Group */}
-                            <div className="flex p-1 bg-black/20 rounded-lg border border-white/10 backdrop-blur-sm">
+                            <div className="flex p-1  rounded-lg border border-white/10 backdrop-blur-sm">
                                 <button
                                     onClick={() => setViewMode('active')}
                                     className={`px-3 py-1 text-sm font-medium rounded-md transition-all ${viewMode === 'active'
-                                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
-                                        : 'text-gray-400 hover:text-white hover:bg-white/5'
+                                        ? 'bg-primary text-primary-foreground shadow-sm'
+                                        : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40'
                                         }`}
                                 >
                                     Active
@@ -292,8 +292,8 @@ const NoticesPage = () => {
                                 <button
                                     onClick={() => setViewMode('history')}
                                     className={`px-3 py-1 text-sm font-medium rounded-md transition-all ${viewMode === 'history'
-                                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
-                                        : 'text-gray-400 hover:text-white hover:bg-white/5'
+                                        ? 'bg-primary text-primary-foreground shadow-sm'
+                                        : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40'
                                         }`}
                                 >
                                     History
@@ -338,7 +338,7 @@ const NoticesPage = () => {
                         <TableBody>
                             {isLoading ? (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="text-center py-8 text-gray-400">
+                                    <TableCell colSpan={viewMode === 'history' ? 9 : 7} className="text-center py-8 text-gray-400">
                                         <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />
                                         Loading notices...
                                     </TableCell>
@@ -451,7 +451,7 @@ const NoticesPage = () => {
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="text-center py-8 text-gray-400">
+                                    <TableCell colSpan={viewMode === 'history' ? 9 : 7} className="text-center py-8 text-gray-400">
                                         No notices found based on your search.
                                     </TableCell>
                                 </TableRow>

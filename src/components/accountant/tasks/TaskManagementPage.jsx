@@ -587,7 +587,7 @@ const TaskManagementPage = ({ entityId, entityName }) => {
 
             {/* Task Dialog Modal */}
             <Dialog open={showTaskDialog} onOpenChange={setShowTaskDialog}>
-                <DialogContent className="glass-pane max-w-5xl h-[85vh] overflow-y-auto">
+                <DialogContent className="glass-pane max-w-2xl overflow-y-auto">
                     <DialogHeader className="text-left">
                         <DialogTitle className="text-left">{editingTask ? 'Edit Task' : 'Create New Task'}</DialogTitle>
                     </DialogHeader>

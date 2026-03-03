@@ -246,7 +246,7 @@ const PendingVerificationExpanded = () => {
             <div className="glass-card rounded-3xl overflow-hidden border border-white/5 flex flex-col">
                 <div className="overflow-x-auto">
                     <Table className="min-w-full">
-                        <TableHeader className="sticky top-0 z-20 backdrop-blur-md">
+                        <TableHeader className="sticky top-0 z-20 ">
                             <TableRow className="border-b border-white/10 text-gray-400 text-[10px] sm:text-xs font-medium uppercase tracking-wider bg-white/5">
                                 <TableHead className="py-4 pl-6 w-16 text-gray-400">Sr no.</TableHead>
                                 <TableHead className="py-4 px-4 text-gray-400">Entity</TableHead>
@@ -318,23 +318,23 @@ const PendingVerificationExpanded = () => {
             {totalPages > 1 && (
                 <div className="p-4 sm:p-6 border-t border-white/5 flex justify-between items-center bg-white/5">
                     <p className="text-xs text-gray-400">
-                        Showing {paginatedData.length} of {filteredData.length} records
+                        Page {currentPage} of {totalPages}
                     </p>
                     <div className="flex items-center gap-2">
                         <Button
                             variant="outline"
                             size="icon"
-                            className="h-8 w-8 border-white/10 bg-transparent hover:bg-white/10 text-white"
+                            className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
                             onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                             disabled={currentPage === 1}
                         >
                             <ChevronLeft className="w-4 h-4" />
                         </Button>
-                        <div className="flex items-center gap-1.5 px-3 py-1 bg-white/5 rounded-lg border border-white/10">
+                        {/* <div className="flex items-center gap-1.5 px-3 py-1 bg-white/5 rounded-lg border border-white/10">
                             <span className="text-xs font-bold text-white">{currentPage}</span>
                             <span className="text-[10px] text-gray-500">/</span>
                             <span className="text-[10px] text-gray-500 font-medium">{totalPages}</span>
-                        </div>
+                        </div> */}
                         <Button
                             variant="outline"
                             size="icon"

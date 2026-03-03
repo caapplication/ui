@@ -249,40 +249,17 @@ const Beneficiaries = ({ entityId, quickAction, clearQuickAction }) => {
 
     const filteredByType = sortedBeneficiaries.filter((b) => b.beneficiary_type === activeTab);
 
-    // Apply active filters
+    // Apply general search term
     return filteredByType.filter((b) => {
-      let match = true;
-      for (const filter of activeFilters) {
-        if (filter === 'name') {
-          const searchTerm = (filterValues.name || '').toLowerCase().trim();
-          const name = b.beneficiary_type === 'individual' ? b.name : b.company_name;
-          match = match && (!searchTerm || (name && name.toLowerCase().includes(searchTerm)));
-        }
-        if (filter === 'email') {
-          const searchTerm = (filterValues.email || '').toLowerCase().trim();
-          match = match && (!searchTerm || (b.email && b.email.toLowerCase().includes(searchTerm)));
-        }
-        if (filter === 'phone') {
-          const searchTerm = (filterValues.phone || '').toLowerCase().trim();
-          match = match && (!searchTerm || (b.phone && b.phone.toLowerCase().includes(searchTerm)));
-        }
-        if (filter === 'pan') {
-          const searchTerm = (filterValues.pan || '').toLowerCase().trim();
-          match = match && (!searchTerm || (b.pan && b.pan.toLowerCase().includes(searchTerm)));
-        }
-      }
-      // Also apply general search term if no filters are active
-      if (activeFilters.length === 0 && searchTerm) {
-        const term = searchTerm.toLowerCase();
-        const name = b.beneficiary_type === 'individual' ? b.name : b.company_name;
-        match = match && (
-          name?.toLowerCase().includes(term) ||
-          b.email?.toLowerCase().includes(term) ||
-          b.pan?.toLowerCase().includes(term) ||
-          b.phone?.toLowerCase().includes(term)
-        );
-      }
-      return match;
+      if (!searchTerm) return true;
+      const term = searchTerm.toLowerCase().trim();
+      const name = b.beneficiary_type === 'individual' ? b.name : b.company_name;
+      return (
+        name?.toLowerCase().includes(term) ||
+        b.email?.toLowerCase().includes(term) ||
+        b.pan?.toLowerCase().includes(term) ||
+        b.phone?.toLowerCase().includes(term)
+      );
     });
   }, [searchTerm, beneficiaries, activeTab, activeFilters, filterValues]);
 
@@ -425,18 +402,18 @@ const Beneficiaries = ({ entityId, quickAction, clearQuickAction }) => {
           size="icon"
           onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
           disabled={currentPage === 1}
-          className="h-8 w-8 sm:h-9 sm:w-9"
+          className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
         >
-          <ChevronLeft className="w-3 h-3 sm:w-4 sm:h-4" />
+          <ChevronLeft className="w-4 h-4" />
         </Button>
         <Button
           variant="outline"
           size="icon"
           onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
           disabled={currentPage === totalPages}
-          className="h-8 w-8 sm:h-9 sm:w-9"
+          className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
         >
-          <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4" />
+          <ChevronRight className="w-4 h-4" />
         </Button>
       </div>
     </CardFooter>
@@ -455,21 +432,21 @@ const Beneficiaries = ({ entityId, quickAction, clearQuickAction }) => {
           </div>
         ) : (
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-              <TabsList className="text-xs sm:text-sm h-9 sm:h-10">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 flex-wrap ">
+              <TabsList className="text-xs sm:text-sm ">
                 <TabsTrigger value="individual" className="text-xs sm:text-sm">Individual</TabsTrigger>
                 <TabsTrigger value="company" className="text-xs sm:text-sm">Company</TabsTrigger>
               </TabsList>
               <div className="flex items-center gap-2 w-full sm:w-auto">
-                <div className="relative flex-1 sm:w-64">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <Input
-                    placeholder="Search..."
-                    className="pl-9 h-9 sm:h-10 text-sm"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
+ <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <Input
+                          placeholder="Search by name, email, phone, or PAN..."
+                          className="pl-9 h-9 sm:h-10 text-sm"
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                      </div>
                 <Button onClick={() => setShowAddDialog(true)} className="h-9 sm:h-10 text-sm sm:text-base whitespace-nowrap">
                   <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
                   <span className="hidden sm:inline">Add New</span>
@@ -478,84 +455,9 @@ const Beneficiaries = ({ entityId, quickAction, clearQuickAction }) => {
               </div>
             </div>
             <TabsContent value="individual">
-              <Card className="glass-card">
-                <CardHeader className="p-4 sm:p-6">
-                  <div className="flex flex-col gap-3 sm:gap-4">
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 flex-wrap">
-                      <Select
-                        value=""
-                        onValueChange={filter => {
-                          if (!activeFilters.includes(filter)) {
-                            setActiveFilters([...activeFilters, filter]);
-                          }
-                        }}
-                      >
-                        <SelectTrigger className="w-full sm:w-[180px] h-9 sm:h-10">
-                          <SelectValue placeholder="Add Filter" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {!activeFilters.includes('name') && <SelectItem value="name">Name</SelectItem>}
-                          {!activeFilters.includes('email') && <SelectItem value="email">Email</SelectItem>}
-                          {!activeFilters.includes('phone') && <SelectItem value="phone">Phone</SelectItem>}
-                          {!activeFilters.includes('pan') && <SelectItem value="pan">PAN</SelectItem>}
-                        </SelectContent>
-                      </Select>
-                      {activeFilters.map(filter => (
-                        <div key={filter} className="flex items-center gap-2 w-full sm:w-auto">
-                          {filter === 'name' && (
-                            <Input
-                              placeholder="Search by name..."
-                              value={filterValues.name || ''}
-                              onChange={e => setFilterValues(fv => ({ ...fv, name: e.target.value }))}
-                              className="flex-1 sm:max-w-xs h-9 sm:h-10 text-sm"
-                            />
-                          )}
-                          {filter === 'email' && (
-                            <Input
-                              placeholder="Search by email..."
-                              value={filterValues.email || ''}
-                              onChange={e => setFilterValues(fv => ({ ...fv, email: e.target.value }))}
-                              className="flex-1 sm:max-w-xs h-9 sm:h-10 text-sm"
-                            />
-                          )}
-                          {filter === 'phone' && (
-                            <Input
-                              placeholder="Search by phone..."
-                              value={filterValues.phone || ''}
-                              onChange={e => setFilterValues(fv => ({ ...fv, phone: e.target.value }))}
-                              className="flex-1 sm:max-w-xs h-9 sm:h-10 text-sm"
-                            />
-                          )}
-                          {filter === 'pan' && (
-                            <Input
-                              placeholder="Search by PAN..."
-                              value={filterValues.pan || ''}
-                              onChange={e => setFilterValues(fv => ({ ...fv, pan: e.target.value }))}
-                              className="flex-1 sm:max-w-xs h-9 sm:h-10 text-sm"
-                            />
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                              setActiveFilters(activeFilters.filter(f => f !== filter));
-                              setFilterValues(fv => {
-                                const newFv = { ...fv };
-                                delete newFv[filter];
-                                return newFv;
-                              });
-                            }}
-                            title="Remove filter"
-                            className="h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0"
-                          >
-                            ×
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-0 sm:p-6">
+              <Card className="glass-card overflow-hidden">
+
+                <CardContent className="p-0">
                   <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
@@ -605,84 +507,9 @@ const Beneficiaries = ({ entityId, quickAction, clearQuickAction }) => {
               </Card>
             </TabsContent>
             <TabsContent value="company">
-              <Card className="glass-card">
-                <CardHeader className="p-4 sm:p-6">
-                  <div className="flex flex-col gap-3 sm:gap-4">
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 flex-wrap">
-                      <Select
-                        value=""
-                        onValueChange={filter => {
-                          if (!activeFilters.includes(filter)) {
-                            setActiveFilters([...activeFilters, filter]);
-                          }
-                        }}
-                      >
-                        <SelectTrigger className="w-full sm:w-[180px] h-9 sm:h-10">
-                          <SelectValue placeholder="Add Filter" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {!activeFilters.includes('name') && <SelectItem value="name">Company Name</SelectItem>}
-                          {!activeFilters.includes('email') && <SelectItem value="email">Email</SelectItem>}
-                          {!activeFilters.includes('phone') && <SelectItem value="phone">Phone</SelectItem>}
-                          {!activeFilters.includes('pan') && <SelectItem value="pan">PAN</SelectItem>}
-                        </SelectContent>
-                      </Select>
-                      {activeFilters.map(filter => (
-                        <div key={filter} className="flex items-center gap-2 w-full sm:w-auto">
-                          {filter === 'name' && (
-                            <Input
-                              placeholder="Search by company name..."
-                              value={filterValues.name || ''}
-                              onChange={e => setFilterValues(fv => ({ ...fv, name: e.target.value }))}
-                              className="flex-1 sm:max-w-xs h-9 sm:h-10 text-sm"
-                            />
-                          )}
-                          {filter === 'email' && (
-                            <Input
-                              placeholder="Search by email..."
-                              value={filterValues.email || ''}
-                              onChange={e => setFilterValues(fv => ({ ...fv, email: e.target.value }))}
-                              className="flex-1 sm:max-w-xs h-9 sm:h-10 text-sm"
-                            />
-                          )}
-                          {filter === 'phone' && (
-                            <Input
-                              placeholder="Search by phone..."
-                              value={filterValues.phone || ''}
-                              onChange={e => setFilterValues(fv => ({ ...fv, phone: e.target.value }))}
-                              className="flex-1 sm:max-w-xs h-9 sm:h-10 text-sm"
-                            />
-                          )}
-                          {filter === 'pan' && (
-                            <Input
-                              placeholder="Search by PAN..."
-                              value={filterValues.pan || ''}
-                              onChange={e => setFilterValues(fv => ({ ...fv, pan: e.target.value }))}
-                              className="flex-1 sm:max-w-xs h-9 sm:h-10 text-sm"
-                            />
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                              setActiveFilters(activeFilters.filter(f => f !== filter));
-                              setFilterValues(fv => {
-                                const newFv = { ...fv };
-                                delete newFv[filter];
-                                return newFv;
-                              });
-                            }}
-                            title="Remove filter"
-                            className="h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0"
-                          >
-                            ×
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-0 sm:p-6">
+              <Card className="glass-card overflow-hidden">
+               
+                <CardContent className="p-0">
                   <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>

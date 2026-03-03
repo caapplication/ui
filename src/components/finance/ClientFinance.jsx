@@ -421,7 +421,7 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction, entityName: en
     }
   };
 
-  const handleViewVoucher = (voucher, hasFilters) => {
+  const handleViewVoucher = (voucher, hasFilters, sortedFilteredVouchers) => {
     // Get entity name from user entities if available
     let entityName = 'N/A';
     if ((user?.role === 'CLIENT_USER' || user?.role === 'CLIENT_MASTER_ADMIN') && user.entities && entityId) {
@@ -429,32 +429,25 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction, entityName: en
       if (entity) entityName = entity.name;
     }
 
-    if (hasFilters) {
-      // Open in new tab to preserve filters in the list view if filters are applied
-      const url = `/finance/vouchers/${voucher.id}`;
-      window.open(url, '_blank');
-    } else {
-      navigate(`/finance/vouchers/${voucher.id}`, {
-        state: {
-          voucher,
-          vouchers: vouchers || [],
-          organisationId: user?.organization_id,
-          entityName: entityName,
-          organizationName: user?.organization_name || 'N/A'
-        }
-      });
-    }
+    const vouchersListToPass = sortedFilteredVouchers || vouchers;
+
+    navigate(`/finance/vouchers/${voucher.id}`, {
+      state: {
+        voucher,
+        vouchers: vouchersListToPass,
+        organisationId: user?.organization_id,
+        entityName: entityName,
+        organizationName: user?.organization_name || 'N/A'
+      }
+    });
   };
 
-  const handleViewInvoice = (invoice, hasFilters) => {
-    const currentIndex = invoices.findIndex(inv => inv.id === invoice.id);
+  const handleViewInvoice = (invoice, hasFilters, sortedFilteredInvoices) => {
+    const invoicesListToPass = sortedFilteredInvoices || invoices;
+    const currentIndex = invoicesListToPass.findIndex(inv => inv.id === invoice.id);
     const path = `/invoices/${invoice.id}`;
 
-    if (hasFilters) {
-      window.open(path, '_blank');
-    } else {
-      navigate(path, { state: { invoice, invoices, currentIndex } });
-    }
+    navigate(path, { state: { invoice, invoices: invoicesListToPass, currentIndex } });
   };
 
   const handleExportToTally = async (format) => {
@@ -525,7 +518,7 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction, entityName: en
           onValueChange={(value) => navigate(`/finance/${value}`)}
           className="w-full"
         >
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4  flex-wrap">
             <TabsList className={`w-full sm:w-auto ${isAdmin ? 'grid grid-cols-2 sm:grid-cols-3 lg:inline-flex' : 'grid grid-cols-2 sm:inline-flex'} flex-wrap`}>
               <TabsTrigger value="vouchers" className="text-sm sm:text-base">Vouchers</TabsTrigger>
               <TabsTrigger value="invoices" className="text-sm sm:text-base">Invoices</TabsTrigger>

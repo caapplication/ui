@@ -305,7 +305,7 @@ const VoucherForm = ({ beneficiaries, isLoading, organisationBankAccounts, onSav
                             </div>
                             <div>
                                 <Label htmlFor="amount" className="mb-2">Amount</Label>
-                                <Input name="amount" id="amount" type="number" step="0.01" required defaultValue={voucher?.amount} disabled={isLoading} />
+                                <Input name="amount" id="amount" type="number" required defaultValue={voucher?.amount} disabled={isLoading} />
                             </div>
                         </div>
 

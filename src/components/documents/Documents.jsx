@@ -2369,7 +2369,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
 
         {/* Tabs Component Integration */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6 sm:mb-8">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6 sm:mb-8  flex-wrap">
             <TabsList className="bg-black/20 p-2 grid grid-cols-2 gap-2 items-center justify-center md:grid-cols-4 rounded-lg w-full sm:w-auto h-auto">
               <TabsTrigger
                 value="myFiles"
@@ -2577,7 +2577,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
           }}>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Renew Document: {renewalDoc?.name}</DialogTitle>
+                <DialogTitle className="break-all pr-6 mb-2">Renew Document: {renewalDoc?.name}</DialogTitle>
                 <DialogDescription>
                   Upload a new file to replace the expired/expiring document. The old document will be deleted and the new one will be saved in the same location.
                 </DialogDescription>
@@ -2711,7 +2711,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
             }
           }}>
             <DialogContent>
-              <DialogHeader><DialogTitle>Upload Document to {currentFolder?.name}</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle className="break-all pr-6">Upload Document to {currentFolder?.name}</DialogTitle></DialogHeader>
               <form onSubmit={handleUpload} className="space-y-4 py-4">
                 <div>
                   <Label htmlFor="file">Select File</Label>
@@ -2855,7 +2855,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
               </TabsContent>
 
               <TabsContent value="activityLog" className="mt-0">
-                <div className="bg-gray-900/50 backdrop-blur-sm border border-gray-800 rounded-lg p-6 min-h-[500px]">
+                <div className="bg-gray-900/50 backdrop-blur-sm border border-gray-800 rounded-lg p-2 md:p-6 min-h-[500px]">
                   <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
                     <History className="w-5 h-5 text-blue-400" />
                     Document Activity Log

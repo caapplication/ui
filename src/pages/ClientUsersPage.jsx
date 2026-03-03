@@ -361,7 +361,7 @@ const ClientUsersPage = ({ entityId }) => {
             </div>
 
             <Tabs defaultValue="members" className="flex-1 flex flex-col min-h-0 h-full" onValueChange={setActiveTab}>
-                <div className="mb-6 shrink-0 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div className="mb-6 shrink-0 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 flex-wrap">
                     <TabsList>
                         <TabsTrigger value="members">Team Members</TabsTrigger>
                         <TabsTrigger value="activity">Activity Log</TabsTrigger>
@@ -381,10 +381,10 @@ const ClientUsersPage = ({ entityId }) => {
                 </div>
 
                 <TabsContent value="members" className="flex-1 flex flex-col min-h-0 !mt-0 h-full">
-                    <div className="glass-pane p-4 rounded-lg flex-1 flex flex-col min-h-0">
-                        <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-                            <div className="relative w-full sm:w-72">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <div className="glass-pane p-0 rounded-lg overflow-hidden flex-1 flex flex-col min-h-0">
+                        <div className="flex flex-col sm:flex-row justify-between items-center mb-0 gap-4">
+                            <div className="relative w-full p-4 sm:w-72">
+                                <Search className="absolute left-7 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                 <Input
                                     placeholder="Search users..."
                                     className="glass-input pl-10"

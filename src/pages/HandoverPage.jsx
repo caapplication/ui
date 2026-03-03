@@ -224,20 +224,20 @@ const HandoverPage = () => {
             <div>
               <h3 className="font-semibold text-white mb-2">Collection Details</h3>
               <div className="border border-white/10 rounded-lg overflow-hidden">
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-white/5">
-                      <th className="text-left p-2 text-gray-400">S.NO</th>
-                      <th className="text-left p-2 text-gray-400">MODE</th>
-                      <th className="text-left p-2 text-gray-400">AMOUNT ₹</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                <Table className="w-full">
+                  <TableHeader>
+                    <TableRow className="bg-white/5">
+                      <TableHead className="text-left p-2 text-gray-400">S.NO</TableHead>
+                      <TableHead className="text-left p-2 text-gray-400">MODE</TableHead>
+                      <TableHead className="text-left p-2 text-gray-400">AMOUNT ₹</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {paymentMethods.map((p, i) => (
-                      <tr key={p.id} className="border-t border-white/10">
-                        <td className="p-2">{String.fromCharCode(65 + i)}</td>
-                        <td className="p-2">{p.name}</td>
-                        <td className="p-2">
+                      <TableRow key={p.id} className="border-t border-white/10">
+                        <TableCell className="p-2">{String.fromCharCode(65 + i)}</TableCell>
+                        <TableCell className="p-2">{p.name}</TableCell>
+                        <TableCell className="p-2">
                           {isViewOnly ? (
                             <span>{Number(collectionAmounts[p.id] || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                           ) : (
@@ -250,85 +250,85 @@ const HandoverPage = () => {
                               onChange={e => setCollectionAmounts(prev => ({ ...prev, [p.id]: e.target.value }))}
                             />
                           )}
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     ))}
-                    <tr className="border-t border-white/10 bg-white/5 font-medium">
-                      <td className="p-2" colSpan={2}>GRAND TOTAL</td>
-                      <td className="p-2">{grandTotal.toFixed(2)}</td>
-                    </tr>
-                  </tbody>
-                </table>
+                    <TableRow className="border-t border-white/10 bg-white/5 font-medium">
+                      <TableCell className="p-2" colSpan={2}>GRAND TOTAL</TableCell>
+                      <TableCell className="p-2">{grandTotal.toFixed(2)}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
               </div>
             </div>
 
             <div>
               <h3 className="font-semibold text-white mb-2">Cash Tally</h3>
               <div className="border border-white/10 rounded-lg overflow-hidden">
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-white/5">
-                      <th className="text-left p-2 text-gray-400">S.NO</th>
-                      <th className="text-left p-2 text-gray-400">PARTICULAR</th>
-                      <th className="text-left p-2 text-gray-400">AMOUNT ₹</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="border-t border-white/10">
-                      <td className="p-2">A</td>
-                      <td className="p-2">CASH COLLECTION</td>
-                      <td className="p-2">{numCash.toFixed(2)}</td>
-                    </tr>
-                    <tr className="border-t border-white/10">
-                      <td className="p-2">B</td>
-                      <td className="p-2">PHYSICAL CASH AT DESK</td>
-                      <td className="p-2">
+                <Table className="w-full">
+                  <TableHeader>
+                    <TableRow className="bg-white/5">
+                      <TableHead className="text-left p-2 text-gray-400">S.NO</TableHead>
+                      <TableHead className="text-left p-2 text-gray-400">PARTICULAR</TableHead>
+                      <TableHead className="text-left p-2 text-gray-400">AMOUNT ₹</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow className="border-t border-white/10">
+                      <TableCell className="p-2">A</TableCell>
+                      <TableCell className="p-2">CASH COLLECTION</TableCell>
+                      <TableCell className="p-2">{numCash.toFixed(2)}</TableCell>
+                    </TableRow>
+                    <TableRow className="border-t border-white/10">
+                      <TableCell className="p-2">B</TableCell>
+                      <TableCell className="p-2">PHYSICAL CASH AT DESK</TableCell>
+                      <TableCell className="p-2">
                         {isViewOnly ? <span>{physicalNum.toFixed(2)}</span> : <Input type="number" min={0} step={0.01} className="glass-input w-32" value={physicalCashAtDesk} onChange={e => setPhysicalCashAtDesk(e.target.value)} />}
-                      </td>
-                    </tr>
-                    <tr className="border-t border-white/10">
-                      <td className="p-2">C</td>
-                      <td className="p-2">DIFFERENCE (B - A)</td>
-                      <td className="p-2">{difference.toFixed(2)}</td>
-                    </tr>
-                  </tbody>
-                </table>
+                      </TableCell>
+                    </TableRow>
+                    <TableRow className="border-t border-white/10">
+                      <TableCell className="p-2">C</TableCell>
+                      <TableCell className="p-2">DIFFERENCE (B - A)</TableCell>
+                      <TableCell className="p-2">{difference.toFixed(2)}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
               </div>
             </div>
 
             <div>
               <h3 className="font-semibold text-white mb-2">Imprest Cash</h3>
               <div className="border border-white/10 rounded-lg overflow-hidden">
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-white/5">
-                      <th className="text-left p-2 text-gray-400">S.NO</th>
-                      <th className="text-left p-2 text-gray-400">PARTICULAR</th>
-                      <th className="text-left p-2 text-gray-400">AMOUNT ₹</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="border-t border-white/10">
-                      <td className="p-2">A</td>
-                      <td className="p-2">IMPREST AMOUNT</td>
-                      <td className="p-2">
+                <Table className="w-full">
+                  <TableHeader>
+                    <TableRow className="bg-white/5">
+                      <TableHead className="text-left p-2 text-gray-400">S.NO</TableHead>
+                      <TableHead className="text-left p-2 text-gray-400">PARTICULAR</TableHead>
+                      <TableHead className="text-left p-2 text-gray-400">AMOUNT ₹</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow className="border-t border-white/10">
+                      <TableCell className="p-2">A</TableCell>
+                      <TableCell className="p-2">IMPREST AMOUNT</TableCell>
+                      <TableCell className="p-2">
                         {isViewOnly ? <span>{imprestNum.toFixed(2)}</span> : <Input type="number" min={0} step={0.01} className="glass-input w-32" value={imprestAmount} onChange={e => setImprestAmount(e.target.value)} />}
-                      </td>
-                    </tr>
-                    <tr className="border-t border-white/10">
-                      <td className="p-2">B</td>
-                      <td className="p-2">LESS PAYMENT</td>
-                      <td className="p-2">
+                      </TableCell>
+                    </TableRow>
+                    <TableRow className="border-t border-white/10">
+                      <TableCell className="p-2">B</TableCell>
+                      <TableCell className="p-2">LESS PAYMENT</TableCell>
+                      <TableCell className="p-2">
                         {isViewOnly ? <span>{lessNum.toFixed(2)}</span> : <Input type="number" min={0} step={0.01} className="glass-input w-32" value={lessPayment} onChange={e => setLessPayment(e.target.value)} />}
-                      </td>
-                    </tr>
-                    <tr className="border-t border-white/10">
-                      <td className="p-2">C</td>
-                      <td className="p-2">NET IMPREST AMOUNT (A - B)</td>
-                      <td className="p-2">{netImprest.toFixed(2)}</td>
-                    </tr>
-                  </tbody>
-                </table>
+                      </TableCell>
+                    </TableRow>
+                    <TableRow className="border-t border-white/10">
+                      <TableCell className="p-2">C</TableCell>
+                      <TableCell className="p-2">NET IMPREST AMOUNT (A - B)</TableCell>
+                      <TableCell className="p-2">{netImprest.toFixed(2)}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
               </div>
             </div>
 

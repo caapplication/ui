@@ -675,7 +675,7 @@ const AccountantDashboard = () => {
       </motion.div>
 
       {/* Row 3: 4 Detail Blocks */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 pb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6 pb-6">
         <DetailBlock
           title="Today's Progress"
           subtitle="Leaderboard of today's activities"

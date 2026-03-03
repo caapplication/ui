@@ -292,30 +292,49 @@ const ActivityLog = ({ itemId, itemType, showFilter = true, excludeTypes = [] })
                     }
 
                     return (
-                        <div key={log.id} className="flex items-start space-x-3 p-3 rounded-lg bg-gray-800/50 border border-gray-700/50">
-                            <div className="flex-shrink-0">
-                                <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center">
-                                    <History className="w-4 h-4 text-gray-300" />
-                                </div>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <p className="text-sm text-white">
-                                    <span className="font-semibold">{userDisplay}</span> {actionDisplay}{itemType !== 'client' ? ` ${itemTypeDisplay}` : ''}.
-                                </p>
-                                {log.details &&
-                                    log.details !== "Voucher created" &&
-                                    log.details !== "Voucher updated" &&
-                                    log.details !== "Invoice created" &&
-                                    log.details !== "Invoice updated" && (
-                                        <p className="text-xs text-gray-300 mt-1 ml-4 pl-2 border-l-2 border-gray-600">
-                                            {renderLogDetails(log.details)}
-                                        </p>
-                                    )}
-                                <p className="text-xs text-gray-400 mt-1">
-                                    {new Date(log.timestamp).toLocaleString()}
-                                </p>
-                            </div>
-                        </div>
+                    <div
+  key={log.id}
+  className="flex flex-col sm:flex-row sm:items-start gap-3 p-3 sm:p-4 rounded-lg 
+             bg-gray-800/50 border border-gray-700/50"
+>
+  {/* Icon */}
+  <div className="flex-shrink-0 self-start">
+    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gray-600 flex items-center justify-center">
+      <History className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-300" />
+    </div>
+  </div>
+
+  {/* Content */}
+  <div className="flex-1 min-w-0">
+    {/* Main Text */}
+    <p className="text-sm sm:text-base text-white break-words leading-snug">
+      <span className="font-semibold break-words">
+        {userDisplay}
+      </span>{" "}
+      {actionDisplay}
+      {itemType !== "client" ? ` ${itemTypeDisplay}` : ""}.
+    </p>
+
+    {/* Details */}
+    {log.details &&
+      log.details !== "Voucher created" &&
+      log.details !== "Voucher updated" &&
+      log.details !== "Invoice created" &&
+      log.details !== "Invoice updated" && (
+        <p
+          className="text-xs sm:text-sm text-gray-300 mt-2 pl-3 border-l-2 
+                     border-gray-600 break-words"
+        >
+          {renderLogDetails(log.details)}
+        </p>
+      )}
+
+    {/* Timestamp */}
+    <p className="text-xs text-gray-400 mt-2">
+      {new Date(log.timestamp).toLocaleString()}
+    </p>
+  </div>
+</div>
                     );
                 })}
             </div>

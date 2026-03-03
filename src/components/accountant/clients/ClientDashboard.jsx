@@ -273,10 +273,10 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
             setUnlockDays(5);
             // Refresh client data
             if (onUpdateClient) {
-                onUpdateClient({ 
-                    ...client, 
-                    is_locked: false, 
-                    unlock_until: result.unlock_until 
+                onUpdateClient({
+                    ...client,
+                    is_locked: false,
+                    unlock_until: result.unlock_until
                 });
             }
         } catch (error) {
@@ -335,7 +335,7 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
 
     return (
         <div className="h-full flex flex-col">
-            <header className="flex justify-between items-center mb-4 flex-shrink-0">
+            <header className="flex justify-between items-center mb-4 flex-shrink-0 flex-wrap gap-2">
                 <div className="flex items-center gap-2">
                     <Button variant="ghost" size="icon" onClick={onBack}>
                         <ArrowLeft className="w-5 h-5" />
@@ -344,10 +344,10 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
                         {client.name}
                     </h1>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center  flex-wrap gap-2">
                     {client.is_locked ? (
-                        <Button 
-                            variant="outline" 
+                        <Button
+                            variant="outline"
                             onClick={() => setIsUnlockModalOpen(true)}
                             className="border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/10"
                         >
@@ -355,8 +355,8 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
                             Unlock Profile
                         </Button>
                     ) : (
-                        <Button 
-                            variant="outline" 
+                        <Button
+                            variant="outline"
                             onClick={handleLockClient}
                             disabled={isLocking}
                             className="border-red-500/50 text-red-400 hover:bg-red-500/10"
@@ -449,28 +449,30 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
                     </div>
 
                     {/* Right Panel */}
-                    <div className="lg:col-span-3">
-                        <div className="border-b border-white/10 mb-4">
-                            <nav className="-mb-px flex space-x-6 overflow-x-auto">
-                                {tabs.map(tab => {
-                                    const tabKey = typeof tab === 'string' ? tab : tab.key;
-                                    const tabLabel = typeof tab === 'string' ? tab : tab.label;
-                                    const isActive = activeSubTab === tabKey || activeSubTab.startsWith(tabKey.split(' ')[0]);
+                    <div className="lg:col-span-3 min-w-0 w-full flex flex-col">
+                        <div className="w-full overflow-x-auto mb-4 custom-scrollbar">
+                            <div className="border-b border-white/10 min-w-max">
+                                <nav className="-mb-px flex space-x-2 sm:space-x-6 px-1">
+                                    {tabs.map(tab => {
+                                        const tabKey = typeof tab === 'string' ? tab : tab.key;
+                                        const tabLabel = typeof tab === 'string' ? tab : tab.label;
+                                        const isActive = activeSubTab === tabKey || activeSubTab.startsWith(tabKey.split(' ')[0]);
 
-                                    return (
-                                        <button
-                                            key={tabKey}
-                                            onClick={() => handleTabClick(tabKey)}
-                                            className={`${isActive
-                                                ? 'border-primary text-primary'
-                                                : 'border-transparent text-gray-400 hover:text-white hover:border-gray-300'
-                                                } whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2`}
-                                        >
-                                            {tabLabel}
-                                        </button>
-                                    );
-                                })}
-                            </nav>
+                                        return (
+                                            <button
+                                                key={tabKey}
+                                                onClick={() => handleTabClick(tabKey)}
+                                                className={`${isActive
+                                                    ? 'border-primary text-primary'
+                                                    : 'border-transparent text-gray-400 hover:text-white hover:border-gray-300'
+                                                    } flex-none whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2`}
+                                            >
+                                                {tabLabel}
+                                            </button>
+                                        );
+                                    })}
+                                </nav>
+                            </div>
                         </div>
 
                         <div>
@@ -479,7 +481,7 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
                     </div>
                 </div>
             </div>
-            
+
             {/* Unlock Modal */}
             <Dialog open={isUnlockModalOpen} onOpenChange={setIsUnlockModalOpen}>
                 <DialogContent className="bg-gray-900 border-white/10">
@@ -504,14 +506,14 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
                                 className="bg-gray-800 border-white/10 text-white"
                             />
                             <p className="text-xs text-gray-500">
-                                The client will be able to login for {unlockDays} day{unlockDays !== 1 ? 's' : ''}. 
+                                The client will be able to login for {unlockDays} day{unlockDays !== 1 ? 's' : ''}.
                                 After this period, if bills are still overdue, the profile will be automatically locked again.
                             </p>
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button 
-                            variant="outline" 
+                        <Button
+                            variant="outline"
                             onClick={() => {
                                 setIsUnlockModalOpen(false);
                                 setUnlockDays(5);
@@ -521,7 +523,7 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
                         >
                             Cancel
                         </Button>
-                        <Button 
+                        <Button
                             onClick={handleUnlockClient}
                             disabled={isLocking || unlockDays < 1 || unlockDays > 30}
                             className="gap-2"

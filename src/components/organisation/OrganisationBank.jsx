@@ -161,7 +161,7 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction,
         <CardTitle className="text-lg sm:text-xl md:text-2xl">{title}</CardTitle>
         <CardDescription className="text-sm sm:text-base">{description}</CardDescription>
       </CardHeader>
-      <CardContent className="p-0 sm:p-6">
+      <CardContent className="p-0">
         {isLoading ? (
           <div className="flex justify-center items-center h-64">
             <Loader2 className="w-8 h-8 animate-spin text-white" />
@@ -260,11 +260,11 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction,
           <p className="text-xs sm:text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="h-8 w-8 sm:h-9 sm:w-9">
-            <ChevronLeft className="w-3 h-3 sm:w-4 sm:h-4" />
+          <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white">
+            <ChevronLeft className="w-4 h-4" />
           </Button>
-          <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="h-8 w-8 sm:h-9 sm:w-9">
-            <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4" />
+          <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white">
+            <ChevronRight className="w-4 h-4" />
           </Button>
         </div>
       </CardFooter>
@@ -279,7 +279,7 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction,
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 flex-wrap">
             <TabsList className="text-xs sm:text-sm">
               <TabsTrigger value="active" className="text-xs sm:text-sm">Active Bank Details</TabsTrigger>
               <TabsTrigger value="inactive" className="text-xs sm:text-sm">Inactive Bank Details</TabsTrigger>

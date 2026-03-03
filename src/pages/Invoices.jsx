@@ -234,12 +234,14 @@ const Invoices = ({ selectedOrganisation, selectedEntity, isDataLoading, onRefre
     }
   }, [onRefresh, isActive, selectedEntity, user?.access_token, cache, fetchDataForClient]);
 
-  const handleViewInvoice = (invoice) => {
-    const currentIndex = invoices.findIndex(inv => inv.id === invoice.id);
+  const handleViewInvoice = (invoice, hasFilters, sortedFilteredInvoices) => {
+    const invoicesListToPass = sortedFilteredInvoices || invoices;
+    const currentIndex = invoicesListToPass.findIndex(inv => inv.id === invoice.id);
     const path = (user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM')
       ? `/invoices/ca/${invoice.id}`
       : `/invoices/${invoice.id}`;
-    navigate(path, { state: { invoice, invoices, currentIndex } });
+    // Always navigate in same tab to preserve navigation
+    navigate(path, { state: { invoice, invoices: invoicesListToPass, currentIndex } });
   };
 
   return (

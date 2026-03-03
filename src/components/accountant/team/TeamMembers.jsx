@@ -43,18 +43,18 @@ const TeamMembers = () => {
                 getAllClientTeamMembers(agencyId, user.access_token).catch(() => ({})),
                 listClients(agencyId, user.access_token).catch(() => [])
             ]);
-            
+
             // Filter out current user
             const filteredMembers = members.filter(member => member.email !== user.email);
             setTeam(filteredMembers);
-            
+
             // Set clients
             const clientsList = Array.isArray(clientsData) ? clientsData : (clientsData?.results || []);
             setClients(clientsList);
-            
+
             // Set client team member assignments
             setClientTeamMembers(assignments || {});
-            
+
             // Create reverse mapping: team member -> clients
             const memberToClients = {};
             Object.keys(assignments || {}).forEach(clientId => {
@@ -68,7 +68,7 @@ const TeamMembers = () => {
                 });
             });
             setMemberClientsMap(memberToClients);
-            
+
             // Restore detail view if restoreMemberId is in location state
             if (location.state?.restoreMemberId) {
                 const memberToRestore = filteredMembers.find(m => String(m.id || m.user_id) === String(location.state.restoreMemberId));
@@ -214,169 +214,170 @@ const TeamMembers = () => {
                         transition={{ duration: 0.3, ease: 'easeInOut' }}
                         className="h-full flex flex-col"
                     >
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="text-3xl font-bold text-white">Team Members</h1>
-                <Button onClick={handleInvite}><UserPlus className="w-4 h-4 mr-2" /> Invite User</Button>
-            </div>
-            <div className="glass-pane p-4 rounded-lg flex-grow overflow-y-auto">
-                {loading ? (
-                    <div className="flex justify-center items-center h-full">
-                        <Loader2 className="w-8 h-8 animate-spin text-white" />
-                    </div>
-                ) : (
-                    <Table>
-                        <TableHeader>
-                            <TableRow className="border-b-white/10">
-                                <TableHead>Name</TableHead>
-                                <TableHead>Email</TableHead>
-                                <TableHead>Clients Assigned</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
-                                <TableHead className="w-10"></TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {team.map(member => {
-                                const memberId = String(member.id || member.user_id);
-                                const assignedClientIds = memberClientsMap[memberId] || [];
-                                const assignedClients = assignedClientIds
-                                    .map(clientId => clients.find(c => String(c.id) === String(clientId)))
-                                    .filter(Boolean);
-                                const canOpenDetail = !!member.id;
-                                
-                                return (
-                                <TableRow
-                                    key={member.id || member.email}
-                                    className={`border-none hover:bg-white/5 ${canOpenDetail ? 'cursor-pointer' : ''}`}
-                                    onClick={() => canOpenDetail && handleSelectMember(member)}
-                                >
-                                    <TableCell className="font-medium">{member.name}</TableCell>
-                                    <TableCell>{member.email}</TableCell>
-                                    <TableCell>
-                                        {assignedClients.length === 0 ? (
-                                            <span className="text-gray-400">-</span>
-                                        ) : (
-                                            <div className="flex -space-x-2">
-                                                {assignedClients.slice(0, 3).map((client, idx) => (
-                                                    <TooltipProvider key={`${memberId}-${client.id}-${idx}`}>
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <Avatar className="w-8 h-8 border-2 border-gray-800 cursor-help">
-                                                                    {client.photo_url ? (
-                                                                        <AvatarImage src={client.photo_url} alt={client.name} />
-                                                                    ) : null}
-                                                                    <AvatarFallback className="bg-blue-600 text-white">
-                                                                        {client.name ? client.name.charAt(0).toUpperCase() : <Building2 className="w-4 h-4" />}
-                                                                    </AvatarFallback>
-                                                                </Avatar>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>
-                                                                <p>{client.name}</p>
-                                                            </TooltipContent>
-                                                        </Tooltip>
-                                                    </TooltipProvider>
-                                                ))}
-                                                {assignedClients.length > 3 && (
-                                                    <div className="w-8 h-8 rounded-full bg-gray-700 border-2 border-gray-800 flex items-center justify-center text-xs text-white">
-                                                        +{assignedClients.length - 3}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-                                    </TableCell>
-                                    <TableCell onClick={e => e.stopPropagation()}>
-                                        {member.id ? (
-                                            <div className="flex items-center gap-2">
-                                                <Switch
-                                                    checked={member.is_active}
-                                                    onCheckedChange={(checked) => handleStatusChange(member, checked)}
-                                                />
-                                                <span className={member.is_active ? 'text-green-400' : 'text-gray-400'}>
-                                                    {member.status_message}
-                                                </span>
-                                            </div>
-                                        ) : (
-                                            <span className='text-yellow-400'>Invited</span>
-                                        )}
-                                    </TableCell>
-                                    <TableCell className="text-right" onClick={e => e.stopPropagation()}>
-                                        {member.id ? (
-                                            <>
-                                               <div className="flex items-center justify-end gap-1 sm:gap-2">
-  <Button
-    variant="ghost"
-    size="icon"
-    className="h-9 w-9 sm:h-8 sm:w-8"
-    onClick={(e) => { e.stopPropagation(); handleEdit(member); }}
-  >
-    <Edit className="h-4 w-4" />
-  </Button>
+                        <div className="flex justify-between items-center mb-6">
+                            <h1 className="text-3xl font-bold text-white">Team Members</h1>
+                            <Button onClick={handleInvite}><UserPlus className="w-4 h-4 mr-2" /> Invite User</Button>
+                        </div>
+                        <div className="glass-pane rounded-lg flex-grow overflow-auto">
+                            {loading ? (
+                                <div className="flex justify-center items-center h-full">
+                                    <Loader2 className="w-8 h-8 animate-spin text-white" />
+                                </div>
+                            ) : (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow className="border-b-white/10">
+                                            <TableHead>Name</TableHead>
+                                            <TableHead>Email</TableHead>
+                                            <TableHead>Clients Assigned</TableHead>
+                                            <TableHead>Status</TableHead>
+                                            <TableHead className="text-right">Actions</TableHead>
+                                            <TableHead className="w-10"></TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {team.map(member => {
+                                            const memberId = String(member.id || member.user_id);
+                                            const assignedClientIds = memberClientsMap[memberId] || [];
+                                            const assignedClients = assignedClientIds
+                                                .map(clientId => clients.find(c => String(c.id) === String(clientId)))
+                                                .filter(Boolean);
+                                            const canOpenDetail = !!member.id;
 
-  <AlertDialog>
-    <AlertDialogTrigger asChild>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-9 w-9 sm:h-8 sm:w-8 text-red-500"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <Trash2 className="h-4 w-4" />
-      </Button>
-    </AlertDialogTrigger>
+                                            return (
+                                                <TableRow
+                                                    key={member.id || member.email}
+                                                    className={`border-none hover:bg-white/5 ${canOpenDetail ? 'cursor-pointer' : ''}`}
+                                                    onClick={() => canOpenDetail && handleSelectMember(member)}
+                                                >
+                                                    <TableCell className="font-medium">{member.name}</TableCell>
+                                                    <TableCell>{member.email}</TableCell>
+                                                    <TableCell>
+                                                        {assignedClients.length === 0 ? (
+                                                            <span className="text-gray-400">-</span>
+                                                        ) : (
+                                                            <div className="flex -space-x-2">
+                                                                {assignedClients.slice(0, 3).map((client, idx) => (
+                                                                    <TooltipProvider key={`${memberId}-${client.id}-${idx}`}>
+                                                                        <Tooltip>
+                                                                            <TooltipTrigger asChild>
+                                                                                <Avatar className="w-8 h-8 border-2 border-gray-800 cursor-help">
+                                                                                    {client.photo_url ? (
+                                                                                        <AvatarImage src={client.photo_url} alt={client.name} />
+                                                                                    ) : null}
+                                                                                    <AvatarFallback className="bg-blue-600 text-white">
+                                                                                        {client.name ? client.name.charAt(0).toUpperCase() : <Building2 className="w-4 h-4" />}
+                                                                                    </AvatarFallback>
+                                                                                </Avatar>
+                                                                            </TooltipTrigger>   
+                                                                            <TooltipContent>
+                                                                                <p>{client.name}</p>
+                                                                            </TooltipContent>
+                                                                        </Tooltip>
+                                                                    </TooltipProvider>
+                                                                ))}
+                                                                {assignedClients.length > 3 && (
+                                                                    <div className="w-8 h-8 rounded-full bg-gray-700 border-2 border-gray-800 flex items-center justify-center text-xs text-white">
+                                                                        +{assignedClients.length - 3}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell onClick={e => e.stopPropagation()}>
+                                                        {member.id ? (
+                                                            <div className="flex items-center gap-2">
+                                                                <Switch
+                                                                    checked={member.is_active}
+                                                                    onCheckedChange={(checked) => handleStatusChange(member, checked)}
+                                                                />
+                                                                <span className={member.is_active ? 'text-green-400' : 'text-gray-400'}>
+                                                                    {member.status_message}
+                                                                </span>
+                                                            </div>
+                                                        ) : (
+                                                            <span className='text-yellow-400'>Invited</span>
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell className="text-right" onClick={e => e.stopPropagation()}>
+                                                        {member.id ? (
+                                                            <>
+                                                                <div className="flex items-center justify-end gap-1 sm:gap-2">
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-9 w-9 sm:h-8 sm:w-8"
+                                                                        onClick={(e) => { e.stopPropagation(); handleEdit(member); }}
+                                                                    >
+                                                                        <Edit className="h-4 w-4" />
+                                                                    </Button>
 
-    <AlertDialogContent className="w-[calc(100%-2rem)] sm:max-w-lg">
-      <AlertDialogHeader>
-        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-        <AlertDialogDescription>
-          This action cannot be undone. This will permanently delete the user.
-        </AlertDialogDescription>
-      </AlertDialogHeader>
-      <AlertDialogFooter className="gap-2 sm:gap-0">
-        <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
-        <AlertDialogAction
-          className="w-full sm:w-auto"
-          onClick={() => handleDelete(member)}
-        >
-          Delete
-        </AlertDialogAction>
-      </AlertDialogFooter>
-    </AlertDialogContent>
-  </AlertDialog>
-</div>
+                                                                    <AlertDialog>
+                                                                        <AlertDialogTrigger asChild>
+                                                                            <Button
+                                                                                variant="ghost"
+                                                                                size="icon"
+                                                                                className="h-9 w-9 sm:h-8 sm:w-8 text-red-500"
+                                                                                onClick={(e) => e.stopPropagation()}
+                                                                            >
+                                                                                <Trash2 className="h-4 w-4" />
+                                                                            </Button>
+                                                                        </AlertDialogTrigger>
 
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handleResendInvite(member.email); }}>Resend Invite</Button>
-                                                <AlertDialog>
-                                                    <AlertDialogTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="text-red-500"><Trash2 className="w-4 h-4" /></Button>
-                                                    </AlertDialogTrigger>
-                                                    <AlertDialogContent>
-                                                        <AlertDialogHeader>
-                                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                            <AlertDialogDescription>
-                                                                This action cannot be undone. This will permanently delete the user.
-                                                            </AlertDialogDescription>
-                                                        </AlertDialogHeader>
-                                                        <AlertDialogFooter>
-                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                            <AlertDialogAction onClick={() => handleDelete(member)}>Delete</AlertDialogAction>
-                                                        </AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                </AlertDialog>
-                                            </>
-                                        )}
-                                    </TableCell>
-                                    <TableCell className="w-10" onClick={e => e.stopPropagation()}>
-                                        {canOpenDetail && <ChevronRight className="w-4 h-4 text-gray-500" />}
-                                    </TableCell>
-                                </TableRow>
-                            )})}
-                        </TableBody>
-                    </Table>
-                )}
-            </div>
+                                                                        <AlertDialogContent className="w-[calc(100%-2rem)] sm:max-w-lg">
+                                                                            <AlertDialogHeader>
+                                                                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                                                <AlertDialogDescription>
+                                                                                    This action cannot be undone. This will permanently delete the user.
+                                                                                </AlertDialogDescription>
+                                                                            </AlertDialogHeader>
+                                                                            <AlertDialogFooter className="gap-2 sm:gap-0">
+                                                                                <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
+                                                                                <AlertDialogAction
+                                                                                    className="w-full sm:w-auto"
+                                                                                    onClick={() => handleDelete(member)}
+                                                                                >
+                                                                                    Delete
+                                                                                </AlertDialogAction>
+                                                                            </AlertDialogFooter>
+                                                                        </AlertDialogContent>
+                                                                    </AlertDialog>
+                                                                </div>
+
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handleResendInvite(member.email); }}>Resend Invite</Button>
+                                                                <AlertDialog>
+                                                                    <AlertDialogTrigger asChild>
+                                                                        <Button variant="ghost" size="icon" className="text-red-500"><Trash2 className="w-4 h-4" /></Button>
+                                                                    </AlertDialogTrigger>
+                                                                    <AlertDialogContent>
+                                                                        <AlertDialogHeader>
+                                                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                                            <AlertDialogDescription>
+                                                                                This action cannot be undone. This will permanently delete the user.
+                                                                            </AlertDialogDescription>
+                                                                        </AlertDialogHeader>
+                                                                        <AlertDialogFooter>
+                                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                                            <AlertDialogAction onClick={() => handleDelete(member)}>Delete</AlertDialogAction>
+                                                                        </AlertDialogFooter>
+                                                                    </AlertDialogContent>
+                                                                </AlertDialog>
+                                                            </>
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell className="w-10" onClick={e => e.stopPropagation()}>
+                                                        {canOpenDetail && <ChevronRight className="w-4 h-4 text-gray-500" />}
+                                                    </TableCell>
+                                                </TableRow>
+                                            )
+                                        })}
+                                    </TableBody>
+                                </Table>
+                            )}
+                        </div>
                     </motion.div>
                 )}
             </AnimatePresence>

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Search, Eye, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import { Search, Eye, ChevronLeft, ChevronRight, Trash2, Calendar } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/ui/use-toast';
@@ -58,10 +58,14 @@ const getStatusColor = (status) => {
 import { Check } from 'lucide-react';
 
 const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVoucher, isAccountantView, onRefresh }) => {
-    const [activeFilters, setActiveFilters] = useState([]);
-    const [filterValues, setFilterValues] = useState({ dateFrom: '', dateTo: '', beneficiary: '', voucher_id: '', type: '', remarks: '' });
+    const [searchTerm, setSearchTerm] = useState('');
+    const [typeFilter, setTypeFilter] = useState('all');
+    const [datePreset, setDatePreset] = useState('all_time');
+    const [dateFrom, setDateFrom] = useState('');
+    const [dateTo, setDateTo] = useState('');
     const [voucherToDelete, setVoucherToDelete] = useState(null);
-    const [currentPage, setCurrentPage] = useState(1);
+    const [activePage, setActivePage] = useState(1);
+    const [historyPage, setHistoryPage] = useState(1);
     const [financeHeaders, setFinanceHeaders] = useState([]);
     const { user } = useAuth();
     const { toast } = useToast();
@@ -89,6 +93,12 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
 
     const [viewMode, setViewMode] = useState('active');
 
+    const currentPage = viewMode === 'active' ? activePage : historyPage;
+    const setCurrentPage = (val) => {
+        if (viewMode === 'active') setActivePage(val);
+        else setHistoryPage(val);
+    };
+
     const sortedAndFilteredVouchers = useMemo(() => {
         let sortableVouchers = [...(vouchers || [])];
         sortableVouchers.sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
@@ -105,42 +115,68 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
 
         return modeFilteredVouchers.filter(v => {
             let match = true;
-            for (const filter of activeFilters) {
-                if (filter === 'beneficiary') {
-                    const searchTerm = (filterValues.beneficiary || '').toLowerCase().trim();
-                    match = match && (!searchTerm || (v.beneficiaryName && v.beneficiaryName.toLowerCase().includes(searchTerm)));
+            if (searchTerm) {
+                const term = searchTerm.toLowerCase().trim();
+                const beneficiaryMatch = v.beneficiaryName && v.beneficiaryName.toLowerCase().includes(term);
+                const voucherIdMatch = (v.voucher_id || v.id || '').toString().toLowerCase().includes(term);
+                const remarksMatch = (v.remarks || 'N/A').toLowerCase().includes(term);
+                if (!beneficiaryMatch && !voucherIdMatch && !remarksMatch) {
+                    match = false;
                 }
-                if (filter === 'voucher_id') {
-                    const searchTerm = (filterValues.voucher_id || '').toLowerCase().trim();
-                    const voucherId = (v.voucher_id || v.id || '').toString().toLowerCase();
-                    match = match && (!searchTerm || voucherId.includes(searchTerm));
+            }
+            if (typeFilter && typeFilter !== 'all') {
+                if (v.voucher_type !== typeFilter) {
+                    match = false;
                 }
-                if (filter === 'type') {
-                    if (filterValues.type && filterValues.type !== 'all') {
-                        match = match && v.voucher_type === filterValues.type;
-                    }
-                }
-                if (filter === 'date') {
-                    const from = filterValues.dateFrom ? new Date(filterValues.dateFrom) : null;
-                    const to = filterValues.dateTo ? new Date(filterValues.dateTo) : null;
-                    const vDate = new Date(v.created_date);
+            }
+            if (datePreset !== 'all_time') {
+                const vDate = new Date(v.created_date);
+                const now = new Date();
+                const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                if (datePreset === 'today') {
+                    if (vDate < today) match = false;
+                } else if (datePreset === 'yesterday') {
+                    const yesterday = new Date(today);
+                    yesterday.setDate(yesterday.getDate() - 1);
+                    if (vDate < yesterday || vDate >= today) match = false;
+                } else if (datePreset === 'last_7_days') {
+                    const last7 = new Date(today);
+                    last7.setDate(last7.getDate() - 7);
+                    if (vDate < last7) match = false;
+                } else if (datePreset === 'last_30_days') {
+                    const last30 = new Date(today);
+                    last30.setDate(last30.getDate() - 30);
+                    if (vDate < last30) match = false;
+                } else if (datePreset === 'this_month') {
+                    const firstDayThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+                    if (vDate < firstDayThisMonth) match = false;
+                } else if (datePreset === 'last_month') {
+                    const firstDayLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                    const lastDayLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+                    if (vDate < firstDayLastMonth || vDate > lastDayLastMonth) match = false;
+                } else if (datePreset === 'last_3_months') {
+                    const last3Months = new Date(today);
+                    last3Months.setMonth(last3Months.getMonth() - 3);
+                    if (vDate < last3Months) match = false;
+                } else if (datePreset === 'custom') {
+                    const from = dateFrom ? new Date(dateFrom) : null;
+                    const to = dateTo ? new Date(dateTo) : null;
                     if (from && to) {
-                        match = match && vDate >= from && vDate <= to;
+                        const toEnd = new Date(to);
+                        toEnd.setHours(23, 59, 59, 999);
+                        if (vDate < from || vDate > toEnd) match = false;
                     } else if (from) {
-                        match = match && vDate >= from;
+                        if (vDate < from) match = false;
                     } else if (to) {
-                        match = match && vDate <= to;
+                        const toEnd = new Date(to);
+                        toEnd.setHours(23, 59, 59, 999);
+                        if (vDate > toEnd) match = false;
                     }
-                }
-                if (filter === 'remarks') {
-                    const searchTerm = (filterValues.remarks || '').toLowerCase().trim();
-                    const remarks = (v.remarks || 'N/A').toLowerCase();
-                    match = match && (!searchTerm || remarks.includes(searchTerm));
                 }
             }
             return match;
         });
-    }, [vouchers, activeFilters, filterValues, viewMode]);
+    }, [vouchers, searchTerm, typeFilter, datePreset, dateFrom, dateTo, viewMode]);
 
     const totalPages = Math.ceil(sortedAndFilteredVouchers.length / ITEMS_PER_PAGE);
     const paginatedVouchers = sortedAndFilteredVouchers.slice(
@@ -150,8 +186,9 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
 
     // Reset to page 1 when filters change
     useEffect(() => {
-        setCurrentPage(1);
-    }, [activeFilters, filterValues]);
+        setActivePage(1);
+        setHistoryPage(1);
+    }, [searchTerm, typeFilter, datePreset, dateFrom, dateTo]);
 
     const handleViewAttachment = async (voucher) => {
         if (!voucher.attachment_id) {
@@ -171,7 +208,7 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
             <CardHeader className="p-4 sm:p-6">
                 <div className="flex flex-col gap-4">
                     <div className="flex flex-wrap items-center gap-2 sm:gap-4 justify-between w-full">
-                        <div className="bg-secondary/20 p-1 rounded-lg inline-flex">
+                        <div className="flex p-1 bg-black/20 rounded-lg border border-white/10 backdrop-blur-sm">
                             <button
                                 onClick={() => setViewMode('active')}
                                 className={`px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-all ${viewMode === 'active'
@@ -193,113 +230,71 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2 sm:gap-4 flex-1 justify-end">
-                            <Select
-                                value=""
-                                onValueChange={filter => {
-                                    if (!activeFilters.includes(filter)) {
-                                        setActiveFilters([...activeFilters, filter]);
-                                    }
-                                }}
-                            >
-                                <SelectTrigger className="w-full sm:w-[180px] text-sm sm:text-base">
-                                    <SelectValue placeholder="Add Filter" />
+                            <div className="relative w-full sm:w-auto sm:max-w-xs flex-grow sm:flex-grow-0">
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                                <Input
+                                    placeholder="Beneficiary, Remarks, ID..."
+                                    className="pl-9 glass-input h-9 text-sm w-full sm:w-[250px]"
+                                    value={searchTerm}
+                                    onChange={e => setSearchTerm(e.target.value)}
+                                />
+                            </div>
+
+                            <Select value={typeFilter} onValueChange={setTypeFilter}>
+                                <SelectTrigger className="w-full sm:w-[130px] h-9 text-sm glass-input">
+                                    <SelectValue placeholder="All Types" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {!activeFilters.includes('beneficiary') && <SelectItem value="beneficiary">Beneficiary Name</SelectItem>}
-                                    {!activeFilters.includes('voucher_id') && <SelectItem value="voucher_id">Voucher ID</SelectItem>}
-                                    {!activeFilters.includes('type') && <SelectItem value="type">Type</SelectItem>}
-                                    {!activeFilters.includes('date') && <SelectItem value="date">Date</SelectItem>}
-                                    {!activeFilters.includes('remarks') && <SelectItem value="remarks">Remarks</SelectItem>}
+                                    <SelectItem value="all">All Types</SelectItem>
+                                    <SelectItem value="debit">Debit</SelectItem>
+                                    <SelectItem value="cash">Cash</SelectItem>
                                 </SelectContent>
                             </Select>
-                            {activeFilters.map(filter => (
-                                <div key={filter} className="flex items-center gap-2 flex-wrap">
-                                    {filter === 'beneficiary' && (
-                                        <Input
-                                            placeholder="Search by beneficiary..."
-                                            value={filterValues.beneficiary || ''}
-                                            onChange={e => setFilterValues(fv => ({ ...fv, beneficiary: e.target.value }))}
-                                            className="w-full sm:max-w-xs text-sm sm:text-base"
-                                        />
-                                    )}
-                                    {filter === 'voucher_id' && (
-                                        <Input
-                                            placeholder="Search by voucher ID..."
-                                            value={filterValues.voucher_id || ''}
-                                            onChange={e => setFilterValues(fv => ({ ...fv, voucher_id: e.target.value }))}
-                                            className="w-full sm:max-w-xs text-sm sm:text-base"
-                                        />
-                                    )}
-                                    {filter === 'type' && (
-                                        <Select
-                                            value={filterValues.type || 'all'}
-                                            onValueChange={val => setFilterValues(fv => ({ ...fv, type: val }))}
-                                        >
-                                            <SelectTrigger className="w-full sm:w-[180px] text-sm sm:text-base">
-                                                <SelectValue placeholder="All Types" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="all">All Types</SelectItem>
-                                                <SelectItem value="debit">Debit</SelectItem>
-                                                <SelectItem value="cash">Cash</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    )}
-                                    {filter === 'date' && (
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                            <Input
-                                                type="date"
-                                                value={filterValues.dateFrom || ''}
-                                                onChange={e => setFilterValues(fv => ({ ...fv, dateFrom: e.target.value }))}
-                                                className="w-full sm:max-w-xs text-sm sm:text-base"
-                                                placeholder="From"
-                                            />
-                                            <span className="text-gray-400 text-sm">to</span>
-                                            <Input
-                                                type="date"
-                                                value={filterValues.dateTo || ''}
-                                                onChange={e => setFilterValues(fv => ({ ...fv, dateTo: e.target.value }))}
-                                                className="w-full sm:max-w-xs text-sm sm:text-base"
-                                                placeholder="To"
-                                            />
-                                        </div>
-                                    )}
-                                    {filter === 'remarks' && (
-                                        <Input
-                                            placeholder="Search by remarks..."
-                                            value={filterValues.remarks || ''}
-                                            onChange={e => setFilterValues(fv => ({ ...fv, remarks: e.target.value }))}
-                                            className="w-full sm:max-w-xs text-sm sm:text-base"
-                                        />
-                                    )}
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => {
-                                            setActiveFilters(activeFilters.filter(f => f !== filter));
-                                            setFilterValues(fv => {
-                                                const newFv = { ...fv };
-                                                if (filter === 'date') {
-                                                    delete newFv.dateFrom;
-                                                    delete newFv.dateTo;
-                                                } else {
-                                                    delete newFv[filter];
-                                                }
-                                                return newFv;
-                                            });
-                                        }}
-                                        title="Remove filter"
-                                        className="h-8 w-8 sm:h-10 sm:w-10"
-                                    >
-                                        ×
-                                    </Button>
+
+                            <Select value={datePreset} onValueChange={setDatePreset}>
+                                <SelectTrigger className="w-full sm:w-[160px] h-9 text-sm glass-input">
+                                    <div className="flex items-center gap-2">
+                                        <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                                        <SelectValue placeholder="All Time" />
+                                    </div>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all_time">All Time</SelectItem>
+                                    <SelectItem value="today">Today</SelectItem>
+                                    <SelectItem value="yesterday">Yesterday</SelectItem>
+                                    <SelectItem value="last_7_days">Last 7 Days</SelectItem>
+                                    <SelectItem value="last_30_days">Last 30 Days</SelectItem>
+                                    <SelectItem value="this_month">This Month</SelectItem>
+                                    <SelectItem value="last_month">Last Month</SelectItem>
+                                    <SelectItem value="last_3_months">Last 3 Months</SelectItem>
+                                    <SelectItem value="custom">Custom</SelectItem>
+                                </SelectContent>
+                            </Select>
+
+                            {datePreset === 'custom' && (
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <Input
+                                        type="date"
+                                        placeholder="From"
+                                        value={dateFrom}
+                                        onChange={e => setDateFrom(e.target.value)}
+                                        className="w-full sm:max-w-[130px] h-9 text-sm glass-input"
+                                    />
+                                    <span className="text-gray-400 text-sm">-</span>
+                                    <Input
+                                        type="date"
+                                        placeholder="To"
+                                        value={dateTo}
+                                        onChange={e => setDateTo(e.target.value)}
+                                        className="w-full sm:max-w-[130px] h-9 text-sm glass-input"
+                                    />
                                 </div>
-                            ))}
+                            )}
                         </div>
                     </div>
                 </div>
             </CardHeader>
-            <CardContent className="p-0 sm:p-6">
+            <CardContent className="p-0">
                 <div className="overflow-x-auto">
                     <Table>
                         <TableHeader>
@@ -317,7 +312,7 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                             {paginatedVouchers.map(voucher => {
                                 const { date, time } = formatDate(voucher.created_date);
                                 return (
-                                    <TableRow key={voucher.id} onClick={() => onViewVoucher({ ...voucher, isReadOnly: viewMode === 'history' }, activeFilters.length > 0)} className={`transition-colors cursor-pointer ${voucher.is_ready ? '' : ''}`}>
+                                    <TableRow key={voucher.id} onClick={() => onViewVoucher({ ...voucher, isReadOnly: viewMode === 'history' }, searchTerm || typeFilter !== 'all' || datePreset !== 'all_time', sortedAndFilteredVouchers)} className={`transition-colors cursor-pointer ${voucher.is_ready ? '' : ''}`}>
                                         <TableCell className="text-xs sm:text-sm">
                                             <div>{date}</div>
                                             <div className="text-xs text-gray-400">{time}</div>
@@ -360,10 +355,10 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                     <p className="text-xs sm:text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="h-8 w-8 sm:h-10 sm:w-10">
+                    <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white">
                         <ChevronLeft className="w-4 h-4" />
                     </Button>
-                    <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="h-8 w-8 sm:h-10 sm:w-10">
+                    <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white">
                         <ChevronRight className="w-4 h-4" />
                     </Button>
                 </div>

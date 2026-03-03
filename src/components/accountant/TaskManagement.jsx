@@ -54,7 +54,7 @@ const TaskManagement = () => {
 
                 <Card className="glass-card">
                     <CardHeader>
-                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 ">
                             <div>
                                 <CardTitle>All Tasks</CardTitle>
                                 <CardDescription>A complete list of all tasks assigned.</CardDescription>

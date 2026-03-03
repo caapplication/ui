@@ -211,7 +211,7 @@ function BankTallyTab({ clientId, token, toast, readOnly = false }) {
   }
 
   return (
-    <Card className="glass-card border-white/5">
+    <Card className="glass-card border-white/5 overflow-hidden">
       <CardHeader className="p-4 sm:p-6 flex flex-row flex-wrap items-center justify-between gap-4">
         <div>
           <CardTitle className="text-lg sm:text-xl text-white">Bank Tally</CardTitle>
@@ -227,9 +227,9 @@ function BankTallyTab({ clientId, token, toast, readOnly = false }) {
           )}
         </div>
       </CardHeader>
-      <CardContent className="p-0 sm:p-6 pt-0">
+      <CardContent className="p-0 ">
         <div className="overflow-x-auto">
-          <Table>
+          <Table className="glass-table ">
             <TableHeader>
               <TableRow className="hover:bg-transparent border-white/10">
                 <TableHead className="text-xs sm:text-sm text-gray-300">Bank</TableHead>
@@ -271,7 +271,7 @@ function BankTallyTab({ clientId, token, toast, readOnly = false }) {
                     const totalClosing = banks.reduce((s, b) => s + (parseFloat(closingInputs[b.id]) || 0), 0);
                     const totalDiff = totalClosing - totalOpening;
                     return (
-                      <TableRow className="border-white/10 bg-amber-500/20 font-medium">
+                      <TableRow className="border-white/10 !bg-amber-500/20 font-medium">
                         <TableCell className="text-xs sm:text-sm text-white">Total</TableCell>
                         <TableCell className="text-xs sm:text-sm text-gray-300">—</TableCell>
                         <TableCell>
@@ -398,7 +398,7 @@ function CashTallyTab({ clientId, entityId, token, toast, readOnly = false }) {
           {/* Cash in hand - all 5 inputs in one line */}
           <div>
             <h3 className="text-sm font-semibold text-white mb-3 border-b border-white/10 pb-2">Cash in hand</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
               <div>
                 <Label className="text-gray-400 text-xs">Opening Balance</Label>
                 <Input type="number" readOnly className="h-9 sm:h-10 text-sm glass-input mt-1 bg-white/5 text-white" value={openingBalance} />
@@ -611,7 +611,7 @@ function CashierReportTab({ clientId, token, toast }) {
           {readOnly && <span className="text-xs text-amber-400">Handover approved — view only</span>}
         </div>
       </CardHeader>
-      <CardContent className="p-0 sm:p-6 pt-0 space-y-4">
+      <CardContent className="p-0 space-y-4">
         {loadingReport && (
           <div className="flex items-center justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-white" /></div>
         )}
@@ -624,7 +624,7 @@ function CashierReportTab({ clientId, token, toast }) {
                   {paymentMethods.map(p => (
                     <TableHead key={p.id} className="text-xs sm:text-sm text-gray-300 bg-white/5">{p.name}</TableHead>
                   ))}
-                  <TableHead className="text-xs sm:text-sm text-gray-300 bg-amber-500/20">Total</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300 !bg-amber-500/20">Total</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -650,7 +650,7 @@ function CashierReportTab({ clientId, token, toast }) {
             </Table>
           </div>
         )}
-        <div>
+        <div className="p-4 sm:p-6">
           <Label className="text-gray-400 text-sm">Remarks</Label>
           <Input readOnly={readOnly} className={`h-9 sm:h-10 text-sm glass-input mt-1 text-white ${readOnly ? 'cursor-default opacity-90' : ''}`} value={remarks} onChange={e => !readOnly && setRemarks(e.target.value)} placeholder="Remarks" />
         </div>
@@ -782,7 +782,7 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
           <Input type="date" className="h-9 sm:h-10 text-sm glass-input w-40 text-white" value={summaryDate} onChange={e => setSummaryDate(e.target.value)} />
         </div>
       </CardHeader>
-      <CardContent className="p-0 sm:p-6 pt-0">
+      <CardContent className="p-0">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
@@ -824,7 +824,7 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
                     </TableCell>
                     <TableCell className="text-xs sm:text-sm text-white">₹ {Number(row.variance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
                     <TableCell className="text-xs sm:text-sm">
-                      <span className={`inline-flex px-2 py-0.5 rounded text-xs sm:text-sm ${row.status === 'approved' ? 'bg-green-500/20 text-green-400' : row.status === 'rejected' ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                      <span className={`inline-flex px-2 py-0.5 rounded text-xs sm:text-sm ${row.status === 'approved' ? 'bg-green-500/20 text-green-400' : row.status === 'rejected' ? 'bg-red-500/20 text-red-400' : '!bg-amber-500/20 text-amber-400'}`}>
                         {statusLabel(row)}
                       </span>
                     </TableCell>
@@ -877,22 +877,22 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
             {breakdownModal?.row && breakdownModal?.type === 'system' && (
               <>
                 <div className="border border-white/10 rounded p-2">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-gray-400 border-b border-white/10">
-                        <th className="text-left py-1">Method</th>
-                        <th className="text-right py-1">Amount ₹</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                  <Table className="w-full text-sm">
+                    <TableHeader>
+                      <TableRow className="text-gray-400 border-b border-white/10">
+                        <TableHead className="text-left py-1">Method</TableHead>
+                        <TableHead className="text-right py-1">Amount ₹</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {Object.entries(breakdownModal.row.as_per_system_breakdown || {}).map(([pmId, amt]) => (
-                        <tr key={pmId} className="border-b border-white/5">
-                          <td className="py-1">{pmName(pmId)}</td>
-                          <td className="text-right py-1">{Number(amt).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                        </tr>
+                        <TableRow key={pmId} className="border-b border-white/5">
+                          <TableCell className="py-1">{pmName(pmId)}</TableCell>
+                          <TableCell className="text-right py-1">{Number(amt).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
+                        </TableRow>
                       ))}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 </div>
                 <p className="text-gray-400 text-sm"><span className="font-medium text-gray-300">Remark:</span> {breakdownModal.row.cashier_remarks || '—'}</p>
               </>
@@ -929,28 +929,28 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
                 <>
                   <p className="text-sm text-gray-400">Department: <span className="text-white">{row.department_name || '—'}</span></p>
                   <div className="border border-white/10 rounded p-2">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="text-gray-400 border-b border-white/10">
-                          <th className="text-left py-1">Method</th>
-                          <th className="text-right py-1">Amount ₹</th>
-                        </tr>
-                      </thead>
-                      <tbody>
+                    <Table className="w-full text-sm">
+                      <TableHeader>
+                        <TableRow className="text-gray-400 border-b border-white/10">
+                          <TableHead className="text-left py-1">Method</TableHead>
+                          <TableHead className="text-right py-1">Amount ₹</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
                         {paymentMethods.map(p => (
-                          <tr key={p.id} className="border-b border-white/5">
-                            <td className="py-1">{p.name}</td>
-                            <td className="text-right py-1">
+                          <TableRow key={p.id} className="border-b border-white/5">
+                            <TableCell className="py-1">{p.name}</TableCell>
+                            <TableCell className="text-right py-1">
                               {viewOnly || !editable ? (
                                 <span>{Number(editValues[p.id] || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                               ) : (
                                 <Input type="number" min={0} step={0.01} className="h-8 text-sm glass-input w-28 text-white inline-block text-right" value={editValues[p.id] ?? ''} onChange={e => setEdit(p.id, e.target.value)} />
                               )}
-                            </td>
-                          </tr>
+                            </TableCell>
+                          </TableRow>
                         ))}
-                      </tbody>
-                    </table>
+                      </TableBody>
+                    </Table>
                   </div>
                   <div>
                     <Label className="text-sm text-gray-400">Remarks</Label>
@@ -1098,7 +1098,7 @@ function ReportTab({ clientId, entityId, entityName, token, toast }) {
                         <TableCell className={`text-xs sm:text-sm text-right ${variance >= 0 ? 'text-green-400' : 'text-white'}`}>₹ {Number(variance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
                       </TableRow>
                     ))}
-                    <TableRow className="bg-amber-500/20 border-white/10 font-medium">
+                    <TableRow className="!bg-amber-500/20 border-white/10 font-medium">
                       <TableCell className="text-xs sm:text-sm text-white">Total</TableCell>
                       <TableCell className="text-xs sm:text-sm text-white">—</TableCell>
                       <TableCell className="text-xs sm:text-sm text-white text-right">₹ {bankOpeningTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
@@ -1127,7 +1127,7 @@ function ReportTab({ clientId, entityId, entityName, token, toast }) {
                       <TableRow className="border-white/10"><TableCell className="text-xs sm:text-sm text-white">Cash In - Collection</TableCell><TableCell className="text-xs sm:text-sm text-white text-right">₹ {cashInHandover.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell></TableRow>
                       <TableRow className="border-white/10"><TableCell className="text-xs sm:text-sm text-white">Cash In - Others</TableCell><TableCell className="text-xs sm:text-sm text-white text-right">₹ {cashInOther.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell></TableRow>
                       <TableRow className="border-white/10"><TableCell className="text-xs sm:text-sm text-white">Cash Out</TableCell><TableCell className="text-xs sm:text-sm text-white text-right">₹ {cashOut.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell></TableRow>
-                      <TableRow className="bg-amber-500/20 border-white/10"><TableCell className="text-xs sm:text-sm font-medium text-white">Closing Balance</TableCell><TableCell className="text-xs sm:text-sm font-medium text-white text-right">₹ {closingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell></TableRow>
+                      <TableRow className="!bg-amber-500/20 border-white/10"><TableCell className="text-xs sm:text-sm font-medium text-white">Closing Balance</TableCell><TableCell className="text-xs sm:text-sm font-medium text-white text-right">₹ {closingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell></TableRow>
                     </TableBody>
                   </Table>
                   <p className="text-gray-400 text-sm mt-2 px-2">Cash Tally Remarks: {cashTally?.remarks || 'No Remarks'}</p>
@@ -1153,7 +1153,7 @@ function ReportTab({ clientId, entityId, entityName, token, toast }) {
                           </TableRow>
                         );
                       })}
-                      <TableRow className="bg-amber-500/20 border-white/10 font-medium">
+                      <TableRow className="!bg-amber-500/20 border-white/10 font-medium">
                         <TableCell className="text-xs sm:text-sm text-white">Total</TableCell>
                         <TableCell className="text-xs sm:text-sm text-white text-right">—</TableCell>
                         <TableCell className="text-xs sm:text-sm text-white text-right">₹ {denomTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
@@ -1193,7 +1193,7 @@ function ReportTab({ clientId, entityId, entityName, token, toast }) {
                       ))
                     )}
                     {cashVouchers.length > 0 && (
-                      <TableRow className="bg-amber-500/20 border-white/10 font-medium">
+                      <TableRow className="!bg-amber-500/20 border-white/10 font-medium">
                         <TableCell colSpan={4} className="text-xs sm:text-sm text-white">Total</TableCell>
                         <TableCell className="text-xs sm:text-sm text-white text-right">₹ {cashVoucherTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
                       </TableRow>
@@ -1236,7 +1236,7 @@ function ReportTab({ clientId, entityId, entityName, token, toast }) {
                       ))
                     )}
                     {debitVouchers.length > 0 && (
-                      <TableRow className="bg-amber-500/20 border-white/10 font-medium">
+                      <TableRow className="!bg-amber-500/20 border-white/10 font-medium">
                         <TableCell colSpan={6} className="text-xs sm:text-sm text-white">Total</TableCell>
                         <TableCell className="text-xs sm:text-sm text-white text-right">₹ {debitVoucherTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
                       </TableRow>

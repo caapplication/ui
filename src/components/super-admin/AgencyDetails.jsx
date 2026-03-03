@@ -24,6 +24,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { getAgencyDetails, lockUser, unlockUser } from '@/lib/api/admin';
 import { useToast } from '@/components/ui/use-toast';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 const AgencyDetails = () => {
   const { id } = useParams();
@@ -145,26 +146,26 @@ const AgencyDetails = () => {
 
   const UserTable = ({ users, roleLabel, showRole = false }) => (
     <div className="overflow-x-auto">
-      <table className="w-full text-left text-sm">
-        <thead>
-          <tr className="border-b border-white/5 bg-white/5 text-gray-400 text-[10px] uppercase tracking-wider">
-            <th className="px-6 py-4 font-semibold">User Info</th>
-            <th className="px-6 py-4 font-semibold">Email</th>
-            {showRole && <th className="px-6 py-4 font-semibold">Role</th>}
-            <th className="px-6 py-4 font-semibold">Status</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-white/5">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="text-xs sm:text-sm">User Info</TableHead>
+            <TableHead className="text-xs sm:text-sm">Email</TableHead>
+            {showRole && <TableHead className="text-xs sm:text-sm">Role</TableHead>}
+            <TableHead className="text-xs sm:text-sm">Status</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {users.length === 0 ? (
-            <tr>
-              <td colSpan={showRole ? 4 : 3} className="px-6 py-8 text-center text-gray-500 italic">
+            <TableRow>
+              <TableCell colSpan={showRole ? 4 : 3} className="py-8 text-center text-gray-500 italic">
                 No records found.
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ) : (
             users.map((u) => (
-              <tr key={u.id} className="hover:bg-white/5 transition-colors group">
-                <td className="px-6 py-4">
+              <TableRow key={u.id}>
+                <TableCell className="text-xs sm:text-sm">
                   <div className="flex items-center gap-3">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold border ${u.is_pending ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' : 'bg-primary/10 text-primary border-primary/20'}`}>
                       {(u.name && u.name !== 'Pending Invitation') ? u.name.charAt(0).toUpperCase() : u.email.charAt(0).toUpperCase()}
@@ -174,16 +175,16 @@ const AgencyDetails = () => {
                       {u.is_pending && <div className="text-[10px] text-yellow-500/50 uppercase tracking-tight font-semibold">Invitation Sent</div>}
                     </div>
                   </div>
-                </td>
-                <td className="px-6 py-4 text-gray-400">{u.email}</td>
+                </TableCell>
+                <TableCell className="text-xs sm:text-sm text-gray-400">{u.email}</TableCell>
                 {showRole && (
-                  <td className="px-6 py-4">
+                  <TableCell className="text-xs sm:text-sm">
                     <Badge variant="outline" className="text-[9px] border-white/10 uppercase tracking-tight text-gray-400">
                       {u.category}
                     </Badge>
-                  </td>
+                  </TableCell>
                 )}
-                <td className="px-6 py-4">
+                <TableCell className="text-xs sm:text-sm">
                   {u.is_pending ? (
                     <Badge className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20 px-2 py-0 text-[10px]">
                       Pending
@@ -193,57 +194,57 @@ const AgencyDetails = () => {
                       {u.is_locked ? "Locked" : "Active"}
                     </Badge>
                   )}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))
           )}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 
   const ClientTable = ({ clients }) => (
     <div className="overflow-x-auto">
-      <table className="w-full text-left text-sm">
-        <thead>
-          <tr className="border-b border-white/5 bg-white/5 text-gray-400 text-[10px] uppercase tracking-wider">
-            <th className="px-6 py-4 font-semibold">Client Name</th>
-            <th className="px-6 py-4 font-semibold">Customer ID</th>
-            <th className="px-6 py-4 font-semibold whitespace-nowrap">Status</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-white/5">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="text-xs sm:text-sm">Client Name</TableHead>
+            <TableHead className="text-xs sm:text-sm">Customer ID</TableHead>
+            <TableHead className="text-xs sm:text-sm whitespace-nowrap">Status</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {clients.length === 0 ? (
-            <tr>
-              <td colSpan={3} className="px-6 py-8 text-center text-gray-500 italic">No clients found.</td>
-            </tr>
+            <TableRow>
+              <TableCell colSpan={3} className="py-8 text-center text-gray-500 italic">No clients found.</TableCell>
+            </TableRow>
           ) : (
             clients.map((c) => (
-              <tr key={c.id} className="hover:bg-white/5 transition-colors group">
-                <td className="px-6 py-4">
+              <TableRow key={c.id}>
+                <TableCell className="text-xs sm:text-sm">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold border bg-primary/10 text-primary border-primary/20">
                       {(c.name || 'C').charAt(0).toUpperCase()}
                     </div>
                     <div className="font-medium text-white">{c.name}</div>
                   </div>
-                </td>
-                <td className="px-6 py-4 text-gray-400 font-mono text-xs">{c.customer_id}</td>
-                <td className="px-6 py-4">
+                </TableCell>
+                <TableCell className="text-xs sm:text-sm text-gray-400 font-mono">{c.customer_id}</TableCell>
+                <TableCell className="text-xs sm:text-sm">
                   <Badge variant={c.is_active ? "outline" : "destructive"} className={c.is_active ? "bg-green-500/10 text-green-500 border-green-500/20 px-2 py-0 text-[10px]" : "bg-red-500/10 text-red-500 border-red-500/20 px-2 py-0 text-[10px]"}>
                     {c.is_active ? "Active" : "Inactive"}
                   </Badge>
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))
           )}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8">
       <div className="flex items-center gap-4">
         <Button
           variant="ghost"
@@ -272,52 +273,56 @@ const AgencyDetails = () => {
       </div>
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="bg-white/5 border border-white/10 p-1 text-gray-400">
-          <TabsTrigger value="overview" className="data-[state=active]:bg-primary data-[state=active]:text-white px-6">Overview</TabsTrigger>
-          <TabsTrigger value="admins" className="data-[state=active]:bg-primary data-[state=active]:text-white px-6">Admins</TabsTrigger>
-          <TabsTrigger value="users" className="data-[state=active]:bg-primary data-[state=active]:text-white px-6">Users</TabsTrigger>
-          <TabsTrigger value="clients_tab" className="data-[state=active]:bg-primary data-[state=active]:text-white px-6">Clients</TabsTrigger>
+        <TabsList className="flex gap-2 sm:gap-4 mb-6 w-fit justify-start">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="admins">Admins</TabsTrigger>
+          <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="clients_tab">Clients</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="pt-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             <StatsCard
               label="AGENCY ADMINS"
               value={users.agency_admins.length}
-              icon={<ShieldCheck className="w-4 h-4 text-blue-400" />}
+              icon={<ShieldCheck className="w-4 h-4 " />}
               color="blue"
             />
             <StatsCard
               label="CA ACCOUNTANTS"
               value={users.ca_accountants.length}
-              icon={<Briefcase className="w-4 h-4 text-purple-400" />}
+              icon={<Briefcase className="w-4 h-4 " />}
               color="purple"
             />
             <StatsCard
               label="TEAM MEMBERS"
               value={users.ca_team_members.length}
-              icon={<Users className="w-4 h-4 text-pink-400" />}
+              icon={<Users className="w-4 h-4   " />}
               color="pink"
             />
             <StatsCard
               label="CLIENT USERS"
               value={users.client_master_admins.length + users.client_users.length}
-              icon={<UserCheck className="w-4 h-4 text-green-400" />}
+              icon={<UserCheck className="w-4 h-4 " />}
               color="green"
             />
             <StatsCard
               label="PENDING INVITES"
               value={invites.length}
-              icon={<Mail className="w-4 h-4 text-yellow-400" />}
+              icon={<Mail className="w-4 h-4 " />}
               color="yellow"
             />
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-            <Card className="glass-effect border-white/5 overflow-hidden">
-              <CardHeader className="bg-white/2 border-b border-white/5">
-                <CardTitle className="text-base font-semibold text-white">Recent Activity</CardTitle>
-                <CardDescription>Latest users joined or invited.</CardDescription>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-4 xl:gap-8 mt-6">
+            <Card className="glass-card overflow-hidden border-white/5">
+              <CardHeader className="p-4 sm:p-6 pb-2">
+                <CardTitle className="text-white flex items-center gap-2 text-lg sm:text-xl">
+                  Recent Activity
+                </CardTitle>
+                <CardDescription className="text-gray-400 text-xs sm:text-sm">
+                  Latest users joined or invited.
+                </CardDescription>
               </CardHeader>
               <CardContent className="p-0">
                 <div className="p-6 text-center text-gray-500 text-sm italic">
@@ -326,10 +331,14 @@ const AgencyDetails = () => {
               </CardContent>
             </Card>
 
-            <Card className="glass-effect border-white/5 overflow-hidden">
-              <CardHeader className="bg-white/2 border-b border-white/5">
-                <CardTitle className="text-base font-semibold text-white">System Usage</CardTitle>
-                <CardDescription>Resource utilization for this agency.</CardDescription>
+            <Card className="glass-card overflow-hidden border-white/5">
+              <CardHeader className="p-4 sm:p-6 pb-2">
+                <CardTitle className="text-white flex items-center gap-2 text-lg sm:text-xl">
+                  System Usage
+                </CardTitle>
+                <CardDescription className="text-gray-400 text-xs sm:text-sm">
+                  Resource utilization for this agency.
+                </CardDescription>
               </CardHeader>
               <CardContent className="p-6">
                 <div className="space-y-4">
@@ -342,7 +351,7 @@ const AgencyDetails = () => {
         </TabsContent>
 
         <TabsContent value="admins" className="pt-6">
-          <Card className="glass-effect border-white/5 overflow-hidden">
+          <Card className="glass-card overflow-hidden">
             <UserTable users={users.agency_admins} roleLabel="Agency Admins" />
           </Card>
         </TabsContent>
@@ -371,13 +380,13 @@ const AgencyDetails = () => {
             ))}
           </div>
 
-          <Card className="glass-effect border-white/5 overflow-hidden">
+          <Card className="glass-card overflow-hidden">
             <UserTable users={consolidatedUsers} roleLabel="Users" showRole={true} />
           </Card>
         </TabsContent>
 
         <TabsContent value="clients_tab" className="pt-6">
-          <Card className="glass-effect border-white/5 overflow-hidden">
+          <Card className="glass-card overflow-hidden">
             <ClientTable clients={data.clients || []} />
           </Card>
         </TabsContent>
@@ -388,24 +397,32 @@ const AgencyDetails = () => {
 
 const StatsCard = ({ label, value, icon, color }) => {
   const colorMap = {
-    blue: "bg-blue-500/5 text-blue-400 border-blue-500/10",
-    purple: "bg-purple-500/5 text-purple-400 border-purple-500/10",
-    pink: "bg-pink-500/5 text-pink-400 border-pink-500/10",
-    green: "bg-green-500/5 text-green-400 border-green-500/10",
-    yellow: "bg-yellow-500/5 text-yellow-400 border-yellow-500/10"
+    blue: "from-blue-500 to-blue-700",
+    purple: "from-purple-500 to-purple-700",
+    pink: "from-pink-500 to-pink-700",
+    green: "from-green-500 to-green-700",
+    yellow: "from-yellow-500 to-amber-600"
   };
 
   return (
-    <Card className={`glass-effect border-white/5 ${colorMap[color]}`}>
-      <CardHeader className="p-4">
-        <div className="flex justify-between items-start mb-1">
-          <div className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 opacity-80">
+    <Card className="glass-card card-hover overflow-hidden h-full">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 sm:p-6">
+        <CardTitle className="text-xs sm:text-sm font-medium text-gray-300">
+          {label}
+        </CardTitle>
+        <div className="flex items-center gap-2">
+          <div className={`w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r ${colorMap[color]} rounded-lg flex items-center justify-center shadow-lg shadow-black/20 flex-shrink-0`}>
             {icon}
-            {label}
           </div>
         </div>
-        <CardTitle className="text-2xl font-bold text-white tracking-tight">{value}</CardTitle>
       </CardHeader>
+      <CardContent className="p-4 sm:p-6 pt-0">
+        <div className="flex items-center gap-3 mb-1">
+          <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white">
+            {value}
+          </div>
+        </div>
+      </CardContent>
     </Card>
   );
 };

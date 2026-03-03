@@ -168,7 +168,7 @@ const TwoFactorVerify = () => {
         </Card>
       </motion.div>
       <div className="absolute bottom-4 left-0 w-full text-center">
-        <p className="text-gray-500 text-sm mt-8">
+        <p className="text-gray-100 text-sm mt-8">
           ©️ {new Date().getFullYear()} Fynivo by Snolep. All rights reserved.
         </p>
       </div>

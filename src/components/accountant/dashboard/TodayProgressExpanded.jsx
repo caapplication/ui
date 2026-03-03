@@ -605,27 +605,27 @@ const TodayProgressExpanded = () => {
             {totalPages > 1 && (
                 <div className="p-4 sm:p-6 border-t border-white/5 flex justify-between items-center bg-white/5 rounded-b-3xl">
                     <p className="text-xs text-gray-400">
-                        Showing {paginatedData.length} of {filteredData.length} team members
+                        Page {currentPage} of {totalPages}
                     </p>
                     <div className="flex items-center gap-2">
                         <Button
                             variant="outline"
                             size="icon"
-                            className="h-8 w-8 border-white/10 bg-transparent hover:bg-white/10 text-white"
+                            className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
                             onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                             disabled={currentPage === 1}
                         >
                             <ChevronLeft className="w-4 h-4" />
                         </Button>
-                        <div className="flex items-center gap-1.5 px-3 py-1 bg-white/5 rounded-lg border border-white/10">
+                        {/* <div className="flex items-center gap-1.5 px-3 py-1 bg-white/5 rounded-lg border border-white/10">
                             <span className="text-xs font-bold text-white">{currentPage}</span>
                             <span className="text-[10px] text-gray-500">/</span>
                             <span className="text-[10px] text-gray-500 font-medium">{totalPages}</span>
-                        </div>
+                        </div> */}
                         <Button
                             variant="outline"
                             size="icon"
-                            className="h-8 w-8 border-white/10 bg-transparent hover:bg-white/10 text-white"
+                            className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
                             onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                             disabled={currentPage === totalPages}
                         >

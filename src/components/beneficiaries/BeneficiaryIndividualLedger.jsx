@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -327,6 +328,14 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
                     valA = a.type.toLowerCase();
                     valB = b.type.toLowerCase();
                     break;
+                case 'ref':
+                    valA = a.ref.toLowerCase();
+                    valB = b.ref.toLowerCase();
+                    break;
+                case 'remark':
+                    valA = a.remark.toLowerCase();
+                    valB = b.remark.toLowerCase();
+                    break;
                 case 'head':
                     valA = a.head.toLowerCase();
                     valB = b.head.toLowerCase();
@@ -562,72 +571,72 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
             <Card className="glass-card overflow-hidden border-white/5 rounded-3xl flex flex-col">
                 <CardContent className="p-0 flex flex-col">
                     <div className="overflow-auto custom-scrollbar">
-                        <table className="w-full text-left border-collapse min-w-[1000px]">
-                            <thead className="sticky top-0 z-20 ">
-                                <tr className="border-b border-white/5 text-gray-400 text-[10px] sm:text-xs font-medium uppercase tracking-wider bg-white/5">
-                                    <td className="py-4 pl-6 w-16">Sr No</td>
-                                    <td className="py-4 px-4 w-40 cursor-pointer select-none hover:text-white transition-colors" onClick={() => handleSort('date')}>
+                        <Table className="w-full text-left border-collapse min-w-[1000px]">
+                            <TableHeader className="sticky top-0 z-20 ">
+                                <TableRow className="border-b border-white/5 text-gray-400 text-[10px] sm:text-xs font-medium uppercase tracking-wider bg-white/5">
+                                    <TableCell className="py-4 pl-6 w-16">Sr No</TableCell>
+                                    <TableCell className="py-4 px-4 w-40 cursor-pointer select-none hover:text-white transition-colors" onClick={() => handleSort('date')}>
                                         <span className="inline-flex items-center">
                                             Date
                                             <SortIcon column="date" sortColumn={sortColumn} sortDirection={sortDirection} />
                                         </span>
-                                    </td>
-                                    <td className="py-4 px-4 w-48 cursor-pointer select-none hover:text-white transition-colors" onClick={() => handleSort('type')}>
+                                    </TableCell>
+                                    <TableCell className="py-4 px-4 w-48 cursor-pointer select-none hover:text-white transition-colors" onClick={() => handleSort('type')}>
                                         <span className="inline-flex items-center">
                                             Type
                                             <SortIcon column="type" sortColumn={sortColumn} sortDirection={sortDirection} />
                                         </span>
-                                    </td>
-                                    <td className="py-4 px-4 w-48 cursor-pointer select-none hover:text-white transition-colors" onClick={() => handleSort('type')}>
+                                    </TableCell>
+                                    <TableCell className="py-4 px-4 w-48 cursor-pointer select-none hover:text-white transition-colors" onClick={() => handleSort('ref')}>
                                         <span className="inline-flex items-center">
                                             Doc No
-                                            <SortIcon column="type" sortColumn={sortColumn} sortDirection={sortDirection} />
+                                            <SortIcon column="ref" sortColumn={sortColumn} sortDirection={sortDirection} />
                                         </span>
-                                    </td>
-                                    <td className="py-4 px-4 cursor-pointer select-none hover:text-white transition-colors" onClick={() => handleSort('invoiceAmount')}>
+                                    </TableCell>
+                                    <TableCell className="py-4 px-4 cursor-pointer select-none hover:text-white transition-colors" onClick={() => handleSort('invoiceAmount')}>
                                         <span className="inline-flex items-center">
                                             Invoice
                                             <SortIcon column="invoiceAmount" sortColumn={sortColumn} sortDirection={sortDirection} />
                                         </span>
-                                    </td>
-                                    <td className="py-4 px-4 cursor-pointer select-none hover:text-white transition-colors" onClick={() => handleSort('paymentAmount')}>
+                                    </TableCell>
+                                    <TableCell className="py-4 px-4 cursor-pointer select-none hover:text-white transition-colors" onClick={() => handleSort('paymentAmount')}>
                                         <span className="inline-flex items-center">
                                             Payment
                                             <SortIcon column="paymentAmount" sortColumn={sortColumn} sortDirection={sortDirection} />
                                         </span>
-                                    </td>
-                                    <td className="py-4 px-4 cursor-pointer select-none hover:text-white transition-colors" onClick={() => handleSort('remark')}>
+                                    </TableCell>
+                                    <TableCell className="py-4 px-4 cursor-pointer select-none hover:text-white transition-colors" onClick={() => handleSort('remark')}>
                                         <span className="inline-flex items-center">
                                             Remark
                                             <SortIcon column="remark" sortColumn={sortColumn} sortDirection={sortDirection} />
                                         </span>
-                                    </td>
-                                    <td className="py-4 px-4 cursor-pointer select-none hover:text-white transition-colors" onClick={() => handleSort('head')}>
+                                    </TableCell>
+                                    <TableCell className="py-4 px-4 cursor-pointer select-none hover:text-white transition-colors" onClick={() => handleSort('head')}>
                                         <span className="inline-flex items-center">
                                             Finance Head
                                             <SortIcon column="head" sortColumn={sortColumn} sortDirection={sortDirection} />
                                         </span>
-                                    </td>
-                                    <td className="py-4 pr-6 text-right cursor-pointer select-none hover:text-white transition-colors" onClick={() => handleSort('status')}>
+                                    </TableCell>
+                                    <TableCell className="py-4 pr-6 text-right cursor-pointer select-none hover:text-white transition-colors" onClick={() => handleSort('status')}>
                                         <span className="inline-flex items-start justify-start w-full    ">
                                             Status
                                             <SortIcon column="status" sortColumn={sortColumn} sortDirection={sortDirection} />
                                         </span>
-                                    </td>
-                                </tr>
-                            </thead>
-                            <tbody className="text-sm">
+                                    </TableCell>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody className="text-sm">
                                 {paginatedData.length > 0 ? (
                                     paginatedData.map((tx, idx) => (
-                                        <tr
+                                        <TableRow
                                             key={tx.id}
                                             className="border-b border-white/5 hover:bg-white/5 transition-colors group cursor-pointer"
                                             onClick={() => handleRowClick(tx)}
                                         >
-                                            <td className="py-4 pl-6 text-gray-500 font-mono">
+                                            <TableCell className="py-4 pl-6 text-gray-500 font-mono">
                                                 {String((currentPage - 1) * pageSize + idx + 1).padStart(2, "0")}
-                                            </td>
-                                            <td className="py-4 px-4">
+                                            </TableCell>
+                                            <TableCell className="py-4 px-4">
                                                 <div className="flex flex-col">
                                                     {(() => {
                                                         const { date, time } = formatDate(tx.date);
@@ -643,8 +652,8 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
                                                         );
                                                     })()}
                                                 </div>
-                                            </td>
-                                            <td className="py-4 px-4">
+                                            </TableCell>
+                                            <TableCell className="py-4 px-4">
                                                 <div className="flex flex-col gap-1.5">
                                                     <span className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider w-fit ${tx.rawType === 'Invoice'
                                                         ? 'bg-blue-500/20 text-blue-300'
@@ -656,71 +665,66 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
                                                     </span>
                                                     {/* <span className="text-gray-300 text-xs font-mono font-medium">{tx.ref}</span> */}
                                                 </div>
-                                            </td>
-                                            <td className="py-4 px-4">
+                                            </TableCell>
+                                            <TableCell className="py-4 px-4">
                                                 <div className="flex flex-col gap-1.5">
 
                                                     <span className="text-gray-300 text-xs font-mono font-medium">{tx.ref}</span>
                                                 </div>
-                                            </td>
-                                            <td className="py-4 px-4 text-white font-bold">
+                                            </TableCell>
+                                            <TableCell className="py-4 px-4 text-white font-bold">
                                                 {tx.invoiceAmount > 0 ? `₹${tx.invoiceAmount.toLocaleString('en-IN')}` : '-'}
-                                            </td>
-                                            <td className="py-4 px-4 text-red-400 font-bold">
+                                            </TableCell>
+                                            <TableCell className="py-4 px-4 text-red-400 font-bold">
                                                 {tx.paymentAmount > 0 ? `₹${tx.paymentAmount.toLocaleString('en-IN')}` : '-'}
-                                            </td>
-                                            <td className="py-4 px-4">
+                                            </TableCell>
+                                            <TableCell className="py-4 px-4">
                                                 <div className="max-w-[200px]">
                                                     <span className="text-gray-400 text-xs line-clamp-2">{tx.remark}</span>
                                                 </div>
-                                            </td>
-                                            <td className="py-4 px-4">
+                                            </TableCell>
+                                            <TableCell className="py-4 px-4">
                                                 <div className="flex items-center">
                                                     <span className="text-gray-400 text-xs truncate">{tx.head}</span>
                                                 </div>
-                                            </td>
-                                            <td className="py-4 pr-6 text-start">
+                                            </TableCell>
+                                            <TableCell className="py-4 pr-6 text-start">
                                                 <StatusBadge status={tx.status} />
-                                            </td>
-                                        </tr>
+                                            </TableCell>
+                                        </TableRow>
                                     ))
                                 ) : (
-                                    <tr>
-                                        <td colSpan="8" className="py-10 text-center text-gray-500">
+                                    <TableRow>
+                                        <TableCell colSpan="8" className="py-10 text-center text-gray-500">
                                             No records found for this beneficiary.
-                                        </td>
-                                    </tr>
+                                        </TableCell>
+                                    </TableRow>
                                 )}
-                            </tbody>
-                        </table>
+                            </TableBody>
+                        </Table>
                     </div>
                 </CardContent>
 
                 {/* Pagination */}
                 {totalPages > 1 && (
                     <div className="p-4 sm:p-6 border-t border-white/5 flex justify-between items-center bg-white/5">
-                        <p className="text-xs text-gray-400">
-                            Showing {paginatedData.length} of {transactions.length} records
-                        </p>
+                        <div>
+                            <p className="text-xs sm:text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
+                        </div>
                         <div className="flex items-center gap-2">
                             <Button
                                 variant="outline"
                                 size="icon"
-                                className="h-8 w-8 border-white/10 bg-transparent hover:bg-white/10 text-white"
+                                className="h-8 w-8 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
                                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                                 disabled={currentPage === 1}
                             >
                                 <ChevronLeft className="w-4 h-4" />
                             </Button>
-                            <div className="flex items-center gap-1.5 px-3 py-1 bg-white/5 rounded-lg border border-white/10">
-                                <span className="text-xs font-bold text-white">{currentPage}</span>
-                                <span className="text-[10px] text-gray-500">/</span>
-                                <span className="text-[10px] text-gray-500 font-medium">{totalPages}</span>
-                            </div>
                             <Button
                                 variant="outline"
                                 size="icon"
-                                className="h-8 w-8 border-white/10 bg-transparent hover:bg-white/10 text-white"
+                                className="h-8 w-8 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
                                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                                 disabled={currentPage === totalPages}
                             >

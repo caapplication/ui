@@ -9,6 +9,7 @@ import {
     Plus,
     X,
     Bell,
+    Building,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -17,6 +18,7 @@ const GlobalFAB = () => {
     const role = user?.role;
     const [isFabOpen, setIsFabOpen] = useState(false);
     const [placement, setPlacement] = useState({ vertical: 'top', horizontal: 'left' });
+    const [isDragging, setIsDragging] = useState(false);
     const containerRef = useRef(null);
     const constraintsRef = useRef(null);
     const navigate = useNavigate();
@@ -48,6 +50,8 @@ const GlobalFAB = () => {
         { label: "Invoices", icon: FileText, path: "/finance/invoices", state: { quickAction: 'add-invoice', returnToDashboard: true }, roles: ['CLIENT_MASTER_ADMIN', 'CLIENT_USER'] },
         { label: "Vouchers", icon: Banknote, path: "/finance/vouchers", state: { quickAction: 'add-voucher', returnToDashboard: true }, roles: ['CLIENT_MASTER_ADMIN', 'CLIENT_USER'] },
         { label: "Notices", icon: Bell, path: "/notices", state: { quickAction: 'add-notice', returnToDashboard: true }, roles: ['CA_ACCOUNTANT'] },
+        { label: "Agency", icon: Building, path: "/agencies", state: { quickAction: 'add-agency' }, roles: ['SUPER_ADMIN'] },
+        { label: "CA Accountants", icon: Users, path: "/cas", state: { quickAction: 'invite-ca' }, roles: ['SUPER_ADMIN'] },
     ];
 
     const fabItems = allItems.filter(item => item.roles.includes(role));
@@ -71,6 +75,8 @@ const GlobalFAB = () => {
                     drag
                     dragConstraints={constraintsRef}
                     dragMomentum={false}
+                    onDragStart={() => setIsDragging(true)}
+                    onDragEnd={() => setTimeout(() => setIsDragging(false), 150)}
                     onDrag={updatePlacement}
                     className="absolute bottom-6 right-6 pointer-events-none"
                 >
@@ -119,7 +125,11 @@ const GlobalFAB = () => {
                         <motion.button
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
-                            onClick={toggleFab}
+                            onClick={() => {
+                                if (!isDragging) {
+                                    toggleFab();
+                                }
+                            }}
                             className={`p-4 rounded-full shadow-lg backdrop-blur-sm transition-all duration-300 ${isFabOpen
                                 ? "bg-red-500 hover:bg-red-600 rotate-90"
                                 : "bg-blue-600 hover:bg-blue-700"

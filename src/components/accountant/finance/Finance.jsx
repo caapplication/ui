@@ -180,13 +180,13 @@ const AccountantFinance = () => {
           const indicators = await getEntityIndicators(user.access_token);
           console.log('Finance: Fetched entity indicators:', indicators);
           console.log('Finance: Entities:', entities.map(e => ({ id: String(e.id), name: e.name })));
-          
+
           // Normalize entity IDs to strings for comparison
           const normalizedIndicators = {};
           Object.keys(indicators || {}).forEach(key => {
             normalizedIndicators[String(key)] = indicators[key];
           });
-          
+
           console.log('Finance: Normalized indicators:', normalizedIndicators);
           setEntityIndicators(normalizedIndicators);
         } catch (error) {
@@ -203,15 +203,12 @@ const AccountantFinance = () => {
     return () => clearInterval(interval);
   }, [entities, user?.access_token]);
 
-  const handleViewInvoice = (invoice, hasFilters) => {
-    const currentIndex = invoices.findIndex(inv => inv.id === invoice.id);
+  const handleViewInvoice = (invoice, hasFilters, sortedFilteredInvoices) => {
+    const invoicesListToPass = sortedFilteredInvoices || invoices;
+    const currentIndex = invoicesListToPass.findIndex(inv => inv.id === invoice.id);
     const path = `/invoices/ca/${invoice.id}`;
 
-    if (hasFilters) {
-      window.open(path, '_blank');
-    } else {
-      navigate(path, { state: { invoice, invoices, currentIndex } });
-    }
+    navigate(path, { state: { invoice, invoices: invoicesListToPass, currentIndex } });
   };
 
   const enrichedVouchers = useMemo(() => {
@@ -291,7 +288,7 @@ const AccountantFinance = () => {
                   const indicator = entityIndicators[entityIdStr];
                   // On Finance page, only show dot for finance pending, not notices unread
                   const hasNotification = indicator && indicator.has_finance_pending === true;
-                  
+
                   // Debug logging
                   if (entity.name === 'The Abduz' || entity.name === 'Spic N Span') {
                     console.log(`Finance: Checking ${entity.name}`, {
@@ -302,18 +299,18 @@ const AccountantFinance = () => {
                       allIndicators: entityIndicators
                     });
                   }
-                  
+
                   return (
-                    <SelectItem 
-                      key={entity.id} 
+                    <SelectItem
+                      key={entity.id}
                       value={entity.id}
                       className={hasNotification ? "relative !pr-8" : "relative"}
                     >
                       <div className="flex items-center justify-between w-full gap-2">
                         <span className="flex-1 truncate">{entity.name}</span>
                         {hasNotification && (
-                          <span 
-                            className="w-2 h-2 rounded-full bg-amber-400 border border-[#1e293b] flex-shrink-0" 
+                          <span
+                            className="w-2 h-2 rounded-full bg-amber-400 border border-[#1e293b] flex-shrink-0"
                             aria-hidden="true"
                             style={{ minWidth: '8px', minHeight: '8px' }}
                           />
@@ -389,20 +386,16 @@ const AccountantFinance = () => {
                   <VoucherHistory
                     vouchers={enrichedVouchers}
                     onDeleteVoucher={handleDeleteVoucherClick}
-                    onViewVoucher={(voucher, hasFilters) => {
-                      if (hasFilters) {
-                        const url = `/vouchers/ca/${voucher.id}`;
-                        window.open(url, '_blank');
-                      } else {
-                        console.log("Navigating to voucher:", voucher);
-                        navigate(`/vouchers/ca/${voucher.id}`, {
-                          state: {
-                            voucher: voucher,
-                            vouchers: enrichedVouchers,
-                            isReadOnly: voucher.isReadOnly // Passed from VoucherHistory
-                          }
-                        });
-                      }
+                    onViewVoucher={(voucher, hasFilters, sortedFilteredVouchers) => {
+                      const vouchersListToPass = sortedFilteredVouchers || enrichedVouchers;
+                      console.log("Navigating to voucher:", voucher);
+                      navigate(`/vouchers/ca/${voucher.id}`, {
+                        state: {
+                          voucher: voucher,
+                          vouchers: vouchersListToPass,
+                          isReadOnly: voucher.isReadOnly
+                        }
+                      });
                     }}
                     onEditVoucher={(voucher) => console.log(voucher)}
                     isAccountantView={true}

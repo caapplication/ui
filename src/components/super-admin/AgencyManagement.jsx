@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Building,
@@ -12,7 +13,9 @@ import {
   Calendar,
   Shield,
   AlertTriangle,
-  Loader2
+  Loader2,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -41,6 +44,8 @@ const AgencyManagement = () => {
   const [newAgency, setNewAgency] = useState({ name: '', email: '' });
   const [actionLoading, setActionLoading] = useState(false);
   const [agencyToDelete, setAgencyToDelete] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const fetchAgencies = async () => {
     try {
@@ -63,6 +68,14 @@ const AgencyManagement = () => {
       fetchAgencies();
     }
   }, [user]);
+
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.state?.quickAction === 'add-agency') {
+      setIsCreateModalOpen(true);
+    }
+  }, [location.state]);
 
   const handleCreateAgency = async (e) => {
     e.preventDefault();
@@ -114,8 +127,18 @@ const AgencyManagement = () => {
     agency.code?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  const totalPages = Math.ceil(filteredAgencies.length / itemsPerPage);
+  const paginatedAgencies = filteredAgencies.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-white mb-1">Agency Management</h1>
@@ -181,8 +204,8 @@ const AgencyManagement = () => {
         </Dialog>
       </div>
 
-      <Card className="glass-effect border-white/5">
-        <CardHeader className="pb-3 text-white border-b border-white/5">
+      <Card className="glass-card overflow-hidden">
+        <CardHeader className="pb-3 text-white">
           <div className="flex items-center gap-4">
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
@@ -200,37 +223,37 @@ const AgencyManagement = () => {
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="border-b border-white/5 bg-white/5 text-gray-400 text-xs uppercase tracking-wider">
-                  <th className="px-6 py-4 font-semibold">Agency Info</th>
-                  <th className="px-6 py-4 font-semibold">Code / ID</th>
-                  <th className="px-6 py-4 font-semibold">Registered At</th>
-                  <th className="px-6 py-4 font-semibold text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-xs sm:text-sm">Agency Info</TableHead>
+                  <TableHead className="text-xs sm:text-sm">Code / ID</TableHead>
+                  <TableHead className="text-xs sm:text-sm">Registered At</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {loading ? (
-                  <tr>
-                    <td colSpan="4" className="px-6 py-12 text-center text-gray-500">
+                  <TableRow>
+                    <TableCell colSpan="4" className="py-12 text-center text-gray-500">
                       <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-primary" />
                       Loading agencies...
-                    </td>
-                  </tr>
-                ) : filteredAgencies.length === 0 ? (
-                  <tr>
-                    <td colSpan="4" className="px-6 py-12 text-center text-gray-500 italic">
+                    </TableCell>
+                  </TableRow>
+                ) : paginatedAgencies.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan="4" className="py-12 text-center text-gray-500 italic">
                       No agencies found matching your search.
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ) : (
-                  filteredAgencies.map((agency) => (
-                    <tr
+                  paginatedAgencies.map((agency) => (
+                    <TableRow
                       key={agency.id}
-                      className="hover:bg-white/5 transition-colors group cursor-pointer"
+                      className="cursor-pointer"
                       onClick={() => navigate(`/agencies/${agency.id}`)}
                     >
-                      <td className="px-6 py-4">
+                      <TableCell className="text-xs sm:text-sm">
                         <Link
                           to={`/agencies/${agency.id}`}
                           className="flex items-center gap-3"
@@ -243,20 +266,20 @@ const AgencyManagement = () => {
                             <div className="text-sm font-medium text-white group-hover:text-primary-light transition-colors">{agency.name}</div>
                           </div>
                         </Link>
-                      </td>
-                      <td className="px-6 py-4">
+                      </TableCell>
+                      <TableCell className="text-xs sm:text-sm">
                         <div className="text-xs font-mono text-gray-400 bg-white/5 px-2 py-1 rounded w-fit">
                           {agency.code || agency.id.substring(0, 8)}
                         </div>
-                      </td>
-                      <td className="px-6 py-4">
+                      </TableCell>
+                      <TableCell className="text-xs sm:text-sm">
                         <div className="text-sm text-gray-400 flex items-center gap-2">
                           <Calendar className="w-4 h-4" />
                           {new Date(agency.created_at).toLocaleDateString()}
                         </div>
-                      </td>
+                      </TableCell>
                       {/* Hide Delete for now as requested */}
-                      {/* <td className="px-6 py-4 text-right">
+                      {/* <TableCell className="text-right">
                         <Dialog>
                           <DialogTrigger asChild>
                             <Button
@@ -303,13 +326,40 @@ const AgencyManagement = () => {
                             </DialogFooter>
                           </DialogContent>
                         </Dialog>
-                      </td> */}
-                    </tr>
+                      </TableCell> */}
+                    </TableRow>
                   ))
                 )}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
+          {totalPages > 1 && (
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-0 p-4 sm:p-6 pb-4 border-t border-white/10">
+              <div>
+                <p className="text-xs sm:text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

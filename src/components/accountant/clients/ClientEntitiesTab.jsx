@@ -25,7 +25,7 @@ const ClientEntitiesTab = ({ entities = [], onEditEntity, onDeleteEntity, isMuta
     };
 
     return (
-        <div className="glass-pane p-4 rounded-lg">
+        <div className="glass-pane p-4 rounded-lg overflow-hidden">
             <div className="flex justify-between items-center mb-2">
                 <span className="font-semibold text-lg text-white">Entities</span>
                 <Button variant="outline" size="sm" onClick={() => setShowAddDialog(true)}>

@@ -26,6 +26,7 @@ import {
     List as ListIcon,
     Grid as GridIcon,
     Lock,
+    ChevronRight,
 } from 'lucide-react';
 
 
@@ -297,8 +298,8 @@ const ClientList = ({
                                     <Badge variant="destructive">Inactive</Badge>
                                 )}
                                 {client.is_locked && (
-                                    <Badge 
-                                        variant="destructive" 
+                                    <Badge
+                                        variant="destructive"
                                         className="bg-red-500/20 text-red-400 border-red-500/50 flex items-center gap-1"
                                     >
                                         <Lock className="w-3 h-3" />
@@ -307,6 +308,9 @@ const ClientList = ({
                                 )}
                             </div>
                         </TableCell>
+                        <TableCell>
+                            <ChevronRight className="w-4 h-4 text-gray-500" />
+                        </TableCell>
                     </TableRow>
                 ))}
             </TableBody>
@@ -314,7 +318,7 @@ const ClientList = ({
     );
 
     const renderGridView = () => (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6 p-4">
             {paginatedClients.map((client) => (
                 <div
                     key={client.id}
@@ -348,8 +352,8 @@ const ClientList = ({
                                 <Badge variant="destructive">Inactive</Badge>
                             )}
                             {client.is_locked && (
-                                <Badge 
-                                    variant="destructive" 
+                                <Badge
+                                    variant="destructive"
                                     className="bg-red-500/20 text-red-400 border-red-500/50 flex items-center gap-1"
                                 >
                                     <Lock className="w-3 h-3" />
@@ -367,10 +371,10 @@ const ClientList = ({
     );
 
     return (
-        <div className="h-full flex flex-col relative">
+        <div className="h-full flex flex-col relative overflow-hidden">
             <div className="flex justify-between items-center mb-4 flex-shrink-0 flex-wrap gap-2">
-                <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-                    <div className="w-3 h-8 bg-primary rounded-full" />
+                <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+                    {/* <div className="w-3 h-8 bg-primary rounded-full" /> */}
                     Client
                 </h1>
                 <div className="flex items-center gap-2">
@@ -396,111 +400,150 @@ const ClientList = ({
                 </div>
             </div>
 
-            <div className="glass-pane p-4 rounded-lg mb-4">
-                <div className="flex flex-wrap items-center gap-4">
-                    <div className="relative flex-grow min-w-[250px]">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <Input
-                            placeholder="Search Client, PAN, Mobile, Email, Customer ID..."
-                            className="glass-input pl-10"
-                            value={searchTerm}
-                            onChange={(e) => {
-                                setSearchTerm(e.target.value);
-                                setCurrentPage(1);
-                            }}
-                        />
-                    </div>
-                    <Button
-                        variant={showFilters ? 'secondary' : 'outline'}
-                        onClick={() => setShowFilters((prev) => !prev)}
-                    >
-                        <Filter className="w-4 h-4 mr-2" />
-                        Filters
-                        {hasActiveFilters && <span className="ml-2 w-2 h-2 rounded-full bg-green-400" />}
-                    </Button>
+            <div className="glass-pane p-4 rounded-lg mb-4 lg:overflow-hidden">
+  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+    
+    {/* LEFT SECTION */}
+    <div className="flex flex-col sm:flex-row gap-3 sm:items-center flex-1">
+      
+      {/* Search */}
+      <div className="relative flex-grow min-w-[250px]  max-w-[400px]">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <Input
+          placeholder="Search Client, PAN, Mobile, Email, Customer ID..."
+          className="glass-input pl-10 w-full"
+          value={searchTerm}
+          onChange={(e) => {
+            setSearchTerm(e.target.value);
+            setCurrentPage(1);
+          }}
+        />
+      </div>
 
-                    {hasActiveFilters && (
-                        <Button
-                            variant="ghost"
-                            onClick={clearFilters}
-                            className="text-red-400 hover:text-red-300"
-                        >
-                            <X className="w-4 h-4 mr-2" />
-                            Clear Filters
-                        </Button>
-                    )}
+      {/* Filter Toggle */}
+      <div className="flex gap-2 flex-wrap">
+        <Button
+          variant={showFilters ? 'secondary' : 'outline'}
+          onClick={() => setShowFilters((prev) => !prev)}
+          className="w-full sm:w-auto"
+        >
+          <Filter className="w-4 h-4 mr-2" />
+          Filters
+          {hasActiveFilters && (
+            <span className="ml-2 w-2 h-2 rounded-full bg-green-400" />
+          )}
+        </Button>
 
-                    <div className="flex-grow flex justify-end items-center gap-2">
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => startRefreshTransition(() => onRefresh?.())}
-                            disabled={isRefreshing}
-                        >
-                            <RefreshCw className={cn('w-4 h-4', isRefreshing && 'animate-spin')} />
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                            disabled={currentPage === 1}
-                        >
-                            <ArrowLeft className="w-4 h-4" />
-                        </Button>
-                        <span className="text-sm">
-                            {currentPage} / {totalPages > 0 ? totalPages : 1}
-                        </span>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-                            disabled={currentPage === totalPages || totalPages === 0}
-                        >
-                            <ArrowRight className="w-4 h-4" />
-                        </Button>
-                    </div>
-                </div>
-                {showFilters && (
-                    <div className="mt-4 flex flex-wrap gap-4 border-t border-white/10 pt-4">
-                        <FilterPopover
-                            title="Recurring Service"
-                            options={filterOptions.service}
-                            selectedValue={filters.service}
-                            onSelect={(v) => handleFilterChange('service', v)}
-                        >
-                            <Button variant="outline" className="justify-between">
-                                {filters.service
-                                    ? filterOptions.service.find((o) => String(o.value) === String(filters.service))?.label
-                                    : 'Recurring Service'}
-                            </Button>
-                        </FilterPopover>
-                        <FilterPopover
-                            title="Type"
-                            options={filterOptions.type}
-                            selectedValue={filters.type}
-                            onSelect={(v) => handleFilterChange('type', v)}
-                        >
-                            <Button variant="outline" className="justify-between">
-                                {filters.type || 'Type'}
-                            </Button>
-                        </FilterPopover>
-                        <FilterPopover
-                            title="Status"
-                            options={filterOptions.status}
-                            selectedValue={filters.status}
-                            onSelect={(v) => handleFilterChange('status', v)}
-                        >
-                            <Button variant="outline" className="justify-between">
-                                {filters.status
-                                    ? filterOptions.status.find((o) => o.value === filters.status)?.label
-                                    : 'Status'}
-                            </Button>
-                        </FilterPopover>
-                    </div>
-                )}
-            </div>
+        {hasActiveFilters && (
+          <Button
+            variant="ghost"
+            onClick={clearFilters}
+            className="text-red-400 hover:text-red-300 w-full sm:w-auto"
+          >
+            <X className="w-4 h-4 mr-2" />
+            Clear
+          </Button>
+        )}
+      </div>
+    </div>
 
-            <div className="flex-grow overflow-y-auto glass-pane p-1 rounded-lg min-h-0">
+    {/* RIGHT SECTION */}
+    <div className="flex items-center justify-between sm:justify-end gap-2 flex-wrap">
+      
+      {/* Refresh */}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => startRefreshTransition(() => onRefresh?.())}
+        disabled={isRefreshing}
+      >
+        <RefreshCw
+          className={cn('w-4 h-4', isRefreshing && 'animate-spin')}
+        />
+      </Button>
+
+      {/* Pagination */}
+      <div className="flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() =>
+            setCurrentPage((prev) => Math.max(1, prev - 1))
+          }
+          disabled={currentPage === 1}
+        >
+          <ArrowLeft className="w-4 h-4" />
+        </Button>
+
+        <span className="text-sm whitespace-nowrap">
+          {currentPage} / {totalPages > 0 ? totalPages : 1}
+        </span>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() =>
+            setCurrentPage((prev) =>
+              Math.min(totalPages, prev + 1)
+            )
+          }
+          disabled={currentPage === totalPages || totalPages === 0}
+        >
+          <ArrowRight className="w-4 h-4" />
+        </Button>
+      </div>
+    </div>
+  </div>
+
+  {/* FILTERS SECTION */}
+  {showFilters && (
+    <div className="mt-4 border-t border-white/10 pt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      
+      <FilterPopover
+        title="Recurring Service"
+        options={filterOptions.service}
+        selectedValue={filters.service}
+        onSelect={(v) => handleFilterChange('service', v)}
+      >
+        <Button variant="outline" className="w-full justify-between">
+          {filters.service
+            ? filterOptions.service.find(
+                (o) => String(o.value) === String(filters.service)
+              )?.label
+            : 'Recurring Service'}
+        </Button>
+      </FilterPopover>
+
+      <FilterPopover
+        title="Type"
+        options={filterOptions.type}
+        selectedValue={filters.type}
+        onSelect={(v) => handleFilterChange('type', v)}
+      >
+        <Button variant="outline" className="w-full justify-between">
+          {filters.type || 'Type'}
+        </Button>
+      </FilterPopover>
+
+      <FilterPopover
+        title="Status"
+        options={filterOptions.status}
+        selectedValue={filters.status}
+        onSelect={(v) => handleFilterChange('status', v)}
+      >
+        <Button variant="outline" className="w-full justify-between">
+          {filters.status
+            ? filterOptions.status.find(
+                (o) => o.value === filters.status
+              )?.label
+            : 'Status'}
+        </Button>
+      </FilterPopover>
+    </div>
+  )}
+</div>
+
+            <div className="flex-grow overflow-y-auto glass-pane  rounded-lg min-h-0">
                 <Suspense fallback={<div className="py-10 flex justify-center"><Loader2 className="animate-spin" /></div>}>
                     {viewMode === 'list' ? renderTableView() : renderGridView()}
                 </Suspense>

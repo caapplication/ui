@@ -263,7 +263,7 @@ const BeneficiaryDetailsPage = () => {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 h-full overflow-y-auto">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 sm:mb-8">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-6 sm:mb-8">
         <div className="flex items-center gap-2 sm:gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate('/beneficiaries')} className="h-9 w-9 sm:h-10 sm:w-10">
             <ArrowLeft className="h-5 w-5 sm:h-6 sm:w-6" />
@@ -271,7 +271,7 @@ const BeneficiaryDetailsPage = () => {
           <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">Beneficiary Details</h1>
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="flex items-center gap-2 w-full xl:w-auto">
           <Button variant="destructive" onClick={() => setShowDeleteDialog(true)} className="h-9 sm:h-10 text-sm sm:text-base flex-1 sm:flex-initial">
             <Trash2 className="w-4 h-4 mr-1 sm:mr-2" />
             <span className="hidden sm:inline">Delete Beneficiary</span>
@@ -315,7 +315,7 @@ const BeneficiaryDetailsPage = () => {
       </Card>
 
       {/* Active bank accounts */}
-      <Card className="glass-card">
+      <Card className="glass-card overflow-hidden">
         <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 sm:p-6">
           <div>
             <CardTitle className="text-xl sm:text-2xl font-bold text-white">Bank Accounts</CardTitle>
@@ -327,7 +327,7 @@ const BeneficiaryDetailsPage = () => {
             <span className="sm:hidden">Add Account</span>
           </Button>
         </CardHeader>
-        <CardContent className="p-0 sm:p-6">
+        <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -379,14 +379,14 @@ const BeneficiaryDetailsPage = () => {
       </Card>
 
       {/* Inactive bank accounts */}
-      <Card className="glass-card mt-4 sm:mt-6">
+      <Card className="glass-card mt-4 sm:mt-6 overflow-hidden">
         <CardHeader className="p-4 sm:p-6">
           <CardTitle className="text-xl sm:text-2xl font-bold text-white">Inactive Bank Accounts</CardTitle>
           <CardDescription className="text-sm sm:text-base">
             Deactivated bank accounts appear here. You can permanently delete them.
           </CardDescription>
         </CardHeader>
-        <CardContent className="p-0 sm:p-6">
+        <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>

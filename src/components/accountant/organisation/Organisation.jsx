@@ -492,7 +492,7 @@ const Organisation = ({ className }) => {
                     <Button onClick={handleAddOrg}><Plus className="w-4 h-4 mr-2" /> Add Organisation</Button>
                 </div>
             </div>
-            <div className="glass-pane p-4 rounded-lg flex-grow">
+            <div className="glass-pane p-0 rounded-lg overflow-hidden flex-grow">
                 {isLoading ? <div className="flex items-center justify-center h-full"><Loader2 className="w-8 h-8 animate-spin" /></div>
                     : organisations.length > 0 ? (
                         <Table>
@@ -558,8 +558,8 @@ const Organisation = ({ className }) => {
                     <TabsTrigger value="users"><Users className="w-4 h-4 mr-2" />Users ({orgUsers.length})</TabsTrigger>
                 </TabsList>
                 <TabsContent value="entities">
-                    <div className="glass-pane p-4 rounded-lg">
-                        <Button onClick={handleAddEntity} className="mb-4"><Plus className="w-4 h-4 mr-2" />Add Entity</Button>
+                    <div className="glass-pane  rounded-lg overflow-hidden">
+                      <div className="p-4">  <Button onClick={handleAddEntity} className="  "><Plus className="w-4 h-4 mr-2  " />Add Entity</Button></div>
                         {isEntitiesLoading ? <div className="flex items-center justify-center h-64"><Loader2 className="w-8 h-8 animate-spin" /></div>
                             : entities.length > 0 ? (
                                 <Table>
@@ -596,8 +596,8 @@ const Organisation = ({ className }) => {
                     </div>
                 </TabsContent>
                 <TabsContent value="users">
-                    <div className="glass-pane p-4 rounded-lg">
-                        <div className="flex justify-between items-center mb-4">
+                    <div className="glass-pane p-0 rounded-lg overflow-hidden">
+                        <div className="flex justify-between items-center p-4 border-b border-white/10">
                             <Button onClick={handleInviteUser}><UserPlus className="w-4 h-4 mr-2" />Invite User</Button>
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
@@ -614,7 +614,7 @@ const Organisation = ({ className }) => {
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         </div>
-                        {isUsersLoading ? <div className="flex items-center justify-center h-64"><Loader2 className="w-8 h-8 animate-spin" /></div>
+                        {isUsersLoading ? <div className="flex items-center justify-center p-8"><Loader2 className="w-8 h-8 animate-spin" /></div>
                             : sortedAndFilteredUsers.length > 0 ? (
                                 <Table>
                                     <TableHeader>

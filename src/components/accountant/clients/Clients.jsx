@@ -695,7 +695,7 @@ const Clients = ({ setActiveTab }) => {
                                 <TabsTrigger value="clients">Clients</TabsTrigger>
                                 <TabsTrigger value="organisations">Organisations</TabsTrigger>
                             </TabsList>
-                            <TabsContent value="clients" className="flex-1 mt-0 h-full overflow-hidden">
+                            <TabsContent value="clients" className="flex-1 mt-0 h-full ">
                                 <ClientList
                                     clients={clients}
                                     onAddNew={handleAddNew}

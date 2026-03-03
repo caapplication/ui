@@ -304,10 +304,10 @@ const ProtectedContent = () => {
                 }
               />
               {/* Super Admin Routes */}
-              <Route path="/agencies" element={<AgencyManagement />} />
-              <Route path="/agencies/:id" element={<AgencyDetails />} />
-              <Route path="/cas" element={<CAManagement />} />
-              <Route path="/admin/users" element={<AdminUserList />} />
+              <Route path="/agencies" element={user?.role === 'SUPER_ADMIN' ? <AgencyManagement /> : <Navigate to="/" replace />} />
+              <Route path="/agencies/:id" element={user?.role === 'SUPER_ADMIN' ? <AgencyDetails /> : <Navigate to="/" replace />} />
+              <Route path="/cas" element={user?.role === 'SUPER_ADMIN' ? <CAManagement /> : <Navigate to="/" replace />} />
+              <Route path="/admin/users" element={user?.role === 'SUPER_ADMIN' ? <AdminUserList /> : <Navigate to="/" replace />} />
               <Route path="/dashboard/today-progress" element={<TodayProgressExpanded />} />
               <Route path="/dashboard/pending-verification" element={<PendingVerificationExpanded />} />
               <Route path="/dashboard/ongoing-tasks" element={<OngoingTasksExpanded />} />

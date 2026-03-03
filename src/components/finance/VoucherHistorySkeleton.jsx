@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 
 export const VoucherHistorySkeleton = () => {
   return (
-    <Card className="glass-pane border-none shadow-none bg-gray-800 text-white">
+    <Card className="glass-card text-white">
       <CardHeader>
         <div className="flex items-center justify-between">
           <Skeleton className="h-8 w-48" />

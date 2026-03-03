@@ -611,10 +611,16 @@ const VoucherDetailsCA = () => {
         }
     }, [voucherList, voucherId, voucher, vouchers, currentIndex]);
 
-    // Filter vouchers based on role to ensure consistent navigation
+    // Use the voucher list from the table (location.state) if available to respect table ordering/filters
     const filteredVouchers = React.useMemo(() => {
         if (!voucherList || !Array.isArray(voucherList)) return [];
 
+        // If we received vouchers from location state, they are exactly from the list view (with all user filters/sorting applied)
+        if (vouchers && vouchers.length > 0) {
+            return voucherList;
+        }
+
+        // Fallback: If fetched directly via URL, apply default role-based filtering
         return voucherList.filter(v => {
             // Filter out deleted vouchers
             if (v.is_deleted) return false;
@@ -629,7 +635,7 @@ const VoucherDetailsCA = () => {
             }
             return true;
         });
-    }, [voucherList, user?.role]);
+    }, [voucherList, user?.role, vouchers]);
 
     // Update currentIndex when filteredVouchers changes
     useEffect(() => {
@@ -1109,7 +1115,7 @@ const VoucherDetailsCA = () => {
 
             <header className="flex items-center justify-between pb-4 border-b border-white/10 mb-4">
                 <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+                    <Button variant="ghost" size="icon" onClick={() => navigate('/finance')}>
                         <ArrowLeft className="h-6 w-6" />
                     </Button>
                     <div>
@@ -1362,13 +1368,13 @@ const VoucherDetailsCA = () => {
                                         <>
 
 
-                                            <Card className="w-full glass-pane border-none shadow-none bg-gray-800 text-white relative z-20">
+                                            <Card className="w-full glass-card text-white relative z-20">
                                                 <div className="w-full">
                                                     <CardHeader>
                                                         <CardTitle>{beneficiaryName}</CardTitle>
                                                         <CardDescription className="flex items-center gap-2">
                                                             <span>Created on {new Date(voucherDetails.created_date).toLocaleDateString()}</span>
-                                                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(voucherDetails.status)}`}>
+                                                            <span className={`px-2 py-0.5 rounded-full text-center text-xs font-medium border ${getStatusColor(voucherDetails.status)}`}>
                                                                 {formatStatus(voucherDetails.status)}
                                                             </span>
                                                         </CardDescription>
@@ -1574,7 +1580,7 @@ const VoucherDetailsCA = () => {
                                             if (found) beneficiaryObj = found;
                                         }
                                         return (
-                                            <Card className="w-full glass-pane border-none shadow-none bg-gray-800 text-white">
+                                            <Card className="w-full glass-card text-white">
                                                 <CardHeader>
                                                     <CardTitle>Beneficiary Details</CardTitle>
                                                 </CardHeader>

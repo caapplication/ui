@@ -250,7 +250,7 @@ const OngoingNoticesExpanded = () => {
                         <Button
                             variant="outline"
                             size="icon"
-                            className="h-8 w-8 border-white/10 bg-transparent hover:bg-white/10 text-white"
+                            className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
                             onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                             disabled={currentPage === 1}
                         >

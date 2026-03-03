@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -517,7 +518,7 @@ const BeneficiaryLedger = ({ entityId }) => {
             </div>
 
             {/* Stats Row */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 lg:gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
                 {stats.map((stat, idx) => (
                     <StatBox key={idx} {...stat} delay={idx * 0.1} />
                 ))}
@@ -532,11 +533,11 @@ const BeneficiaryLedger = ({ entityId }) => {
                 <Card className="glass-card overflow-hidden border-white/5 rounded-3xl">
                     <CardContent className="p-0">
                         <div className="overflow-x-auto custom-scrollbar">
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="border-b border-white/5 text-gray-400 text-[10px] sm:text-xs font-medium uppercase tracking-wider">
-                                        <td className="py-4 pl-6 w-16">S.No</td>
-                                        <td
+                            <Table className="w-full text-left border-collapse">
+                                <TableHeader>
+                                    <TableRow className="border-b border-white/5 text-gray-400 text-[10px] sm:text-xs font-medium uppercase tracking-wider">
+                                        <TableCell className="py-4 pl-6 w-16">S.No</TableCell>
+                                        <TableCell
                                             className="py-4 px-4 cursor-pointer select-none hover:text-white transition-colors"
                                             onClick={() => handleSort('name')}
                                         >
@@ -544,8 +545,8 @@ const BeneficiaryLedger = ({ entityId }) => {
                                                 Beneficiary
                                                 <SortIcon column="name" sortColumn={sortColumn} sortDirection={sortDirection} />
                                             </span>
-                                        </td>
-                                        <td
+                                        </TableCell>
+                                        <TableCell
                                             className="py-4 px-4 cursor-pointer select-none hover:text-white transition-colors"
                                             onClick={() => handleSort('invoiceTotal')}
                                         >
@@ -553,8 +554,8 @@ const BeneficiaryLedger = ({ entityId }) => {
                                                 Invoice
                                                 <SortIcon column="invoiceTotal" sortColumn={sortColumn} sortDirection={sortDirection} />
                                             </span>
-                                        </td>
-                                        <td
+                                        </TableCell>
+                                        <TableCell
                                             className="py-4 px-4 cursor-pointer select-none hover:text-white transition-colors"
                                             onClick={() => handleSort('paymentTotal')}
                                         >
@@ -562,8 +563,8 @@ const BeneficiaryLedger = ({ entityId }) => {
                                                 Payment
                                                 <SortIcon column="paymentTotal" sortColumn={sortColumn} sortDirection={sortDirection} />
                                             </span>
-                                        </td>
-                                        <td
+                                        </TableCell>
+                                        <TableCell
                                             className="py-4 px-4 cursor-pointer select-none hover:text-white transition-colors"
                                             onClick={() => handleSort('cashTotal')}
                                         >
@@ -571,8 +572,8 @@ const BeneficiaryLedger = ({ entityId }) => {
                                                 By Cash
                                                 <SortIcon column="cashTotal" sortColumn={sortColumn} sortDirection={sortDirection} />
                                             </span>
-                                        </td>
-                                        <td
+                                        </TableCell>
+                                        <TableCell
                                             className="py-4 px-4 cursor-pointer select-none hover:text-white transition-colors"
                                             onClick={() => handleSort('debitTotal')}
                                         >
@@ -580,66 +581,66 @@ const BeneficiaryLedger = ({ entityId }) => {
                                                 By Debit
                                                 <SortIcon column="debitTotal" sortColumn={sortColumn} sortDirection={sortDirection} />
                                             </span>
-                                        </td>
-                                    </tr>
-                                </thead>
-                                <tbody className="text-sm">
+                                        </TableCell>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody className="text-sm">
                                     {paginatedData.length > 0 ? (
                                         paginatedData.map((item, idx) => (
-                                            <tr key={item.id} className="border-b border-white/5 hover:bg-white/5 transition-colors group">
-                                                <td className="py-4 pl-6 text-gray-500 font-mono">
+                                            <TableRow key={item.id} className="border-b border-white/5 hover:bg-white/5 transition-colors group">
+                                                <TableCell className="py-4 pl-6 text-gray-500 font-mono">
                                                     {String((currentPage - 1) * pageSize + idx + 1).padStart(2, "0")}
-                                                </td>
-                                                <td className="py-4 px-4">
+                                                </TableCell>
+                                                <TableCell className="py-4 px-4">
                                                     <span
                                                         className="text-white font-medium cursor-pointer hover:text-primary inline-block group-hover:scale-[1.02] transition-all origin-left"
                                                         onClick={() => navigate(`/beneficiaries/${item.id}/ledger`)}
                                                     >
                                                         {item.name}
                                                     </span>
-                                                </td>
-                                                <td className="py-4 px-4 text-white">
+                                                </TableCell>
+                                                <TableCell className="py-4 px-4 text-white">
                                                     ₹{Math.round(item.invoiceTotal).toLocaleString('en-IN')}
-                                                </td>
-                                                <td className="py-4 px-4 text-white">
+                                                </TableCell>
+                                                <TableCell className="py-4 px-4 text-white">
                                                     ₹{Math.round(item.paymentTotal).toLocaleString('en-IN')}
-                                                </td>
-                                                <td className="py-4 px-4 text-red-400">
+                                                </TableCell>
+                                                <TableCell className="py-4 px-4 text-red-400">
                                                     ₹{Math.round(item.cashTotal).toLocaleString('en-IN')}
-                                                </td>
-                                                <td className="py-4 px-4 text-red-400">
+                                                </TableCell>
+                                                <TableCell className="py-4 px-4 text-red-400">
                                                     ₹{Math.round(item.debitTotal).toLocaleString('en-IN')}
-                                                </td>
-                                            </tr>
+                                                </TableCell>
+                                            </TableRow>
                                         ))
                                     ) : (
-                                        <tr>
-                                            <td colSpan="6" className="py-12 text-center text-gray-500">
+                                        <TableRow>
+                                            <TableCell colSpan="6" className="py-12 text-center text-gray-500">
                                                 No transactions found matching your criteria.
-                                            </td>
-                                        </tr>
+                                            </TableCell>
+                                        </TableRow>
                                     )}
-                                </tbody>
+                                </TableBody>
                                 {ledgerData.length > 0 && (
                                     <tfoot>
-                                        <tr className="bg-white/5 font-bold text-white border-t border-white/10">
-                                            <td colSpan="2" className="py-4 pl-6 text-right pr-4 uppercase tracking-wider text-xs">Total</td>
-                                            <td className="py-4 px-4 text-white">
+                                        <TableRow className="bg-white/5 font-bold text-white border-t border-white/10">
+                                            <TableCell colSpan="2" className="py-4 pl-6 text-right pr-4 uppercase tracking-wider text-xs">Total</TableCell>
+                                            <TableCell className="py-4 px-4 text-white">
                                                 ₹{Math.round(totals.invoices).toLocaleString('en-IN')}
-                                            </td>
-                                            <td className="py-4 px-4 text-white">
+                                            </TableCell>
+                                            <TableCell className="py-4 px-4 text-white">
                                                 ₹{Math.round(totals.payments).toLocaleString('en-IN')}
-                                            </td>
-                                            <td className="py-4 px-4 text-red-400">
+                                            </TableCell>
+                                            <TableCell className="py-4 px-4 text-red-400">
                                                 ₹{Math.round(totals.cash).toLocaleString('en-IN')}
-                                            </td>
-                                            <td className="py-4 px-4 text-red-400">
+                                            </TableCell>
+                                            <TableCell className="py-4 px-4 text-red-400">
                                                 ₹{Math.round(totals.debit).toLocaleString('en-IN')}
-                                            </td>
-                                        </tr>
+                                            </TableCell>
+                                        </TableRow>
                                     </tfoot>
                                 )}
-                            </table>
+                            </Table>
                         </div>
                     </CardContent>
 
@@ -652,13 +653,13 @@ const BeneficiaryLedger = ({ entityId }) => {
                             <Button
                                 variant="outline"
                                 size="icon"
-                                className="h-8 w-8 sm:h-9 sm:w-9 border-white/10 bg-white/5 hover:bg-white/10 text-white rounded-xl"
+                                className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
                                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                                 disabled={currentPage === 1}
                             >
                                 <ChevronLeft className="w-4 h-4" />
                             </Button>
-                            <div className="flex items-center gap-1">
+                            {/* <div className="flex items-center gap-1">
                                 {[...Array(totalPages)].map((_, i) => (
                                     <Button
                                         key={i}
@@ -669,11 +670,11 @@ const BeneficiaryLedger = ({ entityId }) => {
                                         {i + 1}
                                     </Button>
                                 )).slice(Math.max(0, currentPage - 3), Math.min(totalPages, currentPage + 2))}
-                            </div>
+                            </div> */}
                             <Button
                                 variant="outline"
                                 size="icon"
-                                className="h-8 w-8 sm:h-9 sm:w-9 border-white/10 bg-white/5 hover:bg-white/10 text-white rounded-xl"
+                                className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
                                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                                 disabled={currentPage === totalPages || totalPages === 0}
                             >

@@ -612,18 +612,31 @@ const InvoiceDetailsPage = () => {
         }
     };
 
-    // Filter invoices based on user role for navigation
+    // Use the invoice list from the table (location.state) if available to respect table ordering/filters
     const filteredInvoices = React.useMemo(() => {
         if (!invoices || !Array.isArray(invoices)) return [];
 
+        // If we received invoices from location state, they are exactly from the list view (with all user filters/sorting applied)
+        if (location.state?.invoices) {
+            return invoices;
+        }
+
+        // Fallback: If fetched directly via URL, apply default role-based filtering
         return invoices.filter(inv => {
+            // Filter out deleted invoices
             if (inv.is_deleted) return false;
+
+            // CA Team/Accountant should only see pending_ca_approval
+            if (user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') {
+                return inv.status === 'pending_ca_approval';
+            }
+            // Client Master Admin should only see pending_master_admin_approval
             if (user?.role === 'CLIENT_MASTER_ADMIN') {
                 return inv.status === 'pending_master_admin_approval';
             }
             return true;
         });
-    }, [invoices, user?.role]);
+    }, [invoices, user?.role, location.state?.invoices]);
 
     // Check if we have invoices to navigate - show arrows if we have multiple invoices
     const hasInvoices = filteredInvoices && Array.isArray(filteredInvoices) && filteredInvoices.length > 1;
@@ -827,7 +840,7 @@ const InvoiceDetailsPage = () => {
     const cols = 'grid-cols-3';
 
     return (
-        <div className="h-screen w-full flex flex-col text-white bg-transparent p-3 sm:p-4 md:p-6" style={{ paddingBottom: hasInvoices ? '6rem' : '1.5rem' }}>
+        <div className="h-[100dvh] w-full flex flex-col text-white bg-transparent p-3 sm:p-4 md:p-6 pb-20 sm:pb-6" style={{ paddingBottom: hasInvoices ? '6rem' : '1.5rem' }}>
             <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 pb-3 sm:pb-4 border-b border-white/10 mb-3 sm:mb-4">
                 <div className="flex items-center gap-3 sm:gap-4">
                     <Button variant="ghost" size="icon" onClick={() => navigate('/finance')} className="h-9 w-9 sm:h-10 sm:w-10">
@@ -851,7 +864,7 @@ const InvoiceDetailsPage = () => {
 
             <ResizablePanelGroup
                 direction="horizontal"
-                className="flex-1 rounded-lg border border-white/10 hidden md:flex"
+                className="flex-1 rounded-lg border border-white/10 hidden md:flex overflow-hidden"
             >
                 <ResizablePanel defaultSize={60} minSize={30}>
                     <div className="relative flex h-full w-full flex-col items-center justify-center p-2">
@@ -936,7 +949,7 @@ const InvoiceDetailsPage = () => {
                     <div className="relative flex h-full flex-col">
                         <div className="flex-1 overflow-y-auto px-4 py-6 sm:p-6 hide-scrollbar" style={{ paddingBottom: hasInvoices ? '8rem' : '2rem' }}>
                             <Tabs defaultValue={defaultTab} className="w-full">
-                                <TabsList className={`grid w-full ${cols} text-xs sm:text-sm`}>
+                                <TabsList className={`grid w-full grid-cols-1 md:grid-cols-2 xl:grid-cols-3 text-xs sm:text-sm`}>
                                     <TabsTrigger value="details" className="text-xs sm:text-sm">Details</TabsTrigger>
                                     <TabsTrigger value="history" className="text-xs sm:text-sm">History</TabsTrigger>
                                     <TabsTrigger value="beneficiary" className="text-xs sm:text-sm">Beneficiary</TabsTrigger>
@@ -1006,13 +1019,13 @@ const InvoiceDetailsPage = () => {
                                             </div>
                                         </form>
                                     ) : (
-                                        <Card ref={invoiceDetailsRef} className="w-full glass-pane border-none shadow-none bg-gray-800 text-white relative z-20">
+                                        <Card ref={invoiceDetailsRef} className="w-full glass-card text-white relative z-20">
                                             <div ref={invoiceDetailsPDFRef} className="w-full">
                                                 <CardHeader className="p-4 sm:p-6">
                                                     <CardTitle className="text-lg sm:text-xl">{invoiceDetails.beneficiary?.name || invoiceDetails.beneficiary?.company_name || invoiceDetails.beneficiary_name || 'N/A'}</CardTitle>
                                                     <CardDescription className="text-xs sm:text-sm flex items-center gap-2">
                                                         <span>Created on {invoiceDetails.created_date || invoiceDetails.created_at ? new Date(invoiceDetails.created_date || invoiceDetails.created_at).toLocaleDateString() : 'N/A'}</span>
-                                                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(invoiceDetails.status)}`}>
+                                                        <span className={`px-2 py-0.5 rounded-full text-center text-xs font-medium border ${getStatusColor(invoiceDetails.status)}`}>
                                                             {formatStatus(invoiceDetails.status)}
                                                         </span>
                                                     </CardDescription>
@@ -1146,7 +1159,7 @@ const InvoiceDetailsPage = () => {
                                         }
 
                                         return (
-                                            <Card className="w-full glass-pane border-none shadow-none bg-gray-800 text-white">
+                                            <Card className="w-full glass-card text-white">
                                                 <CardHeader className="p-4 sm:p-6">
                                                     <CardTitle className="text-lg sm:text-xl">Beneficiary Details</CardTitle>
                                                 </CardHeader>
@@ -1167,10 +1180,10 @@ const InvoiceDetailsPage = () => {
             </ResizablePanelGroup>
 
             {/* Mobile Layout - Stacked vertically */}
-            <div className="flex flex-col md:hidden flex-1 gap-4">
-                {/* Attachment/Preview Section */}
-                <div className="relative flex h-64 sm:h-80 w-full flex-col items-center justify-center p-2 border border-white/10 rounded-lg">
-                    {/* Navigation buttons for attachments */}
+            <div className="flex flex-col md:hidden flex-1 gap-4 overflow-x-hidden">
+
+                <div className="relative flex h-[35vh] min-h-[250px] w-full shrink-0 flex-col items-center justify-center p-2 border border-white/10 rounded-lg">
+
                     {allAttachmentIds.length > 1 && attachmentToDisplay && (
                         <>
                             <Button
@@ -1193,7 +1206,7 @@ const InvoiceDetailsPage = () => {
                             </Button>
                         </>
                     )}
-                    {/* Zoom controls in bottom right corner */}
+
                     {attachmentToDisplay && !(attachmentContentType?.toLowerCase().includes('pdf') || attachmentToDisplay.toLowerCase().endsWith('.pdf')) && (
                         <div className="absolute bottom-2 right-2 z-10 flex gap-1 sm:gap-2">
                             <Button variant="outline" size="icon" onClick={() => setZoom(z => z + 0.1)} className="h-8 w-8 sm:h-9 sm:w-9">
@@ -1318,7 +1331,7 @@ const InvoiceDetailsPage = () => {
                                     </div>
                                 </form>
                             ) : (
-                                <Card ref={invoiceDetailsRef} className="w-full glass-pane border-none shadow-none bg-gray-800 text-white relative z-20">
+                                <Card ref={invoiceDetailsRef} className="w-full glass-card text-white relative z-20">
                                     <div ref={invoiceDetailsPDFRef} className="w-full">
                                         <CardHeader className="p-4">
                                             <CardTitle className="text-lg sm:text-xl">{invoiceDetails.bill_number || 'N/A'}</CardTitle>
@@ -1354,9 +1367,9 @@ const InvoiceDetailsPage = () => {
 
                                         </CardContent>
                                     </div>
-                                    <div className="flex items-center gap-3 mt-4 mb-20 sm:mb-16 md:mb-4 justify-end relative z-[100] px-4 action-buttons-container">
+                                    <div className="flex items-center gap-3 mt-4 mb-20 sm:mb-16 justify-end relative z-[100] w-full">
                                         {/* Action buttons on right */}
-                                        <div className="flex items-center gap-3 relative z-[100]">
+                                        <div className="flex items-center gap-2 relative z-[100] flex-wrap justify-end">
                                             <TooltipProvider delayDuration={0}>
                                                 {/* 1. Delete (Icon) */}
                                                 {isEditable && !isReadOnly && !invoiceDetails.is_deleted && invoiceDetails.status !== 'deleted' && (
@@ -1446,7 +1459,7 @@ const InvoiceDetailsPage = () => {
                                 }
 
                                 return (
-                                    <Card className="w-full glass-pane border-none shadow-none bg-gray-800 text-white">
+                                    <Card className="w-full glass-card text-white">
                                         <CardHeader className="p-4">
                                             <CardTitle className="text-lg sm:text-xl">Beneficiary Details</CardTitle>
                                         </CardHeader>

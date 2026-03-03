@@ -457,12 +457,18 @@ const InvoiceDetailsCA = () => {
     };
 
 
-    // Filter invoices based on statuses relevant to CA audit
+    // Use the invoice list from the table (location.state) if available to respect table ordering/filters
     const filteredInvoices = React.useMemo(() => {
         if (!invoices || !Array.isArray(invoices)) return [];
 
+        // If we received invoices from location state, they are exactly from the list view (with all user filters/sorting applied)
+        if (location.state?.invoices) {
+            return invoices;
+        }
+
+        // Fallback: apply default CA role-based filtering (pending audit)
         return invoices.filter(inv => inv.status === 'pending_ca_approval' && !inv.is_deleted);
-    }, [invoices]);
+    }, [invoices, location.state?.invoices]);
 
     // Check if we have invoices to navigate - show arrows if we have multiple invoices
     const hasInvoices = filteredInvoices && Array.isArray(filteredInvoices) && filteredInvoices.length > 1;
@@ -700,7 +706,7 @@ const InvoiceDetailsCA = () => {
     const cols = 'grid-cols-3';
 
     return (
-        <div className="h-screen w-full flex flex-col text-white bg-transparent p-3 sm:p-4 md:p-6" style={{ paddingBottom: hasInvoices ? '6rem' : '1.5rem' }}>
+        <div className="h-[100dvh] w-full flex flex-col text-white bg-transparent p-3 sm:p-4 md:p-6 pb-20 sm:pb-6" style={{ paddingBottom: hasInvoices ? '6rem' : '1.5rem' }}>
             <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 pb-3 sm:pb-4 border-b border-white/10 mb-3 sm:mb-4">
                 <div className="flex items-center gap-3 sm:gap-4">
                     <Button variant="ghost" size="icon" onClick={() => navigate('/finance')} className="h-9 w-9 sm:h-10 sm:w-10">
@@ -724,7 +730,7 @@ const InvoiceDetailsCA = () => {
 
             <ResizablePanelGroup
                 direction="horizontal"
-                className="flex-1 rounded-lg border border-white/10 hidden md:flex"
+                className="flex-1 rounded-lg border border-white/10 hidden md:flex overflow-hidden"
             >
                 <ResizablePanel defaultSize={60} minSize={30}>
                     <div className="relative flex h-full w-full flex-col items-center justify-center p-2">
@@ -816,13 +822,13 @@ const InvoiceDetailsCA = () => {
                                 </TabsList>
                                 <TabsContent value="details" className="mt-4">
 
-                                    <Card ref={invoiceDetailsRef} className="w-full glass-pane border-none shadow-none bg-gray-800 text-white relative z-20">
+                                    <Card ref={invoiceDetailsRef} className="w-full glass-card text-white relative z-20">
                                         <div ref={invoiceDetailsPDFRef} className="w-full">
                                             <CardHeader className="p-4 sm:p-6">
                                                 <CardTitle className="text-lg sm:text-xl">{invoiceDetails.beneficiary?.name || invoiceDetails.beneficiary?.company_name || invoiceDetails.beneficiary_name || 'N/A'}</CardTitle>
                                                 <CardDescription className="text-xs sm:text-sm flex items-center gap-2">
                                                     <span>Created on {invoiceDetails.created_date || invoiceDetails.created_at ? new Date(invoiceDetails.created_date || invoiceDetails.created_at).toLocaleDateString() : 'N/A'}</span>
-                                                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(invoiceDetails.status)}`}>
+                                                    <span className={`px-2 py-0.5 text-center rounded-full text-xs font-medium border ${getStatusColor(invoiceDetails.status)}`}>
                                                         {formatStatus(invoiceDetails.status)}
                                                     </span>
                                                 </CardDescription>
@@ -947,11 +953,11 @@ const InvoiceDetailsCA = () => {
                                         }
 
                                         return (
-                                            <Card className="w-full glass-pane border-none shadow-none bg-gray-800 text-white">
-                                                <CardHeader className="p-4 sm:p-6">
+                                            <Card className="w-full glass-card text-white">
+                                                <CardHeader className="p-4">
                                                     <CardTitle className="text-lg sm:text-xl">Beneficiary Details</CardTitle>
                                                 </CardHeader>
-                                                <CardContent className="space-y-2 p-4 sm:p-6 pt-0">
+                                                <CardContent className="space-y-2 p-4 pt-0">
                                                     <DetailItem label="Name" value={resolvedBeneficiaryName} />
                                                     <DetailItem label="PAN" value={beneficiaryObj?.pan || 'N/A'} />
                                                     <DetailItem label="Email" value={beneficiaryObj?.email || 'N/A'} />
@@ -968,9 +974,9 @@ const InvoiceDetailsCA = () => {
             </ResizablePanelGroup>
 
             {/* Mobile Layout - Stacked vertically */}
-            <div className="flex flex-col md:hidden flex-1 gap-4">
+            <div className="flex flex-col md:hidden flex-1 gap-4 overflow-x-hidden">
                 {/* Attachment/Preview Section */}
-                <div className="relative flex h-64 sm:h-80 w-full flex-col items-center justify-center p-2 border border-white/10 rounded-lg">
+                <div className="relative flex h-[35vh] min-h-[250px] w-full shrink-0 flex-col items-center justify-center p-2 border border-white/10 rounded-lg">
                     {/* Navigation buttons for attachments */}
                     {allAttachmentIds.length > 1 && attachmentToDisplay && (
                         <>
@@ -1056,7 +1062,7 @@ const InvoiceDetailsCA = () => {
                         </TabsList>
                         <TabsContent value="details" className="mt-4">
 
-                            <Card ref={invoiceDetailsRef} className="w-full glass-pane border-none shadow-none bg-gray-800 text-white relative z-20">
+                            <Card ref={invoiceDetailsRef} className="w-full glass-card text-white relative z-20">
                                 <div ref={invoiceDetailsPDFRef} className="w-full">
                                     <CardHeader className="p-4">
                                         <CardTitle className="text-lg sm:text-xl">{invoiceDetails.bill_number || 'N/A'}</CardTitle>
@@ -1112,30 +1118,32 @@ const InvoiceDetailsCA = () => {
                                         )}
                                     </CardContent>
                                 </div>
-                                <div className="flex items-center gap-3 mt-4 mb-20 sm:mb-16 md:mb-4 justify-end relative z-[100] px-4 action-buttons-container">
+                                <div className="flex items-center gap-3 mt-4 mb-20 sm:mb-16 justify-end relative z-[100] w-full">
                                     {/* Action buttons on right */}
-                                    <TooltipProvider delayDuration={0}>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Button variant="outline" size="icon" onClick={handleExportToPDF} className="h-9 w-9 bg-white/5 border-white/10 hover:bg-white/10">
-                                                    <FileText className="h-4 w-4" />
-                                                </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent><p>Export PDF</p></TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
+                                    <div className="flex items-center gap-2 relative z-[100] flex-wrap justify-end">
+                                        <TooltipProvider delayDuration={0}>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button variant="outline" size="icon" onClick={handleExportToPDF} className="h-9 w-9 bg-white/5 border-white/10 hover:bg-white/10">
+                                                        <FileText className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent><p>Export PDF</p></TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
 
-                                    {/* CA Actions - only for pending audit */}
-                                    {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && !isReadOnly && !invoiceDetails.is_deleted && isAuditable && (
-                                        <>
-                                            <Button onClick={() => setShowRejectDialog(true)} disabled={isStatusUpdating} variant="reject" className="h-9 sm:h-10" size="sm">
-                                                {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />} Reject
-                                            </Button>
-                                            <Button onClick={handleTag} variant="approve" className="h-9 sm:h-10" size="sm">
-                                                {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />} Tag
-                                            </Button>
-                                        </>
-                                    )}
+                                        {/* CA Actions - only for pending audit */}
+                                        {(user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && !isReadOnly && !invoiceDetails.is_deleted && isAuditable && (
+                                            <>
+                                                <Button onClick={() => setShowRejectDialog(true)} disabled={isStatusUpdating} variant="reject" className="h-9 sm:h-10" size="sm">
+                                                    {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />} Reject
+                                                </Button>
+                                                <Button onClick={handleTag} variant="approve" className="h-9 sm:h-10" size="sm">
+                                                    {isStatusUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />} Tag
+                                                </Button>
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
 
                             </Card>
@@ -1174,7 +1182,7 @@ const InvoiceDetailsCA = () => {
                                 }
 
                                 return (
-                                    <Card className="w-full glass-pane border-none shadow-none bg-gray-800 text-white">
+                                    <Card className="w-full glass-card text-white">
                                         <CardHeader className="p-4">
                                             <CardTitle className="text-lg sm:text-xl">Beneficiary Details</CardTitle>
                                         </CardHeader>
