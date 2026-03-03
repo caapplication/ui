@@ -9,12 +9,15 @@ import { Search, UserPlus, Filter, Loader2, Trash2, RefreshCw, UserCheck, Histor
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/ui/use-toast';
 import { listEntityUsers, inviteEntityUser, deleteEntityUser, deleteInvitedOrgUser, resendToken, listAllAccessibleEntityUsers, addEntityUsers } from '@/lib/api/organisation';
-import { listDepartments } from '@/lib/api/settings';
+import { listDepartments, createDepartment } from '@/lib/api/settings';
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+
 import { getActivityLog } from '@/lib/api/finance';
 import { listTasks } from '@/lib/api/tasks';
 import { getNotices } from '@/lib/api/notices';
@@ -49,6 +52,13 @@ const ClientUsersPage = ({ entityId }) => {
     const [departmentsList, setDepartmentsList] = useState([]);
     const [isInviting, setIsInviting] = useState(false);
 
+    // New Department Dialog State
+    const [showAddDeptDialog, setShowAddDeptDialog] = useState(false);
+    const [newDeptName, setNewDeptName] = useState('');
+    const [isAddingDept, setIsAddingDept] = useState(false);
+    const [deptPopoverOpen, setDeptPopoverOpen] = useState(false);
+
+
     // Add Existing Users State
     const [showAddExistingDialog, setShowAddExistingDialog] = useState(false);
     const [organizationUsers, setOrganizationUsers] = useState([]);
@@ -61,7 +71,7 @@ const ClientUsersPage = ({ entityId }) => {
 
     // Action Loading States
     const [loadingUserId, setLoadingUserId] = useState(null);
-    
+
     // Pending items check - map of user_id -> hasPending
     const [userPendingStatus, setUserPendingStatus] = useState({});
 
@@ -104,7 +114,7 @@ const ClientUsersPage = ({ entityId }) => {
     // Check if user has pending items (direct assignments only, not collaborators)
     const checkUserPendingItems = async (userId) => {
         if (!entityId || !userId || !user?.access_token || !user?.agency_id) return false;
-        
+
         try {
             // Check pending tasks (assigned_to = userId, status != completed)
             // TaskStatus: pending, in_progress, hold, completed
@@ -113,20 +123,20 @@ const ClientUsersPage = ({ entityId }) => {
                 client_id: entityId,
                 limit: 100  // Get more to filter by status
             }).catch(() => ({ items: [] }));
-            
-            const pendingTasks = tasks?.items?.filter(t => 
+
+            const pendingTasks = tasks?.items?.filter(t =>
                 t.status !== 'completed' && String(t.assigned_to) === String(userId)
             ) || [];
             if (pendingTasks.length > 0) return true;
-            
+
             // Check pending notices (created_by = userId, status != closed)
             const notices = await getNotices(entityId, user.access_token).catch(() => []);
-            const pendingNotices = Array.isArray(notices) ? notices.filter(n => 
+            const pendingNotices = Array.isArray(notices) ? notices.filter(n =>
                 (String(n.created_by) === String(userId) || String(n.created_by_id) === String(userId) || String(n.owner_id) === String(userId)) &&
                 n.status !== 'closed' && n.status !== 'completed'
             ) : [];
             if (pendingNotices.length > 0) return true;
-            
+
             // Check pending vouchers (created_by/owner_id = userId, status != verified/closed)
             const vouchers = await getVouchers(entityId, user.access_token).catch(() => []);
             const pendingVouchers = Array.isArray(vouchers) ? vouchers.filter(v =>
@@ -134,7 +144,7 @@ const ClientUsersPage = ({ entityId }) => {
                 v.status !== 'verified' && v.status !== 'closed' && v.status !== 'approved'
             ) : [];
             if (pendingVouchers.length > 0) return true;
-            
+
             // Check pending invoices (created_by/owner_id = userId, status != verified/closed)
             const invoices = await getInvoices(entityId, user.access_token).catch(() => []);
             const pendingInvoices = Array.isArray(invoices) ? invoices.filter(i =>
@@ -142,7 +152,7 @@ const ClientUsersPage = ({ entityId }) => {
                 i.status !== 'verified' && i.status !== 'closed' && i.status !== 'approved'
             ) : [];
             if (pendingInvoices.length > 0) return true;
-            
+
             return false;
         } catch (error) {
             console.error('Error checking pending items:', error);
@@ -201,7 +211,7 @@ const ClientUsersPage = ({ entityId }) => {
     useEffect(() => {
         const checkAllUsersPending = async () => {
             if (!entityId || !user?.access_token || !allUsers || allUsers.length === 0) return;
-            
+
             const pendingMap = {};
             for (const u of allUsers) {
                 if (u.status === 'Joined' && u.user_id) {
@@ -211,7 +221,7 @@ const ClientUsersPage = ({ entityId }) => {
             }
             setUserPendingStatus(pendingMap);
         };
-        
+
         checkAllUsersPending();
     }, [allUsers, entityId, user?.access_token, user?.agency_id]);
 
@@ -578,21 +588,98 @@ const ClientUsersPage = ({ entityId }) => {
                         {inviteRole === 'CLIENT_HANDOVER' && (
                             <div>
                                 <Label className="text-gray-300">Department</Label>
-                                <Select value={inviteDepartmentId} onValueChange={setInviteDepartmentId}>
-                                    <SelectTrigger className="mt-2 glass-input border-white/10 text-white">
-                                        <SelectValue placeholder="Select department" />
-                                    </SelectTrigger>
-                                    <SelectContent className="bg-[#181C2A] border-gray-700">
-                                        {departmentsList.map((d) => (
-                                            <SelectItem key={d.id} value={String(d.id)}>{d.name}</SelectItem>
-                                        ))}
-                                        {departmentsList.length === 0 && (
-                                            <span className="px-2 py-1.5 text-sm text-gray-500">No departments — add in Settings</span>
-                                        )}
-                                    </SelectContent>
-                                </Select>
+                                <Popover open={deptPopoverOpen} onOpenChange={setDeptPopoverOpen}>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" className="w-full justify-start text-left font-normal mt-2 glass-input border-white/10 text-white" disabled={isInviting}>
+                                            {departmentsList.find(d => String(d.id) === String(inviteDepartmentId))?.name || "Select department"}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0 bg-[#181C2A] border-gray-700 text-white" align="start">
+                                        <div className="p-2 border-b border-gray-700 flex items-center justify-between">
+                                            <span className="font-semibold text-sm">Select department</span>
+                                            <Button
+                                                size="sm"
+                                                variant="secondary"
+                                                className="h-7 text-[10px]"
+                                                onClick={() => setShowAddDeptDialog(true)}
+                                            >
+                                                + Add New
+                                            </Button>
+                                        </div>
+                                        <Command>
+                                            <CommandInput placeholder="Search departments..." />
+                                            <CommandList>
+                                                <CommandEmpty>No departments found.</CommandEmpty>
+                                                <CommandGroup>
+                                                    {departmentsList.map((d) => (
+                                                        <CommandItem
+                                                            key={d.id}
+                                                            onSelect={() => {
+                                                                setInviteDepartmentId(String(d.id));
+                                                                setDeptPopoverOpen(false);
+                                                            }}
+                                                        >
+                                                            {d.name}
+                                                        </CommandItem>
+                                                    ))}
+                                                </CommandGroup>
+                                            </CommandList>
+                                        </Command>
+                                    </PopoverContent>
+                                </Popover>
+
+                                {/* Add Department Dialog */}
+                                <Dialog open={showAddDeptDialog} onOpenChange={setShowAddDeptDialog}>
+                                    <DialogContent closeDisabled={isAddingDept}>
+                                        <DialogHeader>
+                                            <DialogTitle>New Department</DialogTitle>
+                                        </DialogHeader>
+                                        <div className="py-4">
+                                            <Label htmlFor="new_dept_name">Department Name</Label>
+                                            <Input
+                                                id="new_dept_name"
+                                                value={newDeptName}
+                                                onChange={e => setNewDeptName(e.target.value)}
+                                                className="mb-4 mt-2"
+                                                placeholder="E.g. Sales, Account, HR"
+                                                autoFocus
+                                            />
+                                        </div>
+                                        <DialogFooter>
+                                            <DialogClose asChild>
+                                                <Button variant="outline" onClick={() => setShowAddDeptDialog(false)}>Cancel</Button>
+                                            </DialogClose>
+                                            <Button
+                                                onClick={async () => {
+                                                    if (!newDeptName.trim()) return;
+                                                    setIsAddingDept(true);
+                                                    try {
+                                                        const newDept = await createDepartment(entityId, { name: newDeptName }, user?.access_token);
+                                                        toast({ title: "Department added", description: newDept.name });
+
+                                                        // Update local list
+                                                        setDepartmentsList(prev => [...prev, newDept]);
+
+                                                        setInviteDepartmentId(String(newDept.id));
+                                                        setShowAddDeptDialog(false);
+                                                        setNewDeptName('');
+                                                    } catch (err) {
+                                                        toast({ title: "Error", description: err.message, variant: "destructive" });
+                                                    } finally {
+                                                        setIsAddingDept(false);
+                                                    }
+                                                }}
+                                                disabled={isAddingDept}
+                                            >
+                                                {isAddingDept ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                                                Save
+                                            </Button>
+                                        </DialogFooter>
+                                    </DialogContent>
+                                </Dialog>
                             </div>
                         )}
+
                     </div>
                     <DialogFooter>
                         <DialogClose asChild>

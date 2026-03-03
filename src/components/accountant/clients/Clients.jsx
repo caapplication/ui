@@ -315,9 +315,11 @@ const Clients = ({ setActiveTab }) => {
 
     useEffect(() => {
         if (user?.agency_id && user?.access_token) {
-            fetchClientsAndServices();
+            // Force refresh on mount to ensure we have the latest business types/organisations from Settings
+            fetchClientsAndServices(true);
         }
     }, [user?.agency_id, user?.access_token, fetchClientsAndServices]);
+
 
     useEffect(() => {
         if (location.state?.clientId && clients.length > 0 && view === 'list') {
@@ -741,7 +743,15 @@ const Clients = ({ setActiveTab }) => {
                                     return next;
                                 });
                             }}
+                            onAddBusinessType={(newType) => {
+                                setBusinessTypes((prev) => {
+                                    const next = [...prev, newType];
+                                    syncSnapshot({ businessTypes: next });
+                                    return next;
+                                });
+                            }}
                         />
+
                     </motion.div>
                 );
             case 'dashboard':

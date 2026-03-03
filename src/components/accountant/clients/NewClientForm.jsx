@@ -17,8 +17,10 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { createOrganisation, updateOrganisation, deleteOrganisation } from '@/lib/api/organisation';
+import { createBusinessType } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import Cropper from 'react-easy-crop';
+
 
 
 // Helper function to create image from URL
@@ -61,7 +63,8 @@ const getCroppedImg = async (imageSrc, pixelCrop) => {
 
 
 
-const NewClientForm = ({ onBack, onSave, client, allServices, organisations, businessTypes, teamMembers, tags, onAddOrganisation }) => {
+const NewClientForm = ({ onBack, onSave, client, allServices, organisations, businessTypes, teamMembers, tags, onAddOrganisation, onAddBusinessType }) => {
+
     const { toast } = useToast();
     const { user } = useAuth();
     const [formData, setFormData] = useState({
@@ -124,6 +127,13 @@ const NewClientForm = ({ onBack, onSave, client, allServices, organisations, bus
 
     // State for org popover open/close
     const [orgPopoverOpen, setOrgPopoverOpen] = useState(false);
+
+    // State for Client Type popover
+    const [businessTypePopoverOpen, setBusinessTypePopoverOpen] = useState(false);
+    const [showAddBusinessTypeDialog, setShowAddBusinessTypeDialog] = useState(false);
+    const [newBusinessTypeName, setNewBusinessTypeName] = useState('');
+    const [isAddingBusinessType, setIsAddingBusinessType] = useState(false);
+
 
     // Local org list update
     // We initialize localOrgs with organisations prop, but then allow local edits to override/extend it.
@@ -612,17 +622,98 @@ const NewClientForm = ({ onBack, onSave, client, allServices, organisations, bus
                                 </div>
                                 <div>
                                     <Label htmlFor="client_type">Client Type*</Label>
-                                    <Select name="client_type" onValueChange={(v) => handleSelectChange('client_type', v)} value={formData.client_type} required disabled={isSaving}>
-                                        <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
-                                        <SelectContent>
-                                            {businessTypes && businessTypes.length > 0 ? (
-                                                businessTypes.map(type => <SelectItem key={type.id} value={String(type.id)}>{type.name}</SelectItem>)
-                                            ) : (
-                                                <SelectItem value="no-types" disabled>No business types available. Please add one in Settings.</SelectItem>
-                                            )}
-                                        </SelectContent>
-                                    </Select>
+                                    <Popover open={businessTypePopoverOpen} onOpenChange={setBusinessTypePopoverOpen}>
+                                        <PopoverTrigger asChild>
+                                            <Button variant="outline" className="w-full justify-start text-left font-normal" disabled={isSaving}>
+                                                {businessTypes.find(type => String(type.id) === String(formData.client_type))?.name || "Select type"}
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0 bg-glass/90 backdrop-blur border border-white/10 rounded-lg shadow-lg" align="start">
+                                            <div className="p-2 border-b border-gray-700 flex items-center justify-between">
+                                                <span className="font-semibold text-sm">Select type</span>
+                                                <Button
+                                                    size="sm"
+                                                    variant="secondary"
+                                                    className="h-7 text-[10px]"
+                                                    onClick={() => setShowAddBusinessTypeDialog(true)}
+                                                >
+                                                    + Add New
+                                                </Button>
+                                            </div>
+                                            <Command>
+                                                <CommandInput placeholder="Search types..." />
+                                                <CommandList>
+                                                    <CommandEmpty>No types found.</CommandEmpty>
+                                                    <CommandGroup>
+                                                        {businessTypes && businessTypes.map(type => (
+                                                            <CommandItem
+                                                                key={type.id}
+                                                                onSelect={() => {
+                                                                    handleSelectChange('client_type', String(type.id));
+                                                                    setBusinessTypePopoverOpen(false);
+                                                                }}
+                                                            >
+                                                                {type.name}
+                                                            </CommandItem>
+                                                        ))}
+                                                    </CommandGroup>
+                                                </CommandList>
+                                            </Command>
+                                        </PopoverContent>
+                                    </Popover>
+
+                                    {/* Add Business Type Dialog */}
+                                    <Dialog open={showAddBusinessTypeDialog} onOpenChange={setShowAddBusinessTypeDialog}>
+                                        <DialogContent closeDisabled={isAddingBusinessType}>
+                                            <DialogHeader>
+                                                <DialogTitle>New Business Type</DialogTitle>
+                                            </DialogHeader>
+                                            <div className="py-4">
+                                                <Label htmlFor="new_type_name">Business Type Name</Label>
+                                                <Input
+                                                    id="new_type_name"
+                                                    value={newBusinessTypeName}
+                                                    onChange={e => setNewBusinessTypeName(e.target.value)}
+                                                    className="mb-4 mt-2"
+                                                    placeholder="E.g. LLC, Sole Proprietorship"
+                                                    autoFocus
+                                                />
+                                            </div>
+                                            <DialogFooter>
+                                                <DialogClose asChild>
+                                                    <Button variant="outline" onClick={() => setShowAddBusinessTypeDialog(false)}>Cancel</Button>
+                                                </DialogClose>
+                                                <Button
+                                                    onClick={async () => {
+                                                        if (!newBusinessTypeName.trim()) return;
+                                                        setIsAddingBusinessType(true);
+                                                        try {
+                                                            const newType = await createBusinessType({ name: newBusinessTypeName }, user?.agency_id, user?.access_token);
+                                                            toast({ title: "Business type added", description: newType.name });
+
+                                                            if (typeof onAddBusinessType === 'function') {
+                                                                onAddBusinessType(newType);
+                                                            }
+
+                                                            handleSelectChange('client_type', String(newType.id));
+                                                            setShowAddBusinessTypeDialog(false);
+                                                            setNewBusinessTypeName('');
+                                                        } catch (err) {
+                                                            toast({ title: "Error", description: err.message, variant: "destructive" });
+                                                        } finally {
+                                                            setIsAddingBusinessType(false);
+                                                        }
+                                                    }}
+                                                    disabled={isAddingBusinessType}
+                                                >
+                                                    {isAddingBusinessType ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                                                    Save
+                                                </Button>
+                                            </DialogFooter>
+                                        </DialogContent>
+                                    </Dialog>
                                 </div>
+
                                 <div className="md:col-span-2">
                                     <Label htmlFor="organization_id">Group (Organisation)*</Label>
                                     <Popover open={orgPopoverOpen} onOpenChange={setOrgPopoverOpen}>
