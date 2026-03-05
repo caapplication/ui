@@ -47,8 +47,8 @@ const AccountantSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) =
             getUnreadNoticeCount(user.access_token),
             getFinancePendingCaApprovalIndicator(user.access_token),
           ]);
-          console.log('[AccountantSidebar] Fetched counts - Tasks:', taskCount, 'Notices:', noticeCount, 'Finance:', financePending);
-          console.log('[AccountantSidebar] Will show notice dot:', noticeCount > 0);
+          /* console.log('[AccountantSidebar] Fetched counts - Tasks:', taskCount, 'Notices:', noticeCount, 'Finance:', financePending); */
+          /* console.log('[AccountantSidebar] Will show notice dot:', noticeCount > 0); */
           setUnreadCount(taskCount);
           setUnreadNoticeCount(noticeCount);
           setHasFinancePending(!!financePending);
@@ -77,12 +77,12 @@ const AccountantSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) =
       };
 
       const handleNoticeUnreadUpdate = (data) => {
-        console.log('[AccountantSidebar] Socket notice_unread_update received:', data);
+        /* console.log('[AccountantSidebar] Socket notice_unread_update received:', data); */
         // Use unread_comments (chat messages) only, not closure_requests
         const unreadComments = typeof data.unread_comments === 'number' 
           ? data.unread_comments 
           : (typeof data.count === 'number' ? data.count : 0);
-        console.log('[AccountantSidebar] Parsed unread comments from socket:', unreadComments, 'current state:', unreadNoticeCount);
+        /* console.log('[AccountantSidebar] Parsed unread comments from socket:', unreadComments, 'current state:', unreadNoticeCount); */
         if (unreadComments > unreadNoticeCount) {
           setIsNoticeBlinking(true);
           setTimeout(() => setIsNoticeBlinking(false), 3000);

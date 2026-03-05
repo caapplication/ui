@@ -4,7 +4,7 @@ export const BASE_URL = import.meta.env.VITE_LOGIN_API_URL || 'http://127.0.0.1:
 
 // Debug: Log API URLs in development
 if (import.meta.env.DEV) {
-    console.log('🔧 Login API URL:', BASE_URL);
+    // console.log('🔧 Login API URL:', BASE_URL);
 }
 
 export const getAuthHeaders = (token, contentType = 'application/json', agencyId = null) => {

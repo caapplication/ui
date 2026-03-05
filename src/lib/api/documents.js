@@ -59,7 +59,7 @@ export const uploadFile = async (folderId, entityId, file, expiryDate, token, na
 
     // Debug logging for formData
     for (var pair of formData.entries()) {
-        console.log('DEBUG uploadFile formData:', pair[0] + ', ' + pair[1]);
+        /* console.log('DEBUG uploadFile formData:', pair[0] + ', ' + pair[1]); */
     }
 
     const url = `${FINANCE_API_BASE_URL}/api/documents/`;
@@ -225,21 +225,21 @@ export const revokePublicShareTokenFolder = async (folderId, token) => {
 export const getPublicFolder = async (token) => {
     try {
         const url = `${FINANCE_API_BASE_URL}/api/public/documents/folders/${token}`;
-        console.log('Fetching public folder from:', url);
+        /* console.log('Fetching public folder from:', url); */
         const response = await fetch(url, {
             method: 'GET',
             headers: {
                 'accept': 'application/json'
             },
         });
-        console.log('Response status:', response.status, response.statusText);
+        /* console.log('Response status:', response.status, response.statusText); */
         if (!response.ok) {
             const errorText = await response.text();
             console.error('Error response:', errorText);
             throw new Error(`Failed to load folder: ${response.status} ${response.statusText}`);
         }
         const data = await response.json();
-        console.log('Folder data:', data);
+        /* console.log('Folder data:', data); */
         return data;
     } catch (error) {
         console.error('Error in getPublicFolder:', error);

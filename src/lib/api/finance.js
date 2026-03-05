@@ -287,7 +287,7 @@ export const getInvoiceAttachment = async (attachmentId, token) => {
         // Check if response has content
         const contentType = response.headers.get('content-type') || response.headers.get('Content-Type');
         const contentLength = response.headers.get('content-length');
-        console.log('Invoice attachment response:', { contentType, contentLength, status: response.status, attachmentId });
+        /* console.log('Invoice attachment response:', { contentType, contentLength, status: response.status, attachmentId }); */
 
         let blob = await response.blob();
 
@@ -298,7 +298,7 @@ export const getInvoiceAttachment = async (attachmentId, token) => {
 
         // Use blob.type if content-type header is not available
         const finalContentType = contentType || blob.type || 'application/pdf';
-        console.log('Invoice attachment blob created successfully:', blob.size, 'bytes, type:', finalContentType);
+        /* console.log('Invoice attachment blob created successfully:', blob.size, 'bytes, type:', finalContentType); */
 
         // Ensure blob has correct MIME type for PDFs (important for iframe rendering)
         if (finalContentType.toLowerCase().includes('pdf') && blob.type !== finalContentType) {
@@ -444,7 +444,7 @@ export const getVoucherAttachment = async (attachmentId, token, entityId = null)
         // Check cache first
         const cached = await getCachedAttachment(CACHE_KEY);
         if (cached) {
-            console.log('Serving attachment from IDB cache:', attachmentId);
+            /* console.log('Serving attachment from IDB cache:', attachmentId); */
             return {
                 url: URL.createObjectURL(cached.blob),
                 contentType: cached.contentType
@@ -473,7 +473,7 @@ export const getVoucherAttachment = async (attachmentId, token, entityId = null)
         // Check if response has content
         const contentType = response.headers.get('content-type') || response.headers.get('Content-Type');
         const contentLength = response.headers.get('content-length');
-        console.log('Attachment response:', { contentType, contentLength, status: response.status });
+        /* console.log('Attachment response:', { contentType, contentLength, status: response.status }); */
 
         let blob = await response.blob();
 
@@ -484,7 +484,7 @@ export const getVoucherAttachment = async (attachmentId, token, entityId = null)
 
         // Use blob.type if content-type header is not available
         const finalContentType = contentType || blob.type || 'application/pdf';
-        console.log('Blob created successfully:', blob.size, 'bytes, type:', finalContentType);
+        /* console.log('Blob created successfully:', blob.size, 'bytes, type:', finalContentType); */
 
         // Ensure blob has correct MIME type for PDFs (important for iframe rendering)
         if (finalContentType.toLowerCase().includes('pdf') && blob.type !== finalContentType) {

@@ -71,7 +71,7 @@ const AccountantFinance = () => {
 
   const fetchData = useCallback(
     async (isRefresh = false) => {
-      console.log("fetchData called with organisationId:", organisationId, "selectedEntity:", selectedEntity, "entities:", entities);
+      /* console.log("fetchData called with organisationId:", organisationId, "selectedEntity:", selectedEntity, "entities:", entities); */
       if (!organisationId || !user?.access_token) {
         setInvoices([]);
         setVouchers([]);
@@ -92,7 +92,7 @@ const AccountantFinance = () => {
         // Fallback to all entities if no specific entity is selected but entities are available
         entityIdsToFetch = entities.map((e) => e.id);
       }
-      console.log("entityIdsToFetch for API call:", entityIdsToFetch);
+      /* console.log("entityIdsToFetch for API call:", entityIdsToFetch); */
 
       try {
         const [beneficiariesData, ...results] = await Promise.all([
@@ -176,10 +176,10 @@ const AccountantFinance = () => {
     const fetchIndicators = async () => {
       if (entities.length > 0 && user?.access_token) {
         try {
-          console.log('Finance: Fetching indicators for entities:', entities.length);
+          /* console.log('Finance: Fetching indicators for entities:', entities.length); */
           const indicators = await getEntityIndicators(user.access_token);
-          console.log('Finance: Fetched entity indicators:', indicators);
-          console.log('Finance: Entities:', entities.map(e => ({ id: String(e.id), name: e.name })));
+          /* console.log('Finance: Fetched entity indicators:', indicators); */
+          /* console.log('Finance: Entities:', entities.map(e => ({ id: String(e.id), name: e.name }))); */
 
           // Normalize entity IDs to strings for comparison
           const normalizedIndicators = {};
@@ -187,14 +187,14 @@ const AccountantFinance = () => {
             normalizedIndicators[String(key)] = indicators[key];
           });
 
-          console.log('Finance: Normalized indicators:', normalizedIndicators);
+          /* console.log('Finance: Normalized indicators:', normalizedIndicators); */
           setEntityIndicators(normalizedIndicators);
         } catch (error) {
           console.error('Failed to fetch entity indicators:', error);
           setEntityIndicators({});
         }
       } else {
-        console.log('Finance: Skipping indicator fetch - entities:', entities.length, 'token:', !!user?.access_token);
+        /* console.log('Finance: Skipping indicator fetch - entities:', entities.length, 'token:', !!user?.access_token); */
       }
     };
     fetchIndicators();
@@ -271,7 +271,7 @@ const AccountantFinance = () => {
             <Select
               value={selectedEntity || ""}
               onValueChange={(val) => {
-                console.log("Entity selected:", val);
+                /* console.log("Entity selected:", val); */
                 setSelectedEntity(val);
               }}
               disabled={!selectedOrg}
@@ -291,13 +291,13 @@ const AccountantFinance = () => {
 
                   // Debug logging
                   if (entity.name === 'The Abduz' || entity.name === 'Spic N Span') {
-                    console.log(`Finance: Checking ${entity.name}`, {
+                    /* console.log(`Finance: Checking ${entity.name}`, {
                       entityId: entity.id,
                       entityIdStr,
                       indicator,
                       hasNotification,
                       allIndicators: entityIndicators
-                    });
+                    }); */
                   }
 
                   return (
@@ -388,7 +388,7 @@ const AccountantFinance = () => {
                     onDeleteVoucher={handleDeleteVoucherClick}
                     onViewVoucher={(voucher, hasFilters, sortedFilteredVouchers) => {
                       const vouchersListToPass = sortedFilteredVouchers || enrichedVouchers;
-                      console.log("Navigating to voucher:", voucher);
+                      /* console.log("Navigating to voucher:", voucher); */
                       navigate(`/vouchers/ca/${voucher.id}`, {
                         state: {
                           voucher: voucher,
@@ -397,7 +397,7 @@ const AccountantFinance = () => {
                         }
                       });
                     }}
-                    onEditVoucher={(voucher) => console.log(voucher)}
+                    onEditVoucher={(voucher) => /* console.log(voucher) */}
                     isAccountantView={true}
                   />
                 }
@@ -409,7 +409,7 @@ const AccountantFinance = () => {
                     invoices={invoices}
                     beneficiaries={beneficiaries}
                     onDeleteInvoice={handleDeleteInvoiceClick}
-                    onEditInvoice={(invoice) => console.log(invoice)}
+                    onEditInvoice={(invoice) => /* console.log(invoice) */}
                     onViewInvoice={handleViewInvoice}
                     isAccountantView={true}
                   />

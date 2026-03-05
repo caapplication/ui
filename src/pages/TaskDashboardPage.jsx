@@ -1271,7 +1271,7 @@ const TaskDashboardPage = () => {
                             useWebWorker: true,
                         };
 
-                        console.log(`Original file size: ${(fileToSend.size / 1024 / 1024).toFixed(2)} MB`);
+                        /* console.log(`Original file size: ${(fileToSend.size / 1024 / 1024).toFixed(2)} MB`); */
                         toast({ title: "Compressing Image...", description: "Please wait while we optimize your image." });
 
                         const compressedBlob = await imageCompression(fileToSend, options);
@@ -1282,7 +1282,7 @@ const TaskDashboardPage = () => {
                             lastModified: new Date().getTime()
                         });
 
-                        console.log(`Compressed file size: ${(finalFile.size / 1024 / 1024).toFixed(2)} MB`);
+                        /* console.log(`Compressed file size: ${(finalFile.size / 1024 / 1024).toFixed(2)} MB`); */
                     } catch (error) {
                         console.error('Image compression failed:', error);
                         // Convert error to string if it's an object to avoid [object Object]
@@ -2286,7 +2286,7 @@ const TaskDashboardPage = () => {
     }
 
     return (
-        <div className="h-auto min-h-screen lg:h-[100dvh] p-4 md:p-8 text-white flex flex-col overflow-x-hidden lg:overflow-hidden">
+        <div className="h-auto min-h-screen lg:h-[100dvh] p-4 md:p-8 text-white flex flex-col overflow-x-hidden xl:overflow-hidden">
             <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-white/10 mb-6 flex-shrink-0">
                 <div className="flex items-center gap-4 w-full sm:w-auto">
                     <Button variant="ghost" size="icon" onClick={() => {
@@ -2578,9 +2578,9 @@ const TaskDashboardPage = () => {
                     />
                 ) : (
                     /* Responsive Grid Layout: 1 col (mobile), 2 cols (tablet), 4 cols (desktop) */
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 lg:grid-rows-2 gap-4 md:gap-6 h-auto lg:h-full min-h-0 overflow-visible ">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 lg:grid-rows-2 gap-4 md:gap-6 h-auto xl:h-full min-h-0 overflow-visible  ">
                         {/* Task Chat - Full width on mobile, 2 cols on desktop */}
-                        <Card className="glass-pane card-hover flex flex-col overflow-hidden rounded-2xl md:col-span-2 lg:row-span-2 h-[500px] lg:h-full">
+                        <Card className="glass-pane card-hover flex flex-col overflow-hidden rounded-2xl md:col-span-2 xl:row-span-2 h-[500px] xl:h-full">
                             <CardHeader className="flex-shrink-0"><CardTitle className="flex items-center gap-2"><MessageSquare className="w-5 h-5" /> Task Chat</CardTitle></CardHeader>
                             <CardContent className="flex-1 flex flex-col overflow-hidden min-h-0">
                                 <div ref={chatContainerRef} className="flex-1 overflow-y-auto space-y-4 mb-4 pr-2 min-h-0" style={{ overflowX: 'visible' }}>

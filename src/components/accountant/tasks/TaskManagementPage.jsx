@@ -72,11 +72,11 @@ const TaskManagementPage = ({ entityId, entityName }) => {
                 if (storedAgencyId) agencyId = storedAgencyId;
             }
 
-            console.debug('TaskManagementPage - Fetching data optimized:', {
-                role: user?.role,
-                userAgencyId: user?.agency_id,
-                derivedAgencyId: agencyId
-            });
+            // console.debug('TaskManagementPage - Fetching data optimized:', {
+            //     role: user?.role,
+            //     userAgencyId: user?.agency_id,
+            //     derivedAgencyId: agencyId
+            // });
 
             // 1. Start ALL requests in parallel immediately
             const tasksPromise = listTasks(agencyId, user.access_token).catch(err => {

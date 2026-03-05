@@ -127,11 +127,11 @@ const ActivityLog = ({ itemId, itemType, showFilter = true, excludeTypes = [] })
     }
 
     // Debug: print a sample log entry to the console
-    if (logs.length > 0) {
-        // Only print once per mount
-        // eslint-disable-next-line no-console
-        console.log('Sample activity log entry:', logs[0]);
-    }
+    // if (logs.length > 0) {
+    // Only print once per mount
+    // eslint-disable-next-line no-console
+    // console.log('Sample activity log entry:', logs[0]);
+    // }
 
     const handleDownloadCSV = () => {
         if (logs.length === 0) {

@@ -81,7 +81,7 @@ const SupportingFilesTab = ({ service, onUpdate }) => {
             title: "🚧 Action not implemented",
             description: "Downloading files via the API is not specified.",
         });
-        console.log("Download requested for:", file.file_url)
+        /* console.log("Download requested for:", file.file_url) */
     };
 
     return (

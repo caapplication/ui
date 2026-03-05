@@ -70,9 +70,9 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
           const noticeCount = results[1];
           const financePending = user?.role === 'CLIENT_MASTER_ADMIN' ? results[2] : false;
 
-          console.log('[Sidebar] Fetched counts - Tasks:', taskCount, 'Notices:', noticeCount, 'Finance:', financePending);
-          console.log('[Sidebar] Will show notice dot:', noticeCount > 0);
-          console.log('[Sidebar] Will show finance dot:', financePending);
+          // console.log('[Sidebar] Fetched counts - Tasks:', taskCount, 'Notices:', noticeCount, 'Finance:', financePending);
+          // console.log('[Sidebar] Will show notice dot:', noticeCount > 0);
+          // console.log('[Sidebar] Will show finance dot:', financePending);
           setUnreadCount(taskCount);
           setUnreadNoticeCount(noticeCount);
           setHasFinancePending(!!financePending);
@@ -103,12 +103,12 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
       };
 
       const handleNoticeUnreadUpdate = (data) => {
-        console.log('[Sidebar] Socket notice_unread_update received:', data);
+        /* console.log('[Sidebar] Socket notice_unread_update received:', data); */
         // Use unread_comments (chat messages) only, not closure_requests
         const unreadComments = typeof data.unread_comments === 'number' 
           ? data.unread_comments 
           : (typeof data.count === 'number' ? data.count : 0);
-        console.log('[Sidebar] Parsed unread comments from socket:', unreadComments, 'current state:', unreadNoticeCount);
+        /* console.log('[Sidebar] Parsed unread comments from socket:', unreadComments, 'current state:', unreadNoticeCount); */
         if (unreadComments > unreadNoticeCount) {
           setIsNoticeBlinking(true);
           setTimeout(() => setIsNoticeBlinking(false), 3000);
@@ -157,25 +157,25 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
   // Fetch clients from Clients table (NOT entities table)
   React.useEffect(() => {
     const fetchClients = async () => {
-      console.log('🔍 Sidebar fetchClients - User data:', {
-        role: user?.role,
-        agency_id: user?.agency_id,
-        organization_id: user?.organization_id,
-        hasToken: !!user?.access_token,
-        fullUser: user
-      });
+      // console.log('🔍 Sidebar fetchClients - User data:', {
+      //   role: user?.role,
+      //   agency_id: user?.agency_id,
+      //   organization_id: user?.organization_id,
+      //   hasToken: !!user?.access_token,
+      //   fullUser: user
+      // });
 
       try {
         let fetchedClients = [];
 
         if (user?.role === 'AGENCY_ADMIN' && user?.agency_id && user?.access_token) {
-          console.log('📞 Calling listClients for AGENCY_ADMIN');
+          // console.log('📞 Calling listClients for AGENCY_ADMIN');
           fetchedClients = await listClients(user.agency_id, user.access_token);
         } else {
-          console.log('⚠️ No API call - relying on user.entities or conditions not met');
+          // console.log('⚠️ No API call - relying on user.entities or conditions not met');
         }
 
-        console.log('✅ Fetched clients:', fetchedClients);
+        // console.log('✅ Fetched clients:', fetchedClients);
         setClients(fetchedClients || []);
       } catch (error) {
         console.error("❌ Failed to fetch clients for sidebar:", error);
@@ -203,9 +203,9 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
     const fetchIndicators = async () => {
       if (entitiesToDisplay.length > 0 && user?.access_token) {
         try {
-          console.log('[Sidebar] Fetching entity indicators for', entitiesToDisplay.length, 'entities');
+          // console.log('[Sidebar] Fetching entity indicators for', entitiesToDisplay.length, 'entities');
           const indicators = await getEntityIndicators(user.access_token);
-          console.log('[Sidebar] Fetched entity indicators:', indicators);
+          // console.log('[Sidebar] Fetched entity indicators:', indicators);
           
           // Normalize entity IDs to strings for comparison
           const normalizedIndicators = {};
@@ -213,7 +213,7 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
             normalizedIndicators[String(key)] = indicators[key];
           });
           
-          console.log('[Sidebar] Normalized indicators:', normalizedIndicators);
+          // console.log('[Sidebar] Normalized indicators:', normalizedIndicators); 
           setEntityIndicators(normalizedIndicators);
         } catch (error) {
           console.error('[Sidebar] Failed to fetch entity indicators:', error);

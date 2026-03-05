@@ -167,21 +167,21 @@ const VoucherDetailsCA = () => {
     useEffect(() => {
         if (authLoading || !user?.access_token) return;
 
-        console.log("=== useEffect triggered ===");
-        console.log("voucherId:", voucherId);
-        console.log("lastFetchedVoucherIdRef.current:", lastFetchedVoucherIdRef.current);
-        console.log("fetchingVoucherRef.current:", fetchingVoucherRef.current);
+        /* console.log("=== useEffect triggered ==="); */
+        /* console.log("voucherId:", voucherId); */
+        /* console.log("lastFetchedVoucherIdRef.current:", lastFetchedVoucherIdRef.current); */
+        /* console.log("fetchingVoucherRef.current:", fetchingVoucherRef.current); */
 
         // Reset refs when voucherId changes
         if (lastFetchedVoucherIdRef.current !== voucherId) {
-            console.log("VoucherId changed - resetting refs");
+            /* console.log("VoucherId changed - resetting refs"); */
             fetchingVoucherRef.current = false;
             fetchingAttachmentRef.current = null;
         }
 
         // Prevent duplicate fetches for the same voucher
         if (fetchingVoucherRef.current || lastFetchedVoucherIdRef.current === voucherId) {
-            console.log("Early return - fetchingVoucherRef.current:", fetchingVoucherRef.current, "lastFetchedVoucherIdRef === voucherId:", lastFetchedVoucherIdRef.current === voucherId);
+            /* console.log("Early return - fetchingVoucherRef.current:", fetchingVoucherRef.current, "lastFetchedVoucherIdRef === voucherId:", lastFetchedVoucherIdRef.current === voucherId); */
             return;
         }
 
@@ -192,9 +192,9 @@ const VoucherDetailsCA = () => {
                 if (fetchingVoucherRef.current) return;
                 fetchingVoucherRef.current = true;
 
-                console.log("=== VoucherDetailsCA Fetch Debug ===");
-                console.log("voucherId:", voucherId);
-                console.log("selectedEntity:", selectedEntity);
+                /* console.log("=== VoucherDetailsCA Fetch Debug ==="); */
+                /* console.log("voucherId:", voucherId); */
+                /* console.log("selectedEntity:", selectedEntity); */
 
                 // Always fetch fresh data from API (don't use initialVoucher)
                 let currentVoucher = null;
@@ -204,7 +204,7 @@ const VoucherDetailsCA = () => {
                 currentVoucher = cache.get('getVoucher', cacheKey);
 
                 if (!currentVoucher) {
-                    console.log("No cached voucher, making API call...");
+                    /* console.log("No cached voucher, making API call..."); */
                     // Get entityId from multiple sources with priority
                     const entityIdFromStorage = localStorage.getItem('entityId');
                     const entityIdFromVoucher = initialVoucher?.entity_id || voucher?.entity_id;
@@ -213,7 +213,7 @@ const VoucherDetailsCA = () => {
                         ? selectedEntity
                         : (entityIdFromVoucher || entityIdFromStorage);
 
-                    console.log("Entity resolution:", { selectedEntity, entityIdFromStorage, entityIdFromVoucher, finalEntityId: entityId });
+                    /* console.log("Entity resolution:", { selectedEntity, entityIdFromStorage, entityIdFromVoucher, finalEntityId: entityId }); */
 
                     // Use standard voucher endpoint with entity_id if available
                     let url = `${FINANCE_API_BASE_URL}/api/vouchers/${voucherId}`;
@@ -221,7 +221,7 @@ const VoucherDetailsCA = () => {
                         url += `?entity_id=${entityId}`;
                     }
 
-                    console.log("Fetching from URL:", url);
+                    /* console.log("Fetching from URL:", url); */
 
                     const response = await fetch(url, {
                         headers: {
@@ -232,14 +232,14 @@ const VoucherDetailsCA = () => {
 
                     if (response.ok) {
                         currentVoucher = await response.json();
-                        console.log("Voucher fetched successfully:", currentVoucher);
+                        /* console.log("Voucher fetched successfully:", currentVoucher); */
                         cache.set('getVoucher', cacheKey, currentVoucher);
                     } else {
                         console.error("Failed to fetch voucher:", response.status);
                         throw new Error(`Failed to fetch voucher: ${response.status}`);
                     }
                 } else {
-                    console.log("Using cached voucher");
+                    /* console.log("Using cached voucher"); */
                 }
 
                 if (!currentVoucher) {
@@ -268,7 +268,7 @@ const VoucherDetailsCA = () => {
                             allIds.push(id);
                         }
                     });
-                    console.log("Collected attachment IDs:", { primaryAttachmentId, additionalIds, allIds });
+                    /* console.log("Collected attachment IDs:", { primaryAttachmentId, additionalIds, allIds }); */
                     setAllAttachmentIds(allIds);
                     setCurrentAttachmentIndex(0); // Reset to first attachment
 
@@ -282,7 +282,7 @@ const VoucherDetailsCA = () => {
                         setAttachmentUrl(null); // Reset attachment URL
                         setAttachmentContentType(null);
                         fetchingAttachmentRef.current = allIds[0];
-                        console.log("Fetching voucher attachment with ID:", allIds[0]);
+                        /* console.log("Fetching voucher attachment with ID:", allIds[0]); */
                         promises.push(
                             getVoucherAttachment(allIds[0], user.access_token)
                                 .then(result => {
@@ -290,7 +290,7 @@ const VoucherDetailsCA = () => {
                                     const url = typeof result === 'string' ? result : result?.url;
                                     const contentType = typeof result === 'object' ? result?.contentType : null;
 
-                                    console.log("Voucher attachment URL received:", url ? "Yes" : "No", url, "Content-Type:", contentType);
+                                    /* console.log("Voucher attachment URL received:", url ? "Yes" : "No", url, "Content-Type:", contentType); */
                                     if (url) {
                                         setAttachmentUrl(url);
                                         setAttachmentContentType(contentType);
@@ -301,7 +301,7 @@ const VoucherDetailsCA = () => {
                                         }
                                         // For images, keep loading state true - onLoad handler will set it to false
                                     } else {
-                                        console.log("No URL returned from getVoucherAttachment");
+                                        /* console.log("No URL returned from getVoucherAttachment"); */
                                         setIsImageLoading(false);
                                         setAttachmentUrl(null);
                                         setAttachmentContentType(null);
@@ -323,7 +323,7 @@ const VoucherDetailsCA = () => {
                                 })
                         );
                     } else {
-                        console.log("No attachment_id found in voucher object. Voucher structure:", currentVoucher);
+                        /* console.log("No attachment_id found in voucher object. Voucher structure:", currentVoucher); */
                         setAttachmentUrl(null);
                         setIsImageLoading(false);
                     }
@@ -424,7 +424,7 @@ const VoucherDetailsCA = () => {
                 }
 
                 if (entityIdsToFetch.length > 0) {
-                    console.log("Fetching voucher list for navigation context...", entityIdsToFetch);
+                    /* console.log("Fetching voucher list for navigation context...", entityIdsToFetch); */
                     const fetchPromises = entityIdsToFetch.map(async (id) => {
                         const cacheKey = { entityId: id, token: user.access_token };
                         const cached = cache.get('getCATeamVouchers', cacheKey);
@@ -440,7 +440,7 @@ const VoucherDetailsCA = () => {
                     const allVouchers = results.flat().sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
 
                     if (allVouchers.length > 0) {
-                        console.log("Fetched voucher list context:", allVouchers.length);
+                        /* console.log("Fetched voucher list context:", allVouchers.length); */
                         setVoucherList(allVouchers);
                     }
                 }
@@ -653,7 +653,7 @@ const VoucherDetailsCA = () => {
             return;
         }
         const newIndex = currentIndex + direction;
-        console.log("Navigating:", { currentIndex, newIndex, direction, vouchersLength: filteredVouchers.length });
+        /* console.log("Navigating:", { currentIndex, newIndex, direction, vouchersLength: filteredVouchers.length }); */
 
         if (newIndex >= 0 && newIndex < filteredVouchers.length) {
             setLoadingVoucher(true);
@@ -663,7 +663,7 @@ const VoucherDetailsCA = () => {
             setCurrentAttachmentIndex(0);
             setIsImageLoading(false);
             const nextVoucher = filteredVouchers[newIndex];
-            console.log("Navigating to voucher:", nextVoucher.id);
+            /* console.log("Navigating to voucher:", nextVoucher.id); */
             // Update currentIndex immediately
             setCurrentIndex(newIndex);
             navigate(`/vouchers/ca/${nextVoucher.id}`, {
@@ -753,7 +753,7 @@ const VoucherDetailsCA = () => {
                 let freshVoucher = voucher;
                 try {
                     freshVoucher = await getCAVoucher(voucherId, user.access_token);
-                    console.log('Fetched fresh voucher data:', freshVoucher);
+                    /* console.log('Fetched fresh voucher data:', freshVoucher); */
                 } catch (err) {
                     console.warn('Failed to fetch fresh voucher, using cached:', err);
                 }
@@ -762,15 +762,15 @@ const VoucherDetailsCA = () => {
                 // We must use the voucher's actual entity ID, not the globally selected one,
                 // because the user might be viewing a voucher from a different entity than selected in header
                 const entityId = freshVoucher?.entity?.id || selectedEntity || localStorage.getItem('entityId');
-                console.log('Checking for pending invoices with entityId:', entityId);
+                /* console.log('Checking for pending invoices with entityId:', entityId); */
 
                 if (entityId && entityId !== "all") {
-                    console.log("Fetching invoices for entity:", entityId);
+                    /* console.log("Fetching invoices for entity:", entityId); */
                     // Use getCATeamInvoices with entityId to fetch invoices
                     const invoices = await getCATeamInvoices(entityId, user.access_token);
-                    console.log("Fetched invoices:", invoices?.length || 0);
+                    /* console.log("Fetched invoices:", invoices?.length || 0); */
                     const pendingInvoices = (invoices || []).filter(inv => inv.status === 'pending_ca_approval' && !inv.is_deleted);
-                    console.log("Pending CA invoices found:", pendingInvoices.length);
+                    /* console.log("Pending CA invoices found:", pendingInvoices.length); */
 
                     if (pendingInvoices.length > 0) {
                         setCompletionModalType('go_to_invoices');
@@ -778,7 +778,7 @@ const VoucherDetailsCA = () => {
                         return;
                     }
                 } else {
-                    console.log("No specific entity context to check for pending invoices", { selectedEntity, voucherEntity: freshVoucher?.entity });
+                    /* console.log("No specific entity context to check for pending invoices", { selectedEntity, voucherEntity: freshVoucher?.entity }); */
                 }
             } catch (error) {
                 console.error("Failed to check for pending invoices:", error);
@@ -920,7 +920,7 @@ const VoucherDetailsCA = () => {
         setIsDeleting(true);
         try {
             // Use CA-specific endpoint - no entity_id required
-            console.log('Deleting voucher with ID:', voucherId);
+            /* console.log('Deleting voucher with ID:', voucherId); */
             await deleteCAVoucher(voucherId, user.access_token);
             // Invalidate cache for vouchers
             cache.invalidate('getCATeamVouchers');
@@ -1198,7 +1198,7 @@ const VoucherDetailsCA = () => {
                                         className="max-w-full max-h-full transition-transform duration-200"
                                         style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }}
                                         onLoad={() => {
-                                            console.log("Image loaded successfully");
+                                            /* console.log("Image loaded successfully"); */
                                             setIsImageLoading(false);
                                         }}
                                         onError={(e) => {
@@ -1793,7 +1793,7 @@ const VoucherDetailsCA = () => {
                                                         pendingInvoices.sort((a, b) => new Date(a.created_date || a.date) - new Date(b.created_date || b.date));
                                                         const nextInvoice = pendingInvoices[0];
 
-                                                        console.log("Navigating to pending invoice:", nextInvoice.id);
+                                                        /* console.log("Navigating to pending invoice:", nextInvoice.id); */
                                                         // Navigate to CA specific invoice details page
                                                         navigate(`/invoices/ca/${nextInvoice.id}`, {
                                                             state: {

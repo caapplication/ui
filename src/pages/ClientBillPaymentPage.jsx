@@ -104,7 +104,7 @@ const ClientBillPaymentPage = ({ entityId }) => {
         const finalClientId = clientId || user?.entities?.[0]?.id || user?.entity_id || localStorage.getItem('entityId');
 
         if (!finalClientId) {
-            console.log('Waiting for client_id...', { clientId, userEntities: user?.entities, entityId });
+            /* console.log('Waiting for client_id...', { clientId, userEntities: user?.entities, entityId }); */
             setIsLoading(false);
             return;
         }

@@ -76,12 +76,12 @@ const RecurringTaskManagementPage = () => {
 
         // Don't fetch if user is not loaded yet or missing required data
         if (!user || !agencyId || !accessToken) {
-            console.log('Skipping fetch - missing data:', { hasUser: !!user, agencyId, hasToken: !!accessToken });
+            /* console.log('Skipping fetch - missing data:', { hasUser: !!user, agencyId, hasToken: !!accessToken }); */
             setIsLoading(false);
             return;
         }
 
-        console.log('Fetching recurring tasks data...');
+        /* console.log('Fetching recurring tasks data...'); */
         setIsLoading(true);
         setHasAttemptedFetch(true);
         try {
@@ -101,7 +101,7 @@ const RecurringTaskManagementPage = () => {
             if (results[0].status === 'fulfilled') {
                 const res = results[0].value;
                 const tasks = res.items || (Array.isArray(res) ? res : []);
-                console.log('Recurring tasks loaded:', tasks.length);
+                /* console.log('Recurring tasks loaded:', tasks.length); */
                 setRecurringTasks(tasks);
 
                 if (res.total !== undefined) {
@@ -254,7 +254,7 @@ const RecurringTaskManagementPage = () => {
         if (agencyId && accessToken) {
             fetchData();
         } else {
-            console.log('Missing required data for fetch:', { agencyId, hasToken: !!accessToken });
+            // console.log('Missing required data for fetch:', { agencyId, hasToken: !!accessToken });
             setIsLoading(false);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps

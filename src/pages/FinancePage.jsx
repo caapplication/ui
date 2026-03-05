@@ -102,10 +102,10 @@ const FinancePage = () => {
     const fetchIndicators = async () => {
       if (clients.length > 0 && user?.access_token) {
         try {
-          console.log('FinancePage: Fetching indicators for clients:', clients.length);
+          /* console.log('FinancePage: Fetching indicators for clients:', clients.length); */
           const indicators = await getEntityIndicators(user.access_token);
-          console.log('FinancePage: Fetched entity indicators:', indicators);
-          console.log('FinancePage: Clients:', clients.map(c => ({ id: String(c.id), name: c.name })));
+          /* console.log('FinancePage: Fetched entity indicators:', indicators); */
+          /* console.log('FinancePage: Clients:', clients.map(c => ({ id: String(c.id), name: c.name }))); */
 
           // Normalize entity IDs to strings for comparison
           const normalizedIndicators = {};
@@ -113,14 +113,14 @@ const FinancePage = () => {
             normalizedIndicators[String(key)] = indicators[key];
           });
 
-          console.log('FinancePage: Normalized indicators:', normalizedIndicators);
+          /* console.log('FinancePage: Normalized indicators:', normalizedIndicators); */
           setEntityIndicators(normalizedIndicators);
         } catch (error) {
           console.error('FinancePage: Failed to fetch entity indicators:', error);
           setEntityIndicators({});
         }
       } else {
-        console.log('FinancePage: Skipping indicator fetch - clients:', clients.length, 'token:', !!user?.access_token);
+        /* console.log('FinancePage: Skipping indicator fetch - clients:', clients.length, 'token:', !!user?.access_token); */
       }
     };
     fetchIndicators();
@@ -172,7 +172,7 @@ const FinancePage = () => {
 
                 // Debug logging
                 if (hasNotification) {
-                  console.log(`FinancePage: Client ${client.name} (${entityIdStr}) has notification:`, indicator);
+                  /* console.log(`FinancePage: Client ${client.name} (${entityIdStr}) has notification:`, indicator); */
                 }
 
                 return (

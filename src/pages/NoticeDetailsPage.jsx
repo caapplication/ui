@@ -111,7 +111,7 @@ const NoticeDetailsPage = () => {
         if (!socket) return;
 
         const handleNewComment = (newComment) => {
-            console.log("Socket: New comment received", newComment);
+            /* console.log("Socket: New comment received", newComment); */
             setMessages(prev => {
                 if (prev.some(m => m.id === newComment.id)) return prev;
                 return [...prev, newComment];

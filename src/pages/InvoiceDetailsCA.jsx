@@ -205,7 +205,7 @@ const InvoiceDetailsCA = () => {
                     });
                     if (response.ok) {
                         fullInvoice = await response.json();
-                        console.log("Fetched full invoice:", fullInvoice);
+                        /* console.log("Fetched full invoice:", fullInvoice); */
                     } else {
                         console.warn("Failed to fetch full invoice, status:", response.status);
                     }
@@ -249,12 +249,12 @@ const InvoiceDetailsCA = () => {
 
                     // Collect all attachment IDs (primary + additional)
                     // Log the invoice object to debug attachment structure
-                    console.log("Invoice object for attachment detection:", {
+                    /* console.log("Invoice object for attachment detection:", {
                         attachment_id: currentInvoice.attachment_id,
                         attachment: currentInvoice.attachment,
                         additional_attachment_ids: currentInvoice.additional_attachment_ids,
                         fullInvoice: currentInvoice
-                    });
+                    }); */
 
                     // Try multiple ways to get the primary attachment ID
                     let primaryAttachmentId = null;
@@ -283,7 +283,7 @@ const InvoiceDetailsCA = () => {
                             allIds.push(id);
                         }
                     });
-                    console.log("Collected attachment IDs:", { primaryAttachmentId, additionalIds, allIds });
+                    /* console.log("Collected attachment IDs:", { primaryAttachmentId, additionalIds, allIds }); */
                     setAllAttachmentIds(allIds);
                     setCurrentAttachmentIndex(0); // Reset to first attachment
 
@@ -296,7 +296,7 @@ const InvoiceDetailsCA = () => {
                         setIsImageLoading(true);
                         setAttachmentToDisplay(null);
                         setAttachmentContentType(null);
-                        console.log("Fetching invoice attachment with ID:", allIds[0]);
+                        /* console.log("Fetching invoice attachment with ID:", allIds[0]); */
                         promises.push(
                             getInvoiceAttachment(allIds[0], user.access_token)
                                 .then(result => {
@@ -304,7 +304,7 @@ const InvoiceDetailsCA = () => {
                                     const url = typeof result === 'string' ? result : result?.url;
                                     const contentType = typeof result === 'object' ? result?.contentType : null;
 
-                                    console.log("Invoice attachment URL received:", url ? "Yes" : "No", url, "Content-Type:", contentType);
+                                    /* console.log("Invoice attachment URL received:", url ? "Yes" : "No", url, "Content-Type:", contentType); */
                                     if (url) {
                                         setAttachmentToDisplay(url);
                                         setAttachmentContentType(contentType);
@@ -315,7 +315,7 @@ const InvoiceDetailsCA = () => {
                                         }
                                         // For images, keep loading state true - onLoad handler will set it to false
                                     } else {
-                                        console.log("No URL returned from getInvoiceAttachment");
+                                        /* console.log("No URL returned from getInvoiceAttachment"); */
                                         setIsImageLoading(false);
                                         setAttachmentToDisplay(null);
                                         setAttachmentContentType(null);
@@ -335,7 +335,7 @@ const InvoiceDetailsCA = () => {
                                 })
                         );
                     } else {
-                        console.log("No attachment_id found in invoice object. Invoice structure:", currentInvoice);
+                        /* console.log("No attachment_id found in invoice object. Invoice structure:", currentInvoice); */
                         setAttachmentToDisplay(null);
                         setIsImageLoading(false);
                     }
@@ -495,11 +495,11 @@ const InvoiceDetailsCA = () => {
 
         // Use currentFilteredIndex as the base
         const newIndex = currentFilteredIndex + direction;
-        console.log("Navigating:", { currentFilteredIndex, newIndex, direction, invoicesLength: filteredInvoices.length });
+        /* console.log("Navigating:", { currentFilteredIndex, newIndex, direction, invoicesLength: filteredInvoices.length }); */
 
         if (newIndex >= 0 && newIndex < filteredInvoices.length) {
             const nextInvoice = filteredInvoices[newIndex];
-            console.log("Navigating to invoice:", nextInvoice.id);
+            /* console.log("Navigating to invoice:", nextInvoice.id); */
             setCurrentIndex(newIndex);
 
             // Navigate with state - keep the full list in state but filtered logic applies
@@ -551,12 +551,12 @@ const InvoiceDetailsCA = () => {
             // No pending invoices, check for pending vouchers
             try {
                 const entityId = invoiceDetails?.entity?.id || invoice?.entity?.id || localStorage.getItem('entityId');
-                console.log('Checking for pending vouchers for entityId:', entityId);
+                /* console.log('Checking for pending vouchers for entityId:', entityId); */
                 if (entityId) {
                     const vouchers = await getVouchers(entityId, user.access_token);
-                    console.log('Fetched vouchers:', vouchers);
+                    /* console.log('Fetched vouchers:', vouchers); */
                     const pendingVouchers = vouchers.filter(v => v.status === 'pending_ca_approval' && !v.is_deleted);
-                    console.log('Pending CA vouchers:', pendingVouchers);
+                    /* console.log('Pending CA vouchers:', pendingVouchers); */
 
                     if (pendingVouchers.length > 0) {
                         setCompletionModalType('go_to_vouchers');
@@ -730,7 +730,7 @@ const InvoiceDetailsCA = () => {
 
             <ResizablePanelGroup
                 direction="horizontal"
-                className="flex-1 rounded-lg border border-white/10 hidden md:flex overflow-hidden"
+                className="flex-1 rounded-lg border border-white/10 !hidden md:!flex overflow-hidden"
             >
                 <ResizablePanel defaultSize={60} minSize={30}>
                     <div className="relative flex h-full w-full flex-col items-center justify-center p-2">
@@ -792,7 +792,7 @@ const InvoiceDetailsCA = () => {
                                         className="max-w-full max-h-full transition-transform duration-200"
                                         style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }}
                                         onLoad={() => {
-                                            console.log("Image loaded successfully");
+                                            /* console.log("Image loaded successfully"); */
                                             setIsImageLoading(false);
                                         }}
                                         onError={(e) => {
@@ -1034,7 +1034,7 @@ const InvoiceDetailsCA = () => {
                                     className="max-w-full max-h-full transition-transform duration-200"
                                     style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }}
                                     onLoad={() => {
-                                        console.log("Image loaded successfully");
+                                        /* console.log("Image loaded successfully"); */
                                         setIsImageLoading(false);
                                     }}
                                     onError={(e) => {

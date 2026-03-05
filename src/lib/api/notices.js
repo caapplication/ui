@@ -144,9 +144,9 @@ export const getUnreadNoticeCount = async (token) => {
       ? data.unread_comments
       : ((typeof data.count === 'number' && typeof data.unread_comments === 'undefined') ? 0 : 0);
 
-    console.log('[getUnreadNoticeCount] Full response:', data);
-    console.log('[getUnreadNoticeCount] unread_comments:', data.unread_comments, 'closure_requests:', data.closure_requests, 'total count:', data.count);
-    console.log('[getUnreadNoticeCount] Returning unread comments:', unreadComments);
+    // console.log('[getUnreadNoticeCount] Full response:', data);
+    // console.log('[getUnreadNoticeCount] unread_comments:', data.unread_comments, 'closure_requests:', data.closure_requests, 'total count:', data.count);
+    // console.log('[getUnreadNoticeCount] Returning unread comments:', unreadComments);
 
     return unreadComments;
   } catch (error) {

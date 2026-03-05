@@ -73,7 +73,7 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
         if (!Array.isArray(clients) || clients.length === 0) {
             // Debug: Log when clients array is empty
             if (clients.length === 0) {
-                console.debug('getClientName: clients array is empty for clientId:', clientId);
+                // console.debug('getClientName: clients array is empty for clientId:', clientId);
             }
             return 'N/A';
         }
@@ -85,7 +85,7 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
             return cId === clientIdStr;
         });
         if (!client) {
-            console.debug('getClientName: No client found for clientId:', clientId, 'Available clients:', clients.map(c => ({ id: c?.id, name: c?.name })));
+            // console.debug('getClientName: No client found for clientId:', clientId, 'Available clients:', clients.map(c => ({ id: c?.id, name: c?.name })));
             return 'N/A';
         }
         return client.name || 'N/A';
@@ -157,7 +157,7 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
             const date = new Date(dateString);
             // Check if date is valid
             if (isNaN(date.getTime())) {
-                console.warn('Invalid date:', dateString);
+                // console.warn('Invalid date:', dateString);
                 return 'N/A';
             }
             const now = new Date();
@@ -178,7 +178,7 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
             if (diffDays < 30) return `${diffDays} ${diffDays === 1 ? 'day' : 'days'} ago`;
             return formatDistanceToNow(date, { addSuffix: true });
         } catch (error) {
-            console.error('Error formatting date:', error, dateString);
+            // console.error('Error formatting date:', error, dateString);
             return 'N/A';
         }
     };

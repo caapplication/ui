@@ -42,7 +42,7 @@ export const FinanceSocketProvider = ({ children }) => {
     });
 
     newSocket.on('connect', () => {
-      console.log('✅ Finance Socket.IO connected');
+      // console.log('✅ Finance Socket.IO connected');
       setIsConnected(true);
     });
 

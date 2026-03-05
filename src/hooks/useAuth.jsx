@@ -89,13 +89,13 @@ export const AuthProvider = ({ children }) => {
         try {
           const data = await apiRefreshToken(refreshTokenValue);
           updateUser({ access_token: data.access_token });
-          console.log("Token refreshed successfully");
+          /* console.log("Token refreshed successfully"); */
         } catch (error) {
           console.error("Failed to refresh token, logging out.", error);
           logout();
         }
       } else {
-        console.log("Skipping token refresh due to inactivity");
+        /* console.log("Skipping token refresh due to inactivity"); */
       }
     };
 
@@ -106,7 +106,7 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const handleAuthError = () => {
-      console.warn("Authentication error detected. Logging out.");
+      // console.warn("Authentication error detected. Logging out.");
       logout();
     };
 
@@ -130,7 +130,7 @@ export const AuthProvider = ({ children }) => {
           const parsedUser = JSON.parse(savedUser);
           // Validate token is not null, undefined, or empty string
           if (!accessToken || accessToken === 'null' || accessToken === 'undefined' || accessToken.trim() === '') {
-            console.warn('Invalid access token found in localStorage, logging out');
+            // console.warn('Invalid access token found in localStorage, logging out');
             logout();
             return;
           }
@@ -347,7 +347,7 @@ export const AuthProvider = ({ children }) => {
 
           const results = await Promise.all(promises);
           entitiesData = results.flat();
-          console.log('useAuth: fetched entitiesData with organizations:', entitiesData);
+          /* console.log('useAuth: fetched entitiesData with organizations:', entitiesData); */
         } catch (error) {
           console.error("Failed to fetch clients for organizations:", error);
         }

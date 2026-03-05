@@ -70,7 +70,7 @@ const NoticesPage = () => {
                     clientsData = await listClientsByOrganization(user.organization_id, token);
                 }
 
-                console.log("Fetched Clients for Notices:", clientsData);
+                // console.log("Fetched Clients for Notices:", clientsData);
                 const safeClients = Array.isArray(clientsData) ? clientsData : (clientsData.results || []);
                 setClients(safeClients);
 

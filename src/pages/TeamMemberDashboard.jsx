@@ -44,9 +44,9 @@ const TeamMemberDashboard = () => {
           listRecurringTasks(user.agency_id, user.access_token, true, 1, 1000)
         ]);
 
-        console.log('=== TEAM MEMBER DASHBOARD DEBUG ===');
-        console.log('Entities Response:', entitiesResponse);
-        console.log('Tasks Response:', tasksResponse);
+        /* console.log('=== TEAM MEMBER DASHBOARD DEBUG ==='); */
+        /* console.log('Entities Response:', entitiesResponse); */
+        /* console.log('Tasks Response:', tasksResponse); */
 
         // Handle entities response (should be array of entities assigned via EntityUser)
         const myEntities = Array.isArray(entitiesResponse) ? entitiesResponse : [];
@@ -59,22 +59,22 @@ const TeamMemberDashboard = () => {
           organization_name: entity.organization_name
         }));
 
-        console.log('My Assigned Entities:', clientsFromEntities);
+        /* console.log('My Assigned Entities:', clientsFromEntities); */
         setAssignedClients(clientsFromEntities);
 
         // Filter tasks assigned to this user
         const allTasks = tasksResponse?.items || tasksResponse?.data || [];
-        console.log('All tasks from API:', allTasks.length);
+        /* console.log('All tasks from API:', allTasks.length); */
 
         const myTasks = allTasks.filter(task => {
           const isAssigned = task.assigned_to === user.id;
           if (!isAssigned && allTasks.length < 10) {
-            console.log('Task', task.title, 'assigned_to:', task.assigned_to, 'user.id:', user.id, 'match:', isAssigned);
+            /* console.log('Task', task.title, 'assigned_to:', task.assigned_to, 'user.id:', user.id, 'match:', isAssigned); */
           }
           return isAssigned;
         });
 
-        console.log('Filtered My Tasks:', myTasks.length, 'tasks');
+        /* console.log('Filtered My Tasks:', myTasks.length, 'tasks'); */
         setRecurringTasks(myTasks);
       } catch (error) {
         console.error('Error fetching team member data:', error);

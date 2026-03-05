@@ -589,7 +589,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   };
 
   const fetchDocuments = useCallback(async (isRefresh = false) => {
-    console.log('fetchDocuments called', { isRefresh, realSelectedClientId, entityId: user?.role === 'CA_ACCOUNTANT' ? realSelectedClientId : entityId });
+    // console.log('fetchDocuments called', { isRefresh, realSelectedClientId, entityId: user?.role === 'CA_ACCOUNTANT' ? realSelectedClientId : entityId });
     if (!user?.access_token) {
       setIsLoading(false);
       return;
@@ -615,16 +615,16 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
       setIsLoading(true);
     }
     try {
-      console.log('Fetching from API for entity:', entityToFetch);
+      // console.log('Fetching from API for entity:', entityToFetch);
       const data = await getDocuments(entityToFetch, user.access_token);
-      console.log('API Response:', data);
+      // console.log('API Response:', data);
       // Ensure data has folders and documents arrays
       const folders = Array.isArray(data?.folders) ? data.folders : [];
       const documents = Array.isArray(data?.documents) ? data.documents : [];
-      console.log('Building file tree with:', { foldersCount: folders.length, documentsCount: documents.length });
-      console.log('Folder IDs:', folders.map(f => f.id).join(', '));
+      // console.log('Building file tree with:', { foldersCount: folders.length, documentsCount: documents.length });
+      // console.log('Folder IDs:', folders.map(f => f.id).join(', '));
       const fileTree = buildFileTree(folders, documents);
-      console.log('Built File Tree:', fileTree);
+      // console.log('Built File Tree:', fileTree);
       setDocumentsState(fileTree);
     } catch (error) {
       console.error('Error fetching documents:', error);
@@ -644,7 +644,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   // Use buildFileTree from utils
 
   const fetchSharedDocuments = useCallback(async (isRefresh = false) => {
-    console.log('fetchSharedDocuments called', { isRefresh, role: user?.role, entityId: realSelectedClientId || entityId });
+    // console.log('fetchSharedDocuments called', { isRefresh, role: user?.role, entityId: realSelectedClientId || entityId });
     if (!user?.access_token) return;
     if (isRefresh) {
       setIsRefreshing(true);
@@ -656,10 +656,10 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
       // If CA Accountant, use realSelectedClientId.
       // If Client User, use the entityId from props/auth context.
       const targetEntityId = user?.role === 'CA_ACCOUNTANT' ? realSelectedClientId : entityId;
-      console.log('Fetching shared docs with targetEntityId:', targetEntityId);
+      // console.log('Fetching shared docs with targetEntityId:', targetEntityId);
 
       const data = await getSharedDocuments(user.access_token, user.role, targetEntityId);
-      console.log('Shared Documents API Response:', data);
+      // console.log('Shared Documents API Response:', data);
 
       const combinedShared = [
         ...(data.documents || []).map(d => ({ ...d, is_folder: false })),

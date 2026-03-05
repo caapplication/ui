@@ -583,7 +583,7 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction, entityName: en
                       vouchers={enrichedVouchers}
                       onDeleteVoucher={handleDeleteVoucherClick}
                       onViewVoucher={handleViewVoucher}
-                      onEditVoucher={(voucher) => console.log(voucher)}
+                      onEditVoucher={(voucher) =>console.log(voucher) }
                     />
                   )
                 }
@@ -598,7 +598,7 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction, entityName: en
                       invoices={invoices}
                       beneficiaries={beneficiaries}
                       onDeleteInvoice={handleDeleteInvoiceClick}
-                      onEditInvoice={(invoice) => console.log(invoice)}
+                      onEditInvoice={(invoice) => console.log(invoice) }
                       onViewInvoice={handleViewInvoice}
                     />
                   )

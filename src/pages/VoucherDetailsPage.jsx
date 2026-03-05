@@ -243,7 +243,7 @@ const VoucherDetailsPage = () => {
                 if (Array.isArray(data) && data.length > 0) {
                     // Sort by date descending
                     const allVouchers = data.sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
-                    console.log("Fetched voucher list context for Page:", allVouchers.length);
+                    /* console.log("Fetched voucher list context for Page:", allVouchers.length); */
                     setVoucherList(allVouchers);
                 }
             } catch (error) {
@@ -270,12 +270,12 @@ const VoucherDetailsPage = () => {
     // Hide actions if status is 'pending_ca_approval' OR 'verified'
     const hideClientActions = (isClientUser || user?.role === 'client_user') && (voucher?.status === 'pending_ca_approval' || voucher?.status === 'verified');
 
-    console.log('Visibility Logic:', {
-        role: user?.role,
-        isClientUser,
-        status: voucher?.status,
-        hideClientActions
-    });
+    // console.log('Visibility Logic:', {
+    //     role: user?.role,
+    //     isClientUser,
+    //     status: voucher?.status,
+    //     hideClientActions
+    // });
 
     // Keeping shouldHideActions as alias if used elsewhere, though we updated main buttons
     const shouldHideActions = hideClientActions;
@@ -415,14 +415,14 @@ const VoucherDetailsPage = () => {
                     setCache(CACHE_KEY_VOUCHER, currentVoucher);
 
                     // Debug: Log the voucher data to verify snapshot fields are present
-                    console.log('Setting voucher with data:', {
+                    /* console.log('Setting voucher with data:', {
                         id: currentVoucher.id,
                         from_bank_account_name: currentVoucher.from_bank_account_name,
                         from_bank_account_number: currentVoucher.from_bank_account_number,
                         to_bank_account_name: currentVoucher.to_bank_account_name,
                         to_bank_account_number: currentVoucher.to_bank_account_number,
                         payment_type: currentVoucher.payment_type
-                    });
+                    }); */
 
                     setVoucher(currentVoucher);
                     setEditedVoucher(currentVoucher);
@@ -446,7 +446,7 @@ const VoucherDetailsPage = () => {
                             allIds.push(id);
                         }
                     });
-                    console.log("Collected attachment IDs:", { primaryAttachmentId, additionalIds, allIds });
+                    /* console.log("Collected attachment IDs:", { primaryAttachmentId, additionalIds, allIds }); */
                     setAllAttachmentIds(allIds);
                     setCurrentAttachmentIndex(0); // Reset to first attachment
 
@@ -456,7 +456,7 @@ const VoucherDetailsPage = () => {
                         setIsImageLoading(true);
                         setAttachmentUrl(null); // Reset attachment URL
                         setAttachmentContentType(null);
-                        console.log("Fetching voucher attachment with ID:", allIds[0]);
+                        /* console.log("Fetching voucher attachment with ID:", allIds[0]); */
                         promises.push(
                             getVoucherAttachment(allIds[0], user.access_token)
                                 .then(result => {
@@ -464,7 +464,7 @@ const VoucherDetailsPage = () => {
                                     const url = typeof result === 'string' ? result : result?.url;
                                     const contentType = typeof result === 'object' ? result?.contentType : null;
 
-                                    console.log("Voucher attachment URL received:", url ? "Yes" : "No", url, "Content-Type:", contentType);
+                                    /* console.log("Voucher attachment URL received:", url ? "Yes" : "No", url, "Content-Type:", contentType); */
                                     if (url) {
                                         setAttachmentUrl(url);
                                         setAttachmentContentType(contentType);
@@ -475,7 +475,7 @@ const VoucherDetailsPage = () => {
                                         }
                                         // For images, keep loading state true - onLoad handler will set it to false
                                     } else {
-                                        console.log("No URL returned from getVoucherAttachment");
+                                        /* console.log("No URL returned from getVoucherAttachment"); */
                                         setIsImageLoading(false);
                                         setAttachmentUrl(null);
                                         setAttachmentContentType(null);
@@ -493,7 +493,7 @@ const VoucherDetailsPage = () => {
                                 })
                         );
                     } else {
-                        console.log("No attachment_id found in voucher object. Voucher structure:", currentVoucher);
+                        /* console.log("No attachment_id found in voucher object. Voucher structure:", currentVoucher); */
                         setAttachmentUrl(null);
                         setIsImageLoading(false);
                     }
@@ -560,7 +560,7 @@ const VoucherDetailsPage = () => {
 
                 // Debug: Log voucher bank account data
                 if (voucher?.payment_type === 'bank_transfer') {
-                    console.log('Voucher bank account data:', {
+                    /* console.log('Voucher bank account data:', {
                         from_bank_account_id: voucher.from_bank_account_id,
                         to_bank_account_id: voucher.to_bank_account_id,
                         from_bank_account_name: voucher.from_bank_account_name,
@@ -568,7 +568,7 @@ const VoucherDetailsPage = () => {
                         to_bank_account_name: voucher.to_bank_account_name,
                         to_bank_account_number: voucher.to_bank_account_number,
                         fromBankAccountsCount: fromAccountsData?.length || 0
-                    });
+                    }); */
                 }
             } catch (error) {
                 console.error('Failed to fetch edit data:', error);
@@ -698,11 +698,11 @@ const VoucherDetailsPage = () => {
             return;
         }
         const newIndex = currentIndex + direction;
-        console.log("Navigating:", { currentIndex, newIndex, direction, vouchersLength: filteredVouchers.length });
+        /* console.log("Navigating:", { currentIndex, newIndex, direction, vouchersLength: filteredVouchers.length }); */
 
         if (newIndex >= 0 && newIndex < filteredVouchers.length) {
             const nextVoucher = filteredVouchers[newIndex];
-            console.log("Navigating to voucher:", nextVoucher.id);
+            /* console.log("Navigating to voucher:", nextVoucher.id); */
             // Update currentIndex immediately
             setCurrentIndex(newIndex);
             navigate(`/finance/vouchers/${nextVoucher.id}`, {
@@ -758,7 +758,7 @@ const VoucherDetailsPage = () => {
                 },
                 replace: true
             });
-        } else {
+        } else {    
             // Check for pending invoices if Client Master Admin
             if (user?.role === 'CLIENT_MASTER_ADMIN') {
                 try {
@@ -791,7 +791,7 @@ const VoucherDetailsPage = () => {
     const voucherDetails = useMemo(() => {
         if (voucher) {
             // Debug: Log voucher to verify it has bank account fields
-            console.log('voucherDetails computed from voucher:', {
+            /* console.log('voucherDetails computed from voucher:', {
                 hasVoucher: !!voucher,
                 from_bank_account_id: voucher.from_bank_account_id,
                 from_bank_account_name: voucher.from_bank_account_name,
@@ -799,7 +799,7 @@ const VoucherDetailsPage = () => {
                 to_bank_account_id: voucher.to_bank_account_id,
                 to_bank_account_name: voucher.to_bank_account_name,
                 to_bank_account_number: voucher.to_bank_account_number,
-            });
+            }); */
             return voucher;
         }
         return {
@@ -1131,7 +1131,7 @@ const VoucherDetailsPage = () => {
 
             <ResizablePanelGroup
                 direction="horizontal"
-                className="flex-1 rounded-lg border border-white/10 hidden md:flex"
+                className="flex-1 rounded-lg border border-white/10 !hidden md:!flex"
             >
                 <ResizablePanel defaultSize={60} minSize={30}>
                     <div className="relative flex h-full w-full flex-col items-center justify-center p-2">

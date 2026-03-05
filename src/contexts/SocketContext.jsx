@@ -44,7 +44,7 @@ export const SocketProvider = ({ children }) => {
         });
 
         newSocket.on('connect', () => {
-            console.log('✅ Socket.IO connected successfully via ' + newSocket.io.engine.transport.name);
+            // console.log('✅ Socket.IO connected successfully via ' + newSocket.io.engine.transport.name);
             setIsConnected(true);
 
             // Join task rooms if needed

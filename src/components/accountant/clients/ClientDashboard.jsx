@@ -426,7 +426,7 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
                                             setIsPhotoLoading(false);
                                         }}
                                         onLoad={() => {
-                                            console.log('Client photo loaded successfully');
+                                            /* console.log('Client photo loaded successfully'); */
                                             setIsPhotoLoading(false);
                                         }}
                                     />
