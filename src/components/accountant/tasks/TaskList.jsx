@@ -707,7 +707,7 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                 {filteredTasks.length > 0 && (
                     <div className="p-4 sm:p-6 border-t border-white/5 flex flex-col sm:flex-row justify-between items-center gap-4">
                         <p className="text-xs sm:text-sm text-gray-400">
-                            Page {currentPage} of {totalPages || 1} {filteredTasks.length > 0 ? `(${filteredTasks.length} total)` : ''}
+                            Page {currentPage} of {totalPages || 1} {filteredTasks.length > 0 }
                         </p>
                         <div className="flex items-center gap-2">
                             <Button
@@ -719,7 +719,7 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                             >
                                 <ChevronLeft className="w-4 h-4" />
                             </Button>
-                            <div className="flex items-center gap-1">
+                            {/* <div className="flex items-center gap-1">
                                 {[...Array(totalPages)].map((_, i) => (
                                     <Button
                                         key={i}
@@ -730,7 +730,7 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                                         {i + 1}
                                     </Button>
                                 )).slice(Math.max(0, currentPage - 3), Math.min(totalPages, currentPage + 2))}
-                            </div>
+                            </div> */}
                             <Button
                                 variant="outline"
                                 size="icon"

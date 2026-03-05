@@ -83,11 +83,6 @@ const TaskManagementPage = ({ entityId, entityName }) => {
                 console.warn('Failed to fetch tasks:', err);
                 return { items: [] };
             });
-            // Fetch recurring tasks separately
-            const recurringTasksPromise = listRecurringTasks(agencyId, user.access_token, true, 1, 1000).catch(err => {
-                console.warn('Failed to fetch recurring tasks:', err);
-                return { items: [] };
-            });
             const isCAUser = user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM';
 
             const teamPromise = isCAUser ? listTeamMembers(user.access_token).catch(err => {
@@ -115,30 +110,13 @@ const TaskManagementPage = ({ entityId, entityName }) => {
                 return [];
             });
 
-            // 2. CRITICAL PHASE: Wait ONLY for Tasks and Recurring Tasks
-            // This is the minimum required data to render the main table structure usefully
-            // We do NOT wait for team members here because it might fail for Client Users (403 Forbidden)
-            // and we don't want to block the UI or show an error state just because of that.
-            const criticalResults = await Promise.allSettled([tasksPromise, recurringTasksPromise]);
+            // 2. CRITICAL PHASE: Wait only for tasks
+            const tasksResult = await tasksPromise;
+            const tasksArray = Array.isArray(tasksResult) ? tasksResult : (tasksResult?.items || []);
 
-            // Process Critical Data
-            const tasksData = criticalResults[0].status === 'fulfilled' ? criticalResults[0].value : { items: [] };
-            const recurringTasksData = criticalResults[1].status === 'fulfilled' ? criticalResults[1].value : { items: [] };
+            // No is_recurring filtering — all tasks are real tasks
+            setTasks(tasksArray);
 
-            const tasksArray = Array.isArray(tasksData) ? tasksData : (tasksData?.items || []);
-            const recurringTasksArray = Array.isArray(recurringTasksData) ? recurringTasksData : (recurringTasksData?.items || []);
-
-            // Get recurring task IDs to filter them out from regular tasks
-            const recurringTaskIds = new Set(recurringTasksArray.map(rt => String(rt.id)));
-
-            // Filter out recurring tasks from regular tasks list
-            const regularTasksOnly = tasksArray.filter(task => {
-                // Exclude tasks that are recurring task templates
-                return !recurringTaskIds.has(String(task.id));
-            });
-
-            setTasks(regularTasksOnly);
-            setRecurringTasks(recurringTasksArray);
 
             // Initialize teamMembers as empty array initially - will be populated in background
             setTeamMembers([]);
@@ -252,21 +230,37 @@ const TaskManagementPage = ({ entityId, entityName }) => {
     }, [socket]);
 
     const filteredTasks = useMemo(() => {
-        // Show all tasks for the organization, no entity filtering
-        // Filter out completed tasks from the main view
+        // Main list: show all tasks NOT positively confirmed to be in a "complete" stage.
+        // Uses stage_id lookup against stages array.
+        // If stages not loaded yet OR stage not found, show the task (safe default).
         return tasks.filter(t => {
-            const stageName = (t.stage?.name || t.status || '').toLowerCase();
-            return stageName !== 'complete' && stageName !== 'completed';
+            if (t.stage_id && stages.length > 0) {
+                const stage = stages.find(s => String(s.id) === String(t.stage_id));
+                if (stage) {
+                    const sn = (stage.name || '').toLowerCase();
+                    return sn !== 'complete' && sn !== 'completed';
+                }
+            }
+            // stages not loaded / no stage / stage not found → show in main list
+            return true;
         });
-    }, [tasks]);
+    }, [tasks, stages]);
 
     const historyTasks = useMemo(() => {
-        // Show only completed tasks for history
+        // History: only tasks POSITIVELY confirmed to be in a complete stage.
+        if (stages.length === 0) return []; // stages not loaded yet — show nothing in history
         return tasks.filter(t => {
-            const stageName = (t.stage?.name || t.status || '').toLowerCase();
-            return stageName === 'complete' || stageName === 'completed';
+            if (t.stage_id) {
+                const stage = stages.find(s => String(s.id) === String(t.stage_id));
+                if (stage) {
+                    const sn = (stage.name || '').toLowerCase();
+                    return sn === 'complete' || sn === 'completed';
+                }
+            }
+            return false;
         });
-    }, [tasks]);
+    }, [tasks, stages]);
+
 
     const [showHistoryDialog, setShowHistoryDialog] = useState(false);
 
@@ -332,8 +326,7 @@ const TaskManagementPage = ({ entityId, entityName }) => {
             try {
                 const tasksData = await listTasks(agencyId, user.access_token);
                 const tasksArray = Array.isArray(tasksData) ? tasksData : (tasksData?.items || []);
-                // Force update by creating a new array reference to ensure React detects the change
-                setTasks([...tasksArray]);
+                setTasks([...tasksArray]); // All tasks — stage filtering handled by filteredTasks memo
             } catch (error) {
                 console.error('Error refreshing tasks after save:', error);
                 // Fallback to full refresh if lightweight refresh fails
@@ -361,20 +354,11 @@ const TaskManagementPage = ({ entityId, entityName }) => {
             try {
                 const tasksData = await listTasks(agencyId, user.access_token);
                 const tasksArray = Array.isArray(tasksData) ? tasksData : (tasksData?.items || []);
-                // Force update by creating a new array reference to ensure React detects the change
-                setTasks([...tasksArray]);
+                setTasks([...tasksArray]); // All tasks — stage filtering handled by filteredTasks memo
             } catch (error) {
                 console.error('Error refreshing tasks after delete:', error);
                 // Fallback to optimistic update if refresh fails
-                setTasks(prev => {
-                    const filtered = prev.filter(t => {
-                        const taskIdStr = String(t.id);
-                        const deleteIdStr = String(taskId);
-                        return taskIdStr !== deleteIdStr;
-                    });
-                    // Force update by creating a new array reference
-                    return [...filtered];
-                });
+                setTasks(prev => prev.filter(t => String(t.id) !== String(taskId)));
             }
         } catch (error) {
             toast({
