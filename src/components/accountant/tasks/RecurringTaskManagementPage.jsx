@@ -483,8 +483,8 @@ const RecurringTaskManagementPage = () => {
                                 }}
                                 className="w-full"
                             >
-                                <div className="flex flex-wrap items-center gap-4 bg-white/5 p-4 rounded-lg border border-white/10">
-                                    <TabsList className="bg-white/10 border border-white/20">
+                                <div className="flex flex-wrap items-center gap-4  rounded-lg ">
+                                    <TabsList className="">
                                         <TabsTrigger
                                             value="all"
                                             className="data-[state=active]:bg-primary data-[state=active]:text-white"

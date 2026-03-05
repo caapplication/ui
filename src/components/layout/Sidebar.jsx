@@ -295,7 +295,7 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
             <motion.div
               variants={textVariants}
               initial="collapsed" animate="expanded" exit="collapsed"
-              className="mb-4 sm:mb-6"
+              className="mb-4 sm:mb-6  mx-1"
             >
               {entitiesToDisplay.length > 0 && (
                 <Select onValueChange={handleEntityChange} value={currentEntity ? String(currentEntity) : ''}>
