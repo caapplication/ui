@@ -2578,7 +2578,7 @@ const TaskDashboardPage = () => {
                     />
                 ) : (
                     /* Responsive Grid Layout: 1 col (mobile), 2 cols (tablet), 4 cols (desktop) */
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 lg:grid-rows-2 gap-4 md:gap-6 h-auto lg:h-full min-h-0 overflow-visible lg:overflow-hidden">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 lg:grid-rows-2 gap-4 md:gap-6 h-auto lg:h-full min-h-0 overflow-visible ">
                         {/* Task Chat - Full width on mobile, 2 cols on desktop */}
                         <Card className="glass-pane card-hover flex flex-col overflow-hidden rounded-2xl md:col-span-2 lg:row-span-2 h-[500px] lg:h-full">
                             <CardHeader className="flex-shrink-0"><CardTitle className="flex items-center gap-2"><MessageSquare className="w-5 h-5" /> Task Chat</CardTitle></CardHeader>

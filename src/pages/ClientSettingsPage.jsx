@@ -59,7 +59,7 @@ const ClientSettingsPage = ({ entityId }) => {
                 </div>
                 <Tabs value={activeTab} onValueChange={(v) => navigate(`/settings/${v}`)} className="w-full">
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-                        <TabsList className="text-xs sm:text-sm bg-white/5 border border-white/10">
+                        <TabsList className="">
                             <TabsTrigger value="payment-methods" className="text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-white">Payment Method</TabsTrigger>
                             <TabsTrigger value="departments" className="text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-white">Department</TabsTrigger>
                             <TabsTrigger value="cash-denomination" className="text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-white">Cash Denomination</TabsTrigger>

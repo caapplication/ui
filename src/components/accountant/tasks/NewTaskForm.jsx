@@ -338,57 +338,47 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
     const isCAUser = user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM';
     const isClientUser = user?.role === 'CLIENT_MASTER_ADMIN' || user?.role === 'CLIENT_ADMIN' || user?.role === 'CLIENT_USER';
 
+    // Helper: check if a given user ID matches the currently logged-in user
+    // Checks all possible ID fields the auth object might use
+    const isCurrentUser = (uid) => {
+      if (!uid) return false;
+      const uidStr = String(uid);
+      return (
+        (user?.id && String(user.id) === uidStr) ||
+        (user?.user_id && String(user.user_id) === uidStr) ||
+        (user?.sub && String(user.sub) === uidStr)
+      );
+    };
+
     // CA + client selected => client users
     // OR Client User + client selected => client users (Strict filtering)
     if ((isCAUser || isClientUser) && formData.client_id) {
-      const currentUserId = user?.user_id || user?.id; // Get current user ID to hide from list
-
       const options = (selectedClientUsers || [])
-        .filter(u => {
-          if (!u?.id) return false;
-          // Hide logged-in user
-          if (currentUserId && String(u.id) === String(currentUserId)) {
-            return false;
-          }
-          return true;
-        })
+        .filter(u => !!u?.id && !isCurrentUser(u.id))
         .map(u => {
           let roleLabel = '(Client User)';
-          if (u.role === 'CLIENT_MASTER_ADMIN') {
-            roleLabel = '(Client Admin)';
-          }
-          return {
-            value: String(u.id),
-            label: `${u.name || u.email} ${roleLabel}`
-          };
+          if (u.role === 'CLIENT_MASTER_ADMIN') roleLabel = '(Client Admin)';
+          return { value: String(u.id), label: `${u.name || u.email} ${roleLabel}` };
         });
 
-      // Add CA team members to the options list for Client Users
+      // Add CA team members for Client Users
       if (isClientUser && caTeamUsers.length > 0) {
-        caTeamUsers.forEach(u => {
-          if (!u?.id) return;
-          if (currentUserId && String(u.id) === String(currentUserId)) return;
-
-          let roleLabel = u.role === 'CA_ACCOUNTANT' ? '(CA Accountant)' : '(CA Team)';
-          options.push({
-            value: String(u.id),
-            label: `${u.name || u.email} ${roleLabel}`
+        caTeamUsers
+          .filter(u => !!u?.id && !isCurrentUser(u.id))
+          .forEach(u => {
+            const roleLabel = u.role === 'CA_ACCOUNTANT' ? '(CA Accountant)' : '(CA Team)';
+            options.push({ value: String(u.id), label: `${u.name || u.email} ${roleLabel}` });
           });
-        });
       }
 
       return options;
     }
 
     // Otherwise => team users (exclude logged-in user)
-    const options = (teamUsers || [])
+    return (teamUsers || [])
       .filter(u => {
         const userId = u.user_id || u.id;
-        // Filter out the logged-in user
-        if (user?.user_id && String(userId) === String(user.user_id)) {
-          return false;
-        }
-        return !!userId;
+        return !!userId && !isCurrentUser(userId);
       })
       .map(teamUser => {
         const userId = teamUser.user_id || teamUser.id;
@@ -401,17 +391,19 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
           label: `${teamUser.name || teamUser.email || 'Unnamed User'}${displayRole}`
         };
       });
-
-    return options;
   }, [
     formData.client_id,
     teamUsers,
     selectedClientUsers,
+    caTeamUsers,
     user?.role,
+    user?.id,
     user?.user_id,
+    user?.sub,
     loadingUsers,
     loadingClientUsers
   ]);
+
   // =========================
   // Submit
   // =========================
