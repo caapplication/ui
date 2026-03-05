@@ -241,6 +241,17 @@ const TaskManagementPage = ({ entityId, entityName }) => {
                     return sn !== 'complete' && sn !== 'completed';
                 }
             }
+
+            // Check fallback fields to prevent flashing before stages load
+            if (t.stage?.name) {
+                const sn = t.stage.name.toLowerCase();
+                if (sn === 'complete' || sn === 'completed') return false;
+            }
+            if (t.status) {
+                const sn = t.status.toLowerCase();
+                if (sn === 'complete' || sn === 'completed') return false;
+            }
+
             // stages not loaded / no stage / stage not found → show in main list
             return true;
         });
@@ -248,17 +259,31 @@ const TaskManagementPage = ({ entityId, entityName }) => {
 
     const historyTasks = useMemo(() => {
         // History: only tasks POSITIVELY confirmed to be in a complete stage.
-        if (stages.length === 0) return []; // stages not loaded yet — show nothing in history
-        return tasks.filter(t => {
-            if (t.stage_id) {
+        const filtered = tasks.filter(t => {
+            if (t.stage_id && stages.length > 0) {
                 const stage = stages.find(s => String(s.id) === String(t.stage_id));
                 if (stage) {
                     const sn = (stage.name || '').toLowerCase();
                     return sn === 'complete' || sn === 'completed';
                 }
             }
+
+            // Check fallback fields to include in history before stages load
+            if (t.stage?.name) {
+                const sn = t.stage.name.toLowerCase();
+                if (sn === 'complete' || sn === 'completed') return true;
+            }
+            if (t.status) {
+                const sn = t.status.toLowerCase();
+                if (sn === 'complete' || sn === 'completed') return true;
+            }
+
             return false;
         });
+
+        // If stages aren't loaded and we found no history tasks via fallback, 
+        // we previously returned empty array. Now we return what we found.
+        return filtered;
     }, [tasks, stages]);
 
 
