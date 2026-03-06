@@ -436,7 +436,7 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
                         <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
                             Ledger - {beneficiaryName}
                         </h1>
-                        <p className="text-gray-400 text-sm mt-0.5">Detailed transaction history</p>
+                        {/* <p className="text-gray-400 text-sm mt-0.5">Detailed transaction history</p> */}
                     </div>
                 </div>
 
@@ -452,15 +452,7 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
                             <span>Export</span>
                         </Button>
 
-                        <div className="relative w-full sm:w-64">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                            <Input
-                                placeholder="Search transactions..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-10 h-9 bg-white/5 border-white/10 text-white placeholder:text-gray-500 rounded-xl focus:ring-blue-500/20"
-                            />
-                        </div>
+                       
 
                         <Select value={timeFrame} onValueChange={(val) => {
                             setTimeFrame(val);
@@ -478,6 +470,15 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
                                 ))}
                             </SelectContent>
                         </Select>
+                         <div className="relative w-full sm:w-64">
+                            <Search className="search-icon" />
+                            <Input
+                                placeholder="Search transactions..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="glass-input"
+                            />
+                        </div>
                     </div>
 
                     {timeFrame === 'custom' && (

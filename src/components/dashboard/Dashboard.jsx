@@ -464,34 +464,54 @@ const Dashboard = ({
     const chartData = React.useMemo(() => {
         const data = [];
         const now = new Date();
-        const daysToShow = 23; // Show last 23 days as requested
 
-        // Initialize last 23 days with 0
-        for (let i = daysToShow - 1; i >= 0; i--) {
-            const d = new Date();
-            d.setDate(now.getDate() - i);
-            const dateStr = d.toISOString().split("T")[0]; // Format: YYYY-MM-DD
-            data.push({
-                name: dateStr,
-                amount: 0,
-            });
+        if (expensePeriod === "1day") {
+            for (let i = 23; i >= 0; i--) {
+                const d = new Date();
+                d.setHours(now.getHours() - i, 0, 0, 0);
+                data.push({ name: d.toISOString(), amount: 0 });
+            }
+        } else if (expensePeriod === "1year") {
+            for (let i = 11; i >= 0; i--) {
+                const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                data.push({ name: d.toISOString(), amount: 0, month: d.getMonth(), year: d.getFullYear() });
+            }
+        } else {
+            const daysToShow = expensePeriod === "1week" ? 7 : 30;
+            for (let i = daysToShow - 1; i >= 0; i--) {
+                const d = new Date();
+                d.setDate(now.getDate() - i);
+                data.push({ name: d.toISOString().split("T")[0], amount: 0 });
+            }
         }
 
         if (!vouchers.length) return data;
 
         vouchers.forEach((v) => {
             const vDate = new Date(v.created_date || v.created_at);
-            const vDateStr = vDate.toISOString().split("T")[0];
 
-            // Only aggregate if date is within our range
-            const item = data.find((d) => d.name === vDateStr);
-            if (item) {
-                item.amount += parseFloat(v.amount) || 0;
+            if (expensePeriod === "1day") {
+                if (now.getTime() - vDate.getTime() <= 24 * 60 * 60 * 1000) {
+                    const item = data.find(d => {
+                        const dObj = new Date(d.name);
+                        return dObj.getDate() === vDate.getDate() && dObj.getHours() === vDate.getHours();
+                    });
+                    if (item) item.amount += parseFloat(v.amount) || 0;
+                }
+            } else if (expensePeriod === "1year") {
+                const item = data.find(d => d.month === vDate.getMonth() && d.year === vDate.getFullYear());
+                if (item) item.amount += parseFloat(v.amount) || 0;
+            } else {
+                const vDateStr = vDate.toISOString().split("T")[0];
+                const item = data.find((d) => d.name === vDateStr);
+                if (item) {
+                    item.amount += parseFloat(v.amount) || 0;
+                }
             }
         });
 
         return data;
-    }, [vouchers]);
+    }, [vouchers, expensePeriod]);
 
     const averageExpense = React.useMemo(() => {
         if (!chartData.length) return 0;
@@ -516,27 +536,27 @@ const Dashboard = ({
                 },
             },
 
-            {
-                title: "Invoices",
-                value: dashboardData.invoice_count,
-                description: "Total invoices",
-                icon: FileText,
-                color: "from-sky-500 to-cyan-500",
-            },
-            {
-                title: "Vouchers",
-                value: dashboardData.voucher_count,
-                description: "Total vouchers",
-                icon: CreditCard,
-                color: "from-violet-500 to-fuchsia-500",
-            },
-            {
-                title: "Beneficiaries",
-                value: dashboardData.beneficiary_count,
-                description: "Active beneficiaries",
-                icon: Users,
-                color: "from-amber-500 to-orange-500",
-            },
+            // {
+            //     title: "Invoices",
+            //     value: dashboardData.invoice_count,
+            //     description: "Total invoices",
+            //     icon: FileText,
+            //     color: "from-sky-500 to-cyan-500",
+            // },
+            // {
+            //     title: "Vouchers",
+            //     value: dashboardData.voucher_count,
+            //     description: "Total vouchers",
+            //     icon: CreditCard,
+            //     color: "from-violet-500 to-fuchsia-500",
+            // },
+            // {
+            //     title: "Beneficiaries",
+            //     value: dashboardData.beneficiary_count,
+            //     description: "Active beneficiaries",
+            //     icon: Users,
+            //     color: "from-amber-500 to-orange-500",
+            // },
         ]
         : [];
 
@@ -547,8 +567,8 @@ const Dashboard = ({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
             >
-                <div className="flex items-center space-x-4 mb-6 sm:mb-8 lg:mb-10">
-                    <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white break-words">
+                <div className="page-header ">
+                    <h1 className="page-title">
                         {entityName}
                     </h1>
                 </div>
@@ -568,161 +588,242 @@ const Dashboard = ({
                                     delay={index * 0.1}
                                 />
                             ))}
-                        </div>
 
-                        {isClientAdmin && (
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
-                                <Card className="glass-card border-white/5 overflow-hidden">
-                                    <div className="relative">
-                                        {fundInHandLoading ? (
+                            {isClientAdmin && (
+                                <>
+                                    <Card className="glass-card border-white/5 overflow-hidden">
+                                        <div className="relative">
+                                            {fundInHandLoading ? (
+                                                <div className="flex items-center justify-center min-h-[140px] py-6">
+                                                    <Loader2 className="w-6 h-6 animate-spin text-white" />
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <div className="absolute right-1.5 top-1.5 flex items-center gap-0.5 z-10">
+                                                        <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-400 hover:text-white" onClick={() => setFundSlide(0)} disabled={fundSlide === 0}>
+                                                            <ChevronLeft className="w-3.5 h-3.5" />
+                                                        </Button>
+                                                        <span className="text-[10px] text-gray-500">{fundSlide + 1}/2</span>
+                                                        <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-400 hover:text-white" onClick={() => setFundSlide(1)} disabled={fundSlide === 1}>
+                                                            <ChevronRight className="w-3.5 h-3.5" />
+                                                        </Button>
+                                                    </div>
+
+                                                    <div className="overflow-hidden w-full relative touch-pan-y cursor-grab active:cursor-grabbing">
+                                                        <AnimatePresence mode="wait">
+                                                            <motion.div
+                                                                key={fundSlide}
+                                                                initial={{ opacity: 0, x: fundSlide === 0 ? -20 : 20 }}
+                                                                animate={{ opacity: 1, x: 0 }}
+                                                                exit={{ opacity: 0, x: fundSlide === 0 ? 20 : -20 }}
+                                                                transition={{ duration: 0.2, ease: "easeInOut" }}
+                                                                drag="x"
+                                                                dragConstraints={{ left: 0, right: 0 }}
+                                                                dragElastic={0.1}
+                                                                onDragEnd={(e, { offset }) => {
+                                                                    const swipe = offset.x;
+                                                                    if (swipe < -40 && fundSlide === 0) setFundSlide(1);
+                                                                    else if (swipe > 40 && fundSlide === 1) setFundSlide(0);
+                                                                }}
+                                                                className="w-full will-change-transform"
+                                                            >
+                                                                {fundSlide === 0 ? (
+                                                                    <div className="p-3 sm:p-4">
+                                                                        <h3 className="text-xs sm:text-sm font-semibold text-gray-300 mb-1">Fund In Hand</h3>
+                                                                        <div className="text-lg sm:text-xl font-bold text-white mb-2">
+                                                                            {formatINR(fundInHand?.total ?? 0)}
+                                                                        </div>
+
+                                                                        <div className="border-t border-white/10 pt-2 space-y-2">
+                                                                            <div className="flex justify-between items-start">
+                                                                                <div>
+                                                                                    <p className="text-xs font-medium text-gray-300">Cash Balance</p>
+                                                                                    <p className="text-[10px] text-gray-500">
+                                                                                        {formatDateDDMMYYYY(fundInHand?.cash_as_of_date)}
+                                                                                    </p>
+                                                                                </div>
+                                                                                <span className="text-xs font-medium text-white">
+                                                                                    {formatINR(fundInHand?.cash_balance ?? 0)}
+                                                                                </span>
+                                                                            </div>
+
+                                                                            <div className="border-t border-white/10 pt-2 flex justify-between items-start">
+                                                                                <div>
+                                                                                    <p className="text-xs font-medium text-gray-300">Bank Balance</p>
+                                                                                    <p className="text-[10px] text-gray-500">
+                                                                                        {fundInHand?.bank_accounts?.length
+                                                                                            ? formatDateDDMMYYYY(fundInHand.bank_accounts[0]?.as_of_date)
+                                                                                            : "—"}
+                                                                                    </p>
+                                                                                </div>
+                                                                                <span className="text-xs font-medium text-white">
+                                                                                    {formatINR(fundInHand?.total_bank ?? 0)}
+                                                                                </span>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="p-3 sm:p-4">
+                                                                        <h3 className="text-xs sm:text-sm font-semibold text-gray-300 mb-1">
+                                                                            {entityName || "Entity"} - Bank Balance
+                                                                        </h3>
+
+                                                                        <div className="text-base sm:text-lg font-bold text-white mb-2">
+                                                                            {formatINR(fundInHand?.total_bank ?? 0)}
+                                                                        </div>
+
+                                                                        <div
+                                                                            className="max-h-[100px] overflow-y-auto border-t border-white/10 pt-2 space-y-0 custom-scrollbar overscroll-contain"
+                                                                            onPointerDown={(e) => e.stopPropagation()}
+                                                                        >
+                                                                            {(fundInHand?.bank_accounts ?? []).map((ba) => {
+                                                                                const bank = (organisationBankAccounts || []).find(
+                                                                                    (b) => String(b.id) === String(ba.bank_account_id)
+                                                                                );
+
+                                                                                return (
+                                                                                    <div
+                                                                                        key={ba.bank_account_id}
+                                                                                        className="flex justify-between items-start py-2 border-b border-white/10 last:border-0"
+                                                                                    >
+                                                                                        <div>
+                                                                                            <p className="text-xs font-medium text-white">
+                                                                                                {bank?.bank_name ?? "—"}
+                                                                                            </p>
+                                                                                            <p className="text-[10px] text-gray-500">
+                                                                                                {bank?.account_number ?? "—"}
+                                                                                            </p>
+                                                                                        </div>
+
+                                                                                        <span className="text-xs font-medium text-white">
+                                                                                            {formatINR(ba.closing_balance)}
+                                                                                        </span>
+                                                                                    </div>
+                                                                                );
+                                                                            })}
+
+                                                                            {(!fundInHand?.bank_accounts ||
+                                                                                fundInHand.bank_accounts.length === 0) && (
+                                                                                    <p className="text-xs text-gray-500 py-3">
+                                                                                        No bank tally data yet.
+                                                                                    </p>
+                                                                                )}
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                            </motion.div>
+                                                        </AnimatePresence>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                    </Card>
+
+                                    <Card className="glass-card border-white/5 overflow-hidden">
+                                        {handoverCardLoading ? (
                                             <div className="flex items-center justify-center min-h-[140px] py-6">
                                                 <Loader2 className="w-6 h-6 animate-spin text-white" />
                                             </div>
+                                        ) : handoverCard ? (
+                                            <div className="p-3 sm:p-4">
+                                                <h3 className="text-xs sm:text-sm font-semibold text-gray-300 mb-1">
+                                                    {entityName || "Entity"} - Handover
+                                                </h3>
+
+                                                <div className="text-lg sm:text-xl font-bold text-white mb-2">
+                                                    {formatINR(handoverCard.total)}
+                                                </div>
+
+                                                <p className="text-[10px] text-gray-500 mb-2">
+                                                    Last handover: {formatDateDDMMYYYY(handoverCard.lastDate)}
+                                                </p>
+
+                                                <div className="max-h-[180px] overflow-y-auto border-t border-white/10 pt-2 space-y-0">
+                                                    {Object.entries(handoverCard.breakdown)
+                                                        .filter(([, amt]) => Number(amt) > 0)
+                                                        .map(([pmId, amt]) => {
+                                                            const pm = (handoverCard.paymentMethods || []).find(
+                                                                (p) => String(p.id) === String(pmId)
+                                                            );
+
+                                                            return (
+                                                                <div
+                                                                    key={pmId}
+                                                                    className="flex justify-between items-center py-2 border-b border-white/10 last:border-0"
+                                                                >
+                                                                    <span className="text-xs font-medium text-gray-300">
+                                                                        {pm?.name ?? pmId}
+                                                                    </span>
+
+                                                                    <span className="text-xs font-medium text-white">
+                                                                        {formatINR(amt)}
+                                                                    </span>
+                                                                </div>
+                                                            );
+                                                        })}
+
+                                                    {Object.keys(handoverCard.breakdown).filter(
+                                                        (k) => Number(handoverCard.breakdown[k]) > 0
+                                                    ).length === 0 && (
+                                                            <p className="text-xs text-gray-500 py-2">
+                                                                No breakdown
+                                                            </p>
+                                                        )}
+                                                </div>
+                                            </div>
                                         ) : (
-                                            <>
-                                                <div className="absolute right-1.5 top-1.5 flex items-center gap-0.5 z-10">
-                                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-400 hover:text-white" onClick={() => setFundSlide(0)} disabled={fundSlide === 0}>
-                                                        <ChevronLeft className="w-3.5 h-3.5" />
-                                                    </Button>
-                                                    <span className="text-[10px] text-gray-500">{fundSlide + 1}/2</span>
-                                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-400 hover:text-white" onClick={() => setFundSlide(1)} disabled={fundSlide === 1}>
-                                                        <ChevronRight className="w-3.5 h-3.5" />
-                                                    </Button>
-                                                </div>
-                                                <div className="overflow-hidden w-full relative touch-pan-y cursor-grab active:cursor-grabbing">
-                                                    <AnimatePresence mode="wait">
-                                                        <motion.div
-                                                            key={fundSlide}
-                                                            initial={{ opacity: 0, x: fundSlide === 0 ? -20 : 20 }}
-                                                            animate={{ opacity: 1, x: 0 }}
-                                                            exit={{ opacity: 0, x: fundSlide === 0 ? 20 : -20 }}
-                                                            transition={{ duration: 0.2, ease: "easeInOut" }}
-                                                            drag="x"
-                                                            dragConstraints={{ left: 0, right: 0 }}
-                                                            dragElastic={0.1}
-                                                            onDragEnd={(e, { offset }) => {
-                                                                const swipe = offset.x;
-                                                                if (swipe < -40 && fundSlide === 0) setFundSlide(1);
-                                                                else if (swipe > 40 && fundSlide === 1) setFundSlide(0);
-                                                            }}
-                                                            className="w-full will-change-transform"
-                                                        >
-                                                            {fundSlide === 0 ? (
-                                                                <div className="p-3 sm:p-4">
-                                                                    <h3 className="text-xs sm:text-sm font-semibold text-gray-300 mb-1">Fund In Hand</h3>
-                                                                    <div className="text-lg sm:text-xl font-bold text-white mb-2">
-                                                                        {formatINR(fundInHand?.total ?? 0)}
-                                                                    </div>
-                                                                    <div className="border-t border-white/10 pt-2 space-y-2">
-                                                                        <div className="flex justify-between items-start">
-                                                                            <div>
-                                                                                <p className="text-xs font-medium text-gray-300">Cash Balance</p>
-                                                                                <p className="text-[10px] text-gray-500">{formatDateDDMMYYYY(fundInHand?.cash_as_of_date)}</p>
-                                                                            </div>
-                                                                            <span className="text-xs font-medium text-white">{formatINR(fundInHand?.cash_balance ?? 0)}</span>
-                                                                        </div>
-                                                                        <div className="border-t border-white/10 pt-2 flex justify-between items-start">
-                                                                            <div>
-                                                                                <p className="text-xs font-medium text-gray-300">Bank Balance</p>
-                                                                                <p className="text-[10px] text-gray-500">
-                                                                                    {fundInHand?.bank_accounts?.length ? formatDateDDMMYYYY(fundInHand.bank_accounts[0]?.as_of_date) : "—"}
-                                                                                </p>
-                                                                            </div>
-                                                                            <span className="text-xs font-medium text-white">{formatINR(fundInHand?.total_bank ?? 0)}</span>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            ) : (
-                                                                <div className="p-3 sm:p-4">
-                                                                    <h3 className="text-xs sm:text-sm font-semibold text-gray-300 mb-1">{entityName || "Entity"} - Bank Balance</h3>
-                                                                    <div className="text-base sm:text-lg font-bold text-white mb-2">
-                                                                        {formatINR(fundInHand?.total_bank ?? 0)}
-                                                                    </div>
-                                                                    <div className="max-h-[180px] overflow-y-auto border-t border-white/10 pt-2 space-y-0 custom-scrollbar overscroll-contain" onPointerDown={(e) => e.stopPropagation()}>
-                                                                        {(fundInHand?.bank_accounts ?? []).map((ba) => {
-                                                                            const bank = (organisationBankAccounts || []).find((b) => String(b.id) === String(ba.bank_account_id));
-                                                                            return (
-                                                                                <div key={ba.bank_account_id} className="flex justify-between items-start py-2 border-b border-white/10 last:border-0">
-                                                                                    <div>
-                                                                                        <p className="text-xs font-medium text-white">{bank?.bank_name ?? "—"}</p>
-                                                                                        <p className="text-[10px] text-gray-500">{bank?.account_number ?? "—"}</p>
-                                                                                    </div>
-                                                                                    <span className="text-xs font-medium text-white">{formatINR(ba.closing_balance)}</span>
-                                                                                </div>
-                                                                            );
-                                                                        })}
-                                                                        {(!fundInHand?.bank_accounts || fundInHand.bank_accounts.length === 0) && (
-                                                                            <p className="text-xs text-gray-500 py-3">No bank tally data yet.</p>
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-                                                            )}
-                                                        </motion.div>
-                                                    </AnimatePresence>
-                                                </div>
-                                            </>
+                                            <div className="p-3 sm:p-4">
+                                                <h3 className="text-xs sm:text-sm font-semibold text-gray-300 mb-1">
+                                                    {entityName || "Entity"} - Handover
+                                                </h3>
+
+                                                <p className="text-xs text-gray-500 py-4">
+                                                    No handover data yet.
+                                                </p>
+                                            </div>
                                         )}
-                                    </div>
-                                </Card>
+                                    </Card>
 
-                                <Card className="glass-card border-white/5 overflow-hidden">
-                                    {handoverCardLoading ? (
-                                        <div className="flex items-center justify-center min-h-[140px] py-6">
-                                            <Loader2 className="w-6 h-6 animate-spin text-white" />
-                                        </div>
-                                    ) : handoverCard ? (
+                                    <Card className="glass-card border-white/5 overflow-hidden">
                                         <div className="p-3 sm:p-4">
-                                            <h3 className="text-xs sm:text-sm font-semibold text-gray-300 mb-1">{entityName || "Entity"} - Handover</h3>
+                                            <h3 className="text-xs sm:text-sm font-semibold text-gray-300 mb-1">
+                                                Fund Out
+                                            </h3>
+
+                                            <p className="text-[10px] text-gray-500 mb-1">
+                                                Today&apos;s vouchers total
+                                            </p>
+
                                             <div className="text-lg sm:text-xl font-bold text-white mb-2">
-                                                {formatINR(handoverCard.total)}
+                                                {formatINR(fundOutToday.total)}
                                             </div>
-                                            <p className="text-[10px] text-gray-500 mb-2">Last handover: {formatDateDDMMYYYY(handoverCard.lastDate)}</p>
-                                            <div className="max-h-[180px] overflow-y-auto border-t border-white/10 pt-2 space-y-0">
-                                                {Object.entries(handoverCard.breakdown)
-                                                    .filter(([, amt]) => Number(amt) > 0)
-                                                    .map(([pmId, amt]) => {
-                                                        const pm = (handoverCard.paymentMethods || []).find((p) => String(p.id) === String(pmId));
-                                                        return (
-                                                            <div key={pmId} className="flex justify-between items-center py-2 border-b border-white/10 last:border-0">
-                                                                <span className="text-xs font-medium text-gray-300">{pm?.name ?? pmId}</span>
-                                                                <span className="text-xs font-medium text-white">{formatINR(amt)}</span>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                {Object.keys(handoverCard.breakdown).filter((k) => Number(handoverCard.breakdown[k]) > 0).length === 0 && (
-                                                    <p className="text-xs text-gray-500 py-2">No breakdown</p>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="p-3 sm:p-4">
-                                            <h3 className="text-xs sm:text-sm font-semibold text-gray-300 mb-1">{entityName || "Entity"} - Handover</h3>
-                                            <p className="text-xs text-gray-500 py-4">No handover data yet.</p>
-                                        </div>
-                                    )}
-                                </Card>
 
-                                <Card className="glass-card border-white/5 overflow-hidden">
-                                    <div className="p-3 sm:p-4">
-                                        <h3 className="text-xs sm:text-sm font-semibold text-gray-300 mb-1">Fund Out</h3>
-                                        <p className="text-[10px] text-gray-500 mb-1">Today&apos;s vouchers total</p>
-                                        <div className="text-lg sm:text-xl font-bold text-white mb-2">
-                                            {formatINR(fundOutToday.total)}
-                                        </div>
-                                        <div className="border-t border-white/10 pt-2 space-y-2">
-                                            <div className="flex justify-between items-center py-1 border-b border-white/10">
-                                                <span className="text-xs font-medium text-gray-300">By Cash</span>
-                                                <span className="text-xs font-medium text-white">{formatINR(fundOutToday.byCash)}</span>
+                                            <div className="border-t border-white/10 pt-2 space-y-2">
+                                                <div className="flex justify-between items-center py-1 border-b border-white/10">
+                                                    <span className="text-xs font-medium text-gray-300">
+                                                        By Cash
+                                                    </span>
+                                                    <span className="text-xs font-medium text-white">
+                                                        {formatINR(fundOutToday.byCash)}
+                                                    </span>
+                                                </div>
+
+                                                <div className="flex justify-between items-center py-1">
+                                                    <span className="text-xs font-medium text-gray-300">
+                                                        By Bank
+                                                    </span>
+                                                    <span className="text-xs font-medium text-white">
+                                                        {formatINR(fundOutToday.byBank)}
+                                                    </span>
+                                                </div>
                                             </div>
-                                            <div className="flex justify-between items-center py-1">
-                                                <span className="text-xs font-medium text-gray-300">By Bank</span>
-                                                <span className="text-xs font-medium text-white">{formatINR(fundOutToday.byBank)}</span>
-                                            </div>
                                         </div>
-                                    </div>
-                                </Card>
-                            </div>
-                        )}
+                                    </Card>
+                                </>
+                            )}
+                        </div>
+
+
 
                         <Card className="glass-card mb-8">
                             <CardHeader className="p-4 sm:p-6">
@@ -730,7 +831,7 @@ const Dashboard = ({
                                     Expense Trend
                                 </CardTitle>
                                 <CardDescription className="text-sm sm:text-base">
-                                    Spending for the last 30 days
+                                    Spending for the {getPeriodLabel().toLowerCase()}
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="p-4 sm:p-6 pl-0">
@@ -749,6 +850,11 @@ const Dashboard = ({
                                                 minTickGap={30}
                                                 tickFormatter={(value) => {
                                                     const date = new Date(value);
+                                                    if (expensePeriod === "1day") {
+                                                        return date.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
+                                                    } else if (expensePeriod === "1year") {
+                                                        return date.toLocaleDateString("en-IN", { month: "short", year: "2-digit" });
+                                                    }
                                                     return date.toLocaleDateString("en-IN", {
                                                         day: "numeric",
                                                         month: "short",
@@ -778,6 +884,19 @@ const Dashboard = ({
                                                     `₹${value.toLocaleString("en-IN")}`,
                                                     "Amount",
                                                 ]}
+                                                labelFormatter={(label) => {
+                                                    const date = new Date(label);
+                                                    if (expensePeriod === "1day") {
+                                                        return date.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true });
+                                                    } else if (expensePeriod === "1year") {
+                                                        return date.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+                                                    }
+                                                    return date.toLocaleDateString("en-IN", {
+                                                        day: "numeric",
+                                                        month: "short",
+                                                        year: "numeric"
+                                                    });
+                                                }}
                                             />
                                             <CartesianGrid
                                                 vertical={false}

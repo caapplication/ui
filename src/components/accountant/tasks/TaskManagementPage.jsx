@@ -521,9 +521,10 @@ const TaskManagementPage = ({ entityId, entityName }) => {
     return (
         <div className="p-4 md:p-8 text-white relative overflow-hidden h-full flex flex-col">
             {(view === 'list' || view === 'kanban') && (
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
-                    <h1 className="text-2xl sm:text-3xl font-bold">
-                        Tasks{displayName && <span className="text-2xl sm:text-3xl font-bold text-gray-400 ml-2">- {displayName}</span>}
+                <div className="page-header flex justify-between flex-wrap gap-2 w-full sm:w-auto">
+                    <h1 className="page-title">
+                        Tasks
+                        {/* {displayName && <span className="text-2xl sm:text-3xl font-bold text-gray-400 ml-2">- {displayName}</span>} */}
                     </h1>
                     <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                         {viewMode === 'kanban' && (
@@ -539,16 +540,16 @@ const TaskManagementPage = ({ entityId, entityName }) => {
                         <Link to="/tasks/recurring">
                             <Button
                                 variant="outline"
-                                className="text-white border-white/20 hover:bg-white/10 rounded-lg"
+                                className= " glass-input max-w-[200px] text-white border-white/20 hover:bg-white/10 rounded-lg"
                             >
                                 <Repeat className="w-4 h-4 sm:mr-2" />
-                                <span className="hidden sm:inline">Recurring Tasks</span>
+                                <span className=" hidden sm:inline">Recurring Tasks</span>
                             </Button>
                         </Link>
                         <Button
                             onClick={() => setShowHistoryDialog(true)}
                             variant="outline"
-                            className="text-white border-white/20 hover:bg-white/10 rounded-lg"
+                            className= " glass-input max-w-[150px] text-white border-white/20 hover:bg-white/10 rounded-lg"
                         >
                             <History className="w-4 h-4 sm:mr-2" />
                             <span className="hidden sm:inline">History</span>
@@ -563,7 +564,7 @@ const TaskManagementPage = ({ entityId, entityName }) => {
                                     localStorage.setItem('taskViewMode', 'list');
                                     localStorage.setItem('taskView', 'list');
                                 }}
-                                className={viewMode === 'list' ? 'bg-white/10' : ''}
+                                className={viewMode === 'list' ? 'bg-white/10  glass-input max-w-[100px]' : ' glass-input max-w-[100px]'}
                             >
                                 <List className="w-4 h-4 sm:mr-2" />
                                 <span className="hidden sm:inline">List</span>

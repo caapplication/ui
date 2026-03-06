@@ -408,7 +408,7 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                         <div className="flex flex-col lg:flex-row gap-2 w-full xl:w-auto flex-wrap items-center">
                             {/* Client Filter */}
                             <Select value={clientIdFilter} onValueChange={setClientIdFilter}>
-                                <SelectTrigger className="w-full sm:w-[150px]">
+                                <SelectTrigger className="glass-input w-full sm:w-[160px]">
                                     <SelectValue placeholder="Client" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -425,7 +425,7 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                                     <Button
                                         variant={"outline"}
                                         className={cn(
-                                            "w-full sm:w-[240px] justify-start text-left font-normal",
+                                            "glass-input w-full sm:w-[200px] !text-white justify-start text-left font-normal",
                                             !dateRange && "text-muted-foreground"
                                         )}
                                     >
@@ -473,7 +473,7 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                             )}
                             {!isHistoryView && (
                                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                                    <SelectTrigger className="w-full sm:w-[180px]">
+                                    <SelectTrigger className="glass-input w-full sm:w-[160px]">
                                         <SelectValue placeholder="Filter by status" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -501,7 +501,7 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                                 </Select>
                             )}
                             <Select value={userFilter} onValueChange={setUserFilter}>
-                                <SelectTrigger className="w-full sm:w-[180px]">
+                                <SelectTrigger className="glass-input w-full sm:w-[160px]">
                                     <SelectValue placeholder="Filter by user" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -512,8 +512,8 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                                 </SelectContent>
                             </Select>
                             <div className="relative w-full sm:w-auto sm:max-w-xs">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                <Input placeholder="Search tasks..." className="pl-10" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                                <Search className="search-icon" />
+                                <Input placeholder="Search tasks..." className="glass-input" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                             </div>
                         </div>
                     </div>

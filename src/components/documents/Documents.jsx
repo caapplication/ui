@@ -2268,8 +2268,8 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   return (
     <div className="p-4 sm:p-6 lg:p-8" onClick={() => setSelectedFolder(null)}>
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-        <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 mb-6">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white">Documents</h1>
+        <div className="page-header flex  justify-between">
+          <h1 className="page-title">Documents</h1>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2 w-full xl:w-auto flex-wrap justify-end">
             <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
               {/* Shared by user filter - left of search, only on Shared tab */}
@@ -2292,8 +2292,8 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                 </div>
               )}
               <div className="relative flex-1 sm:w-64">
-                <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
-                <Input placeholder="Search..." className="pl-9 sm:pl-12 h-9 sm:h-10 text-sm" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                <Search className="search-icon" />
+                <Input placeholder="Search..." className="glass-input" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
               </div>
             </div>
             {user?.role === 'CA_ACCOUNTANT' && activeTab === 'myFiles' && currentFolderId === 'root' && (
@@ -2368,44 +2368,32 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
         </div>
 
         {/* Tabs Component Integration */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6 sm:mb-8  flex-wrap">
-            <TabsList className="bg-black/20 p-2 grid grid-cols-2 gap-2 items-center justify-center md:grid-cols-4 rounded-lg w-full sm:w-auto h-auto">
-              <TabsTrigger
-                value="myFiles"
-                className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm flex-1 sm:flex-initial data-[state=active]:bg-white/10 data-[state=active]:text-white data-[state=active]:shadow-none"
-              >
-                <Folder className="w-3 h-3 sm:w-4 sm:h-4" />
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 mb-6 sm:mb-8 flex-wrap w-full">
+            <TabsList>
+              <TabsTrigger value="myFiles">
+                <Folder className="w-4 h-4 mr-2" />
                 <span>My Files</span>
               </TabsTrigger>
-              <TabsTrigger
-                value="sharedWithMe"
-                className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm flex-1 sm:flex-initial data-[state=active]:bg-white/10 data-[state=active]:text-white data-[state=active]:shadow-none"
-              >
-                <Inbox className="w-3 h-3 sm:w-4 sm:h-4" />
+              <TabsTrigger value="sharedWithMe">
+                <Inbox className="w-4 h-4 mr-2" />
                 <span className="hidden xs:inline">Shared with me</span>
                 <span className="xs:hidden">Shared</span>
               </TabsTrigger>
-              <TabsTrigger
-                value="renewals"
-                className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm flex-1 sm:flex-initial data-[state=active]:bg-white/10 data-[state=active]:text-white data-[state=active]:shadow-none"
-              >
-                <CalendarDays className="w-3 h-3 sm:w-4 sm:h-4" />
+              <TabsTrigger value="renewals">
+                <CalendarDays className="w-4 h-4 mr-2" />
                 <span>Renewals</span>
                 {renewalDocuments.length > 0 && (
-                  <span className="ml-1 px-1.5 py-0.5 bg-red-500/20 text-red-400 text-[10px] rounded-full font-medium">{renewalDocuments.length}</span>
+                  <span className="ml-2 px-1.5 py-0.5 bg-red-500/20 text-red-500 text-[10px] rounded-full font-bold">{renewalDocuments.length}</span>
                 )}
               </TabsTrigger>
-              <TabsTrigger
-                value="activityLog"
-                className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm flex-1 sm:flex-initial data-[state=active]:bg-white/10 data-[state=active]:text-white data-[state=active]:shadow-none"
-              >
-                <History className="w-3 h-3 sm:w-4 sm:h-4" />
+              <TabsTrigger value="activityLog">
+                <History className="w-4 h-4 mr-2" />
                 <span>Activity Log</span>
               </TabsTrigger>
             </TabsList>
 
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2 w-full lg:w-auto">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2 w-full xl:w-auto">
               {/* Action bar: New Folder/Upload | Share | Collaborate | Delete */}
               <div className="flex items-center gap-1 sm:gap-2 p-1.5 sm:p-2 bg-gray-800/50 rounded-lg border border-gray-700 flex-wrap" onClick={(e) => e.stopPropagation()}>
                 {/* 1. Delete */}

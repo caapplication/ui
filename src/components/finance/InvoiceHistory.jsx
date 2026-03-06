@@ -238,18 +238,10 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onViewInvoic
             </div>
 
             <div className="flex flex-wrap items-center gap-2 sm:gap-4 flex-1 justify-end">
-              <div className="relative w-full sm:w-auto sm:max-w-xs flex-grow sm:flex-grow-0">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 texgt-ray-400 w-4 h-4" />
-                <Input
-                  placeholder="Beneficiary, Remarks, Bill No..."
-                  className="pl-9 glass-input h-9 text-sm w-full sm:w-[250px]"
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                />
-              </div>
+            
 
               <Select value={datePreset} onValueChange={setDatePreset}>
-                <SelectTrigger className="w-full sm:w-[150px] h-9 text-sm glass-input">
+                <SelectTrigger className="w-full sm:w-[160px] h-9 text-sm glass-input">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-3.5 h-3.5 text-gray-400" />
                     <SelectValue placeholder="All Time" />
@@ -288,6 +280,15 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onViewInvoic
                 </div>
               )}
             </div>
+              <div className="relative w-full sm:w-auto sm:max-w-xs flex-grow sm:flex-grow-0">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2  w-4 h-4" />
+                <Input
+                  placeholder="Beneficiary, Remarks, Bill No..."
+                  className="pl-9 glass-input h-9 text-sm w-full sm:w-[250px]"
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                />
+              </div>
           </div>
         </div>
       </CardHeader>

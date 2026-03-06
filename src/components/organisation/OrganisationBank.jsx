@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
-import { Plus, Trash2, Loader2, RefreshCw, Eye, EyeOff, ToggleLeft, ToggleRight, ChevronLeft, ChevronRight, FilePen } from 'lucide-react';
+import { Plus, Trash2, Loader2, RefreshCw, Eye, EyeOff, ToggleLeft, ToggleRight, ChevronLeft, ChevronRight, FilePen, CheckCircle, XCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -292,15 +292,21 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction,
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-        <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4">Organisation Bank Accounts</h1>
+        <div className="page-header">
+          <h1 className="page-title">Organisation Bank Accounts</h1>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 flex-wrap">
-            <TabsList className="text-xs sm:text-sm">
-              <TabsTrigger value="active" className="text-xs sm:text-sm">Active Bank Details</TabsTrigger>
-              <TabsTrigger value="inactive" className="text-xs sm:text-sm">Inactive Bank Details</TabsTrigger>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 flex-wrap w-full">
+            <TabsList>
+              <TabsTrigger value="active">
+                <CheckCircle className="w-4 h-4 mr-2" />
+                Active Bank Details
+              </TabsTrigger>
+              <TabsTrigger value="inactive">
+                <XCircle className="w-4 h-4 mr-2" />
+                Inactive Bank Details
+              </TabsTrigger>
             </TabsList>
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <Button variant="outline" size="icon" onClick={fetchBankAccounts} disabled={isLoading} className="h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0">

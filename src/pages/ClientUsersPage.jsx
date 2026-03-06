@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Search, UserPlus, Filter, Loader2, Trash2, RefreshCw, UserCheck, History } from 'lucide-react';
+import { Search, UserPlus, Filter, Loader2, Trash2, RefreshCw, UserCheck, History, Users } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/ui/use-toast';
 import { listEntityUsers, inviteEntityUser, deleteEntityUser, deleteInvitedOrgUser, resendToken, listAllAccessibleEntityUsers, addEntityUsers } from '@/lib/api/organisation';
@@ -361,20 +361,26 @@ const ClientUsersPage = ({ entityId }) => {
 
     return (
         <div className="p-4 md:p-8 h-full flex flex-col text-white">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+            <div className="page-header">
                 <div>
-                    <h1 className="text-3xl font-bold">Manage Team</h1>
-                    <p className="text-gray-400 mt-1">Add and manage members of your entity.</p>
+                    <h1 className="page-title">Manage Team</h1>
+                    {/* <p className="text-gray-400 mt-1">Add and manage members of your entity.</p> */}
                 </div>
 
                 {/* Actions moved to tabs row */}
             </div>
 
-            <Tabs defaultValue="members" className="flex-1 flex flex-col min-h-0 h-full" onValueChange={setActiveTab}>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0 w-full h-full">
                 <div className="mb-6 shrink-0 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 flex-wrap">
                     <TabsList>
-                        <TabsTrigger value="members">Team Members</TabsTrigger>
-                        <TabsTrigger value="activity">Activity Log</TabsTrigger>
+                        <TabsTrigger value="members">
+                            <Users className="w-4 h-4 mr-2" />
+                            Team Members
+                        </TabsTrigger>
+                        <TabsTrigger value="activity">
+                            <History className="w-4 h-4 mr-2" />
+                            Activity Log
+                        </TabsTrigger>
                     </TabsList>
 
                     {/* Actions only visible when on members tab */}
@@ -392,23 +398,16 @@ const ClientUsersPage = ({ entityId }) => {
 
                 <TabsContent value="members" className="flex-1 flex flex-col min-h-0 !mt-0 h-full">
                     <div className="glass-pane p-0 rounded-lg overflow-hidden flex-1 flex flex-col min-h-0">
-                        <div className="flex flex-col sm:flex-row justify-between items-center mb-0 gap-4">
-                            <div className="relative w-full p-4 sm:w-72">
-                                <Search className="absolute left-7 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                <Input
-                                    placeholder="Search users..."
-                                    className="glass-input pl-10"
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                />
-                            </div>
-
+                        <div className="flex flex-col sm:flex-row justify-end items-center gap-4 p-4">
+                            <Button variant="outline" size="icon" className="h-9 w-9 text-white border-white/20 " onClick={fetchUsers} disabled={isLoading}>
+                                <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                            </Button>
                             <div className="flex items-center gap-2 w-full sm:w-auto">
                                 <Popover>
                                     <PopoverTrigger asChild>
-                                        <Button variant="outline" className="gap-2 w-full sm:w-auto">
+                                        <Button variant="outline" className="glass-input h-9 gap-2 w-full sm:w-auto text-white border-white/20">
                                             <Filter className="w-4 h-4" />
-                                            Filter: {userFilter === 'all' ? 'All' : userFilter === 'joined' ? 'Joined' : 'Invited'}
+                                            <span className="hidden sm:inline">Filter:</span> {userFilter === 'all' ? 'All' : userFilter === 'joined' ? 'Joined' : 'Invited'}
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-48 p-0 bg-[#181C2A] border-gray-700">
@@ -417,7 +416,7 @@ const ClientUsersPage = ({ entityId }) => {
                                                 <Button
                                                     key={f}
                                                     variant="ghost"
-                                                    className="justify-start capitalize"
+                                                    className="justify-start capitalize text-white hover:bg-white/10"
                                                     onClick={() => setUserFilter(f)}
                                                 >
                                                     {f}
@@ -426,9 +425,16 @@ const ClientUsersPage = ({ entityId }) => {
                                         </div>
                                     </PopoverContent>
                                 </Popover>
-                                <Button variant="ghost" size="icon" onClick={fetchUsers} disabled={isLoading}>
-                                    <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-                                </Button>
+
+                            </div>
+                            <div className="relative w-full sm:w-auto">
+                                <Search className="search-icon" />
+                                <Input
+                                    placeholder="Search users..."
+                                    className="glass-input"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                />
                             </div>
                         </div>
 

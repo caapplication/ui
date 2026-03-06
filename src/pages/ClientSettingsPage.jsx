@@ -53,16 +53,25 @@ const ClientSettingsPage = ({ entityId }) => {
     return (
         <div className="p-4 sm:p-6 lg:p-8">
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="">
-                <div className="mb-6 sm:mb-8">
-                    <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-2">Settings</h1>
-                    <p className="text-gray-400 text-sm sm:text-base">Payment methods, departments and cash denominations for this entity.</p>
+                <div className="page-header">
+                    <h1 className="page-title">Settings</h1>
+                    {/* <p className="text-gray-400 text-sm sm:text-base">Payment methods, departments and cash denominations for this entity.</p> */}
                 </div>
                 <Tabs value={activeTab} onValueChange={(v) => navigate(`/settings/${v}`)} className="w-full">
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-                        <TabsList className="">
-                            <TabsTrigger value="payment-methods" className="text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-white">Payment Method</TabsTrigger>
-                            <TabsTrigger value="departments" className="text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-white">Department</TabsTrigger>
-                            <TabsTrigger value="cash-denomination" className="text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-white">Cash Denomination</TabsTrigger>
+                        <TabsList>
+                            <TabsTrigger value="payment-methods">
+                                <CreditCard className="w-4 h-4 mr-2" />
+                                Payment Method
+                            </TabsTrigger>
+                            <TabsTrigger value="departments">
+                                <Building2 className="w-4 h-4 mr-2" />
+                                Department
+                            </TabsTrigger>
+                            <TabsTrigger value="cash-denomination">
+                                <Banknote className="w-4 h-4 mr-2" />
+                                Cash Denomination
+                            </TabsTrigger>
                         </TabsList>
                     </div>
                     <TabsContent value="payment-methods">

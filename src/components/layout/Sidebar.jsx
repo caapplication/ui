@@ -295,11 +295,11 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
             <motion.div
               variants={textVariants}
               initial="collapsed" animate="expanded" exit="collapsed"
-              className="mb-4 sm:mb-6  mx-1"
+              className="mb-4 sm:mb-6 mx-1 "
             >
               {entitiesToDisplay.length > 0 && (
                 <Select onValueChange={handleEntityChange} value={currentEntity ? String(currentEntity) : ''}>
-                  <SelectTrigger className="w-full text-sm sm:text-base glass-input">
+                  <SelectTrigger className="w-full text-sm sm:text-base ">
                     <div className="flex items-center gap-2 sm:gap-3 truncate">
                       <Building className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 flex-shrink-0" />
                       <SelectValue placeholder="Select Entity..." />

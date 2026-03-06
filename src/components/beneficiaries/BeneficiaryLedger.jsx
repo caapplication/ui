@@ -382,28 +382,20 @@ const BeneficiaryLedger = ({ entityId }) => {
                 <div className="flex items-center gap-2 sm:gap-3">
                     <Button
                         // variant="outline"
-                        className="border-white/10 bg-white/5 hover:bg-white/10 text-white rounded-xl h-9 sm:h-10 text-xs sm:text-sm px-3 sm:px-4"
+                        className="border-white/10 bg-white/5 hover:bg-white/10 text-white rounded-full  h-9 sm:h-10 text-xs sm:text-sm px-3 sm:px-4"
                         onClick={handleExport}
                     >
                         <Download className="w-4 h-4 mr-2" />
                         <span className="hidden sm:inline">Export</span>
                     </Button>
 
-                    <div className="relative flex-1 md:w-64">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <Input
-                            placeholder="Search beneficiary..."
-                            className="pl-9 h-9 sm:h-10 border-white/10 bg-white/5 focus:bg-white/10 text-white placeholder:text-gray-500 rounded-xl text-xs sm:text-sm"
-                            value={searchTerm}
-                            onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-                        />
-                    </div>
+                 
 
                     {/* Time Frame Filter */}
                     <div className="flex flex-col items-end gap-2">
                         <div className="flex items-center gap-2">
                             <Select value={timeFrame} onValueChange={handleTimeFrameSelect}>
-                                <SelectTrigger className="w-[140px] sm:w-[150px] h-9 sm:h-10 rounded-xl text-xs sm:text-sm border-white/10 bg-white/5">
+                                <SelectTrigger className="glass-input max-w-40 !pl-3">
                                     <CalendarIcon className="w-4 h-4 mr-2 opacity-50 shrink-0" />
                                     <SelectValue />
                                 </SelectTrigger>
@@ -514,11 +506,20 @@ const BeneficiaryLedger = ({ entityId }) => {
                             </div>
                         )}
                     </div>
+                       <div className="relative flex-1 md:w-64">
+                        <Search className=" search-icon" />
+                        <Input
+                            placeholder="Search beneficiary..."
+                            className="glass-input"
+                            value={searchTerm}
+                            onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                        />
+                    </div>
                 </div>
             </div>
 
             {/* Stats Row */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 lg:gap-6">
                 {stats.map((stat, idx) => (
                     <StatBox key={idx} {...stat} delay={idx * 0.1} />
                 ))}

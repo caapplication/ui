@@ -230,18 +230,10 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2 sm:gap-4 flex-1 justify-end">
-                            <div className="relative w-full sm:w-auto sm:max-w-xs flex-grow sm:flex-grow-0">
-                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                                <Input
-                                    placeholder="Beneficiary, Remarks, ID..."
-                                    className="pl-9 glass-input h-9 text-sm w-full sm:w-[250px]"
-                                    value={searchTerm}
-                                    onChange={e => setSearchTerm(e.target.value)}
-                                />
-                            </div>
+                         
 
                             <Select value={typeFilter} onValueChange={setTypeFilter}>
-                                <SelectTrigger className="w-full sm:w-[130px] h-9 text-sm glass-input">
+                                <SelectTrigger className="w-full sm:w-[140px] h-9 text-sm glass-input">
                                     <SelectValue placeholder="All Types" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -270,6 +262,15 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                                     <SelectItem value="custom">Custom</SelectItem>
                                 </SelectContent>
                             </Select>
+   <div className="relative w-full sm:w-auto sm:max-w-xs flex-grow sm:flex-grow-0">
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2  w-4 h-4" />
+                                <Input
+                                    placeholder="Beneficiary, Remarks, ID..."
+                                    className="pl-9 glass-input h-9 text-sm w-full sm:w-[250px]"
+                                    value={searchTerm}
+                                    onChange={e => setSearchTerm(e.target.value)}
+                                />
+                            </div>                            
 
                             {datePreset === 'custom' && (
                                 <div className="flex items-center gap-2 flex-wrap">

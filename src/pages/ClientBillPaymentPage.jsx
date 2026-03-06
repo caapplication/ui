@@ -387,63 +387,60 @@ const ClientBillPaymentPage = ({ entityId }) => {
                 animate={{ opacity: 1, y: 0 }}
                 className="mb-6"
             >
-                <div className="mb-6">
-                    <h1 className="text-3xl sm:text-4xl font-bold text-white">Bill & Payment</h1>
-                    <p className="text-gray-400 mt-1">View and manage your billing invoices</p>
+                <div className="page-header">
+
+
+
+                    <h1 className="page-title">Bill & Payment</h1>
                 </div>
 
                 {/* Due Amount and Filters on one line */}
-                <div className="flex flex-col sm:flex-row items-stretch gap-4 mb-6">
-                    <Card className="glass-card border-white/5 w-full sm:w-[250px] shrink-0 flex flex-col justify-center">
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-sm text-gray-400">Due Amount</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold text-yellow-400">₹{totals.due.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
-                        </CardContent>
-                    </Card>
-                    <Card className="glass-card border-white/5 flex-1">
-                        <CardHeader className="py-3">
-                            <CardTitle className="text-lg text-white flex items-center gap-2">
-                                <Filter className="w-5 h-5" />
-                                Filters
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="pt-0">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <Label htmlFor="search" className="text-sm text-gray-400 mb-2 block">Search</Label>
-                                    <div className="relative">
-                                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                        <Input
-                                            id="search"
-                                            placeholder="Search by invoice number..."
-                                            value={searchTerm}
-                                            onChange={(e) => setSearchTerm(e.target.value)}
-                                            className="pl-10 glass-input text-white"
-                                        />
-                                    </div>
-                                </div>
-                                <div>
-                                    <Label htmlFor="status" className="text-sm text-gray-400 mb-2 block">Status</Label>
-                                    <Select value={statusFilter} onValueChange={setStatusFilter}>
-                                        <SelectTrigger className="glass-input text-white">
-                                            <SelectValue placeholder="All Statuses" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">All Statuses</SelectItem>
-                                            <SelectItem value="due">Due</SelectItem>
-                                            <SelectItem value="overdue">Overdue</SelectItem>
-                                            <SelectItem value="paid">Paid</SelectItem>
-                                            <SelectItem value="pending_verification">Pending Verification</SelectItem>
-                                            <SelectItem value="rejected">Rejected</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6 w-full">
+
+  {/* Left Side - Due Amount */}
+  <Card className="text-card-foreground glass-card border-white/5 w-full sm:w-[260px] shrink-0">
+    <CardHeader className="pb-2">
+      <CardTitle className="text-sm text-gray-400">Due Amount</CardTitle>
+    </CardHeader>
+    <CardContent>
+      <div className="text-2xl font-bold text-yellow-400">
+        ₹{totals.due.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+      </div>
+    </CardContent>
+  </Card>
+
+  {/* Right Side - Filters */}
+  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto">
+
+    {/* Status Filter */}
+    <Select value={statusFilter} onValueChange={setStatusFilter}>
+      <SelectTrigger className="glass-input text-white w-full sm:w-[180px]">
+        <SelectValue placeholder="All Statuses" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="all">All Statuses</SelectItem>
+        <SelectItem value="due">Due</SelectItem>
+        <SelectItem value="overdue">Overdue</SelectItem>
+        <SelectItem value="paid">Paid</SelectItem>
+        <SelectItem value="pending_verification">Pending Verification</SelectItem>
+        <SelectItem value="rejected">Rejected</SelectItem>
+      </SelectContent>
+    </Select>
+
+    {/* Search */}
+    <div className="relative w-full sm:w-[260px]">
+      <Search className="search-icon" />
+      <Input
+        id="search"
+        placeholder="Search by invoice number..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        className="glass-input"
+      />
+    </div>
+
+  </div>
+</div>
 
                 {/* Table */}
                 <Card className="glass-card border-white/5">

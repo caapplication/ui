@@ -221,14 +221,14 @@ const NoticesPage = () => {
     return (
         <div className="p-4 md:p-8 text-white relative overflow-hidden h-full flex flex-col pt-20 lg:pt-8">
             {/* Top Page Header */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
-                <h1 className="text-2xl sm:text-3xl font-bold">
+            <div className="page-header flex justify-between flex-wrap gap-2 w-full sm:w-auto">
+                <h1 className="page-title">
                     Notices
                 </h1>
-                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                <div className="flex  flex-wrap gap-2 w-full sm:w-auto">
                     {/* Filter Dropdown for Main View if needed, or just Upload */}
                     {/* Filter Dropdown for Main View if needed, or just Upload */}
-                    <Combobox
+                    <Combobox 
                         options={[
                             { value: 'all', label: 'All Entities' },
                             ...clients.map(client => ({ value: client.id, label: client.name }))
@@ -237,7 +237,7 @@ const NoticesPage = () => {
                         onValueChange={setSelectedClient}
                         placeholder="Select Client"
                         searchPlaceholder="Search client..."
-                        className="w-[250px] border-white/10 bg-black/20 text-white"
+                        className="glass-input w-full sm:w-[200px] border-white/10 bg-black/20 text-white"
                         displayValue={(option) => {
                             if (option.value === 'all') {
                                 return option.label;

@@ -492,57 +492,45 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction, entityName: en
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        {/* HEADER SECTION */}
-        <div className="flex flex-col gap-4 mb-6 sm:mb-8">
-          {/* Top Line: Finance + Filters */}
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-            {/* Finance Title + Icon */}
-            <div className="flex items-center gap-3 sm:gap-4">
-              <div className="bg-primary/10 p-2 sm:p-3 rounded-xl">
-                <Landmark className="w-6 h-6 sm:w-8 sm:h-8 text-primary" />
-              </div>
-              <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white">Finance</h1>
-              {/* Removed Add Voucher and Add Invoice buttons as per user request */}
-            </div>
 
-          </div>
+        <div className="page-header">
 
-          {/* Subtitle */}
-          <p className="text-sm sm:text-base text-muted-foreground">
-            Review client invoices and vouchers.
-          </p>
+
+
+          <h1 className="page-title">Finance</h1>
         </div>
+
 
         <Tabs
           value={activeTab}
           onValueChange={(value) => navigate(`/finance/${value}`)}
           className="w-full"
         >
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4  flex-wrap">
-            <TabsList className={`w-full sm:w-auto ${isAdmin ? 'grid grid-cols-2 sm:grid-cols-3 lg:inline-flex' : 'grid grid-cols-2 sm:inline-flex'} flex-wrap`}>
-              <TabsTrigger value="vouchers" className="text-sm sm:text-base">Vouchers</TabsTrigger>
-              <TabsTrigger value="invoices" className="text-sm sm:text-base">Invoices</TabsTrigger>
+          <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 mb-4 flex-wrap w-full">
+            <TabsList className="w-full sm:w-auto h-auto justify-start">
+              <TabsTrigger value="vouchers">Vouchers</TabsTrigger>
+              <TabsTrigger value="invoices">Invoices</TabsTrigger>
               {isAdmin && (
                 <>
-                  <TabsTrigger value="cashier" className="text-sm sm:text-base">Cashier Report</TabsTrigger>
-                  <TabsTrigger value="handover" className="text-sm sm:text-base">Handover</TabsTrigger>
-                  <TabsTrigger value="bank-tally" className="text-sm sm:text-base">Bank Tally</TabsTrigger>
-                  <TabsTrigger value="cash-tally" className="text-sm sm:text-base">Cash Tally</TabsTrigger>
-                  <TabsTrigger value="report" className="text-sm sm:text-base">Report</TabsTrigger>
+                  <TabsTrigger value="cashier">Cashier Report</TabsTrigger>
+                  <TabsTrigger value="handover">Handover</TabsTrigger>
+                  <TabsTrigger value="bank-tally">Bank Tally</TabsTrigger>
+                  <TabsTrigger value="cash-tally">Cash Tally</TabsTrigger>
+                  <TabsTrigger value="report">Report</TabsTrigger>
                 </>
               )}
               {!isAdmin && (user?.role === 'CLIENT_USER') && (
                 <>
-                  <TabsTrigger value="cashier" className="text-sm sm:text-base">Cashier Report</TabsTrigger>
-                  <TabsTrigger value="handover" className="text-sm sm:text-base">Handover</TabsTrigger>
-                  <TabsTrigger value="cash-tally" className="text-sm sm:text-base">Cash Tally</TabsTrigger>
-                  <TabsTrigger value="report" className="text-sm sm:text-base">Report</TabsTrigger>
+                  <TabsTrigger value="cashier">Cashier Report</TabsTrigger>
+                  <TabsTrigger value="handover">Handover</TabsTrigger>
+                  <TabsTrigger value="cash-tally">Cash Tally</TabsTrigger>
+                  <TabsTrigger value="report">Report</TabsTrigger>
                 </>
               )}
             </TabsList>
 
             {/* Refresh Button and Add Dropdown - only for vouchers/invoices */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 w-full xl:w-auto mt-2 xl:mt-0 justify-end">
               <Button
                 variant="outline"
                 size="icon"
@@ -583,7 +571,7 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction, entityName: en
                       vouchers={enrichedVouchers}
                       onDeleteVoucher={handleDeleteVoucherClick}
                       onViewVoucher={handleViewVoucher}
-                      onEditVoucher={(voucher) =>console.log(voucher) }
+                      onEditVoucher={(voucher) => console.log(voucher)}
                     />
                   )
                 }
@@ -598,7 +586,7 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction, entityName: en
                       invoices={invoices}
                       beneficiaries={beneficiaries}
                       onDeleteInvoice={handleDeleteInvoiceClick}
-                      onEditInvoice={(invoice) => console.log(invoice) }
+                      onEditInvoice={(invoice) => console.log(invoice)}
                       onViewInvoice={handleViewInvoice}
                     />
                   )

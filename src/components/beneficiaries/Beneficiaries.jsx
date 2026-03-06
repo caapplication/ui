@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
-import { Plus, Users, Banknote, Building, Search, Loader2, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
+import { Plus, Users, User, Banknote, Building, Search, Loader2, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth.jsx';
@@ -422,8 +422,8 @@ const Beneficiaries = ({ entityId, quickAction, clearQuickAction }) => {
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-        <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4">Beneficiaries</h1>
+        <div className="page-header">
+          <h1 className="page-title">Beneficiaries</h1>
         </div>
 
         {isLoading ? (
@@ -432,21 +432,27 @@ const Beneficiaries = ({ entityId, quickAction, clearQuickAction }) => {
           </div>
         ) : (
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 flex-wrap ">
-              <TabsList className="text-xs sm:text-sm ">
-                <TabsTrigger value="individual" className="text-xs sm:text-sm">Individual</TabsTrigger>
-                <TabsTrigger value="company" className="text-xs sm:text-sm">Company</TabsTrigger>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 flex-wrap w-full">
+              <TabsList>
+                <TabsTrigger value="individual">
+                  <User className="w-4 h-4 mr-2" />
+                  Individual
+                </TabsTrigger>
+                <TabsTrigger value="company">
+                  <Building className="w-4 h-4 mr-2" />
+                  Company
+                </TabsTrigger>
               </TabsList>
               <div className="flex items-center gap-2 w-full sm:w-auto">
- <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <Input
-                          placeholder="Search by name, email, phone, or PAN..."
-                          className="pl-9 h-9 sm:h-10 text-sm"
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                      </div>
+                <div className="relative">
+                  <Search className="search-icon" />
+                  <Input
+                    placeholder="Search by name, email, phone, or PAN..."
+                    className="glass-input"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
                 <Button onClick={() => setShowAddDialog(true)} className="h-9 sm:h-10 text-sm sm:text-base whitespace-nowrap">
                   <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
                   <span className="hidden sm:inline">Add New</span>
@@ -508,7 +514,7 @@ const Beneficiaries = ({ entityId, quickAction, clearQuickAction }) => {
             </TabsContent>
             <TabsContent value="company">
               <Card className="glass-card overflow-hidden">
-               
+
                 <CardContent className="p-0">
                   <div className="overflow-x-auto">
                     <Table>
