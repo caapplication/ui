@@ -444,7 +444,13 @@ const Beneficiaries = ({ entityId, quickAction, clearQuickAction }) => {
                 </TabsTrigger>
               </TabsList>
               <div className="flex items-center gap-2 w-full sm:w-auto">
-                <div className="relative">
+              
+                <Button onClick={() => setShowAddDialog(true)} className="h-9 sm:h-10 text-sm sm:text-base whitespace-nowrap">
+                  <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+                  <span className="hidden sm:inline">Add New</span>
+                  <span className="sm:hidden">Add</span>
+                </Button>
+                  <div className="relative">
                   <Search className="search-icon" />
                   <Input
                     placeholder="Search by name, email, phone, or PAN..."
@@ -453,11 +459,6 @@ const Beneficiaries = ({ entityId, quickAction, clearQuickAction }) => {
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
-                <Button onClick={() => setShowAddDialog(true)} className="h-9 sm:h-10 text-sm sm:text-base whitespace-nowrap">
-                  <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
-                  <span className="hidden sm:inline">Add New</span>
-                  <span className="sm:hidden">Add</span>
-                </Button>
               </div>
             </div>
             <TabsContent value="individual">

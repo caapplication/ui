@@ -235,24 +235,15 @@ const RecentTransactionsExpanded = ({ entityId }) => {
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                         <Button
                             onClick={handleExport}
-                            className="h-9 sm:h-10 rounded-xl bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm w-full sm:w-auto justify-center"
+                            className="h-9 sm:h-10 rounded-full bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm w-full sm:w-auto justify-center"
                         >
                             <Download className="w-4 h-4" />
                             <span>Export</span>
                         </Button>
 
-                        <div className="relative w-full sm:w-64">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                            <Input
-                                placeholder="Search beneficiary..."
-                                className="pl-9 h-9 sm:h-10 border-white/10 bg-white/5 focus:bg-white/10 text-white placeholder:text-gray-500 rounded-xl text-sm"
-                                value={searchTerm}
-                                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-                            />
-                        </div>
-
+                       
                         <Select value={timeFrame} onValueChange={(val) => { setTimeFrame(val); setCurrentPage(1); }}>
-                            <SelectTrigger className="w-[140px] h-9 rounded-xl border-white/10 bg-white/5 text-white text-xs focus:ring-0 focus:ring-offset-0">
+                            <SelectTrigger className="max-w-[170px] h-9 rounded-full border-white/10 bg-white/5 text-white text-xs focus:ring-0 focus:ring-offset-0">
                                 <CalendarIcon className="w-3.5 h-3.5 mr-2 opacity-50" />
                                 <SelectValue placeholder="Time Frame" />
                             </SelectTrigger>
@@ -264,6 +255,16 @@ const RecentTransactionsExpanded = ({ entityId }) => {
                                 ))}
                             </SelectContent>
                         </Select>
+                         <div className="relative w-full sm:w-64">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <Input
+                                placeholder="Search beneficiary..."
+                                className="glass-input"
+                                value={searchTerm}
+                                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                            />
+                        </div>
+
                     </div>
 
                     {timeFrame === 'custom' && (

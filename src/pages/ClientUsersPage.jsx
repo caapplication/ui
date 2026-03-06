@@ -802,6 +802,7 @@ const TeamActivityLog = ({ entityId }) => {
     const { user } = useAuth();
     const [logs, setLogs] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState('');
 
     useEffect(() => {
         const fetchLogs = async () => {
@@ -842,53 +843,81 @@ const TeamActivityLog = ({ entityId }) => {
         );
     }
 
-    if (logs.length === 0) {
+    const filteredLogs = logs.filter(log => {
+        if (!searchTerm.trim()) return true;
+        const searchLower = searchTerm.toLowerCase();
+        let userDisplay = 'Unknown User';
+        if (log.name && log.email) userDisplay = `${log.name} (${log.email})`;
+        else if (log.name) userDisplay = log.name;
+        else if (log.email) userDisplay = log.email;
+
         return (
-            <div className="flex justify-center items-center h-full glass-pane rounded-lg text-gray-400">
-                No team activity logs found.
-            </div>
+            userDisplay.toLowerCase().includes(searchLower) ||
+            (log.action || '').toLowerCase().includes(searchLower) ||
+            (log.details || '').toLowerCase().includes(searchLower)
         );
-    }
+    });
 
     return (
-        <div className="glass-pane rounded-lg h-full overflow-y-auto custom-scrollbar p-4 space-y-4">
-            {logs.map((log) => {
-                // Formatting logic adapted from ActivityLog.jsx
-                let userDisplay = 'Unknown User';
-                if (log.name && log.email) {
-                    userDisplay = `${log.name} (${log.email})`;
-                } else if (log.name) {
-                    userDisplay = log.name;
-                } else if (log.email) {
-                    userDisplay = log.email;
-                }
+        <div className="flex flex-col glass-pane rounded-lg overflow-hidden">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-4 border-b border-white/5 shrink-0">
+                <h3 className="text-lg font-semibold text-white">Activity Log</h3>
+                <div className="w-full sm:w-64 relative">
+                    <Search className="search-icon" />
+                    <Input
+                        placeholder="Search logs..."
+                        className="glass-input pl-10 w-full"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                </div>
+            </div>
 
-                return (
-                    <div key={log.id} className="flex items-start space-x-3 p-3 rounded-lg bg-gray-800/50 border border-gray-700/50">
-                        <div className="flex-shrink-0">
-                            <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center">
-                                <History className="w-4 h-4 text-gray-300" />
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4 min-h-0">
+                {logs.length === 0 ? (
+                    <div className="p-8 text-center text-gray-400">No team activity logs found.</div>
+                ) : filteredLogs.length === 0 ? (
+                    <div className="p-8 text-center text-gray-400">No logs matching your search.</div>
+                ) : (
+                    filteredLogs.map((log) => {
+                        // Formatting logic adapted from ActivityLog.jsx
+                        let userDisplay = 'Unknown User';
+                        if (log.name && log.email) {
+                            userDisplay = `${log.name} (${log.email})`;
+                        } else if (log.name) {
+                            userDisplay = log.name;
+                        } else if (log.email) {
+                            userDisplay = log.email;
+                        }
+
+                        return (
+                            <div key={log.id} className="flex items-start space-x-3 p-3 rounded-lg bg-gray-800/50 border border-gray-700/50">
+                                <div className="flex-shrink-0">
+                                    <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center">
+                                        <History className="w-4 h-4 text-gray-300" />
+                                    </div>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm text-white">
+                                        <span className="font-semibold">{userDisplay}</span> {log.action}
+                                    </p>
+                                    {log.details && (
+                                        <p className="text-xs text-gray-300 mt-1 ml-4 pl-2 border-l-2 border-gray-600">
+                                            {formatLogDetails(log.details)}
+                                        </p>
+                                    )}
+                                    <p className="text-xs text-gray-400 mt-1">
+                                        {new Date(log.timestamp).toLocaleString('en-IN', {
+                                            day: '2-digit', month: 'short', year: 'numeric',
+                                            hour: '2-digit', minute: '2-digit'
+                                        })}
+                                    </p>
+                                </div>
                             </div>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <p className="text-sm text-white">
-                                <span className="font-semibold">{userDisplay}</span> {log.action}
-                            </p>
-                            {log.details && (
-                                <p className="text-xs text-gray-300 mt-1 ml-4 pl-2 border-l-2 border-gray-600">
-                                    {formatLogDetails(log.details)}
-                                </p>
-                            )}
-                            <p className="text-xs text-gray-400 mt-1">
-                                {new Date(log.timestamp).toLocaleString('en-IN', {
-                                    day: '2-digit', month: 'short', year: 'numeric',
-                                    hour: '2-digit', minute: '2-digit'
-                                })}
-                            </p>
-                        </div>
-                    </div>
-                );
-            })}
+                        );
+                    })
+                )}
+            </div>
         </div>
     );
 };

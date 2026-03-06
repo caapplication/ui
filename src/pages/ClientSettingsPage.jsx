@@ -157,13 +157,18 @@ function PaymentMethodsTab({ clientId, token, toast }) {
     return (
         <>
             <Card className="glass-card border-white/5">
-                <CardHeader className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <CardHeader className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
                         <CardTitle className="font-semibold tracking-tight text-lg text-white mb-0">Payment Method</CardTitle>
                         <CardDescription className="text-sm sm:text-base mt-0">Add or edit payment methods (e.g. UPI, Bank, Cash).</CardDescription>
                     </div>
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
-                        <div className="relative w-full sm:w-64 shrink-0">
+                      
+                        <Button onClick={openCreate} className="h-9 sm:h-10 text-sm flex-shrink-0">
+                            <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+                            Add
+                        </Button>
+                          <div className="relative w-full sm:w-64 shrink-0">
                             <Search className="search-icon" />
                             <Input
                                 placeholder="Search payment methods..."
@@ -172,10 +177,6 @@ function PaymentMethodsTab({ clientId, token, toast }) {
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
                         </div>
-                        <Button onClick={openCreate} className="h-9 sm:h-10 text-sm flex-shrink-0">
-                            <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
-                            Add
-                        </Button>
                     </div>
                 </CardHeader>
                 <CardContent className="p-0">
@@ -328,7 +329,12 @@ function DepartmentsTab({ clientId, token, toast }) {
                         <CardDescription className="text-sm sm:text-base mt-0">Add or edit departments (e.g. Office, Cashier).</CardDescription>
                     </div>
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
-                        <div className="relative w-full sm:w-64 shrink-0">
+                     
+                        <Button onClick={openCreate} className="h-9 sm:h-10 text-sm flex-shrink-0">
+                            <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+                            Add
+                        </Button>
+                           <div className="relative w-full sm:w-64 shrink-0">
                             <Search className="search-icon" />
                             <Input
                                 placeholder="Search departments..."
@@ -337,10 +343,6 @@ function DepartmentsTab({ clientId, token, toast }) {
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
                         </div>
-                        <Button onClick={openCreate} className="h-9 sm:h-10 text-sm flex-shrink-0">
-                            <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
-                            Add
-                        </Button>
                     </div>
                 </CardHeader>
                 <CardContent className="p-0">
@@ -493,7 +495,12 @@ function CashDenominationsTab({ clientId, token, toast }) {
                         <CardDescription className="text-sm sm:text-base mt-0">Add note/coin values (e.g. ₹500, ₹200). Used in Cash Tally.</CardDescription>
                     </div>
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
-                        <div className="relative w-full sm:w-64 shrink-0">
+                   
+                        <Button onClick={openCreate} className="h-9 sm:h-10 text-sm flex-shrink-0">
+                            <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+                            Add
+                        </Button>
+                             <div className="relative w-full sm:w-64 shrink-0">
                             <Search className="search-icon" />
                             <Input
                                 placeholder="Search denominations..."
@@ -502,10 +509,6 @@ function CashDenominationsTab({ clientId, token, toast }) {
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
                         </div>
-                        <Button onClick={openCreate} className="h-9 sm:h-10 text-sm flex-shrink-0">
-                            <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
-                            Add
-                        </Button>
                     </div>
                 </CardHeader>
                 <CardContent className="p-0">

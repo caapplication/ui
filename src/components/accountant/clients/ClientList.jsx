@@ -27,6 +27,7 @@ import {
     Grid as GridIcon,
     Lock,
     ChevronRight,
+    ChevronLeft,
 } from 'lucide-react';
 
 
@@ -400,161 +401,159 @@ const ClientList = ({
                 </div>
             </div>
 
-            <div className="glass-pane p-4 rounded-lg mb-4 lg:overflow-hidden">
-  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-    
-    {/* LEFT SECTION */}
-    <div className="flex flex-col sm:flex-row gap-3 sm:items-center flex-1">
-      
-      {/* Search */}
-      <div className="relative flex-grow min-w-[250px]  max-w-[400px]">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-        <Input
-          placeholder="Search Client, PAN, Mobile, Email, Customer ID..."
-          className="glass-input pl-10 w-full"
-          value={searchTerm}
-          onChange={(e) => {
-            setSearchTerm(e.target.value);
-            setCurrentPage(1);
-          }}
-        />
-      </div>
+            <div className="  rounded-lg mb-4 lg:overflow-hidden">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-end w-full">
 
-      {/* Filter Toggle */}
-      <div className="flex gap-2 flex-wrap">
-        <Button
-          variant={showFilters ? 'secondary' : 'outline'}
-          onClick={() => setShowFilters((prev) => !prev)}
-          className="w-full sm:w-auto"
-        >
-          <Filter className="w-4 h-4 mr-2" />
-          Filters
-          {hasActiveFilters && (
-            <span className="ml-2 w-2 h-2 rounded-full bg-green-400" />
-          )}
-        </Button>
+                    <div className="flex flex-col sm:flex-row  gap-3 sm:items-center w-full">
 
-        {hasActiveFilters && (
-          <Button
-            variant="ghost"
-            onClick={clearFilters}
-            className="text-red-400 hover:text-red-300 w-full sm:w-auto"
-          >
-            <X className="w-4 h-4 mr-2" />
-            Clear
-          </Button>
-        )}
-      </div>
-    </div>
+                        {/* Refresh */}
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => startRefreshTransition(() => onRefresh?.())}
+                            disabled={isRefreshing}
+                            className="shrink-0 h-10 w-10 border border-white/10 bg-white/5 hover:bg-white/10 text-white rounded-lg"
+                        >
+                            <RefreshCw
+                                className={cn('w-4 h-4', isRefreshing && 'animate-spin')}
+                            />
+                        </Button>
 
-    {/* RIGHT SECTION */}
-    <div className="flex items-center justify-between sm:justify-end gap-2 flex-wrap">
-      
-      {/* Refresh */}
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={() => startRefreshTransition(() => onRefresh?.())}
-        disabled={isRefreshing}
-      >
-        <RefreshCw
-          className={cn('w-4 h-4', isRefreshing && 'animate-spin')}
-        />
-      </Button>
+                        {/* Filter Toggle */}
+                        <div className="flex gap-2 flex-wrap shrink-0">
+                            <Button
+                                variant={showFilters ? 'secondary' : 'outline'}
+                                onClick={() => setShowFilters((prev) => !prev)}
+                                className="w-full sm:w-auto glass-input max-w-[150px] !px-4 h-10 flex items-center justify-center shrink-0"
+                            >
+                                <Filter className="w-4 h-4 mr-2" />
+                                Filters
+                                {hasActiveFilters && (
+                                    <span className="ml-2 w-2 h-2 rounded-full bg-green-400" />
+                                )}
+                            </Button>
 
-      {/* Pagination */}
-      <div className="flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() =>
-            setCurrentPage((prev) => Math.max(1, prev - 1))
-          }
-          disabled={currentPage === 1}
-        >
-          <ArrowLeft className="w-4 h-4" />
-        </Button>
+                            {hasActiveFilters && (
+                                <Button
+                                    variant="ghost"
+                                    onClick={clearFilters}
+                                    className="text-red-400 hover:text-red-300 w-full sm:w-auto h-10 px-4 shrink-0"
+                                >
+                                    <X className="w-4 h-4 mr-2" />
+                                    Clear
+                                </Button>
+                            )}
+                        </div>
 
-        <span className="text-sm whitespace-nowrap">
-          {currentPage} / {totalPages > 0 ? totalPages : 1}
-        </span>
+                        {/* Search */}
+                        <div className="relative flex-grow min-w-[250px] w-full">
+                            <Search className="search-icon" />
+                            <Input
+                                placeholder="Search Client, PAN, Mobile, Email, Customer ID..."
+                                className="glass-input pl-10 w-full border-white/10 text-white"
+                                value={searchTerm}
+                                onChange={(e) => {
+                                    setSearchTerm(e.target.value);
+                                    setCurrentPage(1);
+                                }}
+                            />
+                        </div>
 
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() =>
-            setCurrentPage((prev) =>
-              Math.min(totalPages, prev + 1)
-            )
-          }
-          disabled={currentPage === totalPages || totalPages === 0}
-        >
-          <ArrowRight className="w-4 h-4" />
-        </Button>
-      </div>
-    </div>
-  </div>
+                    </div>
 
-  {/* FILTERS SECTION */}
-  {showFilters && (
-    <div className="mt-4 border-t border-white/10 pt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      
-      <FilterPopover
-        title="Recurring Service"
-        options={filterOptions.service}
-        selectedValue={filters.service}
-        onSelect={(v) => handleFilterChange('service', v)}
-      >
-        <Button variant="outline" className="w-full justify-between">
-          {filters.service
-            ? filterOptions.service.find(
-                (o) => String(o.value) === String(filters.service)
-              )?.label
-            : 'Recurring Service'}
-        </Button>
-      </FilterPopover>
+                </div>
 
-      <FilterPopover
-        title="Type"
-        options={filterOptions.type}
-        selectedValue={filters.type}
-        onSelect={(v) => handleFilterChange('type', v)}
-      >
-        <Button variant="outline" className="w-full justify-between">
-          {filters.type || 'Type'}
-        </Button>
-      </FilterPopover>
+                {/* FILTERS SECTION */}
+                {showFilters && (
+                    <div className="mt-4 border-t border-white/10 pt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
 
-      <FilterPopover
-        title="Status"
-        options={filterOptions.status}
-        selectedValue={filters.status}
-        onSelect={(v) => handleFilterChange('status', v)}
-      >
-        <Button variant="outline" className="w-full justify-between">
-          {filters.status
-            ? filterOptions.status.find(
-                (o) => o.value === filters.status
-              )?.label
-            : 'Status'}
-        </Button>
-      </FilterPopover>
-    </div>
-  )}
-</div>
+                        <FilterPopover
+                            title="Recurring Service"
+                            options={filterOptions.service}
+                            selectedValue={filters.service}
+                            onSelect={(v) => handleFilterChange('service', v)}
+                        >
+                            <Button variant="outline" className="w-full justify-between">
+                                {filters.service
+                                    ? filterOptions.service.find(
+                                        (o) => String(o.value) === String(filters.service)
+                                    )?.label
+                                    : 'Recurring Service'}
+                            </Button>
+                        </FilterPopover>
 
-            <div className="flex-grow overflow-y-auto glass-pane  rounded-lg min-h-0">
-                <Suspense fallback={<div className="py-10 flex justify-center"><Loader2 className="animate-spin" /></div>}>
-                    {viewMode === 'list' ? renderTableView() : renderGridView()}
-                </Suspense>
-                {paginatedClients.length === 0 && (
-                    <div className="text-center py-16 text-gray-500">
-                        <p className="text-lg">No clients found.</p>
-                        {clients.length > 0 ? (
-                            <p>Try adjusting your filters.</p>
-                        ) : (
-                            <p>Click "New" to get started.</p>
-                        )}
+                        <FilterPopover
+                            title="Type"
+                            options={filterOptions.type}
+                            selectedValue={filters.type}
+                            onSelect={(v) => handleFilterChange('type', v)}
+                        >
+                            <Button variant="outline" className="w-full justify-between">
+                                {filters.type || 'Type'}
+                            </Button>
+                        </FilterPopover>
+
+                        <FilterPopover
+                            title="Status"
+                            options={filterOptions.status}
+                            selectedValue={filters.status}
+                            onSelect={(v) => handleFilterChange('status', v)}
+                        >
+                            <Button variant="outline" className="w-full justify-between">
+                                {filters.status
+                                    ? filterOptions.status.find(
+                                        (o) => o.value === filters.status
+                                    )?.label
+                                    : 'Status'}
+                            </Button>
+                        </FilterPopover>
+                    </div>
+                )}
+            </div>
+
+            <div className="flex-grow glass-pane rounded-lg min-h-0 flex flex-col overflow-hidden relative">
+                <div className="flex-1 overflow-auto p-0 min-h-0">
+                    <Suspense fallback={<div className="py-10 flex justify-center"><Loader2 className="animate-spin" /></div>}>
+                        {viewMode === 'list' ? renderTableView() : renderGridView()}
+                    </Suspense>
+                    {paginatedClients.length === 0 && (
+                        <div className="text-center py-16 text-gray-500">
+                            <p className="text-lg">No clients found.</p>
+                            {clients.length > 0 ? (
+                                <p>Try adjusting your filters.</p>
+                            ) : (
+                                <p>Click "New" to get started.</p>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                {/* Pagination Bottom Bar */}
+                {filteredClients.length > 0 && (
+                    <div className="flex justify-between items-center p-4 border-t border-white/10 shrink-0 bg-transparent">
+                        <span className="text-sm text-gray-400 font-medium">
+                            Page {currentPage} of {totalPages > 0 ? totalPages : 1}
+                        </span>
+                        <div className="flex items-center gap-3">
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                                disabled={currentPage === 1}
+                                className="h-9 w-9 rounded-full bg-transparent border-white/20 hover:bg-white/10 text-white"
+                            >
+                                <ChevronLeft className="w-4 h-4" />
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                                disabled={currentPage === totalPages || totalPages === 0}
+                                className="h-9 w-9 rounded-full bg-transparent border-white/20 hover:bg-white/10 text-white"
+                            >
+                                <ChevronRight className="w-4 h-4" />
+                            </Button>
+                        </div>
                     </div>
                 )}
             </div>

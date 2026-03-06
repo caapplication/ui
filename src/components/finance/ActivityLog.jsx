@@ -217,7 +217,7 @@ const ActivityLog = ({ itemId, itemType, showFilter = true, excludeTypes = [] })
                         )}
                     </div>
                     <Button
-                        variant="outline"
+                      
                         size="sm"
                         onClick={handleDownloadCSV}
                         disabled={logs.length === 0}

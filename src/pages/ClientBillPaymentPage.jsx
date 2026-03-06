@@ -397,191 +397,189 @@ const ClientBillPaymentPage = ({ entityId }) => {
 
 
                 {/* Table */}
-             <Card className="glass-card border-white/5">
+                <Card className="glass-card border-white/5">
 
-  {/* Header */}
-  <CardHeader className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 flex-wrap">
+                    {/* Header */}
+                    <CardHeader className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 flex-wrap">
 
-    {/* Left - Due Amount */}
-    <div>
-      <CardTitle className="text-sm text-gray-400">
-        Total Outstanding Invoice Amount
-      </CardTitle>
-      <p className="text-2xl font-bold text-yellow-400 mt-1">
-        ₹{totals.due.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-      </p>
-    </div>
+                        {/* Left - Due Amount */}
+                        <div>
+                            <CardTitle className="text-sm text-gray-400">
+                                Total Outstanding Invoice Amount
+                            </CardTitle>
+                            <p className="text-2xl font-bold text-yellow-400 mt-1">
+                                ₹{totals.due.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </p>
+                        </div>
 
-    {/* Right - Filters */}
-    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                        {/* Right - Filters */}
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
 
-      {/* Export Button */}
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={handleExportCSV}
-        className="gap-2 border-white/20 text-white hover:bg-white/10"
-      >
-        <FileDown className="w-4 h-4" />
-        Export CSV
-      </Button>
+                            {/* Export Button */}
+                            <Button
+                                onClick={handleExportCSV}
+                                className="gap-2 bg-blue-600 hover:bg-blue-700 border-0 text-white font-semibold rounded-full px-6 shadow-md transition-all h-9"
+                            >
+                                <Download className="w-4 h-4" />
+                                Export
+                            </Button>
 
-      {/* Status Filter */}
-      <Select value={statusFilter} onValueChange={setStatusFilter}>
-        <SelectTrigger className="glass-input text-white w-full sm:w-[180px]">
-          <SelectValue placeholder="All Statuses" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All Statuses</SelectItem>
-          <SelectItem value="due">Due</SelectItem>
-          <SelectItem value="overdue">Overdue</SelectItem>
-          <SelectItem value="paid">Paid</SelectItem>
-          <SelectItem value="pending_verification">Pending Verification</SelectItem>
-          <SelectItem value="rejected">Rejected</SelectItem>
-        </SelectContent>
-      </Select>
+                            {/* Status Filter */}
+                            <Select value={statusFilter} onValueChange={setStatusFilter}>
+                                <SelectTrigger className="glass-input text-white w-full sm:w-[180px]">
+                                    <SelectValue placeholder="All Statuses" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Statuses</SelectItem>
+                                    <SelectItem value="due">Due</SelectItem>
+                                    <SelectItem value="overdue">Overdue</SelectItem>
+                                    <SelectItem value="paid">Paid</SelectItem>
+                                    <SelectItem value="pending_verification">Pending Verification</SelectItem>
+                                    <SelectItem value="rejected">Rejected</SelectItem>
+                                </SelectContent>
+                            </Select>
 
-      {/* Search */}
-      <div className="relative w-full sm:w-[260px]">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-        <Input
-          placeholder="Search invoice..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10 glass-input w-full"
-        />
-      </div>
+                            {/* Search */}
+                            <div className="relative w-full sm:w-[260px]">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                <Input
+                                    placeholder="Search invoice..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="pl-10 glass-input w-full"
+                                />
+                            </div>
 
-    </div>
-  </CardHeader>
+                        </div>
+                    </CardHeader>
 
-  {/* Table */}
-  <CardContent>
-    {filteredInvoices.length === 0 ? (
-      <div className="text-center py-12 text-gray-400">
-        No invoices found
-      </div>
-    ) : (
-      <div className="overflow-x-auto">
-        <Table>
+                    {/* Table */}
+                    <CardContent>
+                        {filteredInvoices.length === 0 ? (
+                            <div className="text-center py-12 text-gray-400">
+                                No invoices found
+                            </div>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <Table>
 
-          <TableHeader>
-            <TableRow className="border-white/10">
-              <TableHead className="text-white">Invoice Date</TableHead>
-              <TableHead className="text-white">Invoice No.</TableHead>
-              <TableHead className="text-white">Particulars</TableHead>
-              <TableHead className="text-white">HSN/SAC</TableHead>
-              <TableHead className="text-white">Amount</TableHead>
-              <TableHead className="text-white">Status</TableHead>
-              <TableHead className="text-white">Due Date</TableHead>
-              <TableHead className="text-white">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
+                                    <TableHeader>
+                                        <TableRow className="border-white/10">
+                                            <TableHead className="text-white">Invoice Date</TableHead>
+                                            <TableHead className="text-white">Invoice No.</TableHead>
+                                            <TableHead className="text-white">Particulars</TableHead>
+                                            <TableHead className="text-white">HSN/SAC</TableHead>
+                                            <TableHead className="text-white">Amount</TableHead>
+                                            <TableHead className="text-white">Status</TableHead>
+                                            <TableHead className="text-white">Due Date</TableHead>
+                                            <TableHead className="text-white">Actions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
 
-          <TableBody>
-            {filteredInvoices.map((invoice) => (
-              <TableRow
-                key={invoice.id}
-                className="border-white/5 hover:bg-white/5"
-              >
+                                    <TableBody>
+                                        {filteredInvoices.map((invoice) => (
+                                            <TableRow
+                                                key={invoice.id}
+                                                className="border-white/5 hover:bg-white/5"
+                                            >
 
-                <TableCell className="text-white">
-                  {invoice.invoice_date
-                    ? format(new Date(invoice.invoice_date), 'dd MMM yyyy')
-                    : '-'}
-                </TableCell>
+                                                <TableCell className="text-white">
+                                                    {invoice.invoice_date
+                                                        ? format(new Date(invoice.invoice_date), 'dd MMM yyyy')
+                                                        : '-'}
+                                                </TableCell>
 
-                <TableCell className="font-medium text-white">
-                  {invoice.invoice_number}
-                </TableCell>
+                                                <TableCell className="font-medium text-white">
+                                                    {invoice.invoice_number}
+                                                </TableCell>
 
-                <TableCell className="text-white">
-                  {invoice.billing_head || '-'}
-                </TableCell>
+                                                <TableCell className="text-white">
+                                                    {invoice.billing_head || '-'}
+                                                </TableCell>
 
-                <TableCell className="text-white">
-                  {invoice.hsn_sac_code || '-'}
-                </TableCell>
+                                                <TableCell className="text-white">
+                                                    {invoice.hsn_sac_code || '-'}
+                                                </TableCell>
 
-                <TableCell className="text-white">
-                  ₹{parseFloat(invoice.invoice_amount || 0).toLocaleString(
-                    'en-IN',
-                    { minimumFractionDigits: 2 }
-                  )}
-                </TableCell>
+                                                <TableCell className="text-white">
+                                                    ₹{parseFloat(invoice.invoice_amount || 0).toLocaleString(
+                                                        'en-IN',
+                                                        { minimumFractionDigits: 2 }
+                                                    )}
+                                                </TableCell>
 
-                <TableCell>
-                  {getStatusBadge(invoice.status)}
-                </TableCell>
+                                                <TableCell>
+                                                    {getStatusBadge(invoice.status)}
+                                                </TableCell>
 
-                <TableCell className="text-white">
-                  {invoice.due_date
-                    ? format(new Date(invoice.due_date), 'dd MMM yyyy')
-                    : '-'}
-                </TableCell>
+                                                <TableCell className="text-white">
+                                                    {invoice.due_date
+                                                        ? format(new Date(invoice.due_date), 'dd MMM yyyy')
+                                                        : '-'}
+                                                </TableCell>
 
-                <TableCell className="flex items-center gap-2">
+                                                <TableCell className="flex items-center gap-2">
 
-                  {(invoice.status === 'due' ||
-                    invoice.status === 'overdue') && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleMakePayment(invoice)}
-                      className="text-white hover:bg-white/10 h-8 w-8"
-                      title="Make Payment"
-                    >
-                      <CreditCard className="w-4 h-4" />
-                    </Button>
-                  )}
+                                                    {(invoice.status === 'due' ||
+                                                        invoice.status === 'overdue') && (
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                onClick={() => handleMakePayment(invoice)}
+                                                                className="text-white hover:bg-white/10 h-8 w-8"
+                                                                title="Make Payment"
+                                                            >
+                                                                <CreditCard className="w-4 h-4" />
+                                                            </Button>
+                                                        )}
 
-                  {(invoice.status === 'pending_verification' ||
-                    invoice.status === 'rejected') && (
-                    <>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleViewUpload(invoice)}
-                        className="text-white hover:bg-white/10 h-8 w-8"
-                        title="View upload"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Button>
+                                                    {(invoice.status === 'pending_verification' ||
+                                                        invoice.status === 'rejected') && (
+                                                            <>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    onClick={() => handleViewUpload(invoice)}
+                                                                    className="text-white hover:bg-white/10 h-8 w-8"
+                                                                    title="View upload"
+                                                                >
+                                                                    <Eye className="w-4 h-4" />
+                                                                </Button>
 
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleMakePayment(invoice)}
-                        className="text-white hover:bg-white/10 h-8 w-8"
-                        title="Make changes"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </Button>
-                    </>
-                  )}
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    onClick={() => handleMakePayment(invoice)}
+                                                                    className="text-white hover:bg-white/10 h-8 w-8"
+                                                                    title="Make changes"
+                                                                >
+                                                                    <Pencil className="w-4 h-4" />
+                                                                </Button>
+                                                            </>
+                                                        )}
 
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleOpenBillPreview(invoice)}
-                    className="text-white hover:bg-white/10 h-8 w-8"
-                    title="Download PDF"
-                  >
-                    <Download className="w-4 h-4" />
-                  </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() => handleOpenBillPreview(invoice)}
+                                                        className="text-white hover:bg-white/10 h-8 w-8"
+                                                        title="Download PDF"
+                                                    >
+                                                        <Download className="w-4 h-4" />
+                                                    </Button>
 
-                </TableCell>
+                                                </TableCell>
 
-              </TableRow>
-            ))}
-          </TableBody>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
 
-        </Table>
-      </div>
-    )}
-  </CardContent>
+                                </Table>
+                            </div>
+                        )}
+                    </CardContent>
 
-</Card>
+                </Card>
             </motion.div>
 
             {/* Make Payment Modal */}
