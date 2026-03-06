@@ -446,7 +446,7 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
                             // variant="outline"
                             size="sm"
                             onClick={handleExport}
-                            className="h-9 rounded-xl bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm"
+                            className="h-9 rounded-full bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm"
                         >
                             <Download className="w-4 h-4" />
                             <span>Export</span>
@@ -458,7 +458,7 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
                             setTimeFrame(val);
                             setCurrentPage(1);
                         }}>
-                            <SelectTrigger className="w-[140px] h-9 rounded-xl border-white/10 bg-white/5 text-white text-xs">
+                            <SelectTrigger className="glass-input max-w-[190px]">
                                 <CalendarIcon className="w-3.5 h-3.5 mr-2 opacity-50" />
                                 <SelectValue placeholder="Time Frame" />
                             </SelectTrigger>

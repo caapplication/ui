@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
-import { Plus, Trash2, Loader2, RefreshCw, Eye, EyeOff, ToggleLeft, ToggleRight, ChevronLeft, ChevronRight, FilePen, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, Trash2, Loader2, RefreshCw, Eye, EyeOff, ToggleLeft, ToggleRight, ChevronLeft, ChevronRight, FilePen, CheckCircle, XCircle, Search } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -29,6 +29,7 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction,
   const [visibleAccounts, setVisibleAccounts] = useState({});
   const [activeTab, setActiveTab] = useState("active");
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState("");
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -162,7 +163,16 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction,
   const activeAccounts = bankAccounts.filter(acc => acc.is_active);
   const inactiveAccounts = bankAccounts.filter(acc => !acc.is_active);
 
-  const accountsToDisplay = activeTab === 'active' ? activeAccounts : inactiveAccounts;
+  const baseAccountsToDisplay = activeTab === 'active' ? activeAccounts : inactiveAccounts;
+
+  const accountsToDisplay = baseAccountsToDisplay.filter(acc => {
+    const term = searchTerm.toLowerCase();
+    return (
+      (acc.bank_name || '').toLowerCase().includes(term) ||
+      (acc.account_number || '').toString().toLowerCase().includes(term)
+    );
+  });
+
   const totalPages = Math.ceil(accountsToDisplay.length / ITEMS_PER_PAGE);
   const paginatedAccounts = accountsToDisplay.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
@@ -175,9 +185,21 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction,
 
   const renderTable = (accounts, title, description) => (
     <Card className="glass-card">
-      <CardHeader className="p-4 sm:p-6">
-        <CardTitle className="text-lg sm:text-xl md:text-2xl">{title}</CardTitle>
-        <CardDescription className="text-sm sm:text-base">{description}</CardDescription>
+      <CardHeader className="p-4  flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <CardTitle className="font-semibold tracking-tight text-lg text-white mb-0">{title}</CardTitle>
+          <CardDescription className="text-sm sm:text-base mt-0">{description}</CardDescription>
+        </div>
+
+        <div className="relative w-full md:w-64 shrink-0">
+          <Search className="search-icon" />
+          <Input
+            placeholder="Search accounts..."
+            className="glass-input w-full"
+            value={searchTerm}
+            onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+          />
+        </div>
       </CardHeader>
       <CardContent className="p-0">
         {isLoading ? (

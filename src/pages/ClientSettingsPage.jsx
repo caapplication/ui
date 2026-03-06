@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { Settings as SettingsIcon, CreditCard, Building2, Plus, Trash2, Loader2, Banknote, FilePen } from 'lucide-react';
+import { Settings as SettingsIcon, CreditCard, Building2, Plus, Trash2, Loader2, Banknote, FilePen, Search } from 'lucide-react';
 import {
     listPaymentMethods,
     createPaymentMethod,
@@ -97,6 +97,7 @@ function PaymentMethodsTab({ clientId, token, toast }) {
     const [name, setName] = useState('');
     const [saving, setSaving] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
+    const [searchTerm, setSearchTerm] = useState('');
 
     const fetchItems = useCallback(async () => {
         if (!clientId || !token) return;
@@ -151,18 +152,31 @@ function PaymentMethodsTab({ clientId, token, toast }) {
         }
     };
 
+    const filteredItems = items.filter(item => (item.name || '').toLowerCase().includes(searchTerm.toLowerCase()));
+
     return (
         <>
             <Card className="glass-card border-white/5">
-                <CardHeader className="p-4 sm:p-6 flex flex-row items-center justify-between space-y-0">
+                <CardHeader className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
-                        <CardTitle className="text-lg sm:text-xl text-white">Payment Method</CardTitle>
-                        <CardDescription className="text-sm sm:text-base text-gray-400">Add or edit payment methods (e.g. UPI, Bank, Cash).</CardDescription>
+                        <CardTitle className="font-semibold tracking-tight text-lg text-white mb-0">Payment Method</CardTitle>
+                        <CardDescription className="text-sm sm:text-base mt-0">Add or edit payment methods (e.g. UPI, Bank, Cash).</CardDescription>
                     </div>
-                    <Button onClick={openCreate} className="h-9 sm:h-10 text-sm flex-shrink-0">
-                        <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
-                        Add
-                    </Button>
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+                        <div className="relative w-full sm:w-64 shrink-0">
+                            <Search className="search-icon" />
+                            <Input
+                                placeholder="Search payment methods..."
+                                className="glass-input w-full"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                        <Button onClick={openCreate} className="h-9 sm:h-10 text-sm flex-shrink-0">
+                            <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+                            Add
+                        </Button>
+                    </div>
                 </CardHeader>
                 <CardContent className="p-0">
                     {loading ? (
@@ -179,8 +193,8 @@ function PaymentMethodsTab({ clientId, token, toast }) {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {items.length > 0 ? (
-                                        items.map((row) => (
+                                    {filteredItems.length > 0 ? (
+                                        filteredItems.map((row) => (
                                             <TableRow key={row.id} className="border-white/10">
                                                 <TableCell className="text-xs sm:text-sm font-medium text-white">{row.name}</TableCell>
                                                 <TableCell className="text-right">
@@ -248,6 +262,7 @@ function DepartmentsTab({ clientId, token, toast }) {
     const [name, setName] = useState('');
     const [saving, setSaving] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
+    const [searchTerm, setSearchTerm] = useState('');
 
     const fetchItems = useCallback(async () => {
         if (!clientId || !token) return;
@@ -302,18 +317,31 @@ function DepartmentsTab({ clientId, token, toast }) {
         }
     };
 
+    const filteredItems = items.filter(item => (item.name || '').toLowerCase().includes(searchTerm.toLowerCase()));
+
     return (
         <>
             <Card className="glass-card border-white/5">
-                <CardHeader className="p-4 sm:p-6 flex flex-row items-center justify-between space-y-0">
+                <CardHeader className="p-4 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
-                        <CardTitle className="text-lg sm:text-xl text-white">Department</CardTitle>
-                        <CardDescription className="text-sm sm:text-base text-gray-400">Add or edit departments (e.g. Office, Cashier).</CardDescription>
+                        <CardTitle className="font-semibold tracking-tight text-lg text-white mb-0">Department</CardTitle>
+                        <CardDescription className="text-sm sm:text-base mt-0">Add or edit departments (e.g. Office, Cashier).</CardDescription>
                     </div>
-                    <Button onClick={openCreate} className="h-9 sm:h-10 text-sm flex-shrink-0">
-                        <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
-                        Add
-                    </Button>
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+                        <div className="relative w-full sm:w-64 shrink-0">
+                            <Search className="search-icon" />
+                            <Input
+                                placeholder="Search departments..."
+                                className="glass-input w-full"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                        <Button onClick={openCreate} className="h-9 sm:h-10 text-sm flex-shrink-0">
+                            <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+                            Add
+                        </Button>
+                    </div>
                 </CardHeader>
                 <CardContent className="p-0">
                     {loading ? (
@@ -330,8 +358,8 @@ function DepartmentsTab({ clientId, token, toast }) {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {items.length > 0 ? (
-                                        items.map((row) => (
+                                    {filteredItems.length > 0 ? (
+                                        filteredItems.map((row) => (
                                             <TableRow key={row.id} className="border-white/10">
                                                 <TableCell className="text-xs sm:text-sm font-medium text-white">{row.name}</TableCell>
                                                 <TableCell className="text-right">
@@ -399,6 +427,7 @@ function CashDenominationsTab({ clientId, token, toast }) {
     const [value, setValue] = useState('');
     const [saving, setSaving] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
+    const [searchTerm, setSearchTerm] = useState('');
 
     const fetchItems = useCallback(async () => {
         if (!clientId || !token) return;
@@ -453,18 +482,31 @@ function CashDenominationsTab({ clientId, token, toast }) {
         }
     };
 
+    const filteredItems = items.filter(item => (item.value || '').toString().toLowerCase().includes(searchTerm.toLowerCase()));
+
     return (
         <>
             <Card className="glass-card border-white/5">
-                <CardHeader className="p-4 sm:p-6 flex flex-row items-center justify-between space-y-0">
+                <CardHeader className="p-4 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
-                        <CardTitle className="text-lg sm:text-xl text-white">Cash Denomination</CardTitle>
-                        <CardDescription className="text-sm sm:text-base text-gray-400">Add note/coin values (e.g. ₹500, ₹200). Used in Cash Tally.</CardDescription>
+                        <CardTitle className="font-semibold tracking-tight text-lg text-white mb-0">Cash Denomination</CardTitle>
+                        <CardDescription className="text-sm sm:text-base mt-0">Add note/coin values (e.g. ₹500, ₹200). Used in Cash Tally.</CardDescription>
                     </div>
-                    <Button onClick={openCreate} className="h-9 sm:h-10 text-sm flex-shrink-0">
-                        <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
-                        Add
-                    </Button>
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+                        <div className="relative w-full sm:w-64 shrink-0">
+                            <Search className="search-icon" />
+                            <Input
+                                placeholder="Search denominations..."
+                                className="glass-input w-full"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                        <Button onClick={openCreate} className="h-9 sm:h-10 text-sm flex-shrink-0">
+                            <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+                            Add
+                        </Button>
+                    </div>
                 </CardHeader>
                 <CardContent className="p-0">
                     {loading ? (
@@ -481,8 +523,8 @@ function CashDenominationsTab({ clientId, token, toast }) {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {items.length > 0 ? (
-                                        items.map((row) => (
+                                    {filteredItems.length > 0 ? (
+                                        filteredItems.map((row) => (
                                             <TableRow key={row.id} className="border-white/10">
                                                 <TableCell className="text-xs sm:text-sm font-medium text-white">₹ {Number(row.value).toLocaleString('en-IN')}</TableCell>
                                                 <TableCell className="text-right">

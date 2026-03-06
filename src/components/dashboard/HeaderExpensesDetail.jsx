@@ -258,15 +258,15 @@ const HeaderExpensesDetail = ({ entityId }) => {
                     </Button>
                     <div>
                         <h1 className="text-2xl sm:text-3xl font-bold text-white">{headerName}</h1>
-                        <p className="text-gray-400 text-sm mt-0.5">All expenses under this finance header</p>
+                        {/* <p className="text-gray-400 text-sm mt-0.5">All expenses under this finance header</p> */}
                     </div>
                 </div>
 
                 <div className="flex flex-col gap-3 w-full sm:w-auto">
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 ">
                         <Button
                             onClick={handleExport}
-                            className="h-9 rounded-xl bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm w-full sm:w-auto justify-center order-first sm:order-none"
+                            className="h-9 rounded-full bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm w-full sm:w-auto justify-center order-first sm:order-none"
                         >
                             <Download className="w-4 h-4" />
                             <span>Export</span>
@@ -283,7 +283,7 @@ const HeaderExpensesDetail = ({ entityId }) => {
                                 setCustomEndDate(end);
                             }
                         }}>
-                            <SelectTrigger className="w-full sm:w-44 h-9 sm:h-10 border-white/10 bg-white/5 text-white rounded-xl text-sm">
+                            <SelectTrigger className="glass-input max-w-[140px]">
                                 <SelectValue placeholder="Time frame" />
                             </SelectTrigger>
                             <SelectContent className="bg-[#1a1a2e] border-white/10 text-white rounded-xl">
@@ -298,10 +298,10 @@ const HeaderExpensesDetail = ({ entityId }) => {
 
 
                         <div className="relative w-full sm:w-64">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <Search className="search-icon" />
                             <Input
                                 placeholder="Search beneficiary..."
-                                className="pl-9 h-9 sm:h-10 border-white/10 bg-white/5 focus:bg-white/10 text-white placeholder:text-gray-500 rounded-xl text-sm"
+                                className="glass-input"
                                 value={searchTerm}
                                 onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                             />

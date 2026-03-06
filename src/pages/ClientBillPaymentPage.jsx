@@ -394,151 +394,194 @@ const ClientBillPaymentPage = ({ entityId }) => {
                     <h1 className="page-title">Bill & Payment</h1>
                 </div>
 
-                {/* Due Amount and Filters on one line */}
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6 w-full">
 
-  {/* Left Side - Due Amount */}
-  <Card className="text-card-foreground glass-card border-white/5 w-full sm:w-[260px] shrink-0">
-    <CardHeader className="pb-2">
-      <CardTitle className="text-sm text-gray-400">Due Amount</CardTitle>
-    </CardHeader>
-    <CardContent>
-      <div className="text-2xl font-bold text-yellow-400">
-        ₹{totals.due.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-      </div>
-    </CardContent>
-  </Card>
-
-  {/* Right Side - Filters */}
-  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto">
-
-    {/* Status Filter */}
-    <Select value={statusFilter} onValueChange={setStatusFilter}>
-      <SelectTrigger className="glass-input text-white w-full sm:w-[180px]">
-        <SelectValue placeholder="All Statuses" />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="all">All Statuses</SelectItem>
-        <SelectItem value="due">Due</SelectItem>
-        <SelectItem value="overdue">Overdue</SelectItem>
-        <SelectItem value="paid">Paid</SelectItem>
-        <SelectItem value="pending_verification">Pending Verification</SelectItem>
-        <SelectItem value="rejected">Rejected</SelectItem>
-      </SelectContent>
-    </Select>
-
-    {/* Search */}
-    <div className="relative w-full sm:w-[260px]">
-      <Search className="search-icon" />
-      <Input
-        id="search"
-        placeholder="Search by invoice number..."
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-        className="glass-input"
-      />
-    </div>
-
-  </div>
-</div>
 
                 {/* Table */}
-                <Card className="glass-card border-white/5">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                        <CardTitle className="text-lg text-white">Invoices</CardTitle>
-                        <Button variant="outline" size="sm" onClick={handleExportCSV} className="gap-2 border-white/20 text-white hover:bg-white/10">
-                            <FileDown className="w-4 h-4" />
-                            Export CSV
-                        </Button>
-                    </CardHeader>
-                    <CardContent>
-                        {filteredInvoices.length === 0 ? (
-                            <div className="text-center py-12 text-gray-400">
-                                No invoices found
-                            </div>
-                        ) : (
-                            <div className="overflow-x-auto">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow className="border-white/10">
-                                            <TableHead className="text-white">Invoice Date</TableHead>
-                                            <TableHead className="text-white">Invoice No.</TableHead>
-                                            <TableHead className="text-white">Particulars</TableHead>
-                                            <TableHead className="text-white">HSN/SAC</TableHead>
-                                            <TableHead className="text-white">Amount</TableHead>
-                                            <TableHead className="text-white">Status</TableHead>
-                                            <TableHead className="text-white">Due Date</TableHead>
-                                            <TableHead className="text-white">Actions</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {filteredInvoices.map((invoice) => (
-                                            <TableRow key={invoice.id} className="border-white/5 hover:bg-white/5">
-                                                <TableCell className="text-white">
-                                                    {invoice.invoice_date ? format(new Date(invoice.invoice_date), 'dd MMM yyyy') : '-'}
-                                                </TableCell>
-                                                <TableCell className="font-medium text-white">{invoice.invoice_number}</TableCell>
-                                                <TableCell className="text-white">{invoice.billing_head || '-'}</TableCell>
-                                                <TableCell className="text-white">{invoice.hsn_sac_code || '-'}</TableCell>
-                                                <TableCell className="text-white">₹{parseFloat(invoice.invoice_amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
-                                                <TableCell>{getStatusBadge(invoice.status)}</TableCell>
-                                                <TableCell className="text-white">
-                                                    {invoice.due_date
-                                                        ? format(new Date(invoice.due_date), 'dd MMM yyyy')
-                                                        : '-'}
-                                                </TableCell>
-                                                <TableCell className="flex items-center gap-2">
-                                                    {(invoice.status === 'due' || invoice.status === 'overdue') && (
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            onClick={() => handleMakePayment(invoice)}
-                                                            className="text-white hover:bg-white/10 h-8 w-8"
-                                                            title="Make Payment"
-                                                        >
-                                                            <CreditCard className="w-4 h-4" />
-                                                        </Button>
-                                                    )}
-                                                    {(invoice.status === 'pending_verification' || invoice.status === 'rejected') && (
-                                                        <>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                onClick={() => handleViewUpload(invoice)}
-                                                                className="text-white hover:bg-white/10 h-8 w-8"
-                                                                title="View upload"
-                                                            >
-                                                                <Eye className="w-4 h-4" />
-                                                            </Button>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                onClick={() => handleMakePayment(invoice)}
-                                                                className="text-white hover:bg-white/10 h-8 w-8"
-                                                                title="Make changes (re-upload)"
-                                                            >
-                                                                <Pencil className="w-4 h-4" />
-                                                            </Button>
-                                                        </>
-                                                    )}
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={() => handleOpenBillPreview(invoice)}
-                                                        className="text-white hover:bg-white/10 h-8 w-8"
-                                                        title="View / Download PDF"
-                                                    >
-                                                        <Download className="w-4 h-4" />
-                                                    </Button>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
+             <Card className="glass-card border-white/5">
+
+  {/* Header */}
+  <CardHeader className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 flex-wrap">
+
+    {/* Left - Due Amount */}
+    <div>
+      <CardTitle className="text-sm text-gray-400">
+        Total Outstanding Invoice Amount
+      </CardTitle>
+      <p className="text-2xl font-bold text-yellow-400 mt-1">
+        ₹{totals.due.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+      </p>
+    </div>
+
+    {/* Right - Filters */}
+    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+
+      {/* Export Button */}
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleExportCSV}
+        className="gap-2 border-white/20 text-white hover:bg-white/10"
+      >
+        <FileDown className="w-4 h-4" />
+        Export CSV
+      </Button>
+
+      {/* Status Filter */}
+      <Select value={statusFilter} onValueChange={setStatusFilter}>
+        <SelectTrigger className="glass-input text-white w-full sm:w-[180px]">
+          <SelectValue placeholder="All Statuses" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All Statuses</SelectItem>
+          <SelectItem value="due">Due</SelectItem>
+          <SelectItem value="overdue">Overdue</SelectItem>
+          <SelectItem value="paid">Paid</SelectItem>
+          <SelectItem value="pending_verification">Pending Verification</SelectItem>
+          <SelectItem value="rejected">Rejected</SelectItem>
+        </SelectContent>
+      </Select>
+
+      {/* Search */}
+      <div className="relative w-full sm:w-[260px]">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <Input
+          placeholder="Search invoice..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="pl-10 glass-input w-full"
+        />
+      </div>
+
+    </div>
+  </CardHeader>
+
+  {/* Table */}
+  <CardContent>
+    {filteredInvoices.length === 0 ? (
+      <div className="text-center py-12 text-gray-400">
+        No invoices found
+      </div>
+    ) : (
+      <div className="overflow-x-auto">
+        <Table>
+
+          <TableHeader>
+            <TableRow className="border-white/10">
+              <TableHead className="text-white">Invoice Date</TableHead>
+              <TableHead className="text-white">Invoice No.</TableHead>
+              <TableHead className="text-white">Particulars</TableHead>
+              <TableHead className="text-white">HSN/SAC</TableHead>
+              <TableHead className="text-white">Amount</TableHead>
+              <TableHead className="text-white">Status</TableHead>
+              <TableHead className="text-white">Due Date</TableHead>
+              <TableHead className="text-white">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+
+          <TableBody>
+            {filteredInvoices.map((invoice) => (
+              <TableRow
+                key={invoice.id}
+                className="border-white/5 hover:bg-white/5"
+              >
+
+                <TableCell className="text-white">
+                  {invoice.invoice_date
+                    ? format(new Date(invoice.invoice_date), 'dd MMM yyyy')
+                    : '-'}
+                </TableCell>
+
+                <TableCell className="font-medium text-white">
+                  {invoice.invoice_number}
+                </TableCell>
+
+                <TableCell className="text-white">
+                  {invoice.billing_head || '-'}
+                </TableCell>
+
+                <TableCell className="text-white">
+                  {invoice.hsn_sac_code || '-'}
+                </TableCell>
+
+                <TableCell className="text-white">
+                  ₹{parseFloat(invoice.invoice_amount || 0).toLocaleString(
+                    'en-IN',
+                    { minimumFractionDigits: 2 }
+                  )}
+                </TableCell>
+
+                <TableCell>
+                  {getStatusBadge(invoice.status)}
+                </TableCell>
+
+                <TableCell className="text-white">
+                  {invoice.due_date
+                    ? format(new Date(invoice.due_date), 'dd MMM yyyy')
+                    : '-'}
+                </TableCell>
+
+                <TableCell className="flex items-center gap-2">
+
+                  {(invoice.status === 'due' ||
+                    invoice.status === 'overdue') && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleMakePayment(invoice)}
+                      className="text-white hover:bg-white/10 h-8 w-8"
+                      title="Make Payment"
+                    >
+                      <CreditCard className="w-4 h-4" />
+                    </Button>
+                  )}
+
+                  {(invoice.status === 'pending_verification' ||
+                    invoice.status === 'rejected') && (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleViewUpload(invoice)}
+                        className="text-white hover:bg-white/10 h-8 w-8"
+                        title="View upload"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Button>
+
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleMakePayment(invoice)}
+                        className="text-white hover:bg-white/10 h-8 w-8"
+                        title="Make changes"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                    </>
+                  )}
+
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleOpenBillPreview(invoice)}
+                    className="text-white hover:bg-white/10 h-8 w-8"
+                    title="Download PDF"
+                  >
+                    <Download className="w-4 h-4" />
+                  </Button>
+
+                </TableCell>
+
+              </TableRow>
+            ))}
+          </TableBody>
+
+        </Table>
+      </div>
+    )}
+  </CardContent>
+
+</Card>
             </motion.div>
 
             {/* Make Payment Modal */}

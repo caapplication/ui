@@ -21,7 +21,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Edit, Trash2, FileText, Loader2, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RefreshCcw, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, FileText, Loader2, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RefreshCcw, CheckCircle, XCircle, AlertCircle, User, History } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import {
@@ -758,7 +758,7 @@ const VoucherDetailsPage = () => {
                 },
                 replace: true
             });
-        } else {    
+        } else {
             // Check for pending invoices if Client Master Admin
             if (user?.role === 'CLIENT_MASTER_ADMIN') {
                 try {
@@ -1214,11 +1214,20 @@ const VoucherDetailsPage = () => {
                 <ResizablePanel defaultSize={40} minSize={30}>
                     <div className="relative flex h-full flex-col">
                         <div className="flex-1 overflow-y-auto px-4 py-6 sm:p-4 xl:px-6 hide-scrollbar" style={{ paddingBottom: hasVouchers ? '8rem' : '2rem' }}>
-                            <Tabs defaultValue={defaultTab} className="w-full   ">
-                                <TabsList className={`grid w-full ${cols} text-xs sm:text-sm grid-cols-1 sm:grid-cols-2 xl:grid-cols-3   `}>
-                                    <TabsTrigger value="details" className="text-xs sm:text-sm">Details</TabsTrigger>
-                                    <TabsTrigger value="activity" className="text-xs sm:text-sm">Activity Log</TabsTrigger>
-                                    <TabsTrigger value="beneficiary" className="text-xs sm:text-sm">Beneficiary</TabsTrigger>
+                            <Tabs defaultValue={defaultTab} className="w-full">
+                                <TabsList>
+                                    <TabsTrigger value="details">
+                                        <FileText className="w-4 h-4 mr-2" />
+                                        Details
+                                    </TabsTrigger>
+                                    <TabsTrigger value="activity">
+                                        <History className="w-4 h-4 mr-2" />
+                                        Activity Log
+                                    </TabsTrigger>
+                                    <TabsTrigger value="beneficiary">
+                                        <User className="w-4 h-4 mr-2" />
+                                        Beneficiary
+                                    </TabsTrigger>
                                 </TabsList>
                                 <TabsContent value="details" className="mt-4">
                                     {isEditing ? (
