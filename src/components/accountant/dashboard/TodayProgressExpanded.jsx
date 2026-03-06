@@ -14,7 +14,8 @@ import {
     Loader2,
     Download,
     Calendar as CalendarIcon,
-    AlertCircle
+    AlertCircle,
+    ArrowLeft
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -489,7 +490,7 @@ const TodayProgressExpanded = () => {
                         onClick={() => navigate(-1)}
                         className="h-9 w-9 sm:h-10 sm:w-10 rounded-full hover:bg-white/10"
                     >
-                        <ChevronLeft className="h-5 w-5 text-white" />
+                        <ArrowLeft className="h-5 w-5 text-white" />
                     </Button>
                     <div>
                         <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">

@@ -2291,10 +2291,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                   />
                 </div>
               )}
-              <div className="relative flex-1 sm:w-64">
-                <Search className="search-icon" />
-                <Input placeholder="Search..." className="glass-input" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-              </div>
+
             </div>
             {user?.role === 'CA_ACCOUNTANT' && activeTab === 'myFiles' && currentFolderId === 'root' && (
               <Button onClick={() => setShowTemplates(true)} variant="outline" className="h-9 sm:h-10 text-sm sm:text-base flex-1 sm:flex-initial border-dashed border-blue-500/50 hover:border-blue-500 text-blue-400 hover:text-blue-300">
@@ -2364,6 +2361,12 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                 </div>
               </>
             )}
+
+            <div className="relative w-full sm:w-64 shrink-0">
+              <Search className="search-icon" />
+              <Input placeholder="Search..." className="glass-input h-9 sm:h-10 w-full" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+            </div>
+
           </div>
         </div>
 

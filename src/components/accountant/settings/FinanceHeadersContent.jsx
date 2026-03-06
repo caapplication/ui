@@ -118,18 +118,18 @@ const FinanceHeadersContent = () => {
 
     return (
         <div className='text-white'>
-            <div className="flex justify-between flex-wrap gap-2 items-center mb-6">
-                <div className="relative w-full max-w-xs">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                    <Input placeholder="Search finance headers..." className="pl-10 glass-input" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-                </div>
-                <div className="flex items-center gap-2">
-                    <Button onClick={handleExport} variant="outline" className="bg-transparent text-white border-white/20 hover:bg-white/10">
+            <div className="flex flex-col sm:flex-row justify-end gap-3 items-stretch sm:items-center mb-6 w-full">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                    <Button onClick={handleExport} className="bg-transparent text-white border-white/20 hover:bg-white/10 shrink-0">
                         Export to Excel
                     </Button>
-                    <Button onClick={handleOpenNew} className="bg-primary hover:bg-primary/90 text-white">
+                    <Button onClick={handleOpenNew} className="bg-primary hover:bg-primary/90 text-white shrink-0">
                         <Plus className="mr-2 h-4 w-4" /> New Finance Header
                     </Button>
+                </div>
+                <div className="relative w-full sm:w-72 shrink-0">
+                    <Search className="search-icon" />
+                    <Input placeholder="Search finance headers..." className="glass-input pl-10 w-full" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                 </div>
             </div>
             <div className="glass-card p-4">

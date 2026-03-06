@@ -401,10 +401,10 @@ const ClientList = ({
                 </div>
             </div>
 
-            <div className="  rounded-lg mb-4 lg:overflow-hidden">
+            <div className="rounded-lg mb-4 lg:overflow-hidden">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-end w-full">
 
-                    <div className="flex flex-col sm:flex-row  gap-3 sm:items-center w-full">
+                    <div className="flex flex-col sm:flex-row gap-3 sm:items-center w-full justify-end">
 
                         {/* Refresh */}
                         <Button
@@ -446,11 +446,11 @@ const ClientList = ({
                         </div>
 
                         {/* Search */}
-                        <div className="relative flex-grow min-w-[250px] w-full">
+                        <div className="relative w-full sm:w-auto sm:min-w-[250px]">
                             <Search className="search-icon" />
                             <Input
                                 placeholder="Search Client, PAN, Mobile, Email, Customer ID..."
-                                className="glass-input pl-10 w-full border-white/10 text-white"
+                                className="glass-input w-full"
                                 value={searchTerm}
                                 onChange={(e) => {
                                     setSearchTerm(e.target.value);
