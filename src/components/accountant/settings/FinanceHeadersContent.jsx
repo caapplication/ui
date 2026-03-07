@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from '@/components/ui/use-toast';
-import { Plus, Search, Trash2, Edit, MoreVertical, Loader2 } from 'lucide-react';
+import { Plus, Search, Trash2, Edit, MoreVertical, Loader2, Download } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { getFinanceHeaders, createFinanceHeader, updateFinanceHeader, deleteFinanceHeader } from '@/lib/api';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -120,14 +120,15 @@ const FinanceHeadersContent = () => {
         <div className='text-white'>
             <div className="flex flex-col sm:flex-row justify-end gap-3 items-stretch sm:items-center mb-6 w-full">
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                    <Button onClick={handleExport} className="bg-transparent text-white border-white/20 hover:bg-white/10 shrink-0">
-                        Export to Excel
+                    <Button onClick={handleExport} className="h-9 rounded-full bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm w-full sm:w-auto justify-center">
+                        <Download className="w-4 h-4 mr-1" />
+                        Export
                     </Button>
-                    <Button onClick={handleOpenNew} className="bg-primary hover:bg-primary/90 text-white shrink-0">
+                    <Button onClick={handleOpenNew} className="h-9 rounded-full bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm w-full sm:w-auto justify-center">
                         <Plus className="mr-2 h-4 w-4" /> New Finance Header
                     </Button>
                 </div>
-                <div className="relative w-full sm:w-72 shrink-0">
+                <div className="relative  max-w-[250px] shrink-0">
                     <Search className="search-icon" />
                     <Input placeholder="Search finance headers..." className="glass-input pl-10 w-full" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                 </div>

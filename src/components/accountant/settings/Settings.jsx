@@ -77,7 +77,7 @@ const SettingsDashboard = ({ navItems }) => (
         className="p-4 sm:p-6 lg:p-8"
     >
         <div className="">
-            <h1 className="text-3xl font-bold text-white mb-6 flex items-center gap-3"> Settings</h1>
+            <h1 className="page-title mb-6 lg:mb-8"> Settings</h1>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {navItems.map(item => {
                     const Icon = item.icon;

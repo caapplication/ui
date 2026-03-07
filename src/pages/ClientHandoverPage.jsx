@@ -218,8 +218,8 @@ function BankTallyTab({ clientId, token, toast, readOnly = false }) {
           <CardDescription className="text-sm text-gray-400">Opening and closing balance by bank account. Last day closing is today&apos;s opening.</CardDescription>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Label className="text-gray-400 text-sm">Date</Label>
-          <Input type="date" className="h-9 sm:h-10 text-sm glass-input w-40 text-white" value={reportDate} onChange={e => setReportDate(e.target.value)} />
+
+          <Input type="date" className="glass-input max-w-[200px]" value={reportDate} onChange={e => setReportDate(e.target.value)} />
           {!isReadOnly && (
             <Button onClick={handleSave} disabled={saving} className="h-9 sm:h-10 text-sm">
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save
@@ -390,8 +390,8 @@ function CashTallyTab({ clientId, entityId, token, toast, readOnly = false }) {
             <CardDescription className="text-sm text-gray-400">Cash in hand, denomination breakdown and remarks.</CardDescription>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <Label className="text-gray-400 text-sm">Date</Label>
-            <Input type="date" className="h-9 sm:h-10 text-sm glass-input w-40 text-white" value={reportDate} onChange={e => setReportDate(e.target.value)} />
+            {/* <Label className="text-gray-400 text-sm">Date</Label> */}
+            <Input type="date" className="glass-input max-w-[200px]" value={reportDate} onChange={e => setReportDate(e.target.value)} />
           </div>
         </CardHeader>
         <CardContent className="space-y-6 pt-0">
@@ -778,8 +778,8 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
           <CardDescription className="text-sm text-gray-400">View and approve handovers for the selected date.</CardDescription>
         </div>
         <div className="flex items-center gap-2">
-          <Label className="text-gray-400 text-sm">Date</Label>
-          <Input type="date" className="h-9 sm:h-10 text-sm glass-input w-40 text-white" value={summaryDate} onChange={e => setSummaryDate(e.target.value)} />
+
+          <Input type="date" className="glass-input max-w-[200px]" value={summaryDate} onChange={e => setSummaryDate(e.target.value)} />
         </div>
       </CardHeader>
       <CardContent className="p-0">
@@ -1015,6 +1015,10 @@ function ReportTab({ clientId, entityId, entityName, token, toast }) {
     }
   }, [clientId, entityId, token, reportDate, toast]);
 
+  useEffect(() => {
+    handleSearch();
+  }, [handleSearch]);
+
   const displayName = entityName || 'Entity';
   const dateFormatted = reportDate ? format(parseISO(reportDate), 'dd/MM/yyyy') : '';
 
@@ -1056,16 +1060,13 @@ function ReportTab({ clientId, entityId, entityName, token, toast }) {
           <CardDescription className="text-sm text-gray-400">Bank balance, physical cash tally, cash and debit vouchers for the selected date.</CardDescription>
         </div>
         <div className="flex items-center gap-2">
-          <Label className="text-gray-400 text-sm">Date</Label>
-          <Input type="date" className="h-9 sm:h-10 text-sm glass-input w-40 text-white" value={reportDate} onChange={e => setReportDate(e.target.value)} />
-          <Button onClick={handleSearch} disabled={loading} className="h-9 sm:h-10 text-sm">
-            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}Search
-          </Button>
+          {/* <Label className="text-gray-400 text-sm">Date</Label> */}
+          <Input type="date" className="glass-input max-w-[200px]" value={reportDate} onChange={e => setReportDate(e.target.value)} />
         </div>
       </CardHeader>
       <CardContent className="p-4 sm:p-6 pt-0 space-y-8">
         {!searched ? (
-          <p className="text-gray-400 py-8 text-center">Select a date and click Search to load the report.</p>
+          <p className="text-gray-400 py-8 text-center">Select a date to load the report.</p>
         ) : loading ? (
           <div className="flex justify-center py-12"><Loader2 className="h-10 w-10 animate-spin text-white" /></div>
         ) : (

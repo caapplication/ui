@@ -277,7 +277,7 @@ const ClientBillingTab = ({ client, allServices }) => {
                                 placeholder="Enter billing head"
                                 value={billingData.billing_head || ''}
                                 onChange={(e) => handleBillingChange('billing_head', e.target.value)}
-                                className="glass-input"
+                                className="glass-input !w-full"
                             />
                         </div>
 
@@ -292,7 +292,7 @@ const ClientBillingTab = ({ client, allServices }) => {
                                     step="0.01"
                                     value={billingData.monthly_charges_ex_gst}
                                     onChange={(e) => handleBillingChange('monthly_charges_ex_gst', parseFloat(e.target.value) || 0)}
-                                    className="glass-input pl-8"
+                                    className="glass-input !w-full"
                                     placeholder="0.00"
                                 />
                             </div>
@@ -307,7 +307,7 @@ const ClientBillingTab = ({ client, allServices }) => {
                                 value={String(billingData.gst_percent)}
                                 onValueChange={(v) => handleBillingChange('gst_percent', parseFloat(v))}
                             >
-                                <SelectTrigger className="glass-input">
+                                <SelectTrigger className="glass-input !w-full">
                                     <SelectValue placeholder="Select GST%" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -329,7 +329,7 @@ const ClientBillingTab = ({ client, allServices }) => {
                                     type="number"
                                     value={billingData.gst_amount.toFixed(2)}
                                     readOnly
-                                    className="glass-input pl-8 bg-white/5"
+                                    className="glass-input !w-full"
                                     placeholder="0.00"
                                 />
                             </div>
@@ -345,7 +345,7 @@ const ClientBillingTab = ({ client, allServices }) => {
                                     type="number"
                                     value={billingData.invoice_amount.toFixed(2)}
                                     readOnly
-                                    className="glass-input pl-8 bg-white/5"
+                                    className="glass-input !w-full"
                                     placeholder="0.00"
                                 />
                             </div>
@@ -358,7 +358,7 @@ const ClientBillingTab = ({ client, allServices }) => {
                                 id="hsn_sac_code"
                                 value={billingData.hsn_sac_code}
                                 onChange={(e) => handleBillingChange('hsn_sac_code', e.target.value)}
-                                className="glass-input"
+                                className="glass-input !w-full"
                                 placeholder="Enter HSN/SAC code"
                             />
                         </div>
@@ -369,7 +369,7 @@ const ClientBillingTab = ({ client, allServices }) => {
                                 value={billingData.invoice_generate_day ? String(billingData.invoice_generate_day) : 'not-set'}
                                 onValueChange={(v) => handleBillingChange('invoice_generate_day', v && v !== 'not-set' ? parseInt(v) : null)}
                             >
-                                <SelectTrigger className="glass-input">
+                                <SelectTrigger className="glass-input !w-full">
                                     <SelectValue placeholder="Select day of month" />
                                 </SelectTrigger>
                                 <SelectContent>

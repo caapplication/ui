@@ -521,7 +521,7 @@ const TaskManagementPage = ({ entityId, entityName }) => {
     return (
         <div className="p-4 md:p-8 text-white relative overflow-hidden h-full flex flex-col">
             {(view === 'list' || view === 'kanban') && (
-                <div className="page-header flex justify-between flex-wrap gap-2 w-full sm:w-auto">
+                <div className="page-header flex justify-between flex-wrap gap-2 w-full sm:w-auto   mb-6 lg:mb-8">
                     <h1 className="page-title">
                         Tasks
                         {/* {displayName && <span className="text-2xl sm:text-3xl font-bold text-gray-400 ml-2">- {displayName}</span>} */}
@@ -584,7 +584,7 @@ const TaskManagementPage = ({ entityId, entityName }) => {
                                 <span className="hidden sm:inline">Kanban</span>
                             </Button>
                         </div>
-                        <Button onClick={handleAddNew} className="rounded-lg flex-1 sm:flex-initial">
+                        <Button onClick={handleAddNew} className="h-9 rounded-full bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm w-full sm:w-auto justify-center">
                             <Plus className="w-4 h-4 sm:mr-2" />
                             <span className="hidden sm:inline">New Task</span>
                         </Button>

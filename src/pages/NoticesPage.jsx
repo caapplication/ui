@@ -221,7 +221,7 @@ const NoticesPage = () => {
     return (
         <div className="p-4 md:p-8 text-white relative overflow-hidden h-full flex flex-col pt-20 lg:pt-8">
             {/* Top Page Header */}
-            <div className="page-header flex justify-between flex-wrap gap-2 w-full sm:w-auto">
+            <div className="page-header flex justify-between flex-wrap gap-2 w-full sm:w-auto mb-6 lg:mb-8">
                 <h1 className="page-title">
                     Notices
                 </h1>
@@ -258,7 +258,7 @@ const NoticesPage = () => {
                     />
 
                     {user?.role === 'CA_ACCOUNTANT' && (
-                        <Button onClick={() => setIsUploadModalOpen(true)} className="rounded-lg flex-1 sm:flex-initial bg-blue-600 hover:bg-blue-700 text-white">
+                        <Button onClick={() => setIsUploadModalOpen(true)} className="h-9 rounded-full bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm w-full sm:w-auto justify-center">
                             <Plus className="w-4 h-4 sm:mr-2" />
                             <span className="hidden sm:inline">Upload Notice</span>
                         </Button>

@@ -163,12 +163,12 @@ function PaymentMethodsTab({ clientId, token, toast }) {
                         <CardDescription className="text-sm sm:text-base mt-0">Add or edit payment methods (e.g. UPI, Bank, Cash).</CardDescription>
                     </div>
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
-                      
+
                         <Button onClick={openCreate} className="h-9 sm:h-10 text-sm flex-shrink-0">
                             <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
                             Add
                         </Button>
-                          <div className="relative w-full sm:w-64 shrink-0">
+                        <div className="relative w-full sm:w-64 shrink-0">
                             <Search className="search-icon" />
                             <Input
                                 placeholder="Search payment methods..."
@@ -222,20 +222,20 @@ function PaymentMethodsTab({ clientId, token, toast }) {
                 </CardContent>
             </Card>
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogContent className="max-w-lg w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto bg-gray-900 border-white/10">
+                <DialogContent className="bg-gray-900 border-white/10 text-white sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle className="text-lg sm:text-xl text-white">{editing ? 'Edit Payment Method' : 'Add Payment Method'}</DialogTitle>
+                        <DialogTitle className="text-xl">{editing ? 'Edit Payment Method' : 'Add Payment Method'}</DialogTitle>
                         <DialogDescription className="text-sm text-gray-400">Used in cashier report and handover.</DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-4 pt-4">
-                        <div>
-                            <Label htmlFor="pm-name" className="text-sm sm:text-base text-gray-300">Name</Label>
-                            <Input id="pm-name" className="mt-2 h-9 sm:h-10 text-sm glass-input text-white" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. UPI, Bank, Cash" />
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2 text-left">
+                            <Label htmlFor="pm-name" className="text-gray-300">Name</Label>
+                            <Input id="pm-name" className="glass-input mt-2 !w-full" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. UPI, Bank, Cash" />
                         </div>
                     </div>
                     <DialogFooter>
-                        <DialogClose asChild><Button variant="ghost" className="h-9 sm:h-10 text-sm text-white">Cancel</Button></DialogClose>
-                        <Button onClick={handleSave} disabled={saving} className="h-9 sm:h-10 text-sm">{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save</Button>
+                        <DialogClose asChild><Button variant="ghost" disabled={saving}>Cancel</Button></DialogClose>
+                        <Button onClick={handleSave} disabled={saving} className="bg-primary hover:bg-primary/90 text-white">{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -329,12 +329,12 @@ function DepartmentsTab({ clientId, token, toast }) {
                         <CardDescription className="text-sm sm:text-base mt-0">Add or edit departments (e.g. Office, Cashier).</CardDescription>
                     </div>
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
-                     
+
                         <Button onClick={openCreate} className="h-9 sm:h-10 text-sm flex-shrink-0">
                             <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
                             Add
                         </Button>
-                           <div className="relative w-full sm:w-64 shrink-0">
+                        <div className="relative w-full sm:w-64 shrink-0">
                             <Search className="search-icon" />
                             <Input
                                 placeholder="Search departments..."
@@ -388,20 +388,20 @@ function DepartmentsTab({ clientId, token, toast }) {
                 </CardContent>
             </Card>
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogContent className="max-w-lg w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto bg-gray-900 border-white/10">
+                <DialogContent className="bg-gray-900 border-white/10 text-white sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle className="text-lg sm:text-xl text-white">{editing ? 'Edit Department' : 'Add Department'}</DialogTitle>
+                        <DialogTitle className="text-xl">{editing ? 'Edit Department' : 'Add Department'}</DialogTitle>
                         <DialogDescription className="text-sm text-gray-400">Used in cashier report and handover.</DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-4 pt-4">
-                        <div>
-                            <Label htmlFor="dept-name" className="text-sm sm:text-base text-gray-300">Name</Label>
-                            <Input id="dept-name" className="mt-2 h-9 sm:h-10 text-sm glass-input text-white" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Office, Cashier" />
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2 text-left">
+                            <Label htmlFor="dept-name" className="text-gray-300">Name</Label>
+                            <Input id="dept-name" className="glass-input mt-2 !w-full" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Office, Cashier" />
                         </div>
                     </div>
                     <DialogFooter>
-                        <DialogClose asChild><Button variant="ghost" className="h-9 sm:h-10 text-sm text-white">Cancel</Button></DialogClose>
-                        <Button onClick={handleSave} disabled={saving} className="h-9 sm:h-10 text-sm">{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save</Button>
+                        <DialogClose asChild><Button variant="ghost" disabled={saving}>Cancel</Button></DialogClose>
+                        <Button onClick={handleSave} disabled={saving} className="bg-primary hover:bg-primary/90 text-white">{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -495,12 +495,12 @@ function CashDenominationsTab({ clientId, token, toast }) {
                         <CardDescription className="text-sm sm:text-base mt-0">Add note/coin values (e.g. ₹500, ₹200). Used in Cash Tally.</CardDescription>
                     </div>
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
-                   
+
                         <Button onClick={openCreate} className="h-9 sm:h-10 text-sm flex-shrink-0">
                             <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
                             Add
                         </Button>
-                             <div className="relative w-full sm:w-64 shrink-0">
+                        <div className="relative w-full sm:w-64 shrink-0">
                             <Search className="search-icon" />
                             <Input
                                 placeholder="Search denominations..."
@@ -554,20 +554,20 @@ function CashDenominationsTab({ clientId, token, toast }) {
                 </CardContent>
             </Card>
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogContent className="max-w-lg w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto bg-gray-900 border-white/10">
+                <DialogContent className="bg-gray-900 border-white/10 text-white sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle className="text-lg sm:text-xl text-white">{editing ? 'Edit Denomination' : 'Add Denomination'}</DialogTitle>
+                        <DialogTitle className="text-xl">{editing ? 'Edit Denomination' : 'Add Denomination'}</DialogTitle>
                         <DialogDescription className="text-sm text-gray-400">Value in rupees. Used in Cash Tally denomination table.</DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-4 pt-4">
-                        <div>
-                            <Label htmlFor="denom-value" className="text-sm sm:text-base text-gray-300">Value (₹)</Label>
-                            <Input id="denom-value" type="number" min={0.01} step={1} className="mt-2 h-9 sm:h-10 text-sm glass-input text-white" value={value} onChange={(e) => setValue(e.target.value)} placeholder="e.g. 500, 200, 100" />
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2 text-left">
+                            <Label htmlFor="denom-value" className="text-gray-300">Value (₹)</Label>
+                            <Input id="denom-value" type="number" min={0.01} step={1} className="glass-input mt-2 !w-full" value={value} onChange={(e) => setValue(e.target.value)} placeholder="e.g. 500, 200, 100" />
                         </div>
                     </div>
                     <DialogFooter>
-                        <DialogClose asChild><Button variant="ghost" className="h-9 sm:h-10 text-sm text-white">Cancel</Button></DialogClose>
-                        <Button onClick={handleSave} disabled={saving} className="h-9 sm:h-10 text-sm">{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save</Button>
+                        <DialogClose asChild><Button variant="ghost" disabled={saving}>Cancel</Button></DialogClose>
+                        <Button onClick={handleSave} disabled={saving} className="bg-primary hover:bg-primary/90 text-white">{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

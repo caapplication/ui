@@ -502,6 +502,22 @@ const TodayProgressExpanded = () => {
                     </div>
                 </div>
 
+                <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+                    <Button onClick={handleExport} className="h-9 rounded-full bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm w-full sm:w-auto justify-center">
+                        <Download className="w-4 h-4 mr-2" />
+                        Export
+                    </Button>
+                    <div className="relative">
+                        <Search className="search-icon" />
+                        <Input
+                            placeholder="Search..."
+                            className="glass-input"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+                </div>
+
             </div>
 
             <div className="glass-card rounded-3xl overflow-hidden border border-white/5 flex flex-col">

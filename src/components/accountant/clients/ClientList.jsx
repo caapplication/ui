@@ -78,6 +78,7 @@ const ClientList = ({
     onRefresh,
     businessTypes,
     teamMembers = [],
+    tabsSlot,
 }) => {
     const { toast } = useToast();
     const { user } = useAuth();
@@ -373,41 +374,44 @@ const ClientList = ({
 
     return (
         <div className="h-full flex flex-col relative overflow-hidden">
-            <div className="flex justify-between items-center mb-4 flex-shrink-0 flex-wrap gap-2">
-                <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+            <div className="mb-6 lg:mb-8">
+                <h1 className="page-title">
                     {/* <div className="w-3 h-8 bg-primary rounded-full" /> */}
                     Client
                 </h1>
-                <div className="flex items-center gap-2">
-                    <Button
-                        variant={viewMode === 'list' ? 'secondary' : 'ghost'}
-                        size="icon"
-                        onClick={() => setViewMode('list')}
-                        title="List View"
-                    >
-                        <ListIcon className="w-5 h-5" />
-                    </Button>
-                    <Button
-                        variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
-                        size="icon"
-                        onClick={() => setViewMode('grid')}
-                        title="Grid View"
-                    >
-                        <GridIcon className="w-5 h-5" />
-                    </Button>
-                    <Button onClick={onAddNew}>
-                        <Plus className="w-4 h-4 mr-2" /> New
-                    </Button>
-                </div>
             </div>
 
             <div className="rounded-lg mb-4 lg:overflow-hidden">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-end w-full">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between w-full">
+                    {tabsSlot && <div className="flex-shrink-0">{tabsSlot}</div>}
+                    <div className="flex flex-col sm:flex-row gap-3 sm:items-center w-full lg:w-auto justify-end">
 
-                    <div className="flex flex-col sm:flex-row gap-3 sm:items-center w-full justify-end">
+                        {/* View Toggles & Add New */}
+                        <div className="flex items-center gap-2 mr-2">
+                            <Button
+                                variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+                                size="icon"
+                                onClick={() => setViewMode('list')}
+                                title="List View"
+                                className={viewMode === 'list' ? 'bg-white/10' : ''}
+                            >
+                                <ListIcon className="w-5 h-5" />
+                            </Button>
+                            <Button
+                                variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+                                size="icon"
+                                onClick={() => setViewMode('grid')}
+                                title="Grid View"
+                                className={viewMode === 'grid' ? 'bg-white/10' : ''}
+                            >
+                                <GridIcon className="w-5 h-5" />
+                            </Button>
+                        </div>
+                        <Button onClick={onAddNew} className="bg-primary hover:bg-primary/90 text-white shrink-0 h-10">
+                            <Plus className="w-4 h-4 mr-2" /> New Client
+                        </Button>
 
-                        {/* Refresh */}
-                        <Button
+                        {/* Refresh */}                           <Button
                             variant="ghost"
                             size="icon"
                             onClick={() => startRefreshTransition(() => onRefresh?.())}

@@ -2268,7 +2268,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   return (
     <div className="p-4 sm:p-6 lg:p-8" onClick={() => setSelectedFolder(null)}>
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-        <div className="page-header flex  justify-between">
+        <div className="page-header flex  justify-between mb-6 lg:mb-8">
           <h1 className="page-title">Documents</h1>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2 w-full xl:w-auto flex-wrap justify-end">
             <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
