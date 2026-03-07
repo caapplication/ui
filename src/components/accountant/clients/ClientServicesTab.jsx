@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { addServicesToClient, removeServicesFromClient, createActivityLog } from '@/lib/api';
+import AnimatedSearch from '@/components/ui/AnimatedSearch';
 
 const ServiceItem = ({ service, onToggle, isAvailed }) => (
     <motion.div
@@ -146,15 +147,13 @@ const ClientServicesTab = ({ client, allServices, onUpdateClient }) => {
                 {/* Available Services */}
                 <div className="glass-pane p-4 rounded-lg flex flex-col">
                     <h3 className="text-lg font-semibold mb-4 px-2">Available Services</h3>
-                    <div className="relative mb-4 px-2 ">
-                        <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <Input
-                            placeholder="Search available..."
-                            className="glass-input pl-10"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                    </div>
+                    <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+    <AnimatedSearch
+        placeholder="Search available..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+    />
+</div>
                     <div className="space-y-2 flex-grow overflow-y-auto max-h-[400px] p-2">
                         <AnimatePresence>
                             {filteredAvailable.map(service => (

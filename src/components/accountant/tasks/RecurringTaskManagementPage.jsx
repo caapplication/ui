@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import AnimatedSearch from '@/components/ui/AnimatedSearch';
 
 const RecurringTaskManagementPage = () => {
     const navigate = useNavigate();
@@ -505,15 +506,13 @@ const RecurringTaskManagementPage = () => {
                                         </TabsTrigger>
                                     </TabsList>
 
-                                    <div className="relative flex-1 min-w-[200px]">
-                                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                                        <Input
-                                            placeholder="Search recurring tasks..."
-                                            value={searchTerm}
-                                            onChange={(e) => setSearchTerm(e.target.value)}
-                                            className="pl-9 bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:bg-white/10 transition-all"
-                                        />
-                                    </div>
+                                    <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+    <AnimatedSearch
+        placeholder="Search recurring tasks..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+    />
+</div>
                                     <div className="w-[200px]">
                                         <Select
                                             value={clientIdFilter}

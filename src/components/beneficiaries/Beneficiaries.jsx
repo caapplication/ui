@@ -22,6 +22,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCurrentOrganization } from '@/hooks/useCurrentOrganization';
+import AnimatedSearch from '@/components/ui/AnimatedSearch';
 
 const BeneficiaryForm = ({ onAdd, onCancel, isEdit, beneficiary, isSaving }) => {
   const [beneficiaryType, setBeneficiaryType] = useState(beneficiary?.beneficiary_type || 'individual');
@@ -450,15 +451,13 @@ const Beneficiaries = ({ entityId, quickAction, clearQuickAction }) => {
                   <span className="hidden sm:inline">Add New</span>
                   <span className="sm:hidden">Add</span>
                 </Button>
-                <div className="relative">
-                  <Search className="search-icon" />
-                  <Input
-                    placeholder="Search by name, email, phone, or PAN..."
-                    className="glass-input"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
+                <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+    <AnimatedSearch
+        placeholder="Search by name, email, phone, or PAN..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+    />
+</div>
               </div>
             </div>
             <TabsContent value="individual">

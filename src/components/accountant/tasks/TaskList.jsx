@@ -24,6 +24,7 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { AlertDialogTrigger } from '@radix-ui/react-alert-dialog';
+import AnimatedSearch from '@/components/ui/AnimatedSearch';
 
 // Blinking animation style
 const blinkStyle = `
@@ -512,10 +513,13 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                                     />
                                 </PopoverContent>
                             </Popover>
-                            <div className="relative w-full sm:w-auto sm:max-w-xs">
-                                <Search className="search-icon" />
-                                <Input placeholder="Search tasks..." className="glass-input" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-                            </div>
+                            <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+    <AnimatedSearch
+        placeholder="Search tasks..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+    />
+</div>
                         </div>
                     </div>
                 </div>

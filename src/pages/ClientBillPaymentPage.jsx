@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Loader2, Search, Filter, CheckCircle, AlertCircle, Clock, Download, CreditCard, Upload, X, Eye, Pencil, FileDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { getClientBillingInvoices, listClientsByOrganization, getInvoicePDFBlob, getInvoicePaymentDetails, getPaymentProofUrl, getPaymentProofBlob, uploadClientInvoicePaymentProof } from '@/lib/api';
+import AnimatedSearch from '../components/ui/AnimatedSearch';
 
 const ClientBillPaymentPage = ({ entityId }) => {
     const { user } = useAuth();
@@ -440,15 +441,13 @@ const ClientBillPaymentPage = ({ entityId }) => {
                             </Select>
 
                             {/* Search */}
-                            <div className="relative w-full sm:w-[260px]">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                <Input
-                                    placeholder="Search invoice..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="pl-10 glass-input w-full"
-                                />
-                            </div>
+                            <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+    <AnimatedSearch
+        placeholder="Search invoice..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+    />
+</div>
 
                         </div>
                     </CardHeader>

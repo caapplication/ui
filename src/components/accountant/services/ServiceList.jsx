@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import AnimatedSearch from '@/components/ui/AnimatedSearch';
 
 const ServiceRow = ({ service, onSelectService, index }) => {
     const clientCount = typeof service.assigned_clients === 'number' ? service.assigned_clients : 0;
@@ -73,16 +74,13 @@ const ServiceList = ({ services, onSelectService, onAddService }) => {
                             <SelectItem value="inactive">Inactive</SelectItem>
                         </SelectContent>
                     </Select>
-                     <div className="relative w-64">
-                        
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <Input
-                            placeholder="Search Services..."
-                            className="pl-9 h-9 glass-input text-sm"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                    </div>
+                     <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+    <AnimatedSearch
+        placeholder="Search Services..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+    />
+</div>
                   
                 </div>
             </div>

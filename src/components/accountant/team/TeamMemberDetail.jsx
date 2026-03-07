@@ -12,6 +12,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/ui/use-toast';
 import { listTasks, listRecurringTasks, listServices, listTeamMembers, getAllClientTeamMembers } from '@/lib/api';
 import { format, formatDistanceToNow, formatDistanceStrict } from 'date-fns';
+import AnimatedSearch from '@/components/ui/AnimatedSearch';
 
 const FREQUENCY_LABELS = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly', yearly: 'Yearly' };
 
@@ -405,10 +406,13 @@ const TeamMemberDetail = ({ member, onBack, clients = [], memberClientsMap = {} 
                                     <SelectItem value="Hold">Hold</SelectItem>
                                 </SelectContent>
                             </Select>
-                              <div className="relative ">
-                                <Search className="search-icon" />
-                                <Input placeholder="Search tasks..." className="glass-input" value={taskSearch} onChange={e => setTaskSearch(e.target.value)} />
-                            </div>
+                              <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+    <AnimatedSearch
+        placeholder="Search tasks..."
+        value={taskSearch}
+        onChange={e => setTaskSearch(e.target.value)}
+    />
+</div>
                         </div>
                         <div className="glass-pane rounded-lg overflow-hidden border border-white/10">
                             <div className="overflow-x-auto">
@@ -563,10 +567,13 @@ const TeamMemberDetail = ({ member, onBack, clients = [], memberClientsMap = {} 
                                     ))}
                                 </SelectContent>
                             </Select>
-                              <div className="relative ">
-                                <Search className="search-icon" />
-                                <Input placeholder="Search recurring..." className="glass-input" value={recurringSearch} onChange={e => setRecurringSearch(e.target.value)} />
-                            </div>
+                              <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+    <AnimatedSearch
+        placeholder="Search recurring..."
+        value={recurringSearch}
+        onChange={e => setRecurringSearch(e.target.value)}
+    />
+</div>
                         </div>
                         <div className="glass-pane rounded-lg overflow-hidden border border-white/10">
                             <div className="overflow-x-auto">
@@ -731,10 +738,13 @@ const TeamMemberDetail = ({ member, onBack, clients = [], memberClientsMap = {} 
                 {activeTab === 'clients' && (
                     <div className="space-y-4">
                         <div className="flex flex-wrap items-center gap-2 justify-end">
-                            <div className="relative ">
-                                <Search className="search-icon" />
-                                <Input placeholder="Search clients..." className="glass-input" value={clientSearch} onChange={e => setClientSearch(e.target.value)} />
-                            </div>
+                            <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+    <AnimatedSearch
+        placeholder="Search clients..."
+        value={clientSearch}
+        onChange={e => setClientSearch(e.target.value)}
+    />
+</div>
                         </div>
                         <div className="glass-pane rounded-lg overflow-hidden border border-white/10">
                             <Table>

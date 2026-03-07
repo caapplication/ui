@@ -29,6 +29,7 @@ import {
     ChevronRight,
     ChevronLeft,
 } from 'lucide-react';
+import AnimatedSearch from '../../ui/AnimatedSearch';
 
 
 
@@ -450,18 +451,16 @@ const ClientList = ({
                         </div>
 
                         {/* Search */}
-                        <div className="relative w-full sm:w-auto sm:min-w-[250px]">
-                            <Search className="search-icon" />
-                            <Input
-                                placeholder="Search Client, PAN, Mobile, Email, Customer ID..."
-                                className="glass-input w-full"
-                                value={searchTerm}
-                                onChange={(e) => {
+                        <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+    <AnimatedSearch
+        placeholder="Search Client, PAN, Mobile, Email, Customer ID..."
+        value={searchTerm}
+        onChange={(e) => {
                                     setSearchTerm(e.target.value);
                                     setCurrentPage(1);
                                 }}
-                            />
-                        </div>
+    />
+</div>
 
                     </div>
 

@@ -40,6 +40,8 @@ import {
 } from '@/lib/api';
 
 import { formatDistanceToNow } from 'date-fns';
+import AnimatedSearch from '../../ui/AnimatedSearch';
+
 
 
 const TIME_FRAME_PRESETS = [
@@ -232,15 +234,13 @@ const PendingVerificationExpanded = () => {
                     </Select>
 
 
-                    <div className="relative w-full sm:w-64">
-                        <Search className="search-icon" />
-                        <Input
-                            placeholder="Search by entity..."
-                            className="glass-input "
-                            value={searchTerm}
-                            onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-                        />
-                    </div>
+                    <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+    <AnimatedSearch
+        placeholder="Search by entity..."
+        value={searchTerm}
+        onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+    />
+</div>
                 </div>
             </div>
 

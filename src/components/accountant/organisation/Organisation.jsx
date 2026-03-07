@@ -35,6 +35,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import AnimatedSearch from '../../ui/AnimatedSearch';
 
 const ORG_LIST_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 const ORG_ENTITIES_CACHE_TTL = 2 * 60 * 1000; // 2 minutes
@@ -505,15 +506,13 @@ const Organisation = ({ className, tabsSlot }) => {
                     <Button onClick={handleAddOrg} className="bg-primary hover:bg-primary/90 text-white">
                         <Plus className="w-4 h-4 mr-2" /> Add Organisation
                     </Button>
-                       <div className="relative w-full sm:w-64 max-w-sm">
-                        <Search className="search-icon" />
-                        <Input
-                            placeholder="Search organisations..."
-                            className="glass-input "
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                    </div>
+                       <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+    <AnimatedSearch
+        placeholder="Search organisations..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+    />
+</div>
                 </div>
             </div>
             <div className="glass-pane p-0 rounded-lg overflow-hidden flex-grow min-h-0">

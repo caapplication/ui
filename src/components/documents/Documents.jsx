@@ -126,6 +126,7 @@ import { Calendar } from '@/components/ui/calendar';
 
 import { format } from 'date-fns';
 import ActivityLog from '@/components/finance/ActivityLog';
+import AnimatedSearch from '@/components/ui/AnimatedSearch';
 
 const buildFileTree = (folders, documents) => {
   const root = { id: 'root', name: 'Home', is_folder: true, children: [] };
@@ -2362,10 +2363,13 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
               </>
             )}
 
-            <div className="relative w-full sm:w-64 shrink-0">
-              <Search className="search-icon" />
-              <Input placeholder="Search..." className="glass-input h-9 sm:h-10 w-full" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-            </div>
+            <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+    <AnimatedSearch
+        placeholder="Search..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+    />
+</div>
 
           </div>
         </div>
@@ -3476,15 +3480,13 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                 <div className="space-y-4">
                   <Label>2. Select Clients ({selectedClientsForTemplate.length})</Label>
                   {/* Search clients */}
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <Input
-                      placeholder="Search clients..."
-                      className="pl-9 h-9 bg-gray-800 border-gray-700 text-white text-sm"
-                      value={templateClientSearch || ''}
-                      onChange={(e) => setTemplateClientSearch(e.target.value)}
-                    />
-                  </div>
+                  <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+    <AnimatedSearch
+        placeholder="Search clients..."
+        value={templateClientSearch || ''}
+        onChange={(e) => setTemplateClientSearch(e.target.value)}
+    />
+</div>
                   <div className="h-[200px] overflow-y-auto border border-gray-700 rounded-md bg-gray-800/50 p-2 space-y-1 custom-scrollbar">
                     {clientsForFilter
                       .filter(client => !templateClientSearch || client.name.toLowerCase().includes(templateClientSearch.toLowerCase()))

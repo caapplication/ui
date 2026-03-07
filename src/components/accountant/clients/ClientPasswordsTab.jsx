@@ -21,6 +21,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { listClientPortals, createClientPortal, deleteClientPortal, revealClientPortalSecret, updateClientPortal } from '@/lib/api';
 import {
+
     AlertDialog,
     AlertDialogAction,
     AlertDialogCancel,
@@ -31,6 +32,7 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import AnimatedSearch from '../../ui/AnimatedSearch';
 
 const ClientPasswordsTab = ({ client }) => {
     const { toast } = useToast();
@@ -137,15 +139,13 @@ const ClientPasswordsTab = ({ client }) => {
     return (
         <div className="glass-pane rounded-lg overflow-hidden flex flex-col h-full">
             <div className="flex justify-between items-center p-4 sm:p-4 pb-0 sm:pb-0  mb-4 gap-4">
-                <div className="relative w-full max-w-sm">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <Input
-                        placeholder="Search passwords..."
-                        className="glass-input pl-10"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </div>
+                <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+    <AnimatedSearch
+        placeholder="Search passwords..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+    />
+</div>
                 <Button onClick={openNewPasswordDialog} disabled={isMutating}>
                     <Plus className="w-4 h-4 mr-2" />
                     New

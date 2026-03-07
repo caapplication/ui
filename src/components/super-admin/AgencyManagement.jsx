@@ -32,6 +32,7 @@ import {
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { listAgencies, createAgency, deleteAgency } from '@/lib/api/admin';
 import { useToast } from '@/components/ui/use-toast';
+import AnimatedSearch from '@/components/ui/AnimatedSearch';
 
 const AgencyManagement = () => {
   const { user } = useAuth();
@@ -207,15 +208,13 @@ const AgencyManagement = () => {
       <Card className="glass-card overflow-hidden">
         <CardHeader className="pb-3 text-white">
           <div className="flex items-center gap-4">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-              <Input
-                placeholder="Search agencies by name or code..."
-                className="pl-10 bg-white/5 border-white/10 text-white h-10"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
+            <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+    <AnimatedSearch
+        placeholder="Search agencies by name or code..."
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+    />
+</div>
             <div className="text-sm text-gray-500">
               Total: {filteredAgencies.length}
             </div>

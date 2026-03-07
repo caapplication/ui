@@ -24,6 +24,7 @@ import { getNotices } from '@/lib/api/notices';
 import { getVouchers } from '@/lib/api/finance';
 import { getInvoices } from '@/lib/api/finance';
 import {
+
     AlertDialog,
     AlertDialogAction,
     AlertDialogCancel,
@@ -33,6 +34,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import AnimatedSearch from '../components/ui/AnimatedSearch';
 
 const ClientUsersPage = ({ entityId }) => {
     const { user } = useAuth();
@@ -427,15 +429,13 @@ const ClientUsersPage = ({ entityId }) => {
                                 </Popover>
 
                             </div>
-                            <div className="relative w-full sm:w-auto">
-                                <Search className="search-icon" />
-                                <Input
-                                    placeholder="Search users..."
-                                    className="glass-input"
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                />
-                            </div>
+                            <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+    <AnimatedSearch
+        placeholder="Search users..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+    />
+</div>
                         </div>
 
                         <div className="overflow-auto flex-1 no-scrollbar">
@@ -709,15 +709,13 @@ const ClientUsersPage = ({ entityId }) => {
                         <p className="text-sm text-gray-400 mb-4">
                             Select users from your organization to add to this entity.
                         </p>
-                        <div className="relative mb-4">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                            <Input
-                                placeholder="Search users by name or email..."
-                                className="glass-input pl-10"
-                                value={existingUserSearchTerm}
-                                onChange={(e) => setExistingUserSearchTerm(e.target.value)}
-                            />
-                        </div>
+                        <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+    <AnimatedSearch
+        placeholder="Search users by name or email..."
+        value={existingUserSearchTerm}
+        onChange={(e) => setExistingUserSearchTerm(e.target.value)}
+    />
+</div>
                         <div className="max-h-96 overflow-y-auto border border-white/10 rounded-md">
                             {organizationUsers
                                 .filter(u =>

@@ -23,6 +23,7 @@ import {
 import { useToast } from '@/components/ui/use-toast';
 import { Plus, Search, Trash2, Loader2, ExternalLink } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth.jsx';
+import AnimatedSearch from '@/components/ui/AnimatedSearch';
 import { getPortals, createPortal, deletePortal } from '@/lib/api/settings';
 
 const PortalsContent = () => {
@@ -94,9 +95,8 @@ const PortalsContent = () => {
                 <Button onClick={() => setOpenNewPortal(true)} className="h-9 rounded-full bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm w-full sm:w-auto justify-center">
                     <Plus className="mr-2 h-4 w-4" /> New Portal
                 </Button>
-                <div className="relative  max-w-sm">
-                    <Search className="search-icon " size={20} />
-                    <Input placeholder="Search portals..." className="glass-input max-w-[250px] !w-full" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+                    <AnimatedSearch placeholder="Search portals..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                 </div>
 
             </div>

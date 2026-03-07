@@ -35,6 +35,7 @@ import {
 } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
+import AnimatedSearch from '@/components/ui/AnimatedSearch';
 
 const TIME_FRAME_PRESETS = [
     { label: 'Today', value: 'today' },
@@ -255,15 +256,13 @@ const RecentTransactionsExpanded = ({ entityId }) => {
                                 ))}
                             </SelectContent>
                         </Select>
-                        <div className="relative w-full sm:w-64">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                            <Input
-                                placeholder="Search beneficiary..."
-                                className="glass-input"
-                                value={searchTerm}
-                                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-                            />
-                        </div>
+                        <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+    <AnimatedSearch
+        placeholder="Search beneficiary..."
+        value={searchTerm}
+        onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }
+    />
+</div>
 
                     </div>
 

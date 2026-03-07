@@ -30,6 +30,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select';
+import AnimatedSearch from '../ui/AnimatedSearch';
 
 const AdminUserList = () => {
   const { user } = useAuth();
@@ -117,15 +118,13 @@ const AdminUserList = () => {
       <Card className="glass-card overflow-hidden">
         <CardHeader className="pb-3 text-white">
           <div className="flex flex-col md:flex-row gap-4">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-              <Input
-                placeholder="Search by name or email..."
-                className="pl-10 bg-white/5 border-white/10 text-white h-10"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
+            <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+    <AnimatedSearch
+        placeholder="Search by name or email..."
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+    />
+</div>
 
             <Select value={roleFilter} onValueChange={setRoleFilter}>
               <SelectTrigger className="w-[200px] bg-white/5 border-white/10 text-white">

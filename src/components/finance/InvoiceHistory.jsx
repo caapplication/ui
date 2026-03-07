@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 const ITEMS_PER_PAGE = 10;
 
 import { Check } from 'lucide-react';
+import AnimatedSearch from '@/components/ui/AnimatedSearch';
 
 const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onViewInvoice, onRefresh, isAccountantView }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -280,15 +281,13 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onViewInvoic
                 </div>
               )}
             </div>
-            <div className="relative w-full sm:w-auto sm:max-w-xs flex-grow sm:flex-grow-0">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2  w-4 h-4" />
-              <Input
-                placeholder="Beneficiary, Remarks, Bill No..."
-                className="pl-9 glass-input h-9 text-sm w-full sm:w-[250px]"
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-              />
-            </div>
+            <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+    <AnimatedSearch
+        placeholder="Beneficiary, Remarks, Bill No..."
+        value={searchTerm}
+        onChange={e => setSearchTerm(e.target.value)}
+    />
+</div>
           </div>
         </div>
       </CardHeader>

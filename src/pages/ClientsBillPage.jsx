@@ -14,6 +14,7 @@ import { Loader2, Search, Filter, ArrowLeft, CheckCircle, AlertCircle, Clock, Do
 import { format } from 'date-fns';
 import { getClientBillingInvoices, listClients, getInvoicePDFBlob, markInvoicePaid, updateClientBillingInvoiceStatus, getPaymentProofUrl, uploadClientInvoicePaymentProof, getInvoicePaymentDetails, updateClientBillingInvoice } from '@/lib/api';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import AnimatedSearch from '@/components/ui/AnimatedSearch';
 
 const ClientsBillPage = () => {
     const { user } = useAuth();
@@ -536,15 +537,13 @@ const ClientsBillPage = () => {
                                 </SelectContent>
                             </Select>
                            
-                              <div className="relative w-full sm:w-64">
-                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                <Input
-                                    placeholder="Search invoices..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="pl-10 h-9 glass-input text-white w-full"
-                                />
-                            </div>
+                              <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+    <AnimatedSearch
+        placeholder="Search invoices..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+    />
+</div>
                         </div>
                     </CardHeader>
                     <CardContent>

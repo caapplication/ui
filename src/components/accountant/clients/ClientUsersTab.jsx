@@ -14,6 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/components/ui/use-toast';
 import { formatToIST } from '@/lib/dateUtils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import AnimatedSearch from '@/components/ui/AnimatedSearch';
 
 const ClientUsersTab = ({ client, onUserInvited, onUserDeleted }) => {
     const { user } = useAuth();
@@ -226,15 +227,13 @@ const ClientUsersTab = ({ client, onUserInvited, onUserDeleted }) => {
     return (
         <div className="glass-pane rounded-lg overflow-hidden flex flex-col h-full">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-4 gap-4 p-4 sm:p-6 flex-wrap">
-                <div className="relative w-full sm:w-auto sm:min-w-[300px]">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <Input
-                        placeholder="Search users..."
-                        className="glass-input pl-10 bg-gray-700/50 border-gray-600 text-white"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </div>
+                <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+    <AnimatedSearch
+        placeholder="Search users..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+    />
+</div>
                 <div className="flex gap-2">
                     <Button variant="outline" onClick={handleOpenAddExisting}>
                         <UserPlus className="w-4 h-4 mr-2" />
@@ -426,15 +425,13 @@ const ClientUsersTab = ({ client, onUserInvited, onUserDeleted }) => {
                     </DialogHeader>
 
                     <div className="py-4 space-y-4">
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                            <Input
-                                placeholder="Search users..."
-                                className="pl-10"
-                                value={existingUserSearch}
-                                onChange={(e) => setExistingUserSearch(e.target.value)}
-                            />
-                        </div>
+                        <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+    <AnimatedSearch
+        placeholder="Search users..."
+        value={existingUserSearch}
+        onChange={(e) => setExistingUserSearch(e.target.value)}
+    />
+</div>
                         <div className="max-h-[300px] overflow-y-auto space-y-2">
                             {loadingOrgUsers ? (
                                 <div className="flex justify-center py-4"><Loader2 className="animate-spin text-gray-400" /></div>

@@ -36,6 +36,7 @@ import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, subMon
 import { getDashboardData } from '@/lib/api';
 import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
+import AnimatedSearch from '../ui/AnimatedSearch';
 
 const FinanceHeadersExpanded = ({ entityId }) => {
     const { user } = useAuth();
@@ -310,15 +311,13 @@ const FinanceHeadersExpanded = ({ entityId }) => {
                             </div>
                         )}
                     </div>
-                    <div className="relative w-full sm:w-64 flex-shrink-0">
-                        <Search className="search-icon" />
-                        <Input
-                            placeholder="Search headers..."
-                            className="glass-input"
-                            value={searchTerm}
-                            onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-                        />
-                    </div>
+                    <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+    <AnimatedSearch
+        placeholder="Search headers..."
+        value={searchTerm}
+        onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+    />
+</div>
                 </div>
             </div>
 

@@ -35,6 +35,7 @@ import {
 import { Calendar as CalendarIcon, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { addYears, isAfter, differenceInDays, startOfDay, endOfDay } from 'date-fns';
+import AnimatedSearch from '../ui/AnimatedSearch';
 
 const TIME_FRAME_PRESETS = [
     { label: 'Today', value: 'today' },
@@ -297,15 +298,13 @@ const HeaderExpensesDetail = ({ entityId }) => {
 
 
 
-                        <div className="relative w-full sm:w-64">
-                            <Search className="search-icon" />
-                            <Input
-                                placeholder="Search beneficiary..."
-                                className="glass-input"
-                                value={searchTerm}
-                                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-                            />
-                        </div>
+                        <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+    <AnimatedSearch
+        placeholder="Search beneficiary..."
+        value={searchTerm}
+        onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+    />
+</div>
                     </div>
 
                     {timeFrame === 'custom' && (

@@ -11,6 +11,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { getClientTeamMembers, assignTeamMembers, removeTeamMember } from '@/lib/api/clients';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import AnimatedSearch from '@/components/ui/AnimatedSearch';
 
 const ClientTeamMembersTab = ({ client, teamMembers = [], onTeamMemberChanged }) => {
     const { user } = useAuth();
@@ -153,15 +154,13 @@ const ClientTeamMembersTab = ({ client, teamMembers = [], onTeamMemberChanged })
                                 </DialogHeader>
 
                                 <div className="space-y-4 py-4">
-                                    <div className="relative">
-                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                        <Input
-                                            placeholder="Search team members..."
-                                            className="pl-10"
-                                            value={searchTerm}
-                                            onChange={(e) => setSearchTerm(e.target.value)}
-                                        />
-                                    </div>
+                                    <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+    <AnimatedSearch
+        placeholder="Search team members..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+    />
+</div>
 
                                     <div className="max-h-[300px] overflow-y-auto space-y-2">
                                         {availableMembers.length === 0 ? (

@@ -27,6 +27,7 @@ import { listAllClientUsers } from '@/lib/api/organisation';
 import { useAuth } from '@/hooks/useAuth';
 import { useFinanceSocket } from '@/contexts/FinanceSocketContext';
 import { useToast } from '@/components/ui/use-toast';
+import AnimatedSearch from '@/components/ui/AnimatedSearch';
 
 const NoticeDetailsPage = () => {
     const { noticeId } = useParams();
@@ -1351,15 +1352,13 @@ const CollaboratorsDialog = ({ isOpen, onClose, noticeId, entityId, token, toast
                 </DialogHeader>
 
                 <div className="space-y-4 py-4">
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                        <Input
-                            placeholder="Search team members..."
-                            className="pl-10 glass-input border-white/10 bg-black/20"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                        />
-                    </div>
+                    <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+    <AnimatedSearch
+        placeholder="Search team members..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+    />
+</div>
 
                     <div className="max-h-[300px] overflow-y-auto space-y-2 pr-2 custom-scrollbar">
                         {loading ? (

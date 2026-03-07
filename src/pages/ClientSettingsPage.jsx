@@ -25,6 +25,7 @@ import {
     deleteCashDenomination,
 } from '@/lib/api/settings';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import AnimatedSearch from '@/components/ui/AnimatedSearch';
 
 const TAB_PATHS = { 'payment-methods': 'payment-methods', 'departments': 'departments', 'cash-denomination': 'cash-denomination' };
 
@@ -168,15 +169,13 @@ function PaymentMethodsTab({ clientId, token, toast }) {
                             <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
                             Add
                         </Button>
-                        <div className="relative w-full sm:w-64 shrink-0">
-                            <Search className="search-icon" />
-                            <Input
-                                placeholder="Search payment methods..."
-                                className="glass-input w-full"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
-                        </div>
+                        <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+    <AnimatedSearch
+        placeholder="Search payment methods..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+    />
+</div>
                     </div>
                 </CardHeader>
                 <CardContent className="p-0">
@@ -334,15 +333,13 @@ function DepartmentsTab({ clientId, token, toast }) {
                             <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
                             Add
                         </Button>
-                        <div className="relative w-full sm:w-64 shrink-0">
-                            <Search className="search-icon" />
-                            <Input
-                                placeholder="Search departments..."
-                                className="glass-input w-full"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
-                        </div>
+                        <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+    <AnimatedSearch
+        placeholder="Search departments..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+    />
+</div>
                     </div>
                 </CardHeader>
                 <CardContent className="p-0">
@@ -500,15 +497,13 @@ function CashDenominationsTab({ clientId, token, toast }) {
                             <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
                             Add
                         </Button>
-                        <div className="relative w-full sm:w-64 shrink-0">
-                            <Search className="search-icon" />
-                            <Input
-                                placeholder="Search denominations..."
-                                className="glass-input w-full"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
-                        </div>
+                        <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+    <AnimatedSearch
+        placeholder="Search denominations..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+    />
+</div>
                     </div>
                 </CardHeader>
                 <CardContent className="p-0">

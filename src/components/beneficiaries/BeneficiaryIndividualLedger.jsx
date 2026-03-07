@@ -41,6 +41,7 @@ import {
 import { Calendar as CalendarPicker } from '@/components/ui/calendar';
 import { useCurrentOrganization } from '@/hooks/useCurrentOrganization';
 import { cn } from '@/lib/utils';
+import AnimatedSearch from '@/components/ui/AnimatedSearch';
 import {
     format,
     differenceInDays,
@@ -470,13 +471,11 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
                                 ))}
                             </SelectContent>
                         </Select>
-                        <div className="relative w-full sm:w-64">
-                            <Search className="search-icon" />
-                            <Input
-                                placeholder="Search transactions..."
+                        <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+                            <AnimatedSearch
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="glass-input"
+                                placeholder="Search transactions..."
                             />
                         </div>
                     </div>

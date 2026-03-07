@@ -54,6 +54,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarPicker } from '@/components/ui/calendar';
 import { AlertCircle, Calendar as CalendarIcon } from 'lucide-react';
+import AnimatedSearch from '@/components/ui/AnimatedSearch';
 
 // --- Time Frame Presets ---
 const TIME_FRAME_PRESETS = [
@@ -506,11 +507,9 @@ const BeneficiaryLedger = ({ entityId }) => {
                             </div>
                         )}
                     </div>
-                    <div className="relative flex-1 md:w-64">
-                        <Search className=" search-icon" />
-                        <Input
+                    <div className="relative flex-1 md:w-auto">
+                        <AnimatedSearch
                             placeholder="Search beneficiary..."
-                            className="glass-input"
                             value={searchTerm}
                             onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                         />

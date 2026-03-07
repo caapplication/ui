@@ -7,6 +7,7 @@ import React, { useState, useMemo } from 'react';
     import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
     import { format } from 'date-fns';
     import {
+import AnimatedSearch from '@/components/ui/AnimatedSearch';
       AlertDialog,
       AlertDialogAction,
       AlertDialogCancel,
@@ -66,10 +67,13 @@ import React, { useState, useMemo } from 'react';
                 <div className="glass-pane rounded-lg flex-grow flex flex-col">
                     <div className="p-4 border-b border-white/10 flex justify-between items-center">
                         <h2 className="text-xl font-semibold text-white">All To-dos</h2>
-                        <div className="relative w-full sm:w-auto sm:max-w-xs">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                            <Input placeholder="Search to-dos..." className="pl-10" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-                        </div>
+                        <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+    <AnimatedSearch
+        placeholder="Search to-dos..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+    />
+</div>
                     </div>
                     <div className="flex-grow overflow-y-auto">
                         <Table>

@@ -45,7 +45,7 @@ const TagsContent = () => {
             toast({ variant: "destructive", title: "Validation Error", description: "Tag name cannot be empty." });
             return;
         }
-        
+
         const tagData = { name: tagName, color };
 
         try {
@@ -65,7 +65,7 @@ const TagsContent = () => {
             toast({ variant: "destructive", title: "Error", description: `Failed to ${editingTag ? 'update' : 'create'} tag.` });
         }
     };
-    
+
     const handleOpenNew = () => {
         setEditingTag(null);
         setTagName("");
@@ -79,7 +79,7 @@ const TagsContent = () => {
         setColor(tag.color);
         setOpenNewTag(true);
     };
-    
+
     const handleDeleteTag = async (tagId) => {
         try {
             await deleteTag(tagId, user.agency_id, user.access_token);
@@ -113,8 +113,8 @@ const TagsContent = () => {
                 ) : filteredTags.map((tag) => (
                     <div key={tag.id} className="grid grid-cols-[1fr_auto] items-center px-4 py-3 border-b border-white/10 last:border-b-0">
                         <span className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: tag.color }}></div>
-                          {tag.name}
+                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: tag.color }}></div>
+                            {tag.name}
                         </span>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -128,29 +128,29 @@ const TagsContent = () => {
                                     <Edit className="mr-2 h-4 w-4" /> Edit
                                 </DropdownMenuItem>
                                 <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-400 focus:text-red-400 focus:bg-red-400/10">
-                                        <Trash2 className="mr-2 h-4 w-4" /> Delete
-                                    </DropdownMenuItem>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        This action cannot be undone. This will permanently delete the tag.
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                      <AlertDialogAction onClick={() => handleDeleteTag(tag.id)}>Delete</AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
+                                    <AlertDialogTrigger asChild>
+                                        <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-400 focus:text-red-400 focus:bg-red-400/10">
+                                            <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                        </DropdownMenuItem>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                This action cannot be undone. This will permanently delete the tag.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => handleDeleteTag(tag.id)}>Delete</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
                                 </AlertDialog>
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </div>
                 ))}
-                 {!isLoading && filteredTags.length === 0 && (
+                {!isLoading && filteredTags.length === 0 && (
                     <div className="text-center py-10 text-gray-400">No tags found.</div>
                 )}
             </div>
@@ -170,7 +170,7 @@ const TagsContent = () => {
                             <Popover>
                                 <PopoverTrigger asChild>
                                     <Button variant="outline" className="w-full justify-start text-left font-normal glass-input">
-                                        <div className="w-5 h-5 rounded-full mr-2 border border-white/20" style={{ backgroundColor: color }}/>
+                                        <div className="w-5 h-5 rounded-full mr-2 border border-white/20" style={{ backgroundColor: color }} />
                                         <span>{color}</span>
                                     </Button>
                                 </PopoverTrigger>

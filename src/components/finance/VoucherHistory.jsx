@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -56,6 +56,8 @@ const getStatusColor = (status) => {
 };
 
 import { Check } from 'lucide-react';
+
+import AnimatedSearch from '@/components/ui/AnimatedSearch';
 
 const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVoucher, isAccountantView, onRefresh }) => {
     const [searchTerm, setSearchTerm] = useState('');
@@ -262,13 +264,11 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                                     <SelectItem value="custom">Custom</SelectItem>
                                 </SelectContent>
                             </Select>
-                            <div className="relative w-full sm:w-auto sm:max-w-xs flex-grow sm:flex-grow-0">
-                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2  w-4 h-4" />
-                                <Input
-                                    placeholder="Beneficiary, Remarks, ID..."
-                                    className="pl-9 glass-input h-9 text-sm w-full sm:w-[250px]"
+                            <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+                                <AnimatedSearch
                                     value={searchTerm}
                                     onChange={e => setSearchTerm(e.target.value)}
+                                    placeholder="Search Here"
                                 />
                             </div>
 

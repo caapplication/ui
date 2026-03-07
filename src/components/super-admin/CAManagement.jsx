@@ -36,6 +36,7 @@ import { useAuth } from '@/hooks/useAuth.jsx';
 import { listAllUsers, lockUser, unlockUser, inviteCA, listAgencies, resendCAInvite } from '@/lib/api/admin';
 import { useToast } from '@/components/ui/use-toast';
 import { Badge } from '@/components/ui/badge';
+import AnimatedSearch from '@/components/ui/AnimatedSearch';
 
 const CAManagement = () => {
   const { user } = useAuth();
@@ -259,15 +260,13 @@ const CAManagement = () => {
       <Card className="glass-card overflow-hidden">
         <CardHeader className="pb-3 text-white">
           <div className="flex items-center gap-4">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-              <Input
-                placeholder="Search CAs by name or email..."
-                className="pl-10 bg-white/5 border-white/10 text-white h-10"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
+            <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+    <AnimatedSearch
+        placeholder="Search CAs by name or email..."
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+    />
+</div>
             <div className="text-sm text-gray-500">
               Total CAs: {filteredCAs.length}
             </div>

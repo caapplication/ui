@@ -56,6 +56,7 @@ import {
     getNoticeDashboardAnalytics
 } from '@/lib/api';
 import { format, startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, subMonths, startOfYear, differenceInDays, isAfter } from 'date-fns';
+import AnimatedSearch from '@/components/ui/AnimatedSearch';
 
 
 const TIME_FRAME_PRESETS = [
@@ -507,15 +508,13 @@ const TodayProgressExpanded = () => {
                         <Download className="w-4 h-4 mr-2" />
                         Export
                     </Button>
-                    <div className="relative">
-                        <Search className="search-icon" />
-                        <Input
-                            placeholder="Search..."
-                            className="glass-input"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                    </div>
+                    <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+    <AnimatedSearch
+        placeholder="Search..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+    />
+</div>
                 </div>
 
             </div>

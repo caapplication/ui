@@ -9,6 +9,7 @@ import { Plus, Search, Trash2, Edit, MoreVertical } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { getBusinessTypes, createBusinessType, updateBusinessType, deleteBusinessType } from '@/lib/api';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import AnimatedSearch from '@/components/ui/AnimatedSearch';
 
 const BusinessTypesContent = () => {
     const { toast } = useToast();
@@ -42,7 +43,7 @@ const BusinessTypesContent = () => {
             toast({ variant: "destructive", title: "Validation Error", description: "Business type name cannot be empty." });
             return;
         }
-        
+
         const data = { name };
 
         try {
@@ -61,7 +62,7 @@ const BusinessTypesContent = () => {
             toast({ variant: "destructive", title: "Error", description: `Failed to ${editingType ? 'update' : 'create'} business type.` });
         }
     };
-    
+
     const handleOpenNew = () => {
         setEditingType(null);
         setName("");
@@ -73,7 +74,7 @@ const BusinessTypesContent = () => {
         setName(type.name);
         setOpenDialog(true);
     };
-    
+
     const handleDelete = async (typeId) => {
         try {
             await deleteBusinessType(typeId, user.agency_id, user.access_token);
@@ -89,13 +90,12 @@ const BusinessTypesContent = () => {
     return (
         <div className='text-white'>
             <div className="flex justify-end items-center mb-6 flex-wrap gap-2">
-               
+
                 <Button onClick={handleOpenNew} className="h-9 rounded-full bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm w-full sm:w-auto justify-center">
                     <Plus className="mr-2 h-4 w-4" /> New Business Type
                 </Button>
-                 <div className="relative max-w-xs">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                    <Input placeholder="Search business types..." className="pl-10 glass-input" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+                    <AnimatedSearch placeholder="Search business types..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                 </div>
             </div>
             <div className="glass-card p-4">
@@ -120,29 +120,29 @@ const BusinessTypesContent = () => {
                                     <Edit className="mr-2 h-4 w-4" /> Edit
                                 </DropdownMenuItem>
                                 <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-400 focus:text-red-400 focus:bg-red-400/10">
-                                        <Trash2 className="mr-2 h-4 w-4" /> Delete
-                                    </DropdownMenuItem>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        This action cannot be undone. This will permanently delete the business type.
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                      <AlertDialogAction onClick={() => handleDelete(type.id)}>Delete</AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
+                                    <AlertDialogTrigger asChild>
+                                        <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-400 focus:text-red-400 focus:bg-red-400/10">
+                                            <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                        </DropdownMenuItem>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                This action cannot be undone. This will permanently delete the business type.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => handleDelete(type.id)}>Delete</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
                                 </AlertDialog>
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </div>
                 ))}
-                 {!isLoading && filteredTypes.length === 0 && (
+                {!isLoading && filteredTypes.length === 0 && (
                     <div className="text-center py-10 text-gray-400">No business types found.</div>
                 )}
             </div>

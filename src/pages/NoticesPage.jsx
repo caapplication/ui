@@ -17,6 +17,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { formatDistanceToNow, formatDistance } from 'date-fns';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import AnimatedSearch from '@/components/ui/AnimatedSearch';
 
 const NoticesPage = () => {
     const navigate = useNavigate();
@@ -302,15 +303,13 @@ const NoticesPage = () => {
                         </div>
 
                         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto flex-wrap items-center">
-                            <div className="relative w-full sm:w-auto sm:max-w-xs">
-                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                                <Input
-                                    placeholder="Search notices..."
-                                    className=" glass-input "
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                />
-                            </div>
+                            <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+    <AnimatedSearch
+        placeholder="Search notices..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+    />
+</div>
                         </div>
                     </div>
                 </div>

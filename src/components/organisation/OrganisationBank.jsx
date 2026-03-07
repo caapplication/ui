@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { getOrganisationBankAccounts, addOrganisationBankAccount, updateOrganisationBankAccount, deleteOrganisationBankAccount } from '@/lib/api';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import AnimatedSearch from '@/components/ui/AnimatedSearch';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -191,15 +192,13 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction,
           <CardDescription className="text-sm sm:text-base mt-0">{description}</CardDescription>
         </div>
 
-        <div className="relative w-full md:w-64 shrink-0">
-          <Search className="search-icon" />
-          <Input
-            placeholder="Search accounts..."
-            className="glass-input w-full"
-            value={searchTerm}
-            onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-          />
-        </div>
+        <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+    <AnimatedSearch
+        placeholder="Search accounts..."
+        value={searchTerm}
+        onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+    />
+</div>
       </CardHeader>
       <CardContent className="p-0">
         {isLoading ? (

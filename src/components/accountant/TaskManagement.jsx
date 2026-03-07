@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Search, Plus } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import AnimatedSearch from '@/components/ui/AnimatedSearch';
 
 const TaskManagement = () => {
     const [searchTerm, setSearchTerm] = useState('');
@@ -72,10 +73,13 @@ const TaskManagement = () => {
                                         <SelectItem value="hold">Hold</SelectItem>
                                     </SelectContent>
                                 </Select>
-                                <div className="relative w-full sm:w-auto sm:max-w-xs">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                    <Input placeholder="Search tasks..." className="pl-10" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-                                </div>
+                                <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+    <AnimatedSearch
+        placeholder="Search tasks..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+    />
+</div>
                             </div>
                         </div>
                     </CardHeader>

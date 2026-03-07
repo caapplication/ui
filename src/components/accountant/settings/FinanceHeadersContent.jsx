@@ -10,6 +10,7 @@ import { useAuth } from '@/hooks/useAuth.jsx';
 import { getFinanceHeaders, createFinanceHeader, updateFinanceHeader, deleteFinanceHeader } from '@/lib/api';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import * as XLSX from 'xlsx';
+import AnimatedSearch from '@/components/ui/AnimatedSearch';
 
 const FinanceHeadersContent = () => {
     const { toast } = useToast();
@@ -128,10 +129,13 @@ const FinanceHeadersContent = () => {
                         <Plus className="mr-2 h-4 w-4" /> New Finance Header
                     </Button>
                 </div>
-                <div className="relative  max-w-[250px] shrink-0">
-                    <Search className="search-icon" />
-                    <Input placeholder="Search finance headers..." className="glass-input pl-10 w-full" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-                </div>
+                <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+    <AnimatedSearch
+        placeholder="Search finance headers..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+    />
+</div>
             </div>
             <div className="glass-card p-4">
                 <div className="grid grid-cols-[1fr_auto] px-4 py-2 border-b border-white/10 font-bold uppercase text-sm text-gray-400">
