@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.jsx";
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Download } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useToast } from '@/components/ui/use-toast';
 import { useOrganisation } from '@/hooks/useOrganisation';
@@ -146,11 +146,17 @@ const FinancePage = () => {
   return (
     <div className="p-4 sm:p-8">
       {/* Header with title, dropdowns, and refresh on the same line */}
-      <div className="flex flex-wrap justify-between items-center gap-4 mb-8">
-        <h1 className="text-3xl sm:text-5xl font-bold text-white mb-0">Finances</h1>
+      <div className="flex flex-wrap justify-between items-center gap-4 mb-6 lg:mb-8">
+        <h1 className="page-title">Finances</h1>
         <div className="flex flex-wrap items-center gap-2">
+            {user.role === 'CA_ACCOUNTANT' && (
+            <Button onClick={() => setIsExportModalOpen(true)} disabled={isDataLoading || !selectedClient} className="h-9 rounded-full bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm w-full sm:w-auto justify-center">
+              <Download className="w-4 h-4 mr-1" />
+              Export
+            </Button>
+          )}
           <Select value={selectedOrg || ''} onValueChange={setSelectedOrg} disabled={isOrgLoading}>
-            <SelectTrigger className="w-full md:w-[200px]">
+            <SelectTrigger className="w-full md:w-[200px] glass-input">
               <SelectValue placeholder={isOrgLoading ? "Loading..." : "Select an organisation"} />
             </SelectTrigger>
             <SelectContent>
@@ -160,7 +166,7 @@ const FinancePage = () => {
             </SelectContent>
           </Select>
           <Select value={selectedClient || ''} onValueChange={setSelectedClient} disabled={isOrgLoading || !selectedOrg}>
-            <SelectTrigger className="w-full md:w-[200px]">
+            <SelectTrigger className="w-full md:w-[200px] glass-input">
               <SelectValue placeholder={!clients.length ? "No clients found" : "Select client"} />
             </SelectTrigger>
             <SelectContent>
@@ -199,11 +205,7 @@ const FinancePage = () => {
           <Button variant="outline" size="icon" onClick={handleRefresh} disabled={isDataLoading || isOrgLoading || !selectedOrg}>
             <RefreshCw className={`w-4 h-4 ${isDataLoading ? 'animate-spin' : ''}`} />
           </Button>
-          {user.role === 'CA_ACCOUNTANT' && (
-            <Button onClick={() => setIsExportModalOpen(true)} disabled={isDataLoading || !selectedClient}>
-              Export to Tally
-            </Button>
-          )}
+        
         </div>
       </div>
 

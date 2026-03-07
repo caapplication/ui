@@ -693,10 +693,6 @@ const Clients = ({ setActiveTab }) => {
                         className="h-full"
                     >
                         <Tabs value={internalTab} onValueChange={setInternalTab} className="h-full flex flex-col">
-                            <TabsList className="w-fit mb-4">
-                                <TabsTrigger value="clients">Clients</TabsTrigger>
-                                <TabsTrigger value="organisations">Organisations</TabsTrigger>
-                            </TabsList>
                             <TabsContent value="clients" className="flex-1 mt-0 h-full ">
                                 <ClientList
                                     clients={clients}
@@ -709,10 +705,24 @@ const Clients = ({ setActiveTab }) => {
                                     onRefresh={() => fetchClientsAndServices(true)}
                                     businessTypes={businessTypes}
                                     teamMembers={teamMembers}
+                                    tabsSlot={
+                                        <TabsList className="w-fit">
+                                            <TabsTrigger value="clients">Clients</TabsTrigger>
+                                            <TabsTrigger value="organisations">Organisations</TabsTrigger>
+                                        </TabsList>
+                                    }
                                 />
                             </TabsContent>
                             <TabsContent value="organisations" className="flex-1 mt-0 h-full overflow-hidden">
-                                <Organisation className="p-0" />
+                                <Organisation
+                                    className="p-0"
+                                    tabsSlot={
+                                        <TabsList className="w-fit">
+                                            <TabsTrigger value="clients">Clients</TabsTrigger>
+                                            <TabsTrigger value="organisations">Organisations</TabsTrigger>
+                                        </TabsList>
+                                    }
+                                />
                             </TabsContent>
                         </Tabs>
                     </motion.div>

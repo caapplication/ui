@@ -556,7 +556,7 @@ const AccountantDashboard = () => {
     <div className="p-4 sm:p-6 lg:p-8">
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-6 lg:mb-8">
-        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white tracking-tight">
+        <h1 className="page-title">
           Welcome, {user?.full_name || user?.name || 'Accountant'}
         </h1>
         <p className="text-gray-400 mt-1">Real-time overview of your consultancy activity.</p>

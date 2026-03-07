@@ -214,9 +214,9 @@ const TeamMembers = () => {
                         transition={{ duration: 0.3, ease: 'easeInOut' }}
                         className="h-full flex flex-col"
                     >
-                        <div className="flex justify-between items-center mb-6">
-                            <h1 className="text-3xl font-bold text-white">Team Members</h1>
-                            <Button onClick={handleInvite}><UserPlus className="w-4 h-4 mr-2" /> Invite User</Button>
+                        <div className="flex justify-between items-centermb-6 lg:mb-8">
+                            <h1 className="page-title">Team Members</h1>
+                            <Button className="h-9 rounded-full bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm w-full sm:w-auto justify-center" onClick={handleInvite}><UserPlus className="w-4 h-4 mr-2" /> Invite User</Button>
                         </div>
                         <div className="glass-pane rounded-lg flex-grow overflow-auto">
                             {loading ? (

@@ -88,14 +88,15 @@ const BusinessTypesContent = () => {
 
     return (
         <div className='text-white'>
-            <div className="flex justify-between items-center mb-6 flex-wrap gap-2">
-                <div className="relative w-full max-w-xs">
+            <div className="flex justify-end items-center mb-6 flex-wrap gap-2">
+               
+                <Button onClick={handleOpenNew} className="h-9 rounded-full bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm w-full sm:w-auto justify-center">
+                    <Plus className="mr-2 h-4 w-4" /> New Business Type
+                </Button>
+                 <div className="relative max-w-xs">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                     <Input placeholder="Search business types..." className="pl-10 glass-input" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                 </div>
-                <Button onClick={handleOpenNew} className="bg-primary hover:bg-primary/90 text-white">
-                    <Plus className="mr-2 h-4 w-4" /> New Business Type
-                </Button>
             </div>
             <div className="glass-card p-4">
                 <div className="grid grid-cols-[1fr_auto] px-4 py-2 border-b border-white/10 font-bold uppercase text-sm text-gray-400">

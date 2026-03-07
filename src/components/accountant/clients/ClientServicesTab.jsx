@@ -146,7 +146,7 @@ const ClientServicesTab = ({ client, allServices, onUpdateClient }) => {
                 {/* Available Services */}
                 <div className="glass-pane p-4 rounded-lg flex flex-col">
                     <h3 className="text-lg font-semibold mb-4 px-2">Available Services</h3>
-                    <div className="relative mb-4 px-2">
+                    <div className="relative mb-4 px-2 ">
                         <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                         <Input
                             placeholder="Search available..."

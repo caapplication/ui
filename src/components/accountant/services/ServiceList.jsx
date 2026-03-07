@@ -52,18 +52,14 @@ const ServiceList = ({ services, onSelectService, onAddService }) => {
 
     return (
         <div className="h-full flex flex-col">
-            <div className="flex justify-between flex-wrap items-center mb-6">
-                <h1 className="text-3xl font-bold text-white">Services</h1>
+            <div className="flex justify-between flex-wrap items-centermb-6 lg:mb-8">
+                <h1 className="page-title">Services</h1>
                 <div className="flex items-center gap-4">
-                    <div className="relative w-64">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <Input
-                            placeholder="Search Services..."
-                            className="pl-9 h-9 glass-input text-sm"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                    </div>
+                      <Button onClick={onAddService} className="h-9 px-4 text-sm whitespace-nowrap">
+                        <Plus className="w-4 h-4 mr-1.5" />
+                        Add
+                    </Button>
+                   
                     <Select value={statusFilter} onValueChange={setStatusFilter}>
                         <SelectTrigger className="w-40 h-9 glass-input text-sm">
                             <div className="flex items-center gap-2">
@@ -77,10 +73,17 @@ const ServiceList = ({ services, onSelectService, onAddService }) => {
                             <SelectItem value="inactive">Inactive</SelectItem>
                         </SelectContent>
                     </Select>
-                    <Button onClick={onAddService} className="h-9 px-4 text-sm whitespace-nowrap">
-                        <Plus className="w-4 h-4 mr-1.5" />
-                        Add
-                    </Button>
+                     <div className="relative w-64">
+                        
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <Input
+                            placeholder="Search Services..."
+                            className="pl-9 h-9 glass-input text-sm"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+                  
                 </div>
             </div>
 

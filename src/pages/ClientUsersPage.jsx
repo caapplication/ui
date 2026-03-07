@@ -562,27 +562,27 @@ const ClientUsersPage = ({ entityId }) => {
 
             {/* Invite New User Dialog */}
             <Dialog open={showInviteDialog} onOpenChange={(open) => { setShowInviteDialog(open); if (!open) { setInviteRole('CLIENT_USER'); setInviteDepartmentId(''); } }}>
-                <DialogContent className="glass-pane border-white/10 text-white">
+                <DialogContent className="bg-gray-900 border-white/10 text-white sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle>Invite New User</DialogTitle>
+                        <DialogTitle className="text-xl">Invite New User</DialogTitle>
                     </DialogHeader>
                     <div className="py-4 space-y-4">
-                        <div>
+                        <div className="space-y-2 text-left">
                             <Label htmlFor="email" className="text-gray-300">Email Address</Label>
                             <Input
                                 id="email"
                                 type="email"
                                 placeholder="colleague@company.com"
-                                className="mt-2 glass-input"
+                                className="mt-2 glass-input !w-full"
                                 value={inviteEmail}
                                 onChange={(e) => setInviteEmail(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleInviteUser()}
                             />
                         </div>
-                        <div>
+                        <div className="space-y-2 text-left">
                             <Label className="text-gray-300">User Role</Label>
                             <Select value={inviteRole} onValueChange={(v) => { setInviteRole(v); if (v !== 'CLIENT_HANDOVER') setInviteDepartmentId(''); }}>
-                                <SelectTrigger className="mt-2 glass-input border-white/10 text-white">
+                                <SelectTrigger className="mt-2 glass-input border-white/10 text-white !w-full">
                                     <SelectValue placeholder="Select role" />
                                 </SelectTrigger>
                                 <SelectContent className="bg-[#181C2A] border-gray-700">
@@ -592,7 +592,7 @@ const ClientUsersPage = ({ entityId }) => {
                             </Select>
                         </div>
                         {inviteRole === 'CLIENT_HANDOVER' && (
-                            <div>
+                            <div className="space-y-2 text-left">
                                 <Label className="text-gray-300">Department</Label>
                                 <Popover open={deptPopoverOpen} onOpenChange={setDeptPopoverOpen}>
                                     <PopoverTrigger asChild>
@@ -691,7 +691,7 @@ const ClientUsersPage = ({ entityId }) => {
                         <DialogClose asChild>
                             <Button variant="ghost" disabled={isInviting}>Cancel</Button>
                         </DialogClose>
-                        <Button onClick={handleInviteUser} disabled={isInviting}>
+                        <Button onClick={handleInviteUser} className="bg-primary hover:bg-primary/90 text-white" disabled={isInviting}>
                             {isInviting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Send Invitation
                         </Button>

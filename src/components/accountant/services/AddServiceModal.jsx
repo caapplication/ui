@@ -60,16 +60,16 @@ const AddServiceModal = ({ isOpen, onClose, onAddService }) => {
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="glass-pane text-white max-w-md">
+            <DialogContent className="bg-gray-900 border-white/10 text-white sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle className="text-2xl">Add New Service</DialogTitle>
+                    <DialogTitle className="text-xl">Add New Service</DialogTitle>
                 </DialogHeader>
                 <div className="py-4">
-                    <Label htmlFor="serviceName">Service Name <span className="text-red-500">*</span></Label>
+                    <Label htmlFor="serviceName" className="text-gray-300">Service Name <span className="text-red-500">*</span></Label>
                     <Input
                         id="serviceName"
                         name="serviceName"
-                        className="glass-input mt-2"
+                        className="glass-input mt-2 !w-full"
                         value={serviceName}
                         onChange={(e) => setServiceName(e.target.value)}
                         placeholder="e.g., Monthly Accounting"
@@ -77,8 +77,8 @@ const AddServiceModal = ({ isOpen, onClose, onAddService }) => {
                     />
                 </div>
                 <DialogFooter>
-                    <Button variant="outline" onClick={onClose} disabled={isLoading}>Cancel</Button>
-                    <Button onClick={handleSave} disabled={isLoading}>
+                    <Button variant="ghost" onClick={onClose} disabled={isLoading}>Cancel</Button>
+                    <Button onClick={handleSave} disabled={isLoading} className="bg-primary hover:bg-primary/90 text-white">
                         {isLoading ? 'Creating...' : 'Create Service'}
                     </Button>
                 </DialogFooter>

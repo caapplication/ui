@@ -393,11 +393,8 @@ const TeamMemberDetail = ({ member, onBack, clients = [], memberClientsMap = {} 
 
                 {activeTab === 'tasks' && (
                     <div className="space-y-4">
-                        <div className="flex flex-wrap items-center gap-2">
-                            <div className="relative w-48">
-                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                <Input placeholder="Search tasks..." className="pl-8 h-9" value={taskSearch} onChange={e => setTaskSearch(e.target.value)} />
-                            </div>
+                        <div className="flex flex-wrap items-center gap-2 justify-end">
+                          
                             <Select value={taskStatusFilter} onValueChange={setTaskStatusFilter}>
                                 <SelectTrigger className="w-36 h-9"><SelectValue placeholder="Status" /></SelectTrigger>
                                 <SelectContent>
@@ -408,6 +405,10 @@ const TeamMemberDetail = ({ member, onBack, clients = [], memberClientsMap = {} 
                                     <SelectItem value="Hold">Hold</SelectItem>
                                 </SelectContent>
                             </Select>
+                              <div className="relative ">
+                                <Search className="search-icon" />
+                                <Input placeholder="Search tasks..." className="glass-input" value={taskSearch} onChange={e => setTaskSearch(e.target.value)} />
+                            </div>
                         </div>
                         <div className="glass-pane rounded-lg overflow-hidden border border-white/10">
                             <div className="overflow-x-auto">
@@ -547,11 +548,8 @@ const TeamMemberDetail = ({ member, onBack, clients = [], memberClientsMap = {} 
 
                 {activeTab === 'recurring' && (
                     <div className="space-y-4">
-                        <div className="flex flex-wrap items-center gap-2">
-                            <div className="relative w-48">
-                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                <Input placeholder="Search recurring..." className="pl-8 h-9" value={recurringSearch} onChange={e => setRecurringSearch(e.target.value)} />
-                            </div>
+                        <div className="flex flex-wrap items-center gap-2 justify-end">
+                          
                             <Select value={recurringClientFilter} onValueChange={setRecurringClientFilter}>
                                 <SelectTrigger className="w-48 h-9">
                                     <SelectValue placeholder="Filter by Company" />
@@ -565,6 +563,10 @@ const TeamMemberDetail = ({ member, onBack, clients = [], memberClientsMap = {} 
                                     ))}
                                 </SelectContent>
                             </Select>
+                              <div className="relative ">
+                                <Search className="search-icon" />
+                                <Input placeholder="Search recurring..." className="glass-input" value={recurringSearch} onChange={e => setRecurringSearch(e.target.value)} />
+                            </div>
                         </div>
                         <div className="glass-pane rounded-lg overflow-hidden border border-white/10">
                             <div className="overflow-x-auto">
@@ -728,10 +730,10 @@ const TeamMemberDetail = ({ member, onBack, clients = [], memberClientsMap = {} 
 
                 {activeTab === 'clients' && (
                     <div className="space-y-4">
-                        <div className="flex flex-wrap items-center gap-2">
-                            <div className="relative w-48">
-                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                <Input placeholder="Search clients..." className="pl-8 h-9" value={clientSearch} onChange={e => setClientSearch(e.target.value)} />
+                        <div className="flex flex-wrap items-center gap-2 justify-end">
+                            <div className="relative ">
+                                <Search className="search-icon" />
+                                <Input placeholder="Search clients..." className="glass-input" value={clientSearch} onChange={e => setClientSearch(e.target.value)} />
                             </div>
                         </div>
                         <div className="glass-pane rounded-lg overflow-hidden border border-white/10">

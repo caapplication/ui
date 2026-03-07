@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Edit, Trash2, ArrowLeft, Users, UserPlus, Loader2, RefreshCw, Briefcase, Send, ArrowUp, ArrowDown, Filter } from 'lucide-react';
+import { Plus, Edit, Trash2, ArrowLeft, Users, UserPlus, Loader2, RefreshCw, Briefcase, Send, ArrowUp, ArrowDown, Filter, Search } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import {
@@ -82,7 +82,7 @@ const invalidateOrgListCache = () => {
     orgListCache.timestamp = 0;
 };
 
-const Organisation = ({ className }) => {
+const Organisation = ({ className, tabsSlot }) => {
     const { user } = useAuth();
     const { toast } = useToast();
     const [organisations, setOrganisations] = useState([]);
@@ -106,6 +106,7 @@ const Organisation = ({ className }) => {
     const [isSendingInvite, setIsSendingInvite] = useState(false);
     const [sortConfig, setSortConfig] = useState({ key: 'email', direction: 'ascending' });
     const [statusFilter, setStatusFilter] = useState('all');
+    const [searchTerm, setSearchTerm] = useState('');
 
 
     const fetchOrganisations = useCallback(async (force = false) => {
@@ -484,34 +485,62 @@ const Organisation = ({ className }) => {
     };
 
     const renderOrgList = () => (
-        <motion.div key="list" initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 50 }}>
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="text-3xl font-bold text-white">Organisations</h1>
-                <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => fetchOrganisations(true)} disabled={isLoading}><RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} /></Button>
-                    <Button onClick={handleAddOrg}><Plus className="w-4 h-4 mr-2" /> Add Organisation</Button>
+        <motion.div key="list" initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 50 }} className="h-full flex flex-col">
+            <div className="mb-6 lg:mb-8">
+                <h1 className="page-title">Organisations</h1>
+            </div>
+            <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between w-full shrink-0">
+                {tabsSlot && <div className="flex-shrink-0">{tabsSlot}</div>}
+                <div className="flex flex-col sm:flex-row gap-3 sm:items-center w-full lg:w-auto justify-end">
+                 
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => fetchOrganisations(true)}
+                        disabled={isLoading}
+                        className="shrink-0 h-10 w-10 border border-white/10 bg-white/5 hover:bg-white/10 text-white rounded-lg"
+                    >
+                        <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                    </Button>
+                    <Button onClick={handleAddOrg} className="bg-primary hover:bg-primary/90 text-white">
+                        <Plus className="w-4 h-4 mr-2" /> Add Organisation
+                    </Button>
+                       <div className="relative w-full sm:w-64 max-w-sm">
+                        <Search className="search-icon" />
+                        <Input
+                            placeholder="Search organisations..."
+                            className="glass-input "
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
                 </div>
             </div>
-            <div className="glass-pane p-0 rounded-lg overflow-hidden flex-grow">
+            <div className="glass-pane p-0 rounded-lg overflow-hidden flex-grow min-h-0">
                 {isLoading ? <div className="flex items-center justify-center h-full"><Loader2 className="w-8 h-8 animate-spin" /></div>
-                    : organisations.length > 0 ? (
-                        <Table>
-                            <TableHeader><TableRow className="border-b-white/10"><TableHead>Name</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
-                            <TableBody>
-                                {organisations.map(org => (
-                                    <TableRow key={org.id} className="border-none hover:bg-white/5 cursor-pointer" onClick={() => setSelectedOrg(org)}>
-                                        <TableCell className="font-medium">{org.name}</TableCell>
-                                        <TableCell className="text-right">
-                                            <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleEditOrg(org); }} disabled={isMutating}><Edit className="w-4 h-4" /></Button>
-                                            <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-400" onClick={(e) => { e.stopPropagation(); setOrgToDelete(org); }} disabled={isMutating}>
-                                                {isMutating && orgToDelete?.id === org.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    ) : (
+                    : organisations.length > 0 ? (() => {
+                        const filteredOrgs = organisations.filter(org => org.name?.toLowerCase().includes(searchTerm.toLowerCase()));
+                        return filteredOrgs.length > 0 ? (
+                            <Table>
+                                <TableHeader><TableRow className="border-b-white/10"><TableHead>Name</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                    {filteredOrgs.map(org => (
+                                        <TableRow key={org.id} className="border-none hover:bg-white/5 cursor-pointer" onClick={() => setSelectedOrg(org)}>
+                                            <TableCell className="font-medium">{org.name}</TableCell>
+                                            <TableCell className="text-right">
+                                                <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleEditOrg(org); }} disabled={isMutating}><Edit className="w-4 h-4" /></Button>
+                                                <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-400" onClick={(e) => { e.stopPropagation(); setOrgToDelete(org); }} disabled={isMutating}>
+                                                    {isMutating && orgToDelete?.id === org.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        ) : (
+                            <div className="text-center py-16 text-gray-500"><p className="text-lg">No organisations found matching your search.</p></div>
+                        );
+                    })() : (
                         <div className="text-center py-16 text-gray-500"><p className="text-lg">No organisations found.</p><p>Click "Add Organisation" to get started.</p></div>
                     )}
             </div>
@@ -559,7 +588,7 @@ const Organisation = ({ className }) => {
                 </TabsList>
                 <TabsContent value="entities">
                     <div className="glass-pane  rounded-lg overflow-hidden">
-                      <div className="p-4">  <Button onClick={handleAddEntity} className="  "><Plus className="w-4 h-4 mr-2  " />Add Entity</Button></div>
+                        <div className="p-4">  <Button onClick={handleAddEntity} className="  "><Plus className="w-4 h-4 mr-2  " />Add Entity</Button></div>
                         {isEntitiesLoading ? <div className="flex items-center justify-center h-64"><Loader2 className="w-8 h-8 animate-spin" /></div>
                             : entities.length > 0 ? (
                                 <Table>

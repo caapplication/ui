@@ -2,23 +2,23 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { 
-    Dialog, 
-    DialogContent, 
-    DialogHeader, 
-    DialogTitle, 
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
     DialogFooter
 } from '@/components/ui/dialog';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from '@/components/ui/use-toast';
 import { Plus, Search, Trash2, Loader2, ExternalLink } from 'lucide-react';
@@ -90,14 +90,15 @@ const PortalsContent = () => {
 
     return (
         <div className='text-white'>
-            <div className="flex justify-between items-center mb-6">
-                 <div className="relative w-full max-w-xs">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                    <Input placeholder="Search portals..." className="pl-10 glass-input" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-                </div>
-                <Button onClick={() => setOpenNewPortal(true)} className="bg-primary hover:bg-primary/90 text-white">
+            <div className="flex justify-end gap-4 items-center mb-6">
+                <Button onClick={() => setOpenNewPortal(true)} className="h-9 rounded-full bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm w-full sm:w-auto justify-center">
                     <Plus className="mr-2 h-4 w-4" /> New Portal
                 </Button>
+                <div className="relative  max-w-sm">
+                    <Search className="search-icon " size={20} />
+                    <Input placeholder="Search portals..." className="glass-input max-w-[250px] !w-full" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                </div>
+
             </div>
             <div className="glass-card p-4 rounded-lg">
                 <div className="grid grid-cols-[1fr,1fr,auto] gap-4 px-4 py-2 border-b border-white/10 font-bold uppercase text-sm text-gray-400">
@@ -137,29 +138,29 @@ const PortalsContent = () => {
                         </div>
                     </div>
                 ))}
-                 {!isLoading && filteredPortals.length === 0 && (
+                {!isLoading && filteredPortals.length === 0 && (
                     <div className="text-center py-10 text-gray-400">No portals found.</div>
                 )}
             </div>
 
             <Dialog open={openNewPortal} onOpenChange={setOpenNewPortal}>
-                <DialogContent className="glass-pane text-white">
+                <DialogContent className="bg-gray-900 border-white/10 text-white sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle>New Portal</DialogTitle>
+                        <DialogTitle className="text-xl">New Portal</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="portal-name">Portal Name <span className="text-red-500">*</span></Label>
-                            <Input id="portal-name" placeholder="E.g. Income Tax" className="glass-input" value={portalName} onChange={(e) => setPortalName(e.target.value)} />
+                        <div className="space-y-2 text-left">
+                            <Label htmlFor="portal-name" className="text-gray-300">Portal Name <span className="text-red-500">*</span></Label>
+                            <Input id="portal-name" placeholder="E.g. Income Tax" className="glass-input mt-2 !w-full" value={portalName} onChange={(e) => setPortalName(e.target.value)} />
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="portal-url">Portal Login Link (URL) <span className="text-red-500">*</span></Label>
-                            <Input id="portal-url" placeholder="https://..." className="glass-input" value={portalUrl} onChange={(e) => setPortalUrl(e.target.value)} />
+                        <div className="space-y-2 text-left">
+                            <Label htmlFor="portal-url" className="text-gray-300">Portal Login Link (URL) <span className="text-red-500">*</span></Label>
+                            <Input id="portal-url" placeholder="https://..." className="glass-input mt-2 !w-full" value={portalUrl} onChange={(e) => setPortalUrl(e.target.value)} />
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setOpenNewPortal(false)} disabled={isMutating}>Cancel</Button>
-                        <Button onClick={handleSavePortal} className="bg-primary hover:bg-primary/90" disabled={isMutating}>
+                        <Button variant="ghost" onClick={() => setOpenNewPortal(false)} disabled={isMutating}>Cancel</Button>
+                        <Button onClick={handleSavePortal} className="bg-primary hover:bg-primary/90 text-white" disabled={isMutating}>
                             {isMutating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Save
                         </Button>

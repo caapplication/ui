@@ -38,7 +38,7 @@ const NewPortalDialog = ({ isOpen, onClose, onSave }) => {
                             id="portal-name"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            className="col-span-3 glass-input"
+                            className=" glass-input"
                         />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
