@@ -452,7 +452,7 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
                             <span>Export</span>
                         </Button>
 
-                       
+
 
                         <Select value={timeFrame} onValueChange={(val) => {
                             setTimeFrame(val);
@@ -470,7 +470,7 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
                                 ))}
                             </SelectContent>
                         </Select>
-                         <div className="relative w-full sm:w-64">
+                        <div className="relative w-full sm:w-64">
                             <Search className="search-icon" />
                             <Input
                                 placeholder="Search transactions..."
@@ -708,7 +708,7 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
 
                 {/* Pagination */}
                 {totalPages > 1 && (
-                    <div className="p-4 sm:p-6 border-t border-white/5 flex justify-between items-center bg-white/5">
+                    <div className="p-4 sm:p-6 border-t border-white/5 flex justify-center items-center bg-white/5">
                         <div>
                             <p className="text-xs sm:text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
                         </div>

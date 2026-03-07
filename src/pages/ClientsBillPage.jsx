@@ -20,30 +20,30 @@ const ClientsBillPage = () => {
     const { toast } = useToast();
     const navigate = useNavigate();
     const agencyId = user?.agency_id || localStorage.getItem('agency_id');
-    
+
     const [invoices, setInvoices] = useState([]);
     const [filteredInvoices, setFilteredInvoices] = useState([]);
     const [clients, setClients] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    
+
     // Filters
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
     const [clientFilter, setClientFilter] = useState('all');
-    
+
     // Modals
     const [selectedInvoice, setSelectedInvoice] = useState(null);
     const [isProofModalOpen, setIsProofModalOpen] = useState(false);
     const [proofUrl, setProofUrl] = useState(null);
     const [proofContentType, setProofContentType] = useState(null);
     const [isLoadingProof, setIsLoadingProof] = useState(false);
-    
+
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [paymentDetails, setPaymentDetails] = useState(null);
     const [isLoadingPaymentDetails, setIsLoadingPaymentDetails] = useState(false);
     const [paymentFile, setPaymentFile] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
-    
+
     // Edit invoice modal
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editFormData, setEditFormData] = useState({
@@ -57,28 +57,28 @@ const ClientsBillPage = () => {
         state: ''
     });
     const [isSavingEdit, setIsSavingEdit] = useState(false);
-    
+
     // Bill PDF preview modal (click Download -> preview then download)
     const [billPreview, setBillPreview] = useState({ open: false, blobUrl: null, invoiceNumber: '', loading: false });
-    
+
     useEffect(() => {
         loadData();
     }, [user?.access_token, agencyId]);
-    
+
     useEffect(() => {
         applyFilters();
     }, [invoices, searchTerm, statusFilter, clientFilter]);
-    
+
     const loadData = async () => {
         if (!user?.access_token || !agencyId) return;
-        
+
         setIsLoading(true);
         try {
             // Load all clients
             const clientsData = await listClients(agencyId, user.access_token);
             const clientsList = Array.isArray(clientsData) ? clientsData : (clientsData?.results || []);
             setClients(clientsList);
-            
+
             // Load invoices for all clients
             const allInvoices = [];
             for (const client of clientsList) {
@@ -100,14 +100,14 @@ const ClientsBillPage = () => {
                     console.error(`Error loading invoices for client ${client.id}:`, error);
                 }
             }
-            
+
             // Sort by invoice date (newest first)
             allInvoices.sort((a, b) => {
                 const dateA = new Date(a.invoice_date);
                 const dateB = new Date(b.invoice_date);
                 return dateB - dateA;
             });
-            
+
             setInvoices(allInvoices);
         } catch (error) {
             console.error('Error loading data:', error);
@@ -120,10 +120,10 @@ const ClientsBillPage = () => {
             setIsLoading(false);
         }
     };
-    
+
     const applyFilters = () => {
         let filtered = [...invoices];
-        
+
         // Search filter (invoice number, client name)
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
@@ -132,20 +132,20 @@ const ClientsBillPage = () => {
                 inv.client_name?.toLowerCase().includes(term)
             );
         }
-        
+
         // Status filter
         if (statusFilter !== 'all') {
             filtered = filtered.filter(inv => inv.status === statusFilter);
         }
-        
+
         // Client filter
         if (clientFilter !== 'all') {
             filtered = filtered.filter(inv => inv.client_id === clientFilter);
         }
-        
+
         setFilteredInvoices(filtered);
     };
-    
+
     const getStatusBadge = (status) => {
         const statusConfig = {
             paid: { label: 'Paid', variant: 'default', icon: CheckCircle, className: 'bg-green-500/20 text-green-400' },
@@ -154,10 +154,10 @@ const ClientsBillPage = () => {
             pending_verification: { label: 'Pending Verification', variant: 'default', icon: Clock, className: 'bg-blue-500/20 text-blue-400' },
             rejected: { label: 'Rejected', variant: 'destructive', icon: AlertCircle, className: 'bg-orange-500/20 text-orange-400' },
         };
-        
+
         const config = statusConfig[status] || statusConfig.due;
         const Icon = config.icon;
-        
+
         return (
             <Badge className={config.className}>
                 <Icon className="w-3 h-3 mr-1" />
@@ -165,7 +165,7 @@ const ClientsBillPage = () => {
             </Badge>
         );
     };
-    
+
     const calculateTotals = () => {
         return filteredInvoices.reduce((acc, inv) => {
             acc.total += parseFloat(inv.invoice_amount || 0);
@@ -177,7 +177,7 @@ const ClientsBillPage = () => {
             return acc;
         }, { total: 0, paid: 0, due: 0 });
     };
-    
+
     const handleOpenBillPreview = async (invoice) => {
         if (!user?.access_token || !agencyId || !invoice?.id) return;
         setBillPreview({ open: true, blobUrl: null, invoiceNumber: invoice.invoice_number || '', loading: true });
@@ -206,19 +206,19 @@ const ClientsBillPage = () => {
         document.body.removeChild(a);
         toast({ title: 'Downloaded', description: 'Invoice PDF downloaded.' });
     };
-    
+
     const handleMarkPaymentDone = async (invoice) => {
         setSelectedInvoice(invoice);
         setIsProofModalOpen(true);
         setIsLoadingProof(true);
         setProofUrl(null);
         setProofContentType(null);
-        
+
         try {
             const proofData = await getPaymentProofUrl(invoice.id, agencyId, user.access_token);
             const url = proofData.url;
             setProofUrl(url);
-            
+
             // Detect content type from URL or fetch headers
             if (url.toLowerCase().endsWith('.pdf')) {
                 setProofContentType('application/pdf');
@@ -250,7 +250,7 @@ const ClientsBillPage = () => {
             setIsLoadingProof(false);
         }
     };
-    
+
     const handleConfirmMarkPaid = async () => {
         if (!selectedInvoice?.id || !user?.access_token || !agencyId) return;
         try {
@@ -296,7 +296,7 @@ const ClientsBillPage = () => {
             });
         }
     };
-    
+
     const handleMakePayment = async (invoice) => {
         setSelectedInvoice(invoice);
         setIsPaymentModalOpen(true);
@@ -317,7 +317,7 @@ const ClientsBillPage = () => {
             setIsLoadingPaymentDetails(false);
         }
     };
-    
+
     const handlePaymentFileChange = (e) => {
         const file = e.target.files[0];
         if (file) {
@@ -332,7 +332,7 @@ const ClientsBillPage = () => {
             setPaymentFile(file);
         }
     };
-    
+
     const handleDonePayment = async () => {
         if (!paymentFile) {
             toast({
@@ -366,7 +366,7 @@ const ClientsBillPage = () => {
             setIsUploading(false);
         }
     };
-    
+
     const handleEditInvoice = (invoice) => {
         setSelectedInvoice(invoice);
         setEditFormData({
@@ -381,10 +381,10 @@ const ClientsBillPage = () => {
         });
         setIsEditModalOpen(true);
     };
-    
+
     const handleSaveEdit = async () => {
         if (!selectedInvoice?.id || !user?.access_token || !agencyId) return;
-        
+
         // Validate required fields
         if (!editFormData.invoice_number || !editFormData.invoice_date || !editFormData.monthly_charges_ex_gst || !editFormData.gst_percent) {
             toast({
@@ -394,7 +394,7 @@ const ClientsBillPage = () => {
             });
             return;
         }
-        
+
         setIsSavingEdit(true);
         try {
             await updateClientBillingInvoice(selectedInvoice.id, editFormData, agencyId, user.access_token);
@@ -438,9 +438,9 @@ const ClientsBillPage = () => {
         document.body.removeChild(link);
         toast({ title: 'Exported', description: 'Invoices exported as CSV' });
     };
-    
+
     const totals = calculateTotals();
-    
+
     if (isLoading) {
         return (
             <div className="h-full w-full flex items-center justify-center">
@@ -448,7 +448,7 @@ const ClientsBillPage = () => {
             </div>
         );
     }
-    
+
     return (
         <div className="p-4 sm:p-6 lg:p-8">
             <motion.div
@@ -470,7 +470,7 @@ const ClientsBillPage = () => {
                         <p className="text-gray-400 mt-1">View and manage all client billing invoices</p>
                     </div>
                 </div>
-                
+
                 {/* Summary Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
                     <Card className="glass-card border-white/5">
@@ -498,74 +498,54 @@ const ClientsBillPage = () => {
                         </CardContent>
                     </Card>
                 </div>
-                
-                {/* Filters */}
-                <Card className="glass-card border-white/5 mb-6">
-                    <CardHeader>
-                        <CardTitle className="text-lg text-white flex items-center gap-2">
-                            <Filter className="w-5 h-5" />
-                            Filters
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div>
-                                <Label htmlFor="search" className="text-sm text-gray-400 mb-2 block">Search</Label>
-                                <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                    <Input
-                                        id="search"
-                                        placeholder="Search by invoice number or client name..."
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                        className="pl-10 glass-input text-white"
-                                    />
-                                </div>
-                            </div>
-                            <div>
-                                <Label htmlFor="status" className="text-sm text-gray-400 mb-2 block">Status</Label>
-                                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                                    <SelectTrigger className="glass-input text-white">
-                                        <SelectValue placeholder="All Statuses" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">All Statuses</SelectItem>
-                                        <SelectItem value="due">Due</SelectItem>
-                                        <SelectItem value="overdue">Overdue</SelectItem>
-                                        <SelectItem value="paid">Paid</SelectItem>
-                                        <SelectItem value="pending_verification">Pending Verification</SelectItem>
-                                        <SelectItem value="rejected">Rejected</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div>
-                                <Label htmlFor="client" className="text-sm text-gray-400 mb-2 block">Client</Label>
-                                <Select value={clientFilter} onValueChange={setClientFilter}>
-                                    <SelectTrigger className="glass-input text-white">
-                                        <SelectValue placeholder="All Clients" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">All Clients</SelectItem>
-                                        {clients.map(client => (
-                                            <SelectItem key={client.id} value={client.id}>
-                                                {client.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-                
+
                 {/* Table */}
                 <Card className="glass-card border-white/5">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                    <CardHeader className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 space-y-0 pb-4">
                         <CardTitle className="text-lg text-white">Invoices</CardTitle>
-                        <Button variant="outline" size="sm" onClick={handleExportCSV} className="gap-2 border-white/20 text-white hover:bg-white/10">
-                            <FileDown className="w-4 h-4" />
-                            Export CSV
-                        </Button>
+                        <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
+                           <Button onClick={handleExportCSV} className="h-9 rounded-full bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm w-full sm:w-auto justify-center">
+                                <Download className="w-4 h-4 mr-1" />
+                                Export
+                            </Button>
+                       
+                            <Select value={clientFilter} onValueChange={setClientFilter}>
+                                <SelectTrigger className="h-9 glass-input text-white w-full sm:w-[180px]">
+                                    <SelectValue placeholder="Client" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Clients</SelectItem>
+                                    {clients.map(client => (
+                                        <SelectItem key={client.id} value={client.id}>
+                                            {client.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                                 <Select value={statusFilter} onValueChange={setStatusFilter}>
+                                <SelectTrigger className="h-9 glass-input text-white w-full sm:w-[180px]">
+                                    <SelectValue placeholder="Status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Statuses</SelectItem>
+                                    <SelectItem value="due">Due</SelectItem>
+                                    <SelectItem value="overdue">Overdue</SelectItem>
+                                    <SelectItem value="paid">Paid</SelectItem>
+                                    <SelectItem value="pending_verification">Pending Verification</SelectItem>
+                                    <SelectItem value="rejected">Rejected</SelectItem>
+                                </SelectContent>
+                            </Select>
+                           
+                              <div className="relative w-full sm:w-64">
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                <Input
+                                    placeholder="Search invoices..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="pl-10 h-9 glass-input text-white w-full"
+                                />
+                            </div>
+                        </div>
                     </CardHeader>
                     <CardContent>
                         {filteredInvoices.length === 0 ? (
@@ -658,7 +638,7 @@ const ClientsBillPage = () => {
                     </CardContent>
                 </Card>
             </motion.div>
-            
+
             {/* Payment Proof Modal (for pending_verification) */}
             <Dialog open={isProofModalOpen} onOpenChange={setIsProofModalOpen}>
                 <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-gray-900 border-white/10">
@@ -733,7 +713,7 @@ const ClientsBillPage = () => {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-            
+
             {/* Make Payment Modal (for CA on Due invoices) */}
             <Dialog open={isPaymentModalOpen} onOpenChange={setIsPaymentModalOpen}>
                 <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-gray-900 border-white/10">
@@ -782,7 +762,7 @@ const ClientsBillPage = () => {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-            
+
             {/* Edit Invoice Modal */}
             <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
                 <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-gray-900 border-white/10">

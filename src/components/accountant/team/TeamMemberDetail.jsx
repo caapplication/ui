@@ -367,7 +367,7 @@ const TeamMemberDetail = ({ member, onBack, clients = [], memberClientsMap = {} 
                         <ArrowLeft className="w-5 h-5" />
                     </Button>
                     <h1 className="text-2xl font-bold text-white">
-                        <span className="text-gray-400 cursor-pointer" onClick={onBack}>Team Members / </span>
+                        <span className="text-gray-400 cursor-pointer" onClick={onBack}> </span>
                         {member?.name || member?.email || 'Member'}
                     </h1>
                 </div>

@@ -90,7 +90,7 @@ const ServiceDetail = ({ service, onBack, onDelete, onUpdate }) => {
                         <ArrowLeft className="w-5 h-5" />
                     </Button>
                     <h1 className="text-2xl font-bold text-white">
-                        <span className="text-gray-400 cursor-pointer" onClick={onBack}>Services / </span>{service.name}
+                        <span className="text-gray-400 cursor-pointer" onClick={onBack}></span>{service.name}
                     </h1>
                 </div>
                 <TooltipProvider>

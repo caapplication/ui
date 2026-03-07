@@ -238,7 +238,7 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onViewInvoic
             </div>
 
             <div className="flex flex-wrap items-center gap-2 sm:gap-4 flex-1 justify-end">
-            
+
 
               <Select value={datePreset} onValueChange={setDatePreset}>
                 <SelectTrigger className="w-full sm:w-[160px] h-9 text-sm glass-input">
@@ -280,15 +280,15 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onViewInvoic
                 </div>
               )}
             </div>
-              <div className="relative w-full sm:w-auto sm:max-w-xs flex-grow sm:flex-grow-0">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2  w-4 h-4" />
-                <Input
-                  placeholder="Beneficiary, Remarks, Bill No..."
-                  className="pl-9 glass-input h-9 text-sm w-full sm:w-[250px]"
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                />
-              </div>
+            <div className="relative w-full sm:w-auto sm:max-w-xs flex-grow sm:flex-grow-0">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2  w-4 h-4" />
+              <Input
+                placeholder="Beneficiary, Remarks, Bill No..."
+                className="pl-9 glass-input h-9 text-sm w-full sm:w-[250px]"
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+              />
+            </div>
           </div>
         </div>
       </CardHeader>
@@ -365,7 +365,7 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onViewInvoic
         </div>
         {paginatedInvoices.length === 0 && <p className="text-center text-gray-400 py-8 text-sm sm:text-base">No invoices found.</p>}
       </CardContent>
-      <CardFooter className="flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-0 p-4 sm:p-6">
+      <CardFooter className="flex flex-col sm:flex-row justify-center items-center gap-3 sm:gap-0 p-4 sm:p-6">
         <div>
           <p className="text-xs sm:text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
         </div>

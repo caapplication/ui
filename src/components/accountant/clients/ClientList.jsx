@@ -469,7 +469,7 @@ const ClientList = ({
 
                 {/* FILTERS SECTION */}
                 {showFilters && (
-                    <div className="mt-4 border-t border-white/10 pt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className="mt-4 border-t border-white/10 pt-4 pb-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
 
                         <FilterPopover
                             title="Recurring Service"

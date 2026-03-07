@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { FaArrowUp, FaSlack } from "react-icons/fa";
 import { Button } from "@/components/ui/button";
-import dashboardImage from "../../public/dashboard.jpg";
+import dashboardImage from "../../public/dashboard.png";
 
 const LandingPage = () => {
     const navigate = useNavigate();
