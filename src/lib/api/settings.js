@@ -249,8 +249,9 @@ export const createHandover = async (clientId, data, token) => {
 };
 
 export const handoversSummary = async (clientId, handoverDate, token) => {
+    const q = handoverDate != null ? `?handover_date=${handoverDate}` : '';
     const response = await fetch(
-        `${CLIENTS_API_BASE_URL}/clients/${clientId}/handovers/summary?handover_date=${handoverDate}`,
+        `${CLIENTS_API_BASE_URL}/clients/${clientId}/handovers/summary${q}`,
         { method: 'GET', headers: getAuthHeaders(token) }
     );
     return handleResponse(response);
@@ -302,6 +303,13 @@ export const updateHandover = async (clientId, handoverId, data, token) => {
 };
 
 // ---------- Bank Tally (CLIENT_MASTER_ADMIN) ----------
+export const listBankTallyEntries = async (clientId, token) => {
+    const response = await fetch(
+        `${CLIENTS_API_BASE_URL}/clients/${clientId}/bank-tally/list`,
+        { method: 'GET', headers: getAuthHeaders(token) }
+    );
+    return handleResponse(response);
+};
 export const getBankTally = async (clientId, reportDate, bankAccountIds, token) => {
     const ids = Array.isArray(bankAccountIds) ? bankAccountIds.join(',') : (bankAccountIds || '');
     const response = await fetch(
@@ -348,6 +356,13 @@ export const deleteCashDenomination = async (clientId, id, token) => {
 };
 
 // ---------- Cash Tally (CLIENT_MASTER_ADMIN) ----------
+export const listCashTallyEntries = async (clientId, token) => {
+    const response = await fetch(
+        `${CLIENTS_API_BASE_URL}/clients/${clientId}/cash-tally/list`,
+        { method: 'GET', headers: getAuthHeaders(token) }
+    );
+    return handleResponse(response);
+};
 export const getCashTally = async (clientId, reportDate, token) => {
     const response = await fetch(
         `${CLIENTS_API_BASE_URL}/clients/${clientId}/cash-tally?report_date=${reportDate}`,

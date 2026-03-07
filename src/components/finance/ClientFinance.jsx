@@ -24,15 +24,19 @@ import {
   Route,
   useLocation,
   Navigate,
+  Outlet,
 } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useToast } from '@/components/ui/use-toast';
 import {
   HandoverTab,
-  BankTallyTab,
-  CashTallyTab,
+  BankTallyListTab,
+  BankTallyFormPage,
+  CashTallyListTab,
+  CashTallyFormPage,
   ReportTab,
-  CashierReportTab,
+  CashierReportListTab,
+  CashierReportFormPage,
 } from '@/pages/ClientHandoverPage';
 import {
   getBeneficiaries,
@@ -553,6 +557,17 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction, entityName: en
                   <DropdownMenuItem onClick={() => setShowInvoiceDialog(true)}>
                     Invoice
                   </DropdownMenuItem>
+                  {isAdmin && (
+                    <DropdownMenuItem onClick={() => navigate('/finance/bank-tally/new')}>
+                      Bank Tally
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem onClick={() => navigate('/finance/cash-tally/new')}>
+                    Cash Tally
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/finance/cashier/new')}>
+                    Cashier Report
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -594,18 +609,38 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction, entityName: en
               />
               {isAdmin && (
                 <>
-                  <Route path="cashier" element={<CashierReportTab clientId={entityId} token={user?.access_token} toast={toast} />} />
+                  <Route path="cashier" element={<Outlet />}>
+                    <Route index element={<CashierReportListTab clientId={entityId} token={user?.access_token} toast={toast} />} />
+                    <Route path="new" element={<CashierReportFormPage clientId={entityId} token={user?.access_token} toast={toast} />} />
+                    <Route path="entry/:reportDate" element={<CashierReportFormPage clientId={entityId} token={user?.access_token} toast={toast} />} />
+                  </Route>
                   <Route path="handover" element={<HandoverTab clientId={entityId} token={user?.access_token} toast={toast} isAdminView userRole={user?.role} />} />
-                  <Route path="bank-tally" element={<BankTallyTab clientId={entityId} token={user?.access_token} toast={toast} />} />
-                  <Route path="cash-tally" element={<CashTallyTab clientId={entityId} entityId={entityId} token={user?.access_token} toast={toast} />} />
+                  <Route path="bank-tally" element={<Outlet />}>
+                    <Route index element={<BankTallyListTab clientId={entityId} token={user?.access_token} toast={toast} />} />
+                    <Route path="new" element={<BankTallyFormPage clientId={entityId} token={user?.access_token} toast={toast} />} />
+                    <Route path="entry/:reportDate" element={<BankTallyFormPage clientId={entityId} token={user?.access_token} toast={toast} />} />
+                  </Route>
+                  <Route path="cash-tally" element={<Outlet />}>
+                    <Route index element={<CashTallyListTab clientId={entityId} entityId={entityId} token={user?.access_token} toast={toast} />} />
+                    <Route path="new" element={<CashTallyFormPage clientId={entityId} entityId={entityId} token={user?.access_token} toast={toast} />} />
+                    <Route path="entry/:reportDate" element={<CashTallyFormPage clientId={entityId} entityId={entityId} token={user?.access_token} toast={toast} />} />
+                  </Route>
                   <Route path="report" element={<ReportTab clientId={entityId} entityId={entityId} entityName={entityNameProp} token={user?.access_token} toast={toast} />} />
                 </>
               )}
               {!isAdmin && user?.role === 'CLIENT_USER' && (
                 <>
-                  <Route path="cashier" element={<CashierReportTab clientId={entityId} token={user?.access_token} toast={toast} />} />
+                  <Route path="cashier" element={<Outlet />}>
+                    <Route index element={<CashierReportListTab clientId={entityId} token={user?.access_token} toast={toast} />} />
+                    <Route path="new" element={<CashierReportFormPage clientId={entityId} token={user?.access_token} toast={toast} />} />
+                    <Route path="entry/:reportDate" element={<CashierReportFormPage clientId={entityId} token={user?.access_token} toast={toast} />} />
+                  </Route>
                   <Route path="handover" element={<HandoverTab clientId={entityId} token={user?.access_token} toast={toast} userRole={user?.role} />} />
-                  <Route path="cash-tally" element={<CashTallyTab clientId={entityId} entityId={entityId} token={user?.access_token} toast={toast} />} />
+                  <Route path="cash-tally" element={<Outlet />}>
+                    <Route index element={<CashTallyListTab clientId={entityId} entityId={entityId} token={user?.access_token} toast={toast} />} />
+                    <Route path="new" element={<CashTallyFormPage clientId={entityId} entityId={entityId} token={user?.access_token} toast={toast} />} />
+                    <Route path="entry/:reportDate" element={<CashTallyFormPage clientId={entityId} entityId={entityId} token={user?.access_token} toast={toast} />} />
+                  </Route>
                   <Route path="report" element={<ReportTab clientId={entityId} entityId={entityId} entityName={entityNameProp} token={user?.access_token} toast={toast} />} />
                 </>
               )}

@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,8 +19,10 @@ import {
   approveHandoverAdmin,
   rejectHandoverAdmin,
   updateHandover,
+  listBankTallyEntries,
   getBankTally,
   saveBankTally,
+  listCashTallyEntries,
   getCashTally,
   saveCashTally,
   listCashDenominations,
@@ -29,7 +32,8 @@ import { getOrganisationBankAccounts } from '@/lib/api';
 import { getVouchersCashTotalForDate, getVouchersReportByDate } from '@/lib/api/finance';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeftRight, Loader2, Check, X, Search, MoreVertical } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ArrowLeftRight, ArrowLeft, Loader2, Check, X, Search, MoreVertical, Calendar } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 
 const toDDMMYYYY = (dateStr) => {
@@ -105,8 +109,178 @@ const ClientHandoverPage = ({ entityId, entityName }) => {
   );
 };
 
-function BankTallyTab({ clientId, token, toast, readOnly = false }) {
-  const [reportDate, setReportDate] = useState(() => new Date().toISOString().slice(0, 10));
+/** Bank Tally: list only. Click row → navigate to entry page. Add from main Add New. */
+function BankTallyListTab({ clientId, token, toast, readOnly = false }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [entriesList, setEntriesList] = useState([]);
+  const [listLoading, setListLoading] = useState(true);
+  const [banks, setBanks] = useState([]);
+  const [banksLoaded, setBanksLoaded] = useState(false);
+  const [datePreset, setDatePreset] = useState('all_time');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const loadBanks = useCallback(async () => {
+    if (!clientId || !token) return;
+    try {
+      const list = await getOrganisationBankAccounts(clientId, token);
+      setBanks(Array.isArray(list) ? list.filter(b => b.is_active !== false) : []);
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Error', description: e?.message || 'Failed to load bank accounts.' });
+      setBanks([]);
+    } finally {
+      setBanksLoaded(true);
+    }
+  }, [clientId, token, toast]);
+
+  const loadEntriesList = useCallback(async () => {
+    if (!clientId || !token) return;
+    setListLoading(true);
+    try {
+      const res = await listBankTallyEntries(clientId, token);
+      setEntriesList(res?.entries || []);
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Error', description: e?.message || 'Failed to load list.' });
+      setEntriesList([]);
+    } finally {
+      setListLoading(false);
+    }
+  }, [clientId, token, toast]);
+
+  useEffect(() => { loadBanks(); }, [loadBanks]);
+  useEffect(() => { loadEntriesList(); }, [loadEntriesList]);
+  useEffect(() => {
+    const isListRoute = !/\/entry\/|\/new$/.test(location.pathname);
+    if (isListRoute) loadEntriesList();
+  }, [location.pathname, loadEntriesList]);
+
+  const filteredList = useMemo(() => {
+    let list = entriesList;
+    if (datePreset !== 'all_time') {
+      const today = new Date().toISOString().slice(0, 10);
+      const now = new Date();
+      list = list.filter(e => {
+        const d = (e.report_date || '').toString();
+        if (datePreset === 'today') return d === today;
+        if (datePreset === 'custom' && (dateFrom || dateTo)) {
+          if (dateFrom && dateTo) return d >= dateFrom && d <= dateTo;
+          if (dateFrom) return d >= dateFrom;
+          if (dateTo) return d <= dateTo;
+        }
+        if (datePreset === 'last_7_days' || datePreset === 'last_30_days') {
+          const n = datePreset === 'last_7_days' ? 7 : 30;
+          const from = new Date(now);
+          from.setDate(from.getDate() - n);
+          return d >= from.toISOString().slice(0, 10) && d <= today;
+        }
+        return true;
+      });
+    }
+    if (searchTerm && searchTerm.trim()) {
+      const t = searchTerm.toLowerCase().trim();
+      list = list.filter(e => toDDMMYYYY(e.report_date).toLowerCase().includes(t) || (e.report_date || '').toString().includes(t));
+    }
+    return list;
+  }, [entriesList, datePreset, dateFrom, dateTo, searchTerm]);
+
+  if (!banksLoaded) {
+    return (
+      <div className="py-8 flex justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+  if (banks.length === 0) {
+    return (
+      <div className="py-8 text-center text-gray-400">
+        No active bank accounts. Add banks under Organisation Bank.
+      </div>
+    );
+  }
+
+  return (
+    <Card className="glass-card mt-4">
+      <CardHeader className="p-4 sm:p-6">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4 justify-between w-full">
+            <CardTitle className="text-lg sm:text-xl text-white">Bank Tally</CardTitle>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4 flex-1 justify-end">
+              <Select value={datePreset} onValueChange={setDatePreset}>
+                <SelectTrigger className="w-full sm:w-[160px] h-9 text-sm glass-input">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                    <SelectValue placeholder="All Time" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all_time">All Time</SelectItem>
+                  <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="last_7_days">Last 7 Days</SelectItem>
+                  <SelectItem value="last_30_days">Last 30 Days</SelectItem>
+                  <SelectItem value="custom">Custom</SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="relative w-full sm:w-auto sm:max-w-xs">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input placeholder="Date..." className="pl-9 glass-input h-9 text-sm w-full sm:w-[200px]" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+              </div>
+              {datePreset === 'custom' && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-full sm:max-w-[130px] h-9 text-sm glass-input" />
+                  <span className="text-gray-400 text-sm">-</span>
+                  <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-full sm:max-w-[130px] h-9 text-sm glass-input" />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="p-0">
+        {listLoading ? (
+          <div className="p-6 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-white" /></div>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-xs sm:text-sm">Date</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredList.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={1} className="text-center text-gray-400 py-8 text-sm">No entries found.</TableCell>
+                  </TableRow>
+                ) : (
+                  filteredList.map((entry) => (
+                    <TableRow
+                      key={entry.report_date}
+                      className="cursor-pointer transition-colors hover:bg-white/5"
+                      onClick={() => navigate('entry/' + encodeURIComponent(entry.report_date))}
+                    >
+                      <TableCell className="text-xs sm:text-sm">{toDDMMYYYY(entry.report_date)}</TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Bank Tally form on its own page (add or view/update). */
+function BankTallyFormPage({ clientId, token, toast, readOnly = false }) {
+  const navigate = useNavigate();
+  const { reportDate: reportDateParam } = useParams();
+  const today = new Date().toISOString().slice(0, 10);
+  const isNew = !reportDateParam || reportDateParam === 'new';
+  const reportDate = isNew ? today : reportDateParam;
+
   const [banks, setBanks] = useState([]);
   const [banksLoaded, setBanksLoaded] = useState(false);
   const [tallyItems, setTallyItems] = useState([]);
@@ -127,12 +301,12 @@ function BankTallyTab({ clientId, token, toast, readOnly = false }) {
     }
   }, [clientId, token, toast]);
 
-  const loadTally = useCallback(async () => {
+  const loadTally = useCallback(async (date) => {
     if (!clientId || !token || banks.length === 0) return;
     setLoading(true);
     try {
       const ids = banks.map(b => b.id);
-      const res = await getBankTally(clientId, reportDate, ids, token);
+      const res = await getBankTally(clientId, date, ids, token);
       const items = res?.items || [];
       setTallyItems(items);
       const next = {};
@@ -150,22 +324,20 @@ function BankTallyTab({ clientId, token, toast, readOnly = false }) {
     } finally {
       setLoading(false);
     }
-  }, [clientId, token, reportDate, banks, toast]);
+  }, [clientId, token, banks, toast]);
 
   useEffect(() => { loadBanks(); }, [loadBanks]);
   useEffect(() => {
-    if (banks.length > 0) loadTally();
-  }, [loadTally, banks.length]);
+    if (banks.length > 0 && reportDate) loadTally(reportDate);
+  }, [reportDate, banks.length]);
 
   const setClosing = (bankId, value) => {
     setClosingInputs(prev => ({ ...prev, [bankId]: value }));
   };
-
   const getOpening = (bankId) => {
     const item = tallyItems.find(i => String(i.bank_account_id) === String(bankId));
     return item?.opening_balance ?? 0;
   };
-
   const getDifference = (bankId) => {
     const opening = getOpening(bankId);
     const closing = parseFloat(closingInputs[bankId]);
@@ -173,7 +345,6 @@ function BankTallyTab({ clientId, token, toast, readOnly = false }) {
     return closing - opening;
   };
 
-  const today = new Date().toISOString().slice(0, 10);
   const isPastDate = reportDate < today;
   const isReadOnly = readOnly || isPastDate;
 
@@ -187,7 +358,7 @@ function BankTallyTab({ clientId, token, toast, readOnly = false }) {
       }));
       await saveBankTally(clientId, { report_date: reportDate, items }, token);
       toast({ title: 'Saved', description: 'Bank tally saved.' });
-      loadTally();
+      navigate('..', { relative: 'path' });
     } catch (e) {
       toast({ variant: 'destructive', title: 'Error', description: e?.message || 'Save failed.' });
     } finally {
@@ -211,93 +382,238 @@ function BankTallyTab({ clientId, token, toast, readOnly = false }) {
   }
 
   return (
-    <Card className="glass-card border-white/5 overflow-hidden">
-      <CardHeader className="p-4 sm:p-6 flex flex-row flex-wrap items-center justify-between gap-4">
-        <div>
-          <CardTitle className="text-lg sm:text-xl text-white">Bank Tally</CardTitle>
-          <CardDescription className="text-sm text-gray-400">Opening and closing balance by bank account. Last day closing is today&apos;s opening.</CardDescription>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
+    <div className="space-y-4">
+      <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white -ml-2" onClick={() => navigate('..', { relative: 'path' })}>
+        <ArrowLeft className="mr-2 h-4 w-4" /> Back to list
+      </Button>
+      <Card className="glass-card border-white/5 overflow-hidden">
+        <CardHeader className="p-4 sm:p-6 flex flex-row flex-wrap items-center justify-between gap-4">
+          <div>
+            <CardTitle className="text-lg sm:text-xl text-white">{isNew ? 'New entry' : 'View / Update'}</CardTitle>
+            <CardDescription className="text-sm text-gray-400">Opening and closing balance by bank account.</CardDescription>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Input type="date" className="glass-input max-w-[200px]" value={reportDate} readOnly />
+            {!isReadOnly && (
+              <Button onClick={handleSave} disabled={saving} className="h-9 sm:h-10 text-sm">
+                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table className="glass-table">
+              <TableHeader>
+                <TableRow className="hover:bg-transparent border-white/10">
+                  <TableHead className="text-xs sm:text-sm text-gray-300">Bank</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300">Account</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300">Opening Balance</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300">Closing Balance</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300">Difference</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading && !tallyItems.length ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="h-24 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-white" /></TableCell>
+                  </TableRow>
+                ) : (
+                  <>
+                    {banks.map((bank) => {
+                      const opening = getOpening(bank.id);
+                      const closingVal = closingInputs[bank.id];
+                      const diff = getDifference(bank.id);
+                      return (
+                        <TableRow key={bank.id} className="border-white/10">
+                          <TableCell className="text-xs sm:text-sm font-medium text-white">{bank.bank_name || '—'}</TableCell>
+                          <TableCell className="text-xs sm:text-sm text-gray-300">{bank.account_number || '—'}</TableCell>
+                          <TableCell>
+                            <Input type="number" readOnly className="h-9 sm:h-10 text-sm glass-input w-28 sm:w-32 bg-white/5 text-white" value={opening} />
+                          </TableCell>
+                          <TableCell>
+                            <Input type="number" min={0} step={0.01} readOnly={isReadOnly} className={`h-9 sm:h-10 text-sm glass-input w-28 sm:w-32 text-white ${isReadOnly ? 'bg-white/5 cursor-default' : ''}`} value={closingVal} onChange={e => setClosing(bank.id, e.target.value)} placeholder="Closing" />
+                          </TableCell>
+                          <TableCell>
+                            <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input w-28 sm:w-32 bg-white/5 text-white" value={diff != null ? diff.toLocaleString('en-IN', { minimumFractionDigits: 2 }) : '—'} />
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    {banks.length > 0 && (() => {
+                      const totalOpening = banks.reduce((s, b) => s + getOpening(b.id), 0);
+                      const totalClosing = banks.reduce((s, b) => s + (parseFloat(closingInputs[b.id]) || 0), 0);
+                      const totalDiff = totalClosing - totalOpening;
+                      return (
+                        <TableRow className="border-white/10 !bg-amber-500/20 font-medium">
+                          <TableCell className="text-xs sm:text-sm text-white">Total</TableCell>
+                          <TableCell className="text-xs sm:text-sm text-gray-300">—</TableCell>
+                          <TableCell>
+                            <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input w-28 sm:w-32 bg-white/5 text-white font-medium" value={totalOpening.toLocaleString('en-IN', { minimumFractionDigits: 2 })} />
+                          </TableCell>
+                          <TableCell>
+                            <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input w-28 sm:w-32 bg-white/5 text-white font-medium" value={totalClosing.toLocaleString('en-IN', { minimumFractionDigits: 2 })} />
+                          </TableCell>
+                          <TableCell>
+                            <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input w-28 sm:w-32 bg-white/5 text-white font-medium" value={totalDiff.toLocaleString('en-IN', { minimumFractionDigits: 2 })} />
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })()}
+                  </>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
 
-          <Input type="date" className="glass-input max-w-[200px]" value={reportDate} onChange={e => setReportDate(e.target.value)} />
-          {!isReadOnly && (
-            <Button onClick={handleSave} disabled={saving} className="h-9 sm:h-10 text-sm">
-              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save
-            </Button>
-          )}
+/** Cash Tally: list only. Click row → entry page. Add from main Add New. */
+function CashTallyListTab({ clientId, entityId, token, toast, readOnly = false }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [entriesList, setEntriesList] = useState([]);
+  const [listLoading, setListLoading] = useState(true);
+  const [datePreset, setDatePreset] = useState('all_time');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const loadEntriesList = useCallback(async () => {
+    if (!clientId || !token) return;
+    setListLoading(true);
+    try {
+      const res = await listCashTallyEntries(clientId, token);
+      setEntriesList(res?.entries || []);
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Error', description: e?.message || 'Failed to load list.' });
+      setEntriesList([]);
+    } finally {
+      setListLoading(false);
+    }
+  }, [clientId, token, toast]);
+
+  useEffect(() => { loadEntriesList(); }, [loadEntriesList]);
+  useEffect(() => {
+    const isListRoute = !/\/entry\/|\/new$/.test(location.pathname);
+    if (isListRoute) loadEntriesList();
+  }, [location.pathname, loadEntriesList]);
+
+  const filteredList = useMemo(() => {
+    let list = entriesList;
+    if (datePreset !== 'all_time') {
+      const today = new Date().toISOString().slice(0, 10);
+      const now = new Date();
+      list = list.filter(e => {
+        const d = (e.report_date || '').toString();
+        if (datePreset === 'today') return d === today;
+        if (datePreset === 'custom' && (dateFrom || dateTo)) {
+          if (dateFrom && dateTo) return d >= dateFrom && d <= dateTo;
+          if (dateFrom) return d >= dateFrom;
+          if (dateTo) return d <= dateTo;
+        }
+        if (datePreset === 'last_7_days' || datePreset === 'last_30_days') {
+          const n = datePreset === 'last_7_days' ? 7 : 30;
+          const from = new Date(now);
+          from.setDate(from.getDate() - n);
+          return d >= from.toISOString().slice(0, 10) && d <= today;
+        }
+        return true;
+      });
+    }
+    if (searchTerm && searchTerm.trim()) {
+      const t = searchTerm.toLowerCase().trim();
+      list = list.filter(e => toDDMMYYYY(e.report_date).toLowerCase().includes(t) || (e.report_date || '').toString().includes(t) || String(e.closing_balance || '').includes(t));
+    }
+    return list;
+  }, [entriesList, datePreset, dateFrom, dateTo, searchTerm]);
+
+  return (
+    <Card className="glass-card mt-4">
+      <CardHeader className="p-4 sm:p-6">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4 justify-between w-full">
+            <CardTitle className="text-lg sm:text-xl text-white">Cash Tally</CardTitle>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4 flex-1 justify-end">
+              <Select value={datePreset} onValueChange={setDatePreset}>
+                <SelectTrigger className="w-full sm:w-[160px] h-9 text-sm glass-input">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                    <SelectValue placeholder="All Time" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all_time">All Time</SelectItem>
+                  <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="last_7_days">Last 7 Days</SelectItem>
+                  <SelectItem value="last_30_days">Last 30 Days</SelectItem>
+                  <SelectItem value="custom">Custom</SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="relative w-full sm:w-auto sm:max-w-xs">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input placeholder="Date, Closing..." className="pl-9 glass-input h-9 text-sm w-full sm:w-[200px]" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+              </div>
+              {datePreset === 'custom' && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-full sm:max-w-[130px] h-9 text-sm glass-input" />
+                  <span className="text-gray-400 text-sm">-</span>
+                  <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-full sm:max-w-[130px] h-9 text-sm glass-input" />
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </CardHeader>
-      <CardContent className="p-0 ">
-        <div className="overflow-x-auto">
-          <Table className="glass-table ">
-            <TableHeader>
-              <TableRow className="hover:bg-transparent border-white/10">
-                <TableHead className="text-xs sm:text-sm text-gray-300">Bank</TableHead>
-                <TableHead className="text-xs sm:text-sm text-gray-300">Account</TableHead>
-                <TableHead className="text-xs sm:text-sm text-gray-300">Opening Balance</TableHead>
-                <TableHead className="text-xs sm:text-sm text-gray-300">Closing Balance</TableHead>
-                <TableHead className="text-xs sm:text-sm text-gray-300">Difference</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
+      <CardContent className="p-0">
+        {listLoading ? (
+          <div className="p-6 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-white" /></div>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-white" /></TableCell>
+                  <TableHead className="text-xs sm:text-sm">Date</TableHead>
+                  <TableHead className="text-xs sm:text-sm">Closing</TableHead>
                 </TableRow>
-              ) : (
-                <>
-                  {banks.map((bank) => {
-                    const opening = getOpening(bank.id);
-                    const closingVal = closingInputs[bank.id];
-                    const diff = getDifference(bank.id);
-                    return (
-                      <TableRow key={bank.id} className="border-white/10">
-                        <TableCell className="text-xs sm:text-sm font-medium text-white">{bank.bank_name || '—'}</TableCell>
-                        <TableCell className="text-xs sm:text-sm text-gray-300">{bank.account_number || '—'}</TableCell>
-                        <TableCell>
-                          <Input type="number" readOnly className="h-9 sm:h-10 text-sm glass-input w-28 sm:w-32 bg-white/5 text-white" value={opening} />
-                        </TableCell>
-                        <TableCell>
-                          <Input type="number" min={0} step={0.01} readOnly={isReadOnly} className={`h-9 sm:h-10 text-sm glass-input w-28 sm:w-32 text-white ${isReadOnly ? 'bg-white/5 cursor-default' : ''}`} value={closingVal} onChange={e => setClosing(bank.id, e.target.value)} placeholder="Closing" />
-                        </TableCell>
-                        <TableCell>
-                          <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input w-28 sm:w-32 bg-white/5 text-white" value={diff != null ? diff.toLocaleString('en-IN', { minimumFractionDigits: 2 }) : '—'} />
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                  {banks.length > 0 && (() => {
-                    const totalOpening = banks.reduce((s, b) => s + getOpening(b.id), 0);
-                    const totalClosing = banks.reduce((s, b) => s + (parseFloat(closingInputs[b.id]) || 0), 0);
-                    const totalDiff = totalClosing - totalOpening;
-                    return (
-                      <TableRow className="border-white/10 !bg-amber-500/20 font-medium">
-                        <TableCell className="text-xs sm:text-sm text-white">Total</TableCell>
-                        <TableCell className="text-xs sm:text-sm text-gray-300">—</TableCell>
-                        <TableCell>
-                          <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input w-28 sm:w-32 bg-white/5 text-white font-medium" value={totalOpening.toLocaleString('en-IN', { minimumFractionDigits: 2 })} />
-                        </TableCell>
-                        <TableCell>
-                          <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input w-28 sm:w-32 bg-white/5 text-white font-medium" value={totalClosing.toLocaleString('en-IN', { minimumFractionDigits: 2 })} />
-                        </TableCell>
-                        <TableCell>
-                          <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input w-28 sm:w-32 bg-white/5 text-white font-medium" value={totalDiff.toLocaleString('en-IN', { minimumFractionDigits: 2 })} />
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })()}
-                </>
-              )}
-            </TableBody>
-          </Table>
-        </div>
+              </TableHeader>
+              <TableBody>
+                {filteredList.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={2} className="text-center text-gray-400 py-8 text-sm">No entries found.</TableCell>
+                  </TableRow>
+                ) : (
+                  filteredList.map((entry) => (
+                    <TableRow
+                      key={entry.report_date}
+                      className="cursor-pointer transition-colors hover:bg-white/5"
+                      onClick={() => navigate('entry/' + encodeURIComponent(entry.report_date))}
+                    >
+                      <TableCell className="text-xs sm:text-sm">{toDDMMYYYY(entry.report_date)}</TableCell>
+                      <TableCell className="text-xs sm:text-sm">₹ {(entry.closing_balance ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
 }
 
-function CashTallyTab({ clientId, entityId, token, toast, readOnly = false }) {
-  const [reportDate, setReportDate] = useState(() => new Date().toISOString().slice(0, 10));
+/** Cash Tally form on its own page (add or view/update). */
+function CashTallyFormPage({ clientId, entityId, token, toast, readOnly = false }) {
+  const navigate = useNavigate();
+  const { reportDate: reportDateParam } = useParams();
+  const today = new Date().toISOString().slice(0, 10);
+  const isNew = !reportDateParam || reportDateParam === 'new';
+  const reportDate = isNew ? today : reportDateParam;
+
   const [openingBalance, setOpeningBalance] = useState(0);
   const [cashInHandover, setCashInHandover] = useState(0);
   const [cashInOther, setCashInOther] = useState('');
@@ -310,17 +626,16 @@ function CashTallyTab({ clientId, entityId, token, toast, readOnly = false }) {
 
   const cashInOtherNum = parseFloat(cashInOther) || 0;
   const closingBalance = openingBalance + cashInHandover + cashInOtherNum - cashOut;
-  const today = new Date().toISOString().slice(0, 10);
   const isPastDate = reportDate < today;
   const isReadOnly = readOnly || isPastDate;
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (date) => {
     if (!clientId || !token) return;
     setLoading(true);
     try {
       const [tallyRes, cashTotal, denomList] = await Promise.all([
-        getCashTally(clientId, reportDate, token),
-        entityId ? getVouchersCashTotalForDate(entityId, reportDate, token) : Promise.resolve(0),
+        getCashTally(clientId, date, token),
+        entityId ? getVouchersCashTotalForDate(entityId, date, token) : Promise.resolve(0),
         listCashDenominations(clientId, token),
       ]);
       setOpeningBalance(Number(tallyRes?.opening_balance) || 0);
@@ -341,15 +656,16 @@ function CashTallyTab({ clientId, entityId, token, toast, readOnly = false }) {
     } finally {
       setLoading(false);
     }
-  }, [clientId, entityId, token, reportDate, toast]);
+  }, [clientId, entityId, token, toast]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    if (reportDate) loadData(reportDate);
+  }, [reportDate]);
 
   const setUnits = (denomId, value) => {
     setDenominationDetails(prev => ({ ...prev, [String(denomId)]: value === '' ? 0 : (parseFloat(value) || 0) }));
   };
   const getUnits = (denomId) => denominationDetails[String(denomId)] ?? 0;
-
   const denominationTotal = denominations.reduce((sum, d) => {
     const units = getUnits(d.id);
     return sum + (Number(d.value) || 0) * (Number(units) || 0);
@@ -373,7 +689,7 @@ function CashTallyTab({ clientId, entityId, token, toast, readOnly = false }) {
       };
       await saveCashTally(clientId, payload, token);
       toast({ title: 'Saved', description: 'Cash tally saved.' });
-      loadData();
+      navigate('..', { relative: 'path' });
     } catch (e) {
       toast({ variant: 'destructive', title: 'Error', description: e?.message || 'Save failed.' });
     } finally {
@@ -382,20 +698,21 @@ function CashTallyTab({ clientId, entityId, token, toast, readOnly = false }) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white -ml-2" onClick={() => navigate('..', { relative: 'path' })}>
+        <ArrowLeft className="mr-2 h-4 w-4" /> Back to list
+      </Button>
       <Card className="glass-card border-white/5">
         <CardHeader className="p-4 sm:p-6 flex flex-row flex-wrap items-center justify-between gap-4">
           <div>
-            <CardTitle className="text-lg sm:text-xl text-white">Cash Tally</CardTitle>
+            <CardTitle className="text-lg sm:text-xl text-white">{isNew ? 'New entry' : 'View / Update'}</CardTitle>
             <CardDescription className="text-sm text-gray-400">Cash in hand, denomination breakdown and remarks.</CardDescription>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            {/* <Label className="text-gray-400 text-sm">Date</Label> */}
-            <Input type="date" className="glass-input max-w-[200px]" value={reportDate} onChange={e => setReportDate(e.target.value)} />
+            <Input type="date" className="glass-input max-w-[200px]" value={reportDate} readOnly />
           </div>
         </CardHeader>
         <CardContent className="space-y-6 pt-0">
-          {/* Cash in hand - all 5 inputs in one line */}
           <div>
             <h3 className="text-sm font-semibold text-white mb-3 border-b border-white/10 pb-2">Cash in hand</h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
@@ -422,10 +739,9 @@ function CashTallyTab({ clientId, entityId, token, toast, readOnly = false }) {
             </div>
           </div>
 
-          {/* Denomination */}
           <div>
             <h3 className="text-sm font-semibold text-white mb-3 border-b border-white/10 pb-2">Cash denomination</h3>
-            {loading ? (
+            {loading && !denominations.length ? (
               <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-white" /></div>
             ) : denominations.length === 0 ? (
               <p className="text-gray-400 py-4 text-sm">Add denominations in Settings → Cash Denomination.</p>
@@ -489,10 +805,150 @@ function CashTallyTab({ clientId, entityId, token, toast, readOnly = false }) {
   );
 }
 
-function CashierReportTab({ clientId, token, toast }) {
+/** Cashier Report: list only. Click row → entry page. Add from main Add New. */
+function CashierReportListTab({ clientId, token, toast }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [entriesList, setEntriesList] = useState([]);
+  const [listLoading, setListLoading] = useState(true);
+  const [datePreset, setDatePreset] = useState('all_time');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const loadList = useCallback(async () => {
+    if (!clientId || !token) return;
+    setListLoading(true);
+    try {
+      const list = await listCashierReports(clientId, token, {});
+      setEntriesList(Array.isArray(list) ? list : []);
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Error', description: e?.message || 'Failed to load list.' });
+      setEntriesList([]);
+    } finally {
+      setListLoading(false);
+    }
+  }, [clientId, token, toast]);
+
+  useEffect(() => { loadList(); }, [loadList]);
+  useEffect(() => {
+    const isListRoute = !/\/entry\/|\/new$/.test(location.pathname);
+    if (isListRoute) loadList();
+  }, [location.pathname, loadList]);
+
+  const filteredList = useMemo(() => {
+    let list = entriesList;
+    if (datePreset !== 'all_time') {
+      const today = new Date().toISOString().slice(0, 10);
+      const now = new Date();
+      list = list.filter(e => {
+        const d = (e.report_date || '').toString();
+        if (datePreset === 'today') return d === today;
+        if (datePreset === 'custom' && (dateFrom || dateTo)) {
+          if (dateFrom && dateTo) return d >= dateFrom && d <= dateTo;
+          if (dateFrom) return d >= dateFrom;
+          if (dateTo) return d <= dateTo;
+        }
+        if (datePreset === 'last_7_days' || datePreset === 'last_30_days') {
+          const n = datePreset === 'last_7_days' ? 7 : 30;
+          const from = new Date(now);
+          from.setDate(from.getDate() - n);
+          return d >= from.toISOString().slice(0, 10) && d <= today;
+        }
+        return true;
+      });
+    }
+    if (searchTerm && searchTerm.trim()) {
+      const t = searchTerm.toLowerCase().trim();
+      list = list.filter(e => toDDMMYYYY(e.report_date).toLowerCase().includes(t) || (e.report_date || '').toString().includes(t) || (e.remarks || '').toLowerCase().includes(t));
+    }
+    return list;
+  }, [entriesList, datePreset, dateFrom, dateTo, searchTerm]);
+
+  return (
+    <Card className="glass-card mt-4">
+      <CardHeader className="p-4 sm:p-6">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4 justify-between w-full">
+            <CardTitle className="text-lg sm:text-xl text-white">Cashier Report</CardTitle>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4 flex-1 justify-end">
+              <Select value={datePreset} onValueChange={setDatePreset}>
+                <SelectTrigger className="w-full sm:w-[160px] h-9 text-sm glass-input">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                    <SelectValue placeholder="All Time" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all_time">All Time</SelectItem>
+                  <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="last_7_days">Last 7 Days</SelectItem>
+                  <SelectItem value="last_30_days">Last 30 Days</SelectItem>
+                  <SelectItem value="custom">Custom</SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="relative w-full sm:w-auto sm:max-w-xs">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input placeholder="Date, Remarks..." className="pl-9 glass-input h-9 text-sm w-full sm:w-[200px]" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+              </div>
+              {datePreset === 'custom' && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-full sm:max-w-[130px] h-9 text-sm glass-input" />
+                  <span className="text-gray-400 text-sm">-</span>
+                  <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-full sm:max-w-[130px] h-9 text-sm glass-input" />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="p-0">
+        {listLoading ? (
+          <div className="p-6 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-white" /></div>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-xs sm:text-sm">Date</TableHead>
+                  <TableHead className="text-xs sm:text-sm">Remarks</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredList.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={2} className="text-center text-gray-400 py-8 text-sm">No reports found.</TableCell>
+                  </TableRow>
+                ) : (
+                  filteredList.map((report) => (
+                    <TableRow
+                      key={report.id}
+                      className="cursor-pointer transition-colors hover:bg-white/5"
+                      onClick={() => navigate('entry/' + encodeURIComponent(report.report_date))}
+                    >
+                      <TableCell className="text-xs sm:text-sm">{toDDMMYYYY(report.report_date)}</TableCell>
+                      <TableCell className="text-xs sm:text-sm max-w-[200px] truncate" title={report.remarks || ''}>{report.remarks || '—'}</TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function CashierReportFormPage({ clientId, token, toast }) {
+  const navigate = useNavigate();
+  const { reportDate: reportDateParam } = useParams();
+  const today = new Date().toISOString().slice(0, 10);
+  const isNew = !reportDateParam || reportDateParam === 'new';
+  const reportDate = isNew ? today : reportDateParam;
+
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [departments, setDepartments] = useState([]);
-  const [reportDate, setReportDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [matrix, setMatrix] = useState({});
   const [remarks, setRemarks] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -587,7 +1043,7 @@ function CashierReportTab({ clientId, token, toast }) {
     try {
       await createCashierReport(clientId, { report_date: reportDate, details, remarks }, token);
       toast({ title: 'Success', description: 'Cashier report submitted.' });
-      if (!matrix || Object.keys(matrix).length === 0) setMatrix({});
+      navigate('..', { relative: 'path' });
     } catch (e) {
       toast({ variant: 'destructive', title: 'Error', description: e?.message || 'Submit failed.' });
     } finally {
@@ -596,21 +1052,24 @@ function CashierReportTab({ clientId, token, toast }) {
   };
 
   return (
-    <Card className="glass-card border-white/5">
-      <CardHeader className="p-4 sm:p-6 flex flex-row flex-wrap items-center justify-between gap-4">
-        <div>
-          <CardTitle className="text-lg sm:text-xl text-white">Cashier Report</CardTitle>
-          <CardDescription className="text-sm text-gray-400">Enter amounts by department and payment method for the selected date.</CardDescription>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Label className="text-gray-400 text-sm">Date</Label>
-          <Input type="date" className="h-9 sm:h-10 text-sm glass-input w-40 text-white" value={reportDate} onChange={e => setReportDate(e.target.value)} disabled={loadingReport} />
-          <Button onClick={handleSubmit} disabled={submitting || readOnly} className="h-9 sm:h-10 text-sm">
-            {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Submit
-          </Button>
-          {readOnly && <span className="text-xs text-amber-400">Handover approved — view only</span>}
-        </div>
-      </CardHeader>
+    <div className="space-y-4">
+      <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white -ml-2" onClick={() => navigate('..', { relative: 'path' })}>
+        <ArrowLeft className="mr-2 h-4 w-4" /> Back to list
+      </Button>
+      <Card className="glass-card border-white/5">
+        <CardHeader className="p-4 sm:p-6 flex flex-row flex-wrap items-center justify-between gap-4">
+          <div>
+            <CardTitle className="text-lg sm:text-xl text-white">{isNew ? 'New report' : 'View / Update'}</CardTitle>
+            <CardDescription className="text-sm text-gray-400">Enter amounts by department and payment method for the selected date.</CardDescription>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Input type="date" className="h-9 sm:h-10 text-sm glass-input w-40 text-white" value={reportDate} readOnly />
+            <Button onClick={handleSubmit} disabled={submitting || readOnly} className="h-9 sm:h-10 text-sm">
+              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Submit
+            </Button>
+            {readOnly && <span className="text-xs text-amber-400">Handover approved — view only</span>}
+          </div>
+        </CardHeader>
       <CardContent className="p-0 space-y-4">
         {loadingReport && (
           <div className="flex items-center justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-white" /></div>
@@ -655,12 +1114,21 @@ function CashierReportTab({ clientId, token, toast }) {
           <Input readOnly={readOnly} className={`h-9 sm:h-10 text-sm glass-input mt-1 text-white ${readOnly ? 'cursor-default opacity-90' : ''}`} value={remarks} onChange={e => !readOnly && setRemarks(e.target.value)} placeholder="Remarks" />
         </div>
       </CardContent>
-    </Card>
+      </Card>
+    </div>
   );
 }
 
+function CashierReportTab({ clientId, token, toast }) {
+  return <CashierReportListTab clientId={clientId} token={token} toast={toast} />;
+}
+
 function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, readOnly = false }) {
-  const [summaryDate, setSummaryDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [viewMode, setViewMode] = useState('pending');
+  const [datePreset, setDatePreset] = useState('all_time');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [items, setItems] = useState([]);
   const [usersMap, setUsersMap] = useState({});
   const [paymentMethods, setPaymentMethods] = useState([]);
@@ -676,7 +1144,7 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
     if (!clientId || !token) return;
     setLoading(true);
     try {
-      const res = await handoversSummary(clientId, summaryDate, token);
+      const res = await handoversSummary(clientId, null, token);
       setItems(res?.items || []);
     } catch (e) {
       toast({ variant: 'destructive', title: 'Error', description: e?.message || 'Failed to load.' });
@@ -684,7 +1152,7 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
     } finally {
       setLoading(false);
     }
-  }, [clientId, summaryDate, token, toast]);
+  }, [clientId, token, toast]);
 
   useEffect(() => { fetchSummary(); }, [fetchSummary]);
 
@@ -749,7 +1217,70 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
   };
 
   const pmName = (id) => paymentMethods.find(p => p.id === id)?.name || id;
-  const showActionColumn = !readOnly && (isAdminView ? items.some(row => row.status === 'pending') : true);
+  const applyDateFilter = (list) => {
+    if (datePreset === 'all_time') return list;
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return list.filter(row => {
+      const d = new Date(row.date);
+      const vDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      if (datePreset === 'today') return vDate.getTime() === today.getTime();
+      if (datePreset === 'yesterday') {
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        return vDate.getTime() === yesterday.getTime();
+      }
+      if (datePreset === 'last_7_days') {
+        const last7 = new Date(today);
+        last7.setDate(last7.getDate() - 7);
+        return vDate >= last7 && vDate <= today;
+      }
+      if (datePreset === 'last_30_days') {
+        const last30 = new Date(today);
+        last30.setDate(last30.getDate() - 30);
+        return vDate >= last30 && vDate <= today;
+      }
+      if (datePreset === 'this_month') {
+        const first = new Date(now.getFullYear(), now.getMonth(), 1);
+        return vDate >= first && vDate <= today;
+      }
+      if (datePreset === 'last_month') {
+        const firstLast = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const lastLast = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+        return vDate >= firstLast && vDate <= lastLast;
+      }
+      if (datePreset === 'custom' && (dateFrom || dateTo)) {
+        const from = dateFrom ? new Date(dateFrom) : null;
+        const to = dateTo ? new Date(dateTo) : null;
+        if (from && to) {
+          const toEnd = new Date(to);
+          toEnd.setHours(23, 59, 59, 999);
+          return vDate >= from && vDate <= toEnd;
+        }
+        if (from) return vDate >= from;
+        if (to) {
+          const toEnd = new Date(to);
+          toEnd.setHours(23, 59, 59, 999);
+          return vDate <= toEnd;
+        }
+      }
+      return true;
+    });
+  };
+  const applySearch = (list) => {
+    if (!searchTerm || !searchTerm.trim()) return list;
+    const term = searchTerm.toLowerCase().trim();
+    return list.filter(row => {
+      const created = (usersMap[row.created_by_user_id] || row.created_by_name || '').toLowerCase();
+      const dept = (row.department_name || '').toLowerCase();
+      const dateStr = (row.date || '').toLowerCase();
+      return created.includes(term) || dept.includes(term) || dateStr.includes(term);
+    });
+  };
+  const pendingItems = useMemo(() => applySearch(applyDateFilter(items.filter(row => row.status !== 'approved'))), [items, datePreset, dateFrom, dateTo, searchTerm, usersMap]);
+  const historyItems = useMemo(() => applySearch(applyDateFilter(items.filter(row => row.status === 'approved'))), [items, datePreset, dateFrom, dateTo, searchTerm, usersMap]);
+  const displayItems = viewMode === 'pending' ? pendingItems : historyItems;
+  const showActionColumn = viewMode === 'pending' && !readOnly && (isAdminView ? displayItems.some(row => row.status === 'pending') : true);
   const canAct = (row) => !readOnly && (isAdminView ? row.status === 'pending' : row.client_user_status !== 'approved');
   const statusLabel = (row) => {
     if (row.status === 'approved') return 'Approved';
@@ -771,15 +1302,69 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
   const isBreakdownViewOnly = (row) => readOnly || (!isAdminView && userRole !== 'CLIENT_HANDOVER');
 
   return (
-    <Card className="glass-card border-white/5">
-      <CardHeader className="p-4 sm:p-6 flex flex-row flex-wrap items-center justify-between gap-4">
-        <div>
-          <CardTitle className="text-lg sm:text-xl text-white">Handover</CardTitle>
-          <CardDescription className="text-sm text-gray-400">View and approve handovers for the selected date.</CardDescription>
-        </div>
-        <div className="flex items-center gap-2">
-
-          <Input type="date" className="glass-input max-w-[200px]" value={summaryDate} onChange={e => setSummaryDate(e.target.value)} />
+    <Card className="glass-card mt-4">
+      <CardHeader className="p-4 sm:p-6">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4 justify-between w-full">
+            <div className="flex p-1 bg-black/20 rounded-lg border border-white/10 backdrop-blur-sm">
+              <button
+                type="button"
+                onClick={() => setViewMode('pending')}
+                className={`px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-all ${viewMode === 'pending'
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40'
+                }`}
+              >
+                Pending
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('history')}
+                className={`px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-all ${viewMode === 'history'
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40'
+                }`}
+              >
+                History
+              </button>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4 flex-1 justify-end">
+              <Select value={datePreset} onValueChange={setDatePreset}>
+                <SelectTrigger className="w-full sm:w-[160px] h-9 text-sm glass-input">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                    <SelectValue placeholder="All Time" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all_time">All Time</SelectItem>
+                  <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="yesterday">Yesterday</SelectItem>
+                  <SelectItem value="last_7_days">Last 7 Days</SelectItem>
+                  <SelectItem value="last_30_days">Last 30 Days</SelectItem>
+                  <SelectItem value="this_month">This Month</SelectItem>
+                  <SelectItem value="last_month">Last Month</SelectItem>
+                  <SelectItem value="custom">Custom</SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="relative w-full sm:w-auto sm:max-w-xs flex-grow sm:flex-grow-0">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  placeholder="Date, Department, Created by..."
+                  className="pl-9 glass-input h-9 text-sm w-full sm:w-[250px]"
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                />
+              </div>
+              {datePreset === 'custom' && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Input type="date" placeholder="From" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-full sm:max-w-[130px] h-9 text-sm glass-input" />
+                  <span className="text-gray-400 text-sm">-</span>
+                  <Input type="date" placeholder="To" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-full sm:max-w-[130px] h-9 text-sm glass-input" />
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="p-0">
@@ -802,12 +1387,14 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
                 <TableRow>
                   <TableCell colSpan={colSpan} className="h-24 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-white" /></TableCell>
                 </TableRow>
-              ) : items.length === 0 ? (
+              ) : displayItems.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={colSpan} className="h-24 text-center text-gray-400 text-sm">No handovers for this date.</TableCell>
+                  <TableCell colSpan={colSpan} className="h-24 text-center text-gray-400 text-sm">
+                    {viewMode === 'pending' ? 'No pending handovers.' : 'No approved handovers.'}
+                  </TableCell>
                 </TableRow>
               ) : (
-                items.map((row) => (
+                displayItems.map((row) => (
                   <TableRow key={row.handover_id} className="border-white/10">
                     <TableCell className="text-xs sm:text-sm text-white">{toDDMMYYYY(row.date)}</TableCell>
                     <TableCell className="text-xs sm:text-sm text-white">{usersMap[row.created_by_user_id] || row.created_by_name || '—'}</TableCell>
@@ -1254,4 +1841,20 @@ function ReportTab({ clientId, entityId, entityName, token, toast }) {
 }
 
 export default ClientHandoverPage;
-export { HandoverTab, BankTallyTab, CashTallyTab, ReportTab, CashierReportTab };
+// For FinancePage / Handover page: show list only (same as list tab).
+const BankTallyTab = BankTallyListTab;
+const CashTallyTab = CashTallyListTab;
+
+export {
+  HandoverTab,
+  BankTallyTab,
+  CashTallyTab,
+  BankTallyListTab,
+  BankTallyFormPage,
+  CashTallyListTab,
+  CashTallyFormPage,
+  ReportTab,
+  CashierReportTab,
+  CashierReportListTab,
+  CashierReportFormPage,
+};
