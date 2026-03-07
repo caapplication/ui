@@ -421,8 +421,8 @@ const Beneficiaries = ({ entityId, quickAction, clearQuickAction }) => {
   );
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+    <div className="p-4 sm:p-6 lg:p-8 h-full flex flex-col overflow-hidden">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="flex-1 flex flex-col min-h-0">
         <div className="page-header">
           <h1 className="page-title">Beneficiaries</h1>
         </div>
@@ -432,7 +432,7 @@ const Beneficiaries = ({ entityId, quickAction, clearQuickAction }) => {
             <Loader2 className="w-8 h-8 animate-spin text-white" />
           </div>
         ) : (
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col min-h-0">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 flex-wrap w-full">
               <TabsList>
                 <TabsTrigger value="individual">
@@ -460,10 +460,9 @@ const Beneficiaries = ({ entityId, quickAction, clearQuickAction }) => {
 </div>
               </div>
             </div>
-            <TabsContent value="individual">
-              <Card className="glass-card overflow-hidden">
-
-                <CardContent className="p-0">
+            <TabsContent value="individual" className="flex-1 flex flex-col min-h-0 mt-0 h-full">
+                <Card className="glass-card overflow-hidden flex-1 flex flex-col min-h-0">
+                    <CardContent className="p-0 flex-1 overflow-auto no-scrollbar">
                   <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
@@ -507,15 +506,14 @@ const Beneficiaries = ({ entityId, quickAction, clearQuickAction }) => {
                         )}
                       </TableBody>
                     </Table>
-                  </div>
+                    </div>
                 </CardContent>
                 <PaginationFooter />
               </Card>
             </TabsContent>
-            <TabsContent value="company">
-              <Card className="glass-card overflow-hidden">
-
-                <CardContent className="p-0">
+            <TabsContent value="company" className="flex-1 flex flex-col min-h-0 mt-0 h-full">
+                <Card className="glass-card overflow-hidden flex-1 flex flex-col min-h-0">
+                    <CardContent className="p-0 flex-1 overflow-auto no-scrollbar">
                   <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>

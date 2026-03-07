@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Search, UserPlus, Filter, Loader2, Trash2, RefreshCw, UserCheck, History, Users, ChevronDown, Check } from 'lucide-react';
+import { Search, UserPlus, Filter, Loader2, Trash2, RefreshCw, UserCheck, History, Users, ChevronDown, Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/ui/use-toast';
 import { listEntityUsers, inviteEntityUser, deleteEntityUser, deleteInvitedOrgUser, resendToken, listAllAccessibleEntityUsers, addEntityUsers } from '@/lib/api/organisation';
@@ -45,6 +45,8 @@ const ClientUsersPage = ({ entityId }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [userFilter, setUserFilter] = useState('all'); // all, joined, invited
+    const ITEMS_PER_PAGE = 10;
+    const [currentPage, setCurrentPage] = useState(1);
 
     // Invite Dialog State
     const [showInviteDialog, setShowInviteDialog] = useState(false);
@@ -209,6 +211,25 @@ const ClientUsersPage = ({ entityId }) => {
         return filtered;
     }, [allUsers, userFilter, searchTerm]);
 
+    const totalPages = useMemo(() => {
+        return Math.max(1, Math.ceil(filteredUsers.length / ITEMS_PER_PAGE));
+    }, [filteredUsers.length]);
+
+    const paginatedUsers = useMemo(() => {
+        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+        return filteredUsers.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+    }, [filteredUsers, currentPage]);
+
+    // Reset pagination when switching filters or searching
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [userFilter, searchTerm]);
+
+    // Clamp current page if results shrink
+    useEffect(() => {
+        if (currentPage > totalPages) setCurrentPage(totalPages);
+    }, [currentPage, totalPages]);
+
     // Check pending items for all joined users (after allUsers is defined)
     useEffect(() => {
         const checkAllUsersPending = async () => {
@@ -347,6 +368,34 @@ const ClientUsersPage = ({ entityId }) => {
         }
     };
 
+    const PaginationFooter = () => (
+        <div className="flex flex-row justify-center items-center gap-3 py-4 px-6 border-t border-white/10 shrink-0">
+            <div>
+                <p className="text-xs sm:text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
+            </div>
+            <div className="flex items-center gap-2">
+                <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="h-8 w-8 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
+                >
+                    <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="h-8 w-8 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
+                >
+                    <ChevronRight className="w-4 h-4" />
+                </Button>
+            </div>
+        </div>
+    );
+
     if (!entityId) {
         return (
             <div className="p-8 h-full flex items-center justify-center text-white">
@@ -362,7 +411,7 @@ const ClientUsersPage = ({ entityId }) => {
     const [activeTab, setActiveTab] = useState('members');
 
     return (
-        <div className="p-4 md:p-8 h-full flex flex-col text-white">
+        <div className="p-4 md:p-8 h-full flex flex-col text-white overflow-hidden">
             <div className="page-header">
                 <div>
                     <h1 className="page-title">Manage Team</h1>
@@ -438,14 +487,14 @@ const ClientUsersPage = ({ entityId }) => {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {isLoading && filteredUsers.length === 0 ? (
+                                    {isLoading && paginatedUsers.length === 0 ? (
                                         <TableRow>
                                             <TableCell colSpan={user?.role !== 'CLIENT_USER' ? 5 : 4} className="h-24 text-center">
                                                 <Loader2 className="w-6 h-6 animate-spin mx-auto text-primary" />
                                             </TableCell>
                                         </TableRow>
-                                    ) : filteredUsers.length > 0 ? (
-                                        filteredUsers.map((u) => (
+                                    ) : paginatedUsers.length > 0 ? (
+                                        paginatedUsers.map((u) => (
                                             <TableRow key={u.user_id || u.email} className="border-white/10 hover:bg-white/5">
                                                 <TableCell>
                                                     <div className="flex flex-col">
@@ -531,7 +580,7 @@ const ClientUsersPage = ({ entityId }) => {
                                         ))
                                     ) : (
                                         <TableRow>
-                                            <TableCell colSpan={user?.role !== 'CLIENT_USER' ? 5 : 4} className="h-24 text-center text-gray-400">
+                                            <TableCell colSpan={user?.role !== 'CLIENT_USER' ? 6 : 5} className="h-24 text-center text-gray-400">
                                                 No users found.
                                             </TableCell>
                                         </TableRow>
@@ -539,6 +588,7 @@ const ClientUsersPage = ({ entityId }) => {
                                 </TableBody>
                             </Table>
                         </div>
+                        <PaginationFooter />
                     </div>
                 </TabsContent>
 
