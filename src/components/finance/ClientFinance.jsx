@@ -523,6 +523,7 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction, entityName: en
                   <>
                     <TabsTrigger value="cashier" className="px-4 py-2 rounded-xl md:rounded-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all text-nowrap">Cashier Report</TabsTrigger>
                     <TabsTrigger value="handover" className="px-4 py-2 rounded-xl md:rounded-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all">Handover</TabsTrigger>
+                    <TabsTrigger value="bank-tally" className="px-4 py-2 rounded-xl md:rounded-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all text-nowrap">Bank Tally</TabsTrigger>
                     <TabsTrigger value="cash-tally" className="px-4 py-2 rounded-xl md:rounded-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all text-nowrap">Cash Tally</TabsTrigger>
                     <TabsTrigger value="report" className="px-4 py-2 rounded-xl md:rounded-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all">Report</TabsTrigger>
                   </>
