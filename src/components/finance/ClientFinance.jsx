@@ -121,7 +121,7 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction, entityName: en
   const tabFromPath = path.replace(/^\/finance\/?/, '').split('/')[0] || 'vouchers';
   const allowedTabs = isAdmin
     ? ['vouchers', 'invoices', 'handover', 'bank-tally', 'cash-tally', 'report', 'cashier']
-    : ['vouchers', 'invoices', 'cashier', 'handover', 'cash-tally', 'report'];
+    : ['vouchers', 'invoices', 'cashier', 'handover', 'bank-tally', 'cash-tally', 'report'];
   const activeTab = allowedTabs.includes(tabFromPath) ? tabFromPath : 'vouchers';
 
   useEffect(() => {
@@ -527,6 +527,7 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction, entityName: en
                 <>
                   <TabsTrigger value="cashier">Cashier Report</TabsTrigger>
                   <TabsTrigger value="handover">Handover</TabsTrigger>
+                  <TabsTrigger value="bank-tally">Bank Tally</TabsTrigger>
                   <TabsTrigger value="cash-tally">Cash Tally</TabsTrigger>
                   <TabsTrigger value="report">Report</TabsTrigger>
                 </>
@@ -557,11 +558,9 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction, entityName: en
                   <DropdownMenuItem onClick={() => setShowInvoiceDialog(true)}>
                     Invoice
                   </DropdownMenuItem>
-                  {isAdmin && (
-                    <DropdownMenuItem onClick={() => navigate('/finance/bank-tally/new')}>
-                      Bank Tally
-                    </DropdownMenuItem>
-                  )}
+                  <DropdownMenuItem onClick={() => navigate('/finance/bank-tally/new')}>
+                    Bank Tally
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate('/finance/cash-tally/new')}>
                     Cash Tally
                   </DropdownMenuItem>
@@ -636,6 +635,11 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction, entityName: en
                     <Route path="entry/:reportDate" element={<CashierReportFormPage clientId={entityId} token={user?.access_token} toast={toast} />} />
                   </Route>
                   <Route path="handover" element={<HandoverTab clientId={entityId} token={user?.access_token} toast={toast} userRole={user?.role} />} />
+                  <Route path="bank-tally" element={<Outlet />}>
+                    <Route index element={<BankTallyListTab clientId={entityId} token={user?.access_token} toast={toast} />} />
+                    <Route path="new" element={<BankTallyFormPage clientId={entityId} token={user?.access_token} toast={toast} />} />
+                    <Route path="entry/:reportDate" element={<BankTallyFormPage clientId={entityId} token={user?.access_token} toast={toast} />} />
+                  </Route>
                   <Route path="cash-tally" element={<Outlet />}>
                     <Route index element={<CashTallyListTab clientId={entityId} entityId={entityId} token={user?.access_token} toast={toast} />} />
                     <Route path="new" element={<CashTallyFormPage clientId={entityId} entityId={entityId} token={user?.access_token} toast={toast} />} />
