@@ -166,8 +166,8 @@ body {
   @apply pl-9 h-9 text-sm w-full sm:w-[250px];
 }
 
-.page-header {  
-  @apply flex items-center space-x-4 mb-6 sm:mb-8 lg:mb-10;
+.page-header {
+  @apply flex items-center space-x-4 mb-6 sm:mb-4 lg:mb-4;
 }
 
 .page-title {
@@ -175,7 +175,7 @@ body {
 }
 
 .search-icon {
-  @apply absolute left-3 top-1/2 transform -translate-y-1/2  w-4 h-4;
+  @apply absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4;
 }
 
 .card-hover {

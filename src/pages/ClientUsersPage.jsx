@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Search, UserPlus, Filter, Loader2, Trash2, RefreshCw, UserCheck, History, Users } from 'lucide-react';
+import { Search, UserPlus, Filter, Loader2, Trash2, RefreshCw, UserCheck, History, Users, ChevronDown, Check } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/ui/use-toast';
 import { listEntityUsers, inviteEntityUser, deleteEntityUser, deleteInvitedOrgUser, resendToken, listAllAccessibleEntityUsers, addEntityUsers } from '@/lib/api/organisation';
@@ -405,37 +405,24 @@ const ClientUsersPage = ({ entityId }) => {
                                 <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
                             </Button>
                             <div className="flex items-center gap-2 w-full sm:w-auto">
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button variant="outline" className="glass-input h-9 gap-2 w-full sm:w-auto text-white border-white/20">
-                                            <Filter className="w-4 h-4" />
-                                            <span className="hidden sm:inline">Filter:</span> {userFilter === 'all' ? 'All' : userFilter === 'joined' ? 'Joined' : 'Invited'}
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-48 p-0 bg-[#181C2A] border-gray-700">
-                                        <div className="flex flex-col p-1">
-                                            {['all', 'joined', 'invited'].map(f => (
-                                                <Button
-                                                    key={f}
-                                                    variant="ghost"
-                                                    className="justify-start capitalize text-white hover:bg-white/10"
-                                                    onClick={() => setUserFilter(f)}
-                                                >
-                                                    {f}
-                                                </Button>
-                                            ))}
-                                        </div>
-                                    </PopoverContent>
-                                </Popover>
-
+                                <Select value={userFilter} onValueChange={setUserFilter}>
+                                    <SelectTrigger className="w-full sm:w-[160px] h-11 rounded-full bg-white/5 border-white/10 text-white focus:ring-primary/20 px-5 gap-2">
+                                        <SelectValue placeholder="All Statuses" />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-[#0F121C] border-white/10 text-white rounded-2xl p-1">
+                                        <SelectItem value="all" className="rounded-xl focus:bg-white/10 cursor-pointer">All Statuses</SelectItem>
+                                        <SelectItem value="joined" className="rounded-xl focus:bg-white/10 cursor-pointer">Joined</SelectItem>
+                                        <SelectItem value="invited" className="rounded-xl focus:bg-white/10 cursor-pointer">Invited</SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </div>
                             <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
-    <AnimatedSearch
-        placeholder="Search users..."
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-    />
-</div>
+                                <AnimatedSearch
+                                    placeholder="Search users..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                />
+                            </div>
                         </div>
 
                         <div className="overflow-auto flex-1 no-scrollbar">
@@ -710,12 +697,12 @@ const ClientUsersPage = ({ entityId }) => {
                             Select users from your organization to add to this entity.
                         </p>
                         <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
-    <AnimatedSearch
-        placeholder="Search users by name or email..."
-        value={existingUserSearchTerm}
-        onChange={(e) => setExistingUserSearchTerm(e.target.value)}
-    />
-</div>
+                            <AnimatedSearch
+                                placeholder="Search users by name or email..."
+                                value={existingUserSearchTerm}
+                                onChange={(e) => setExistingUserSearchTerm(e.target.value)}
+                            />
+                        </div>
                         <div className="max-h-96 overflow-y-auto border border-white/10 rounded-md">
                             {organizationUsers
                                 .filter(u =>

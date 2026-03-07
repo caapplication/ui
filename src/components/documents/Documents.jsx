@@ -1542,7 +1542,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
 
     return (
       <>
-        <div className="flex items-center space-x-1 sm:space-x-2 text-gray-400 mb-4 sm:mb-8 text-sm sm:text-base overflow-x-auto pb-2">
+        <div className="flex items-center space-x-1 sm:space-x-2 text-gray-400 mb-4 text-sm sm:text-base overflow-x-auto pb-2">
           {currentFolderId !== 'root' && currentPath.length > 1 && (
             <Button variant="ghost" size="sm" onClick={() => {
               handleFolderNavigation(currentPath[currentPath.length - 2].id);
@@ -1939,7 +1939,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
       return (
         <div>
           {/* Breadcrumb navigation */}
-          <div className="flex items-center space-x-1 sm:space-x-2 text-gray-400 mb-4 sm:mb-8 text-sm sm:text-base overflow-x-auto pb-2">
+          <div className="flex items-center space-x-1 sm:space-x-2 text-gray-400 mb-4  text-sm sm:text-base overflow-x-auto pb-2">
             <Button variant="ghost" size="sm" onClick={() => {
               if (sharedFolderPath.length <= 1) {
                 handleSharedFolderBack(-1);
@@ -2269,7 +2269,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   return (
     <div className="p-4 sm:p-6 lg:p-8" onClick={() => setSelectedFolder(null)}>
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-        <div className="page-header flex  justify-between mb-6 lg:mb-8">
+        <div className="page-header flex  justify-between ">
           <h1 className="page-title">Documents</h1>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2 w-full xl:w-auto flex-wrap justify-end">
             <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>

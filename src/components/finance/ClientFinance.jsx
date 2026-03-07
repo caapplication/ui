@@ -498,64 +498,61 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction, entityName: en
       >
 
         <div className="page-header">
-
-
-
           <h1 className="page-title">Finance</h1>
         </div>
-
-
         <Tabs
           value={activeTab}
           onValueChange={(value) => navigate(`/finance/${value}`)}
           className="w-full"
         >
-          <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 mb-4 flex-wrap w-full">
-            <TabsList className="w-full sm:w-auto h-auto justify-start">
-              <TabsTrigger value="vouchers">Vouchers</TabsTrigger>
-              <TabsTrigger value="invoices">Invoices</TabsTrigger>
-              {isAdmin && (
-                <>
-                  <TabsTrigger value="cashier">Cashier Report</TabsTrigger>
-                  <TabsTrigger value="handover">Handover</TabsTrigger>
-                  <TabsTrigger value="bank-tally">Bank Tally</TabsTrigger>
-                  <TabsTrigger value="cash-tally">Cash Tally</TabsTrigger>
-                  <TabsTrigger value="report">Report</TabsTrigger>
-                </>
-              )}
-              {!isAdmin && (user?.role === 'CLIENT_USER') && (
-                <>
-                  <TabsTrigger value="cashier">Cashier Report</TabsTrigger>
-                  <TabsTrigger value="handover">Handover</TabsTrigger>
-                  <TabsTrigger value="bank-tally">Bank Tally</TabsTrigger>
-                  <TabsTrigger value="cash-tally">Cash Tally</TabsTrigger>
-                  <TabsTrigger value="report">Report</TabsTrigger>
-                </>
-              )}
-            </TabsList>
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-4 w-full">
+            <div className="w-full">
+              <TabsList className="grid grid-cols-2 sm:grid-cols-3 md:flex h-auto md:h-11 items-center justify-start rounded-2xl md:rounded-full bg-white/5 p-1 text-gray-400 w-full md:w-fit gap-1">
+                <TabsTrigger value="vouchers" className="px-4 py-2 rounded-xl md:rounded-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all">Vouchers</TabsTrigger>
+                <TabsTrigger value="invoices" className="px-4 py-2 rounded-xl md:rounded-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all">Invoices</TabsTrigger>
+                {isAdmin && (
+                  <>
+                    <TabsTrigger value="cashier" className="px-4 py-2 rounded-xl md:rounded-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all">Cashier Report</TabsTrigger>
+                    <TabsTrigger value="handover" className="px-4 py-2 rounded-xl md:rounded-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all">Handover</TabsTrigger>
+                    <TabsTrigger value="bank-tally" className="px-4 py-2 rounded-xl md:rounded-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all text-nowrap">Bank Tally</TabsTrigger>
+                    <TabsTrigger value="cash-tally" className="px-4 py-2 rounded-xl md:rounded-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all text-nowrap">Cash Tally</TabsTrigger>
+                    <TabsTrigger value="report" className="px-4 py-2 rounded-xl md:rounded-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all">Report</TabsTrigger>
+                  </>
+                )}
+                {!isAdmin && (user?.role === 'CLIENT_USER') && (
+                  <>
+                    <TabsTrigger value="cashier" className="px-4 py-2 rounded-xl md:rounded-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all text-nowrap">Cashier Report</TabsTrigger>
+                    <TabsTrigger value="handover" className="px-4 py-2 rounded-xl md:rounded-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all">Handover</TabsTrigger>
+                    <TabsTrigger value="cash-tally" className="px-4 py-2 rounded-xl md:rounded-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all text-nowrap">Cash Tally</TabsTrigger>
+                    <TabsTrigger value="report" className="px-4 py-2 rounded-xl md:rounded-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all">Report</TabsTrigger>
+                  </>
+                )}
+              </TabsList>
+            </div>
 
             {/* Refresh Button and Add Dropdown - only for vouchers/invoices */}
-            <div className="flex items-center gap-2 w-full xl:w-auto mt-2 xl:mt-0 justify-end">
+            <div className="flex items-center gap-3 w-full lg:w-auto justify-end">
               <Button
                 variant="outline"
                 size="icon"
                 onClick={() => fetchData(true)}
                 disabled={isRefreshing}
-                className="h-9 w-9 sm:h-10 sm:w-10"
+                className="h-11 w-11 min-w-[44px] rounded-full bg-white/5 border-white/10 text-white hover:bg-white/10 shadow-lg"
               >
                 <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="default" className="text-sm sm:text-base h-9 sm:h-10 px-3 sm:px-4">
-                    + Add New
+                  <Button variant="default" className="h-11 px-8 rounded-full bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/30 flex-1 sm:flex-none font-semibold">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add New
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => setShowVoucherDialog(true)}>
+                <DropdownMenuContent align="end" className="bg-gray-900 border-white/10 text-white rounded-2xl p-1">
+                  <DropdownMenuItem onClick={() => setShowVoucherDialog(true)} className="hover:bg-white/10 cursor-pointer py-3 px-4 rounded-xl">
                     Voucher
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setShowInvoiceDialog(true)}>
+                  <DropdownMenuItem onClick={() => setShowInvoiceDialog(true)} className="hover:bg-white/10 cursor-pointer py-3 px-4 rounded-xl">
                     Invoice
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate('/finance/bank-tally/new')}>

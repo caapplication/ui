@@ -258,7 +258,7 @@ const PublicDocumentView = () => {
             <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-6">Shared Folder</h1>
 
             {/* Breadcrumb - matching Documents.jsx style */}
-            <div className="flex items-center space-x-1 sm:space-x-2 text-gray-400 mb-4 sm:mb-8 text-sm sm:text-base overflow-x-auto pb-2">
+            <div className="flex items-center space-x-1 sm:space-x-2 text-gray-400 mb-4 text-sm sm:text-base overflow-x-auto pb-2">
               {currentPath.length > 1 && (
                 <Button variant="ghost" size="sm" onClick={handleBack} className="h-8 sm:h-9 text-xs sm:text-sm flex-shrink-0">
                   <ArrowLeft className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" /> <span className="hidden sm:inline">Back</span>

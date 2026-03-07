@@ -294,7 +294,7 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction,
           </div>
         )}
       </CardContent>
-      <CardFooter className="flex flex-col sm:flex-row justify-center items-center gap-3 sm:gap-0 p-4 sm:p-6">
+      <CardFooter className="flex flex-row justify-center items-center gap-3 p-4 sm:p-6 border-t border-white/10">
         <div>
           <p className="text-xs sm:text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
         </div>

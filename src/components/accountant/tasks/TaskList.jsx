@@ -710,7 +710,7 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                     </Table>
                 </div>
                 {filteredTasks.length > 0 && (
-                    <div className="p-4 sm:p-6 border-t border-white/5 flex flex-col sm:flex-row justify-center items-center gap-4">
+                    <div className="p-4 sm:p-6 border-t border-white/5 flex flex-row justify-center items-center gap-4">
                         <p className="text-xs sm:text-sm text-gray-400">
                             Page {currentPage} of {totalPages || 1} {filteredTasks.length > 0}
                         </p>

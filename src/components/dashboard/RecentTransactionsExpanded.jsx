@@ -257,12 +257,12 @@ const RecentTransactionsExpanded = ({ entityId }) => {
                             </SelectContent>
                         </Select>
                         <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
-    <AnimatedSearch
-        placeholder="Search beneficiary..."
-        value={searchTerm}
-        onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }
-    />
-</div>
+                            <AnimatedSearch
+                                placeholder="Search beneficiary..."
+                                value={searchTerm}
+                                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                            />
+                        </div>
 
                     </div>
 
@@ -450,7 +450,7 @@ const RecentTransactionsExpanded = ({ entityId }) => {
 
                 {/* Pagination */}
                 {totalPages > 1 && (
-                    <div className="p-4 sm:p-6 border-t border-white/5 flex justify-center items-center bg-white/5">
+                    <div className="p-4 sm:p-6 border-t border-white/5 flex justify-center items-center gap-3">
                         <p className="text-sm text-gray-400">
                             Page {currentPage} of {totalPages}
                         </p>

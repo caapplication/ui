@@ -222,14 +222,14 @@ const NoticesPage = () => {
     return (
         <div className="p-4 md:p-8 text-white relative overflow-hidden h-full flex flex-col pt-20 lg:pt-8">
             {/* Top Page Header */}
-            <div className="page-header flex justify-between flex-wrap gap-2 w-full sm:w-auto mb-6 lg:mb-8">
+            <div className="page-header flex justify-between flex-wrap gap-2 w-full sm:w-auto ">
                 <h1 className="page-title">
                     Notices
                 </h1>
                 <div className="flex  flex-wrap gap-2 w-full sm:w-auto">
                     {/* Filter Dropdown for Main View if needed, or just Upload */}
                     {/* Filter Dropdown for Main View if needed, or just Upload */}
-                    <Combobox 
+                    <Combobox
                         options={[
                             { value: 'all', label: 'All Entities' },
                             ...clients.map(client => ({ value: client.id, label: client.name }))

@@ -393,7 +393,7 @@ const Beneficiaries = ({ entityId, quickAction, clearQuickAction }) => {
   }
 
   const PaginationFooter = () => (
-    <CardFooter className="flex flex-col sm:flex-row justify-center items-center gap-3 sm:gap-0 pt-4 px-4 sm:px-6 pb-4 sm:pb-6">
+    <CardFooter className="flex flex-row justify-center items-center gap-3  pt-4 px-4 sm:px-6 pb-4 sm:pb-6 border-t border-white/10">
       <div>
         <p className="text-xs sm:text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
       </div>

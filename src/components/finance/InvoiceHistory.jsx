@@ -216,67 +216,75 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onViewInvoic
     <Card className="glass-card mt-4">
       <CardHeader className="p-4 sm:p-6">
         <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center gap-2 sm:gap-4 justify-between w-full">
-            <div className="flex p-1 bg-black/20 rounded-lg border border-white/10 backdrop-blur-sm">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="flex p-1 bg-white/5 rounded-full border border-white/10 backdrop-blur-md w-fit">
               <button
                 onClick={() => setViewMode('active')}
-                className={`px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-all ${viewMode === 'active'
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40'
+                className={`px-5 py-2 text-xs sm:text-sm font-medium rounded-full transition-all ${viewMode === 'active'
+                  ? 'bg-primary text-white shadow-lg shadow-primary/30'
+                  : 'text-gray-400 hover:text-white hover:bg-white/5'
                   }`}
               >
                 Active
               </button>
               <button
                 onClick={() => setViewMode('history')}
-                className={`px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-all ${viewMode === 'history'
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40'
+                className={`px-5 py-2 text-xs sm:text-sm font-medium rounded-full transition-all ${viewMode === 'history'
+                  ? 'bg-primary text-white shadow-lg shadow-primary/30'
+                  : 'text-gray-400 hover:text-white hover:bg-white/5'
                   }`}
               >
                 History
               </button>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 sm:gap-4 flex-1 justify-end">
+            <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+              <div className="flex-1 min-w-[160px] sm:flex-none">
+                <Select value={datePreset} onValueChange={setDatePreset}>
+                  <SelectTrigger className="w-full sm:w-[160px] h-11 rounded-full bg-white/5 border-white/10 text-white focus:ring-primary/20 px-4">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-gray-400" />
+                      <SelectValue placeholder="All Time" />
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-900 border-white/10 text-white rounded-2xl">
+                    <SelectItem value="all_time">All Time</SelectItem>
+                    <SelectItem value="today">Today</SelectItem>
+                    <SelectItem value="yesterday">Yesterday</SelectItem>
+                    <SelectItem value="last_7_days">Last 7 Days</SelectItem>
+                    <SelectItem value="last_30_days">Last 30 Days</SelectItem>
+                    <SelectItem value="this_month">This Month</SelectItem>
+                    <SelectItem value="last_month">Last Month</SelectItem>
+                    <SelectItem value="last_3_months">Last 3 Months</SelectItem>
+                    <SelectItem value="custom">Custom</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-
-              <Select value={datePreset} onValueChange={setDatePreset}>
-                <SelectTrigger className="w-full sm:w-[160px] h-9 text-sm glass-input">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                    <SelectValue placeholder="All Time" />
-                  </div>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all_time">All Time</SelectItem>
-                  <SelectItem value="today">Today</SelectItem>
-                  <SelectItem value="yesterday">Yesterday</SelectItem>
-                  <SelectItem value="last_7_days">Last 7 Days</SelectItem>
-                  <SelectItem value="last_30_days">Last 30 Days</SelectItem>
-                  <SelectItem value="this_month">This Month</SelectItem>
-                  <SelectItem value="last_month">Last Month</SelectItem>
-                  <SelectItem value="last_3_months">Last 3 Months</SelectItem>
-                  <SelectItem value="custom">Custom</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="relative flex-1 min-w-[200px] lg:max-w-xs">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                <Input
+                  placeholder="Search by Beneficiary, ID..."
+                  className="pl-11 h-11 rounded-full bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:ring-primary/20 w-full px-4"
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                />
+              </div>
 
               {datePreset === 'custom' && (
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-2 w-full lg:w-auto mt-2 lg:mt-0">
                   <Input
                     type="date"
-                    placeholder="From"
                     value={dateFrom}
                     onChange={e => setDateFrom(e.target.value)}
-                    className="w-full sm:max-w-[130px] h-9 text-sm glass-input"
+                    className="flex-1 lg:w-36 h-11 rounded-full bg-white/5 border-white/10 text-white focus:ring-primary/20 px-4"
                   />
-                  <span className="text-gray-400 text-sm">-</span>
+                  <span className="text-gray-500 font-medium">to</span>
                   <Input
                     type="date"
-                    placeholder="To"
                     value={dateTo}
                     onChange={e => setDateTo(e.target.value)}
-                    className="w-full sm:max-w-[130px] h-9 text-sm glass-input"
+                    className="flex-1 lg:w-36 h-11 rounded-full bg-white/5 border-white/10 text-white focus:ring-primary/20 px-4"
                   />
                 </div>
               )}
@@ -364,7 +372,7 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onViewInvoic
         </div>
         {paginatedInvoices.length === 0 && <p className="text-center text-gray-400 py-8 text-sm sm:text-base">No invoices found.</p>}
       </CardContent>
-      <CardFooter className="flex flex-col sm:flex-row justify-center items-center gap-3 sm:gap-0 p-4 sm:p-6">
+      <CardFooter className="flex flex-row justify-center items-center gap-3 p-4 sm:p-6 border-t border-white/10">
         <div>
           <p className="text-xs sm:text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
         </div>

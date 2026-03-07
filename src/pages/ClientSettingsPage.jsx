@@ -161,7 +161,6 @@ function PaymentMethodsTab({ clientId, token, toast }) {
                 <CardHeader className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
                         <CardTitle className="font-semibold tracking-tight text-lg text-white mb-0">Payment Method</CardTitle>
-                        <CardDescription className="text-sm sm:text-base mt-0">Add or edit payment methods (e.g. UPI, Bank, Cash).</CardDescription>
                     </div>
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
 
@@ -325,7 +324,6 @@ function DepartmentsTab({ clientId, token, toast }) {
                 <CardHeader className="p-4 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
                         <CardTitle className="font-semibold tracking-tight text-lg text-white mb-0">Department</CardTitle>
-                        <CardDescription className="text-sm sm:text-base mt-0">Add or edit departments (e.g. Office, Cashier).</CardDescription>
                     </div>
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
 
@@ -489,7 +487,6 @@ function CashDenominationsTab({ clientId, token, toast }) {
                 <CardHeader className="p-4 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
                         <CardTitle className="font-semibold tracking-tight text-lg text-white mb-0">Cash Denomination</CardTitle>
-                        <CardDescription className="text-sm sm:text-base mt-0">Add note/coin values (e.g. ₹500, ₹200). Used in Cash Tally.</CardDescription>
                     </div>
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
 

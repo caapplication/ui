@@ -317,7 +317,7 @@ const PendingVerificationExpanded = () => {
 
             {/* Pagination */}
             {totalPages > 1 && (
-                <div className="p-4 sm:p-6 border-t border-white/5 flex justify-center items-center bg-white/5">
+                <div className="p-4 sm:p-6 border-t border-white/5 flex justify-center items-center gap-3">
                     <p className="text-xs text-gray-400">
                         Page {currentPage} of {totalPages}
                     </p>
