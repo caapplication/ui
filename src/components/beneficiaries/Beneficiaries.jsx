@@ -392,7 +392,7 @@ const Beneficiaries = ({ entityId, quickAction, clearQuickAction }) => {
   }
 
   const PaginationFooter = () => (
-    <CardFooter className="flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-0 pt-4 px-4 sm:px-6 pb-4 sm:pb-6">
+    <CardFooter className="flex flex-col sm:flex-row justify-center items-center gap-3 sm:gap-0 pt-4 px-4 sm:px-6 pb-4 sm:pb-6">
       <div>
         <p className="text-xs sm:text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
       </div>
@@ -444,13 +444,13 @@ const Beneficiaries = ({ entityId, quickAction, clearQuickAction }) => {
                 </TabsTrigger>
               </TabsList>
               <div className="flex items-center gap-2 w-full sm:w-auto">
-              
+
                 <Button onClick={() => setShowAddDialog(true)} className="h-9 sm:h-10 text-sm sm:text-base whitespace-nowrap">
                   <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
                   <span className="hidden sm:inline">Add New</span>
                   <span className="sm:hidden">Add</span>
                 </Button>
-                  <div className="relative">
+                <div className="relative">
                   <Search className="search-icon" />
                   <Input
                     placeholder="Search by name, email, phone, or PAN..."

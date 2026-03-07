@@ -295,7 +295,7 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction,
           </div>
         )}
       </CardContent>
-      <CardFooter className="flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-0 p-4 sm:p-6">
+      <CardFooter className="flex flex-col sm:flex-row justify-center items-center gap-3 sm:gap-0 p-4 sm:p-6">
         <div>
           <p className="text-xs sm:text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
         </div>
@@ -342,10 +342,10 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction,
             </div>
           </div>
           <TabsContent value="active">
-            {renderTable(paginatedAccounts, `Active Bank Accounts for ${entityName}`, "Manage active bank accounts associated with this entity.")}
+            {renderTable(paginatedAccounts, `Active Bank Accounts for ${entityName}`)}
           </TabsContent>
           <TabsContent value="inactive">
-            {renderTable(paginatedAccounts, `Inactive Bank Accounts for ${entityName}`, "Manage inactive bank accounts associated with this entity.")}
+            {renderTable(paginatedAccounts, `Inactive Bank Accounts for ${entityName}`)}
           </TabsContent>
         </Tabs>
       </motion.div>

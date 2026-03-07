@@ -230,7 +230,7 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2 sm:gap-4 flex-1 justify-end">
-                         
+
 
                             <Select value={typeFilter} onValueChange={setTypeFilter}>
                                 <SelectTrigger className="w-full sm:w-[140px] h-9 text-sm glass-input">
@@ -262,7 +262,7 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                                     <SelectItem value="custom">Custom</SelectItem>
                                 </SelectContent>
                             </Select>
-   <div className="relative w-full sm:w-auto sm:max-w-xs flex-grow sm:flex-grow-0">
+                            <div className="relative w-full sm:w-auto sm:max-w-xs flex-grow sm:flex-grow-0">
                                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2  w-4 h-4" />
                                 <Input
                                     placeholder="Beneficiary, Remarks, ID..."
@@ -270,7 +270,7 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                                     value={searchTerm}
                                     onChange={e => setSearchTerm(e.target.value)}
                                 />
-                            </div>                            
+                            </div>
 
                             {datePreset === 'custom' && (
                                 <div className="flex items-center gap-2 flex-wrap">
@@ -351,7 +351,7 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                 </div>
                 {paginatedVouchers.length === 0 && <p className="text-center text-gray-400 py-8 text-sm sm:text-base">No vouchers found.</p>}
             </CardContent>
-            <CardFooter className="flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-0 p-4 sm:p-6">
+            <CardFooter className="flex flex-col sm:flex-row justify-center items-center gap-3 sm:gap-0 p-4 sm:p-6">
                 <div>
                     <p className="text-xs sm:text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
                 </div>

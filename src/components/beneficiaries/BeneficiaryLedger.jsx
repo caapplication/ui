@@ -389,7 +389,7 @@ const BeneficiaryLedger = ({ entityId }) => {
                         <span className="hidden sm:inline">Export</span>
                     </Button>
 
-                 
+
 
                     {/* Time Frame Filter */}
                     <div className="flex flex-col items-end gap-2">
@@ -506,7 +506,7 @@ const BeneficiaryLedger = ({ entityId }) => {
                             </div>
                         )}
                     </div>
-                       <div className="relative flex-1 md:w-64">
+                    <div className="relative flex-1 md:w-64">
                         <Search className=" search-icon" />
                         <Input
                             placeholder="Search beneficiary..."
@@ -646,7 +646,7 @@ const BeneficiaryLedger = ({ entityId }) => {
                     </CardContent>
 
                     {/* Pagination */}
-                    <div className="p-4 sm:p-6 border-t border-white/5 flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <div className="p-4 sm:p-6 border-t border-white/5 flex flex-col sm:flex-row justify-center items-center gap-4">
                         <p className="text-xs sm:text-sm text-gray-400">
                             Page {currentPage} of {totalPages || 1}
                         </p>

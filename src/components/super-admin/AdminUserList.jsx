@@ -228,7 +228,7 @@ const AdminUserList = () => {
             </Table>
           </div>
           {totalPages > 1 && (
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-0 p-4 sm:p-6 pb-4 border-t border-white/10">
+            <div className="flex flex-col sm:flex-row justify-center items-center gap-3 sm:gap-0 p-4 sm:p-6 pb-4 border-t border-white/10">
               <div>
                 <p className="text-xs sm:text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
               </div>

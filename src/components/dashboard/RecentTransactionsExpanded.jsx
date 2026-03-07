@@ -241,7 +241,7 @@ const RecentTransactionsExpanded = ({ entityId }) => {
                             <span>Export</span>
                         </Button>
 
-                       
+
                         <Select value={timeFrame} onValueChange={(val) => { setTimeFrame(val); setCurrentPage(1); }}>
                             <SelectTrigger className="max-w-[170px] h-9 rounded-full border-white/10 bg-white/5 text-white text-xs focus:ring-0 focus:ring-offset-0">
                                 <CalendarIcon className="w-3.5 h-3.5 mr-2 opacity-50" />
@@ -255,7 +255,7 @@ const RecentTransactionsExpanded = ({ entityId }) => {
                                 ))}
                             </SelectContent>
                         </Select>
-                         <div className="relative w-full sm:w-64">
+                        <div className="relative w-full sm:w-64">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                             <Input
                                 placeholder="Search beneficiary..."
@@ -451,7 +451,7 @@ const RecentTransactionsExpanded = ({ entityId }) => {
 
                 {/* Pagination */}
                 {totalPages > 1 && (
-                    <div className="p-4 sm:p-6 border-t border-white/5 flex justify-between items-center bg-white/5">
+                    <div className="p-4 sm:p-6 border-t border-white/5 flex justify-center items-center bg-white/5">
                         <p className="text-sm text-gray-400">
                             Page {currentPage} of {totalPages}
                         </p>

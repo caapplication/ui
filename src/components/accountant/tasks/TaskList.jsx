@@ -419,7 +419,7 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                                 </SelectContent>
                             </Select>
 
-                         
+
 
                             {/* Clear Logic for new filters */}
                             {(dateRange || clientIdFilter !== 'all') && (
@@ -476,7 +476,7 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                                     <SelectItem value="collaborates">Collaborates</SelectItem>
                                 </SelectContent>
                             </Select>
-                               {/* Date Range Filter */}
+                            {/* Date Range Filter */}
                             <Popover>
                                 <PopoverTrigger asChild>
                                     <Button
@@ -706,9 +706,9 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                     </Table>
                 </div>
                 {filteredTasks.length > 0 && (
-                    <div className="p-4 sm:p-6 border-t border-white/5 flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <div className="p-4 sm:p-6 border-t border-white/5 flex flex-col sm:flex-row justify-center items-center gap-4">
                         <p className="text-xs sm:text-sm text-gray-400">
-                            Page {currentPage} of {totalPages || 1} {filteredTasks.length > 0 }
+                            Page {currentPage} of {totalPages || 1} {filteredTasks.length > 0}
                         </p>
                         <div className="flex items-center gap-2">
                             <Button
