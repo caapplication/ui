@@ -505,26 +505,26 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction, entityName: en
           onValueChange={(value) => navigate(`/finance/${value}`)}
           className="w-full"
         >
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-4 w-full">
-            <div className="w-full">
-              <TabsList className="grid grid-cols-2 sm:grid-cols-3 md:flex h-auto md:h-11 items-center justify-start rounded-2xl md:rounded-full bg-white/5 p-1 text-gray-400 w-full md:w-fit gap-1">
-                <TabsTrigger value="vouchers" className="px-4 py-2 rounded-xl md:rounded-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all">Vouchers</TabsTrigger>
-                <TabsTrigger value="invoices" className="px-4 py-2 rounded-xl md:rounded-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all">Invoices</TabsTrigger>
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-4 w-full flex-wrap ">
+            <div className="">
+              <TabsList>
+                <TabsTrigger value="vouchers">Vouchers</TabsTrigger>  
+                <TabsTrigger value="invoices">Invoices</TabsTrigger>
                 {isAdmin && (
                   <>
-                    <TabsTrigger value="cashier" className="px-4 py-2 rounded-xl md:rounded-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all">Cashier Report</TabsTrigger>
-                    <TabsTrigger value="handover" className="px-4 py-2 rounded-xl md:rounded-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all">Handover</TabsTrigger>
-                    <TabsTrigger value="bank-tally" className="px-4 py-2 rounded-xl md:rounded-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all text-nowrap">Bank Tally</TabsTrigger>
-                    <TabsTrigger value="cash-tally" className="px-4 py-2 rounded-xl md:rounded-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all text-nowrap">Cash Tally</TabsTrigger>
-                    <TabsTrigger value="report" className="px-4 py-2 rounded-xl md:rounded-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all">Report</TabsTrigger>
+                    <TabsTrigger value="cashier">Cashier Report</TabsTrigger>
+                    <TabsTrigger value="handover">Handover</TabsTrigger>
+                    <TabsTrigger value="bank-tally">Bank Tally</TabsTrigger>
+                    <TabsTrigger value="cash-tally">Cash Tally</TabsTrigger>
+                    <TabsTrigger value="report">Report</TabsTrigger>
                   </>
                 )}
                 {!isAdmin && (user?.role === 'CLIENT_USER') && (
                   <>
-                    <TabsTrigger value="cashier" className="px-4 py-2 rounded-xl md:rounded-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all text-nowrap">Cashier Report</TabsTrigger>
-                    <TabsTrigger value="handover" className="px-4 py-2 rounded-xl md:rounded-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all">Handover</TabsTrigger>
-                    <TabsTrigger value="cash-tally" className="px-4 py-2 rounded-xl md:rounded-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all text-nowrap">Cash Tally</TabsTrigger>
-                    <TabsTrigger value="report" className="px-4 py-2 rounded-xl md:rounded-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all">Report</TabsTrigger>
+                    <TabsTrigger value="cashier">Cashier Report</TabsTrigger>
+                    <TabsTrigger value="handover">Handover</TabsTrigger>
+                    <TabsTrigger value="cash-tally">Cash Tally</TabsTrigger>
+                    <TabsTrigger value="report">Report</TabsTrigger>
                   </>
                 )}
               </TabsList>

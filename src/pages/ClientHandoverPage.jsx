@@ -3,7 +3,7 @@ import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { useAuth } from '@/hooks/useAuth';
@@ -29,12 +29,13 @@ import {
 } from '@/lib/api/settings';
 import { listEntityUsers } from '@/lib/api/organisation';
 import { getOrganisationBankAccounts } from '@/lib/api';
-import { getVouchersCashTotalForDate, getVouchersReportByDate } from '@/lib/api/finance';
+import { getVouchersCashTotalForDate, getVouchersReportByDate, getVoucherAttachment } from '@/lib/api/finance';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeftRight, ArrowLeft, Loader2, Check, X, Search, MoreVertical, Calendar } from 'lucide-react';
+import { Search, MoreVertical, Calendar, ArrowLeftRight, ArrowLeft, Loader2, Check, X, ChevronLeft, ChevronRight, Paperclip, Upload } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
+import AnimatedSearch from '@/components/ui/AnimatedSearch';
 
 const toDDMMYYYY = (dateStr) => {
   if (!dateStr) return '—';
@@ -222,9 +223,12 @@ function BankTallyListTab({ clientId, token, toast, readOnly = false }) {
                   <SelectItem value="custom">Custom</SelectItem>
                 </SelectContent>
               </Select>
-              <div className="relative w-full sm:w-auto sm:max-w-xs">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input placeholder="Date..." className="pl-9 glass-input h-9 text-sm w-full sm:w-[200px]" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+              <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+                <AnimatedSearch
+                  placeholder="Date..."
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                />
               </div>
               {datePreset === 'custom' && (
                 <div className="flex items-center gap-2 flex-wrap">
@@ -553,9 +557,12 @@ function CashTallyListTab({ clientId, entityId, token, toast, readOnly = false }
                   <SelectItem value="custom">Custom</SelectItem>
                 </SelectContent>
               </Select>
-              <div className="relative w-full sm:w-auto sm:max-w-xs">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input placeholder="Date, Closing..." className="pl-9 glass-input h-9 text-sm w-full sm:w-[200px]" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+              <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+                <AnimatedSearch
+                  placeholder="Date, Closing..."
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                />
               </div>
               {datePreset === 'custom' && (
                 <div className="flex items-center gap-2 flex-wrap">
@@ -791,7 +798,7 @@ function CashTallyFormPage({ clientId, entityId, token, toast, readOnly = false 
 
           <div>
             <Label className="text-gray-400 text-sm">Remarks</Label>
-            <Textarea readOnly={isReadOnly} className={`h-9 sm:min-h-[80px] text-sm glass-input mt-1 text-white ${isReadOnly ? 'bg-white/5 cursor-default' : ''}`} value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="Remarks..." />
+            <Textarea readOnly={isReadOnly} className={`h-9 sm:min-h-[80px] text-sm glass-input !w-full !pl-3 mt-1 text-white ${isReadOnly ? 'bg-white/5 cursor-default' : ''}`} value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="Remarks..." />
           </div>
 
           {!isReadOnly && (
@@ -815,6 +822,9 @@ function CashierReportListTab({ clientId, token, toast }) {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+
+  const ITEMS_PER_PAGE = 10;
+  const [currentPage, setCurrentPage] = useState(1);
 
   const loadList = useCallback(async () => {
     if (!clientId || !token) return;
@@ -865,6 +875,14 @@ function CashierReportListTab({ clientId, token, toast }) {
     return list;
   }, [entriesList, datePreset, dateFrom, dateTo, searchTerm]);
 
+  useEffect(() => { setCurrentPage(1); }, [searchTerm, datePreset, dateFrom, dateTo]);
+
+  const totalPages = Math.ceil((filteredList?.length || 0) / ITEMS_PER_PAGE);
+  const paginatedList = filteredList.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
   return (
     <Card className="glass-card mt-4">
       <CardHeader className="p-4 sm:p-6">
@@ -887,9 +905,12 @@ function CashierReportListTab({ clientId, token, toast }) {
                   <SelectItem value="custom">Custom</SelectItem>
                 </SelectContent>
               </Select>
-              <div className="relative w-full sm:w-auto sm:max-w-xs">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input placeholder="Date, Remarks..." className="pl-9 glass-input h-9 text-sm w-full sm:w-[200px]" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+              <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+                <AnimatedSearch
+                  placeholder="Date, Remarks..."
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                />
               </div>
               {datePreset === 'custom' && (
                 <div className="flex items-center gap-2 flex-wrap">
@@ -920,7 +941,7 @@ function CashierReportListTab({ clientId, token, toast }) {
                     <TableCell colSpan={2} className="text-center text-gray-400 py-8 text-sm">No reports found.</TableCell>
                   </TableRow>
                 ) : (
-                  filteredList.map((report) => (
+                  paginatedList.map((report) => (
                     <TableRow
                       key={report.id}
                       className="cursor-pointer transition-colors hover:bg-white/5"
@@ -936,6 +957,17 @@ function CashierReportListTab({ clientId, token, toast }) {
           </div>
         )}
       </CardContent>
+      <CardFooter className="flex flex-row justify-center items-center gap-3 p-4 sm:p-6 border-t border-white/10">
+        <div><p className="text-xs sm:text-sm text-gray-400">Page {currentPage} of {totalPages}</p></div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white">
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages || totalPages === 0} className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white">
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+        </div>
+      </CardFooter>
     </Card>
   );
 }
@@ -951,6 +983,7 @@ function CashierReportFormPage({ clientId, token, toast }) {
   const [departments, setDepartments] = useState([]);
   const [matrix, setMatrix] = useState({});
   const [remarks, setRemarks] = useState('');
+  const [attachment, setAttachment] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [readOnly, setReadOnly] = useState(false);
   const [loadingReport, setLoadingReport] = useState(false);
@@ -995,9 +1028,11 @@ function CashierReportFormPage({ clientId, token, toast }) {
           });
           setMatrix(nextMatrix);
           setRemarks(r.remarks || '');
+          setAttachment(r.attachment_id || null);
         } else {
           setMatrix({});
           setRemarks('');
+          setAttachment(null);
         }
         const items = summary?.items || [];
         const approved = items.length > 0 && items.every(i => i.status === 'approved');
@@ -1041,13 +1076,33 @@ function CashierReportFormPage({ clientId, token, toast }) {
     });
     setSubmitting(true);
     try {
-      await createCashierReport(clientId, { report_date: reportDate, details, remarks }, token);
+      if (attachment && typeof attachment !== 'string') {
+        const formData = new FormData();
+        formData.append('report_date', reportDate);
+        formData.append('remarks', remarks);
+        formData.append('details', JSON.stringify(details));
+        formData.append('attachment', attachment);
+        await createCashierReport(clientId, formData, token);
+      } else {
+        await createCashierReport(clientId, { report_date: reportDate, details, remarks }, token);
+      }
       toast({ title: 'Success', description: 'Cashier report submitted.' });
       navigate('..', { relative: 'path' });
     } catch (e) {
       toast({ variant: 'destructive', title: 'Error', description: e?.message || 'Submit failed.' });
     } finally {
       setSubmitting(false);
+    }
+  };
+  const handleViewAttachment = async () => {
+    if (!attachment || typeof attachment !== 'string') return;
+    try {
+      const res = await getVoucherAttachment(attachment, token);
+      if (res && res.url) {
+        window.open(res.url, '_blank');
+      }
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to load attachment sheet.' });
     }
   };
 
@@ -1070,50 +1125,96 @@ function CashierReportFormPage({ clientId, token, toast }) {
             {readOnly && <span className="text-xs text-amber-400">Handover approved — view only</span>}
           </div>
         </CardHeader>
-      <CardContent className="p-0 space-y-4">
-        {loadingReport && (
-          <div className="flex items-center justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-white" /></div>
-        )}
-        {!loadingReport && (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent border-white/10">
-                  <TableHead className="text-xs sm:text-sm text-gray-300 bg-white/5">Department</TableHead>
-                  {paymentMethods.map(p => (
-                    <TableHead key={p.id} className="text-xs sm:text-sm text-gray-300 bg-white/5">{p.name}</TableHead>
-                  ))}
-                  <TableHead className="text-xs sm:text-sm text-gray-300 !bg-amber-500/20">Total</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {departments.map(d => (
-                  <TableRow key={d.id} className="border-white/10">
-                    <TableCell className="text-xs sm:text-sm font-medium text-white bg-white/5">{d.name}</TableCell>
+        <CardContent className="p-0 space-y-4">
+          {loadingReport && (
+            <div className="flex items-center justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-white" /></div>
+          )}
+          {!loadingReport && (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent border-white/10">
+                    <TableHead className="text-xs sm:text-sm text-gray-300 bg-white/5">Department</TableHead>
                     {paymentMethods.map(p => (
-                      <TableCell key={p.id}>
-                        <Input type="number" min={0} step={0.01} readOnly={readOnly} className={`h-9 sm:h-10 text-sm glass-input w-24 text-white ${readOnly ? 'cursor-default opacity-90' : ''}`} value={getCell(d.id, p.id)} onChange={e => setCell(d.id, p.id, e.target.value)} />
-                      </TableCell>
+                      <TableHead key={p.id} className="text-xs sm:text-sm text-gray-300 bg-white/5">{p.name}</TableHead>
                     ))}
-                    <TableCell className="text-xs sm:text-sm font-medium text-white bg-amber-500/10">{rowTotal(d.id).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
+                    <TableHead className="text-xs sm:text-sm text-gray-300 !bg-amber-500/20">Total</TableHead>
                   </TableRow>
-                ))}
-                <TableRow className="border-white/10 bg-amber-500/10 font-medium">
-                  <TableCell className="text-xs sm:text-sm text-gray-300">Total</TableCell>
-                  {paymentMethods.map(p => (
-                    <TableCell key={p.id} className="text-xs sm:text-sm text-white">{colTotal(p.id).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
+                </TableHeader>
+                <TableBody>
+                  {departments.map(d => (
+                    <TableRow key={d.id} className="border-white/10">
+                      <TableCell className="text-xs sm:text-sm font-medium text-white bg-white/5 ">{d.name}</TableCell>
+                      {paymentMethods.map(p => (
+                        <TableCell key={p.id}>
+                          <Input type="number" min={0} step={0.01} readOnly={readOnly} className={`h-9 sm:h-10 text-sm glass-input !w-24 !pl-3 text-white ${readOnly ? 'cursor-default opacity-90' : ''}`} value={getCell(d.id, p.id)} onChange={e => setCell(d.id, p.id, e.target.value)} />
+                        </TableCell>
+                      ))}
+                      <TableCell className="text-xs sm:text-sm font-medium text-white bg-amber-500/10">{rowTotal(d.id).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
+                    </TableRow>
                   ))}
-                  <TableCell className="text-xs sm:text-sm text-white">{grandTotal().toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
+                  <TableRow className="border-white/10 bg-amber-500/10 font-medium">
+                    <TableCell className="text-xs sm:text-sm text-gray-300">Total</TableCell>
+                    {paymentMethods.map(p => (
+                      <TableCell key={p.id} className="text-xs sm:text-sm text-white">{colTotal(p.id).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
+                    ))}
+                    <TableCell className="text-xs sm:text-sm text-white">{grandTotal().toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+          )}
+          <div className="px-4 sm:px-6">
+            <Label className="text-gray-400 text-sm mb-2 block font-medium">Attachment Sheet</Label>
+            <div className="flex flex-wrap items-center gap-3">
+              <input
+                type="file"
+                id="cashier-report-attachment"
+                className="hidden"
+                accept="image/*,application/pdf"
+                disabled={readOnly}
+                onChange={(e) => {
+                  if (e.target.files?.[0]) {
+                    setAttachment(e.target.files[0]);
+                  }
+                }}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-9 glass-input !w-auto !pl-3 bg-white/5 border-white/10 hover:bg-white/10 text-white rounded-full transition-all"
+                onClick={() => document.getElementById('cashier-report-attachment').click()}
+                disabled={readOnly}
+              >
+                <Paperclip className="w-4 h-4 mr-2 text-primary" />
+                {attachment ? (typeof attachment === 'string' ? `Change Attachment` : `Selected: ${attachment.name}`) : 'Add Attachment Sheet'}
+              </Button>
+
+              {attachment && typeof attachment === 'string' && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9 glass-input !w-auto !pl-3 bg-blue-500/10 border-blue-500/20 hover:bg-blue-500/20 text-blue-400 rounded-full transition-all"
+                  onClick={handleViewAttachment}
+                >
+                  <Search className="w-4 h-4 mr-2" /> View Sheet
+                </Button>
+              )}
+              {attachment && typeof attachment !== 'string' && (
+                <div className="flex items-center gap-1.5 px-3 py-1 bg-green-500/10 border border-green-500/20 rounded-full animate-in fade-in slide-in-from-left-2 duration-300">
+                  <Check className="w-3.5 h-3.5 text-green-400" />
+                  <span className="text-xs text-green-400 font-medium">Ready to upload</span>
+                </div>
+              )}
+            </div>
           </div>
-        )}
-        <div className="p-4 sm:p-6">
-          <Label className="text-gray-400 text-sm">Remarks</Label>
-          <Input readOnly={readOnly} className={`h-9 sm:h-10 text-sm glass-input mt-1 text-white ${readOnly ? 'cursor-default opacity-90' : ''}`} value={remarks} onChange={e => !readOnly && setRemarks(e.target.value)} placeholder="Remarks" />
-        </div>
-      </CardContent>
+          <div className="p-4 sm:p-6 pt-2">
+            <Label className="text-gray-400 text-sm">Remarks</Label>
+            <Input readOnly={readOnly} className={`h-9 sm:h-10 text-sm glass-input !w-full !pl-3 mt-1 text-white ${readOnly ? 'cursor-default opacity-90' : ''}`} value={remarks} onChange={e => !readOnly && setRemarks(e.target.value)} placeholder="Remarks" />
+          </div>
+        </CardContent>
       </Card>
     </div>
   );
@@ -1280,6 +1381,28 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
   const pendingItems = useMemo(() => applySearch(applyDateFilter(items.filter(row => row.status !== 'approved'))), [items, datePreset, dateFrom, dateTo, searchTerm, usersMap]);
   const historyItems = useMemo(() => applySearch(applyDateFilter(items.filter(row => row.status === 'approved'))), [items, datePreset, dateFrom, dateTo, searchTerm, usersMap]);
   const displayItems = viewMode === 'pending' ? pendingItems : historyItems;
+
+  const ITEMS_PER_PAGE = 10;
+  const [activePage, setActivePage] = useState(1);
+  const [historyPage, setHistoryPage] = useState(1);
+
+  const currentPage = viewMode === 'pending' ? activePage : historyPage;
+  const setCurrentPage = (val) => {
+    if (viewMode === 'pending') setActivePage(val);
+    else setHistoryPage(val);
+  };
+
+  useEffect(() => {
+    setActivePage(1);
+    setHistoryPage(1);
+  }, [searchTerm, datePreset, dateFrom, dateTo, viewMode]);
+
+  const totalPages = Math.ceil(displayItems.length / ITEMS_PER_PAGE);
+  const paginatedItems = displayItems.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
   const showActionColumn = viewMode === 'pending' && !readOnly && (isAdminView ? displayItems.some(row => row.status === 'pending') : true);
   const canAct = (row) => !readOnly && (isAdminView ? row.status === 'pending' : row.client_user_status !== 'approved');
   const statusLabel = (row) => {
@@ -1306,24 +1429,25 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
       <CardHeader className="p-4 sm:p-6">
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-2 sm:gap-4 justify-between w-full">
-            <div className="flex p-1 bg-black/20 rounded-lg border border-white/10 backdrop-blur-sm">
+            <div className="flex p-1 rounded-lg border border-white/10 backdrop-blur-sm">
               <button
                 type="button"
                 onClick={() => setViewMode('pending')}
-                className={`px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-all ${viewMode === 'pending'
+                className={`px-3 py-1 text-sm font-medium rounded-md transition-all ${viewMode === 'pending'
                   ? 'bg-primary text-primary-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40'
-                }`}
+                  }`}
               >
                 Pending
               </button>
+
               <button
                 type="button"
                 onClick={() => setViewMode('history')}
-                className={`px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-all ${viewMode === 'history'
+                className={`px-3 py-1 text-sm font-medium rounded-md transition-all ${viewMode === 'history'
                   ? 'bg-primary text-primary-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40'
-                }`}
+                  }`}
               >
                 History
               </button>
@@ -1347,11 +1471,9 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
                   <SelectItem value="custom">Custom</SelectItem>
                 </SelectContent>
               </Select>
-              <div className="relative w-full sm:w-auto sm:max-w-xs flex-grow sm:flex-grow-0">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
+              <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+                <AnimatedSearch
                   placeholder="Date, Department, Created by..."
-                  className="pl-9 glass-input h-9 text-sm w-full sm:w-[250px]"
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
                 />
@@ -1394,7 +1516,7 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
                   </TableCell>
                 </TableRow>
               ) : (
-                displayItems.map((row) => (
+                paginatedItems.map((row) => (
                   <TableRow key={row.handover_id} className="border-white/10">
                     <TableCell className="text-xs sm:text-sm text-white">{toDDMMYYYY(row.date)}</TableCell>
                     <TableCell className="text-xs sm:text-sm text-white">{usersMap[row.created_by_user_id] || row.created_by_name || '—'}</TableCell>
@@ -1429,6 +1551,17 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
           </Table>
         </div>
       </CardContent>
+      <CardFooter className="flex flex-row justify-center items-center gap-3 p-4 sm:p-6 border-t border-white/10">
+        <div><p className="text-xs sm:text-sm text-gray-400">Page {currentPage} of {totalPages}</p></div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white">
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages || totalPages === 0} className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white">
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+        </div>
+      </CardFooter>
 
       <Dialog open={!!actionModal} onOpenChange={(open) => { if (!open) { setActionModal(null); setActionRemark(''); } }}>
         <DialogContent className="max-w-lg w-[95vw] sm:w-full bg-gray-900 border-white/10">
@@ -1439,7 +1572,7 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
           <div className="py-4 space-y-4">
             <div>
               <Label className="text-sm text-gray-300">Remark (optional for Approve, required for Reject)</Label>
-              <Input className="mt-2 h-9 sm:h-10 text-sm glass-input text-white" value={actionRemark} onChange={e => setActionRemark(e.target.value)} placeholder="Remark" />
+              <Input className="mt-2 h-9 sm:h-10 text-sm glass-input !w-full !pl-3 text-white" value={actionRemark} onChange={e => setActionRemark(e.target.value)} placeholder="Remark" />
             </div>
           </div>
           <DialogFooter>

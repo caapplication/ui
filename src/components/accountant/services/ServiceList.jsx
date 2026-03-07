@@ -56,7 +56,7 @@ const ServiceList = ({ services, onSelectService, onAddService }) => {
             <div className="flex justify-between flex-wrap items-centermb-6 lg:mb-8">
                 <h1 className="page-title">Services</h1>
                 <div className="flex items-center gap-4">
-                      <Button onClick={onAddService} className="h-9 px-4 text-sm whitespace-nowrap">
+                      <Button onClick={onAddService} className="h-9 rounded-full bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm w-full sm:w-auto justify-center">
                         <Plus className="w-4 h-4 mr-1.5" />
                         Add
                     </Button>

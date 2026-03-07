@@ -210,31 +210,36 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
             <CardHeader className="p-4 sm:p-6">
                 <div className="flex flex-col gap-4">
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                        <div className="flex p-1 bg-white/5 rounded-full border border-white/10 backdrop-blur-md w-fit">
-                            <button
-                                onClick={() => setViewMode('active')}
-                                className={`px-5 py-2 text-xs sm:text-sm font-medium rounded-full transition-all ${viewMode === 'active'
-                                    ? 'bg-primary text-white shadow-lg shadow-primary/30'
-                                    : 'text-gray-400 hover:text-white hover:bg-white/5'
-                                    }`}
-                            >
-                                Active
-                            </button>
-                            <button
-                                onClick={() => setViewMode('history')}
-                                className={`px-5 py-2 text-xs sm:text-sm font-medium rounded-full transition-all ${viewMode === 'history'
-                                    ? 'bg-primary text-white shadow-lg shadow-primary/30'
-                                    : 'text-gray-400 hover:text-white hover:bg-white/5'
-                                    }`}
-                            >
-                                History
-                            </button>
-                        </div>
+         <div className="flex p-1 rounded-lg border border-white/10 backdrop-blur-sm w-fit">
+  <button
+    type="button"
+    onClick={() => setViewMode('active')}
+    className={`px-3 py-1 text-sm font-medium rounded-md transition-all ${
+      viewMode === 'active'
+        ? 'bg-primary text-primary-foreground shadow-sm'
+        : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40'
+    }`}
+  >
+    Active
+  </button>
+
+  <button
+    type="button"
+    onClick={() => setViewMode('history')}
+    className={`px-3 py-1 text-sm font-medium rounded-md transition-all ${
+      viewMode === 'history'
+        ? 'bg-primary text-primary-foreground shadow-sm'
+        : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40'
+    }`}
+  >
+    History
+  </button>
+</div>
 
                         <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
                             <div className="flex-1 min-w-[140px] sm:flex-none">
                                 <Select value={typeFilter} onValueChange={setTypeFilter}>
-                                    <SelectTrigger className="w-full sm:w-[140px] h-11 rounded-full bg-white/5 border-white/10 text-white focus:ring-primary/20 px-4">
+                                    <SelectTrigger className="w-full sm:w-[140px] glass-input">
                                         <SelectValue placeholder="All Types" />
                                     </SelectTrigger>
                                     <SelectContent className="bg-gray-900 border-white/10 text-white rounded-2xl">

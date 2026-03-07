@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { getTags, createTag, updateTag, deleteTag } from '@/lib/api';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import AnimatedSearch from '@/components/ui/AnimatedSearch';
 
 const TagsContent = () => {
     const { toast } = useToast();
@@ -95,9 +96,8 @@ const TagsContent = () => {
     return (
         <div className='text-white'>
             <div className="flex justify-between items-center mb-6">
-                <div className="relative w-full max-w-xs">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                    <Input placeholder="Search tags..." className="pl-10 glass-input" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+                    <AnimatedSearch placeholder="Search tags..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                 </div>
                 <Button onClick={handleOpenNew} className="bg-primary hover:bg-primary/90 text-white">
                     <Plus className="mr-2 h-4 w-4" /> New Tag

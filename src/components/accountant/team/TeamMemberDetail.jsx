@@ -583,13 +583,13 @@ const TeamMemberDetail = ({ member, onBack, clients = [], memberClientsMap = {} 
                                     <Table>
                                         <TableHeader>
                                             <TableRow className="border-b border-white/10 hover:bg-transparent">
-                                                <TableHead className="text-white">TASK DETAILS</TableHead>
-                                                <TableHead className="hidden lg:table-cell text-white">LAST UPDATE BY</TableHead>
-                                                <TableHead className="hidden md:table-cell text-white">CREATED BY</TableHead>
-                                                <TableHead className="hidden lg:table-cell text-white">FREQUENCY</TableHead>
-                                                <TableHead className="hidden xl:table-cell text-white">START DATE</TableHead>
-                                                <TableHead className="hidden sm:table-cell text-white">ASSIGNED TO</TableHead>
-                                                <TableHead className="text-white">STATUS</TableHead>
+                                                <TableHead className="">TASK DETAILS</TableHead>
+                                                <TableHead className="hidden lg:table-cell ">LAST UPDATE BY</TableHead>
+                                                <TableHead className="hidden md:table-cell ">CREATED BY</TableHead>
+                                                <TableHead className="hidden lg:table-cell ">FREQUENCY</TableHead>
+                                                <TableHead className="hidden xl:table-cell ">START DATE</TableHead>
+                                                <TableHead className="hidden sm:table-cell ">ASSIGNED TO</TableHead>
+                                                <TableHead className="">STATUS</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>

@@ -398,10 +398,12 @@ export const listCashierReports = async (clientId, token, params = {}) => {
 };
 
 export const createCashierReport = async (clientId, data, token) => {
+    const isFormData = data instanceof FormData;
+    const headers = getAuthHeaders(token, isFormData ? null : 'application/json');
     const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/${clientId}/cashier-reports`, {
         method: 'POST',
-        headers: getAuthHeaders(token),
-        body: JSON.stringify(data),
+        headers,
+        body: isFormData ? data : JSON.stringify(data),
     });
     return handleResponse(response);
 };
