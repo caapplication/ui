@@ -405,7 +405,7 @@ const ClientBillPaymentPage = ({ entityId }) => {
                         {/* Left - Due Amount */}
                         <div>
                             <CardTitle className="text-sm text-gray-400">
-                                Total Outstanding Invoice Amount
+                                Total Due Amount
                             </CardTitle>
                             <p className="text-2xl font-bold text-yellow-400 mt-1">
                                 ₹{totals.due.toLocaleString('en-IN', { minimumFractionDigits: 2 })}

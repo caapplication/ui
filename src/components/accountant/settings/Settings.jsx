@@ -120,7 +120,7 @@ const SettingsPageWrapper = ({ item, settingsData }) => {
         >
             <div className="">
                
-               <div className="flex items-center gap-3 mb-6 border-b border-white/10 pb-4">
+               <div className="flex items-center gap-3 mb-6 pb-4">
 
   <Button
     variant="ghost"
