@@ -230,9 +230,32 @@ const Dashboard = ({
     const fetchDashboardData = useCallback(async () => {
         if (!entityId || !user?.access_token) return;
         setIsLoading(true);
+
+        const now = new Date();
+        let fromDate = new Date();
+        switch (expensePeriod) {
+            case "1day":
+                fromDate.setDate(now.getDate() - 1);
+                break;
+            case "1week":
+                fromDate.setDate(now.getDate() - 7);
+                break;
+            case "1month":
+                fromDate.setMonth(now.getMonth() - 1);
+                break;
+            case "1year":
+                fromDate.setFullYear(now.getFullYear() - 1);
+                break;
+            default:
+                fromDate.setMonth(now.getMonth() - 1);
+        }
+
+        const fromDateStr = fromDate.toISOString();
+        const toDateStr = now.toISOString();
+
         try {
             const [dashData, vouchersData] = await Promise.all([
-                getDashboardData(entityId, user.access_token, user.agency_id),
+                getDashboardData(entityId, user.access_token, user.agency_id, fromDateStr, toDateStr),
                 getVouchersList(entityId, user.access_token),
             ]);
             setDashboardData(dashData);
@@ -245,11 +268,10 @@ const Dashboard = ({
             });
             setDashboardData(null);
             setVouchers([]);
-            setExpiringDocs([]);
         } finally {
             setIsLoading(false);
         }
-    }, [entityId, user?.access_token, user?.agency_id, toast]);
+    }, [entityId, user?.access_token, user?.agency_id, expensePeriod, toast]);
 
     useEffect(() => {
         fetchDashboardData();
