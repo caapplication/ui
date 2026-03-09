@@ -1171,7 +1171,7 @@ function CashierReportFormPage({ clientId, token, toast }) {
                 type="file"
                 id="cashier-report-attachment"
                 className="hidden"
-                accept="image/*,application/pdf"
+                accept="image/*,application/pdf,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 disabled={readOnly}
                 onChange={(e) => {
                   if (e.target.files?.[0]) {
