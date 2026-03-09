@@ -722,26 +722,26 @@ function CashTallyFormPage({ clientId, entityId, token, toast, readOnly = false 
         <CardContent className="space-y-6 pt-0">
           <div>
             <h3 className="text-sm font-semibold text-white mb-3 border-b border-white/10 pb-2">Cash in hand</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
-              <div>
-                <Label className="text-gray-400 text-xs">Opening Balance</Label>
-                <Input type="number" readOnly className="h-9 sm:h-10 text-sm glass-input mt-1 bg-white/5 text-white" value={openingBalance} />
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-5 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-gray-400 text-xs min-h-[32px] flex items-end">Opening Balance</Label>
+                <Input type="number" readOnly className="h-9 sm:h-10 text-sm glass-input !w-auto  bg-white/5 text-white" value={openingBalance} />
               </div>
-              <div>
-                <Label className="text-gray-400 text-xs">Cash In – Approved handover</Label>
-                <Input type="number" readOnly className="h-9 sm:h-10 text-sm glass-input mt-1 bg-white/5 text-white" value={cashInHandover || ''} placeholder="—" />
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-gray-400 text-xs min-h-[32px] flex items-end">Cash In – Approved handover</Label>
+                <Input type="number" readOnly className="h-9 sm:h-10 text-sm glass-input !w-auto  bg-white/5 text-white" value={cashInHandover || ''} placeholder="—" />
               </div>
-              <div>
-                <Label className="text-gray-400 text-xs">Cash In – Other</Label>
-                <Input type="number" min={0} step={0.01} readOnly={isReadOnly} className={`h-9 sm:h-10 text-sm glass-input mt-1 text-white ${isReadOnly ? 'bg-white/5 cursor-default' : ''}`} value={cashInOther} onChange={e => setCashInOther(e.target.value)} placeholder="0" />
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-gray-400 text-xs min-h-[32px] flex items-end">Cash In – Other</Label>
+                <Input type="number" min={0} step={0.01} readOnly={isReadOnly} className={`h-9 sm:h-10 text-sm glass-input !w-auto text-white ${isReadOnly ? 'bg-white/5 cursor-default' : ''}`} value={cashInOther} onChange={e => setCashInOther(e.target.value)} placeholder="0" />
               </div>
-              <div>
-                <Label className="text-gray-400 text-xs">Cash Out</Label>
-                <Input type="number" readOnly className="h-9 sm:h-10 text-sm glass-input mt-1 bg-white/5 text-white" value={cashOut} />
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-gray-400 text-xs min-h-[32px] flex items-end">Cash Out</Label>
+                <Input type="number" readOnly className="h-9 sm:h-10 text-sm glass-input !w-auto bg-white/5 text-white" value={cashOut} />
               </div>
-              <div>
-                <Label className="text-gray-400 text-xs">Closing Balance</Label>
-                <Input type="number" readOnly className="h-9 sm:h-10 text-sm glass-input mt-1 bg-white/5 text-white" value={closingBalance} />
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-gray-400 text-xs min-h-[32px] flex items-end">Closing Balance</Label>
+                <Input type="number" readOnly className="h-9 sm:h-10 text-sm glass-input !w-auto bg-white/5 text-white" value={closingBalance} />
               </div>
             </div>
           </div>

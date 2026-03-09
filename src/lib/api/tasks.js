@@ -343,8 +343,10 @@ export const reviewClosureRequest = async (taskId, requestId, status, reason, ag
     return handleResponse(response);
 };
 
-export const getTaskDashboardAnalytics = async (days, agencyId, token) => {
-    const response = await fetch(`${TASKS_API_BASE_URL}/tasks/dashboard-analytics?days=${days}`, {
+export const getTaskDashboardAnalytics = async (days, agencyId, token, entityId = null) => {
+    let url = `${TASKS_API_BASE_URL}/tasks/dashboard-analytics?days=${days}`;
+    if (entityId) url += `&entity_id=${entityId}`;
+    const response = await fetch(url, {
         method: 'GET',
         headers: getAuthHeaders(token, 'application/json', agencyId),
     });

@@ -179,8 +179,10 @@ export const deleteNotice = async (noticeId, token) => {
   return handleResponse(response);
 };
 
-export const getNoticeDashboardAnalytics = async (days, agencyId, token) => {
-  const response = await fetch(`${FINANCE_API_BASE_URL}/api/notices/dashboard-analytics?days=${days}`, {
+export const getNoticeDashboardAnalytics = async (days, agencyId, token, entityId = null) => {
+  let url = `${FINANCE_API_BASE_URL}/api/notices/dashboard-analytics?days=${days}`;
+  if (entityId) url += `&entity_id=${entityId}`;
+  const response = await fetch(url, {
     headers: getAuthHeaders(token, 'application/json', agencyId),
   });
   return handleResponse(response);

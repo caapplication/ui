@@ -304,12 +304,12 @@ const NoticesPage = () => {
 
                         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto flex-wrap items-center">
                             <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
-    <AnimatedSearch
-        placeholder="Search notices..."
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-    />
-</div>
+                                <AnimatedSearch
+                                    placeholder="Search notices..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -327,6 +327,7 @@ const NoticesPage = () => {
                                     <>
                                         <TableHead className="text-gray-300 w-[15%]">Completed Date</TableHead>
                                         <TableHead className="text-gray-300 w-[10%]">Duration</TableHead>
+                                        <TableHead className="text-gray-300 w-[15%]">Closure Reason</TableHead>
                                     </>
                                 )}
                                 <TableHead className="text-gray-300 w-[15%]">Uploaded By</TableHead>
@@ -403,6 +404,11 @@ const NoticesPage = () => {
                                                         } catch (e) { return 'N/A'; }
                                                     })()}
                                                 </TableCell>
+                                                <TableCell className="text-gray-300">
+                                                    {notice.closure_reason
+                                                        ? <span className="text-white">{notice.closure_reason}</span>
+                                                        : <span className="text-gray-500">-</span>}
+                                                </TableCell>
                                             </>
                                         )}
                                         <TableCell className="text-gray-300">
@@ -472,7 +478,7 @@ const NoticesPage = () => {
                         <div className="space-y-2">
                             <Label htmlFor="client">Client</Label>
                             <Select value={selectedClient} onValueChange={setSelectedClient} required>
-                                <SelectTrigger className="glass-input border-white/10 bg-black/20">
+                                <SelectTrigger className="glass-input border-white/10 bg-black/20 !w-full">
                                     <SelectValue placeholder="Select a client" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -489,7 +495,7 @@ const NoticesPage = () => {
                                 placeholder="Enter notice title"
                                 value={noticeTitle}
                                 onChange={(e) => setNoticeTitle(e.target.value)}
-                                className="glass-input border-white/10 bg-black/20"
+                                className="glass-input border-white/10 bg-black/20 !w-full"
                                 required
                             />
                         </div>

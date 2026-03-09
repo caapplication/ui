@@ -563,15 +563,19 @@ export const getCATeamInvoicesBulk = async (entityIds, token) => {
     return Array.isArray(invoices) ? invoices : [];
 };
 
-export const getInvoiceAnalytics = async (days, token) => {
-    const response = await fetch(`${FINANCE_API_BASE_URL}/api/invoices/dashboard-analytics?days=${days}`, {
+export const getInvoiceAnalytics = async (days, token, entityId = null) => {
+    let url = `${FINANCE_API_BASE_URL}/api/invoices/dashboard-analytics?days=${days}`;
+    if (entityId) url += `&entity_id=${entityId}`;
+    const response = await fetch(url, {
         headers: getAuthHeaders(token),
     });
     return handleResponse(response);
 };
 
-export const getVoucherAnalytics = async (days, token) => {
-    const response = await fetch(`${FINANCE_API_BASE_URL}/api/vouchers/dashboard-analytics?days=${days}`, {
+export const getVoucherAnalytics = async (days, token, entityId = null) => {
+    let url = `${FINANCE_API_BASE_URL}/api/vouchers/dashboard-analytics?days=${days}`;
+    if (entityId) url += `&entity_id=${entityId}`;
+    const response = await fetch(url, {
         headers: getAuthHeaders(token),
     });
     return handleResponse(response);

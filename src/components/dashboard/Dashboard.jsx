@@ -27,7 +27,7 @@ import { useNavigate } from "react-router-dom";
 import { useMediaQuery } from "@/hooks/useMediaQuery.jsx";
 import { useAuth } from "@/hooks/useAuth.jsx";
 import { useToast } from "@/components/ui/use-toast.js";
-import { getDashboardData, getVouchersList } from "@/lib/api.js";
+import { getDashboardData, getVouchersList, getInvoicesList, listTasks, getNotices, getTaskDashboardAnalytics, getNoticeDashboardAnalytics, getInvoiceAnalytics, getVoucherAnalytics } from "@/lib/api.js";
 import { getFundInHand, listHandovers, handoversSummary, listPaymentMethods } from "@/lib/api/settings.js";
 import { format, parseISO } from "date-fns";
 import {
@@ -47,6 +47,7 @@ import {
     ResponsiveContainer,
     LabelList,
     ReferenceLine,
+    Legend,
 } from "recharts";
 
 const StatCard = ({
@@ -211,8 +212,13 @@ const Dashboard = ({
     const [fundInHand, setFundInHand] = useState(null);
     const [fundInHandLoading, setFundInHandLoading] = useState(false);
     const [fundSlide, setFundSlide] = useState(0);
+    const [trendSlide, setTrendSlide] = useState(0);
     const [handoverCard, setHandoverCard] = useState(null);
     const [handoverCardLoading, setHandoverCardLoading] = useState(false);
+    const [invoices, setInvoices] = useState([]);
+    const [tasks, setTasks] = useState([]);
+    const [notices, setNotices] = useState([]);
+    const [apiTrends, setApiTrends] = useState({ tasks: [], notices: [], invoices: [], vouchers: [] });
 
     const isMobile = useMediaQuery("(max-width: 640px)");
     const { user } = useAuth();
@@ -253,13 +259,50 @@ const Dashboard = ({
         const fromDateStr = fromDate.toISOString();
         const toDateStr = now.toISOString();
 
+        let daysToFetch = 30;
+        switch (expensePeriod) {
+            case "1day": daysToFetch = 1; break;
+            case "1week": daysToFetch = 7; break;
+            case "1month": daysToFetch = 30; break;
+            case "1year": daysToFetch = 365; break;
+            default: daysToFetch = 30;
+        }
+
         try {
-            const [dashData, vouchersData] = await Promise.all([
+            const [
+                dashData,
+                vouchersData,
+                invoicesData,
+                tasksData,
+                noticesData,
+                taskAnalytics,
+                noticeAnalytics,
+                invoiceAnalytics,
+                voucherAnalytics
+            ] = await Promise.all([
                 getDashboardData(entityId, user.access_token, user.agency_id, fromDateStr, toDateStr),
                 getVouchersList(entityId, user.access_token),
+                getInvoicesList(entityId, user.access_token),
+                listTasks(user.agency_id, user.access_token, { client_id: entityId }),
+                getNotices(entityId, user.access_token),
+                getTaskDashboardAnalytics(daysToFetch, user.agency_id, user.access_token, entityId).catch(() => ({})),
+                getNoticeDashboardAnalytics(daysToFetch, user.agency_id, user.access_token, entityId).catch(() => ({})),
+                getInvoiceAnalytics(daysToFetch, user.access_token, entityId).catch(() => ({})),
+                getVoucherAnalytics(daysToFetch, user.access_token, entityId).catch(() => ({})),
             ]);
+
             setDashboardData(dashData);
             setVouchers(Array.isArray(vouchersData) ? vouchersData : []);
+            setInvoices(Array.isArray(invoicesData) ? invoicesData : []);
+            setTasks(Array.isArray(tasksData?.items) ? tasksData.items : (Array.isArray(tasksData) ? tasksData : []));
+            setNotices(Array.isArray(noticesData) ? noticesData : []);
+
+            setApiTrends({
+                tasks: taskAnalytics?.activity_trend || [],
+                notices: noticeAnalytics?.activity_trend || [],
+                invoices: invoiceAnalytics?.activity_trend || [],
+                vouchers: voucherAnalytics?.activity_trend || []
+            });
         } catch (error) {
             toast({
                 title: "Error fetching dashboard data",
@@ -534,6 +577,119 @@ const Dashboard = ({
 
         return data;
     }, [vouchers, expensePeriod]);
+
+    const activityChartData = React.useMemo(() => {
+        const data = [];
+        const now = new Date();
+
+        if (expensePeriod === "1day") {
+            for (let i = 23; i >= 0; i--) {
+                const d = new Date();
+                d.setHours(now.getHours() - i, 0, 0, 0);
+                data.push({ name: d.toISOString(), dateStr: d.toISOString().split("T")[0], vouchers: 0, invoices: 0, tasks: 0, notices: 0, total: 0 });
+            }
+        } else if (expensePeriod === "1year") {
+            for (let i = 11; i >= 0; i--) {
+                const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                data.push({ name: d.toISOString(), dateStr: format(d, 'yyyy-MM'), vouchers: 0, invoices: 0, tasks: 0, notices: 0, total: 0, month: d.getMonth(), year: d.getFullYear() });
+            }
+        } else {
+            const daysToShow = expensePeriod === "1week" ? 7 : 30;
+            for (let i = daysToShow - 1; i >= 0; i--) {
+                const d = new Date();
+                d.setDate(now.getDate() - i);
+                data.push({ name: d.toISOString().split("T")[0], dateStr: d.toISOString().split("T")[0], vouchers: 0, invoices: 0, tasks: 0, notices: 0, total: 0 });
+            }
+        }
+
+        const mergeApiTrend = (trendData, key) => {
+            if (!Array.isArray(trendData)) return;
+            trendData.forEach(({ date, count }) => {
+                if (!date || !count) return;
+
+                // Usually the API returns `YYYY-MM-DD`
+                let target;
+                if (expensePeriod === "1day") {
+                    // Fallback to manual if 1day because grouping by hour is unsupported by simple daily API trends
+                } else if (expensePeriod === "1year") {
+                    const itemDate = new Date(date);
+                    target = data.find(d => d.month === itemDate.getMonth() && d.year === itemDate.getFullYear());
+                } else {
+                    target = data.find(d => d.name === date || d.dateStr === date);
+                }
+
+                if (target) {
+                    target[key] += count;
+                    target.total += count;
+                }
+            });
+        };
+
+        if (expensePeriod !== "1day") {
+            mergeApiTrend(apiTrends.tasks, 'tasks');
+            mergeApiTrend(apiTrends.notices, 'notices');
+            mergeApiTrend(apiTrends.invoices, 'invoices');
+            mergeApiTrend(apiTrends.vouchers, 'vouchers');
+            return data;
+        }
+
+        // For 1day, or if there's any gap (fallback), we use the manual calculation
+        vouchers.forEach((v) => {
+            const vDate = new Date(v.created_date || v.created_at);
+            let item = data.find(d => {
+                const dObj = new Date(d.name);
+                return dObj.getDate() === vDate.getDate() && dObj.getHours() === vDate.getHours();
+            });
+            if (item) {
+                item.vouchers += 1;
+                item.total += 1;
+            }
+        });
+
+        invoices.forEach((inv) => {
+            const iDate = new Date(inv.created_at || inv.invoice_date);
+            let item = data.find(d => {
+                const dObj = new Date(d.name);
+                return dObj.getDate() === iDate.getDate() && dObj.getHours() === iDate.getHours();
+            });
+            if (item) {
+                item.invoices += 1;
+                item.total += 1;
+            }
+        });
+
+        tasks.forEach((t) => {
+            const tDate = new Date(t.created_at);
+            let item = data.find(d => {
+                const dObj = new Date(d.name);
+                return dObj.getDate() === tDate.getDate() && dObj.getHours() === tDate.getHours();
+            });
+            if (item) {
+                item.tasks += 1;
+                item.total += 1;
+            }
+        });
+
+        notices.forEach((n) => {
+            const nDate = new Date(n.created_at);
+            let item = data.find(d => {
+                const dObj = new Date(d.name);
+                return dObj.getDate() === nDate.getDate() && dObj.getHours() === nDate.getHours();
+            });
+            if (item) {
+                item.notices += 1;
+                item.total += 1;
+            }
+        });
+
+        return data;
+    }, [apiTrends, vouchers, invoices, tasks, notices, expensePeriod]);
+
+    const averageActivity = React.useMemo(() => {
+        if (!activityChartData.length) return 0;
+        const total = activityChartData.reduce((sum, item) => sum + item.total, 0);
+        return total / activityChartData.length;
+    }, [activityChartData]);
 
     const averageExpense = React.useMemo(() => {
         if (!chartData.length) return 0;
@@ -847,115 +1003,264 @@ const Dashboard = ({
 
 
 
-                        <Card className="glass-card mb-8">
-                            <CardHeader className="p-4 sm:p-6">
-                                <CardTitle className="text-lg sm:text-xl">
-                                    Expense Trend
-                                </CardTitle>
-                                <CardDescription className="text-sm sm:text-base">
-                                    Spending for the {getPeriodLabel().toLowerCase()}
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="p-4 sm:p-6 pl-0">
-                                <div className="h-[175px] w-full">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart
-                                            data={chartData}
-                                            margin={{ top: 20, right: 20, left: 20, bottom: 0 }}
-                                        >
-                                            <XAxis
-                                                dataKey="name"
-                                                stroke="#9ca3af"
-                                                fontSize={10}
-                                                tickLine={false}
-                                                axisLine={false}
-                                                minTickGap={30}
-                                                tickFormatter={(value) => {
-                                                    const date = new Date(value);
-                                                    if (expensePeriod === "1day") {
-                                                        return date.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
-                                                    } else if (expensePeriod === "1year") {
-                                                        return date.toLocaleDateString("en-IN", { month: "short", year: "2-digit" });
-                                                    }
-                                                    return date.toLocaleDateString("en-IN", {
-                                                        day: "numeric",
-                                                        month: "short",
-                                                    });
-                                                }}
-                                            />
-                                            <YAxis
-                                                stroke="#9ca3af"
-                                                fontSize={11}
-                                                tickLine={false}
-                                                axisLine={false}
-                                                tickFormatter={(value) =>
-                                                    `₹${value.toLocaleString("en-IN")}`
-                                                }
-                                                width={isMobile ? 55 : 80}
-                                            />
-                                            <Tooltip
-                                                contentStyle={{
-                                                    backgroundColor: "rgba(0, 0, 0, 0.8)",
-                                                    border: "none",
-                                                    borderRadius: "8px",
-                                                    color: "#fff",
-                                                }}
-                                                itemStyle={{ color: "#fff" }}
-                                                cursor={{ fill: "rgba(255,255,255,0.05)" }}
-                                                formatter={(value) => [
-                                                    `₹${value.toLocaleString("en-IN")}`,
-                                                    "Amount",
-                                                ]}
-                                                labelFormatter={(label) => {
-                                                    const date = new Date(label);
-                                                    if (expensePeriod === "1day") {
-                                                        return date.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true });
-                                                    } else if (expensePeriod === "1year") {
-                                                        return date.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
-                                                    }
-                                                    return date.toLocaleDateString("en-IN", {
-                                                        day: "numeric",
-                                                        month: "short",
-                                                        year: "numeric"
-                                                    });
-                                                }}
-                                            />
-                                            <CartesianGrid
-                                                vertical={false}
-                                                stroke="rgba(255,255,255,0.1)"
-                                            />
-                                            {averageExpense > 0 && (
-                                                <ReferenceLine
-                                                    y={averageExpense}
-                                                    stroke="#f59e0b"
-                                                    strokeDasharray="3 3"
-                                                />
-                                            )}
-                                            <Bar
-                                                dataKey="amount"
-                                                fill="#3b82f6" // Blue color
-                                                maxBarSize={isMobile ? 12 : 40}
-                                                radius={[4, 4, 0, 0]}
-                                            >
-                                                {!isMobile && (
-                                                    <LabelList
-                                                        dataKey="amount"
-                                                        position="top"
-                                                        formatter={(value) =>
-                                                            value > 0
-                                                                ? value.toLocaleString("en-IN", {
-                                                                    maximumFractionDigits: 0,
-                                                                })
-                                                                : ""
-                                                        }
-                                                        style={{ fill: "#9ca3af", fontSize: "10px" }}
-                                                    />
-                                                )}
-                                            </Bar>
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </CardContent>
+                        <Card className="glass-card mb-8 relative overflow-hidden">
+                            <div className="absolute right-4 top-4 flex items-center gap-2 z-10">
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-gray-400 hover:text-white rounded-full hover:bg-white/10"
+                                    onClick={() => setTrendSlide(0)}
+                                    disabled={trendSlide === 0}
+                                >
+                                    <ChevronLeft className="w-5 h-5" />
+                                </Button>
+                                <span className="text-xs font-medium text-gray-500 min-w-[24px] text-center">
+                                    {trendSlide + 1}/2
+                                </span>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-gray-400 hover:text-white rounded-full hover:bg-white/10"
+                                    onClick={() => setTrendSlide(1)}
+                                    disabled={trendSlide === 1}
+                                >
+                                    <ChevronRight className="w-5 h-5" />
+                                </Button>
+                            </div>
+
+                            <div className="touch-pan-y">
+                                <AnimatePresence mode="wait">
+                                    <motion.div
+                                        key={trendSlide}
+                                        initial={{ opacity: 0, x: trendSlide === 0 ? -20 : 20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, x: trendSlide === 0 ? 20 : -20 }}
+                                        transition={{ duration: 0.3, ease: "easeInOut" }}
+                                        drag="x"
+                                        dragConstraints={{ left: 0, right: 0 }}
+                                        dragElastic={0.1}
+                                        onDragEnd={(e, { offset }) => {
+                                            const swipe = offset.x;
+                                            if (swipe < -50 && trendSlide === 0) setTrendSlide(1);
+                                            else if (swipe > 50 && trendSlide === 1) setTrendSlide(0);
+                                        }}
+                                        className="w-full"
+                                    >
+                                        {trendSlide === 0 ? (
+                                            <>
+                                                <CardHeader className="p-4 sm:p-6 pb-0">
+                                                    <CardTitle className="text-lg sm:text-xl">
+                                                        Expense Trend
+                                                    </CardTitle>
+                                                    <CardDescription className="text-sm sm:text-base">
+                                                        Spending for the {getPeriodLabel().toLowerCase()}
+                                                    </CardDescription>
+                                                </CardHeader>
+                                                <CardContent className="p-4 sm:p-6 pl-0">
+                                                    <div className="h-[175px] w-full">
+                                                        <ResponsiveContainer width="100%" height="100%">
+                                                            <BarChart
+                                                                data={chartData}
+                                                                margin={{ top: 20, right: 20, left: 20, bottom: 0 }}
+                                                            >
+                                                                <XAxis
+                                                                    dataKey="name"
+                                                                    stroke="#9ca3af"
+                                                                    fontSize={10}
+                                                                    tickLine={false}
+                                                                    axisLine={false}
+                                                                    minTickGap={30}
+                                                                    tickFormatter={(value) => {
+                                                                        const date = new Date(value);
+                                                                        if (expensePeriod === "1day") {
+                                                                            return date.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
+                                                                        } else if (expensePeriod === "1year") {
+                                                                            return date.toLocaleDateString("en-IN", { month: "short", year: "2-digit" });
+                                                                        }
+                                                                        return date.toLocaleDateString("en-IN", {
+                                                                            day: "numeric",
+                                                                            month: "short",
+                                                                        });
+                                                                    }}
+                                                                />
+                                                                <YAxis
+                                                                    stroke="#9ca3af"
+                                                                    fontSize={11}
+                                                                    tickLine={false}
+                                                                    axisLine={false}
+                                                                    tickFormatter={(value) =>
+                                                                        `₹${value.toLocaleString("en-IN")}`
+                                                                    }
+                                                                    width={isMobile ? 55 : 80}
+                                                                />
+                                                                <Tooltip
+                                                                    contentStyle={{
+                                                                        backgroundColor: "rgba(0, 0, 0, 0.8)",
+                                                                        border: "none",
+                                                                        borderRadius: "8px",
+                                                                        color: "#fff",
+                                                                    }}
+                                                                    itemStyle={{ color: "#fff" }}
+                                                                    cursor={{ fill: "rgba(255,255,255,0.05)" }}
+                                                                    formatter={(value) => [
+                                                                        `₹${value.toLocaleString("en-IN")}`,
+                                                                        "Amount",
+                                                                    ]}
+                                                                    labelFormatter={(label) => {
+                                                                        const date = new Date(label);
+                                                                        if (expensePeriod === "1day") {
+                                                                            return date.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true });
+                                                                        } else if (expensePeriod === "1year") {
+                                                                            return date.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+                                                                        }
+                                                                        return date.toLocaleDateString("en-IN", {
+                                                                            day: "numeric",
+                                                                            month: "short",
+                                                                            year: "numeric"
+                                                                        });
+                                                                    }}
+                                                                />
+                                                                <CartesianGrid
+                                                                    vertical={false}
+                                                                    stroke="rgba(255,255,255,0.1)"
+                                                                />
+                                                                {averageExpense > 0 && (
+                                                                    <ReferenceLine
+                                                                        y={averageExpense}
+                                                                        stroke="#f59e0b"
+                                                                        strokeDasharray="3 3"
+                                                                    />
+                                                                )}
+                                                                <Bar
+                                                                    dataKey="amount"
+                                                                    fill="#3b82f6"
+                                                                    maxBarSize={isMobile ? 12 : 40}
+                                                                    radius={[4, 4, 0, 0]}
+                                                                >
+                                                                    {!isMobile && (
+                                                                        <LabelList
+                                                                            dataKey="amount"
+                                                                            position="top"
+                                                                            formatter={(value) =>
+                                                                                value > 0
+                                                                                    ? value.toLocaleString("en-IN", {
+                                                                                        maximumFractionDigits: 0,
+                                                                                    })
+                                                                                    : ""
+                                                                            }
+                                                                            style={{ fill: "#9ca3af", fontSize: "10px" }}
+                                                                        />
+                                                                    )}
+                                                                </Bar>
+                                                            </BarChart>
+                                                        </ResponsiveContainer>
+                                                    </div>
+                                                </CardContent>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <CardHeader className="p-4 sm:p-6 pb-0">
+                                                    <CardTitle className="text-lg sm:text-xl">
+                                                        Activity Trend
+                                                    </CardTitle>
+                                                    <CardDescription className="text-sm sm:text-base">
+                                                        Activity volume for the {getPeriodLabel().toLowerCase()}
+                                                    </CardDescription>
+                                                </CardHeader>
+                                                <CardContent className="p-4 sm:p-6 pl-0">
+                                                    <div className="h-[175px] w-full">
+                                                        <ResponsiveContainer width="100%" height="100%">
+                                                            <BarChart
+                                                                data={activityChartData}
+                                                                margin={{ top: 20, right: 20, left: 20, bottom: 0 }}
+                                                            >
+                                                                <XAxis
+                                                                    dataKey="name"
+                                                                    stroke="#9ca3af"
+                                                                    fontSize={10}
+                                                                    tickLine={false}
+                                                                    axisLine={false}
+                                                                    minTickGap={30}
+                                                                    tickFormatter={(value) => {
+                                                                        const date = new Date(value);
+                                                                        if (expensePeriod === "1day") {
+                                                                            return date.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
+                                                                        } else if (expensePeriod === "1year") {
+                                                                            return date.toLocaleDateString("en-IN", { month: "short", year: "2-digit" });
+                                                                        }
+                                                                        return date.toLocaleDateString("en-IN", {
+                                                                            day: "numeric",
+                                                                            month: "short",
+                                                                        });
+                                                                    }}
+                                                                />
+                                                                <YAxis
+                                                                    stroke="#9ca3af"
+                                                                    fontSize={11}
+                                                                    tickLine={false}
+                                                                    axisLine={false}
+                                                                    width={isMobile ? 30 : 40}
+                                                                />
+                                                                <Tooltip
+                                                                    contentStyle={{
+                                                                        backgroundColor: "rgba(0, 0, 0, 0.8)",
+                                                                        border: "none",
+                                                                        borderRadius: "12px",
+                                                                        color: "#fff",
+                                                                    }}
+                                                                    itemStyle={{ fontSize: '12px' }}
+                                                                    cursor={{ fill: "rgba(255,255,255,0.05)" }}
+                                                                    labelFormatter={(label) => {
+                                                                        const date = new Date(label);
+                                                                        if (expensePeriod === "1day") {
+                                                                            return date.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true });
+                                                                        } else if (expensePeriod === "1year") {
+                                                                            return date.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+                                                                        }
+                                                                        return date.toLocaleDateString("en-IN", {
+                                                                            day: "numeric",
+                                                                            month: "short",
+                                                                            year: "numeric"
+                                                                        });
+                                                                    }}
+                                                                />
+                                                                <Legend
+                                                                    verticalAlign="top"
+                                                                    align="right"
+                                                                    iconType="circle"
+                                                                    wrapperStyle={{ paddingBottom: '20px', fontSize: '10px', top: -10 }}
+                                                                />
+                                                                <CartesianGrid
+                                                                    vertical={false}
+                                                                    stroke="rgba(255,255,255,0.1)"
+                                                                />
+                                                                {averageActivity > 0 && (
+                                                                    <ReferenceLine
+                                                                        y={averageActivity}
+                                                                        stroke="#f59e0b"
+                                                                        strokeDasharray="3 3"
+                                                                    />
+                                                                )}
+                                                                <Bar dataKey="tasks" stackId="a" fill="#3b82f6" radius={[0, 0, 0, 0]} barSize={isMobile ? 12 : 32} name="Tasks" />
+                                                                <Bar dataKey="vouchers" stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} barSize={isMobile ? 12 : 32} name="Vouchers" />
+                                                                <Bar dataKey="invoices" stackId="a" fill="#f59e0b" radius={[0, 0, 0, 0]} barSize={isMobile ? 12 : 32} name="Invoices" />
+                                                                <Bar dataKey="notices" stackId="a" fill="#ef4444" radius={[4, 4, 0, 0]} barSize={isMobile ? 12 : 32} name="Notices">
+                                                                    <LabelList
+                                                                        dataKey="total"
+                                                                        position="top"
+                                                                        style={{ fill: '#9ca3af', fontSize: '10px' }}
+                                                                        formatter={(val) => val > 0 ? val : ''}
+                                                                    />
+                                                                </Bar>
+                                                            </BarChart>
+                                                        </ResponsiveContainer>
+                                                    </div>
+                                                </CardContent>
+                                            </>
+                                        )}
+                                    </motion.div>
+                                </AnimatePresence>
+                            </div>
                         </Card>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-2 sm:gap-4 lg:gap-4">
