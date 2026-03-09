@@ -1622,11 +1622,19 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
               const editable = isBreakdownEditable(row);
               const viewOnly = isBreakdownViewOnly(row);
               const breakdown = row.as_per_department_breakdown || {};
-              const defaultEdit = {};
+              const defaultEdit = {
+                physical_cash_at_desk: row.physical_cash_at_desk != null ? String(row.physical_cash_at_desk) : '',
+                imprest_amount: row.imprest_amount != null ? String(row.imprest_amount) : '',
+                less_payment: row.less_payment != null ? String(row.less_payment) : '',
+              };
               paymentMethods.forEach(p => { defaultEdit[p.id] = breakdown[p.id] != null ? String(breakdown[p.id]) : ''; });
               const editValues = breakdownEdit[row.handover_id] ?? defaultEdit;
               const editRemarks = (breakdownEdit[row.handover_id + '_remarks'] !== undefined) ? breakdownEdit[row.handover_id + '_remarks'] : (row.handover_remarks || '');
-              const setEdit = (pmId, value) => setBreakdownEdit(prev => ({ ...prev, [row.handover_id]: { ...(prev[row.handover_id] || {}), [pmId]: value } }));
+              
+              const setEdit = (key, value) => setBreakdownEdit(prev => ({ 
+                ...prev, 
+                [row.handover_id]: { ...(prev[row.handover_id] || defaultEdit), [key]: value } 
+              }));
               const setEditRem = (v) => setBreakdownEdit(prev => ({ ...prev, [row.handover_id + '_remarks']: v }));
               const handleSaveBreakdown = async () => {
                 if (!clientId || !token || !editable) return;
@@ -1634,7 +1642,14 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
                 try {
                   const collection_details = {};
                   paymentMethods.forEach(p => { collection_details[p.id] = parseFloat(editValues[p.id]) || 0; });
-                  await updateHandover(clientId, row.handover_id, { collection_details, remarks: editRemarks }, token);
+                  const payload = {
+                    collection_details,
+                    remarks: editRemarks,
+                    physical_cash_at_desk: editValues.physical_cash_at_desk !== '' ? parseFloat(editValues.physical_cash_at_desk) : null,
+                    imprest_amount: editValues.imprest_amount !== '' ? parseFloat(editValues.imprest_amount) : null,
+                    less_payment: editValues.less_payment !== '' ? parseFloat(editValues.less_payment) : null,
+                  };
+                  await updateHandover(clientId, row.handover_id, payload, token);
                   toast({ title: 'Saved', description: 'Handover updated.' });
                   fetchSummary();
                   setBreakdownModal(null);
@@ -1648,12 +1663,12 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
               return (
                 <>
                   <p className="text-sm text-gray-400">Department: <span className="text-white">{row.department_name || '—'}</span></p>
-                  <div className="border border-white/10 rounded p-2">
+                  <div className="border border-white/10 rounded overflow-hidden">
                     <Table className="w-full text-sm">
                       <TableHeader>
-                        <TableRow className="text-gray-400 border-b border-white/10">
-                          <TableHead className="text-left py-1">Method</TableHead>
-                          <TableHead className="text-right py-1">Amount ₹</TableHead>
+                        <TableRow className="bg-white/5 border-b border-white/10">
+                          <TableHead className="text-left py-1 text-gray-400">Method</TableHead>
+                          <TableHead className="text-right py-1 text-gray-400">Amount ₹</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1672,6 +1687,77 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
                       </TableBody>
                     </Table>
                   </div>
+
+                  {/* Cash Tally Section */}
+                  <div className="mt-4">
+                    <h4 className="text-sm font-semibold text-white mb-2">Cash Tally</h4>
+                    <div className="border border-white/10 rounded overflow-hidden">
+                      <Table className="w-full text-sm">
+                        <TableBody>
+                          <TableRow className="border-b border-white/5">
+                            <TableCell className="py-1">Cash Collection</TableCell>
+                            <TableCell className="text-right py-1 font-medium italic">
+                              ₹ {Number(row.cash_collection || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </TableCell>
+                          </TableRow>
+                          <TableRow className="border-b border-white/5">
+                            <TableCell className="py-1">Physical Cash at Desk</TableCell>
+                            <TableCell className="text-right py-1">
+                              {viewOnly || !editable ? (
+                                <span>₹ {Number(editValues.physical_cash_at_desk || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                              ) : (
+                                <Input type="number" min={0} step={0.01} className="h-8 text-sm glass-input w-28 text-white inline-block text-right" value={editValues.physical_cash_at_desk ?? ''} onChange={e => setEdit('physical_cash_at_desk', e.target.value)} />
+                              )}
+                            </TableCell>
+                          </TableRow>
+                          <TableRow className="bg-white/5">
+                            <TableCell className="py-1 font-medium">Difference</TableCell>
+                            <TableCell className="text-right py-1 font-medium">
+                              ₹ {(parseFloat(editValues.physical_cash_at_desk || 0) - (row.cash_collection || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+
+                  {/* Imprest Cash Section */}
+                  <div className="mt-4">
+                    <h4 className="text-sm font-semibold text-white mb-2">Imprest Cash</h4>
+                    <div className="border border-white/10 rounded overflow-hidden">
+                      <Table className="w-full text-sm">
+                        <TableBody>
+                          <TableRow className="border-b border-white/5">
+                            <TableCell className="py-1">Imprest Amount</TableCell>
+                            <TableCell className="text-right py-1">
+                              {viewOnly || !editable ? (
+                                <span>₹ {Number(editValues.imprest_amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                              ) : (
+                                <Input type="number" min={0} step={0.01} className="h-8 text-sm glass-input w-28 text-white inline-block text-right" value={editValues.imprest_amount ?? ''} onChange={e => setEdit('imprest_amount', e.target.value)} />
+                              )}
+                            </TableCell>
+                          </TableRow>
+                          <TableRow className="border-b border-white/5">
+                            <TableCell className="py-1">Less Payment</TableCell>
+                            <TableCell className="text-right py-1">
+                              {viewOnly || !editable ? (
+                                <span>₹ {Number(editValues.less_payment || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                              ) : (
+                                <Input type="number" min={0} step={0.01} className="h-8 text-sm glass-input w-28 text-white inline-block text-right" value={editValues.less_payment ?? ''} onChange={e => setEdit('less_payment', e.target.value)} />
+                              )}
+                            </TableCell>
+                          </TableRow>
+                          <TableRow className="bg-white/5">
+                            <TableCell className="py-1 font-medium">Net Imprest Amount</TableCell>
+                            <TableCell className="text-right py-1 font-medium">
+                              ₹ {(parseFloat(editValues.imprest_amount || 0) - parseFloat(editValues.less_payment || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+
                   <div>
                     <Label className="text-sm text-gray-400">Remarks</Label>
                     {viewOnly || !editable ? (

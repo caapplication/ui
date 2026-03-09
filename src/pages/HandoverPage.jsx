@@ -108,7 +108,13 @@ const HandoverPage = () => {
     setSubmitting(true);
     try {
       if (editingRow) {
-        await updateHandover(entityId, editingRow.id, { collection_details: details, remarks: remarks || null }, user.access_token);
+        await updateHandover(entityId, editingRow.id, {
+          collection_details: details,
+          remarks: remarks || null,
+          physical_cash_at_desk: physicalCashAtDesk ? physicalNum : null,
+          imprest_amount: imprestAmount ? imprestNum : null,
+          less_payment: lessPayment ? lessNum : null,
+        }, user.access_token);
         toast({ title: 'Success', description: 'Handover updated.' });
       } else {
         await createHandover(entityId, {
