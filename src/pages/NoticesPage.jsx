@@ -501,7 +501,7 @@ const NoticesPage = () => {
                                     id="file"
                                     onChange={handleFileChange}
                                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                    accept=".pdf,.jpg,.jpeg,.png"
+                                    accept=".pdf,.jpg,.jpeg,.png,.csv,.xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                                     required
                                 />
                                 <div className="flex flex-col items-center gap-2 pointer-events-none">
