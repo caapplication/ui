@@ -1071,7 +1071,7 @@ const NoticeDetailsPage = () => {
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                         <Label htmlFor="reason">Reason / Remarks</Label>
-                        <Textarea id="reason" value={closureReason} onChange={(e) => setClosureReason(e.target.value)} className="glass-input border-white/10 bg-black/20" />
+                        <Textarea id="reason" value={closureReason} onChange={(e) => setClosureReason(e.target.value)} className="glass-input border-white/10 bg-black/20 !w-full" />
                     </div>
                     <DialogFooter>
                         <Button variant="ghost" onClick={() => setIsRequestCloseOpen(false)}>Cancel</Button>
