@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.jsx";
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { RefreshCw, Download } from 'lucide-react';
+import { RefreshCw, Download, Users, Banknote } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useToast } from '@/components/ui/use-toast';
 import { useOrganisation } from '@/hooks/useOrganisation';
@@ -11,6 +11,13 @@ import { getCATeamInvoices, getCATeamVouchers, updateInvoice, updateVoucher, get
 import { listClientsByOrganization } from '@/lib/api/clients';
 import Vouchers from './Vouchers';
 import Invoices from './Invoices';
+import { useNavigate } from 'react-router-dom';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import ExportTallyModal from '@/components/finance/ExportTallyModal';
 import * as XLSX from 'xlsx';
 import { HandoverTab, BankTallyTab, CashTallyTab, ReportTab } from '@/pages/ClientHandoverPage';
@@ -37,6 +44,7 @@ const FinancePage = () => {
   const [refreshKey, setRefreshKey] = useState(0);
 
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const navigate = useNavigate();
 
   const handleRefresh = () => {
     setIsDataLoading(true);
@@ -202,6 +210,41 @@ const FinancePage = () => {
               })}
             </SelectContent>
           </Select>
+          {(user.role === 'CLIENT_USER' || user.role === 'CLIENT_MASTER_ADMIN') && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => navigate('/beneficiaries')}
+                    className="h-10 w-10 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 text-white"
+                  >
+                    <Users className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Beneficiaries</p>
+                </TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => navigate('/organisation-bank')}
+                    className="h-10 w-10 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 text-white"
+                  >
+                    <Banknote className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Organisation Bank</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
           <Button variant="outline" size="icon" onClick={handleRefresh} disabled={isDataLoading || isOrgLoading || !selectedOrg}>
             <RefreshCw className={`w-4 h-4 ${isDataLoading ? 'animate-spin' : ''}`} />
           </Button>

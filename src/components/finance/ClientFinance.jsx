@@ -10,6 +10,7 @@ import {
   RefreshCw,
   Download,
   Landmark,
+  Users,
 } from 'lucide-react';
 import { Dialog } from '@/components/ui/dialog';
 import {
@@ -26,6 +27,12 @@ import {
   Navigate,
   Outlet,
 } from 'react-router-dom';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useToast } from '@/components/ui/use-toast';
 import {
@@ -533,6 +540,39 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction, entityName: en
 
             {/* Refresh Button and Add Dropdown - only for vouchers/invoices */}
             <div className="flex items-center gap-3 w-full lg:w-auto justify-end">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => navigate('/beneficiaries')}
+                      className="h-11 w-11 min-w-[44px] rounded-full bg-white/5 border-white/10 text-white hover:bg-white/10 shadow-lg"
+                    >
+                      <Users className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Beneficiaries</p>
+                  </TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => navigate('/organisation-bank')}
+                      className="h-11 w-11 min-w-[44px] rounded-full bg-white/5 border-white/10 text-white hover:bg-white/10 shadow-lg"
+                    >
+                      <Banknote className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Organisation Bank</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
               <Button
                 variant="outline"
                 size="icon"
