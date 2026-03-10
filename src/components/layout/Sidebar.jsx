@@ -129,19 +129,6 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
   const menuItems = [
     { id: 'dashboard', path: '/', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'finance', path: '/finance', label: 'Finance', icon: Landmark, showDot: hasFinancePending },
-    { id: 'bill-payment', path: '/bill-payment', label: 'Bill & Payment', icon: Receipt },
-    { id: 'documents', path: '/documents', label: 'Documents', icon: FileText },
-    { id: 'users', path: '/users', label: 'Manage Team', icon: UserCog, hidden: user?.role === 'CLIENT_USER' },
-    { id: 'beneficiaries', path: '/beneficiaries', label: 'Beneficiaries', icon: Users, hidden: user?.role === 'CLIENT_USER' || user?.role === 'CLIENT_MASTER_ADMIN' },
-    { id: 'organisation-bank', path: '/organisation-bank', label: 'Organisation Bank', icon: Banknote, hidden: user?.role === 'CLIENT_USER' || user?.role === 'CLIENT_MASTER_ADMIN' },
-    { 
-      id: 'notices', 
-      path: '/notices', 
-      label: 'Notices', 
-      icon: Bell, 
-      showDot: unreadNoticeCount > 0, 
-      blinking: isNoticeBlinking 
-    },
     {
       id: 'tasks',
       path: '/tasks',
@@ -150,7 +137,20 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
       showDot: unreadCount > 0,
       blinking: isBlinking
     },
+    { id: 'documents', path: '/documents', label: 'Documents', icon: FileText },
+    { 
+      id: 'notices', 
+      path: '/notices', 
+      label: 'Notices', 
+      icon: Bell, 
+      showDot: unreadNoticeCount > 0, 
+      blinking: isNoticeBlinking 
+    },
+    { id: 'users', path: '/users', label: 'Manage Team', icon: UserCog, hidden: user?.role === 'CLIENT_USER' },
+    { id: 'bill-payment', path: '/bill-payment', label: 'Bill & Payment', icon: Receipt },
     { id: 'settings', path: '/settings', label: 'Settings', icon: Settings, hidden: user?.role === 'CLIENT_USER' },
+    { id: 'beneficiaries', path: '/beneficiaries', label: 'Beneficiaries', icon: Users, hidden: user?.role === 'CLIENT_USER' || user?.role === 'CLIENT_MASTER_ADMIN' },
+    { id: 'organisation-bank', path: '/organisation-bank', label: 'Organisation Bank', icon: Banknote, hidden: user?.role === 'CLIENT_USER' || user?.role === 'CLIENT_MASTER_ADMIN' },
     { id: 'handover', path: '/handover', label: 'Handover', icon: ArrowLeftRight, hidden: user?.role !== 'CLIENT_HANDOVER' },
   ];
 
