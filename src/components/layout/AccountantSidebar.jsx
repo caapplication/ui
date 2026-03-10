@@ -102,9 +102,7 @@ const AccountantSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) =
 
   const menuItems = [
     { id: 'dashboard', path: '/', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'clients', path: '/clients', label: 'Clients', icon: Users },
     { id: 'finance', path: '/finance', label: 'Finance', icon: Landmark, showDot: hasFinancePending },
-    { id: 'team-members', path: '/team-members', label: 'Team Members', icon: UserPlus },
     {
       id: 'tasks',
       path: '/tasks',
@@ -122,8 +120,10 @@ const AccountantSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) =
       showDot: unreadNoticeCount > 0,
       blinking: isNoticeBlinking
     },
-    { id: 'services', path: '/services', label: 'Services', icon: Briefcase },
+    { id: 'clients', path: '/clients', label: 'Clients', icon: Users },
+    { id: 'team-members', path: '/team-members', label: 'Manage Team', icon: UserPlus },
     { id: 'settings', path: '/settings', label: 'Settings', icon: Settings },
+    { id: 'services', path: '/services', label: 'Services', icon: Briefcase },
   ];
 
   const isActive = (path) => {

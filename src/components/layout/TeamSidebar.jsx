@@ -102,8 +102,6 @@ const TeamSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) => {
   // Remove "organisation" and "team-members"
   const menuItems = [
     { id: 'dashboard', path: '/', label: 'Dashboard', icon: LayoutDashboard },
-    // Hide Clients tab for CA_TEAM role
-    ...(user?.role !== 'CA_TEAM' ? [{ id: 'clients', path: '/clients', label: 'Clients', icon: Users }] : []),
     { id: 'finance', path: '/finance', label: 'Finance', icon: Landmark, showDot: hasFinancePending },
     {
       id: 'tasks',
@@ -113,9 +111,15 @@ const TeamSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) => {
       showDot: unreadCount > 0,
       blinking: isBlinking
     },
-    { id: 'notices', path: '/notices', label: 'Notices', icon: Bell, showDot: unreadNoticeCount > 0, blinking: isNoticeBlinking },
     { id: 'documents', path: '/documents', label: 'Documents', icon: FileText },
-    // { id: 'services', path: '/services', label: 'Services', icon: Briefcase },
+    { id: 'notices', path: '/notices', label: 'Notices', icon: Bell, showDot: unreadNoticeCount > 0, blinking: isNoticeBlinking },
+    // Hide Clients tab for CA_TEAM role if it was explicitly hidden before, 
+    // but the user asked for "Same Sequence", implying it might be needed or just keep order.
+    // Keeping conditional hide but moving to new position.
+    ...(user?.role !== 'CA_TEAM' ? [{ id: 'clients', path: '/clients', label: 'Clients', icon: Users }] : []),
+    // Adding placeholder for Manage Team and Settings if they need to be visible for CA users now
+    // Based on previous code, they were commented out or missing.
+    // { id: 'team-members', path: '/team-members', label: 'Manage Team', icon: UserPlus },
     // { id: 'settings', path: '/settings', label: 'Settings', icon: Settings },
   ];
 
