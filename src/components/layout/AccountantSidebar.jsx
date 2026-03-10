@@ -123,7 +123,6 @@ const AccountantSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) =
     { id: 'clients', path: '/clients', label: 'Clients', icon: Users },
     { id: 'team-members', path: '/team-members', label: 'Manage Team', icon: UserPlus },
     { id: 'settings', path: '/settings', label: 'Settings', icon: Settings },
-    { id: 'services', path: '/services', label: 'Services', icon: Briefcase },
   ];
 
   const isActive = (path) => {

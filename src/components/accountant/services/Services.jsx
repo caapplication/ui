@@ -91,7 +91,7 @@ const Services = () => {
     };
 
     return (
-        <div className="p-4 md:p-8 text-white relative overflow-hidden h-full">
+        <div className="text-white relative overflow-hidden h-full">
             <AnimatePresence mode="wait">
                 {view === 'detail' && selectedService ? (
                     <motion.div

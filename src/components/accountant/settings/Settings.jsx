@@ -12,6 +12,7 @@ import ClientSettingsContent from './ClientSettingsContent';
 import PortalsContent from './PortalsContent';
 import BusinessTypesContent from './BusinessTypesContent';
 import FinanceHeadersContent from './FinanceHeadersContent';
+import Services from '@/components/accountant/services/Services';
 
 const settingsNav = [
     { path: 'tags', name: 'Tags', icon: Tag, component: TagsContent },
@@ -19,6 +20,7 @@ const settingsNav = [
     { path: 'portals', name: 'Portals', icon: Globe, component: PortalsContent },
     { path: 'business-types', name: 'Business Types', icon: Briefcase, component: BusinessTypesContent },
     { path: 'finance-headers', name: 'Finance Headers', icon: FileText, component: FinanceHeadersContent },
+    { path: 'services', name: 'Services', icon: Briefcase, component: Services },
 ];
 
 const Settings = () => {
@@ -30,6 +32,9 @@ const Settings = () => {
     const filteredNav = settingsNav.filter(item => {
         if (user?.role === 'CA_ACCOUNTANT') {
             return item.path !== 'tags' && item.path !== 'client-settings';
+        }
+        if (user?.role === 'CA_TEAM') {
+            return item.path === 'services';
         }
         return true;
     });

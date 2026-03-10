@@ -368,7 +368,7 @@ const ProtectedContent = () => {
               <Route path="/tasks/recurring" element={<RecurringTaskManagementPage />} />
               <Route path="/tasks/recurring/:recurringTaskId" element={<RecurringTaskDashboardPage />} />
               <Route path="/todos" element={<TodoPage />} />
-              <Route path="/services" element={<Services />} />
+              <Route path="/services" element={<Navigate to="/settings/services" replace />} />
               <Route path="/organisation" element={<Organisation />} />
               <Route path="/team-members" element={<TeamMembers />} />
               <Route path="/users" element={<ClientUsersPage entityId={currentEntity} />} />
