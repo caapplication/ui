@@ -661,7 +661,7 @@ const ClientBillPaymentPage = ({ entityId }) => {
                                     <div className="flex items-center gap-2">
                                         <Input
                                             type="file"
-                                            accept="image/*,.pdf"
+                                            accept="image/*,.pdf,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                                             onChange={handlePaymentFileChange}
                                             className="flex-1 text-white file:mr-2 file:rounded file:border-0 file:bg-white/10 file:text-white"
                                         />
