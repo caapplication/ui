@@ -12,6 +12,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { formatCurrencyINR } from '@/lib/utils';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -347,12 +348,13 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onViewInvoic
                   </TableCell>
                   <TableCell className="text-xs sm:text-sm truncate max-w-[120px] sm:max-w-none">{getBeneficiaryName(invoice)}</TableCell>
                   <TableCell className="text-xs sm:text-sm">
-                    ₹{(() => {
-                      const val = parseFloat(invoice.amount) + parseFloat(invoice.cgst || 0) + parseFloat(invoice.sgst || 0) + parseFloat(invoice.igst || 0);
-                      return val % 1 === 0
-                        ? val.toLocaleString('en-IN', { maximumFractionDigits: 0 })
-                        : val.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                    })()}
+                    {formatCurrencyINR(
+                      parseFloat(invoice.amount || 0) +
+                      parseFloat(invoice.cgst || 0) +
+                      parseFloat(invoice.sgst || 0) +
+                      parseFloat(invoice.igst || 0) +
+                      parseFloat(invoice.roundoff || 0)
+                    )}
                   </TableCell>
                   <TableCell className="text-xs sm:text-sm">
                     <span className={`inline-flex items-center justify-center text-center px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-medium capitalize border h-auto min-h-[1.5rem] whitespace-normal leading-tight ${invoice.is_deleted ? 'bg-gray-500/20 text-gray-400 border-gray-500/50' : getStatusColor(invoice.status)}`}>

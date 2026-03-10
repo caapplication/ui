@@ -24,6 +24,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.j
 import ActivityLog from '@/components/finance/ActivityLog';
 import { Combobox } from '@/components/ui/combobox';
 import PdfPreviewModal from '@/components/modals/PdfPreviewModal';
+import { formatCurrencyINR } from '@/lib/utils';
 
 function formatPaymentMethod(method) {
     if (!method) return 'N/A';
@@ -1380,7 +1381,6 @@ const VoucherDetailsCA = () => {
                                                         </CardDescription>
                                                     </CardHeader>
                                                     <CardContent className="space-y-2 relative z-20">
-                                                        <DetailItem label="Amount" value={`₹${parseFloat(voucherDetails.amount) % 1 === 0 ? parseFloat(voucherDetails.amount).toFixed(0) : parseFloat(voucherDetails.amount).toFixed(2)}`} />
                                                         <DetailItem label="Voucher ID" value={voucherDetails.voucher_id || 'N/A'} />
                                                         <DetailItem label="Voucher Type" value={voucherDetails.voucher_type} />
                                                         <DetailItem
@@ -1468,6 +1468,7 @@ const VoucherDetailsCA = () => {
                                                                 />
                                                             </>
                                                         )}
+                                                        <DetailItem label="Amount" value={formatCurrencyINR(voucherDetails.amount)} />
                                                         <div className="pt-4">
                                                             <p className="text-sm text-gray-400 mb-1">Remarks</p>
                                                             <p className="text-sm text-white p-3 bg-white/5 rounded-md">{voucherDetails.remarks || 'N/A'}</p>

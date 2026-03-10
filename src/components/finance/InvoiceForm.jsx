@@ -13,6 +13,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { addBeneficiary } from '@/lib/api';
 import BeneficiaryForm from '@/components/beneficiaries/BeneficiaryForm';
 import { useCurrentOrganization } from '@/hooks/useCurrentOrganization';
+import { formatCurrencyINR } from '@/lib/utils';
 
 const InvoiceForm = ({ entityId, beneficiaries, isLoading, onSave, onCancel, invoice, financeHeaders }) => {
     const { user } = useAuth();
@@ -235,11 +236,11 @@ const InvoiceForm = ({ entityId, beneficiaries, isLoading, onSave, onCancel, inv
                         <div className="flex justify-between items-center bg-white/5 p-4 rounded-xl">
                             <div>
                                 <p className="text-sm text-gray-400">Pre-Tax Amount</p>
-                                <p className="text-lg font-semibold text-white">₹{parseFloat(amount || 0).toFixed(2)}</p>
+                                <p className="text-lg font-semibold text-white">{formatCurrencyINR(amount || 0)}</p>
                             </div>
                             <div>
                                 <p className="text-sm text-gray-400">Total (inc. GST & Roundoff)</p>
-                                <p className="text-lg font-bold text-white">₹{total.toFixed(2)}</p>
+                                <p className="text-lg font-bold text-white">{formatCurrencyINR(total)}</p>
                             </div>
                         </div>
 

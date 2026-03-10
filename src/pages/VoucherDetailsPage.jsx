@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/resizable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.jsx";
 import ActivityLog from '@/components/finance/ActivityLog';
+import { formatCurrencyINR } from '@/lib/utils';
 import PdfPreviewModal from '@/components/modals/PdfPreviewModal';
 
 // Helper functions for localStorage caching
@@ -157,13 +158,13 @@ const VoucherPDF = React.forwardRef(({ voucher, organizationName, entityName, fr
                 <TableBody>
                     <TableRow>
                         <TableCell className="p-4 border-b text-base">{voucher.remarks || 'N/A'}</TableCell>
-                        <TableCell className="p-4 border-b text-right text-base">₹{parseFloat(voucher.amount).toFixed(2)}</TableCell>
+                        <TableCell className="p-4 border-b text-right text-base">{formatCurrencyINR(voucher.amount)}</TableCell>
                     </TableRow>
                 </TableBody>
                 <tfoot>
                     <TableRow className="bg-blue-600 text-white font-bold">
                         <TableCell className="p-4 text-left text-base">Total</TableCell>
-                        <TableCell className="p-4 text-right text-base">₹{parseFloat(voucher.amount).toFixed(2)}</TableCell>
+                        <TableCell className="p-4 text-right text-base">{formatCurrencyINR(voucher.amount)}</TableCell>
                     </TableRow>
                 </tfoot>
             </Table>
@@ -1381,7 +1382,6 @@ const VoucherDetailsPage = () => {
                                                     </CardHeader>
                                                     <CardContent className="space-y-2 relative z-20 p-4 sm:p-6 pt-0">
 
-                                                        <DetailItem label="Amount" value={`₹${parseFloat(voucherDetails.amount) % 1 === 0 ? parseFloat(voucherDetails.amount).toFixed(0) : parseFloat(voucherDetails.amount).toFixed(2)}`} />
                                                         <DetailItem label="Voucher ID" value={voucherDetails.voucher_id || 'N/A'} />
                                                         <DetailItem label="Voucher Type" value={voucherDetails.voucher_type} />
                                                         <DetailItem
@@ -1489,6 +1489,7 @@ const VoucherDetailsPage = () => {
                                                                 />
                                                             </>
                                                         )}
+                                                        <DetailItem label="Amount" value={formatCurrencyINR(voucherDetails.amount)} />
                                                         <div className="pt-4">
                                                             <p className="text-sm text-gray-400 mb-1">Remarks</p>
                                                             <p className="text-sm text-white p-3 bg-white/5 rounded-md">{voucherDetails.remarks && voucherDetails.remarks.trim() ? voucherDetails.remarks : 'N/A'}</p>

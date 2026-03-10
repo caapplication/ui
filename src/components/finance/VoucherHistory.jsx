@@ -11,6 +11,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { getVoucherAttachment, updateVoucher } from '@/lib/api';
 import { getFinanceHeaders } from '@/lib/api/settings';
+import { formatCurrencyINR } from '@/lib/utils';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -329,12 +330,7 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                                         </TableCell>
                                         <TableCell className="text-xs sm:text-sm truncate max-w-[120px] sm:max-w-none">{voucher.beneficiaryName}</TableCell>
                                         <TableCell className="text-xs sm:text-sm">
-                                            ₹{(() => {
-                                                const val = parseFloat(voucher.amount);
-                                                return val % 1 === 0
-                                                    ? val.toLocaleString('en-IN', { maximumFractionDigits: 0 })
-                                                    : val.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                                            })()}
+                                            {formatCurrencyINR(voucher.amount)}
                                         </TableCell>
                                         <TableCell className="text-xs sm:text-sm">
                                             <span className={`inline-flex items-center justify-center text-center px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-medium border h-auto min-h-[1.5rem] whitespace-normal leading-tight ${voucher.is_deleted ? 'bg-gray-500/20 text-gray-400 border-gray-500/30' : getStatusColor(voucher.status)}`}>

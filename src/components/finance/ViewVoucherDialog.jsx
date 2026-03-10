@@ -9,6 +9,7 @@ import { useAuth } from '@/hooks/useAuth.jsx';
 import { getVoucherAttachment } from '@/lib/api';
 import ActivityLog from './ActivityLog';
 import { useNavigate } from 'react-router-dom';
+import { formatCurrencyINR } from '@/lib/utils';
 
 const ViewVoucherDialog = ({ voucher, fromAccount, toAccount, beneficiary, isOpen, onOpenChange, organizationName, organisationId }) => {
     const { user } = useAuth();
@@ -145,7 +146,7 @@ const ViewVoucherDialog = ({ voucher, fromAccount, toAccount, beneficiary, isOpe
             body: [
                 [
                     { content: "Amount", styles: { fontStyle: "bold" } },
-                    `₹${parseFloat(voucher.amount).toFixed(2)}`,
+                    formatCurrencyINR(voucher.amount),
                     { content: "Purpose :", styles: { fontStyle: "bold" } },
                     voucher.remarks || "N/A"
                 ]
@@ -211,7 +212,7 @@ const ViewVoucherDialog = ({ voucher, fromAccount, toAccount, beneficiary, isOpe
                             </div>
                             <div className="grid grid-cols-2 gap-2">
                                 <p className="text-gray-400">Amount:</p>
-                                <p>₹{parseFloat(voucher.amount).toFixed(2)}</p>
+                                <p>{formatCurrencyINR(voucher.amount)}</p>
                             </div>
                             <div className="grid grid-cols-2 gap-2">
                                 <p className="text-gray-400">Type:</p>

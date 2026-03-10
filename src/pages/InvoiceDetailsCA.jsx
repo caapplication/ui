@@ -33,6 +33,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.j
 import ActivityLog from '@/components/finance/ActivityLog';
 import { Combobox } from '@/components/ui/combobox';
 import PdfPreviewModal from '@/components/modals/PdfPreviewModal';
+import { formatCurrencyINR } from '@/lib/utils';
 
 const DetailItem = ({ label, value }) => (
     <div className="flex justify-between items-center py-2 border-b border-white/10">
@@ -836,12 +837,12 @@ const InvoiceDetailsCA = () => {
                                             <CardContent className="space-y-2 relative z-20 p-4 sm:p-6 pt-0">
                                                 <DetailItem label="Invoice Date" value={new Date(invoiceDetails.date).toLocaleDateString()} />
                                                 <DetailItem label="Invoice Number" value={invoiceDetails.bill_number || 'N/A'} />
-                                                <DetailItem label="Base Amount" value={`₹${parseFloat(invoiceDetails.amount || 0) % 1 === 0 ? parseFloat(invoiceDetails.amount || 0).toFixed(0) : parseFloat(invoiceDetails.amount || 0).toFixed(2)}`} />
-                                                <DetailItem label="CGST" value={`₹${parseFloat(invoiceDetails.cgst || 0) % 1 === 0 ? parseFloat(invoiceDetails.cgst || 0).toFixed(0) : parseFloat(invoiceDetails.cgst || 0).toFixed(2)}`} />
-                                                <DetailItem label="SGST" value={`₹${parseFloat(invoiceDetails.sgst || 0) % 1 === 0 ? parseFloat(invoiceDetails.sgst || 0).toFixed(0) : parseFloat(invoiceDetails.sgst || 0).toFixed(2)}`} />
-                                                <DetailItem label="IGST" value={`₹${parseFloat(invoiceDetails.igst || 0) % 1 === 0 ? parseFloat(invoiceDetails.igst || 0).toFixed(0) : parseFloat(invoiceDetails.igst || 0).toFixed(2)}`} />
+                                                <DetailItem label="Base Amount" value={formatCurrencyINR(invoiceDetails.amount || 0)} />
+                                                <DetailItem label="CGST" value={formatCurrencyINR(invoiceDetails.cgst || 0)} />
+                                                <DetailItem label="SGST" value={formatCurrencyINR(invoiceDetails.sgst || 0)} />
+                                                <DetailItem label="IGST" value={formatCurrencyINR(invoiceDetails.igst || 0)} />
                                                 <div className="pt-4">
-                                                    <DetailItem label="Total Amount" value={`₹${parseFloat(totalAmount) % 1 === 0 ? parseFloat(totalAmount).toFixed(0) : parseFloat(totalAmount).toFixed(2)}`} />
+                                                    <DetailItem label="Total Amount" value={formatCurrencyINR(totalAmount)} />
                                                 </div>
                                                 <div className="pt-4">
                                                     <p className="text-sm text-gray-400 mb-1">Remarks</p>
@@ -1070,13 +1071,13 @@ const InvoiceDetailsCA = () => {
                                     </CardHeader>
                                     <CardContent className="space-y-2 relative z-20 p-4 pt-0">
                                         <DetailItem label="Date" value={new Date(invoiceDetails.date).toLocaleDateString()} />
-                                        <DetailItem label="Base Amount" value={`₹${parseFloat(invoiceDetails.amount || 0).toFixed(2)}`} />
-                                        <DetailItem label="CGST" value={`₹${parseFloat(invoiceDetails.cgst || 0).toFixed(2)}`} />
-                                        <DetailItem label="SGST" value={`₹${parseFloat(invoiceDetails.sgst || 0).toFixed(2)}`} />
-                                        <DetailItem label="IGST" value={`₹${parseFloat(invoiceDetails.igst || 0).toFixed(2)}`} />
-                                        <DetailItem label="Roundoff" value={`₹${parseFloat(invoiceDetails.roundoff || 0).toFixed(2)}`} />
+                                        <DetailItem label="Base Amount" value={formatCurrencyINR(invoiceDetails.amount || 0)} />
+                                        <DetailItem label="CGST" value={formatCurrencyINR(invoiceDetails.cgst || 0)} />
+                                        <DetailItem label="SGST" value={formatCurrencyINR(invoiceDetails.sgst || 0)} />
+                                        <DetailItem label="IGST" value={formatCurrencyINR(invoiceDetails.igst || 0)} />
+                                        <DetailItem label="Roundoff" value={formatCurrencyINR(invoiceDetails.roundoff || 0)} />
                                         <div className="pt-4">
-                                            <DetailItem label="Total Amount" value={`₹${totalAmount}`} />
+                                            <DetailItem label="Total Amount" value={formatCurrencyINR(totalAmount)} />
                                         </div>
                                         <div className="pt-4">
                                             <p className="text-xs sm:text-sm text-gray-400 mb-1">Remarks</p>
