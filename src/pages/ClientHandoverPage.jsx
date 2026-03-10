@@ -1584,7 +1584,7 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
       </Dialog>
 
       <Dialog open={!!breakdownModal} onOpenChange={(open) => { if (!open) setBreakdownModal(null); setBreakdownEdit({}); }}>
-        <DialogContent className="max-w-md w-[95vw] sm:w-full bg-gray-900 border-white/10">
+        <DialogContent className="max-w-2xl w-[95vw] sm:w-full bg-gray-900 border-white/10">
           <DialogHeader>
             <DialogTitle className="text-lg sm:text-xl text-white">
               {breakdownModal?.type === 'department' ? 'Update Handover Details' : 'As Per System – Breakdown'}

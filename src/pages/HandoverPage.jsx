@@ -216,7 +216,7 @@ const HandoverPage = () => {
       </div>
 
       <Dialog open={showModal} onOpenChange={(open) => { setShowModal(open); if (!open) setEditingRow(null); }}>
-        <DialogContent className="glass-pane border-white/10 text-white max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="glass-pane border-white/10 text-white max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Update Handover Details</DialogTitle>
             {editingRow && <p className="text-sm text-gray-400 mt-1">{isViewOnly ? 'View only — handover already approved.' : 'Edit amounts and save when not yet approved.'}</p>}
