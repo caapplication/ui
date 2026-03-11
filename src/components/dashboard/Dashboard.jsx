@@ -73,8 +73,8 @@ const StatCard = ({
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay }}
         >
-            <Card className="glass-card card-hover overflow-hidden h-full">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 sm:p-6">
+            <Card className="glass-card card-hover overflow-hidden h-[160px] sm:h-[240px] flex flex-col">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-3 sm:p-4">
                     <CardTitle className="text-xs sm:text-sm font-medium text-gray-300">
                         {title}
                     </CardTitle>
@@ -100,13 +100,13 @@ const StatCard = ({
                             </DropdownMenu>
                         )}
                         <div
-                            className={`w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r ${color} rounded-lg flex items-center justify-center shadow-lg shadow-black/20 flex-shrink-0`}
+                            className={`w-7 h-7 sm:w-9 sm:h-9 bg-gradient-to-r ${color} rounded-lg flex items-center justify-center shadow-lg shadow-black/20 flex-shrink-0`}
                         >
                             <Icon className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                         </div>
                     </div>
                 </CardHeader>
-                <CardContent className="p-4 sm:p-6 pt-0">
+                <CardContent className="p-3 sm:p-4 pt-0 overflow-hidden flex-1">
                     {!hideValue && (
                         <div className="flex items-center gap-3 mb-1">
                             <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white">
@@ -133,8 +133,8 @@ const StatCard = ({
 
                     {meta && (
                         <div
-                            className={`${hideValue ? "mt-2" : "mt-4 pt-3 border-t border-white/10"
-                                } space-y-2 text-sm text-gray-400`}
+                            className={`${hideValue ? "mt-1" : "mt-2 pt-2 border-t border-white/10"
+                                } space-y-1 text-sm text-gray-400`}
                         >
                             <div className="flex justify-between items-center">
                                 <span>Created by me</span>
@@ -769,10 +769,10 @@ const Dashboard = ({
 
                             {isClientAdmin && (
                                 <>
-                                    <Card className="glass-card border-white/5 overflow-hidden">
-                                        <div className="relative">
+                                    <Card className="glass-card border-white/5 overflow-hidden h-[160px] sm:h-[240px] flex flex-col">
+                                        <div className="relative flex-1 flex flex-col min-h-0">
                                             {fundInHandLoading ? (
-                                                <div className="flex items-center justify-center min-h-[140px] py-6">
+                                                <div className="flex items-center justify-center min-h-[160px] sm:min-h-[240px] py-6">
                                                     <Loader2 className="w-6 h-6 animate-spin text-white" />
                                                 </div>
                                             ) : (
@@ -787,7 +787,7 @@ const Dashboard = ({
                                                         </Button>
                                                     </div>
 
-                                                    <div className="overflow-hidden w-full relative touch-pan-y cursor-grab active:cursor-grabbing">
+                                                    <div className="overflow-hidden w-full relative touch-pan-y cursor-grab active:cursor-grabbing flex-1">
                                                         <AnimatePresence mode="wait">
                                                             <motion.div
                                                                 key={fundSlide}
@@ -806,7 +806,7 @@ const Dashboard = ({
                                                                 className="w-full will-change-transform"
                                                             >
                                                                 {fundSlide === 0 ? (
-                                                                    <div className="p-3 sm:p-4">
+                                                                    <div className="p-2 sm:p-3">
                                                                         <h3 className="text-xs sm:text-sm font-semibold text-gray-300 mb-1">Fund In Hand</h3>
                                                                         <div className="text-lg sm:text-xl font-bold text-white mb-2">
                                                                             {formatINR(fundInHand?.total ?? 0)}
@@ -841,17 +841,17 @@ const Dashboard = ({
                                                                         </div>
                                                                     </div>
                                                                 ) : (
-                                                                    <div className="p-3 sm:p-4">
+                                                                    <div className="p-2 sm:p-3 h-full flex flex-col">
                                                                         <h3 className="text-xs sm:text-sm font-semibold text-gray-300 mb-1">
                                                                             {entityName || "Entity"} - Bank Balance
                                                                         </h3>
 
-                                                                        <div className="text-base sm:text-lg font-bold text-white mb-2">
+                                                                        <div className="text-lg sm:text-xl font-bold text-white mb-2">
                                                                             {formatINR(fundInHand?.total_bank ?? 0)}
                                                                         </div>
 
                                                                         <div
-                                                                            className="max-h-[100px] overflow-y-auto border-t border-white/10 pt-2 space-y-0 custom-scrollbar overscroll-contain"
+                                                                            className="max-h-[100px] sm:max-h-[160px] overflow-y-auto border-t border-white/10 pt-2 space-y-0 custom-scrollbar overscroll-contain"
                                                                             onPointerDown={(e) => e.stopPropagation()}
                                                                         >
                                                                             {(fundInHand?.bank_accounts ?? []).map((ba) => {
@@ -897,18 +897,18 @@ const Dashboard = ({
                                         </div>
                                     </Card>
 
-                                    <Card className="glass-card border-white/5 overflow-hidden">
+                                    <Card className="glass-card border-white/5 overflow-hidden h-[160px] sm:h-[240px] flex flex-col">
                                         {handoverCardLoading ? (
-                                            <div className="flex items-center justify-center min-h-[140px] py-6">
+                                            <div className="flex items-center justify-center min-h-[160px] sm:min-h-[240px] py-6">
                                                 <Loader2 className="w-6 h-6 animate-spin text-white" />
                                             </div>
                                         ) : handoverCard ? (
-                                            <div className="p-3 sm:p-4">
+                                            <div className="p-2 sm:p-3 flex-1 flex flex-col min-h-0">
                                                 <h3 className="text-xs sm:text-sm font-semibold text-gray-300 mb-1">
                                                     {entityName || "Entity"} - Handover
                                                 </h3>
 
-                                                <div className="text-lg sm:text-xl font-bold text-white mb-2">
+                                                <div className="text-lg sm:text-xl font-bold text-white ">
                                                     {formatINR(handoverCard.total)}
                                                 </div>
 
@@ -916,7 +916,7 @@ const Dashboard = ({
                                                     Last handover: {formatDateDDMMYYYY(handoverCard.lastDate)}
                                                 </p>
 
-                                                <div className="max-h-[180px] overflow-y-auto border-t border-white/10 pt-2 space-y-0">
+                                                <div className="max-h-[90px] sm:max-h-[180px] overflow-y-auto border-t border-white/10 pt-2 space-y-0 custom-scrollbar">
                                                     {Object.entries(handoverCard.breakdown)
                                                         .filter(([, amt]) => Number(amt) > 0)
                                                         .map(([pmId, amt]) => {
@@ -950,7 +950,7 @@ const Dashboard = ({
                                                 </div>
                                             </div>
                                         ) : (
-                                            <div className="p-3 sm:p-4">
+                                            <div className="p-2 sm:p-3 flex-1 flex flex-col">
                                                 <h3 className="text-xs sm:text-sm font-semibold text-gray-300 mb-1">
                                                     {entityName || "Entity"} - Handover
                                                 </h3>
@@ -962,8 +962,8 @@ const Dashboard = ({
                                         )}
                                     </Card>
 
-                                    <Card className="glass-card border-white/5 overflow-hidden">
-                                        <div className="p-3 sm:p-4">
+                                    <Card className="glass-card border-white/5 overflow-hidden h-[160px] sm:h-[240px] flex flex-col">
+                                        <div className="p-2 sm:p-3">
                                             <h3 className="text-xs sm:text-sm font-semibold text-gray-300 mb-1">
                                                 Fund Out
                                             </h3>
