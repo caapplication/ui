@@ -58,6 +58,7 @@ import {
   getVouchersList,
   deleteVoucher,
   exportVouchersToTallyXML,
+  getEntityIndicators,
 } from '@/lib/api';
 import { useOrganisation } from '@/hooks/useOrganisation';
 import { useCurrentOrganization } from '@/hooks/useCurrentOrganization';
@@ -109,12 +110,36 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction, entityName: en
   const [beneficiaries, setBeneficiaries] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [vouchers, setVouchers] = useState([]);
+  const [entityIndicators, setEntityIndicators] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [isMutating, setIsMutating] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const isFetchingRef = useRef(false);
   const lastFetchedEntityId = useRef(null);
   const isMountedRef = useRef(true);
+
+  // Fetch entity indicators for notification dots
+  useEffect(() => {
+    const fetchIndicators = async () => {
+      const token = localStorage.getItem('accessToken');
+      if (entityId && token) {
+        try {
+          const indicators = await getEntityIndicators(token);
+          const normalizedIndicators = {};
+          Object.keys(indicators || {}).forEach(key => {
+            normalizedIndicators[String(key)] = indicators[key];
+          });
+          setEntityIndicators(normalizedIndicators);
+        } catch (error) {
+          console.error('ClientFinance: Failed to fetch entity indicators:', error);
+          setEntityIndicators({});
+        }
+      }
+    };
+    fetchIndicators();
+    const interval = setInterval(fetchIndicators, 30000);
+    return () => clearInterval(interval);
+  }, [entityId]);
 
   const { user } = useAuth();
   const organizationId = useCurrentOrganization(entityId);
@@ -515,26 +540,55 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction, entityName: en
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-4 w-full flex-wrap ">
             <div className="">
               <TabsList>
-                <TabsTrigger value="vouchers">Vouchers</TabsTrigger>  
-                <TabsTrigger value="invoices">Invoices</TabsTrigger>
-                {isAdmin && (
-                  <>
-                    <TabsTrigger value="cashier">Cashier Report</TabsTrigger>
-                    <TabsTrigger value="handover">Handover</TabsTrigger>
-                    <TabsTrigger value="bank-tally">Bank Tally</TabsTrigger>
-                    <TabsTrigger value="cash-tally">Cash Tally</TabsTrigger>
-                    <TabsTrigger value="report">Report</TabsTrigger>
-                  </>
-                )}
-                {!isAdmin && (user?.role === 'CLIENT_USER') && (
-                  <>
-                    <TabsTrigger value="cashier" className="px-4 py-2 rounded-xl md:rounded-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all text-nowrap">Cashier Report</TabsTrigger>
-                    <TabsTrigger value="handover" className="px-4 py-2 rounded-xl md:rounded-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all">Handover</TabsTrigger>
-                    <TabsTrigger value="bank-tally" className="px-4 py-2 rounded-xl md:rounded-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all text-nowrap">Bank Tally</TabsTrigger>
-                    <TabsTrigger value="cash-tally" className="px-4 py-2 rounded-xl md:rounded-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all text-nowrap">Cash Tally</TabsTrigger>
-                    <TabsTrigger value="report" className="px-4 py-2 rounded-xl md:rounded-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all">Report</TabsTrigger>
-                  </>
-                )}
+                {(() => {
+                  const currentIndicator = entityIndicators[String(entityId)] || null;
+                  const pendingDetails = currentIndicator?.pending_details || {};
+                  
+                  return (
+                    <>
+                      <TabsTrigger value="vouchers" className="px-4 py-2">
+                        Vouchers
+                        {pendingDetails.vouchers && (
+                          <span className="ml-2 w-2 h-2 flex-shrink-0 rounded-full border border-[#1e293b] bg-amber-400" aria-hidden="true" />
+                        )}
+                      </TabsTrigger>  
+                      <TabsTrigger value="invoices" className="px-4 py-2">
+                        Invoices
+                        {pendingDetails.invoices && (
+                          <span className="ml-2 w-2 h-2 flex-shrink-0 rounded-full border border-[#1e293b] bg-amber-400" aria-hidden="true" />
+                        )}
+                      </TabsTrigger>
+                      {isAdmin && (
+                        <>
+                          <TabsTrigger value="cashier" className="px-4 py-2">Cashier Report</TabsTrigger>
+                          <TabsTrigger value="handover" className="px-4 py-2">
+                            Handover
+                            {pendingDetails.handovers && (
+                              <span className="ml-2 w-2 h-2 flex-shrink-0 rounded-full border border-[#1e293b] bg-amber-400" aria-hidden="true" />
+                            )}
+                          </TabsTrigger>
+                          <TabsTrigger value="bank-tally" className="px-4 py-2">Bank Tally</TabsTrigger>
+                          <TabsTrigger value="cash-tally" className="px-4 py-2">Cash Tally</TabsTrigger>
+                          <TabsTrigger value="report" className="px-4 py-2">Report</TabsTrigger>
+                        </>
+                      )}
+                      {!isAdmin && (user?.role === 'CLIENT_USER') && (
+                        <>
+                          <TabsTrigger value="cashier" className="px-4 py-2 rounded-xl md:rounded-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all text-nowrap">Cashier Report</TabsTrigger>
+                          <TabsTrigger value="handover" className="px-4 py-2 rounded-xl md:rounded-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all">
+                            Handover
+                            {pendingDetails.handovers && (
+                              <span className="ml-2 w-2 h-2 flex-shrink-0 rounded-full border border-[#1e293b] bg-amber-400" aria-hidden="true" />
+                            )}
+                          </TabsTrigger>
+                          <TabsTrigger value="bank-tally" className="px-4 py-2 rounded-xl md:rounded-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all text-nowrap">Bank Tally</TabsTrigger>
+                          <TabsTrigger value="cash-tally" className="px-4 py-2 rounded-xl md:rounded-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all text-nowrap">Cash Tally</TabsTrigger>
+                          <TabsTrigger value="report" className="px-4 py-2 rounded-xl md:rounded-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all">Report</TabsTrigger>
+                        </>
+                      )}
+                    </>
+                  );
+                })()}
               </TabsList>
             </div>
 
