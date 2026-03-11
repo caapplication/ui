@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/tooltip";
 import ExportTallyModal from '@/components/finance/ExportTallyModal';
 import * as XLSX from 'xlsx';
-import { HandoverTab, BankTallyTab, CashTallyTab, ReportTab } from '@/pages/ClientHandoverPage';
+import { HandoverTab, BankTallyTab, CashTallyTab, ReportTab, CashierReportListTab } from '@/pages/ClientHandoverPage';
 
 const FinancePage = () => {
   const location = useLocation();

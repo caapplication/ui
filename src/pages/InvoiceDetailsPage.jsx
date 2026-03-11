@@ -617,27 +617,19 @@ const InvoiceDetailsPage = () => {
     const filteredInvoices = React.useMemo(() => {
         if (!invoices || !Array.isArray(invoices)) return [];
 
-        // If we received invoices from location state, they are exactly from the list view (with all user filters/sorting applied)
-        if (location.state?.invoices) {
-            return invoices;
-        }
-
-        // Fallback: If fetched directly via URL, apply default role-based filtering
+        // Apply strict role-based filtering for pending items
         return invoices.filter(inv => {
-            // Filter out deleted invoices
             if (inv.is_deleted) return false;
 
-            // CA Team/Accountant should only see pending_ca_approval
-            if (user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') {
-                return inv.status === 'pending_ca_approval';
-            }
-            // Client Master Admin should only see pending_master_admin_approval
             if (user?.role === 'CLIENT_MASTER_ADMIN') {
                 return inv.status === 'pending_master_admin_approval';
             }
+            if (user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') {
+                return inv.status === 'pending_ca_approval';
+            }
             return true;
         });
-    }, [invoices, user?.role, location.state?.invoices]);
+    }, [invoices, user?.role]);
 
     // Check if we have invoices to navigate - show arrows if we have multiple invoices
     const hasInvoices = filteredInvoices && Array.isArray(filteredInvoices) && filteredInvoices.length > 1;
@@ -855,9 +847,9 @@ const InvoiceDetailsPage = () => {
                 {/* Entity name in top right */}
                 <div className="flex flex-col items-end">
                     <p className="text-lg sm:text-xl md:text-2xl font-bold text-white truncate">{getEntityName()}</p>
-                    {user?.role === 'CLIENT_MASTER_ADMIN' && (
+                    {(user?.role === 'CLIENT_MASTER_ADMIN' || user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
                         <p className="text-sm text-gray-400">
-                            Pending Approval: {filteredInvoices?.length || 0}
+                            Pending {user?.role === 'CLIENT_MASTER_ADMIN' ? 'Approval' : 'Audit'}: {filteredInvoices?.length || 0}
                         </p>
                     )}
                 </div>
