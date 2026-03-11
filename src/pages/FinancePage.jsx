@@ -263,12 +263,36 @@ const FinancePage = () => {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="flex items-center justify-between mb-8">
           <TabsList className="flex-wrap inline-flex items-center justify-center gap-2 sm:gap-4 text-sm sm:text-lg">
-            <TabsTrigger value="vouchers" className="px-3 sm:px-4 py-2 transition-all duration-300 ease-in-out">Vouchers</TabsTrigger>
-            <TabsTrigger value="invoices" className="px-3 sm:px-4 py-2 transition-all duration-300 ease-in-out">Invoices</TabsTrigger>
-            <TabsTrigger value="handover" className="px-3 sm:px-4 py-2 transition-all duration-300 ease-in-out">Handover</TabsTrigger>
-            <TabsTrigger value="bank-tally" className="px-3 sm:px-4 py-2 transition-all duration-300 ease-in-out">Bank Tally</TabsTrigger>
-            <TabsTrigger value="cash-tally" className="px-3 sm:px-4 py-2 transition-all duration-300 ease-in-out">Cash Tally</TabsTrigger>
-            <TabsTrigger value="report" className="px-3 sm:px-4 py-2 transition-all duration-300 ease-in-out">Report</TabsTrigger>
+            {(() => {
+              const currentIndicator = selectedClient ? entityIndicators[String(selectedClient)] : null;
+              const pendingDetails = currentIndicator?.pending_details || {};
+
+              return (
+                <>
+                  <TabsTrigger value="vouchers" className="px-3 sm:px-4 py-2 transition-all duration-300 ease-in-out">
+                    Vouchers
+                    {pendingDetails.vouchers && (
+                      <span className="ml-2 w-2 h-2 flex-shrink-0 rounded-full border border-[#1e293b] bg-amber-400" aria-hidden="true" />
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="invoices" className="px-3 sm:px-4 py-2 transition-all duration-300 ease-in-out">
+                    Invoices
+                    {pendingDetails.invoices && (
+                      <span className="ml-2 w-2 h-2 flex-shrink-0 rounded-full border border-[#1e293b] bg-amber-400" aria-hidden="true" />
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="handover" className="px-3 sm:px-4 py-2 transition-all duration-300 ease-in-out">
+                    Handover
+                    {pendingDetails.handovers && (
+                      <span className="ml-2 w-2 h-2 flex-shrink-0 rounded-full border border-[#1e293b] bg-amber-400" aria-hidden="true" />
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="bank-tally" className="px-3 sm:px-4 py-2 transition-all duration-300 ease-in-out relative">Bank Tally</TabsTrigger>
+                  <TabsTrigger value="cash-tally" className="px-3 sm:px-4 py-2 transition-all duration-300 ease-in-out relative">Cash Tally</TabsTrigger>
+                  <TabsTrigger value="report" className="px-3 sm:px-4 py-2 transition-all duration-300 ease-in-out relative">Report</TabsTrigger>
+                </>
+              );
+            })()}
           </TabsList>
         </div>
         <TabsContent value="vouchers">

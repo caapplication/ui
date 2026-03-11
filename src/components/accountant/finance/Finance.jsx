@@ -368,8 +368,29 @@ const AccountantFinance = () => {
           className="w-full"
         >
           <TabsList>
-            <TabsTrigger value="vouchers">Vouchers</TabsTrigger>
-            <TabsTrigger value="invoices">Invoices</TabsTrigger>
+            {(() => {
+              const currentIndicator = selectedEntity && selectedEntity !== "all" 
+                ? entityIndicators[String(selectedEntity)] 
+                : null;
+              const pendingDetails = currentIndicator?.pending_details || {};
+              
+              return (
+                <>
+                  <TabsTrigger value="vouchers" className="px-4 py-2">
+                    Vouchers
+                    {pendingDetails.vouchers && (
+                      <span className="ml-2 w-2 h-2 flex-shrink-0 rounded-full border border-[#1e293b] bg-amber-400" aria-hidden="true" />
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="invoices" className="px-4 py-2">
+                    Invoices
+                    {pendingDetails.invoices && (
+                      <span className="ml-2 w-2 h-2 flex-shrink-0 rounded-full border border-[#1e293b] bg-amber-400" aria-hidden="true" />
+                    )}
+                  </TabsTrigger>
+                </>
+              );
+            })()}
           </TabsList>
 
           <div className="mt-6 relative">
