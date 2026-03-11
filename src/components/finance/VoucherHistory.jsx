@@ -59,13 +59,13 @@ const getStatusColor = (status) => {
 import { Check } from 'lucide-react';
 
 import AnimatedSearch from '@/components/ui/AnimatedSearch';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
 
 const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVoucher, isAccountantView, onRefresh }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [typeFilter, setTypeFilter] = useState('all');
     const [datePreset, setDatePreset] = useState('all_time');
-    const [dateFrom, setDateFrom] = useState('');
-    const [dateTo, setDateTo] = useState('');
+    const [dateRange, setDateRange] = useState({ from: null, to: null });
     const [voucherToDelete, setVoucherToDelete] = useState(null);
     const [activePage, setActivePage] = useState(1);
     const [historyPage, setHistoryPage] = useState(1);
@@ -162,8 +162,8 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                     last3Months.setMonth(last3Months.getMonth() - 3);
                     if (vDate < last3Months) match = false;
                 } else if (datePreset === 'custom') {
-                    const from = dateFrom ? new Date(dateFrom) : null;
-                    const to = dateTo ? new Date(dateTo) : null;
+                    const from = dateRange?.from ? new Date(dateRange.from) : null;
+                    const to = dateRange?.to ? new Date(dateRange.to) : null;
                     if (from && to) {
                         const toEnd = new Date(to);
                         toEnd.setHours(23, 59, 59, 999);
@@ -179,7 +179,7 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
             }
             return match;
         });
-    }, [vouchers, searchTerm, typeFilter, datePreset, dateFrom, dateTo, viewMode]);
+    }, [vouchers, searchTerm, typeFilter, datePreset, dateRange, viewMode]);
 
     const totalPages = Math.ceil(sortedAndFilteredVouchers.length / ITEMS_PER_PAGE);
     const paginatedVouchers = sortedAndFilteredVouchers.slice(
@@ -191,7 +191,7 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
     useEffect(() => {
         setActivePage(1);
         setHistoryPage(1);
-    }, [searchTerm, typeFilter, datePreset, dateFrom, dateTo]);
+    }, [searchTerm, typeFilter, datePreset, dateRange]);
 
     const handleViewAttachment = async (voucher) => {
         if (!voucher.attachment_id) {
@@ -252,13 +252,13 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                             </div>
 
                             <Select value={datePreset} onValueChange={setDatePreset}>
-                                <SelectTrigger className="w-full sm:w-[160px] h-9 text-sm glass-input">
+                                <SelectTrigger className="w-full sm:w-[160px] h-11 rounded-full glass-input px-4">
                                     <div className="flex items-center gap-2">
-                                        <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                                        <Calendar className="w-4 h-4 text-gray-400" />
                                         <SelectValue placeholder="All Time" />
                                     </div>
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent className="bg-gray-900 border-white/10 text-white rounded-2xl">
                                     <SelectItem value="all_time">All Time</SelectItem>
                                     <SelectItem value="today">Today</SelectItem>
                                     <SelectItem value="yesterday">Yesterday</SelectItem>
@@ -279,21 +279,11 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                             </div>
 
                             {datePreset === 'custom' && (
-                                <div className="flex items-center gap-2 w-full lg:w-auto mt-2 lg:mt-0">
-                                    <Input
-                                        type="date"
-                                        value={dateFrom}
-                                        onChange={e => setDateFrom(e.target.value)}
-                                        className="flex-1 lg:w-36 h-11 rounded-full bg-white/5 border-white/10 text-white focus:ring-primary/20 px-4"
-                                    />
-                                    <span className="text-gray-500 font-medium">to</span>
-                                    <Input
-                                        type="date"
-                                        value={dateTo}
-                                        onChange={e => setDateTo(e.target.value)}
-                                        className="flex-1 lg:w-36 h-11 rounded-full bg-white/5 border-white/10 text-white focus:ring-primary/20 px-4"
-                                    />
-                                </div>
+                                <DateRangePicker
+                                    dateRange={dateRange}
+                                    onChange={setDateRange}
+                                    className="w-full sm:w-auto mt-2 lg:mt-0"
+                                />
                             )}
                         </div>
                     </div>

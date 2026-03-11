@@ -36,6 +36,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Search, MoreVertical, Calendar, ArrowLeftRight, ArrowLeft, Loader2, Check, X, ChevronLeft, ChevronRight, Paperclip, Upload } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import AnimatedSearch from '@/components/ui/AnimatedSearch';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
 
 const toDDMMYYYY = (dateStr) => {
   if (!dateStr) return '—';
@@ -119,8 +120,7 @@ function BankTallyListTab({ clientId, token, toast, readOnly = false }) {
   const [banks, setBanks] = useState([]);
   const [banksLoaded, setBanksLoaded] = useState(false);
   const [datePreset, setDatePreset] = useState('all_time');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const [dateRange, setDateRange] = useState({ from: null, to: null });
   const [searchTerm, setSearchTerm] = useState('');
 
   const loadBanks = useCallback(async () => {
@@ -160,21 +160,56 @@ function BankTallyListTab({ clientId, token, toast, readOnly = false }) {
   const filteredList = useMemo(() => {
     let list = entriesList;
     if (datePreset !== 'all_time') {
-      const today = new Date().toISOString().slice(0, 10);
       const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       list = list.filter(e => {
-        const d = (e.report_date || '').toString();
-        if (datePreset === 'today') return d === today;
-        if (datePreset === 'custom' && (dateFrom || dateTo)) {
-          if (dateFrom && dateTo) return d >= dateFrom && d <= dateTo;
-          if (dateFrom) return d >= dateFrom;
-          if (dateTo) return d <= dateTo;
+        const d = new Date(e.report_date);
+        const vDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+        if (datePreset === 'today') return vDate.getTime() === today.getTime();
+        if (datePreset === 'yesterday') {
+          const yesterday = new Date(today);
+          yesterday.setDate(yesterday.getDate() - 1);
+          return vDate.getTime() === yesterday.getTime();
         }
-        if (datePreset === 'last_7_days' || datePreset === 'last_30_days') {
-          const n = datePreset === 'last_7_days' ? 7 : 30;
-          const from = new Date(now);
-          from.setDate(from.getDate() - n);
-          return d >= from.toISOString().slice(0, 10) && d <= today;
+        if (datePreset === 'last_7_days') {
+          const last7 = new Date(today);
+          last7.setDate(last7.getDate() - 7);
+          return vDate >= last7 && vDate <= today;
+        }
+        if (datePreset === 'last_30_days') {
+          const last30 = new Date(today);
+          last30.setDate(last30.getDate() - 30);
+          return vDate >= last30 && vDate <= today;
+        }
+        if (datePreset === 'this_month') {
+          const first = new Date(now.getFullYear(), now.getMonth(), 1);
+          return vDate >= first && vDate <= today;
+        }
+        if (datePreset === 'last_month') {
+          const firstLast = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+          const lastLast = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+          return vDate >= firstLast && vDate <= lastLast;
+        }
+        if (datePreset === 'last_3_months') {
+          const last3 = new Date(today);
+          last3.setMonth(last3.getMonth() - 3);
+          return vDate >= last3 && vDate <= today;
+        }
+        if (datePreset === 'custom') {
+          const from = dateRange?.from ? new Date(dateRange.from) : null;
+          const to = dateRange?.to ? new Date(dateRange.to) : null;
+          if (from && to) {
+            const toEnd = new Date(to);
+            toEnd.setHours(23, 59, 59, 999);
+            return vDate >= from && vDate <= toEnd;
+          }
+          if (from) return vDate >= from;
+          if (to) {
+            const toEnd = new Date(to);
+            toEnd.setHours(23, 59, 59, 999);
+            return vDate <= toEnd;
+          }
         }
         return true;
       });
@@ -184,7 +219,7 @@ function BankTallyListTab({ clientId, token, toast, readOnly = false }) {
       list = list.filter(e => toDDMMYYYY(e.report_date).toLowerCase().includes(t) || (e.report_date || '').toString().includes(t));
     }
     return list;
-  }, [entriesList, datePreset, dateFrom, dateTo, searchTerm]);
+  }, [entriesList, datePreset, dateRange, searchTerm]);
 
   if (!banksLoaded) {
     return (
@@ -209,17 +244,21 @@ function BankTallyListTab({ clientId, token, toast, readOnly = false }) {
             <CardTitle className="text-lg sm:text-xl text-white">Bank Tally</CardTitle>
             <div className="flex flex-wrap items-center gap-2 sm:gap-4 flex-1 justify-end">
               <Select value={datePreset} onValueChange={setDatePreset}>
-                <SelectTrigger className="w-full sm:w-[160px] h-9 text-sm glass-input">
+                <SelectTrigger className="w-full sm:w-[160px] h-11 rounded-full glass-input px-4">
                   <div className="flex items-center gap-2">
-                    <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                    <Calendar className="w-4 h-4 text-gray-400" />
                     <SelectValue placeholder="All Time" />
                   </div>
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-gray-900 border-white/10 text-white rounded-2xl">
                   <SelectItem value="all_time">All Time</SelectItem>
                   <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="yesterday">Yesterday</SelectItem>
                   <SelectItem value="last_7_days">Last 7 Days</SelectItem>
                   <SelectItem value="last_30_days">Last 30 Days</SelectItem>
+                  <SelectItem value="this_month">This Month</SelectItem>
+                  <SelectItem value="last_month">Last Month</SelectItem>
+                  <SelectItem value="last_3_months">Last 3 Months</SelectItem>
                   <SelectItem value="custom">Custom</SelectItem>
                 </SelectContent>
               </Select>
@@ -231,11 +270,11 @@ function BankTallyListTab({ clientId, token, toast, readOnly = false }) {
                 />
               </div>
               {datePreset === 'custom' && (
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-full sm:max-w-[130px] h-9 text-sm glass-input" />
-                  <span className="text-gray-400 text-sm">-</span>
-                  <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-full sm:max-w-[130px] h-9 text-sm glass-input" />
-                </div>
+                <DateRangePicker
+                  dateRange={dateRange}
+                  onChange={setDateRange}
+                  className="w-full sm:w-auto"
+                />
               )}
             </div>
           </div>
@@ -482,8 +521,7 @@ function CashTallyListTab({ clientId, entityId, token, toast, readOnly = false }
   const [entriesList, setEntriesList] = useState([]);
   const [listLoading, setListLoading] = useState(true);
   const [datePreset, setDatePreset] = useState('all_time');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const [dateRange, setDateRange] = useState({ from: null, to: null });
   const [searchTerm, setSearchTerm] = useState('');
 
   const loadEntriesList = useCallback(async () => {
@@ -509,21 +547,56 @@ function CashTallyListTab({ clientId, entityId, token, toast, readOnly = false }
   const filteredList = useMemo(() => {
     let list = entriesList;
     if (datePreset !== 'all_time') {
-      const today = new Date().toISOString().slice(0, 10);
       const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       list = list.filter(e => {
-        const d = (e.report_date || '').toString();
-        if (datePreset === 'today') return d === today;
-        if (datePreset === 'custom' && (dateFrom || dateTo)) {
-          if (dateFrom && dateTo) return d >= dateFrom && d <= dateTo;
-          if (dateFrom) return d >= dateFrom;
-          if (dateTo) return d <= dateTo;
+        const d = new Date(e.report_date);
+        const vDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+        if (datePreset === 'today') return vDate.getTime() === today.getTime();
+        if (datePreset === 'yesterday') {
+          const yesterday = new Date(today);
+          yesterday.setDate(yesterday.getDate() - 1);
+          return vDate.getTime() === yesterday.getTime();
         }
-        if (datePreset === 'last_7_days' || datePreset === 'last_30_days') {
-          const n = datePreset === 'last_7_days' ? 7 : 30;
-          const from = new Date(now);
-          from.setDate(from.getDate() - n);
-          return d >= from.toISOString().slice(0, 10) && d <= today;
+        if (datePreset === 'last_7_days') {
+          const last7 = new Date(today);
+          last7.setDate(last7.getDate() - 7);
+          return vDate >= last7 && vDate <= today;
+        }
+        if (datePreset === 'last_30_days') {
+          const last30 = new Date(today);
+          last30.setDate(last30.getDate() - 30);
+          return vDate >= last30 && vDate <= today;
+        }
+        if (datePreset === 'this_month') {
+          const first = new Date(now.getFullYear(), now.getMonth(), 1);
+          return vDate >= first && vDate <= today;
+        }
+        if (datePreset === 'last_month') {
+          const firstLast = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+          const lastLast = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+          return vDate >= firstLast && vDate <= lastLast;
+        }
+        if (datePreset === 'last_3_months') {
+          const last3 = new Date(today);
+          last3.setMonth(last3.getMonth() - 3);
+          return vDate >= last3 && vDate <= today;
+        }
+        if (datePreset === 'custom') {
+          const from = dateRange?.from ? new Date(dateRange.from) : null;
+          const to = dateRange?.to ? new Date(dateRange.to) : null;
+          if (from && to) {
+            const toEnd = new Date(to);
+            toEnd.setHours(23, 59, 59, 999);
+            return vDate >= from && vDate <= toEnd;
+          }
+          if (from) return vDate >= from;
+          if (to) {
+            const toEnd = new Date(to);
+            toEnd.setHours(23, 59, 59, 999);
+            return vDate <= toEnd;
+          }
         }
         return true;
       });
@@ -533,7 +606,7 @@ function CashTallyListTab({ clientId, entityId, token, toast, readOnly = false }
       list = list.filter(e => toDDMMYYYY(e.report_date).toLowerCase().includes(t) || (e.report_date || '').toString().includes(t) || String(e.closing_balance || '').includes(t));
     }
     return list;
-  }, [entriesList, datePreset, dateFrom, dateTo, searchTerm]);
+  }, [entriesList, datePreset, dateRange, searchTerm]);
 
   return (
     <Card className="glass-card mt-4">
@@ -543,17 +616,21 @@ function CashTallyListTab({ clientId, entityId, token, toast, readOnly = false }
             <CardTitle className="text-lg sm:text-xl text-white">Cash Tally</CardTitle>
             <div className="flex flex-wrap items-center gap-2 sm:gap-4 flex-1 justify-end">
               <Select value={datePreset} onValueChange={setDatePreset}>
-                <SelectTrigger className="w-full sm:w-[160px] h-9 text-sm glass-input">
+                <SelectTrigger className="w-full sm:w-[160px] h-11 rounded-full glass-input px-4">
                   <div className="flex items-center gap-2">
-                    <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                    <Calendar className="w-4 h-4 text-gray-400" />
                     <SelectValue placeholder="All Time" />
                   </div>
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-gray-900 border-white/10 text-white rounded-2xl">
                   <SelectItem value="all_time">All Time</SelectItem>
                   <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="yesterday">Yesterday</SelectItem>
                   <SelectItem value="last_7_days">Last 7 Days</SelectItem>
                   <SelectItem value="last_30_days">Last 30 Days</SelectItem>
+                  <SelectItem value="this_month">This Month</SelectItem>
+                  <SelectItem value="last_month">Last Month</SelectItem>
+                  <SelectItem value="last_3_months">Last 3 Months</SelectItem>
                   <SelectItem value="custom">Custom</SelectItem>
                 </SelectContent>
               </Select>
@@ -565,11 +642,11 @@ function CashTallyListTab({ clientId, entityId, token, toast, readOnly = false }
                 />
               </div>
               {datePreset === 'custom' && (
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-full sm:max-w-[130px] h-9 text-sm glass-input" />
-                  <span className="text-gray-400 text-sm">-</span>
-                  <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-full sm:max-w-[130px] h-9 text-sm glass-input" />
-                </div>
+                <DateRangePicker
+                  dateRange={dateRange}
+                  onChange={setDateRange}
+                  className="w-full sm:w-auto"
+                />
               )}
             </div>
           </div>
@@ -819,8 +896,7 @@ function CashierReportListTab({ clientId, token, toast }) {
   const [entriesList, setEntriesList] = useState([]);
   const [listLoading, setListLoading] = useState(true);
   const [datePreset, setDatePreset] = useState('all_time');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const [dateRange, setDateRange] = useState({ from: null, to: null });
   const [searchTerm, setSearchTerm] = useState('');
 
   const ITEMS_PER_PAGE = 10;
@@ -849,21 +925,58 @@ function CashierReportListTab({ clientId, token, toast }) {
   const filteredList = useMemo(() => {
     let list = entriesList;
     if (datePreset !== 'all_time') {
-      const today = new Date().toISOString().slice(0, 10);
       const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const todayTime = today.getTime();
       list = list.filter(e => {
         const d = (e.report_date || '').toString();
-        if (datePreset === 'today') return d === today;
-        if (datePreset === 'custom' && (dateFrom || dateTo)) {
-          if (dateFrom && dateTo) return d >= dateFrom && d <= dateTo;
-          if (dateFrom) return d >= dateFrom;
-          if (dateTo) return d <= dateTo;
+        const vDate = new Date(d);
+        vDate.setHours(0, 0, 0, 0);
+
+        if (datePreset === 'today') return vDate.getTime() === todayTime;
+        if (datePreset === 'yesterday') {
+          const yesterday = new Date(today);
+          yesterday.setDate(yesterday.getDate() - 1);
+          return vDate.getTime() === yesterday.getTime();
         }
-        if (datePreset === 'last_7_days' || datePreset === 'last_30_days') {
-          const n = datePreset === 'last_7_days' ? 7 : 30;
-          const from = new Date(now);
-          from.setDate(from.getDate() - n);
-          return d >= from.toISOString().slice(0, 10) && d <= today;
+        if (datePreset === 'last_7_days') {
+          const last7 = new Date(today);
+          last7.setDate(last7.getDate() - 7);
+          return vDate >= last7 && vDate <= today;
+        }
+        if (datePreset === 'last_30_days') {
+          const last30 = new Date(today);
+          last30.setDate(last30.getDate() - 30);
+          return vDate >= last30 && vDate <= today;
+        }
+        if (datePreset === 'this_month') {
+          const first = new Date(now.getFullYear(), now.getMonth(), 1);
+          return vDate >= first && vDate <= today;
+        }
+        if (datePreset === 'last_month') {
+          const firstLast = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+          const lastLast = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+          return vDate >= firstLast && vDate <= lastLast;
+        }
+        if (datePreset === 'last_3_months') {
+          const last3 = new Date(today);
+          last3.setMonth(last3.getMonth() - 3);
+          return vDate >= last3 && vDate <= today;
+        }
+        if (datePreset === 'custom') {
+          const from = dateRange?.from ? new Date(dateRange.from) : null;
+          const to = dateRange?.to ? new Date(dateRange.to) : null;
+          if (from && to) {
+            const toEnd = new Date(to);
+            toEnd.setHours(23, 59, 59, 999);
+            return vDate >= from && vDate <= toEnd;
+          }
+          if (from) return vDate >= from;
+          if (to) {
+            const toEnd = new Date(to);
+            toEnd.setHours(23, 59, 59, 999);
+            return vDate <= toEnd;
+          }
         }
         return true;
       });
@@ -873,9 +986,9 @@ function CashierReportListTab({ clientId, token, toast }) {
       list = list.filter(e => toDDMMYYYY(e.report_date).toLowerCase().includes(t) || (e.report_date || '').toString().includes(t) || (e.remarks || '').toLowerCase().includes(t));
     }
     return list;
-  }, [entriesList, datePreset, dateFrom, dateTo, searchTerm]);
+  }, [entriesList, datePreset, dateRange, searchTerm]);
 
-  useEffect(() => { setCurrentPage(1); }, [searchTerm, datePreset, dateFrom, dateTo]);
+  useEffect(() => { setCurrentPage(1); }, [searchTerm, datePreset, dateRange]);
 
   const totalPages = Math.ceil((filteredList?.length || 0) / ITEMS_PER_PAGE);
   const paginatedList = filteredList.slice(
@@ -891,17 +1004,21 @@ function CashierReportListTab({ clientId, token, toast }) {
             <CardTitle className="text-lg sm:text-xl text-white">Cashier Report</CardTitle>
             <div className="flex flex-wrap items-center gap-2 sm:gap-4 flex-1 justify-end">
               <Select value={datePreset} onValueChange={setDatePreset}>
-                <SelectTrigger className="w-full sm:w-[160px] h-9 text-sm glass-input">
+                <SelectTrigger className="w-full sm:w-[160px] h-11 rounded-full glass-input px-4">
                   <div className="flex items-center gap-2">
-                    <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                    <Calendar className="w-4 h-4 text-gray-400" />
                     <SelectValue placeholder="All Time" />
                   </div>
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-gray-900 border-white/10 text-white rounded-2xl">
                   <SelectItem value="all_time">All Time</SelectItem>
                   <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="yesterday">Yesterday</SelectItem>
                   <SelectItem value="last_7_days">Last 7 Days</SelectItem>
                   <SelectItem value="last_30_days">Last 30 Days</SelectItem>
+                  <SelectItem value="this_month">This Month</SelectItem>
+                  <SelectItem value="last_month">Last Month</SelectItem>
+                  <SelectItem value="last_3_months">Last 3 Months</SelectItem>
                   <SelectItem value="custom">Custom</SelectItem>
                 </SelectContent>
               </Select>
@@ -913,11 +1030,11 @@ function CashierReportListTab({ clientId, token, toast }) {
                 />
               </div>
               {datePreset === 'custom' && (
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-full sm:max-w-[130px] h-9 text-sm glass-input" />
-                  <span className="text-gray-400 text-sm">-</span>
-                  <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-full sm:max-w-[130px] h-9 text-sm glass-input" />
-                </div>
+                <DateRangePicker
+                  dateRange={dateRange}
+                  onChange={setDateRange}
+                  className="w-full sm:w-auto"
+                />
               )}
             </div>
           </div>
@@ -1227,8 +1344,7 @@ function CashierReportTab({ clientId, token, toast }) {
 function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, readOnly = false }) {
   const [viewMode, setViewMode] = useState('pending');
   const [datePreset, setDatePreset] = useState('all_time');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const [dateRange, setDateRange] = useState({ from: null, to: null });
   const [searchTerm, setSearchTerm] = useState('');
   const [items, setItems] = useState([]);
   const [usersMap, setUsersMap] = useState({});
@@ -1350,9 +1466,14 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
         const lastLast = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
         return vDate >= firstLast && vDate <= lastLast;
       }
-      if (datePreset === 'custom' && (dateFrom || dateTo)) {
-        const from = dateFrom ? new Date(dateFrom) : null;
-        const to = dateTo ? new Date(dateTo) : null;
+      if (datePreset === 'last_3_months') {
+        const last3 = new Date(today);
+        last3.setMonth(last3.getMonth() - 3);
+        return vDate >= last3 && vDate <= today;
+      }
+      if (datePreset === 'custom') {
+        const from = dateRange?.from ? new Date(dateRange.from) : null;
+        const to = dateRange?.to ? new Date(dateRange.to) : null;
         if (from && to) {
           const toEnd = new Date(to);
           toEnd.setHours(23, 59, 59, 999);
@@ -1378,8 +1499,8 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
       return created.includes(term) || dept.includes(term) || dateStr.includes(term);
     });
   };
-  const pendingItems = useMemo(() => applySearch(applyDateFilter(items.filter(row => row.status !== 'approved'))), [items, datePreset, dateFrom, dateTo, searchTerm, usersMap]);
-  const historyItems = useMemo(() => applySearch(applyDateFilter(items.filter(row => row.status === 'approved'))), [items, datePreset, dateFrom, dateTo, searchTerm, usersMap]);
+  const pendingItems = useMemo(() => applySearch(applyDateFilter(items.filter(row => row.status !== 'approved'))), [items, datePreset, dateRange, searchTerm, usersMap]);
+  const historyItems = useMemo(() => applySearch(applyDateFilter(items.filter(row => row.status === 'approved'))), [items, datePreset, dateRange, searchTerm, usersMap]);
   const displayItems = viewMode === 'pending' ? pendingItems : historyItems;
 
   const ITEMS_PER_PAGE = 10;
@@ -1395,7 +1516,7 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
   useEffect(() => {
     setActivePage(1);
     setHistoryPage(1);
-  }, [searchTerm, datePreset, dateFrom, dateTo, viewMode]);
+  }, [searchTerm, datePreset, dateRange, viewMode]);
 
   const totalPages = Math.ceil(displayItems.length / ITEMS_PER_PAGE);
   const paginatedItems = displayItems.slice(
@@ -1454,13 +1575,13 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
             </div>
             <div className="flex flex-wrap items-center gap-2 sm:gap-4 flex-1 justify-end">
               <Select value={datePreset} onValueChange={setDatePreset}>
-                <SelectTrigger className="w-full sm:w-[160px] h-9 text-sm glass-input">
+                <SelectTrigger className="w-full sm:w-[160px] h-11 rounded-full glass-input px-4">
                   <div className="flex items-center gap-2">
-                    <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                    <Calendar className="w-4 h-4 text-gray-400" />
                     <SelectValue placeholder="All Time" />
                   </div>
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-gray-900 border-white/10 text-white rounded-2xl">
                   <SelectItem value="all_time">All Time</SelectItem>
                   <SelectItem value="today">Today</SelectItem>
                   <SelectItem value="yesterday">Yesterday</SelectItem>
@@ -1468,6 +1589,7 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
                   <SelectItem value="last_30_days">Last 30 Days</SelectItem>
                   <SelectItem value="this_month">This Month</SelectItem>
                   <SelectItem value="last_month">Last Month</SelectItem>
+                  <SelectItem value="last_3_months">Last 3 Months</SelectItem>
                   <SelectItem value="custom">Custom</SelectItem>
                 </SelectContent>
               </Select>
@@ -1479,11 +1601,11 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
                 />
               </div>
               {datePreset === 'custom' && (
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Input type="date" placeholder="From" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-full sm:max-w-[130px] h-9 text-sm glass-input" />
-                  <span className="text-gray-400 text-sm">-</span>
-                  <Input type="date" placeholder="To" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-full sm:max-w-[130px] h-9 text-sm glass-input" />
-                </div>
+                <DateRangePicker
+                  dateRange={dateRange}
+                  onChange={setDateRange}
+                  className="w-full sm:w-auto"
+                />
               )}
             </div>
           </div>
