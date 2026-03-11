@@ -126,9 +126,28 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
     }
   }, [socket, unreadCount]);
 
+  const currentEntityStr = currentEntity ? String(currentEntity) : null;
+  const currentEntityIndicator = currentEntityStr ? entityIndicators[currentEntityStr] : null;
+
+  // We consider indicators "loaded" if we have fetched them at least once.
+  // The API returns an empty object {} if no entities have pending tasks.
+  // We can track if the API call completed rather than just Object.keys length,
+  // but if Object.keys > 0 we KNOW they are loaded. If someone clears all tasks, it's {};
+  // let's use a simpler heuristic: if we have a current entity, check its flag in the dictionary.
+  // If the dictionary doesn't have it, assume false unless we haven't loaded them at all.
+  // Actually, let's just use the dictionary directly: if the entity is there and true, then true.
+  // If it's not there, it's false. If entityIndicators is completely empty, it could mean
+  // they haven't loaded yet OR there are no notifications at all. In either case,
+  // falling back to hasFinancePending (which comes from a separate reliable endpoint)
+  // is risky because hasFinancePending is GLOBAL across all entities!
+  // So we should strictly ONLY show the dot if `entityIndicators` explicitly says so for this entity.
+
+  const showFinanceDot = currentEntityIndicator ? !!currentEntityIndicator.has_finance_pending : false;
+  const showNoticeDot = currentEntityIndicator ? !!currentEntityIndicator.has_notice_unread : false;
+
   const menuItems = [
     { id: 'dashboard', path: '/', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'finance', path: '/finance', label: 'Finance', icon: Landmark, showDot: hasFinancePending },
+    { id: 'finance', path: '/finance', label: 'Finance', icon: Landmark, showDot: showFinanceDot },
     {
       id: 'tasks',
       path: '/tasks',
@@ -143,7 +162,7 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
       path: '/notices', 
       label: 'Notices', 
       icon: Bell, 
-      showDot: unreadNoticeCount > 0, 
+      showDot: showNoticeDot, 
       blinking: isNoticeBlinking 
     },
     { id: 'users', path: '/users', label: 'Manage Team', icon: UserCog, hidden: user?.role === 'CLIENT_USER' },
@@ -345,7 +364,10 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
           <ul className="space-y-2">
             {menuItems.filter(item => !item.hidden).map((item) => {
               const Icon = item.icon;
-              const isActive = location.pathname === item.path;
+              const isActive = item.path === '/' 
+                ? location.pathname === '/' 
+                : location.pathname.startsWith(item.path);
+
               return (
                 <li key={item.id}>
                   <Link
