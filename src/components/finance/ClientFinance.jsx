@@ -151,9 +151,7 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction, entityName: en
   const isAdmin = user?.role === 'CLIENT_MASTER_ADMIN';
   const path = location.pathname;
   const tabFromPath = path.replace(/^\/finance\/?/, '').split('/')[0] || 'vouchers';
-  const allowedTabs = isAdmin
-    ? ['vouchers', 'invoices', 'handover', 'bank-tally', 'cash-tally', 'report', 'cashier']
-    : ['vouchers', 'invoices', 'cashier', 'handover', 'bank-tally', 'cash-tally', 'report'];
+  const allowedTabs = ['vouchers', 'invoices', 'handover', 'bank-tally', 'cash-tally', 'cashier', 'report'];
   const activeTab = allowedTabs.includes(tabFromPath) ? tabFromPath : 'vouchers';
 
   useEffect(() => {
@@ -543,7 +541,7 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction, entityName: en
                 {(() => {
                   const currentIndicator = entityIndicators[String(entityId)] || null;
                   const pendingDetails = currentIndicator?.pending_details || {};
-                  
+
                   return (
                     <>
                       <TabsTrigger value="vouchers" className="px-4 py-2">
@@ -551,41 +549,23 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction, entityName: en
                         {pendingDetails.vouchers && (
                           <span className="ml-2 w-2 h-2 flex-shrink-0 rounded-full border border-[#1e293b] bg-amber-400" aria-hidden="true" />
                         )}
-                      </TabsTrigger>  
+                      </TabsTrigger>
                       <TabsTrigger value="invoices" className="px-4 py-2">
                         Invoices
                         {pendingDetails.invoices && (
                           <span className="ml-2 w-2 h-2 flex-shrink-0 rounded-full border border-[#1e293b] bg-amber-400" aria-hidden="true" />
                         )}
                       </TabsTrigger>
-                      {isAdmin && (
-                        <>
-                          <TabsTrigger value="cashier" className="px-4 py-2">Cashier Report</TabsTrigger>
-                          <TabsTrigger value="handover" className="px-4 py-2">
-                            Handover
-                            {pendingDetails.handovers && (
-                              <span className="ml-2 w-2 h-2 flex-shrink-0 rounded-full border border-[#1e293b] bg-amber-400" aria-hidden="true" />
-                            )}
-                          </TabsTrigger>
-                          <TabsTrigger value="bank-tally" className="px-4 py-2">Bank Tally</TabsTrigger>
-                          <TabsTrigger value="cash-tally" className="px-4 py-2">Cash Tally</TabsTrigger>
-                          <TabsTrigger value="report" className="px-4 py-2">Report</TabsTrigger>
-                        </>
-                      )}
-                      {!isAdmin && (user?.role === 'CLIENT_USER') && (
-                        <>
-                          <TabsTrigger value="cashier" className="px-4 py-2 rounded-xl md:rounded-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all text-nowrap">Cashier Report</TabsTrigger>
-                          <TabsTrigger value="handover" className="px-4 py-2 rounded-xl md:rounded-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all">
-                            Handover
-                            {pendingDetails.handovers && (
-                              <span className="ml-2 w-2 h-2 flex-shrink-0 rounded-full border border-[#1e293b] bg-amber-400" aria-hidden="true" />
-                            )}
-                          </TabsTrigger>
-                          <TabsTrigger value="bank-tally" className="px-4 py-2 rounded-xl md:rounded-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all text-nowrap">Bank Tally</TabsTrigger>
-                          <TabsTrigger value="cash-tally" className="px-4 py-2 rounded-xl md:rounded-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all text-nowrap">Cash Tally</TabsTrigger>
-                          <TabsTrigger value="report" className="px-4 py-2 rounded-xl md:rounded-full data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 transition-all">Report</TabsTrigger>
-                        </>
-                      )}
+                      <TabsTrigger value="handover" className="px-4 py-2">
+                        Handovers
+                        {pendingDetails.handovers && (
+                          <span className="ml-2 w-2 h-2 flex-shrink-0 rounded-full border border-[#1e293b] bg-amber-400" aria-hidden="true" />
+                        )}
+                      </TabsTrigger>
+                      <TabsTrigger value="bank-tally" className="px-4 py-2">Bank Tally</TabsTrigger>
+                      <TabsTrigger value="cash-tally" className="px-4 py-2">Cash Tally</TabsTrigger>
+                      <TabsTrigger value="cashier" className="px-4 py-2">Cashier Report</TabsTrigger>
+                      <TabsTrigger value="report" className="px-4 py-2">Report</TabsTrigger>
                     </>
                   );
                 })()}
