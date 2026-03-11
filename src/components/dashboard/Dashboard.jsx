@@ -292,7 +292,7 @@ const Dashboard = ({
             ]);
 
             setDashboardData(dashData);
-            setVouchers(Array.isArray(vouchersData) ? vouchersData : []);
+            setVouchers(Array.isArray(vouchersData) ? vouchersData.filter(v => !v.is_deleted) : []);
             setInvoices(Array.isArray(invoicesData) ? invoicesData : []);
             setTasks(Array.isArray(tasksData?.items) ? tasksData.items : (Array.isArray(tasksData) ? tasksData : []));
             setNotices(Array.isArray(noticesData) ? noticesData : []);
