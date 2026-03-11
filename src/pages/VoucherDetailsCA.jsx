@@ -616,27 +616,19 @@ const VoucherDetailsCA = () => {
     const filteredVouchers = React.useMemo(() => {
         if (!voucherList || !Array.isArray(voucherList)) return [];
 
-        // If we received vouchers from location state, they are exactly from the list view (with all user filters/sorting applied)
-        if (vouchers && vouchers.length > 0) {
-            return voucherList;
-        }
-
-        // Fallback: If fetched directly via URL, apply default role-based filtering
+        // Apply strict role-based filtering for pending items
         return voucherList.filter(v => {
-            // Filter out deleted vouchers
             if (v.is_deleted) return false;
 
-            // CA Team/Accountant should only see pending_ca_approval
-            if (user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') {
-                return v.status === 'pending_ca_approval';
-            }
-            // Client Master Admin should only see pending_master_admin_approval
             if (user?.role === 'CLIENT_MASTER_ADMIN') {
                 return v.status === 'pending_master_admin_approval';
             }
+            if (user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') {
+                return v.status === 'pending_ca_approval';
+            }
             return true;
         });
-    }, [voucherList, user?.role, vouchers]);
+    }, [voucherList, user?.role]);
 
     // Update currentIndex when filteredVouchers changes
     useEffect(() => {

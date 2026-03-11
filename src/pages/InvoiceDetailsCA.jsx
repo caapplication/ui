@@ -462,14 +462,19 @@ const InvoiceDetailsCA = () => {
     const filteredInvoices = React.useMemo(() => {
         if (!invoices || !Array.isArray(invoices)) return [];
 
-        // If we received invoices from location state, they are exactly from the list view (with all user filters/sorting applied)
-        if (location.state?.invoices) {
-            return invoices;
-        }
+        // Apply strict role-based filtering for pending items
+        return invoices.filter(inv => {
+            if (inv.is_deleted) return false;
 
-        // Fallback: apply default CA role-based filtering (pending audit)
-        return invoices.filter(inv => inv.status === 'pending_ca_approval' && !inv.is_deleted);
-    }, [invoices, location.state?.invoices]);
+            if (user?.role === 'CLIENT_MASTER_ADMIN') {
+                return inv.status === 'pending_master_admin_approval';
+            }
+            if (user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') {
+                return inv.status === 'pending_ca_approval';
+            }
+            return true;
+        });
+    }, [invoices, user?.role]);
 
     // Check if we have invoices to navigate - show arrows if we have multiple invoices
     const hasInvoices = filteredInvoices && Array.isArray(filteredInvoices) && filteredInvoices.length > 1;

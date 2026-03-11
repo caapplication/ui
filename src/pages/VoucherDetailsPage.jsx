@@ -661,27 +661,19 @@ const VoucherDetailsPage = () => {
     const filteredVouchers = useMemo(() => {
         if (!voucherList || !Array.isArray(voucherList)) return [];
 
-        // If we received vouchers from location state, they are exactly from the list view (with all user filters/sorting applied)
-        if (location.state?.vouchers) {
-            return voucherList;
-        }
-
-        // Fallback: If fetched directly via URL, apply default role-based filtering
+        // Apply strict role-based filtering for pending items
         return voucherList.filter(v => {
-            // Filter out deleted vouchers
             if (v.is_deleted) return false;
 
-            // CA Team/Accountant should only see pending_ca_approval
-            if (user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') {
-                return v.status === 'pending_ca_approval';
-            }
-            // Client Master Admin should only see pending_master_admin_approval
             if (user?.role === 'CLIENT_MASTER_ADMIN') {
                 return v.status === 'pending_master_admin_approval';
             }
+            if (user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') {
+                return v.status === 'pending_ca_approval';
+            }
             return true;
         });
-    }, [voucherList, user?.role, location.state?.vouchers]);
+    }, [voucherList, user?.role]);
 
     // Update currentIndex when filteredVouchers changes
     useEffect(() => {
@@ -1117,9 +1109,9 @@ const VoucherDetailsPage = () => {
                 {/* Entity name in top right */}
                 <div className="flex flex-col items-end">
                     <p className="text-lg sm:text-xl md:text-2xl font-bold text-white truncate">{getEntityName()}</p>
-                    {user?.role === 'CLIENT_MASTER_ADMIN' && (
+                    {(user?.role === 'CLIENT_MASTER_ADMIN' || user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
                         <p className="text-sm text-gray-400">
-                            Pending Approval: {filteredVouchers?.length || 0}
+                            Pending {user?.role === 'CLIENT_MASTER_ADMIN' ? 'Approval' : 'Audit'}: {filteredVouchers?.length || 0}
                         </p>
                     )}
                 </div>

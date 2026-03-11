@@ -166,7 +166,7 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
       blinking: isNoticeBlinking 
     },
     { id: 'users', path: '/users', label: 'Manage Team', icon: UserCog, hidden: user?.role === 'CLIENT_USER' },
-    { id: 'bill-payment', path: '/bill-payment', label: 'Bill & Payment', icon: Receipt },
+    { id: 'bill-payment', path: '/bill-payment', label: 'Bill & Payment', icon: Receipt, hidden: user?.role === 'CLIENT_USER' },
     { id: 'settings', path: '/settings', label: 'Settings', icon: Settings, hidden: user?.role === 'CLIENT_USER' },
     { id: 'beneficiaries', path: '/beneficiaries', label: 'Beneficiaries', icon: Users, hidden: user?.role === 'CLIENT_USER' || user?.role === 'CLIENT_MASTER_ADMIN' },
     { id: 'organisation-bank', path: '/organisation-bank', label: 'Organisation Bank', icon: Banknote, hidden: user?.role === 'CLIENT_USER' || user?.role === 'CLIENT_MASTER_ADMIN' },

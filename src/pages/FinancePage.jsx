@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/tooltip";
 import ExportTallyModal from '@/components/finance/ExportTallyModal';
 import * as XLSX from 'xlsx';
-import { HandoverTab, BankTallyTab, CashTallyTab, ReportTab } from '@/pages/ClientHandoverPage';
+import { HandoverTab, BankTallyTab, CashTallyTab, ReportTab, CashierReportListTab } from '@/pages/ClientHandoverPage';
 
 const FinancePage = () => {
   const location = useLocation();
@@ -157,7 +157,7 @@ const FinancePage = () => {
       <div className="flex flex-wrap justify-between items-center gap-4 mb-6 lg:mb-8">
         <h1 className="page-title">Finances</h1>
         <div className="flex flex-wrap items-center gap-2">
-            {user.role === 'CA_ACCOUNTANT' && (
+          {user.role === 'CA_ACCOUNTANT' && (
             <Button onClick={() => setIsExportModalOpen(true)} disabled={isDataLoading || !selectedClient} className="h-9 rounded-full bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm w-full sm:w-auto justify-center">
               <Download className="w-4 h-4 mr-1" />
               Export
@@ -248,7 +248,7 @@ const FinancePage = () => {
           <Button variant="outline" size="icon" onClick={handleRefresh} disabled={isDataLoading || isOrgLoading || !selectedOrg}>
             <RefreshCw className={`w-4 h-4 ${isDataLoading ? 'animate-spin' : ''}`} />
           </Button>
-        
+
         </div>
       </div>
 
@@ -282,13 +282,14 @@ const FinancePage = () => {
                     )}
                   </TabsTrigger>
                   <TabsTrigger value="handover" className="px-3 sm:px-4 py-2 transition-all duration-300 ease-in-out">
-                    Handover
+                    Handovers
                     {pendingDetails.handovers && (
                       <span className="ml-2 w-2 h-2 flex-shrink-0 rounded-full border border-[#1e293b] bg-amber-400" aria-hidden="true" />
                     )}
                   </TabsTrigger>
                   <TabsTrigger value="bank-tally" className="px-3 sm:px-4 py-2 transition-all duration-300 ease-in-out relative">Bank Tally</TabsTrigger>
                   <TabsTrigger value="cash-tally" className="px-3 sm:px-4 py-2 transition-all duration-300 ease-in-out relative">Cash Tally</TabsTrigger>
+                  <TabsTrigger value="cashier" className="px-3 sm:px-4 py-2 transition-all duration-300 ease-in-out relative text-nowrap">Cashier Report</TabsTrigger>
                   <TabsTrigger value="report" className="px-3 sm:px-4 py-2 transition-all duration-300 ease-in-out relative">Report</TabsTrigger>
                 </>
               );
@@ -326,6 +327,9 @@ const FinancePage = () => {
             </TabsContent>
             <TabsContent value="cash-tally">
               <CashTallyTab clientId={selectedClient} entityId={selectedClient} token={user?.access_token} toast={toast} readOnly={true} />
+            </TabsContent>
+            <TabsContent value="cashier">
+              <CashierReportListTab clientId={selectedClient} token={user?.access_token} toast={toast} readOnly={true} />
             </TabsContent>
             <TabsContent value="report">
               <ReportTab clientId={selectedClient} entityId={selectedClient} entityName={clients.find(c => c.id === selectedClient)?.name} token={user?.access_token} toast={toast} />

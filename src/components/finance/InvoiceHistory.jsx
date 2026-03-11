@@ -18,12 +18,12 @@ const ITEMS_PER_PAGE = 10;
 
 import { Check } from 'lucide-react';
 import AnimatedSearch from '@/components/ui/AnimatedSearch';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
 
 const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onViewInvoice, onRefresh, isAccountantView }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [datePreset, setDatePreset] = useState('all_time');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const [dateRange, setDateRange] = useState({ from: null, to: null });
   // ...
   const handleViewAttachment = (invoice) => {
     if (onViewInvoice) {
@@ -180,8 +180,8 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onViewInvoic
           last3Months.setMonth(last3Months.getMonth() - 3);
           if (invDate < last3Months) match = false;
         } else if (datePreset === 'custom') {
-          const from = dateFrom ? new Date(dateFrom) : null;
-          const to = dateTo ? new Date(dateTo) : null;
+          const from = dateRange?.from ? new Date(dateRange.from) : null;
+          const to = dateRange?.to ? new Date(dateRange.to) : null;
           if (from && to) {
             const toEnd = new Date(to);
             toEnd.setHours(23, 59, 59, 999);
@@ -197,13 +197,13 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onViewInvoic
       }
       return match;
     });
-  }, [invoices, searchTerm, datePreset, dateFrom, dateTo, viewMode]);
+  }, [invoices, searchTerm, datePreset, dateRange, viewMode]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
     setActivePage(1);
     setHistoryPage(1);
-  }, [searchTerm, datePreset, dateFrom, dateTo]);
+  }, [searchTerm, datePreset, dateRange]);
 
   const totalPages = Math.ceil(filteredInvoices.length / ITEMS_PER_PAGE);
   const paginatedInvoices = filteredInvoices.slice(
@@ -279,21 +279,11 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onViewInvoic
               </div> */}
 
               {datePreset === 'custom' && (
-                <div className="flex items-center gap-2 w-full lg:w-auto mt-2 lg:mt-0">
-                  <Input
-                    type="date"
-                    value={dateFrom}
-                    onChange={e => setDateFrom(e.target.value)}
-                    className="flex-1 lg:w-36 h-11 rounded-full bg-white/5 border-white/10 text-white focus:ring-primary/20 px-4"
-                  />
-                  <span className="text-gray-500 font-medium">to</span>
-                  <Input
-                    type="date"
-                    value={dateTo}
-                    onChange={e => setDateTo(e.target.value)}
-                    className="flex-1 lg:w-36 h-11 rounded-full bg-white/5 border-white/10 text-white focus:ring-primary/20 px-4"
-                  />
-                </div>
+                <DateRangePicker
+                  dateRange={dateRange}
+                  onChange={setDateRange}
+                  className="w-full sm:w-auto mt-2 lg:mt-0"
+                />
               )}
             </div>
             <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
