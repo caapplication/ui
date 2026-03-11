@@ -29,11 +29,11 @@ import {
 } from '@/lib/api/settings';
 import { listEntityUsers } from '@/lib/api/organisation';
 import { getOrganisationBankAccounts } from '@/lib/api';
-import { getVouchersCashTotalForDate, getVouchersReportByDate, getVoucherAttachment } from '@/lib/api/finance';
+import { getVouchersCashTotalForDate, getVouchersReportByDate, getVoucherAttachment, downloadFinanceReportPDF } from '@/lib/api/finance';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, MoreVertical, Calendar, ArrowLeftRight, ArrowLeft, Loader2, Check, X, ChevronLeft, ChevronRight, Paperclip, Upload } from 'lucide-react';
+import { Search, MoreVertical, Calendar, ArrowLeftRight, ArrowLeft, Loader2, Check, X, ChevronLeft, ChevronRight, Paperclip, Upload, Download } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import AnimatedSearch from '@/components/ui/AnimatedSearch';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
@@ -1980,6 +1980,67 @@ function ReportTab({ clientId, entityId, entityName, token, toast }) {
     } catch { return iso; }
   };
 
+  const [pdfDownloading, setPdfDownloading] = useState(false);
+
+  const handleDownloadPDF = async () => {
+    if (!searched || loading) return;
+    setPdfDownloading(true);
+    try {
+      const payload = {
+        entity_name: displayName,
+        report_date: dateFormatted,
+        bank_rows: bankRows.map(({ bank, opening, closing, variance }) => ({
+          bank_name: bank.bank_name || '—',
+          account_number: bank.account_number || '—',
+          opening,
+          closing,
+          variance,
+        })),
+        bank_opening_total: bankOpeningTotal,
+        bank_closing_total: bankClosingTotal,
+        bank_variance_total: bankVarianceTotal,
+        cash_tally: {
+          opening_balance: openingBalance,
+          cash_in_handover: cashInHandover,
+          cash_in_other: cashInOther,
+          cash_out: cashOut,
+          closing_balance: closingBalance,
+          remarks: cashTally?.remarks || '',
+        },
+        denominations: denominations.map(d => {
+          const units = Number(denomDetails[d.id]) || 0;
+          const total = (Number(d.value) || 0) * units;
+          return { label: `Rs. ${Number(d.value).toLocaleString('en-IN')} x`, units, total };
+        }),
+        denom_total: denomTotal,
+        cash_vouchers: cashVouchers.map(v => ({
+          created_date: formatTime(v.created_date),
+          voucher_id: v.voucher_id || '—',
+          beneficiary_name: v.beneficiary_name || '—',
+          remarks: v.remarks || '—',
+          amount: Number(v.amount || 0),
+        })),
+        cash_voucher_total: cashVoucherTotal,
+        debit_vouchers: debitVouchers.map(v => ({
+          created_date: formatTime(v.created_date),
+          voucher_id: v.voucher_id || '—',
+          from_bank_account_name: v.from_bank_account_name || '—',
+          from_bank_account_number: v.from_bank_account_number || '—',
+          beneficiary_name: v.beneficiary_name || '—',
+          remarks: v.remarks || '—',
+          amount: Number(v.amount || 0),
+        })),
+        debit_voucher_total: debitVoucherTotal,
+      };
+      await downloadFinanceReportPDF(payload, token);
+      toast({ title: 'Success', description: 'Finance report PDF downloaded.' });
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Error', description: e?.message || 'Failed to download PDF.' });
+    } finally {
+      setPdfDownloading(false);
+    }
+  };
+
   return (
     <Card className="glass-card border-white/5">
       <CardHeader className="p-4 sm:p-6 flex flex-row flex-wrap items-center justify-between gap-4">
@@ -1988,7 +2049,17 @@ function ReportTab({ clientId, entityId, entityName, token, toast }) {
           <CardDescription className="text-sm text-gray-400">Bank balance, physical cash tally, cash and debit vouchers for the selected date.</CardDescription>
         </div>
         <div className="flex items-center gap-2">
-          {/* <Label className="text-gray-400 text-sm">Date</Label> */}
+          {searched && !loading && (
+            <Button
+              onClick={handleDownloadPDF}
+              disabled={pdfDownloading}
+              className="h-9 rounded-full bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm"
+              variant="outline"
+            >
+              {pdfDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              Download PDF
+            </Button>
+          )}
           <Input type="date" className="glass-input max-w-[200px]" value={reportDate} onChange={e => setReportDate(e.target.value)} />
         </div>
       </CardHeader>
