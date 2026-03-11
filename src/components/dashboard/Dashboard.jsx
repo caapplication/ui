@@ -22,6 +22,7 @@ import {
     CreditCard,
     ChevronLeft,
     ChevronRight,
+    ChevronDown,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useMediaQuery } from "@/hooks/useMediaQuery.jsx";
@@ -205,10 +206,11 @@ const Dashboard = ({
     organisationBankAccounts,
 }) => {
     const [dashboardData, setDashboardData] = useState(null);
+    const [recentDashboardData, setRecentDashboardData] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [vouchers, setVouchers] = useState([]);
     // Expiring docs moved to Documents section Renewals tab
-    const [expensePeriod, setExpensePeriod] = useState("1month"); // Default to 1 month
+    const [expensePeriod, setExpensePeriod] = useState("30days");
     const [fundInHand, setFundInHand] = useState(null);
     const [fundInHandLoading, setFundInHandLoading] = useState(false);
     const [fundSlide, setFundSlide] = useState(0);
@@ -221,6 +223,8 @@ const Dashboard = ({
     const [apiTrends, setApiTrends] = useState({ tasks: [], notices: [], invoices: [], vouchers: [] });
 
     const isMobile = useMediaQuery("(max-width: 640px)");
+    const isHourlyView = expensePeriod === "today" || expensePeriod === "yesterday";
+    const isMonthlyView = expensePeriod === "all_time" || expensePeriod === "3months";
     const { user } = useAuth();
     const { toast } = useToast();
     const navigate = useNavigate();
@@ -238,39 +242,53 @@ const Dashboard = ({
         setIsLoading(true);
 
         const now = new Date();
-        let fromDate = new Date();
+        let fromDate = null;
+        let toDate = new Date(now);
         switch (expensePeriod) {
-            case "1day":
-                fromDate.setDate(now.getDate() - 1);
+            case "all_time": fromDate = null; toDate = null; break;
+            case "today":
+                fromDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
                 break;
-            case "1week":
-                fromDate.setDate(now.getDate() - 7);
+            case "yesterday":
+                fromDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+                toDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 23, 59, 59, 999);
                 break;
-            case "1month":
-                fromDate.setMonth(now.getMonth() - 1);
+            case "7days":
+                fromDate = new Date(now); fromDate.setDate(now.getDate() - 7); break;
+            case "30days":
+                fromDate = new Date(now); fromDate.setDate(now.getDate() - 30); break;
+            case "this_month":
+                fromDate = new Date(now.getFullYear(), now.getMonth(), 1); break;
+            case "last_month":
+                fromDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                toDate = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
                 break;
-            case "1year":
-                fromDate.setFullYear(now.getFullYear() - 1);
-                break;
+            case "3months":
+                fromDate = new Date(now); fromDate.setMonth(now.getMonth() - 3); break;
             default:
-                fromDate.setMonth(now.getMonth() - 1);
+                fromDate = new Date(now); fromDate.setDate(now.getDate() - 30);
         }
 
-        const fromDateStr = fromDate.toISOString();
-        const toDateStr = now.toISOString();
+        const fromDateStr = fromDate ? fromDate.toISOString() : null;
+        const toDateStr = toDate ? toDate.toISOString() : null;
 
         let daysToFetch = 30;
         switch (expensePeriod) {
-            case "1day": daysToFetch = 1; break;
-            case "1week": daysToFetch = 7; break;
-            case "1month": daysToFetch = 30; break;
-            case "1year": daysToFetch = 365; break;
+            case "all_time": daysToFetch = 365; break;
+            case "today": daysToFetch = 1; break;
+            case "yesterday": daysToFetch = 2; break;
+            case "7days": daysToFetch = 7; break;
+            case "30days": daysToFetch = 30; break;
+            case "this_month": daysToFetch = 31; break;
+            case "last_month": daysToFetch = 62; break;
+            case "3months": daysToFetch = 90; break;
             default: daysToFetch = 30;
         }
 
         try {
             const [
                 dashData,
+                recentDashData,
                 vouchersData,
                 invoicesData,
                 tasksData,
@@ -281,6 +299,7 @@ const Dashboard = ({
                 voucherAnalytics
             ] = await Promise.all([
                 getDashboardData(entityId, user.access_token, user.agency_id, fromDateStr, toDateStr),
+                getDashboardData(entityId, user.access_token, user.agency_id, null, null),
                 getVouchersList(entityId, user.access_token),
                 getInvoicesList(entityId, user.access_token),
                 listTasks(user.agency_id, user.access_token, { client_id: entityId }),
@@ -292,6 +311,7 @@ const Dashboard = ({
             ]);
 
             setDashboardData(dashData);
+            setRecentDashboardData(recentDashData);
             setVouchers(Array.isArray(vouchersData) ? vouchersData.filter(v => !v.is_deleted) : []);
             setInvoices(Array.isArray(invoicesData) ? invoicesData : []);
             setTasks(Array.isArray(tasksData?.items) ? tasksData.items : (Array.isArray(tasksData) ? tasksData : []));
@@ -416,53 +436,67 @@ const Dashboard = ({
         if (!vouchers || vouchers.length === 0) return { currentTotal: "0.00", percentageChange: 0, isIncrease: false };
 
         const now = new Date();
-        let currentStartDate = new Date();
-        let previousStartDate = new Date();
-        let currentEndDate = new Date(); // usually now
-        let previousEndDate = new Date();
+        let currentStartDate = null;
+        let currentEndDate = new Date(now);
+        let previousStartDate = null;
+        let previousEndDate = null;
 
         switch (expensePeriod) {
-            case "1day":
-                currentStartDate.setDate(now.getDate() - 1);
-                previousEndDate.setDate(now.getDate() - 1);
-                previousStartDate.setDate(now.getDate() - 2);
+            case "all_time": currentStartDate = null; break;
+            case "today":
+                currentStartDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                previousStartDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+                previousEndDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 23, 59, 59, 999);
                 break;
-            case "1week":
-                currentStartDate.setDate(now.getDate() - 7);
-                previousEndDate.setDate(now.getDate() - 7);
-                previousStartDate.setDate(now.getDate() - 14);
+            case "yesterday":
+                currentStartDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+                currentEndDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 23, 59, 59, 999);
+                previousStartDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 2);
+                previousEndDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 2, 23, 59, 59, 999);
                 break;
-            case "1month":
-                currentStartDate.setMonth(now.getMonth() - 1);
-                previousEndDate.setMonth(now.getMonth() - 1);
-                previousStartDate.setMonth(now.getMonth() - 2);
+            case "7days":
+                currentStartDate = new Date(now); currentStartDate.setDate(now.getDate() - 7);
+                previousEndDate = new Date(currentStartDate);
+                previousStartDate = new Date(now); previousStartDate.setDate(now.getDate() - 14);
                 break;
-            case "1year":
-                currentStartDate.setFullYear(now.getFullYear() - 1);
-                previousEndDate.setFullYear(now.getFullYear() - 1);
-                previousStartDate.setFullYear(now.getFullYear() - 2);
+            case "30days":
+                currentStartDate = new Date(now); currentStartDate.setDate(now.getDate() - 30);
+                previousEndDate = new Date(currentStartDate);
+                previousStartDate = new Date(now); previousStartDate.setDate(now.getDate() - 60);
+                break;
+            case "this_month":
+                currentStartDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                previousStartDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                previousEndDate = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+                break;
+            case "last_month":
+                currentStartDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                currentEndDate = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+                previousStartDate = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+                previousEndDate = new Date(now.getFullYear(), now.getMonth() - 1, 0, 23, 59, 59, 999);
+                break;
+            case "3months":
+                currentStartDate = new Date(now); currentStartDate.setMonth(now.getMonth() - 3);
+                previousEndDate = new Date(currentStartDate);
+                previousStartDate = new Date(now); previousStartDate.setMonth(now.getMonth() - 6);
                 break;
             default:
-                currentStartDate.setMonth(now.getMonth() - 1);
-                previousEndDate.setMonth(now.getMonth() - 1);
-                previousStartDate.setMonth(now.getMonth() - 2);
+                currentStartDate = new Date(now); currentStartDate.setDate(now.getDate() - 30);
         }
 
         const currentTotal = vouchers.reduce((sum, voucher) => {
             const voucherDate = new Date(voucher.created_date || voucher.created_at);
-            if (voucherDate >= currentStartDate && voucherDate <= now) {
-                return sum + (parseFloat(voucher.amount) || 0);
-            }
-            return sum;
+            const inRange = currentStartDate === null || (voucherDate >= currentStartDate && voucherDate <= currentEndDate);
+            return inRange ? sum + (parseFloat(voucher.amount) || 0) : sum;
         }, 0);
 
-        const previousTotal = vouchers.reduce((sum, voucher) => {
+        const previousTotal = (previousStartDate && previousEndDate) ? vouchers.reduce((sum, voucher) => {
             const voucherDate = new Date(voucher.created_date || voucher.created_at);
             if (voucherDate >= previousStartDate && voucherDate <= previousEndDate) {
                 return sum + (parseFloat(voucher.amount) || 0);
             }
             return sum;
-        }, 0);
+        }, 0) : 0;
 
         let percentageChange = 0;
         if (previousTotal > 0) {
@@ -480,40 +514,27 @@ const Dashboard = ({
 
     const getPeriodLabel = () => {
         switch (expensePeriod) {
-            case "1day":
-                return "Last 24 hours";
-            case "1week":
-                return "Last 7 days";
-            case "1month":
-                return "Last 30 days";
-            case "1year":
-                return "Last 365 days";
-            default:
-                return "Last 30 days";
+            case "all_time": return "All Time";
+            case "today": return "Today";
+            case "yesterday": return "Yesterday";
+            case "7days": return "Last 7 Days";
+            case "30days": return "Last 30 Days";
+            case "this_month": return "This Month";
+            case "last_month": return "Last Month";
+            case "3months": return "Last 3 Months";
+            default: return "Last 30 Days";
         }
     };
 
     const expenseMenuItems = [
-        {
-            value: "1day",
-            label: "Last 24 Hours",
-            selected: expensePeriod === "1day",
-        },
-        {
-            value: "1week",
-            label: "Last 7 Days",
-            selected: expensePeriod === "1week",
-        },
-        {
-            value: "1month",
-            label: "Last 30 Days",
-            selected: expensePeriod === "1month",
-        },
-        {
-            value: "1year",
-            label: "Last 1 Year",
-            selected: expensePeriod === "1year",
-        },
+        { value: "all_time", label: "All Time", selected: expensePeriod === "all_time" },
+        { value: "today", label: "Today", selected: expensePeriod === "today" },
+        { value: "yesterday", label: "Yesterday", selected: expensePeriod === "yesterday" },
+        { value: "7days", label: "Last 7 Days", selected: expensePeriod === "7days" },
+        { value: "30days", label: "Last 30 Days", selected: expensePeriod === "30days" },
+        { value: "this_month", label: "This Month", selected: expensePeriod === "this_month" },
+        { value: "last_month", label: "Last Month", selected: expensePeriod === "last_month" },
+        { value: "3months", label: "Last 3 Months", selected: expensePeriod === "3months" },
     ];
     const expenseStats = calculateExpenseStats();
 
@@ -530,19 +551,19 @@ const Dashboard = ({
         const data = [];
         const now = new Date();
 
-        if (expensePeriod === "1day") {
+        if (isHourlyView) {
             for (let i = 23; i >= 0; i--) {
                 const d = new Date();
                 d.setHours(now.getHours() - i, 0, 0, 0);
                 data.push({ name: d.toISOString(), amount: 0 });
             }
-        } else if (expensePeriod === "1year") {
+        } else if (isMonthlyView) {
             for (let i = 11; i >= 0; i--) {
                 const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
                 data.push({ name: d.toISOString(), amount: 0, month: d.getMonth(), year: d.getFullYear() });
             }
         } else {
-            const daysToShow = expensePeriod === "1week" ? 7 : 30;
+            const daysToShow = expensePeriod === "7days" ? 7 : 30;
             for (let i = daysToShow - 1; i >= 0; i--) {
                 const d = new Date();
                 d.setDate(now.getDate() - i);
@@ -555,7 +576,7 @@ const Dashboard = ({
         vouchers.forEach((v) => {
             const vDate = new Date(v.created_date || v.created_at);
 
-            if (expensePeriod === "1day") {
+            if (isHourlyView) {
                 if (now.getTime() - vDate.getTime() <= 24 * 60 * 60 * 1000) {
                     const item = data.find(d => {
                         const dObj = new Date(d.name);
@@ -563,7 +584,7 @@ const Dashboard = ({
                     });
                     if (item) item.amount += parseFloat(v.amount) || 0;
                 }
-            } else if (expensePeriod === "1year") {
+            } else if (isMonthlyView) {
                 const item = data.find(d => d.month === vDate.getMonth() && d.year === vDate.getFullYear());
                 if (item) item.amount += parseFloat(v.amount) || 0;
             } else {
@@ -582,19 +603,19 @@ const Dashboard = ({
         const data = [];
         const now = new Date();
 
-        if (expensePeriod === "1day") {
+        if (isHourlyView) {
             for (let i = 23; i >= 0; i--) {
                 const d = new Date();
                 d.setHours(now.getHours() - i, 0, 0, 0);
                 data.push({ name: d.toISOString(), dateStr: d.toISOString().split("T")[0], vouchers: 0, invoices: 0, tasks: 0, notices: 0, total: 0 });
             }
-        } else if (expensePeriod === "1year") {
+        } else if (isMonthlyView) {
             for (let i = 11; i >= 0; i--) {
                 const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
                 data.push({ name: d.toISOString(), dateStr: format(d, 'yyyy-MM'), vouchers: 0, invoices: 0, tasks: 0, notices: 0, total: 0, month: d.getMonth(), year: d.getFullYear() });
             }
         } else {
-            const daysToShow = expensePeriod === "1week" ? 7 : 30;
+            const daysToShow = expensePeriod === "7days" ? 7 : 30;
             for (let i = daysToShow - 1; i >= 0; i--) {
                 const d = new Date();
                 d.setDate(now.getDate() - i);
@@ -609,9 +630,9 @@ const Dashboard = ({
 
                 // Usually the API returns `YYYY-MM-DD`
                 let target;
-                if (expensePeriod === "1day") {
+                if (isHourlyView) {
                     // Fallback to manual if 1day because grouping by hour is unsupported by simple daily API trends
-                } else if (expensePeriod === "1year") {
+                } else if (isMonthlyView) {
                     const itemDate = new Date(date);
                     target = data.find(d => d.month === itemDate.getMonth() && d.year === itemDate.getFullYear());
                 } else {
@@ -625,7 +646,7 @@ const Dashboard = ({
             });
         };
 
-        if (expensePeriod !== "1day") {
+        if (!isHourlyView) {
             mergeApiTrend(apiTrends.tasks, 'tasks');
             mergeApiTrend(apiTrends.notices, 'notices');
             mergeApiTrend(apiTrends.invoices, 'invoices');
@@ -705,9 +726,6 @@ const Dashboard = ({
                 description: `${expenseStats.percentageChange}% ${expenseStats.isIncrease ? 'increase' : 'decrease'} vs last period`,
                 icon: Banknote,
                 color: "from-purple-500 to-indigo-600",
-                showMenu: true,
-                menuItems: expenseMenuItems,
-                onMenuSelect: setExpensePeriod,
                 trend: {
                     isUp: expenseStats.isIncrease,
                     isBad: expenseStats.isIncrease
@@ -745,10 +763,35 @@ const Dashboard = ({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
             >
-                <div className="page-header ">
+                <div className="page-header flex items-center justify-between">
                     <h1 className="page-title">
                         {entityName}
                     </h1>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="flex items-center gap-2 bg-white/5 border-white/10 text-white hover:bg-white/10 hover:text-white rounded-xl px-3 py-2 text-sm font-medium"
+                            >
+                                <Calendar className="w-4 h-4 text-gray-400" />
+                                <span>{getPeriodLabel()}</span>
+                                <ChevronDown className="w-4 h-4 text-gray-400" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="min-w-[160px]">
+                            {expenseMenuItems.map((item) => (
+                                <DropdownMenuItem
+                                    key={item.value}
+                                    onClick={() => setExpensePeriod(item.value)}
+                                    className={item.selected ? "bg-primary/20 font-semibold" : ""}
+                                >
+                                    {item.selected && <span className="mr-2 text-blue-400">✓</span>}
+                                    {item.label}
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
 
                 {isLoading ? (
@@ -1072,9 +1115,9 @@ const Dashboard = ({
                                                                     minTickGap={30}
                                                                     tickFormatter={(value) => {
                                                                         const date = new Date(value);
-                                                                        if (expensePeriod === "1day") {
+                                                                        if (isHourlyView) {
                                                                             return date.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
-                                                                        } else if (expensePeriod === "1year") {
+                                                                        } else if (isMonthlyView) {
                                                                             return date.toLocaleDateString("en-IN", { month: "short", year: "2-digit" });
                                                                         }
                                                                         return date.toLocaleDateString("en-IN", {
@@ -1108,9 +1151,9 @@ const Dashboard = ({
                                                                     ]}
                                                                     labelFormatter={(label) => {
                                                                         const date = new Date(label);
-                                                                        if (expensePeriod === "1day") {
+                                                                        if (isHourlyView) {
                                                                             return date.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true });
-                                                                        } else if (expensePeriod === "1year") {
+                                                                        } else if (isMonthlyView) {
                                                                             return date.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
                                                                         }
                                                                         return date.toLocaleDateString("en-IN", {
@@ -1183,9 +1226,9 @@ const Dashboard = ({
                                                                     minTickGap={30}
                                                                     tickFormatter={(value) => {
                                                                         const date = new Date(value);
-                                                                        if (expensePeriod === "1day") {
+                                                                        if (isHourlyView) {
                                                                             return date.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
-                                                                        } else if (expensePeriod === "1year") {
+                                                                        } else if (isMonthlyView) {
                                                                             return date.toLocaleDateString("en-IN", { month: "short", year: "2-digit" });
                                                                         }
                                                                         return date.toLocaleDateString("en-IN", {
@@ -1212,9 +1255,9 @@ const Dashboard = ({
                                                                     cursor={{ fill: "rgba(255,255,255,0.05)" }}
                                                                     labelFormatter={(label) => {
                                                                         const date = new Date(label);
-                                                                        if (expensePeriod === "1day") {
+                                                                        if (isHourlyView) {
                                                                             return date.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true });
-                                                                        } else if (expensePeriod === "1year") {
+                                                                        } else if (isMonthlyView) {
                                                                             return date.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
                                                                         }
                                                                         return date.toLocaleDateString("en-IN", {
@@ -1401,8 +1444,8 @@ const Dashboard = ({
                                             <div className="col-span-4 text-right">Amount</div>
                                         </div>
                                         <div className="max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                                            {dashboardData?.recent_vouchers?.length > 0 ? (
-                                                dashboardData.recent_vouchers.map((transaction, index) => (
+                                            {recentDashboardData?.recent_vouchers?.length > 0 ? (
+                                                recentDashboardData.recent_vouchers.map((transaction, index) => (
                                                     <TransactionItem
                                                         key={transaction.id}
                                                         transaction={transaction}
