@@ -704,7 +704,8 @@ const VoucherDetailsPage = () => {
                     vouchers: location.state?.vouchers || voucherList,
                     organisationId,
                     entityName,
-                }
+                },
+                replace: true
             });
         } else {
             console.warn("Navigation out of bounds:", { newIndex, vouchersLength: filteredVouchers.length });
@@ -890,11 +891,7 @@ const VoucherDetailsPage = () => {
             await deleteVoucher(entityId, voucherId, user.access_token);
             toast({ title: 'Success', description: 'Voucher deleted successfully.' });
             setShowDeleteDialog(false);
-            if (user.role === 'CLIENT_USER' || user.role === 'CLIENT_MASTER_ADMIN') {
-                navigate('/finance');
-            } else {
-                navigate('/finance/ca');
-            }
+            navigate(-1);
         } catch (error) {
             toast({
                 title: 'Error',
@@ -1101,7 +1098,7 @@ const VoucherDetailsPage = () => {
         <div className="h-screen w-full flex flex-col text-white bg-transparent p-3 sm:p-4 md:p-6" style={{ paddingBottom: hasVouchers ? '6rem' : '1.5rem' }}>
             <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 pb-3 sm:pb-4 border-b border-white/10 mb-3 sm:mb-4">
                 <div className="flex items-center gap-3 sm:gap-4">
-                    <Button variant="ghost" size="icon" onClick={() => navigate('/finance')} className="h-9 w-9 sm:h-10 sm:w-10">
+                    <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="h-9 w-9 sm:h-10 sm:w-10">
                         <ArrowLeft className="h-5 w-5 sm:h-6 sm:w-6" />
                     </Button>
                     <div>
@@ -1112,7 +1109,7 @@ const VoucherDetailsPage = () => {
                 {/* Entity name in top right */}
                 <div className="flex flex-col items-end">
                     <p className="text-lg sm:text-xl md:text-2xl font-bold text-white truncate">{getEntityName()}</p>
-                    {(user?.role === 'CLIENT_MASTER_ADMIN' || user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
+                    {location.state?.vouchers && (user?.role === 'CLIENT_MASTER_ADMIN' || user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
                         <p className="text-sm text-gray-400">
                             Pending {user?.role === 'CLIENT_MASTER_ADMIN' ? 'Approval' : 'Audit'}: {filteredVouchers?.length || 0}
                         </p>

@@ -199,18 +199,19 @@ const BeneficiaryLedger = ({ entityId }) => {
         return getDateRange(timeFrame, customStartDate, customEndDate);
     }, [timeFrame, customStartDate, customEndDate]);
 
-    // Filter invoices and vouchers by date range
     const filteredInvoices = useMemo(() => {
-        if (!dateRange) return invoices;
-        return invoices.filter(inv => {
+        const activeInvoices = invoices.filter(inv => !inv.is_deleted);
+        if (!dateRange) return activeInvoices;
+        return activeInvoices.filter(inv => {
             const d = new Date(inv.created_at || inv.date);
             return d >= dateRange.from && d <= dateRange.to;
         });
     }, [invoices, dateRange]);
 
     const filteredVouchers = useMemo(() => {
-        if (!dateRange) return vouchers;
-        return vouchers.filter(v => {
+        const activeVouchers = vouchers.filter(v => !v.is_deleted);
+        if (!dateRange) return activeVouchers;
+        return activeVouchers.filter(v => {
             const d = new Date(v.created_date || v.created_at);
             return d >= dateRange.from && d <= dateRange.to;
         });

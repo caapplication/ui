@@ -201,7 +201,7 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
             };
 
             const bInvoices = (Array.isArray(invoicesData) ? invoicesData : [])
-                .filter(inv => filterByBeneficiary(inv, beneficiaryId))
+                .filter(inv => filterByBeneficiary(inv, beneficiaryId) && !inv.is_deleted)
                 .map(inv => {
                     const totalAmount = parseFloat(inv.total_amount || 0) || (
                         parseFloat(inv.amount || 0) +
@@ -225,7 +225,7 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
                 });
 
             const bVouchers = (Array.isArray(vouchersData) ? vouchersData : [])
-                .filter(v => filterByBeneficiary(v, beneficiaryId))
+                .filter(v => filterByBeneficiary(v, beneficiaryId) && !v.is_deleted)
                 .map(v => ({
                     id: v.id,
                     date: v.created_date || v.timestamp || v.voucher_date || v.created_at,
