@@ -1109,7 +1109,7 @@ const VoucherDetailsPage = () => {
                 {/* Entity name in top right */}
                 <div className="flex flex-col items-end">
                     <p className="text-lg sm:text-xl md:text-2xl font-bold text-white truncate">{getEntityName()}</p>
-                    {(user?.role === 'CLIENT_MASTER_ADMIN' || user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
+                    {location.state?.vouchers && (user?.role === 'CLIENT_MASTER_ADMIN' || user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
                         <p className="text-sm text-gray-400">
                             Pending {user?.role === 'CLIENT_MASTER_ADMIN' ? 'Approval' : 'Audit'}: {filteredVouchers?.length || 0}
                         </p>
