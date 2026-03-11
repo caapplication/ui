@@ -23,7 +23,7 @@ const EntitySidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) => {
   const menuItems = [
     { id: 'dashboard', path: '/', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'finance', path: '/finance', label: 'Finance', icon: Landmark },
-    { id: 'bill-payment', path: '/bill-payment', label: 'Bill & Payment', icon: Receipt },
+    { id: 'bill-payment', path: '/bill-payment', label: 'Bill & Payment', icon: Receipt, hidden: user?.role === 'CLIENT_USER' },
     { id: 'documents', path: '/documents', label: 'Documents', icon: FileText },
   ];
 
@@ -70,7 +70,7 @@ const EntitySidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) => {
 
         <nav>
           <ul className="space-y-2">
-            {menuItems.map((item) => {
+            {menuItems.filter(item => !item.hidden).map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.path;
               return (
