@@ -820,3 +820,24 @@ export const getInvoicePdf = async (invoiceId, token) => {
     const blob = await response.blob();
     return URL.createObjectURL(blob);
 };
+
+export const downloadFinanceReportPDF = async (data, token) => {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/reports/finance-report-pdf`, {
+        method: 'POST',
+        headers: getAuthHeaders(token, 'application/json'),
+        body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.detail || 'Failed to generate finance report PDF');
+    }
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Finance_Report_${data.entity_name || 'Report'}_${(data.report_date || '').replace(/\//g, '-')}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+};
