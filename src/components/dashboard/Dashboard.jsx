@@ -211,6 +211,8 @@ const Dashboard = ({
     const [vouchers, setVouchers] = useState([]);
     // Expiring docs moved to Documents section Renewals tab
     const [expensePeriod, setExpensePeriod] = useState("30days");
+    const [customFrom, setCustomFrom] = useState("");
+    const [customTo, setCustomTo] = useState("");
     const [fundInHand, setFundInHand] = useState(null);
     const [fundInHandLoading, setFundInHandLoading] = useState(false);
     const [fundSlide, setFundSlide] = useState(0);
@@ -224,7 +226,12 @@ const Dashboard = ({
 
     const isMobile = useMediaQuery("(max-width: 640px)");
     const isHourlyView = expensePeriod === "today" || expensePeriod === "yesterday";
-    const isMonthlyView = expensePeriod === "all_time" || expensePeriod === "3months";
+    const isMonthlyView = expensePeriod === "3months" || (expensePeriod === "custom" && customFrom && customTo && (new Date(customTo) - new Date(customFrom) > 60 * 24 * 60 * 60 * 1000));
+    // IST bounds for custom date picker (last 365 days only)
+    const _istNow = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+    const istTodayStr = _istNow.toISOString().split("T")[0];
+    const _istMin = new Date(_istNow); _istMin.setDate(_istMin.getDate() - 365);
+    const istMinDateStr = _istMin.toISOString().split("T")[0];
     const { user } = useAuth();
     const { toast } = useToast();
     const navigate = useNavigate();
@@ -245,7 +252,11 @@ const Dashboard = ({
         let fromDate = null;
         let toDate = new Date(now);
         switch (expensePeriod) {
-            case "all_time": fromDate = null; toDate = null; break;
+            case "custom":
+                if (!customFrom || !customTo) { setIsLoading(false); return; }
+                fromDate = new Date(customFrom);
+                toDate = new Date(customTo + "T23:59:59");
+                break;
             case "today":
                 fromDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
                 break;
@@ -274,7 +285,12 @@ const Dashboard = ({
 
         let daysToFetch = 30;
         switch (expensePeriod) {
-            case "all_time": daysToFetch = 365; break;
+            case "custom":
+                if (customFrom && customTo) {
+                    const diffMs = new Date(customTo) - new Date(customFrom);
+                    daysToFetch = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)) + 1);
+                } else { daysToFetch = 30; }
+                break;
             case "today": daysToFetch = 1; break;
             case "yesterday": daysToFetch = 2; break;
             case "7days": daysToFetch = 7; break;
@@ -334,7 +350,7 @@ const Dashboard = ({
         } finally {
             setIsLoading(false);
         }
-    }, [entityId, user?.access_token, user?.agency_id, expensePeriod, toast]);
+    }, [entityId, user?.access_token, user?.agency_id, expensePeriod, customFrom, customTo, toast]);
 
     useEffect(() => {
         fetchDashboardData();
@@ -442,7 +458,17 @@ const Dashboard = ({
         let previousEndDate = null;
 
         switch (expensePeriod) {
-            case "all_time": currentStartDate = null; break;
+            case "custom":
+                if (!customFrom || !customTo) {
+                    currentStartDate = null;
+                } else {
+                    currentStartDate = new Date(customFrom);
+                    currentEndDate = new Date(customTo + "T23:59:59");
+                    const diffMs = currentEndDate - currentStartDate;
+                    previousEndDate = new Date(currentStartDate.getTime() - 1);
+                    previousStartDate = new Date(previousEndDate.getTime() - diffMs);
+                }
+                break;
             case "today":
                 currentStartDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
                 previousStartDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
@@ -514,7 +540,7 @@ const Dashboard = ({
 
     const getPeriodLabel = () => {
         switch (expensePeriod) {
-            case "all_time": return "All Time";
+            case "custom": return "Custom Range";
             case "today": return "Today";
             case "yesterday": return "Yesterday";
             case "7days": return "Last 7 Days";
@@ -527,7 +553,6 @@ const Dashboard = ({
     };
 
     const expenseMenuItems = [
-        { value: "all_time", label: "All Time", selected: expensePeriod === "all_time" },
         { value: "today", label: "Today", selected: expensePeriod === "today" },
         { value: "yesterday", label: "Yesterday", selected: expensePeriod === "yesterday" },
         { value: "7days", label: "Last 7 Days", selected: expensePeriod === "7days" },
@@ -535,6 +560,7 @@ const Dashboard = ({
         { value: "this_month", label: "This Month", selected: expensePeriod === "this_month" },
         { value: "last_month", label: "Last Month", selected: expensePeriod === "last_month" },
         { value: "3months", label: "Last 3 Months", selected: expensePeriod === "3months" },
+        { value: "custom", label: "Custom", selected: expensePeriod === "custom" },
     ];
     const expenseStats = calculateExpenseStats();
 
@@ -763,10 +789,45 @@ const Dashboard = ({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
             >
-                <div className="page-header flex items-center justify-between">
-                    <h1 className="page-title">
-                        {entityName}
-                    </h1>
+                <div className="page-header flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div className="flex flex-wrap items-center gap-4">
+                        <h1 className="page-title m-0">
+                            {entityName}
+                        </h1>
+                        
+                        {expensePeriod === "custom" && (
+                            <motion.div 
+                                initial={{ opacity: 0, x: -10 }} 
+                                animate={{ opacity: 1, x: 0 }} 
+                                className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-1.5"
+                            >
+                                <div className="flex items-center gap-1.5">
+                                    <span className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">From</span>
+                                    <input 
+                                        type="date" 
+                                        value={customFrom} 
+                                        onChange={(e) => setCustomFrom(e.target.value)}
+                                        min={istMinDateStr}
+                                        max={istTodayStr}
+                                        className="bg-transparent text-white text-xs border-none focus:ring-0 p-0 cursor-pointer [color-scheme:dark]"
+                                    />
+                                </div>
+                                <div className="w-[1px] h-4 bg-white/10 mx-1" />
+                                <div className="flex items-center gap-1.5">
+                                    <span className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">To</span>
+                                    <input 
+                                        type="date" 
+                                        value={customTo} 
+                                        onChange={(e) => setCustomTo(e.target.value)}
+                                        min={customFrom || istMinDateStr}
+                                        max={istTodayStr}
+                                        className="bg-transparent text-white text-xs border-none focus:ring-0 p-0 cursor-pointer [color-scheme:dark]"
+                                    />
+                                </div>
+                            </motion.div>
+                        )}
+                    </div>
+
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button
