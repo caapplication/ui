@@ -138,18 +138,16 @@ const ClientPasswordsTab = ({ client }) => {
 
     return (
         <div className="glass-pane rounded-lg overflow-hidden flex flex-col h-full">
-            <div className="flex justify-between items-center p-4 sm:p-4 pb-0 sm:pb-0  mb-4 gap-4">
-                <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
-    <AnimatedSearch
-        placeholder="Search passwords..."
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-    />
-</div>
+            <div className="flex justify-end items-center p-4 sm:p-4 pb-0 sm:pb-0  mb-4 gap-3">
                 <Button onClick={openNewPasswordDialog} disabled={isMutating}>
                     <Plus className="w-4 h-4 mr-2" />
                     New
                 </Button>
+                <AnimatedSearch
+                    placeholder="Search passwords..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
             </div>
 
             <div className="flex-1 overflow-auto min-h-0 min-w-0 w-full">
@@ -242,8 +240,8 @@ const ClientPasswordsTab = ({ client }) => {
                     </Table>
                 )}
                 {!isLoading && filteredPasswords.length === 0 && (
-                    <div className="text-center py-10 text-gray-500">
-                        No passwords found. Click "New" to add one.
+                    <div className="text-center py-10 text-gray-500 font-medium">
+                        {searchTerm ? `No passwords found matching "${searchTerm}"` : "No passwords found. Click \"New\" to add one."}
                     </div>
                 )}
             </div>

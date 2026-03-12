@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -22,7 +22,17 @@ const ClientTeamMembersTab = ({ client, teamMembers = [], onTeamMemberChanged })
     const [isAssigning, setIsAssigning] = useState(false);
     const [showAddDialog, setShowAddDialog] = useState(false);
     const [selectedMembers, setSelectedMembers] = useState([]);
-    const [searchTerm, setSearchTerm] = useState('');
+    const [dialogSearchTerm, setDialogSearchTerm] = useState('');
+    const [listSearchTerm, setListSearchTerm] = useState('');
+    
+    const filteredAssignedMembers = useMemo(() => {
+        if (!listSearchTerm) return assignedMembers;
+        const term = listSearchTerm.toLowerCase();
+        return assignedMembers.filter(member =>
+            (member.name || '').toLowerCase().includes(term) ||
+            (member.email || '').toLowerCase().includes(term)
+        );
+    }, [assignedMembers, listSearchTerm]);
 
     // Fetch assigned team members
     const fetchAssignedMembers = async () => {
@@ -141,80 +151,85 @@ const ClientTeamMembersTab = ({ client, teamMembers = [], onTeamMemberChanged })
                 <CardHeader>
                     <div className="flex justify-between items-center">
                         <CardTitle className="text-white">Team Members ({assignedMembers.length})</CardTitle>
-                        <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-                            <DialogTrigger asChild>
-                                <Button>
-                                    <UserPlus className="w-4 h-4 mr-2" />
-                                    Add Team Member
-                                </Button>
-                            </DialogTrigger>
-                            <DialogContent className="sm:max-w-[500px]">
-                                <DialogHeader>
-                                    <DialogTitle>Add Team Members</DialogTitle>
-                                </DialogHeader>
-
-                                <div className="space-y-4 py-4">
-                                    <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
-    <AnimatedSearch
-        placeholder="Search team members..."
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-    />
-</div>
-
-                                    <div className="max-h-[300px] overflow-y-auto space-y-2">
-                                        {availableMembers.length === 0 ? (
-                                            <p className="text-gray-400 text-center py-4">All team members are already assigned</p>
-                                        ) : (
-                                            availableMembers
-                                                .filter(member => {
-                                                    if (!searchTerm) return true;
-                                                    const term = searchTerm.toLowerCase();
-                                                    return (member.name || '').toLowerCase().includes(term) ||
-                                                        (member.email || '').toLowerCase().includes(term);
-                                                })
-                                                .map(member => (
-                                                    <div key={member.user_id || member.id} className="flex items-center space-x-2 p-3 rounded hover:bg-gray-700/30">
-                                                        <Checkbox
-                                                            id={`member-${member.user_id || member.id}`}
-                                                            checked={selectedMembers.includes(member.user_id || member.id)}
-                                                            onCheckedChange={() => handleSelectMember(member.user_id || member.id)}
-                                                        />
-                                                        <Label htmlFor={`member-${member.user_id || member.id}`} className="flex-1 cursor-pointer">
-                                                            <div className="flex items-center gap-3">
-                                                                <Avatar className="w-8 h-8">
-                                                                    <AvatarFallback className="bg-gradient-to-br from-sky-500 to-indigo-600 text-white text-xs">
-                                                                        {member.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'}
-                                                                    </AvatarFallback>
-                                                                </Avatar>
-                                                                <div>
-                                                                    <div className="font-medium">{member.name || 'Unknown'}</div>
-                                                                    <div className="text-sm text-gray-400">{member.email}</div>
-                                                                </div>
-                                                            </div>
-                                                        </Label>
-                                                    </div>
-                                                ))
-                                        )}
-                                        {availableMembers.length > 0 && availableMembers.filter(member => {
-                                            if (!searchTerm) return true;
-                                            const term = searchTerm.toLowerCase();
-                                            return (member.name || '').toLowerCase().includes(term) ||
-                                                (member.email || '').toLowerCase().includes(term);
-                                        }).length === 0 && (
-                                                <p className="text-gray-400 text-center py-4">No members found matching "{searchTerm}"</p>
-                                            )}
-                                    </div>
-                                </div>
-                                <DialogFooter>
-                                    <Button variant="ghost" onClick={() => setShowAddDialog(false)}>Cancel</Button>
-                                    <Button onClick={handleAddTeamMembers} disabled={isAssigning || selectedMembers.length === 0}>
-                                        {isAssigning ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                                        Add Selected ({selectedMembers.length})
+                        <div className="flex items-center gap-3">
+                            <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+                                <DialogTrigger asChild>
+                                    <Button>
+                                        <UserPlus className="w-4 h-4 mr-2" />
+                                        Add Team Member
                                     </Button>
-                                </DialogFooter>
-                            </DialogContent>
-                        </Dialog>
+                                </DialogTrigger>
+                                <DialogContent className="sm:max-w-[500px]">
+                                    <DialogHeader>
+                                        <DialogTitle>Add Team Members</DialogTitle>
+                                    </DialogHeader>
+    
+                                    <div className="space-y-4 py-4">
+                                        <AnimatedSearch
+                                            placeholder="Search team members..."
+                                            value={dialogSearchTerm}
+                                            onChange={(e) => setDialogSearchTerm(e.target.value)}
+                                        />
+    
+                                        <div className="max-h-[300px] overflow-y-auto space-y-2">
+                                            {availableMembers.length === 0 ? (
+                                                <p className="text-gray-400 text-center py-4">All team members are already assigned</p>
+                                            ) : (
+                                                availableMembers
+                                                    .filter(member => {
+                                                        if (!dialogSearchTerm) return true;
+                                                        const term = dialogSearchTerm.toLowerCase();
+                                                        return (member.name || '').toLowerCase().includes(term) ||
+                                                            (member.email || '').toLowerCase().includes(term);
+                                                    })
+                                                    .map(member => (
+                                                        <div key={member.user_id || member.id} className="flex items-center space-x-2 p-3 rounded hover:bg-gray-700/30">
+                                                            <Checkbox
+                                                                id={`member-${member.user_id || member.id}`}
+                                                                checked={selectedMembers.includes(member.user_id || member.id)}
+                                                                onCheckedChange={() => handleSelectMember(member.user_id || member.id)}
+                                                            />
+                                                            <Label htmlFor={`member-${member.user_id || member.id}`} className="flex-1 cursor-pointer">
+                                                                <div className="flex items-center gap-3">
+                                                                    <Avatar className="w-8 h-8">
+                                                                        <AvatarFallback className="bg-gradient-to-br from-sky-500 to-indigo-600 text-white text-xs">
+                                                                            {member.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'}
+                                                                        </AvatarFallback>
+                                                                    </Avatar>
+                                                                    <div>
+                                                                        <div className="font-medium">{member.name || 'Unknown'}</div>
+                                                                        <div className="text-sm text-gray-400">{member.email}</div>
+                                                                    </div>
+                                                                </div>
+                                                            </Label>
+                                                        </div>
+                                                    ))
+                                            )}
+                                            {availableMembers.length > 0 && availableMembers.filter(member => {
+                                                if (!dialogSearchTerm) return true;
+                                                const term = dialogSearchTerm.toLowerCase();
+                                                return (member.name || '').toLowerCase().includes(term) ||
+                                                    (member.email || '').toLowerCase().includes(term);
+                                            }).length === 0 && (
+                                                    <p className="text-gray-400 text-center py-4">No members found matching "{dialogSearchTerm}"</p>
+                                                )}
+                                        </div>
+                                    </div>
+                                    <DialogFooter>
+                                        <Button variant="ghost" onClick={() => setShowAddDialog(false)}>Cancel</Button>
+                                        <Button onClick={handleAddTeamMembers} disabled={isAssigning || selectedMembers.length === 0}>
+                                            {isAssigning ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                                            Add Selected ({selectedMembers.length})
+                                        </Button>
+                                    </DialogFooter>
+                                </DialogContent>
+                            </Dialog>
+                            <AnimatedSearch
+                                placeholder="Search My Team..."
+                                value={listSearchTerm}
+                                onChange={(e) => setListSearchTerm(e.target.value)}
+                            />
+                        </div>
                     </div>
                 </CardHeader>
                 <CardContent className="p-0">
@@ -235,37 +250,51 @@ const ClientTeamMembersTab = ({ client, teamMembers = [], onTeamMemberChanged })
                                     <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
-                            <TableBody>
-                                {assignedMembers.map(member => (
-                                    <TableRow key={member.team_member_user_id}>
-                                        <TableCell>
-                                            <div className="flex items-center gap-3">
-                                                <Avatar>
-                                                    <AvatarFallback className="bg-gradient-to-br from-sky-500 to-indigo-600 text-white">
-                                                        {member.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'}
-                                                    </AvatarFallback>
-                                                </Avatar>
-                                                <span className="font-medium whitespace-nowrap">{member.name || 'Unknown'}</span>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="whitespace-nowrap">{member.email || 'N/A'}</TableCell>
-                                        <TableCell className="whitespace-nowrap">
-                                            <span className="px-2 py-1 rounded bg-blue-500/20 text-blue-300 text-sm">
-                                                {member.role || 'Team Member'}
-                                            </span>
-                                        </TableCell>
-                                        <TableCell className="text-right whitespace-nowrap">
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="text-red-400 hover:text-red-300"
-                                                onClick={() => handleRemoveTeamMember(member.team_member_user_id)}
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </Button>
+                              <TableBody>
+                                {filteredAssignedMembers.length > 0 ? (
+                                    filteredAssignedMembers.map(member => (
+                                        <TableRow key={member.team_member_user_id}>
+                                            <TableCell>
+                                                <div className="flex items-center gap-3">
+                                                    <Avatar>
+                                                        <AvatarFallback className="bg-gradient-to-br from-sky-500 to-indigo-600 text-white">
+                                                            {member.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'}
+                                                        </AvatarFallback>
+                                                    </Avatar>
+                                                    <span className="font-medium whitespace-nowrap">{member.name || 'Unknown'}</span>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="whitespace-nowrap">{member.email || 'N/A'}</TableCell>
+                                            <TableCell className="whitespace-nowrap">
+                                                <span className="px-2 py-1 rounded bg-blue-500/20 text-blue-300 text-sm">
+                                                    {member.role || 'Team Member'}
+                                                </span>
+                                            </TableCell>
+                                            <TableCell className="text-right whitespace-nowrap">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="text-red-400 hover:text-red-300"
+                                                    onClick={() => handleRemoveTeamMember(member.team_member_user_id)}
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                ) : (
+                                    <TableRow className="hover:bg-transparent">
+                                        <TableCell colSpan={4} className="text-center py-10">
+                                            <p className="text-gray-400 font-medium">
+                                                {listSearchTerm ? (
+                                                    <>No members found matching "<span className="text-white">{listSearchTerm}</span>"</>
+                                                ) : (
+                                                    "No team members assigned."
+                                                )}
+                                            </p>
                                         </TableCell>
                                     </TableRow>
-                                ))}
+                                )}
                             </TableBody>
                         </Table>
                     )}

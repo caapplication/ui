@@ -9,7 +9,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Plus, Edit, Trash2, UserPlus, Loader2, Building2, ChevronRight } from 'lucide-react';
+import { Plus, Edit, Trash2, UserPlus, Loader2, Building2, ChevronRight, Search } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { listTeamMembers, inviteTeamMember, updateTeamMember, deleteTeamMember, resendInvite } from '@/lib/api';
@@ -257,7 +257,8 @@ const TeamMembers = () => {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {filteredTeam.map(member => {
+                                        {filteredTeam.length > 0 ? (
+                                            filteredTeam.map(member => {
                                             const memberId = String(member.id || member.user_id);
                                             const assignedClientIds = memberClientsMap[memberId] || [];
                                             const assignedClients = assignedClientIds
@@ -394,7 +395,32 @@ const TeamMembers = () => {
                                                     </TableCell>
                                                 </TableRow>
                                             )
-                                        })}
+                                        })
+                                    ) : (
+                                        <TableRow className="hover:bg-transparent">
+                                            <TableCell colSpan={6} className="text-center py-20">
+                                                <div className="flex flex-col items-center justify-center gap-2">
+                                                    <Search className="w-8 h-8 text-gray-600 mb-2" />
+                                                    <p className="text-gray-400 font-medium">
+                                                        {searchTerm ? (
+                                                            <>No members found matching "<span className="text-white">{searchTerm}</span>"</>
+                                                        ) : (
+                                                            "No team members found."
+                                                        )}
+                                                    </p>
+                                                    {searchTerm && (
+                                                        <Button 
+                                                            variant="link" 
+                                                            className="text-primary h-auto p-0"
+                                                            onClick={() => setSearchTerm('')}
+                                                        >
+                                                            Clear search
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
                                     </TableBody>
                                 </Table>
                             )}
