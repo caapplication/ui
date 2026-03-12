@@ -48,6 +48,14 @@ const toDDMMYYYY = (dateStr) => {
   } catch { return dateStr; }
 };
 
+const formatTime = (utcString) => {
+  if (!utcString) return '—';
+  try {
+    const d = new Date(utcString);
+    return format(d, 'hh:mm a');
+  } catch { return utcString; }
+};
+
 const ClientHandoverPage = ({ entityId, entityName }) => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -289,8 +297,10 @@ function BankTallyListTab({ clientId, token, toast, readOnly = false }) {
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead className="text-xs sm:text-sm">Date</TableHead>
+                <TableRow className="hover:bg-transparent border-white/10">
+                  <TableHead className="text-xs sm:text-sm text-gray-300">Date</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300">Updated By</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300">Time</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -302,10 +312,12 @@ function BankTallyListTab({ clientId, token, toast, readOnly = false }) {
                   filteredList.map((entry) => (
                     <TableRow
                       key={entry.report_date}
-                      className="cursor-pointer transition-colors hover:bg-white/5"
+                      className="cursor-pointer transition-colors hover:bg-white/5 border-white/10"
                       onClick={() => navigate('entry/' + encodeURIComponent(entry.report_date))}
                     >
-                      <TableCell className="text-xs sm:text-sm">{toDDMMYYYY(entry.report_date)}</TableCell>
+                      <TableCell className="text-xs sm:text-sm text-white">{toDDMMYYYY(entry.report_date)}</TableCell>
+                      <TableCell className="text-xs sm:text-sm text-white">{entry.updated_by_name || '—'}</TableCell>
+                      <TableCell className="text-xs sm:text-sm text-white">{formatTime(entry.updated_at)}</TableCell>
                     </TableRow>
                   ))
                 )}
@@ -662,9 +674,11 @@ function CashTallyListTab({ clientId, entityId, token, toast, readOnly = false }
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead className="text-xs sm:text-sm">Date</TableHead>
-                  <TableHead className="text-xs sm:text-sm">Closing</TableHead>
+                <TableRow className="hover:bg-transparent border-white/10">
+                  <TableHead className="text-xs sm:text-sm text-gray-300">Date</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300">Closing</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300">Updated By</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300">Time</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -676,11 +690,13 @@ function CashTallyListTab({ clientId, entityId, token, toast, readOnly = false }
                   filteredList.map((entry) => (
                     <TableRow
                       key={entry.report_date}
-                      className="cursor-pointer transition-colors hover:bg-white/5"
+                      className="cursor-pointer transition-colors hover:bg-white/5 border-white/10"
                       onClick={() => navigate('entry/' + encodeURIComponent(entry.report_date))}
                     >
-                      <TableCell className="text-xs sm:text-sm">{toDDMMYYYY(entry.report_date)}</TableCell>
-                      <TableCell className="text-xs sm:text-sm">₹ {(entry.closing_balance ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell className="text-xs sm:text-sm text-white">{toDDMMYYYY(entry.report_date)}</TableCell>
+                      <TableCell className="text-xs sm:text-sm text-white">₹ {(entry.closing_balance ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell className="text-xs sm:text-sm text-white">{entry.updated_by_name || '—'}</TableCell>
+                      <TableCell className="text-xs sm:text-sm text-white">{formatTime(entry.updated_at)}</TableCell>
                     </TableRow>
                   ))
                 )}
