@@ -1052,14 +1052,18 @@ function CashierReportListTab({ clientId, token, toast }) {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-xs sm:text-sm">Date</TableHead>
-                  <TableHead className="text-xs sm:text-sm">Remarks</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300">Date</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300">Created By</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300">Handover Total</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300">Cashier Report Total</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300">Variance</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300">Remarks</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredList.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={2} className="text-center text-gray-400 py-8 text-sm">No reports found.</TableCell>
+                    <TableCell colSpan={6} className="text-center text-gray-400 py-8 text-sm">No reports found.</TableCell>
                   </TableRow>
                 ) : (
                   paginatedList.map((report) => (
@@ -1068,8 +1072,14 @@ function CashierReportListTab({ clientId, token, toast }) {
                       className="cursor-pointer transition-colors hover:bg-white/5"
                       onClick={() => navigate('entry/' + encodeURIComponent(report.report_date))}
                     >
-                      <TableCell className="text-xs sm:text-sm">{toDDMMYYYY(report.report_date)}</TableCell>
-                      <TableCell className="text-xs sm:text-sm max-w-[200px] truncate" title={report.remarks || ''}>{report.remarks || '—'}</TableCell>
+                      <TableCell className="text-xs sm:text-sm text-white">{toDDMMYYYY(report.report_date)}</TableCell>
+                      <TableCell className="text-xs sm:text-sm text-white">{report.created_by_name || '—'}</TableCell>
+                      <TableCell className="text-xs sm:text-sm text-white">₹ {Number(report.handover_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell className="text-xs sm:text-sm text-white">₹ {Number(report.cashier_report_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell className={`text-xs sm:text-sm font-medium ${report.variance !== 0 ? 'text-amber-400' : 'text-white'}`}>
+                        ₹ {Number(report.variance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className="text-xs sm:text-sm text-white max-w-[200px] truncate" title={report.remarks || ''}>{report.remarks || '—'}</TableCell>
                     </TableRow>
                   ))
                 )}
