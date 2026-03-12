@@ -341,7 +341,18 @@ const HandoverPage = () => {
 
             <div>
               <Label className="text-gray-300">Remarks</Label>
-              {isViewOnly ? <p className="mt-2 text-sm text-white">{remarks || '—'}</p> : <Textarea className="mt-2 w-full min-h-[80px] glass-input text-white" value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="Remarks..." />}
+              {isViewOnly ? (
+                <div className="mt-2 text-sm text-white glass-input p-3 min-h-[80px] rounded-md border border-white/10 whitespace-pre-wrap">
+                  {remarks || '—'}
+                </div>
+              ) : (
+                <Textarea
+                  className="mt-2 w-full min-h-[80px] glass-input text-white"
+                  value={remarks}
+                  onChange={e => setRemarks(e.target.value)}
+                  placeholder="Remarks..."
+                />
+              )}
             </div>
           </div>
           {!isViewOnly && (
