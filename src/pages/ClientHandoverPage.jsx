@@ -27,6 +27,7 @@ import {
   saveCashTally,
   listCashDenominations,
   deleteCashierReportAttachment,
+  getCashierReportAttachment,
 } from '@/lib/api/settings';
 import { listEntityUsers } from '@/lib/api/organisation';
 import { getOrganisationBankAccounts } from '@/lib/api';
@@ -1240,7 +1241,7 @@ function CashierReportFormPage({ clientId, token, toast }) {
   const handleViewAttachment = async (url) => {
     if (!url) return;
     try {
-      const res = await getVoucherAttachment(url, token);
+      const res = await getCashierReportAttachment(clientId, url, token);
       if (res && res.url) {
         window.open(res.url, '_blank');
       }

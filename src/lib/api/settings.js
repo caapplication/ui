@@ -417,3 +417,11 @@ export const deleteCashierReportAttachment = async (clientId, reportDate, url, t
     if (response.ok || response.status === 204) return { success: true };
     return handleResponse(response);
 };
+export const getCashierReportAttachment = async (clientId, fileKey, token) => {
+    const q = new URLSearchParams({ file_key: fileKey });
+    const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/${clientId}/cashier-reports/attachments/view?${q.toString()}`, {
+        method: 'GET',
+        headers: getAuthHeaders(token),
+    });
+    return handleResponse(response);
+};
