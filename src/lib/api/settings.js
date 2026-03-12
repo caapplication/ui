@@ -407,3 +407,13 @@ export const createCashierReport = async (clientId, data, token) => {
     });
     return handleResponse(response);
 };
+
+export const deleteCashierReportAttachment = async (clientId, reportDate, url, token) => {
+    const q = new URLSearchParams({ url });
+    const response = await fetch(`${CLIENTS_API_BASE_URL}/clients/${clientId}/cashier-reports/${reportDate}/attachments?${q.toString()}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(token),
+    });
+    if (response.ok || response.status === 204) return { success: true };
+    return handleResponse(response);
+};
