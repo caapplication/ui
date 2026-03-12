@@ -615,7 +615,8 @@ const MyCompany = () => {
                         <Button variant="outline" onClick={handleCancelCrop}>
                             Cancel
                         </Button>
-                        <Button onClick={handleSaveCrop}>
+                        <Button onClick={handleSaveCrop} disabled={isSaving}>
+                            {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                             Save
                         </Button>
                     </DialogFooter>
