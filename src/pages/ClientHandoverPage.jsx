@@ -26,6 +26,8 @@ import {
   getCashTally,
   saveCashTally,
   listCashDenominations,
+  deleteCashierReportAttachment,
+  getCashierReportAttachment,
 } from '@/lib/api/settings';
 import { listEntityUsers } from '@/lib/api/organisation';
 import { getOrganisationBankAccounts } from '@/lib/api';
@@ -1096,16 +1098,37 @@ function CashierReportFormPage({ clientId, token, toast }) {
   const { reportDate: reportDateParam } = useParams();
   const today = new Date().toISOString().slice(0, 10);
   const isNew = !reportDateParam || reportDateParam === 'new';
-  const reportDate = isNew ? today : reportDateParam;
+  const [selectedDate, setSelectedDate] = useState(isNew ? today : reportDateParam);
+  const reportDate = selectedDate;
 
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [matrix, setMatrix] = useState({});
   const [remarks, setRemarks] = useState('');
-  const [attachment, setAttachment] = useState(null);
+  const [attachments, setAttachments] = useState([]);
+  const [existingAttachments, setExistingAttachments] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [readOnly, setReadOnly] = useState(false);
   const [loadingReport, setLoadingReport] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(null); // { url, name, index }
+
+  const formatIST = (utcString) => {
+    if (!utcString) return '-';
+    try {
+      const date = new Date(utcString);
+      return date.toLocaleString('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+    } catch (e) {
+      return utcString;
+    }
+  };
 
   const load = useCallback(async () => {
     if (!clientId || !token) return;
@@ -1147,11 +1170,13 @@ function CashierReportFormPage({ clientId, token, toast }) {
           });
           setMatrix(nextMatrix);
           setRemarks(r.remarks || '');
-          setAttachment(r.attachment_id || null);
+          setExistingAttachments(r.attachment_urls || []);
+          setAttachments([]);
         } else {
           setMatrix({});
           setRemarks('');
-          setAttachment(null);
+          setExistingAttachments([]);
+          setAttachments([]);
         }
         const items = summary?.items || [];
         const approved = items.length > 0 && items.every(i => i.status === 'approved');
@@ -1195,16 +1220,15 @@ function CashierReportFormPage({ clientId, token, toast }) {
     });
     setSubmitting(true);
     try {
-      if (attachment && typeof attachment !== 'string') {
-        const formData = new FormData();
-        formData.append('report_date', reportDate);
-        formData.append('remarks', remarks);
-        formData.append('details', JSON.stringify(details));
-        formData.append('attachment', attachment);
-        await createCashierReport(clientId, formData, token);
-      } else {
-        await createCashierReport(clientId, { report_date: reportDate, details, remarks }, token);
-      }
+      const formData = new FormData();
+      formData.append('report_date', reportDate);
+      formData.append('remarks', remarks);
+      formData.append('details', JSON.stringify(details));
+      formData.append('existing_attachments', JSON.stringify(existingAttachments));
+      attachments.forEach(file => {
+        formData.append('attachments', file);
+      });
+      await createCashierReport(clientId, formData, token);
       toast({ title: 'Success', description: 'Cashier report submitted.' });
       const backPath = isNew ? '..' : '../..';
       navigate(backPath, { relative: 'path' });
@@ -1214,15 +1238,28 @@ function CashierReportFormPage({ clientId, token, toast }) {
       setSubmitting(false);
     }
   };
-  const handleViewAttachment = async () => {
-    if (!attachment || typeof attachment !== 'string') return;
+  const handleViewAttachment = async (url) => {
+    if (!url) return;
     try {
-      const res = await getVoucherAttachment(attachment, token);
+      const res = await getCashierReportAttachment(clientId, url, token);
       if (res && res.url) {
         window.open(res.url, '_blank');
       }
     } catch (e) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Failed to load attachment sheet.' });
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to load attachment.' });
+    }
+  };
+
+  const handleDeleteAttachment = async () => {
+    if (!deleteConfirm || !clientId || !token) return;
+    try {
+      await deleteCashierReportAttachment(clientId, reportDate, deleteConfirm.url, token);
+      setExistingAttachments(prev => prev.filter((_, i) => i !== deleteConfirm.index));
+      toast({ title: 'Success', description: 'Attachment deleted.' });
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Error', description: e?.message || 'Delete failed.' });
+    } finally {
+      setDeleteConfirm(null);
     }
   };
 
@@ -1238,7 +1275,7 @@ function CashierReportFormPage({ clientId, token, toast }) {
             <CardDescription className="text-sm text-gray-400">Enter amounts by department and payment method for the selected date.</CardDescription>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Input type="date" className="h-9 sm:h-10 text-sm glass-input w-40 text-white" value={reportDate} readOnly />
+            <Input type="date" className="h-9 sm:h-10 text-sm glass-input w-40 text-white" value={reportDate} readOnly={!isNew} onChange={e => setSelectedDate(e.target.value)} />
             <Button onClick={handleSubmit} disabled={submitting || readOnly} className="h-9 sm:h-10 text-sm">
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Submit
             </Button>
@@ -1284,58 +1321,130 @@ function CashierReportFormPage({ clientId, token, toast }) {
               </Table>
             </div>
           )}
-          <div className="px-4 sm:px-6">
-            <Label className="text-gray-400 text-sm mb-2 block font-medium">Attachment Sheet</Label>
-            <div className="flex flex-wrap items-center gap-3">
-              <input
-                type="file"
-                id="cashier-report-attachment"
-                className="hidden"
-                accept="image/*,application/pdf,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                disabled={readOnly}
-                onChange={(e) => {
-                  if (e.target.files?.[0]) {
-                    setAttachment(e.target.files[0]);
-                  }
-                }}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-9 glass-input !w-auto !pl-3 bg-white/5 border-white/10 hover:bg-white/10 text-white rounded-full transition-all"
-                onClick={() => document.getElementById('cashier-report-attachment').click()}
-                disabled={readOnly}
-              >
-                <Paperclip className="w-4 h-4 mr-2 text-primary" />
-                {attachment ? (typeof attachment === 'string' ? `Change Attachment` : `Selected: ${attachment.name}`) : 'Add Attachment Sheet'}
-              </Button>
-
-              {attachment && typeof attachment === 'string' && (
+          <div className="flex flex-col md:flex-row items-start gap-x-12 gap-y-4 p-4 sm:p-6 pt-0">
+            <div className="w-full md:w-80 lg:w-96 space-y-2">
+              <Label className="text-gray-400 text-sm block font-medium">Remarks</Label>
+              <Input readOnly={readOnly} className={`h-9 sm:h-10 text-sm glass-input !w-full !pl-3 text-white ${readOnly ? 'cursor-default opacity-90' : ''}`} value={remarks} onChange={e => !readOnly && setRemarks(e.target.value)} placeholder="Remarks" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-gray-400 text-sm block font-medium whitespace-nowrap">Attachment Sheet</Label>
+              <div className="flex flex-wrap items-center gap-3">
+                <input
+                  type="file"
+                  id="cashier-report-attachment"
+                  className="hidden"
+                  accept="image/*,application/pdf,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                  disabled={readOnly}
+                  multiple
+                  onChange={(e) => {
+                    if (e.target.files?.length > 0) {
+                      setAttachments(prev => [...prev, ...Array.from(e.target.files)]);
+                    }
+                  }}
+                />
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-9 glass-input !w-auto !pl-3 bg-blue-500/10 border-blue-500/20 hover:bg-blue-500/20 text-blue-400 rounded-full transition-all"
-                  onClick={handleViewAttachment}
+                  className="h-9 glass-input !w-auto !pl-3 bg-white/5 border-white/10 hover:bg-white/10 text-white rounded-full transition-all whitespace-nowrap"
+                  onClick={() => document.getElementById('cashier-report-attachment').click()}
+                  disabled={readOnly}
                 >
-                  <Search className="w-4 h-4 mr-2" /> View Sheet
+                  <Paperclip className="w-4 h-4 mr-2 text-primary" />
+                  Add Attachments
                 </Button>
-              )}
-              {attachment && typeof attachment !== 'string' && (
-                <div className="flex items-center gap-1.5 px-3 py-1 bg-green-500/10 border border-green-500/20 rounded-full animate-in fade-in slide-in-from-left-2 duration-300">
-                  <Check className="w-3.5 h-3.5 text-green-400" />
-                  <span className="text-xs text-green-400 font-medium">Ready to upload</span>
-                </div>
-              )}
+
+                {attachments.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    {attachments.map((file, idx) => (
+                      <div key={`new-${idx}`} className="flex items-center gap-2 px-3 py-1 bg-green-500/10 border border-green-500/20 rounded-full">
+                        <Check className="w-3.5 h-3.5 text-green-400" />
+                        <span className="text-xs text-green-400 font-medium max-w-[120px] truncate">{file.name}</span>
+                        {!readOnly && (
+                          <Button variant="ghost" size="icon" className="h-5 w-5 hover:bg-red-500/20" onClick={() => setAttachments(prev => prev.filter((_, i) => i !== idx))}>
+                            <X className="w-3 h-3 text-red-400" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-          <div className="p-4 sm:p-6 pt-2">
-            <Label className="text-gray-400 text-sm">Remarks</Label>
-            <Input readOnly={readOnly} className={`h-9 sm:h-10 text-sm glass-input !w-full !pl-3 mt-1 text-white ${readOnly ? 'cursor-default opacity-90' : ''}`} value={remarks} onChange={e => !readOnly && setRemarks(e.target.value)} placeholder="Remarks" />
-          </div>
+
+          {(existingAttachments.length > 0 || attachments.length > 0) && (
+            <div className="px-4 sm:px-6 pb-6">
+              <div className="rounded-xl border border-white/10 overflow-hidden bg-white/5">
+                <Table>
+                  <TableHeader className="bg-white/5">
+                    <TableRow className="hover:bg-transparent border-white/10">
+                      <TableHead className="text-xs text-gray-400 h-10">Date & Time (IST)</TableHead>
+                      <TableHead className="text-xs text-gray-400 h-10">Uploaded By</TableHead>
+                      <TableHead className="text-xs text-gray-400 h-10">File Name</TableHead>
+                      <TableHead className="text-xs text-gray-400 h-10 text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {existingAttachments.map((att, idx) => (
+                      <TableRow key={`existing-${idx}`} className="border-white/10 hover:bg-white/5 transition-colors">
+                        <TableCell className="text-xs text-white py-3">{formatIST(att.uploaded_at)}</TableCell>
+                        <TableCell className="text-xs text-white py-3">{att.uploaded_by || '-'}</TableCell>
+                        <TableCell className="text-xs text-white py-3 max-w-[200px] truncate">{att.name || att.url?.split('/').pop() || 'File'}</TableCell>
+                        <TableCell className="text-right py-3">
+                          <div className="flex justify-end gap-2">
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-blue-500/10 text-blue-400" onClick={() => handleViewAttachment(att.url)}>
+                              <Search className="w-4 h-4" />
+                            </Button>
+                            {!readOnly && (
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-red-500/10 text-red-400" onClick={() => setDeleteConfirm({ url: att.url, name: att.name || 'File', index: idx })}>
+                                <X className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {attachments.map((file, idx) => (
+                      <TableRow key={`new-row-${idx}`} className="border-white/10 bg-green-500/5 hover:bg-green-500/10 transition-colors">
+                        <TableCell className="text-xs text-green-400 py-3 italic">Pending Submit</TableCell>
+                        <TableCell className="text-xs text-green-400 py-3">You</TableCell>
+                        <TableCell className="text-xs text-green-400 py-3 max-w-[200px] truncate">{file.name}</TableCell>
+                        <TableCell className="text-right py-3">
+                          {!readOnly && (
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-red-500/10 text-red-400" onClick={() => setAttachments(prev => prev.filter((_, i) => i !== idx))}>
+                              <X className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      <Dialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
+        <DialogContent className="glass-card border-white/10 text-white max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete Attachment?</DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Are you sure you want to delete <span className="text-white font-medium">{deleteConfirm?.name}</span>? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 pt-4">
+            <Button variant="ghost" onClick={() => setDeleteConfirm(null)} className="text-gray-400 hover:text-white hover:bg-white/5">
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteAttachment} className="bg-red-500 hover:bg-red-600 text-white">
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
