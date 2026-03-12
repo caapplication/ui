@@ -1168,6 +1168,7 @@ function CashierReportFormPage({ clientId, token, toast }) {
             });
           });
           setMatrix(nextMatrix);
+          setRemarks(r.remarks || '');
           setExistingAttachments(r.attachment_urls || []);
           setAttachments([]);
         } else {
