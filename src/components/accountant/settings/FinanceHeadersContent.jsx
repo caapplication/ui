@@ -11,6 +11,7 @@ import { getFinanceHeaders, createFinanceHeader, updateFinanceHeader, deleteFina
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import * as XLSX from 'xlsx';
 import AnimatedSearch from '@/components/ui/AnimatedSearch';
+import SettingsHeader from '@/components/common/SettingsHeader';
 
 const FinanceHeadersContent = () => {
     const { toast } = useToast();
@@ -118,26 +119,20 @@ const FinanceHeadersContent = () => {
     };
 
     return (
-        <div className='text-white'>
-            <div className="flex flex-col sm:flex-row justify-end gap-3 items-stretch sm:items-center mb-6 w-full">
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                    <Button onClick={handleExport} className="h-9 rounded-full bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm w-full sm:w-auto justify-center">
-                        <Download className="w-4 h-4 mr-1" />
-                        Export
-                    </Button>
-                    <Button onClick={handleOpenNew} className="h-9 rounded-full bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm w-full sm:w-auto justify-center">
-                        <Plus className="mr-2 h-4 w-4" /> New Finance Header
-                    </Button>
-                </div>
-                <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
-    <AnimatedSearch
-        placeholder="Search finance headers..."
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-    />
-</div>
-            </div>
-            <div className="glass-card p-4">
+        <div className="h-full flex flex-col">
+            <SettingsHeader title="Finance Headers">
+                <Button onClick={() => setOpenDialog(true)} className="h-9 rounded-full bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm">
+                    <Plus className="w-4 h-4 mr-1.5" />
+                    New Finance Header
+                </Button>
+                <AnimatedSearch
+                    placeholder="Search Headers..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
+            </SettingsHeader>
+
+            <div className="flex-grow glass-pane rounded-lg overflow-hidden flex flex-col min-h-0">
                 <div className="grid grid-cols-[1fr_auto] px-4 py-2 border-b border-white/10 font-bold uppercase text-sm text-gray-400">
                     <span>Name</span>
                     <span className="text-right">Actions</span>

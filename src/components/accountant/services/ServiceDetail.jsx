@@ -6,6 +6,7 @@ import { ArrowLeft, Trash2, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { deleteService as apiDeleteService, createActivityLog, getServiceDeletionStatus } from '@/lib/api';
+import SettingsHeader from '@/components/common/SettingsHeader';
 
 import RecurringTaskTab from './RecurringTaskTab';
 import AssignedClientsTab from "./AssignedClientsTab";
@@ -84,15 +85,7 @@ const ServiceDetail = ({ service, onBack, onDelete, onUpdate }) => {
 
     return (
         <div className="h-full flex flex-col">
-            <div className="flex justify-between items-center mb-6 flex-shrink-0">
-                <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="icon" onClick={onBack}>
-                        <ArrowLeft className="w-5 h-5" />
-                    </Button>
-                    <h1 className="text-2xl font-bold text-white">
-                        <span className="text-gray-400 cursor-pointer" onClick={onBack}></span>{service.name}
-                    </h1>
-                </div>
+            <SettingsHeader title={service.name} onClick={onBack}>
                 <TooltipProvider>
                     <Tooltip>
                         <TooltipTrigger asChild>
@@ -102,6 +95,7 @@ const ServiceDetail = ({ service, onBack, onDelete, onUpdate }) => {
                                         <Button 
                                             variant="destructive" 
                                             disabled={isDeleting || isLoadingDeletionStatus || !deletionStatus.can_delete}
+                                            className="h-9"
                                         >
                                             {isDeleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
                                             Delete
@@ -131,7 +125,7 @@ const ServiceDetail = ({ service, onBack, onDelete, onUpdate }) => {
                         )}
                     </Tooltip>
                 </TooltipProvider>
-            </div>
+            </SettingsHeader>
 
             <div className="flex-grow overflow-y-auto no-scrollbar pr-2 space-y-6">
                 <div className="border-b border-white/10">

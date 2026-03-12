@@ -5,6 +5,7 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { updateGeneralSettings } from '@/lib/api';
+import SettingsHeader from '@/components/common/SettingsHeader';
 
 const ClientSettingsContent = ({ initialSettings }) => {
     const { toast } = useToast();
@@ -34,6 +35,9 @@ const ClientSettingsContent = ({ initialSettings }) => {
 
     return (
         <div className="text-white space-y-6">
+            <SettingsHeader title="Client Settings">
+                <Button onClick={handleSave} className="bg-primary hover:bg-primary/90 h-9">Save</Button>
+            </SettingsHeader>
             <div className="glass-card p-6">
                 <h3 className="text-lg font-semibold mb-4">General Settings</h3>
                 <div className="flex items-center justify-between p-4 bg-black/20 rounded-lg">

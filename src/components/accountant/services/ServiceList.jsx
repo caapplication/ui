@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AnimatedSearch from '@/components/ui/AnimatedSearch';
+import SettingsHeader from '@/components/common/SettingsHeader';
 
 const ServiceRow = ({ service, onSelectService, index }) => {
     const clientCount = typeof service.assigned_clients === 'number' ? service.assigned_clients : 0;
@@ -53,37 +54,32 @@ const ServiceList = ({ services, onSelectService, onAddService }) => {
 
     return (
         <div className="h-full flex flex-col">
-            <div className="flex justify-between flex-wrap items-centermb-6 lg:mb-8">
-                <h1 className="page-title">Services</h1>
-                <div className="flex items-center gap-4">
-                      <Button onClick={onAddService} className="h-9 rounded-full bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm w-full sm:w-auto justify-center">
-                        <Plus className="w-4 h-4 mr-1.5" />
-                        Add
-                    </Button>
-                   
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
-                        <SelectTrigger className="w-40 h-9 glass-input text-sm">
-                            <div className="flex items-center gap-2">
-                                <Filter className="w-3.5 h-3.5 text-gray-400" />
-                                <SelectValue placeholder="All Statuses" />
-                            </div>
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All Statuses</SelectItem>
-                            <SelectItem value="active">Active</SelectItem>
-                            <SelectItem value="inactive">Inactive</SelectItem>
-                        </SelectContent>
-                    </Select>
-                     <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
-    <AnimatedSearch
-        placeholder="Search Services..."
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-    />
-</div>
-                  
-                </div>
-            </div>
+            <SettingsHeader title="Services">
+                <Button onClick={onAddService} className="h-9 rounded-full bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm w-full sm:w-auto justify-center">
+                    <Plus className="w-4 h-4 mr-1.5" />
+                    Add
+                </Button>
+
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-40 h-9 glass-input text-sm">
+                        <div className="flex items-center gap-2">
+                            <Filter className="w-3.5 h-3.5 text-gray-400" />
+                            <SelectValue placeholder="All Statuses" />
+                        </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Statuses</SelectItem>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="inactive">Inactive</SelectItem>
+                    </SelectContent>
+                </Select>
+
+                <AnimatedSearch
+                    placeholder="Search Services..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
+            </SettingsHeader>
 
             <div className="flex-grow glass-pane rounded-lg overflow-hidden flex flex-col min-h-0">
                 <div className="flex-grow overflow-y-auto  custom-scrollbar">

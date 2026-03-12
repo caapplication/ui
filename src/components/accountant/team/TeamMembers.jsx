@@ -9,12 +9,13 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Plus, Edit, Trash2, UserPlus, Loader2, Building2, ChevronRight } from 'lucide-react';
+import { Plus, Edit, Trash2, UserPlus, Loader2, Building2, ChevronRight, Search } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { listTeamMembers, inviteTeamMember, updateTeamMember, deleteTeamMember, resendInvite } from '@/lib/api';
 import { getAllClientTeamMembers, listClients } from '@/lib/api';
 import { AnimatePresence, motion } from 'framer-motion';
+import AnimatedSearch from '@/components/ui/AnimatedSearch';
 import TeamMemberDetail from './TeamMemberDetail';
 
 const TeamMembers = () => {
@@ -30,6 +31,7 @@ const TeamMembers = () => {
     const [clients, setClients] = useState([]);
     const [clientTeamMembers, setClientTeamMembers] = useState({});
     const [memberClientsMap, setMemberClientsMap] = useState({});
+    const [searchTerm, setSearchTerm] = useState('');
     const { toast } = useToast();
     const { user } = useAuth();
     const agencyId = user?.agency_id || localStorage.getItem('agency_id');
@@ -185,6 +187,11 @@ const TeamMembers = () => {
             toast({ title: "Error", description: `Failed to update status: ${error.message}`, variant: "destructive" });
         }
     };
+ 
+    const filteredTeam = team.filter(member => 
+        (member.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) || 
+        (member.email?.toLowerCase() || '').includes(searchTerm.toLowerCase())
+    );
 
     return (
         <div className="p-8 h-full flex flex-col">
@@ -214,9 +221,23 @@ const TeamMembers = () => {
                         transition={{ duration: 0.3, ease: 'easeInOut' }}
                         className="h-full flex flex-col"
                     >
-                        <div className="flex justify-between items-centermb-6 lg:mb-8">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 lg:mb-8">
                             <h1 className="page-title">Team Members</h1>
-                            <Button className="h-9 rounded-full bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm w-full sm:w-auto justify-center" onClick={handleInvite}><UserPlus className="w-4 h-4 mr-2" /> Invite User</Button>
+                            <div className="flex items-center gap-3">
+                                <Button 
+                                    className="h-9 rounded-full bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm w-full sm:w-auto justify-center" 
+                                    onClick={handleInvite}
+                                >
+                                    <UserPlus className="w-4 h-4 mr-2" /> 
+                                    Invite User
+                                </Button>
+                                <AnimatedSearch
+                                    placeholder="Search by name or email..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    expandedWidth="sm:w-[300px]"
+                                />
+                            </div>
                         </div>
                         <div className="glass-pane rounded-lg flex-grow overflow-auto">
                             {loading ? (
@@ -236,7 +257,8 @@ const TeamMembers = () => {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {team.map(member => {
+                                        {filteredTeam.length > 0 ? (
+                                            filteredTeam.map(member => {
                                             const memberId = String(member.id || member.user_id);
                                             const assignedClientIds = memberClientsMap[memberId] || [];
                                             const assignedClients = assignedClientIds
@@ -373,7 +395,32 @@ const TeamMembers = () => {
                                                     </TableCell>
                                                 </TableRow>
                                             )
-                                        })}
+                                        })
+                                    ) : (
+                                        <TableRow className="hover:bg-transparent">
+                                            <TableCell colSpan={6} className="text-center py-20">
+                                                <div className="flex flex-col items-center justify-center gap-2">
+                                                    <Search className="w-8 h-8 text-gray-600 mb-2" />
+                                                    <p className="text-gray-400 font-medium">
+                                                        {searchTerm ? (
+                                                            <>No members found matching "<span className="text-white">{searchTerm}</span>"</>
+                                                        ) : (
+                                                            "No team members found."
+                                                        )}
+                                                    </p>
+                                                    {searchTerm && (
+                                                        <Button 
+                                                            variant="link" 
+                                                            className="text-primary h-auto p-0"
+                                                            onClick={() => setSearchTerm('')}
+                                                        >
+                                                            Clear search
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
                                     </TableBody>
                                 </Table>
                             )}

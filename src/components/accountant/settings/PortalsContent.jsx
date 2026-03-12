@@ -25,6 +25,7 @@ import { Plus, Search, Trash2, Loader2, ExternalLink } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import AnimatedSearch from '@/components/ui/AnimatedSearch';
 import { getPortals, createPortal, deletePortal } from '@/lib/api/settings';
+import SettingsHeader from '@/components/common/SettingsHeader';
 
 const PortalsContent = () => {
     const { toast } = useToast();
@@ -90,17 +91,20 @@ const PortalsContent = () => {
     const filteredPortals = portals.filter(portal => portal.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
     return (
-        <div className='text-white'>
-            <div className="flex justify-end gap-4 items-center mb-6">
-                <Button onClick={() => setOpenNewPortal(true)} className="h-9 rounded-full bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm w-full sm:w-auto justify-center">
-                    <Plus className="mr-2 h-4 w-4" /> New Portal
+        <div className="h-full flex flex-col">
+            <SettingsHeader title="Portals">
+                <Button onClick={() => setOpenDialog(true)} className="h-9 rounded-full bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm">
+                    <Plus className="w-4 h-4 mr-1.5" />
+                    New Portal
                 </Button>
-                <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
-                    <AnimatedSearch placeholder="Search portals..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-                </div>
+                <AnimatedSearch
+                    placeholder="Search Portals..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
+            </SettingsHeader>
 
-            </div>
-            <div className="glass-card p-4 rounded-lg">
+            <div className="flex-grow glass-pane rounded-lg overflow-hidden flex flex-col min-h-0">
                 <div className="grid grid-cols-[1fr,1fr,auto] gap-4 px-4 py-2 border-b border-white/10 font-bold uppercase text-sm text-gray-400">
                     <span>Portal Name</span>
                     <span>URL</span>

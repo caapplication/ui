@@ -226,15 +226,8 @@ const ClientUsersTab = ({ client, onUserInvited, onUserDeleted }) => {
 
     return (
         <div className="glass-pane rounded-lg overflow-hidden flex flex-col h-full">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-4 gap-4 p-4 sm:p-6 flex-wrap">
-                <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
-    <AnimatedSearch
-        placeholder="Search users..."
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-    />
-</div>
-                <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row justify-end items-start sm:items-center pb-4 gap-4 p-4 sm:p-6 flex-wrap">
+                <div className="flex gap-2 items-center flex-wrap justify-end w-full sm:w-auto">
                     <Button variant="outline" onClick={handleOpenAddExisting}>
                         <UserPlus className="w-4 h-4 mr-2" />
                         Add Existing
@@ -280,6 +273,11 @@ const ClientUsersTab = ({ client, onUserInvited, onUserDeleted }) => {
                             </div>
                         </PopoverContent>
                     </Popover>
+                    <AnimatedSearch
+                        placeholder="Search users..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
                 </div>
             </div>
 
@@ -370,13 +368,27 @@ const ClientUsersTab = ({ client, onUserInvited, onUserDeleted }) => {
                                     </TableRow>
                                 ))
                             ) : (
-                                <TableRow>
-                                    <TableCell colSpan="5" className="text-center py-8">
-                                        {searchTerm.trim() ? (
-                                            <span className="text-gray-400">No users found matching "{searchTerm}"</span>
-                                        ) : (
-                                            <span className="text-gray-400">No users found for this entity.</span>
-                                        )}
+                                <TableRow className="hover:bg-transparent">
+                                    <TableCell colSpan={5} className="text-center py-20">
+                                        <div className="flex flex-col items-center justify-center gap-2">
+                                            <Search className="w-8 h-8 text-gray-600 mb-2" />
+                                            <p className="text-gray-400 font-medium">
+                                                {searchTerm.trim() ? (
+                                                    <>No users found matching "<span className="text-white">{searchTerm}</span>"</>
+                                                ) : (
+                                                    "No users found for this entity."
+                                                )}
+                                            </p>
+                                            {searchTerm.trim() && (
+                                                <Button 
+                                                    variant="link" 
+                                                    className="text-primary h-auto p-0"
+                                                    onClick={() => setSearchTerm('')}
+                                                >
+                                                    Clear search
+                                                </Button>
+                                            )}
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                             )}

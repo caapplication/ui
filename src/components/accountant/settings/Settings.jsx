@@ -124,23 +124,6 @@ const SettingsPageWrapper = ({ item, settingsData }) => {
             className="p-4 sm:p-6 lg:p-8"
         >
             <div className="">
-               
-               <div className="flex items-center gap-3 mb-6 pb-4">
-
-  <Button
-    variant="ghost"
-    size="icon"
-    onClick={() => navigate('/settings')}
-    className="text-white hover:bg-white/10"
-  >
-    <ArrowLeft className="h-5 w-5" />
-  </Button>
-
-  <h1 className="text-3xl font-bold text-white tracking-tight">
-    {item.name}
-  </h1>
-
-</div>
                 <ContentComponent {...contentProps[item.path]} />
             </div>
         </motion.div>
