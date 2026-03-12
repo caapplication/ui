@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/ui/use-toast';
 import { listHandovers, createHandover, updateHandover } from '@/lib/api/settings';
@@ -203,7 +204,7 @@ const HandoverPage = () => {
                   </TableCell>
                   <TableCell>
                     <span className={`inline-flex px-2 py-0.5 rounded text-sm ${row.status === 'approved' ? 'bg-green-500/20 text-green-400' :
-                        row.status === 'rejected' ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'
+                      row.status === 'rejected' ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'
                       }`}>
                       {row.status === 'pending' ? 'Pending' : row.status === 'approved' ? 'Approved' : 'Rejected'}
                     </span>
@@ -340,7 +341,7 @@ const HandoverPage = () => {
 
             <div>
               <Label className="text-gray-300">Remarks</Label>
-              {isViewOnly ? <p className="mt-2 text-sm text-white">{remarks || '—'}</p> : <textarea className="mt-2 w-full min-h-[80px] glass-input rounded-md p-2" value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="Remarks..." />}
+              {isViewOnly ? <p className="mt-2 text-sm text-white">{remarks || '—'}</p> : <Textarea className="mt-2 w-full min-h-[80px] glass-input text-white" value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="Remarks..." />}
             </div>
           </div>
           {!isViewOnly && (
