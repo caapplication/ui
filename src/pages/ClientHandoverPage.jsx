@@ -1811,7 +1811,7 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
           </div>
           <DialogFooter>
             <DialogClose asChild><Button variant="ghost" className="h-9 sm:h-10 text-sm text-white">Cancel</Button></DialogClose>
-            <Button onClick={handleApprove} disabled={actioning} className="h-9 sm:h-10 text-sm text-green-400">{actioning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Approve</Button>
+            <Button onClick={handleApprove} disabled={actioning} className="h-9 sm:h-10 text-sm text-white">{actioning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Approve</Button>
             <Button variant="destructive" onClick={handleReject} disabled={actioning || !actionRemark.trim()} className="h-9 sm:h-10 text-sm">{actioning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Reject</Button>
           </DialogFooter>
         </DialogContent>
