@@ -240,37 +240,37 @@ const ClientMyCompany = ({ readOnly = false }) => {
                 <div className="lg:col-span-1">
                     <Card className="glass-card">
                         <CardContent className="pt-6 flex flex-col items-center text-center">
-                            <div className="mb-4 relative">
+                            <div className="mb-4">
                                 <Avatar className="w-32 h-32 text-4xl border-4 border-white/20">
                                     <AvatarImage src={photoPreview || existingPhotoUrl} key={photoPreview || existingPhotoUrl} />
                                     <AvatarFallback className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white">
                                         {companyData.name ? companyData.name.charAt(0).toUpperCase() : 'C'}
                                     </AvatarFallback>
                                 </Avatar>
+                            </div>
 
-                                {!readOnly && (
-                                    <div className="absolute -bottom-2 -right-2 flex gap-2">
+                            {!readOnly && (
+                                <div className="flex gap-2 mb-4">
+                                    <Button
+                                        size="icon"
+                                        className="rounded-full w-10 h-10 bg-white/20 text-white hover:bg-white/30 backdrop-blur-sm border border-white/30"
+                                        onClick={() => fileInputRef.current?.click()}
+                                        type="button"
+                                    >
+                                        <Camera className="w-5 h-5" />
+                                    </Button>
+                                    {(photoPreview || existingPhotoUrl) && (
                                         <Button
                                             size="icon"
-                                            className="rounded-full w-10 h-10 bg-white/20 text-white hover:bg-white/30 backdrop-blur-sm border border-white/30"
-                                            onClick={() => fileInputRef.current?.click()}
+                                            className="rounded-full w-10 h-10 bg-red-500/20 text-white hover:bg-red-500/30 backdrop-blur-sm border border-red-500/30"
+                                            onClick={handleRemovePhoto}
                                             type="button"
                                         >
-                                            <Camera className="w-5 h-5" />
+                                            <Trash2 className="w-5 h-5" />
                                         </Button>
-                                        {(photoPreview || existingPhotoUrl) && (
-                                            <Button
-                                                size="icon"
-                                                className="rounded-full w-10 h-10 bg-red-500/20 text-white hover:bg-red-500/30 backdrop-blur-sm border border-red-500/30"
-                                                onClick={handleRemovePhoto}
-                                                type="button"
-                                            >
-                                                <Trash2 className="w-5 h-5" />
-                                            </Button>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
+                                    )}
+                                </div>
+                            )}
 
                             <input
                                 type="file"
@@ -453,11 +453,11 @@ const ClientMyCompany = ({ readOnly = false }) => {
 
             {/* Image Crop Dialog */}
             <Dialog open={showCropDialog} onOpenChange={setShowCropDialog}>
-                <DialogContent className="max-w-xl">
+                <DialogContent className="max-w-2xl">
                     <DialogHeader>
                         <DialogTitle>Crop Company Logo</DialogTitle>
                     </DialogHeader>
-                    <div className="relative w-full h-80 bg-black rounded-lg overflow-hidden">
+                    <div className="relative w-full h-96 bg-black rounded-lg overflow-hidden">
                         {imageToCrop && (
                             <Cropper
                                 image={imageToCrop}
@@ -469,13 +469,33 @@ const ClientMyCompany = ({ readOnly = false }) => {
                                 onCropChange={setCrop}
                                 onZoomChange={setZoom}
                                 onCropComplete={onCropComplete}
+                                restrictPosition={false}
                             />
                         )}
                     </div>
-                    <div className="flex justify-end gap-2 mt-4">
-                        <Button variant="ghost" onClick={() => setShowCropDialog(false)}>Cancel</Button>
-                        <Button onClick={handleCropComplete}>Save Photo</Button>
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <Label>Zoom</Label>
+                            <input
+                                type="range"
+                                min="0.1"
+                                max="3"
+                                step="0.1"
+                                value={zoom}
+                                onChange={(e) => setZoom(parseFloat(e.target.value))}
+                                className="w-full"
+                            />
+                        </div>
                     </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowCropDialog(false)}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleCropComplete} disabled={isSaving}>
+                            {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                            Save
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
         </motion.div>
