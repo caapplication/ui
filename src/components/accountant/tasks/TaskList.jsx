@@ -225,24 +225,29 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
         const filtered = tasks.filter(task => {
             // Handle status filter - check both stage name and status
             let statusMatch = true;
-            if (statusFilter !== 'all') {
-                // Get task's stage name if available
-                let taskStageName = null;
-                if (task.stage_id && stages.length > 0) {
-                    const stage = stages.find(s => {
-                        const stageIdStr = String(s.id);
-                        const taskStageIdStr = String(task.stage_id);
-                        return stageIdStr === taskStageIdStr;
-                    });
-                    if (stage) {
-                        taskStageName = stage.name?.toLowerCase();
-                    }
-                } else if (task.stage?.name) {
-                    taskStageName = task.stage.name.toLowerCase();
+            let taskStageName = null;
+            if (task.stage_id && stages.length > 0) {
+                const stage = stages.find(s => {
+                    const stageIdStr = String(s.id);
+                    const taskStageIdStr = String(task.stage_id);
+                    return stageIdStr === taskStageIdStr;
+                });
+                if (stage) {
+                    taskStageName = stage.name?.toLowerCase();
                 }
+            } else if (task.stage?.name) {
+                taskStageName = task.stage.name.toLowerCase();
+            }
 
-                // Also check task.status for backward compatibility
-                const taskStatus = task.status?.toLowerCase() || '';
+            // Also check task.status for backward compatibility
+            const taskStatus = task.status?.toLowerCase() || '';
+
+            // Filter out pending status tasks from the list
+            if (taskStageName === 'pending' || (!taskStageName && taskStatus === 'pending')) {
+                return false;
+            }
+
+            if (statusFilter !== 'all') {
                 const filterLower = statusFilter.toLowerCase();
 
                 // Match if stage name or status matches the filter
