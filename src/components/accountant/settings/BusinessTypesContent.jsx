@@ -10,6 +10,7 @@ import { useAuth } from '@/hooks/useAuth.jsx';
 import { getBusinessTypes, createBusinessType, updateBusinessType, deleteBusinessType } from '@/lib/api';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import AnimatedSearch from '@/components/ui/AnimatedSearch';
+import SettingsHeader from '@/components/common/SettingsHeader';
 
 const BusinessTypesContent = () => {
     const { toast } = useToast();
@@ -88,17 +89,22 @@ const BusinessTypesContent = () => {
     const filteredTypes = businessTypes.filter(type => type.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
     return (
-        <div className='text-white'>
-            <div className="flex justify-end items-center mb-6 flex-wrap gap-2">
-
-                <Button onClick={handleOpenNew} className="h-9 rounded-full bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm w-full sm:w-auto justify-center">
-                    <Plus className="mr-2 h-4 w-4" /> New Business Type
+        <div className="h-full flex flex-col">
+            <SettingsHeader title="Business Types">
+                <Button onClick={() => setOpenDialog(true)} className="h-9 rounded-full bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm">
+                    <Plus className="w-4 h-4 mr-1.5" />
+                    New Business Type
                 </Button>
                 <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
-                    <AnimatedSearch placeholder="Search business types..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                    <AnimatedSearch
+                        placeholder="Search Business Types..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
                 </div>
-            </div>
-            <div className="glass-card p-4">
+            </SettingsHeader>
+
+            <div className="flex-grow glass-pane rounded-lg overflow-hidden flex flex-col min-h-0">
                 <div className="grid grid-cols-[1fr_auto] px-4 py-2 border-b border-white/10 font-bold uppercase text-sm text-gray-400">
                     <span>Name</span>
                     <span className="text-right">Actions</span>
