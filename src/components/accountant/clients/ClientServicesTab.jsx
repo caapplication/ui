@@ -28,6 +28,7 @@ const ClientServicesTab = ({ client, allServices, onUpdateClient }) => {
     const { toast } = useToast();
     const { user } = useAuth();
     const [searchTerm, setSearchTerm] = useState('');
+    const [availedSearchTerm, setAvailedSearchTerm] = useState('');
 
     const getInitialAvailedIds = useCallback(() => new Set((client.availedServices || []).map(s => s.service_id)), [client.availedServices]);
 
@@ -130,8 +131,11 @@ const ClientServicesTab = ({ client, allServices, onUpdateClient }) => {
     }, [allServices, availedServiceIds, searchTerm]);
 
     const currentAvailed = useMemo(() => {
-        return allServices.filter(s => availedServiceIds.has(s.id));
-    }, [allServices, availedServiceIds]);
+        return allServices.filter(s => 
+            availedServiceIds.has(s.id) &&
+            s.name.toLowerCase().includes(availedSearchTerm.toLowerCase())
+        );
+    }, [allServices, availedServiceIds, availedSearchTerm]);
 
     const hasChanges = useMemo(() => {
         if (availedServiceIds.size !== initialAvailedServiceIds.size) return true;
@@ -146,14 +150,16 @@ const ClientServicesTab = ({ client, allServices, onUpdateClient }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Available Services */}
                 <div className="glass-pane p-4 rounded-lg flex flex-col">
-                    <h3 className="text-lg font-semibold mb-4 px-2">Available Services</h3>
-                    <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
-    <AnimatedSearch
-        placeholder="Search available..."
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-    />
-</div>
+                    <div className="flex justify-between items-center mb-4 px-2">
+                        <h3 className="text-lg font-semibold">Available Services</h3>
+                        <div className="relative w-full sm:w-auto">
+                            <AnimatedSearch
+                                placeholder="Search available..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                    </div>
                     <div className="space-y-2 flex-grow overflow-y-auto max-h-[400px] p-2">
                         <AnimatePresence>
                             {filteredAvailable.map(service => (
@@ -166,8 +172,17 @@ const ClientServicesTab = ({ client, allServices, onUpdateClient }) => {
 
                 {/* Availed Services */}
                 <div className="glass-pane p-4 rounded-lg flex flex-col">
-                    <h3 className="text-lg font-semibold mb-4 px-2">Availed Services</h3>
-                    <div className="space-y-2 flex-grow overflow-y-auto max-h-[468px] p-2">
+                    <div className="flex justify-between items-center mb-4 px-2">
+                        <h3 className="text-lg font-semibold">Availed Services</h3>
+                        <div className="relative w-full sm:w-auto">
+                            <AnimatedSearch
+                                placeholder="Search availed..."
+                                value={availedSearchTerm}
+                                onChange={(e) => setAvailedSearchTerm(e.target.value)}
+                            />
+                        </div>
+                    </div>
+                    <div className="space-y-2 flex-grow overflow-y-auto max-h-[400px] p-2">
                         <AnimatePresence>
                             {currentAvailed.map(service => (
                                 <ServiceItem key={service.id} service={service} onToggle={handleToggleService} isAvailed={true} />
