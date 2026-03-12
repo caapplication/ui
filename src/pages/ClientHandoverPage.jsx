@@ -401,7 +401,8 @@ function BankTallyFormPage({ clientId, token, toast, readOnly = false }) {
       }));
       await saveBankTally(clientId, { report_date: reportDate, items }, token);
       toast({ title: 'Saved', description: 'Bank tally saved.' });
-      navigate('..', { relative: 'path' });
+      const backPath = isNew ? '..' : '../..';
+      navigate(backPath, { relative: 'path' });
     } catch (e) {
       toast({ variant: 'destructive', title: 'Error', description: e?.message || 'Save failed.' });
     } finally {
@@ -426,7 +427,7 @@ function BankTallyFormPage({ clientId, token, toast, readOnly = false }) {
 
   return (
     <div className="space-y-4">
-      <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white -ml-2" onClick={() => navigate('..', { relative: 'path' })}>
+      <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white -ml-2" onClick={() => navigate(isNew ? '..' : '../..', { relative: 'path' })}>
         <ArrowLeft className="mr-2 h-4 w-4" /> Back to list
       </Button>
       <Card className="glass-card border-white/5 overflow-hidden">
@@ -773,7 +774,8 @@ function CashTallyFormPage({ clientId, entityId, token, toast, readOnly = false 
       };
       await saveCashTally(clientId, payload, token);
       toast({ title: 'Saved', description: 'Cash tally saved.' });
-      navigate('..', { relative: 'path' });
+      const backPath = isNew ? '..' : '../..';
+      navigate(backPath, { relative: 'path' });
     } catch (e) {
       toast({ variant: 'destructive', title: 'Error', description: e?.message || 'Save failed.' });
     } finally {
@@ -783,7 +785,7 @@ function CashTallyFormPage({ clientId, entityId, token, toast, readOnly = false 
 
   return (
     <div className="space-y-4">
-      <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white -ml-2" onClick={() => navigate('..', { relative: 'path' })}>
+      <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white -ml-2" onClick={() => navigate(isNew ? '..' : '../..', { relative: 'path' })}>
         <ArrowLeft className="mr-2 h-4 w-4" /> Back to list
       </Button>
       <Card className="glass-card border-white/5">
@@ -1204,7 +1206,8 @@ function CashierReportFormPage({ clientId, token, toast }) {
         await createCashierReport(clientId, { report_date: reportDate, details, remarks }, token);
       }
       toast({ title: 'Success', description: 'Cashier report submitted.' });
-      navigate('..', { relative: 'path' });
+      const backPath = isNew ? '..' : '../..';
+      navigate(backPath, { relative: 'path' });
     } catch (e) {
       toast({ variant: 'destructive', title: 'Error', description: e?.message || 'Submit failed.' });
     } finally {
@@ -1225,7 +1228,7 @@ function CashierReportFormPage({ clientId, token, toast }) {
 
   return (
     <div className="space-y-4">
-      <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white -ml-2" onClick={() => navigate('..', { relative: 'path' })}>
+      <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white -ml-2" onClick={() => navigate(isNew ? '..' : '../..', { relative: 'path' })}>
         <ArrowLeft className="mr-2 h-4 w-4" /> Back to list
       </Button>
       <Card className="glass-card border-white/5">
