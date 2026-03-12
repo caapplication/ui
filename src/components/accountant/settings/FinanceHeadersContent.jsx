@@ -125,13 +125,11 @@ const FinanceHeadersContent = () => {
                     <Plus className="w-4 h-4 mr-1.5" />
                     New Finance Header
                 </Button>
-                <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
-                    <AnimatedSearch
-                        placeholder="Search Headers..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </div>
+                <AnimatedSearch
+                    placeholder="Search Headers..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
             </SettingsHeader>
 
             <div className="flex-grow glass-pane rounded-lg overflow-hidden flex flex-col min-h-0">
