@@ -30,7 +30,7 @@ import {
   DialogTrigger
 } from '@/components/ui/dialog';
 import { useAuth } from '@/hooks/useAuth.jsx';
-import { listAgencies, createAgency, deleteAgency } from '@/lib/api/admin';
+import { listAgencies, createAgency, deleteAgency, toggleAgencyModule } from '@/lib/api/admin';
 import { useToast } from '@/components/ui/use-toast';
 import AnimatedSearch from '@/components/ui/AnimatedSearch';
 
@@ -82,7 +82,15 @@ const AgencyManagement = () => {
     e.preventDefault();
     try {
       setActionLoading(true);
-      await createAgency(newAgency, user.access_token);
+      const res = await createAgency(newAgency, user.access_token);
+      
+      try {
+        // Auto-subscribe to 'Core Basic & Tasks'
+        await toggleAgencyModule(res.id, { module_id: 'e40632a0-48e0-4c31-893c-cfdd72605aa8' }, user.access_token);
+      } catch (modErr) {
+        console.error("Failed to auto-assign basic module:", modErr);
+      }
+
       toast({
         title: "Success",
         description: `Agency "${newAgency.name}" created and invite sent.`,
