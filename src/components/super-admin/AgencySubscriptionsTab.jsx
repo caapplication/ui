@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useToast } from '@/components/ui/use-toast';
-import { getAgencyBillingDetails, getAdminModules, toggleAgencyModule } from '@/lib/api/admin';
+import { getAgencyBillingDetails, getAdminModules, toggleAgencyModule, getAgencySubscriptions } from '@/lib/api/admin';
 import { Loader2, PackageX, PackageCheck, Power } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 
@@ -16,6 +16,7 @@ const AgencySubscriptionsTab = ({ agencyId }) => {
   const [loading, setLoading] = useState(true);
   const [billingDetails, setBillingDetails] = useState(null);
   const [modules, setModules] = useState([]);
+  const [agencyLevelSubs, setAgencyLevelSubs] = useState([]);
   
   const [toggleLoading, setToggleLoading] = useState(false);
   const [actionModule, setActionModule] = useState(null);
@@ -23,12 +24,14 @@ const AgencySubscriptionsTab = ({ agencyId }) => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [billingRes, modulesRes] = await Promise.all([
+      const [billingRes, modulesRes, subsRes] = await Promise.all([
         getAgencyBillingDetails(agencyId, user.access_token),
-        getAdminModules(user.access_token)
+        getAdminModules(user.access_token),
+        getAgencySubscriptions(agencyId, user.access_token)
       ]);
       setBillingDetails(billingRes);
       setModules(modulesRes);
+      setAgencyLevelSubs(subsRes.filter(s => s.entity_id === null && s.status === 'active'));
     } catch (err) {
       toast({ title: 'Error', description: 'Failed to load subscription details.', variant: 'destructive' });
     } finally {
@@ -49,6 +52,19 @@ const AgencySubscriptionsTab = ({ agencyId }) => {
       const res = await toggleAgencyModule(agencyId, { module_id: actionModule.moduleId, entity_id: actionModule.entityId }, user.access_token);
       toast({ title: 'Status Updated', description: res.message });
       setActionModule(null);
+      fetchData();
+    } catch (err) {
+      toast({ title: 'Toggle Failed', description: err.message, variant: 'destructive' });
+    } finally {
+      setToggleLoading(false);
+    }
+  };
+
+  const handleAgencyToggle = async (moduleId, isActive) => {
+    try {
+      setToggleLoading(true);
+      const res = await toggleAgencyModule(agencyId, { module_id: moduleId }, user.access_token);
+      toast({ title: 'Status Updated', description: res.message });
       fetchData();
     } catch (err) {
       toast({ title: 'Toggle Failed', description: err.message, variant: 'destructive' });
@@ -105,6 +121,37 @@ const AgencySubscriptionsTab = ({ agencyId }) => {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="glass-card mb-6">
+        <CardHeader>
+          <CardTitle className="text-white text-lg">Agency-Level Access</CardTitle>
+          <CardDescription className="text-gray-400">Manage base structural modules directly applied to this agency (independent of clients).</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {modules.map(m => {
+             const isActive = agencyLevelSubs.some(sub => sub.module_id === m.id);
+             return (
+               <div key={m.id} className="flex items-center justify-between p-3 rounded-lg border border-white/5 bg-white/5">
+                 <div>
+                   <h4 className="text-white font-medium flex items-center gap-2">
+                     {m.name}
+                     {m.is_default_free && <Badge variant="outline" className="text-[10px] uppercase text-green-400 border-green-400/30">Free Default</Badge>}
+                   </h4>
+                   <p className="text-sm text-gray-400">{m.description}</p>
+                 </div>
+                 <Button 
+                   variant={isActive ? "destructive" : "default"}
+                   className={isActive ? "bg-red-500/20 text-red-500 hover:bg-red-500/30 border border-red-500/50" : "bg-primary text-primary-foreground"}
+                   disabled={toggleLoading}
+                   onClick={() => handleAgencyToggle(m.id, isActive)}
+                 >
+                   {isActive ? "Turn Off" : "Turn On"}
+                 </Button>
+               </div>
+             )
+          })}
+        </CardContent>
+      </Card>
 
       <Card className="glass-card">
         <CardHeader>

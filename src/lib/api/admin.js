@@ -152,6 +152,13 @@ export const getAgencyBillingDetails = async (agencyId, token) => {
   return handleResponse(response);
 };
 
+export const getAgencySubscriptions = async (agencyId, token) => {
+  const response = await fetch(`${FINANCE_API_BASE_URL}/api/admin/subscriptions?agency_id=${agencyId}`, {
+    headers: getAuthHeaders(token)
+  });
+  return handleResponse(response);
+};
+
 export const toggleAgencyModule = async (agencyId, params, token) => {
   const searchParams = new URLSearchParams();
   searchParams.append('module_id', params.module_id);
