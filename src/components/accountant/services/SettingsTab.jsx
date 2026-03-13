@@ -9,8 +9,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Info, Briefcase, FileText, Settings as SettingsIcon, Bell, IndianRupee, Percent, FilePlus, Calendar as CalendarIcon, Loader2 } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
+import { DatePicker } from '@/components/ui/date-picker';
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useAuth } from '@/hooks/useAuth.jsx';
@@ -193,7 +192,7 @@ const SettingsTab = ({ service, onUpdate }) => {
                                         <Label htmlFor="frequency">Auto Task Creation Frequency <span className="text-red-500">*</span></Label>
                                         <Select name="frequency" defaultValue={service?.auto_task_creation_frequency}>
                                             <SelectTrigger id="frequency" className="glass-input mt-2"><SelectValue placeholder="Select..." /></SelectTrigger>
-                                            <SelectContent>
+                                            <SelectContent className="bg-[#0b0c0e] border-white/10 text-white rounded-2xl">
                                                 <SelectItem value="monthly">Monthly</SelectItem>
                                                 <SelectItem value="quarterly">Quarterly</SelectItem>
                                                 <SelectItem value="half_yearly">Half-Yearly</SelectItem>
@@ -203,28 +202,10 @@ const SettingsTab = ({ service, onUpdate }) => {
                                     </div>
                                     <div>
                                         <Label>Target Date</Label>
-                                        <Popover>
-                                            <PopoverTrigger asChild>
-                                                <Button
-                                                    variant={"outline"}
-                                                    className={cn(
-                                                        "w-full justify-start text-left font-normal glass-input mt-2",
-                                                        !targetDate && "text-muted-foreground"
-                                                    )}
-                                                >
-                                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                                    {targetDate ? format(targetDate, "PPP") : <span>Pick a date</span>}
-                                                </Button>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-auto p-0 glass-pane">
-                                                <Calendar
-                                                    mode="single"
-                                                    selected={targetDate}
-                                                    onSelect={setTargetDate}
-                                                    initialFocus
-                                                />
-                                            </PopoverContent>
-                                        </Popover>
+                                        <DatePicker
+                                            value={targetDate}
+                                            onChange={setTargetDate}
+                                        />
                                     </div>
                                     <div className="col-span-2 flex items-center gap-3 p-3 rounded-lg bg-black/20">
                                         <Switch id="assignToClients" name="assignToClients" defaultChecked={service?.assign_auto_tasks_to_users_of_respective_clients}/>
@@ -248,7 +229,7 @@ const SettingsTab = ({ service, onUpdate }) => {
                                 <Percent className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                 <Select name="gst" defaultValue={service?.billing_gst_percent?.toString()}>
                                     <SelectTrigger id="gst" className="glass-input pl-10"><SelectValue placeholder="Select GST" /></SelectTrigger>
-                                    <SelectContent>
+                                    <SelectContent className="bg-[#0b0c0e] border-white/10 text-white rounded-2xl">
                                         <SelectItem value="0">0%</SelectItem>
                                         <SelectItem value="5">5%</SelectItem>
                                         <SelectItem value="12">12%</SelectItem>

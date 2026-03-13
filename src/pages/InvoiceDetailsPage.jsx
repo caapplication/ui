@@ -1563,7 +1563,7 @@ const InvoiceDetailsPage = () => {
             </Dialog>
 
             <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
-                <DialogContent className="bg-slate-900 border-white/10 text-white">
+                <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Reject Invoice</DialogTitle>
                         <DialogDescription className="text-gray-400">
@@ -1598,7 +1598,7 @@ const InvoiceDetailsPage = () => {
             {/* Completion Modal */}
             <Dialog open={showCompletionModal} onOpenChange={setShowCompletionModal}>
                 <DialogContent
-                    className="bg-slate-900 border-white/10 text-white sm:max-w-[425px] [&>button]:hidden"
+                    className="sm:max-w-[425px] [&>button]:hidden"
                     onInteractOutside={(e) => e.preventDefault()}
                 >
                     <div className="flex flex-col items-center justify-center py-6 text-center">

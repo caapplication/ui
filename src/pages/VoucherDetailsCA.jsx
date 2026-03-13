@@ -1726,7 +1726,7 @@ const VoucherDetailsCA = () => {
 
             <Dialog open={showCompletionModal} onOpenChange={setShowCompletionModal}>
                 <DialogContent
-                    className="[&>button]:hidden text-white border-white/10 bg-[#0f172a] sm:max-w-[425px]"
+                    className="[&>button]:hidden sm:max-w-[425px]"
                     onInteractOutside={(e) => {
                         e.preventDefault();
                     }}

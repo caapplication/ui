@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { format } from 'date-fns';
+import { format, subDays, isAfter, isBefore, startOfToday } from 'date-fns';
 import { Calendar as CalendarIcon, X, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,9 @@ import {
 export function DateRangePicker({ dateRange, onChange, className, placeholder = "Pick a date" }) {
     const [open, setOpen] = useState(false);
     const [tempRange, setTempRange] = useState(dateRange);
+
+    const today = startOfToday();
+    const minDate = subDays(today, 365);
 
     // Sync with prop when popover opens
     useEffect(() => {
@@ -58,15 +61,18 @@ export function DateRangePicker({ dateRange, onChange, className, placeholder = 
                         )}
                     </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 glass-card border-white/10 shadow-2xl" align="end">
+                <PopoverContent className="w-auto p-0 overflow-hidden" align="end">
                     <div className="p-1">
                         <Calendar
                             initialFocus
                             mode="range"
-                            defaultMonth={tempRange?.from}
+                            defaultMonth={tempRange?.from || today}
                             selected={tempRange}
                             onSelect={setTempRange}
                             numberOfMonths={2}
+                            disabled={(date) => isAfter(date, today) || isBefore(date, minDate)}
+                            fromYear={minDate.getFullYear()}
+                            toYear={today.getFullYear()}
                             className="bg-transparent text-white"
                         />
                     </div>

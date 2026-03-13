@@ -41,7 +41,6 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import {
     listTeamMembers,
@@ -56,6 +55,7 @@ import {
     getNoticeDashboardAnalytics
 } from '@/lib/api';
 import { format, startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, subMonths, startOfYear, differenceInDays, isAfter } from 'date-fns';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
 import AnimatedSearch from '@/components/ui/AnimatedSearch';
 
 
@@ -508,6 +508,31 @@ const TodayProgressExpanded = () => {
                         <Download className="w-4 h-4 mr-2" />
                         Export
                     </Button>
+                    <Select value={timeFrame} onValueChange={(val) => {
+                        setTimeFrame(val);
+                        setCurrentPage(1);
+                    }}>
+                        <SelectTrigger className="glass-input max-w-[160px]">
+                            <CalendarIcon className="w-3.5 h-3.5 mr-2 opacity-50" />
+                            <SelectValue placeholder="Time Frame" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {TIME_FRAME_PRESETS.map(preset => (
+                                <SelectItem key={preset.value} value={preset.value} className="text-xs">
+                                    {preset.label}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    {timeFrame === 'custom' && (
+                        <DateRangePicker 
+                            dateRange={{ from: customStartDate, to: customEndDate }}
+                            onChange={(range) => {
+                                setCustomStartDate(range?.from);
+                                setCustomEndDate(range?.to);
+                            }}
+                        />
+                    )}
                     <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
     <AnimatedSearch
         placeholder="Search..."

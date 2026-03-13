@@ -287,9 +287,9 @@ const HeaderExpensesDetail = ({ entityId }) => {
                             <SelectTrigger className="glass-input max-w-[140px]">
                                 <SelectValue placeholder="Time frame" />
                             </SelectTrigger>
-                            <SelectContent className="bg-[#1a1a2e] border-white/10 text-white rounded-xl">
+                            <SelectContent>
                                 {TIME_FRAME_PRESETS.map(preset => (
-                                    <SelectItem key={preset.value} value={preset.value} className="hover:bg-white/10 focus:bg-white/10 cursor-pointer rounded-lg">
+                                    <SelectItem key={preset.value} value={preset.value}>
                                         {preset.label}
                                     </SelectItem>
                                 ))}
@@ -323,7 +323,7 @@ const HeaderExpensesDetail = ({ entityId }) => {
                                             <span className="truncate text-xs sm:text-sm">{customStartDate ? format(customStartDate, "dd MMM yy") : "Start"}</span>
                                         </Button>
                                     </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0 bg-[#1a1a2e] border-white/10 shadow-2xl" align="start">
+                                    <PopoverContent className="w-auto p-0 bg-[#0b0c0e] border border-white/10 shadow-2xl rounded-2xl overflow-hidden" align="start">
                                         <Calendar
                                             mode="single"
                                             selected={customStartDate}
@@ -349,6 +349,7 @@ const HeaderExpensesDetail = ({ entityId }) => {
                                                 return isAfter(date, new Date());
                                             }}
                                             initialFocus
+                                            className="bg-transparent text-white"
                                         />
                                     </PopoverContent>
                                 </Popover>
@@ -366,7 +367,7 @@ const HeaderExpensesDetail = ({ entityId }) => {
                                             <span className="truncate text-xs sm:text-sm">{customEndDate ? format(customEndDate, "dd MMM yy") : "End"}</span>
                                         </Button>
                                     </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0 bg-[#1a1a2e] border-white/10 shadow-2xl" align="start">
+                                    <PopoverContent className="w-auto p-0 bg-[#0b0c0e] border border-white/10 shadow-2xl rounded-2xl overflow-hidden" align="start">
                                         <Calendar
                                             mode="single"
                                             selected={customEndDate}
@@ -391,6 +392,7 @@ const HeaderExpensesDetail = ({ entityId }) => {
                                                 return isAfter(date, new Date());
                                             }}
                                             initialFocus
+                                            className="bg-transparent text-white"
                                         />
                                     </PopoverContent>
                                 </Popover>

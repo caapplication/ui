@@ -22,7 +22,7 @@ import { DateRangePicker } from '@/components/ui/date-range-picker';
 
 const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onViewInvoice, onRefresh, isAccountantView }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [datePreset, setDatePreset] = useState('all_time');
+  const [datePreset, setDatePreset] = useState('last_30_days');
   const [dateRange, setDateRange] = useState({ from: null, to: null });
   // ...
   const handleViewAttachment = (invoice) => {
@@ -242,50 +242,36 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onViewInvoic
     History
   </button>
 </div>
-          <div className="flex flex-col sm:flex-row lg:items-center  gap-4">
-
-
-            <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-              <div className="flex-1 min-w-[160px] sm:flex-none">
-                <Select value={datePreset} onValueChange={setDatePreset}>
-                  <SelectTrigger className="w-full glass-input sm:w-[160px] h-11 rounded-full  text-white focus:ring-primary/20 px-4">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-gray-400" />
-                      <SelectValue placeholder="All Time" />
-                    </div>
-                  </SelectTrigger>
-                  <SelectContent className=" bg-gray-900 border-white/10 text-white rounded-2xl">
-                    <SelectItem value="all_time">All Time</SelectItem>
-                    <SelectItem value="today">Today</SelectItem>
-                    <SelectItem value="yesterday">Yesterday</SelectItem>
-                    <SelectItem value="last_7_days">Last 7 Days</SelectItem>
-                    <SelectItem value="last_30_days">Last 30 Days</SelectItem>
-                    <SelectItem value="this_month">This Month</SelectItem>
-                    <SelectItem value="last_month">Last Month</SelectItem>
-                    <SelectItem value="last_3_months">Last 3 Months</SelectItem>
-                    <SelectItem value="custom">Custom</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* <div className="relative flex-1 min-w-[200px] lg:max-w-xs">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                <Input
-                  placeholder="Search by Beneficiary, ID..."
-                  className="pl-11 h-11 rounded-full bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:ring-primary/20 w-full px-4"
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                />
-              </div> */}
-
-              {datePreset === 'custom' && (
-                <DateRangePicker
-                  dateRange={dateRange}
-                  onChange={setDateRange}
-                  className="w-full sm:w-auto mt-2 lg:mt-0"
-                />
-              )}
+          <div className="flex items-center gap-3 w-full lg:w-auto lg:justify-end">
+            <div className=" w-full ">
+              <Select value={datePreset} onValueChange={setDatePreset}>
+                <SelectTrigger className="w-full glass-input h-11 rounded-full text-white focus:ring-primary/20 px-4">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-gray-400" />
+                    <SelectValue placeholder="All Time" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="yesterday">Yesterday</SelectItem>
+                  <SelectItem value="last_7_days">Last 7 Days</SelectItem>
+                  <SelectItem value="last_30_days">Last 30 Days</SelectItem>
+                  <SelectItem value="this_month">This Month</SelectItem>
+                  <SelectItem value="last_month">Last Month</SelectItem>
+                  <SelectItem value="last_3_months">Last 3 Months</SelectItem>
+                  <SelectItem value="custom">Custom</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
+
+            {datePreset === 'custom' && (
+              <DateRangePicker
+                dateRange={dateRange}
+                onChange={setDateRange}
+                className="w-full sm:w-auto"
+              />
+            )}
+
             <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
               <AnimatedSearch
                 placeholder="Beneficiary, Remarks, Bill No..."

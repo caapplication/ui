@@ -11,11 +11,28 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 
-export function DatePicker({ value, onChange, ...props }) {
-  const [date, setDate] = useState(value ? new Date(value) : null);
-  const [inputValue, setInputValue] = useState(value ? format(new Date(value), 'dd/MM/yyyy') : '');
-  const [popoverOpen, setPopoverOpen] = useState(false);
-  const inputRef = React.useRef(null);
+import { subDays, isAfter, isBefore, startOfToday } from 'date-fns';
+
+export function DatePicker({ value, onChange, disabled: customDisabled, ...props }) {
+    const [date, setDate] = useState(value ? new Date(value) : null);
+    const [inputValue, setInputValue] = useState(value ? format(new Date(value), 'dd/MM/yyyy') : '');
+    const [popoverOpen, setPopoverOpen] = useState(false);
+    const inputRef = React.useRef(null);
+
+    const today = startOfToday();
+    const minDate = subDays(today, 365);
+
+    const isDateDisabled = (date) => {
+        // First check if it's outside the global 365-day range
+        const isOutsideRange = isAfter(date, today) || isBefore(date, minDate);
+        if (isOutsideRange) return true;
+
+        // Then check custom disabled logic if provided
+        if (typeof customDisabled === 'function') {
+            return customDisabled(date);
+        }
+        return !!customDisabled;
+    };
 
   useEffect(() => {
     setDate(value ? new Date(value) : null);
@@ -24,7 +41,6 @@ export function DatePicker({ value, onChange, ...props }) {
 
   useEffect(() => {
     if (popoverOpen && inputRef.current) {
-      // slight timeout to ensure popover rendering doesn't steal focus last minute
       setTimeout(() => {
         inputRef.current.focus();
       }, 0);
@@ -33,25 +49,17 @@ export function DatePicker({ value, onChange, ...props }) {
 
   const handleInputChange = (e) => {
     let newVal = e.target.value;
-
-    // Whitelist: allow only digits, /, -, .
-    if (!/^[0-9/\-.]*$/.test(newVal)) {
-      return; // Reject invalid characters
-    }
+    if (!/^[0-9/\-.]*$/.test(newVal)) return;
 
     setInputValue(newVal);
 
-    // Try multiple formats
     const formats = ['dd/MM/yyyy', 'ddMMyyyy', 'dd-MM-yyyy', 'dd.MM.yyyy'];
     let parsedDate = null;
 
     for (const fmt of formats) {
       const d = parse(newVal, fmt, new Date());
-      // build-in isNaN check for Date
       if (!isNaN(d) && d.getFullYear() > 1900 && d.getFullYear() < 2100) {
-        // Additional check for ddMMyyyy to ensure full length (avoid matching '101202' as valid date loosely)
         if (fmt === 'ddMMyyyy' && newVal.length !== 8) continue;
-
         parsedDate = d;
         break;
       }
@@ -59,9 +67,7 @@ export function DatePicker({ value, onChange, ...props }) {
 
     if (parsedDate) {
       setDate(parsedDate);
-      if (onChange) {
-        onChange(parsedDate);
-      }
+      if (onChange) onChange(parsedDate);
     }
   };
 
@@ -69,9 +75,7 @@ export function DatePicker({ value, onChange, ...props }) {
     setDate(selectedDate);
     setInputValue(format(selectedDate, 'dd/MM/yyyy'));
     setPopoverOpen(false);
-    if (onChange) {
-      onChange(selectedDate);
-    }
+    if (onChange) onChange(selectedDate);
   };
 
   return (
@@ -84,17 +88,19 @@ export function DatePicker({ value, onChange, ...props }) {
             placeholder="DD/MM/YYYY"
             value={inputValue}
             onChange={handleInputChange}
-            className="pr-10"
+            className="pr-10 h-11 rounded-full bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:ring-primary/20"
           />
-          <CalendarIcon className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <CalendarIcon className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
         </div>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
+      <PopoverContent className="w-auto p-0 overflow-hidden" onOpenAutoFocus={(e) => e.preventDefault()}>
         <Calendar
           mode="single"
           selected={date}
           onSelect={handleDateSelect}
+          disabled={isDateDisabled}
           {...props}
+          className="bg-transparent text-white"
         />
       </PopoverContent>
     </Popover>

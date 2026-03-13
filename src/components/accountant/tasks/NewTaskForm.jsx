@@ -6,8 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Calendar as CalendarIcon, Loader2, Plus, Trash2, X } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { format } from 'date-fns';
@@ -615,15 +614,11 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
             {!formData.is_recurring && (
               <div>
                 <Label htmlFor="due_date" className="mb-2">Due Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !formData.due_date && "text-muted-foreground")}>
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {formData.due_date ? format(formData.due_date, "PPP") : <span>Pick a date</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={formData.due_date} onSelect={(d) => handleDateChange('due_date', d)} disabled={(date) => date < new Date().setHours(0, 0, 0, 0)} initialFocus /></PopoverContent>
-                </Popover>
+                <DatePicker
+                  value={formData.due_date}
+                  onChange={(d) => handleDateChange('due_date', d)}
+                  disabled={(date) => date < new Date().setHours(0, 0, 0, 0)}
+                />
               </div>
             )}
 

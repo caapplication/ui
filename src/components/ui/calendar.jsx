@@ -16,38 +16,35 @@ function Calendar({
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
-      className={cn("p-3", className)}
+      className={cn("p-4 bg-[#0b0c0e] rounded-2xl", className)}
       classNames={{
-        months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
+        months: "flex flex-col sm:flex-row space-y-4 sm:space-x-8 sm:space-y-0",
         month: "space-y-4",
-        caption: "flex justify-between pt-1 relative items-center",
-        caption_label: "text-sm font-medium hidden",
+        caption: "flex justify-between pt-1 relative items-center mb-4",
+        caption_label: "text-sm font-semibold text-white",
         caption_dropdowns: "flex justify-center gap-2",
         nav: "flex items-center",
         nav_button: cn(
-          buttonVariants({ variant: "outline" }),
-          "h-8 w-8 bg-transparent p-0 opacity-50 hover:opacity-100"
+          buttonVariants({ variant: "ghost" }),
+          "h-8 w-8 bg-white/5 p-0 text-white hover:bg-white/10 hover:text-white transition-colors border border-white/10"
         ),
-        nav_button_previous: "mr-2",
-        nav_button_next: "ml-2",
-        nav_container: "flex items-center gap-2",
+        nav_button_previous: "",
+        nav_button_next: "",
+        nav_container: "flex items-center gap-1",
         table: "w-full border-collapse space-y-1",
-        head_row: "flex",
-        head_cell:
-          "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]",
-        row: "flex w-full mt-2",
-        cell: "h-9 w-9 text-center text-sm p-0 relative [&:has([aria-selected])]:bg-primary/10 first:[&:has([aria-selected])]:rounded-l-full last:[&:has([aria-selected])]:rounded-r-full [&:has([aria-selected].day-range-end)]:rounded-r-full [&:has([aria-selected].day-range-start)]:rounded-l-full focus-within:relative focus-within:z-20",
+        head_row: "flex mb-2",
+        head_cell: "text-gray-500 rounded-md w-10 font-medium text-[0.8rem] uppercase tracking-wider",
+        row: "flex w-full mt-1",
+        cell: "h-10 w-10 text-center text-sm p-0 relative [&:has([aria-selected])]:bg-primary/10 first:[&:has([aria-selected])]:rounded-l-full last:[&:has([aria-selected])]:rounded-r-full [&:has([aria-selected].day-range-end)]:rounded-r-full [&:has([aria-selected].day-range-start)]:rounded-l-full focus-within:relative focus-within:z-20",
         day: cn(
           buttonVariants({ variant: "ghost" }),
-          "h-9 w-9 p-0 font-normal aria-selected:opacity-100"
+          "h-10 w-10 p-0 font-normal text-white hover:bg-white/10 transition-all rounded-full"
         ),
-        day_selected:
-          "bg-primary !text-white hover:bg-primary hover:text-white focus:bg-primary focus:text-white rounded-full",
-        day_today: "bg-accent text-accent-foreground",
-        day_outside: "text-muted-foreground opacity-50",
-        day_disabled: "text-muted-foreground opacity-50",
-        day_range_middle:
-          "aria-selected:bg-transparent aria-selected:!text-primary font-medium !rounded-none",
+        day_selected: "bg-primary !text-white hover:bg-primary hover:text-white focus:bg-primary focus:text-white rounded-full font-semibold shadow-lg shadow-primary/20",
+        day_today: "bg-white/10 text-white border border-white/20",
+        day_outside: "text-gray-600 opacity-50",
+        day_disabled: "text-gray-700 opacity-30 cursor-not-allowed",
+        day_range_middle: "aria-selected:bg-primary/20 aria-selected:!text-white font-medium !rounded-none",
         day_hidden: "invisible",
         ...classNames,
       }}
@@ -57,17 +54,14 @@ function Calendar({
         Caption: ({ displayMonth, ...props }) => {
           const { fromYear, toYear } = useDayPicker();
           const { goToMonth, nextMonth, previousMonth } = useNavigation();
+          
+          const currentYear = displayMonth.getFullYear();
+          const startYear = fromYear || currentYear - 10;
+          const endYear = toYear || currentYear + 10;
+
           return (
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center w-full px-1">
               <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                className="h-8 w-8 p-0"
-                onClick={() => previousMonth && goToMonth(previousMonth)}
-                disabled={!previousMonth}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
                 <Select
                   onValueChange={(value) => {
                     const newMonth = new Date(displayMonth);
@@ -76,12 +70,12 @@ function Calendar({
                   }}
                   value={displayMonth.getMonth().toString()}
                 >
-                  <SelectTrigger className="w-[120px] pr-1.5 focus:ring-0">
+                  <SelectTrigger className="h-8 w-auto min-w-[100px] border-white/10 bg-white/5 text-white hover:bg-white/10 transition-colors focus:ring-0 rounded-lg px-3">
                     <SelectValue>{format(displayMonth, "MMMM")}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {Array.from({ length: 12 }, (_, i) => (
-                      <SelectItem key={i} value={i.toString()}>
+                      <SelectItem key={i} value={i.toString()} className="focus:bg-primary/20 focus:text-white cursor-pointer">
                         {format(new Date(displayMonth.getFullYear(), i, 1), "MMMM")}
                       </SelectItem>
                     ))}
@@ -95,26 +89,36 @@ function Calendar({
                   }}
                   value={displayMonth.getFullYear().toString()}
                 >
-                  <SelectTrigger className="w-[100px] pr-1.5 focus:ring-0">
+                  <SelectTrigger className="h-8 w-auto min-w-[80px] border-white/10 bg-white/5 text-white hover:bg-white/10 transition-colors focus:ring-0 rounded-lg px-3">
                     <SelectValue>{displayMonth.getFullYear()}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    {Array.from({ length: toYear - fromYear + 1 }, (_, i) => (
-                      <SelectItem key={fromYear + i} value={(fromYear + i).toString()}>
-                        {fromYear + i}
+                    {Array.from({ length: endYear - startYear + 1 }, (_, i) => (
+                      <SelectItem key={startYear + i} value={(startYear + i).toString()} className="focus:bg-primary/20 focus:text-white cursor-pointer">
+                        {startYear + i}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-              <Button
-                variant="outline"
-                className="h-8 w-8 p-0"
-                onClick={() => nextMonth && goToMonth(nextMonth)}
-                disabled={!nextMonth}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  className="h-8 w-8 p-0 text-white hover:bg-white/10 border border-white/10 bg-white/5"
+                  onClick={() => previousMonth && goToMonth(previousMonth)}
+                  disabled={!previousMonth}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="h-8 w-8 p-0 text-white hover:bg-white/10 border border-white/10 bg-white/5"
+                  onClick={() => nextMonth && goToMonth(nextMonth)}
+                  disabled={!nextMonth}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           );
         },

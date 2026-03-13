@@ -8,7 +8,7 @@ const Command = React.forwardRef(({ className, ...props }, ref) => (
   <CommandPrimitive
     ref={ref}
     className={cn(
-      "flex h-full w-full flex-col overflow-hidden rounded-md bg-popover text-popover-foreground",
+      "flex h-full w-full flex-col overflow-hidden rounded-xl border border-white/10 bg-[#0b0c0e] text-white shadow-2xl",
       className
     )}
     {...props}
@@ -29,7 +29,7 @@ const CommandDialog = ({ children, ...props }) => {
 };
 
 const CommandInput = React.forwardRef(({ className, ...props }, ref) => (
-  <div className="flex items-center border-b px-3" cmdk-input-wrapper="">
+  <div className="flex items-center border-b border-white/10 px-3" cmdk-input-wrapper="">
     <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
     <CommandPrimitive.Input
       ref={ref}
@@ -61,7 +61,7 @@ const CommandGroup = React.forwardRef(({ className, ...props }, ref) => (
   <CommandPrimitive.Group
     ref={ref}
     className={cn(
-      "overflow-hidden p-1 text-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground",
+      "overflow-hidden p-1 text-white [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-gray-400",
       className
     )}
     {...props}
@@ -78,7 +78,7 @@ const CommandItem = React.forwardRef(({ className, ...props }, ref) => (
   <CommandPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none aria-selected:bg-accent aria-selected:text-accent-foreground data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50",
+      "relative flex cursor-pointer select-none items-center rounded-lg px-2 py-1.5 text-sm text-white outline-none aria-selected:bg-white/10 aria-selected:text-white data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 transition-colors",
       className
     )}
     {...props}

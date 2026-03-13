@@ -226,15 +226,15 @@ const FinanceHeadersExpanded = ({ entityId }) => {
                                 <CalendarIcon className="w-3.5 h-3.5 mr-2 opacity-50" />
                                 <SelectValue placeholder="Time Frame" />
                             </SelectTrigger>
-                            <SelectContent className="bg-slate-900 border-white/10 text-white rounded-xl">
-                                <SelectItem value="today" className="text-xs cursor-pointer">Today</SelectItem>
-                                <SelectItem value="yesterday" className="text-xs cursor-pointer">Yesterday</SelectItem>
-                                <SelectItem value="last_7_days" className="text-xs cursor-pointer">Last 7 Days</SelectItem>
-                                <SelectItem value="last_30_days" className="text-xs cursor-pointer">Last 30 Days</SelectItem>
-                                <SelectItem value="this_month" className="text-xs cursor-pointer">This Month</SelectItem>
-                                <SelectItem value="last_month" className="text-xs cursor-pointer">Last Month</SelectItem>
-                                <SelectItem value="last_3_months" className="text-xs cursor-pointer">Last 3 Months</SelectItem>
-                                <SelectItem value="custom" className="text-xs cursor-pointer">Custom Range</SelectItem>
+                            <SelectContent>
+                                <SelectItem value="today" className="text-xs">Today</SelectItem>
+                                <SelectItem value="yesterday" className="text-xs">Yesterday</SelectItem>
+                                <SelectItem value="last_7_days" className="text-xs">Last 7 Days</SelectItem>
+                                <SelectItem value="last_30_days" className="text-xs">Last 30 Days</SelectItem>
+                                <SelectItem value="this_month" className="text-xs">This Month</SelectItem>
+                                <SelectItem value="last_month" className="text-xs">Last Month</SelectItem>
+                                <SelectItem value="last_3_months" className="text-xs">Last 3 Months</SelectItem>
+                                <SelectItem value="custom" className="text-xs">Custom Range</SelectItem>
                             </SelectContent>
                         </Select>
 
@@ -253,7 +253,7 @@ const FinanceHeadersExpanded = ({ entityId }) => {
                                             <span className="truncate text-[10px]">{customStartDate ? format(customStartDate, "dd MMM yy") : "Start"}</span>
                                         </Button>
                                     </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0 bg-slate-900 border-white/10" align="start">
+                                    <PopoverContent className="w-auto p-0 overflow-hidden" align="start">
                                         <Calendar
                                             mode="single"
                                             selected={customStartDate}
@@ -263,7 +263,7 @@ const FinanceHeadersExpanded = ({ entityId }) => {
                                             }}
                                             disabled={(date) => isAfter(date, new Date()) || (customEndDate && isAfter(date, customEndDate))}
                                             initialFocus
-                                            className="bg-slate-900 text-white"
+                                            className="bg-transparent text-white"
                                         />
                                     </PopoverContent>
                                 </Popover>
@@ -283,7 +283,7 @@ const FinanceHeadersExpanded = ({ entityId }) => {
                                             <span className="truncate text-[10px]">{customEndDate ? format(customEndDate, "dd MMM yy") : "End"}</span>
                                         </Button>
                                     </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0 bg-slate-900 border-white/10" align="start">
+                                    <PopoverContent className="w-auto p-0 overflow-hidden" align="start">
                                         <Calendar
                                             mode="single"
                                             selected={customEndDate}
@@ -304,7 +304,7 @@ const FinanceHeadersExpanded = ({ entityId }) => {
                                             }}
                                             disabled={(date) => isAfter(date, new Date()) || (customStartDate && isAfter(customStartDate, date))}
                                             initialFocus
-                                            className="bg-slate-900 text-white"
+                                            className="bg-transparent text-white"
                                         />
                                     </PopoverContent>
                                 </Popover>

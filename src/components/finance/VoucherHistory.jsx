@@ -64,7 +64,7 @@ import { DateRangePicker } from '@/components/ui/date-range-picker';
 const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVoucher, isAccountantView, onRefresh }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [typeFilter, setTypeFilter] = useState('all');
-    const [datePreset, setDatePreset] = useState('all_time');
+    const [datePreset, setDatePreset] = useState('last_30_days');
     const [dateRange, setDateRange] = useState({ from: null, to: null });
     const [voucherToDelete, setVoucherToDelete] = useState(null);
     const [activePage, setActivePage] = useState(1);
@@ -237,13 +237,13 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
   </button>
 </div>
 
-                        <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+                        <div className="flex flex-wrap items-center justify-end gap-3 w-full lg:w-auto">
                             <div className="flex-1 min-w-[140px] sm:flex-none">
                                 <Select value={typeFilter} onValueChange={setTypeFilter}>
                                     <SelectTrigger className="w-full sm:w-[140px] glass-input">
                                         <SelectValue placeholder="All Types" />
                                     </SelectTrigger>
-                                    <SelectContent className="bg-gray-900 border-white/10 text-white rounded-2xl">
+                                    <SelectContent>
                                         <SelectItem value="all">All Types</SelectItem>
                                         <SelectItem value="debit">Debit</SelectItem>
                                         <SelectItem value="cash">Cash</SelectItem>
@@ -252,14 +252,13 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                             </div>
 
                             <Select value={datePreset} onValueChange={setDatePreset}>
-                                <SelectTrigger className="w-full sm:w-[160px] h-11 rounded-full glass-input px-4">
+                                <SelectTrigger className="w-full sm:w-[190px] h-11 rounded-full glass-input px-4">
                                     <div className="flex items-center gap-2">
                                         <Calendar className="w-4 h-4 text-gray-400" />
                                         <SelectValue placeholder="All Time" />
                                     </div>
                                 </SelectTrigger>
-                                <SelectContent className="bg-gray-900 border-white/10 text-white rounded-2xl">
-                                    <SelectItem value="all_time">All Time</SelectItem>
+                                <SelectContent>
                                     <SelectItem value="today">Today</SelectItem>
                                     <SelectItem value="yesterday">Yesterday</SelectItem>
                                     <SelectItem value="last_7_days">Last 7 Days</SelectItem>
@@ -270,6 +269,13 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                                     <SelectItem value="custom">Custom</SelectItem>
                                 </SelectContent>
                             </Select>
+                            {datePreset === 'custom' && (
+                                <DateRangePicker
+                                    dateRange={dateRange}
+                                    onChange={setDateRange}
+                                    className="w-full sm:w-auto"
+                                />
+                            )}
                             <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
                                 <AnimatedSearch
                                     value={searchTerm}
@@ -277,14 +283,6 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                                     placeholder="Search Here"
                                 />
                             </div>
-
-                            {datePreset === 'custom' && (
-                                <DateRangePicker
-                                    dateRange={dateRange}
-                                    onChange={setDateRange}
-                                    className="w-full sm:w-auto mt-2 lg:mt-0"
-                                />
-                            )}
                         </div>
                     </div>
                 </div>

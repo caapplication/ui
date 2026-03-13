@@ -10,6 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Combobox } from '@/components/ui/combobox';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -2329,7 +2330,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                         )}
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-[200px] p-0">
+                    <PopoverContent className="w-[200px] p-0 bg-[#0b0c0e] border-white/10 shadow-2xl rounded-2xl overflow-hidden">
                       <Command>
                         <CommandInput placeholder="Search client..." />
                         <CommandList>
@@ -2637,36 +2638,16 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                     <Label htmlFor="renewal-expiry-date" className="text-right">
                       Expiry Date <span className="text-red-500">*</span>
                     </Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant={"outline"}
-                          className="col-span-3 justify-start text-left font-normal"
-                          disabled={renewalWithoutExpiryDate}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {renewalExpiryDate ? format(renewalExpiryDate, "PPP") : <span>Pick a date</span>}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <Calendar
-                          mode="single"
-                          selected={renewalExpiryDate}
-                          onSelect={(date) => {
-                            setRenewalExpiryDate(date);
-                            if (date) {
-                              setRenewalWithoutExpiryDate(false);
-                            }
-                          }}
-                          disabled={(date) => date < new Date().setHours(0, 0, 0, 0)}
-                          fromDate={new Date()}
-                          fromYear={new Date().getFullYear()}
-                          toYear={new Date().getFullYear() + 10}
-                          captionLayout="dropdown-buttons"
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <DatePicker
+                      value={renewalExpiryDate}
+                      onChange={(date) => {
+                        setRenewalExpiryDate(date);
+                        if (date) {
+                          setRenewalWithoutExpiryDate(false);
+                        }
+                      }}
+                      disabled={(date) => date < new Date().setHours(0, 0, 0, 0)}
+                    />
                   </div>
                 </div>
                 <DialogFooter>
@@ -2767,36 +2748,16 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                     <Label htmlFor="expiry-date" className="text-right">
                       Expiry Date <span className="text-red-500">*</span>
                     </Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant={"outline"}
-                          className="col-span-3 justify-start text-left font-normal"
-                          disabled={withoutExpiryDate}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {shareExpiryDate ? format(shareExpiryDate, "PPP") : <span>Pick a date</span>}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <Calendar
-                          mode="single"
-                          selected={shareExpiryDate}
-                          onSelect={(date) => {
-                            setShareExpiryDate(date);
-                            if (date) {
-                              setWithoutExpiryDate(false);
-                            }
-                          }}
-                          disabled={(date) => date < new Date().setHours(0, 0, 0, 0)}
-                          fromDate={new Date()}
-                          fromYear={new Date().getFullYear()}
-                          toYear={new Date().getFullYear() + 10}
-                          captionLayout="dropdown-buttons"
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <DatePicker
+                      value={shareExpiryDate}
+                      onChange={(date) => {
+                        setShareExpiryDate(date);
+                        if (date) {
+                          setWithoutExpiryDate(false);
+                        }
+                      }}
+                      disabled={(date) => date < new Date().setHours(0, 0, 0, 0)}
+                    />
                   </div>
                 </div>
                 <DialogFooter>
@@ -3221,7 +3182,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
 
       {/* Templates Dialog */}
       <Dialog open={showTemplates} onOpenChange={setShowTemplates}>
-        <DialogContent className="sm:max-w-[800px] bg-gray-900 border-gray-800 text-white">
+        <DialogContent className="sm:max-w-[800px] bg-[#0b0c0e] border-white/10 text-white shadow-2xl rounded-2xl overflow-hidden">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl">
               <LayoutTemplate className="w-6 h-6 text-blue-400" />

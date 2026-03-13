@@ -42,6 +42,7 @@ import { Calendar as CalendarPicker } from '@/components/ui/calendar';
 import { useCurrentOrganization } from '@/hooks/useCurrentOrganization';
 import { cn } from '@/lib/utils';
 import AnimatedSearch from '@/components/ui/AnimatedSearch';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
 import {
     format,
     differenceInDays,
@@ -463,9 +464,9 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
                                 <CalendarIcon className="w-3.5 h-3.5 mr-2 opacity-50" />
                                 <SelectValue placeholder="Time Frame" />
                             </SelectTrigger>
-                            <SelectContent className="bg-[#1a1a2e] border-white/10 text-white rounded-xl">
+                            <SelectContent>
                                 {TIME_FRAME_PRESETS.map(preset => (
-                                    <SelectItem key={preset.key} value={preset.key} className="hover:bg-white/10 focus:bg-white/10 cursor-pointer rounded-lg text-xs">
+                                    <SelectItem key={preset.key} value={preset.key} className="text-xs">
                                         {preset.label}
                                     </SelectItem>
                                 ))}
@@ -481,81 +482,14 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
                     </div>
 
                     {timeFrame === 'custom' && (
-                        <div className="flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
-                            <div className="flex items-center gap-1.5">
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            variant={"outline"}
-                                            className={cn(
-                                                "w-[110px] h-9 gap-2 justify-start text-left font-normal bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl px-3",
-                                                !customStartDate && "text-muted-foreground"
-                                            )}
-                                        >
-                                            <CalendarIcon className="h-3.5 w-3.5 text-blue-400 shrink-0" />
-                                            <span className="truncate text-[10px]">{customStartDate ? format(customStartDate, "dd MMM yy") : "Start"}</span>
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0 bg-[#1a1a2e] border-white/10 shadow-2xl" align="end">
-                                        <CalendarPicker
-                                            mode="single"
-                                            selected={customStartDate}
-                                            onSelect={(date) => {
-                                                setCustomStartDate(date);
-                                                if (date && customEndDate) {
-                                                    const days = differenceInDays(customEndDate, date);
-                                                    if (days > 365 || days < 0) {
-                                                        const newEnd = new Date(date);
-                                                        newEnd.setFullYear(newEnd.getFullYear() + 1);
-                                                        const limit = new Date();
-                                                        setCustomEndDate(newEnd > limit ? limit : newEnd);
-                                                    }
-                                                }
-                                            }}
-                                            fromYear={2020}
-                                            toYear={new Date().getFullYear()}
-                                            disabled={(date) => isAfter(date, new Date())}
-                                            initialFocus
-                                        />
-                                    </PopoverContent>
-                                </Popover>
-                                <span className="text-gray-500 text-[10px] font-medium uppercase tracking-tighter">to</span>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            variant={"outline"}
-                                            className={cn(
-                                                "w-[110px] h-9 gap-2 justify-start text-left font-normal bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl px-3",
-                                                !customEndDate && "text-muted-foreground"
-                                            )}
-                                        >
-                                            <CalendarIcon className="h-3.5 w-3.5 text-blue-400 shrink-0" />
-                                            <span className="truncate text-[10px]">{customEndDate ? format(customEndDate, "dd MMM yy") : "End"}</span>
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0 bg-[#1a1a2e] border-white/10 shadow-2xl" align="end">
-                                        <CalendarPicker
-                                            mode="single"
-                                            selected={customEndDate}
-                                            onSelect={(date) => {
-                                                setCustomEndDate(date);
-                                                if (customStartDate && date) {
-                                                    const days = differenceInDays(date, customStartDate);
-                                                    if (days > 365 || days < 0) {
-                                                        const newStart = new Date(date);
-                                                        newStart.setFullYear(newStart.getFullYear() - 1);
-                                                        setCustomStartDate(newStart);
-                                                    }
-                                                }
-                                            }}
-                                            fromYear={2020}
-                                            toYear={new Date().getFullYear()}
-                                            disabled={(date) => isAfter(date, new Date())}
-                                            initialFocus
-                                        />
-                                    </PopoverContent>
-                                </Popover>
-                            </div>
+                        <div className="flex flex-col items-end gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                            <DateRangePicker 
+                                dateRange={{ from: customStartDate, to: customEndDate }}
+                                onChange={(range) => {
+                                    setCustomStartDate(range?.from);
+                                    setCustomEndDate(range?.to);
+                                }}
+                            />
                             {dateError && (
                                 <div className="flex items-center gap-1.5 text-[10px] text-red-400 bg-red-400/10 px-2 py-1 rounded-lg border border-red-400/20">
                                     <AlertCircle className="w-3 h-3" />

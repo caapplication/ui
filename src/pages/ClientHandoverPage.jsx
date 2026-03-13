@@ -1454,7 +1454,7 @@ function CashierReportFormPage({ clientId, token, toast }) {
       </Card>
 
       <Dialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
-        <DialogContent className="glass-card border-white/10 text-white max-w-sm">
+        <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Delete Attachment?</DialogTitle>
             <DialogDescription className="text-gray-400">
@@ -1719,7 +1719,7 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
                     <SelectValue placeholder="All Time" />
                   </div>
                 </SelectTrigger>
-                <SelectContent className="bg-gray-900 border-white/10 text-white rounded-2xl">
+                <SelectContent>
                   <SelectItem value="all_time">All Time</SelectItem>
                   <SelectItem value="today">Today</SelectItem>
                   <SelectItem value="yesterday">Yesterday</SelectItem>
@@ -1824,7 +1824,7 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
       </CardFooter>
 
       <Dialog open={!!actionModal} onOpenChange={(open) => { if (!open) { setActionModal(null); setActionRemark(''); } }}>
-        <DialogContent className="max-w-lg w-[95vw] sm:w-full bg-gray-900 border-white/10">
+        <DialogContent className="max-w-lg w-[95vw] sm:w-full">
           <DialogHeader>
             <DialogTitle className="text-lg sm:text-xl text-white">Approve or Reject Handover</DialogTitle>
             <DialogDescription className="text-sm text-gray-400">Optional remark for approval; rejection requires a reason.</DialogDescription>
@@ -1844,7 +1844,7 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
       </Dialog>
 
       <Dialog open={!!breakdownModal} onOpenChange={(open) => { if (!open) setBreakdownModal(null); setBreakdownEdit({}); }}>
-        <DialogContent className="max-w-2xl w-[95vw] sm:w-full bg-gray-900 border-white/10">
+        <DialogContent className="max-w-2xl w-[95vw] sm:w-full">
           <DialogHeader>
             <DialogTitle className="text-lg sm:text-xl text-white">
               {breakdownModal?.type === 'department' ? 'Update Handover Details' : 'As Per System – Breakdown'}

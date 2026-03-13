@@ -458,7 +458,7 @@ const ClientUsersPage = ({ entityId }) => {
                                     <SelectTrigger className="w-full sm:w-[160px] h-11 rounded-full bg-white/5 border-white/10 text-white focus:ring-primary/20 px-5 gap-2">
                                         <SelectValue placeholder="All Statuses" />
                                     </SelectTrigger>
-                                    <SelectContent className="bg-[#0F121C] border-white/10 text-white rounded-2xl p-1">
+                                    <SelectContent>
                                         <SelectItem value="all" className="rounded-xl focus:bg-white/10 cursor-pointer">All Statuses</SelectItem>
                                         <SelectItem value="joined" className="rounded-xl focus:bg-white/10 cursor-pointer">Joined</SelectItem>
                                         <SelectItem value="invited" className="rounded-xl focus:bg-white/10 cursor-pointer">Invited</SelectItem>
@@ -622,7 +622,7 @@ const ClientUsersPage = ({ entityId }) => {
                                 <SelectTrigger className="mt-2 glass-input border-white/10 text-white !w-full">
                                     <SelectValue placeholder="Select role" />
                                 </SelectTrigger>
-                                <SelectContent className="bg-[#181C2A] border-gray-700">
+                                <SelectContent>
                                     <SelectItem value="CLIENT_USER">Finance User</SelectItem>
                                     <SelectItem value="CLIENT_HANDOVER">Department Handover</SelectItem>
                                 </SelectContent>
@@ -637,7 +637,7 @@ const ClientUsersPage = ({ entityId }) => {
                                             {departmentsList.find(d => String(d.id) === String(inviteDepartmentId))?.name || "Select department"}
                                         </Button>
                                     </PopoverTrigger>
-                                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0 bg-[#181C2A] border-gray-700 text-white" align="start">
+                                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
                                         <div className="p-2 border-b border-gray-700 flex items-center justify-between">
                                             <span className="font-semibold text-sm">Select department</span>
                                             <Button

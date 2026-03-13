@@ -38,6 +38,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 import {
     BarChart,
     Bar,
@@ -211,8 +212,10 @@ const Dashboard = ({
     const [vouchers, setVouchers] = useState([]);
     // Expiring docs moved to Documents section Renewals tab
     const [expensePeriod, setExpensePeriod] = useState("30days");
-    const [customFrom, setCustomFrom] = useState("");
-    const [customTo, setCustomTo] = useState("");
+    const [dateRange, setDateRange] = useState({
+        from: new Date(new Date().setDate(new Date().getDate() - 30)),
+        to: new Date()
+    });
     const [fundInHand, setFundInHand] = useState(null);
     const [fundInHandLoading, setFundInHandLoading] = useState(false);
     const [fundSlide, setFundSlide] = useState(0);
@@ -226,12 +229,10 @@ const Dashboard = ({
 
     const isMobile = useMediaQuery("(max-width: 640px)");
     const isHourlyView = expensePeriod === "today" || expensePeriod === "yesterday";
-    const isMonthlyView = expensePeriod === "3months" || (expensePeriod === "custom" && customFrom && customTo && (new Date(customTo) - new Date(customFrom) > 60 * 24 * 60 * 60 * 1000));
+    const isMonthlyView = expensePeriod === "3months" || (expensePeriod === "custom" && dateRange?.from && dateRange?.to && (new Date(dateRange.to) - new Date(dateRange.from) > 60 * 24 * 60 * 60 * 1000));
     // IST bounds for custom date picker (last 365 days only)
     const _istNow = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
     const istTodayStr = _istNow.toISOString().split("T")[0];
-    const _istMin = new Date(_istNow); _istMin.setDate(_istMin.getDate() - 365);
-    const istMinDateStr = _istMin.toISOString().split("T")[0];
     const { user } = useAuth();
     const { toast } = useToast();
     const navigate = useNavigate();
@@ -253,9 +254,9 @@ const Dashboard = ({
         let toDate = new Date(now);
         switch (expensePeriod) {
             case "custom":
-                if (!customFrom || !customTo) { setIsLoading(false); return; }
-                fromDate = new Date(customFrom);
-                toDate = new Date(customTo + "T23:59:59");
+                if (!dateRange?.from || !dateRange?.to) { setIsLoading(false); return; }
+                fromDate = dateRange.from;
+                toDate = new Date(new Date(dateRange.to).setHours(23, 59, 59));
                 break;
             case "today":
                 fromDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -286,8 +287,8 @@ const Dashboard = ({
         let daysToFetch = 30;
         switch (expensePeriod) {
             case "custom":
-                if (customFrom && customTo) {
-                    const diffMs = new Date(customTo) - new Date(customFrom);
+                if (dateRange?.from && dateRange?.to) {
+                    const diffMs = dateRange.to - dateRange.from;
                     daysToFetch = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)) + 1);
                 } else { daysToFetch = 30; }
                 break;
@@ -350,7 +351,7 @@ const Dashboard = ({
         } finally {
             setIsLoading(false);
         }
-    }, [entityId, user?.access_token, user?.agency_id, expensePeriod, customFrom, customTo, toast]);
+    }, [entityId, user?.access_token, user?.agency_id, expensePeriod, dateRange, toast]);
 
     useEffect(() => {
         fetchDashboardData();
@@ -459,11 +460,11 @@ const Dashboard = ({
 
         switch (expensePeriod) {
             case "custom":
-                if (!customFrom || !customTo) {
+                if (!dateRange?.from || !dateRange?.to) {
                     currentStartDate = null;
                 } else {
-                    currentStartDate = new Date(customFrom);
-                    currentEndDate = new Date(customTo + "T23:59:59");
+                    currentStartDate = dateRange.from;
+                    currentEndDate = new Date(new Date(dateRange.to).setHours(23, 59, 59));
                     const diffMs = currentEndDate - currentStartDate;
                     previousEndDate = new Date(currentStartDate.getTime() - 1);
                     previousStartDate = new Date(previousEndDate.getTime() - diffMs);
@@ -536,7 +537,7 @@ const Dashboard = ({
             percentageChange: Math.abs(percentageChange).toFixed(1),
             isIncrease: currentTotal > previousTotal
         };
-    }, [vouchers, expensePeriod]);
+    }, [vouchers, expensePeriod, dateRange]);
 
     const getPeriodLabel = () => {
         switch (expensePeriod) {
@@ -794,65 +795,42 @@ const Dashboard = ({
                         <h1 className="page-title m-0">
                             {entityName}
                         </h1>
-                        
-                        {expensePeriod === "custom" && (
-                            <motion.div 
-                                initial={{ opacity: 0, x: -10 }} 
-                                animate={{ opacity: 1, x: 0 }} 
-                                className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-1.5"
-                            >
-                                <div className="flex items-center gap-1.5">
-                                    <span className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">From</span>
-                                    <input 
-                                        type="date" 
-                                        value={customFrom} 
-                                        onChange={(e) => setCustomFrom(e.target.value)}
-                                        min={istMinDateStr}
-                                        max={istTodayStr}
-                                        className="bg-transparent text-white text-xs border-none focus:ring-0 p-0 cursor-pointer [color-scheme:dark]"
-                                    />
-                                </div>
-                                <div className="w-[1px] h-4 bg-white/10 mx-1" />
-                                <div className="flex items-center gap-1.5">
-                                    <span className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">To</span>
-                                    <input 
-                                        type="date" 
-                                        value={customTo} 
-                                        onChange={(e) => setCustomTo(e.target.value)}
-                                        min={customFrom || istMinDateStr}
-                                        max={istTodayStr}
-                                        className="bg-transparent text-white text-xs border-none focus:ring-0 p-0 cursor-pointer [color-scheme:dark]"
-                                    />
-                                </div>
-                            </motion.div>
-                        )}
                     </div>
 
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                className="flex items-center gap-2 bg-white/5 border-white/10 text-white hover:bg-white/10 hover:text-white rounded-xl px-3 py-2 text-sm font-medium"
-                            >
-                                <Calendar className="w-4 h-4 text-gray-400" />
-                                <span>{getPeriodLabel()}</span>
-                                <ChevronDown className="w-4 h-4 text-gray-400" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="min-w-[160px]">
-                            {expenseMenuItems.map((item) => (
-                                <DropdownMenuItem
-                                    key={item.value}
-                                    onClick={() => setExpensePeriod(item.value)}
-                                    className={item.selected ? "bg-primary/20 font-semibold" : ""}
+                    <div className="flex flex-wrap items-center gap-4">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className=""
                                 >
-                                    {item.selected && <span className="mr-2 text-blue-400">✓</span>}
-                                    {item.label}
-                                </DropdownMenuItem>
-                            ))}
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                                    <Calendar className="w-4 h-4 text-gray-400" />
+                                    <span>{getPeriodLabel()}</span>
+                                    <ChevronDown className="w-4 h-4 text-gray-400" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="min-w-[160px] bg-[#0b0c0e] border-white/10 text-white">
+                                {expenseMenuItems.map((item) => (
+                                    <DropdownMenuItem
+                                        key={item.value}
+                                        onClick={() => setExpensePeriod(item.value)}
+                                        className={item.selected ? "bg-primary/20 font-semibold" : ""}
+                                    >
+                                        {item.selected && <span className="mr-2 text-blue-400">✓</span>}
+                                        {item.label}
+                                    </DropdownMenuItem>
+                                ))}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+
+                        {expensePeriod === "custom" && (
+                            <DateRangePicker
+                                dateRange={dateRange}
+                                onChange={(range) => setDateRange(range)}
+                            />
+                        )}
+                    </div>
                 </div>
 
                 {isLoading ? (

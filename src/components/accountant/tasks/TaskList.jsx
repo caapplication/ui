@@ -10,8 +10,8 @@ import { format, formatDistanceToNow, formatDistanceStrict } from 'date-fns';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { getTaskCollaborators } from '@/lib/api';
 import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { Calendar as CalendarIcon, X } from 'lucide-react';
 import {
     AlertDialog,
@@ -483,41 +483,11 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                                 </SelectContent>
                             </Select>
                             {/* Date Range Filter */}
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button
-                                        variant={"outline"}
-                                        className={cn(
-                                            "glass-input w-full sm:w-[200px] !text-white justify-start text-left font-normal",
-                                            !dateRange && "text-muted-foreground"
-                                        )}
-                                    >
-                                        <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {dateRange?.from ? (
-                                            dateRange.to ? (
-                                                <>
-                                                    {format(dateRange.from, "LLL dd, y")} -{" "}
-                                                    {format(dateRange.to, "LLL dd, y")}
-                                                </>
-                                            ) : (
-                                                format(dateRange.from, "LLL dd, y")
-                                            )
-                                        ) : (
-                                            <span>Pick a date</span>
-                                        )}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="end">
-                                    <Calendar
-                                        initialFocus
-                                        mode="range"
-                                        defaultMonth={dateRange?.from}
-                                        selected={dateRange}
-                                        onSelect={setDateRange}
-                                        numberOfMonths={2}
-                                    />
-                                </PopoverContent>
-                            </Popover>
+                            <DateRangePicker
+                                dateRange={dateRange}
+                                onChange={setDateRange}
+                                className="w-full sm:w-[200px]"
+                            />
                             <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
     <AnimatedSearch
         placeholder="Search tasks..."

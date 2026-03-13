@@ -21,7 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { format, formatDistanceToNow } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import {
@@ -3393,23 +3393,11 @@ const TaskDashboardPage = () => {
                     <div className="space-y-4 py-4">
                         <div>
                             <Label htmlFor="due-date">Due Date</Label>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !editingDueDate && "text-muted-foreground")}>
-                                        <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {editingDueDate ? format(editingDueDate, "PPP") : <span>Pick a date</span>}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0">
-                                    <Calendar
-                                        mode="single"
-                                        selected={editingDueDate}
-                                        onSelect={setEditingDueDate}
-                                        disabled={(date) => date < new Date().setHours(0, 0, 0, 0)}
-                                        initialFocus
-                                    />
-                                </PopoverContent>
-                            </Popover>
+                            <DatePicker
+                                value={editingDueDate}
+                                onChange={setEditingDueDate}
+                                disabled={(date) => date < new Date().setHours(0, 0, 0, 0)}
+                            />
                         </div>
                     </div>
                     <DialogFooter>
@@ -3586,22 +3574,10 @@ const TaskDashboardPage = () => {
                                 {recurringFormData.recurrence_frequency === 'yearly' && (
                                     <div>
                                         <Label htmlFor="recurrence_date">Date</Label>
-                                        <Popover>
-                                            <PopoverTrigger asChild>
-                                                <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !recurringFormData.recurrence_date && "text-muted-foreground")}>
-                                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                                    {recurringFormData.recurrence_date ? format(recurringFormData.recurrence_date, "PPP") : <span>Pick a date</span>}
-                                                </Button>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-auto p-0">
-                                                <Calendar
-                                                    mode="single"
-                                                    selected={recurringFormData.recurrence_date}
-                                                    onSelect={(d) => handleRecurringDateChange('recurrence_date', d)}
-                                                    initialFocus
-                                                />
-                                            </PopoverContent>
-                                        </Popover>
+                                        <DatePicker
+                                            value={recurringFormData.recurrence_date}
+                                            onChange={(d) => handleRecurringDateChange('recurrence_date', d)}
+                                        />
                                     </div>
                                 )}
 

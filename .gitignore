@@ -7,6 +7,9 @@
 
 # Log files
 *.log
+
+# Vite timestamp cache files (auto-generated, not needed)
+*.timestamp-*.mjs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

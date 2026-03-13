@@ -248,9 +248,9 @@ const RecentTransactionsExpanded = ({ entityId }) => {
                                 <CalendarIcon className="w-3.5 h-3.5 mr-2 opacity-50" />
                                 <SelectValue placeholder="Time Frame" />
                             </SelectTrigger>
-                            <SelectContent className="bg-slate-900 border-white/10 text-white rounded-xl">
+                            <SelectContent>
                                 {TIME_FRAME_PRESETS.map(preset => (
-                                    <SelectItem key={preset.value} value={preset.value} className="text-xs cursor-pointer">
+                                    <SelectItem key={preset.value} value={preset.value} className="text-xs">
                                         {preset.label}
                                     </SelectItem>
                                 ))}
@@ -282,7 +282,7 @@ const RecentTransactionsExpanded = ({ entityId }) => {
                                             <span className="truncate text-[10px]">{customStartDate ? format(customStartDate, "dd MMM yy") : "Start"}</span>
                                         </Button>
                                     </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0 bg-slate-900 border-white/10" align="start">
+                                    <PopoverContent className="w-auto p-0 bg-[#0b0c0e] border border-white/10 shadow-2xl rounded-2xl overflow-hidden" align="start">
                                         <Calendar
                                             mode="single"
                                             selected={customStartDate}
@@ -303,7 +303,7 @@ const RecentTransactionsExpanded = ({ entityId }) => {
                                             }}
                                             disabled={(date) => isAfter(date, new Date()) || (customEndDate && isAfter(date, customEndDate))}
                                             initialFocus
-                                            className="bg-slate-900 text-white"
+                                            className="bg-transparent text-white"
                                         />
                                     </PopoverContent>
                                 </Popover>
@@ -321,7 +321,7 @@ const RecentTransactionsExpanded = ({ entityId }) => {
                                             <span className="truncate text-[10px]">{customEndDate ? format(customEndDate, "dd MMM yy") : "End"}</span>
                                         </Button>
                                     </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0 bg-slate-900 border-white/10" align="start">
+                                    <PopoverContent className="w-auto p-0 bg-[#0b0c0e] border border-white/10 shadow-2xl rounded-2xl overflow-hidden" align="start">
                                         <Calendar
                                             mode="single"
                                             selected={customEndDate}
@@ -342,7 +342,7 @@ const RecentTransactionsExpanded = ({ entityId }) => {
                                             }}
                                             disabled={(date) => isAfter(date, new Date()) || (customStartDate && isAfter(customStartDate, date))}
                                             initialFocus
-                                            className="bg-slate-900 text-white"
+                                            className="bg-transparent text-white"
                                         />
                                     </PopoverContent>
                                 </Popover>

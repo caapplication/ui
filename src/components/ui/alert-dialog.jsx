@@ -27,9 +27,9 @@ const AlertDialogContent = React.forwardRef(({ className, ...props }, ref) => (
       ref={ref}
       className={cn(
         "fixed left-[50%] top-[50%] z-50 grid w-full max-w-xl translate-x-[-50%] translate-y-[-50%] gap-4 px-4 py-6 sm:p-6 shadow-2xl duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]",
-        "glass-pane rounded-lg",
+        "bg-[#0b0c0e] border border-white/10 rounded-2xl text-white",
         "max-h-[95vh] sm:max-h-[90vh] overflow-y-auto",
-        "mx-4 sm:mx-0 w-[calc(100%-2rem)] ",
+        "mx-4 sm:mx-0 w-[calc(100%-2rem)]",
         className
       )}
       {...props} />

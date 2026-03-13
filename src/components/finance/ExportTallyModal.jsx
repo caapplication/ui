@@ -10,7 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { CalendarIcon, Download } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { Calendar } from "@/components/ui/calendar";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const ExportTallyModal = ({ isOpen, onClose, entityId, entityName }) => {
@@ -77,7 +77,7 @@ const ExportTallyModal = ({ isOpen, onClose, entityId, entityName }) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px] bg-[#1E2A47] text-white border-gray-700">
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Export to Tally</DialogTitle>
         </DialogHeader>
@@ -108,57 +108,19 @@ const ExportTallyModal = ({ isOpen, onClose, entityId, entityName }) => {
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-2">
               <Label>From Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant={"outline"}
-                    className={cn(
-                      "w-full justify-start text-left font-normal bg-[#2D3B5E] border-gray-600 hover:bg-[#3D4B6E] hover:text-white",
-                      !fromDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {fromDate ? format(fromDate, "PPP") : <span>Pick a date</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 bg-[#1E2A47] border-gray-600" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={fromDate}
-                    onSelect={setFromDate}
-                    initialFocus
-                    className="bg-[#1E2A47] text-white"
-                  />
-                </PopoverContent>
-              </Popover>
+              <DatePicker
+                value={fromDate}
+                onChange={setFromDate}
+              />
             </div>
 
             <div className="flex flex-col gap-2">
               <Label>To Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant={"outline"}
-                    className={cn(
-                      "w-full justify-start text-left font-normal bg-[#2D3B5E] border-gray-600 hover:bg-[#3D4B6E] hover:text-white",
-                      !toDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {toDate ? format(toDate, "PPP") : <span>Pick a date</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 bg-[#1E2A47] border-gray-600" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={toDate}
-                    onSelect={setToDate}
-                    disabled={isDateDisabled} // Block dates before From Date
-                    initialFocus
-                    className="bg-[#1E2A47] text-white"
-                  />
-                </PopoverContent>
-              </Popover>
+              <DatePicker
+                value={toDate}
+                onChange={setToDate}
+                disabled={isDateDisabled} // Block dates before From Date
+              />
             </div>
           </div>
         </div>

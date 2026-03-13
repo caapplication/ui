@@ -34,7 +34,7 @@ import { Combobox } from '@/components/ui/combobox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { listTeamMembers, listEntityUsers } from '@/lib/api';
 import { listClients } from '@/lib/api';
-import { Calendar } from '@/components/ui/calendar';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 
@@ -999,26 +999,14 @@ const RecurringTaskExpandedView = ({ task, onEdit, onDelete, onRefresh }) => {
                     <div className="space-y-4 py-4">
                         <div>
                             <Label htmlFor="due-date">Due Date</Label>
-                            <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-                                <PopoverTrigger asChild>
-                                    <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !editingDueDate && "text-muted-foreground")}>
-                                        <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {editingDueDate ? format(editingDueDate, "PPP") : <span>Pick a date</span>}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0">
-                                    <Calendar
-                                        mode="single"
-                                        selected={editingDueDate}
-                                        onSelect={(date) => {
-                                            setEditingDueDate(date);
-                                            setCalendarOpen(false); // Close calendar when date is selected
-                                        }}
-                                        disabled={(date) => date < new Date().setHours(0, 0, 0, 0)}
-                                        initialFocus
-                                    />
-                                </PopoverContent>
-                            </Popover>
+                            <DatePicker
+                                value={editingDueDate}
+                                onChange={(date) => {
+                                    setEditingDueDate(date);
+                                    setCalendarOpen(false); // Close calendar when date is selected
+                                }}
+                                disabled={(date) => date < new Date().setHours(0, 0, 0, 0)}
+                            />
                         </div>
                     </div>
                     <DialogFooter>
