@@ -36,7 +36,7 @@ import { useAuth } from '@/hooks/useAuth.jsx';
 import { getAgencyDetails, lockUser, unlockUser, inviteCA } from '@/lib/api/admin';
 import { useToast } from '@/components/ui/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-
+import AgencySubscriptionsTab from '@/components/super-admin/AgencySubscriptionsTab.jsx';
 
 const AgencyDetails = () => {
   const { id } = useParams();
@@ -349,6 +349,7 @@ const AgencyDetails = () => {
           <TabsTrigger value="admins">Admins</TabsTrigger>
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="clients_tab">Clients</TabsTrigger>
+          <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="pt-6">
@@ -511,6 +512,10 @@ const AgencyDetails = () => {
           <Card className="glass-card overflow-hidden">
             <ClientTable clients={data.clients || []} />
           </Card>
+        </TabsContent>
+
+        <TabsContent value="subscriptions" className="pt-6">
+          <AgencySubscriptionsTab agencyId={id} />
         </TabsContent>
       </Tabs>
     </div>

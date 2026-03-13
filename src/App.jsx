@@ -60,6 +60,7 @@ const CAManagement = lazy(() => import('@/components/super-admin/CAManagement.js
 const AdminUserList = lazy(() => import('@/components/super-admin/AdminUserList.jsx'));
 const SuperAdminSidebar = lazy(() => import('@/components/layout/SuperAdminSidebar.jsx'));
 const AgencyDetails = lazy(() => import('@/components/super-admin/AgencyDetails.jsx'));
+const SuperAdminBilling = lazy(() => import('@/components/super-admin/SuperAdminBilling.jsx'));
 
 const BeneficiaryDetailsPage = lazy(() => import('@/pages/BeneficiaryDetailsPage.jsx'));
 const BeneficiaryLedger = lazy(() => import('@/components/beneficiaries/BeneficiaryLedger.jsx'));
@@ -308,6 +309,7 @@ const ProtectedContent = () => {
               <Route path="/agencies/:id" element={user?.role === 'SUPER_ADMIN' ? <AgencyDetails /> : <Navigate to="/" replace />} />
               <Route path="/cas" element={user?.role === 'SUPER_ADMIN' ? <CAManagement /> : <Navigate to="/" replace />} />
               <Route path="/admin/users" element={user?.role === 'SUPER_ADMIN' ? <AdminUserList /> : <Navigate to="/" replace />} />
+              <Route path="/super-admin/billing" element={user?.role === 'SUPER_ADMIN' ? <SuperAdminBilling /> : <Navigate to="/" replace />} />
               <Route path="/dashboard/today-progress" element={<TodayProgressExpanded />} />
               <Route path="/dashboard/pending-verification" element={<PendingVerificationExpanded />} />
               <Route path="/dashboard/ongoing-tasks" element={<OngoingTasksExpanded />} />

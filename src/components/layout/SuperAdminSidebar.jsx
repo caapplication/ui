@@ -8,7 +8,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   ShieldCheck,
-  UserCog
+  UserCog,
+  Receipt
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { Button } from '@/components/ui/button';
@@ -25,6 +26,7 @@ const SuperAdminSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) =
     { id: 'dashboard', path: '/', label: 'Overview', icon: LayoutDashboard },
     { id: 'agencies', path: '/agencies', label: 'Agencies', icon: Building },
     { id: 'cas', path: '/cas', label: 'CA Accountants', icon: Users },
+    { id: 'billing', path: '/super-admin/billing', label: 'Billing & Modules', icon: Receipt },
     { id: 'users', path: '/admin/users', label: 'All Users', icon: UserCog },
   ];
 
