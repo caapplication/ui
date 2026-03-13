@@ -5,13 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
-import { Plus, Trash2, Loader2, RefreshCw, Eye, EyeOff, ToggleLeft, ToggleRight, ChevronLeft, ChevronRight, FilePen, CheckCircle, XCircle, Search } from 'lucide-react';
+import { Plus, Trash2, Loader2, RefreshCw, Eye, EyeOff, ToggleLeft, ToggleRight, ChevronLeft, ChevronRight, FilePen, CheckCircle, XCircle, Search, ArrowLeft } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { getOrganisationBankAccounts, addOrganisationBankAccount, updateOrganisationBankAccount, deleteOrganisationBankAccount } from '@/lib/api';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useNavigate } from 'react-router-dom';
 import AnimatedSearch from '@/components/ui/AnimatedSearch';
 
 const ITEMS_PER_PAGE = 10;
@@ -32,6 +33,7 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction,
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { toast } = useToast();
 
   const fetchBankAccounts = useCallback(async () => {
@@ -314,6 +316,9 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction,
     <div className="p-4 sm:p-6 lg:p-8">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
         <div className="page-header">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/finance')} className="h-10 w-10 border border-white/10 hover:bg-white/10 rounded-full shrink-0">
+            <ArrowLeft className="h-6 w-6 text-white" />
+          </Button>
           <h1 className="page-title">Organisation Bank Accounts</h1>
         </div>
 
