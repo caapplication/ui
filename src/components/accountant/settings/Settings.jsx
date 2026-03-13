@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, Tag, Settings as SettingsIcon, Users, Globe, Briefcase, FileText, ArrowLeft } from 'lucide-react';
+import { ChevronLeft, Tag, Settings as SettingsIcon, Users, Globe, Briefcase, FileText, ArrowLeft, CreditCard } from 'lucide-react';
 import { Link, Route, Routes, useNavigate } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth.jsx';
@@ -12,6 +12,7 @@ import ClientSettingsContent from './ClientSettingsContent';
 import PortalsContent from './PortalsContent';
 import BusinessTypesContent from './BusinessTypesContent';
 import FinanceHeadersContent from './FinanceHeadersContent';
+import FynivoBillingContent from './FynivoBillingContent';
 import Services from '@/components/accountant/services/Services';
 
 const settingsNav = [
@@ -21,6 +22,7 @@ const settingsNav = [
     { path: 'business-types', name: 'Business Types', icon: Briefcase, component: BusinessTypesContent },
     { path: 'finance-headers', name: 'Finance Headers', icon: FileText, component: FinanceHeadersContent },
     { path: 'services', name: 'Services', icon: Briefcase, component: Services },
+    { path: 'fynivo-billing', name: 'Fynivo Billing', icon: CreditCard, component: FynivoBillingContent },
 ];
 
 const Settings = () => {
