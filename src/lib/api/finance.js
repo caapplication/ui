@@ -841,3 +841,53 @@ export const downloadFinanceReportPDF = async (data, token) => {
     a.remove();
     window.URL.revokeObjectURL(url);
 };
+
+// ─── Subscription APIs ───────────────────────────────────────────────────────
+
+/** Get all available Fynivo modules with pricing. */
+export const getSubscriptionModules = async (token) => {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/subscriptions/modules`, {
+        headers: getAuthHeaders(token),
+    });
+    return handleResponse(response);
+};
+
+/** Get active/inactive module status for a specific client (entity). CA only. */
+export const getClientSubscriptions = async (entityId, token) => {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/subscriptions/client/${entityId}`, {
+        headers: getAuthHeaders(token),
+    });
+    return handleResponse(response);
+};
+
+/**
+ * Toggle a module ON or OFF for a specific client.
+ * CA only. Returns { action, message, subscription_id }.
+ */
+export const toggleClientModule = async (entityId, moduleId, token) => {
+    const response = await fetch(
+        `${FINANCE_API_BASE_URL}/api/subscriptions/client/${entityId}/toggle?module_id=${moduleId}`,
+        {
+            method: 'POST',
+            headers: getAuthHeaders(token),
+        }
+    );
+    return handleResponse(response);
+};
+
+/** Get current month billing summary for the CA's Fynivo Billing page. */
+export const getAgencyBillingSummary = async (token) => {
+    const response = await fetch(`${FINANCE_API_BASE_URL}/api/subscriptions/agency/billing-summary`, {
+        headers: getAuthHeaders(token),
+    });
+    return handleResponse(response);
+};
+
+/** Check if a specific module is active for this entity. Returns { has_access: bool }. */
+export const checkModuleAccess = async (moduleId, token, entityId = null) => {
+    let url = `${FINANCE_API_BASE_URL}/api/subscriptions/check?module_id=${moduleId}`;
+    if (entityId) url += `&entity_id=${entityId}`;
+    const response = await fetch(url, { headers: getAuthHeaders(token) });
+    return handleResponse(response);
+};
+
