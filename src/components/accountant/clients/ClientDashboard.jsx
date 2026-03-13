@@ -9,6 +9,7 @@ import ClientInvoicesPaymentsTab from './ClientInvoicesPaymentsTab';
 import ClientPasswordsTab from './ClientPasswordsTab';
 import ClientUsersTab from './ClientUsersTab';
 import ClientTeamMembersTab from './ClientTeamMembersTab';
+import ClientSubscriptionsTab from './ClientSubscriptionsTab';
 import ActivityLog from '@/components/finance/ActivityLog';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -200,6 +201,7 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
                 </>
             )
         },
+        'Subscriptions',
         'Activity Log'
     ];
 
@@ -309,6 +311,8 @@ const ClientDashboard = ({ client, onBack, onEdit, setActiveTab, allServices, on
                 return <ClientInvoicesPaymentsTab client={client} />;
             case 'Passwords':
                 return <ClientPasswordsTab client={client} />;
+            case 'Subscriptions':
+                return <ClientSubscriptionsTab client={client} />;
             case 'Activity Log':
                 // Note: Activity logs for clients may need backend support
                 // For now, we'll try to fetch them - if the backend doesn't support it, it will show an error
