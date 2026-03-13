@@ -1469,7 +1469,10 @@ function CashierReportFormPage({ clientId, token, toast }) {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
-              <CardTitle className="text-lg sm:text-xl text-white">{isNew ? 'New report' : 'View / Update'}</CardTitle>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-lg sm:text-xl text-white">{isNew ? 'New report' : 'View / Update'}</CardTitle>
+                {readOnly && <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 whitespace-nowrap">Handover approved — view only</span>}
+              </div>
               <CardDescription className="text-sm text-gray-400">Enter amounts by department and payment method for the selected date.</CardDescription>
             </div>
           </div>
@@ -1489,7 +1492,6 @@ function CashierReportFormPage({ clientId, token, toast }) {
             <Button onClick={handleSubmit} disabled={submitting || readOnly} className="h-9 sm:h-10 text-sm">
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Submit
             </Button>
-            {readOnly && <span className="text-xs text-amber-400">Handover approved — view only</span>}
           </div>
         </CardHeader>
         <CardContent className="p-0 space-y-4">
@@ -1517,15 +1519,15 @@ function CashierReportFormPage({ clientId, token, toast }) {
                           <Input type="number" min={0} step={0.01} readOnly={readOnly} className={`h-9 sm:h-10 text-sm glass-input !w-24 !pl-3 text-white ${readOnly ? 'cursor-default opacity-90' : ''}`} value={getCell(d.id, p.id)} onChange={e => setCell(d.id, p.id, e.target.value)} />
                         </TableCell>
                       ))}
-                      <TableCell className="text-xs sm:text-sm font-medium text-white bg-amber-500/10">{rowTotal(d.id).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell className="text-xs sm:text-sm font-medium text-white bg-amber-500/10">{Math.round(rowTotal(d.id)).toLocaleString('en-IN')}</TableCell>
                     </TableRow>
                   ))}
                   <TableRow className="border-white/10 bg-amber-500/10 font-medium">
                     <TableCell className="text-xs sm:text-sm text-gray-300">Total</TableCell>
                     {paymentMethods.map(p => (
-                      <TableCell key={p.id} className="text-xs sm:text-sm text-white">{colTotal(p.id).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell key={p.id} className="text-xs sm:text-sm text-white">{Math.round(colTotal(p.id)).toLocaleString('en-IN')}</TableCell>
                     ))}
-                    <TableCell className="text-xs sm:text-sm text-white">{grandTotal().toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
+                    <TableCell className="text-xs sm:text-sm text-white">{Math.round(grandTotal()).toLocaleString('en-IN')}</TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
