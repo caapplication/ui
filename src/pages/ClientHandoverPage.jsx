@@ -491,14 +491,22 @@ function BankTallyFormPage({ clientId, token, toast, readOnly = false }) {
 
   return (
     <div className="space-y-4">
-      <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white -ml-2" onClick={() => navigate(isNew ? '..' : '../..', { relative: 'path' })}>
-        <ArrowLeft className="mr-2 h-4 w-4" /> Back to list
-      </Button>
       <Card className="glass-card border-white/5 overflow-hidden">
         <CardHeader className="p-4 sm:p-6 flex flex-row flex-wrap items-center justify-between gap-4">
-          <div>
-            <CardTitle className="text-lg sm:text-xl text-white">{isNew ? 'New entry' : 'View / Update'}</CardTitle>
-            <CardDescription className="text-sm text-gray-400">Opening and closing balance by bank account.</CardDescription>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-gray-400 hover:text-white hover:bg-white/10 rounded-full"
+              onClick={() => navigate(isNew ? '..' : '../..', { relative: 'path' })}
+              title="Back to list"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div>
+              <CardTitle className="text-lg sm:text-xl text-white">{isNew ? 'New entry' : 'View / Update'}</CardTitle>
+              <CardDescription className="text-sm text-gray-400">Opening and closing balance by bank account.</CardDescription>
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Input type="date" className="glass-input max-w-[200px]" value={reportDate} readOnly />
@@ -515,10 +523,10 @@ function BankTallyFormPage({ clientId, token, toast, readOnly = false }) {
               <TableHeader>
                 <TableRow className="hover:bg-transparent border-white/10">
                   <TableHead className="text-xs sm:text-sm text-gray-300">Bank</TableHead>
-                  <TableHead className="text-xs sm:text-sm text-gray-300">Account</TableHead>
-                  <TableHead className="text-xs sm:text-sm text-gray-300">Opening Balance</TableHead>
-                  <TableHead className="text-xs sm:text-sm text-gray-300">Closing Balance</TableHead>
-                  <TableHead className="text-xs sm:text-sm text-gray-300">Difference</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300 text-center">Account No.</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300 text-center">Opening Balance</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300 text-center">Closing Balance</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300 text-center">Variance</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -535,15 +543,22 @@ function BankTallyFormPage({ clientId, token, toast, readOnly = false }) {
                       return (
                         <TableRow key={bank.id} className="border-white/10">
                           <TableCell className="text-xs sm:text-sm font-medium text-white">{bank.bank_name || '—'}</TableCell>
-                          <TableCell className="text-xs sm:text-sm text-gray-300">{bank.account_number || '—'}</TableCell>
-                          <TableCell>
-                            <Input type="number" readOnly className="h-9 sm:h-10 text-sm glass-input w-28 sm:w-32 bg-white/5 text-white" value={opening} />
+                          <TableCell className="text-xs sm:text-sm text-gray-300 text-center">{bank.account_number || '—'}</TableCell>
+                          <TableCell className="text-center">
+                            <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input w-32 sm:w-44 bg-white/5 text-white text-center" value={opening.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} />
                           </TableCell>
-                          <TableCell>
-                            <Input type="number" min={0} step={0.01} readOnly={isReadOnly} className={`h-9 sm:h-10 text-sm glass-input w-28 sm:w-32 text-white ${isReadOnly ? 'bg-white/5 cursor-default' : ''}`} value={closingVal} onChange={e => setClosing(bank.id, e.target.value)} placeholder="Closing" />
+                          <TableCell className="text-center">
+                            <Input type="number" min={0} step={0.01} readOnly={isReadOnly} className={`h-9 sm:h-10 text-sm glass-input w-32 sm:w-44 text-white text-center ${isReadOnly ? 'bg-white/5 cursor-default' : ''}`} value={closingVal} onChange={e => setClosing(bank.id, e.target.value)} placeholder="Closing" />
                           </TableCell>
-                          <TableCell>
-                            <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input w-28 sm:w-32 bg-white/5 text-white" value={diff != null ? diff.toLocaleString('en-IN', { minimumFractionDigits: 2 }) : '—'} />
+                          <TableCell className="text-center">
+                            <Input 
+                              type="text" 
+                              readOnly 
+                              className={`h-9 sm:h-10 text-sm glass-input w-32 sm:w-44 bg-white/5 text-center font-bold ${
+                                diff > 0 ? 'text-green-400' : diff < 0 ? 'text-red-400' : 'text-white'
+                              }`} 
+                              value={diff != null ? Math.round(diff).toLocaleString('en-IN') : '—'} 
+                            />
                           </TableCell>
                         </TableRow>
                       );
@@ -555,15 +570,22 @@ function BankTallyFormPage({ clientId, token, toast, readOnly = false }) {
                       return (
                         <TableRow className="border-white/10 !bg-amber-500/20 font-medium">
                           <TableCell className="text-xs sm:text-sm text-white">Total</TableCell>
-                          <TableCell className="text-xs sm:text-sm text-gray-300">—</TableCell>
-                          <TableCell>
-                            <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input w-28 sm:w-32 bg-white/5 text-white font-medium" value={totalOpening.toLocaleString('en-IN', { minimumFractionDigits: 2 })} />
+                          <TableCell className="text-xs sm:text-sm text-gray-300 text-center">—</TableCell>
+                          <TableCell className="text-center">
+                            <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input w-32 sm:w-44 bg-white/5 text-white font-medium text-center" value={totalOpening.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} />
                           </TableCell>
-                          <TableCell>
-                            <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input w-28 sm:w-32 bg-white/5 text-white font-medium" value={totalClosing.toLocaleString('en-IN', { minimumFractionDigits: 2 })} />
+                          <TableCell className="text-center">
+                            <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input w-32 sm:w-44 bg-white/5 text-white font-medium text-center" value={totalClosing.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} />
                           </TableCell>
-                          <TableCell>
-                            <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input w-28 sm:w-32 bg-white/5 text-white font-medium" value={totalDiff.toLocaleString('en-IN', { minimumFractionDigits: 2 })} />
+                          <TableCell className="text-center">
+                            <Input 
+                              type="text" 
+                              readOnly 
+                              className={`h-9 sm:h-10 text-sm glass-input w-32 sm:w-44 bg-white/5 font-bold text-center ${
+                                totalDiff > 0 ? 'text-green-400' : totalDiff < 0 ? 'text-red-400' : 'text-white'
+                              }`} 
+                              value={Math.round(totalDiff).toLocaleString('en-IN')} 
+                            />
                           </TableCell>
                         </TableRow>
                       );
@@ -895,14 +917,22 @@ function CashTallyFormPage({ clientId, entityId, token, toast, readOnly = false 
 
   return (
     <div className="space-y-4">
-      <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white -ml-2" onClick={() => navigate(isNew ? '..' : '../..', { relative: 'path' })}>
-        <ArrowLeft className="mr-2 h-4 w-4" /> Back to list
-      </Button>
       <Card className="glass-card border-white/5">
         <CardHeader className="p-4 sm:p-6 flex flex-row flex-wrap items-center justify-between gap-4">
-          <div>
-            <CardTitle className="text-lg sm:text-xl text-white">{isNew ? 'New entry' : 'View / Update'}</CardTitle>
-            <CardDescription className="text-sm text-gray-400">Cash in hand, denomination breakdown and remarks.</CardDescription>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-gray-400 hover:text-white hover:bg-white/10 rounded-full"
+              onClick={() => navigate(isNew ? '..' : '../..', { relative: 'path' })}
+              title="Back to list"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div>
+              <CardTitle className="text-lg sm:text-xl text-white">{isNew ? 'New entry' : 'View / Update'}</CardTitle>
+              <CardDescription className="text-sm text-gray-400">Cash in hand, denomination breakdown and remarks.</CardDescription>
+            </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <Input type="date" className="glass-input max-w-[200px]" value={reportDate} readOnly />
