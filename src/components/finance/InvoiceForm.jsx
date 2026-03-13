@@ -233,7 +233,7 @@ const InvoiceForm = ({ entityId, beneficiaries, isLoading, onSave, onCancel, inv
 
                         <div className="flex justify-between items-center bg-white/5 p-4 rounded-xl">
                             <div>
-                                <p className="text-sm text-gray-400">Pre-Tax Amount</p>
+                                <p className="text-sm text-gray-400">Net Amount</p>
                                 <p className="text-lg font-semibold text-white">{formatCurrencyINR(amount || 0)}</p>
                             </div>
                             <div>

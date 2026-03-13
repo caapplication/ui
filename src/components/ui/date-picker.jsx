@@ -13,7 +13,7 @@ import {
 
 import { subDays, isAfter, isBefore, startOfToday } from 'date-fns';
 
-export function DatePicker({ value, onChange, disabled: customDisabled, ...props }) {
+export function DatePicker({ value, onChange, disabled: customDisabled, className, ...props }) {
     const [date, setDate] = useState(value ? new Date(value) : null);
     const [inputValue, setInputValue] = useState(value ? format(new Date(value), 'dd/MM/yyyy') : '');
     const [popoverOpen, setPopoverOpen] = useState(false);
@@ -85,7 +85,7 @@ export function DatePicker({ value, onChange, disabled: customDisabled, ...props
   return (
     <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
       <PopoverTrigger asChild>
-        <div className="relative">
+        <div className={cn("relative", className)}>
           <Input
             ref={inputRef}
             type="text"
@@ -97,14 +97,18 @@ export function DatePicker({ value, onChange, disabled: customDisabled, ...props
           <CalendarIcon className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
         </div>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0 overflow-hidden" onOpenAutoFocus={(e) => e.preventDefault()}>
+      <PopoverContent 
+        className="w-auto p-0 overflow-hidden bg-gray-900/90 backdrop-blur-xl border-white/10 text-white rounded-2xl shadow-2xl" 
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        align="end"
+      >
         <Calendar
           mode="single"
           selected={date}
           onSelect={handleDateSelect}
           disabled={isDateDisabled}
           {...props}
-          className="bg-transparent text-white"
+          className="bg-transparent text-white p-3"
         />
       </PopoverContent>
     </Popover>
