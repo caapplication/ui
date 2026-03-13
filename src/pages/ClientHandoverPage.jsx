@@ -545,16 +545,16 @@ function BankTallyFormPage({ clientId, token, toast, readOnly = false }) {
                           <TableCell className="text-xs sm:text-sm font-medium text-white">{bank.bank_name || '—'}</TableCell>
                           <TableCell className="text-xs sm:text-sm text-gray-300 text-center">{bank.account_number || '—'}</TableCell>
                           <TableCell className="text-center">
-                            <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input w-32 sm:w-44 bg-white/5 text-white text-center" value={opening.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} />
+                            <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input w-32 sm:w-44 bg-white/5 text-white text-center mx-auto" value={opening.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} />
                           </TableCell>
                           <TableCell className="text-center">
-                            <Input type="number" min={0} step={0.01} readOnly={isReadOnly} className={`h-9 sm:h-10 text-sm glass-input w-32 sm:w-44 text-white text-center ${isReadOnly ? 'bg-white/5 cursor-default' : ''}`} value={closingVal} onChange={e => setClosing(bank.id, e.target.value)} placeholder="Closing" />
+                            <Input type="number" min={0} step={0.01} readOnly={isReadOnly} className={`h-9 sm:h-10 text-sm glass-input w-32 sm:w-44 text-white text-center mx-auto ${isReadOnly ? 'bg-white/5 cursor-default' : ''}`} value={closingVal} onChange={e => setClosing(bank.id, e.target.value)} placeholder="Closing" />
                           </TableCell>
                           <TableCell className="text-center">
                             <Input 
                               type="text" 
                               readOnly 
-                              className={`h-9 sm:h-10 text-sm glass-input w-32 sm:w-44 bg-white/5 text-center font-bold ${
+                              className={`h-9 sm:h-10 text-sm glass-input w-32 sm:w-44 bg-white/5 text-center font-bold mx-auto ${
                                 diff > 0 ? 'text-green-400' : diff < 0 ? 'text-red-400' : 'text-white'
                               }`} 
                               value={diff != null ? Math.round(diff).toLocaleString('en-IN') : '—'} 
@@ -572,16 +572,16 @@ function BankTallyFormPage({ clientId, token, toast, readOnly = false }) {
                           <TableCell className="text-xs sm:text-sm text-white">Total</TableCell>
                           <TableCell className="text-xs sm:text-sm text-gray-300 text-center">—</TableCell>
                           <TableCell className="text-center">
-                            <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input w-32 sm:w-44 bg-white/5 text-white font-medium text-center" value={totalOpening.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} />
+                            <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input w-32 sm:w-44 bg-white/5 text-white font-medium text-center mx-auto" value={totalOpening.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} />
                           </TableCell>
                           <TableCell className="text-center">
-                            <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input w-32 sm:w-44 bg-white/5 text-white font-medium text-center" value={totalClosing.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} />
+                            <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input w-32 sm:w-44 bg-white/5 text-white font-medium text-center mx-auto" value={totalClosing.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} />
                           </TableCell>
                           <TableCell className="text-center">
                             <Input 
                               type="text" 
                               readOnly 
-                              className={`h-9 sm:h-10 text-sm glass-input w-32 sm:w-44 bg-white/5 font-bold text-center ${
+                              className={`h-9 sm:h-10 text-sm glass-input w-32 sm:w-44 bg-white/5 font-bold text-center mx-auto ${
                                 totalDiff > 0 ? 'text-green-400' : totalDiff < 0 ? 'text-red-400' : 'text-white'
                               }`} 
                               value={Math.round(totalDiff).toLocaleString('en-IN')} 
