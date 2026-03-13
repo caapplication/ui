@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatCurrencyINR } from '@/lib/utils';
 
-const ITEMS_PER_PAGE = 10;
+// removed static ITEMS_PER_PAGE
 
 import { Check } from 'lucide-react';
 import AnimatedSearch from '@/components/ui/AnimatedSearch';
@@ -27,7 +27,7 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onViewInvoic
   // ...
   const handleViewAttachment = (invoice) => {
     if (onViewInvoice) {
-      onViewInvoice(invoice, searchTerm || datePreset !== 'all_time', filteredInvoices);
+      onViewInvoice(invoice, searchTerm || (datePreset !== 'all_time' && datePreset !== 'last_year'), filteredInvoices);
       return;
     }
     const beneficiaryName = getBeneficiaryName(invoice);
@@ -52,6 +52,7 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onViewInvoic
   const [invoiceToDelete, setInvoiceToDelete] = useState(null);
   const [activePage, setActivePage] = useState(1);
   const [historyPage, setHistoryPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [financeHeaders, setFinanceHeaders] = useState([]);
   const { user } = useAuth();
   const { toast } = useToast();
@@ -150,7 +151,7 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onViewInvoic
           match = false;
         }
       }
-      if (datePreset !== 'all_time') {
+      if (datePreset !== 'all_time' && datePreset !== 'last_year') {
         const invDate = new Date(inv.date || inv.created_date);
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -194,6 +195,14 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onViewInvoic
             if (invDate > toEnd) match = false;
           }
         }
+      } else {
+        // all_time or last_year: limit to 365 days
+        const invDate = new Date(inv.date || inv.created_date);
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const lastYear = new Date(today);
+        lastYear.setDate(lastYear.getDate() - 365);
+        if (invDate < lastYear || invDate > today) match = false;
       }
       return match;
     });
@@ -205,10 +214,10 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onViewInvoic
     setHistoryPage(1);
   }, [searchTerm, datePreset, dateRange]);
 
-  const totalPages = Math.ceil(filteredInvoices.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(filteredInvoices.length / itemsPerPage);
   const paginatedInvoices = filteredInvoices.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
   );
 
 
@@ -248,10 +257,11 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onViewInvoic
                 <SelectTrigger className="w-full glass-input h-11 rounded-full text-white focus:ring-primary/20 px-4">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-gray-400" />
-                    <SelectValue placeholder="All Time" />
+                    <SelectValue placeholder="Last Year" />
                   </div>
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="last_year">Last Year</SelectItem>
                   <SelectItem value="today">Today</SelectItem>
                   <SelectItem value="yesterday">Yesterday</SelectItem>
                   <SelectItem value="last_7_days">Last 7 Days</SelectItem>
@@ -344,7 +354,7 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onViewInvoic
                   </TableCell>
                   {isAccountantView && (
                     <TableCell className="text-xs sm:text-sm">
-                      <span className={`px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-medium ${invoice.is_ready ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'}`}>
+                      <span className={`px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-medium border ${invoice.is_ready ? 'bg-green-500/20 text-green-300 border-green-500/50' : 'bg-red-500/20 text-red-300 border-red-500/50'}`}>
                         {invoice.is_ready ? 'Yes' : 'No'}
                       </span>
                     </TableCell>
@@ -356,15 +366,29 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onViewInvoic
         </div>
         {paginatedInvoices.length === 0 && <p className="text-center text-gray-400 py-8 text-sm sm:text-base">No invoices found.</p>}
       </CardContent>
-      <CardFooter className="flex flex-row justify-center items-center gap-3 p-4 sm:p-6 border-t border-white/10">
-        <div>
+      <CardFooter className="flex flex-col sm:flex-row justify-center items-center gap-6 p-4 sm:p-6 border-t border-white/10">
+        <div className="flex items-center gap-4">
           <p className="text-xs sm:text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400 hidden sm:inline">Rows per page:</span>
+            <Select value={String(itemsPerPage)} onValueChange={(val) => { setItemsPerPage(Number(val)); setCurrentPage(1); }}>
+              <SelectTrigger className="h-8 w-[70px] bg-transparent border-white/10 text-white text-xs">
+                <SelectValue placeholder={String(itemsPerPage)} />
+              </SelectTrigger>
+              <SelectContent className="bg-gray-900 border-white/10 text-white">
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="25">25</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white">
             <ChevronLeft className="w-4 h-4" />
           </Button>
-          <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white">
+          <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages || totalPages === 0} className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white">
             <ChevronRight className="w-4 h-4" />
           </Button>
         </div>

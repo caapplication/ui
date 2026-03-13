@@ -194,7 +194,7 @@ const TransactionItem = ({ transaction, remarks, onClick, index, name }) => {
     );
 };
 
-const formatINR = (num) => `₹ ${(Number(num) || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const formatINR = (num) => `₹ ${(Math.round(Number(num)) || 0).toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 const formatDateDDMMYYYY = (iso) => {
     if (!iso) return "—";
     try { return format(parseISO(iso), "dd-MM-yyyy"); } catch { return iso; }
@@ -533,8 +533,8 @@ const Dashboard = ({
         }
 
         return {
-            currentTotal: currentTotal.toFixed(2),
-            percentageChange: Math.abs(percentageChange).toFixed(1),
+            currentTotal: Math.round(currentTotal),
+            percentageChange: Math.round(Math.abs(percentageChange)),
             isIncrease: currentTotal > previousTotal
         };
     }, [vouchers, expensePeriod, dateRange]);
@@ -1171,7 +1171,7 @@ const Dashboard = ({
                                                                     tickLine={false}
                                                                     axisLine={false}
                                                                     tickFormatter={(value) =>
-                                                                        `₹${value.toLocaleString("en-IN")}`
+                                                                        `₹${Math.round(value).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`
                                                                     }
                                                                     width={isMobile ? 55 : 80}
                                                                 />
@@ -1185,7 +1185,7 @@ const Dashboard = ({
                                                                     itemStyle={{ color: "#fff" }}
                                                                     cursor={{ fill: "rgba(255,255,255,0.05)" }}
                                                                     formatter={(value) => [
-                                                                        `₹${value.toLocaleString("en-IN")}`,
+                                                                        `₹${Math.round(value).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`,
                                                                         "Amount",
                                                                     ]}
                                                                     labelFormatter={(label) => {

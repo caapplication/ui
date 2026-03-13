@@ -169,7 +169,7 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
     const [sortColumn, setSortColumn] = useState('date');
     const [sortDirection, setSortDirection] = useState('desc');
     const [currentPage, setCurrentPage] = useState(1);
-    const pageSize = 10;
+    const [pageSize, setPageSize] = useState(10);
 
     const fetchData = useCallback(async () => {
         if (!user?.access_token || !organizationId || !entityId || !beneficiaryId) return;
@@ -641,30 +641,56 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
 
                 {/* Pagination */}
                 {totalPages > 1 && (
-                    <div className="p-4 sm:p-6 border-t border-white/5 flex justify-center items-center gap-3">
-                        <div>
-                            <p className="text-xs sm:text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
-                        </div>
+                    <div className="p-4 sm:p-6 border-t border-white/5 flex flex-col sm:flex-row justify-between items-center gap-4">
                         <div className="flex items-center gap-2">
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-8 w-8 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
-                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                disabled={currentPage === 1}
+                            <span className="text-xs sm:text-sm text-gray-400">Rows per page:</span>
+                            <Select
+                                value={pageSize.toString()}
+                                onValueChange={(val) => {
+                                    setPageSize(parseInt(val));
+                                    setCurrentPage(1);
+                                }}
                             >
-                                <ChevronLeft className="w-4 h-4" />
-                            </Button>
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-8 w-8 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
-                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                                disabled={currentPage === totalPages}
-                            >
-                                <ChevronRight className="w-4 h-4" />
-                            </Button>
+                                <SelectTrigger className="h-8 w-16 sm:w-20 bg-transparent border-white/10 text-white rounded-xl text-xs sm:text-sm">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="bg-gray-900 border-white/10 text-white rounded-xl min-w-[5rem]">
+                                    {[10, 25, 50, 100].map((size) => (
+                                        <SelectItem key={size} value={size.toString()} className="text-xs sm:text-sm focus:bg-white/10 focus:text-white rounded-lg">
+                                            {size}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
+
+                        <div className="flex flex-row justify-center items-center gap-4">
+                            <div>
+                                <p className="text-xs sm:text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-8 w-8 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
+                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                    disabled={currentPage === 1}
+                                >
+                                    <ChevronLeft className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-8 w-8 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
+                                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                    disabled={currentPage === totalPages}
+                                >
+                                    <ChevronRight className="w-4 h-4" />
+                                </Button>
+                            </div>
+                        </div>
+
+                        <div className="hidden sm:block w-[120px]"></div>
                     </div>
                 )}
             </Card>

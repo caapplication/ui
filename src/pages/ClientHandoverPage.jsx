@@ -56,6 +56,13 @@ const formatTime = (utcString) => {
   } catch { return utcString; }
 };
 
+const getVarianceColor = (val) => {
+  const num = Number(val) || 0;
+  if (num > 0.001) return 'text-green-400';
+  if (num < -0.001) return 'text-red-400';
+  return 'text-yellow-400';
+};
+
 const ClientHandoverPage = ({ entityId, entityName }) => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -129,9 +136,11 @@ function BankTallyListTab({ clientId, token, toast, readOnly = false }) {
   const [listLoading, setListLoading] = useState(true);
   const [banks, setBanks] = useState([]);
   const [banksLoaded, setBanksLoaded] = useState(false);
-  const [datePreset, setDatePreset] = useState('all_time');
+  const [datePreset, setDatePreset] = useState('last_30_days');
   const [dateRange, setDateRange] = useState({ from: null, to: null });
   const [searchTerm, setSearchTerm] = useState('');
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const loadBanks = useCallback(async () => {
     if (!clientId || !token) return;
@@ -176,6 +185,11 @@ function BankTallyListTab({ clientId, token, toast, readOnly = false }) {
         const d = new Date(e.report_date);
         const vDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
+        if (datePreset === 'all_time' || datePreset === 'last_year') {
+          const lastYear = new Date(today);
+          lastYear.setDate(lastYear.getDate() - 365);
+          return vDate >= lastYear && vDate <= today;
+        }
         if (datePreset === 'today') return vDate.getTime() === today.getTime();
         if (datePreset === 'yesterday') {
           const yesterday = new Date(today);
@@ -231,6 +245,14 @@ function BankTallyListTab({ clientId, token, toast, readOnly = false }) {
     return list;
   }, [entriesList, datePreset, dateRange, searchTerm]);
 
+  useEffect(() => { setCurrentPage(1); }, [searchTerm, datePreset, dateRange]);
+
+  const totalPages = Math.ceil((filteredList?.length || 0) / itemsPerPage);
+  const paginatedList = filteredList.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   if (!banksLoaded) {
     return (
       <div className="py-8 flex justify-center">
@@ -257,11 +279,11 @@ function BankTallyListTab({ clientId, token, toast, readOnly = false }) {
                 <SelectTrigger className="w-full sm:w-[160px] h-11 rounded-full glass-input px-4">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-gray-400" />
-                    <SelectValue placeholder="All Time" />
+                    <SelectValue placeholder="Last Year" />
                   </div>
                 </SelectTrigger>
                 <SelectContent className="bg-gray-900 border-white/10 text-white rounded-2xl">
-                  <SelectItem value="all_time">All Time</SelectItem>
+                  <SelectItem value="last_year">Last Year</SelectItem>
                   <SelectItem value="today">Today</SelectItem>
                   <SelectItem value="yesterday">Yesterday</SelectItem>
                   <SelectItem value="last_7_days">Last 7 Days</SelectItem>
@@ -306,10 +328,10 @@ function BankTallyListTab({ clientId, token, toast, readOnly = false }) {
               <TableBody>
                 {filteredList.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={1} className="text-center text-gray-400 py-8 text-sm">No entries found.</TableCell>
+                    <TableCell colSpan={3} className="text-center text-gray-400 py-8 text-sm">No entries found.</TableCell>
                   </TableRow>
                 ) : (
-                  filteredList.map((entry) => (
+                  paginatedList.map((entry) => (
                     <TableRow
                       key={entry.report_date}
                       className="cursor-pointer transition-colors hover:bg-white/5 border-white/10"
@@ -326,6 +348,33 @@ function BankTallyListTab({ clientId, token, toast, readOnly = false }) {
           </div>
         )}
       </CardContent>
+      <CardFooter className="flex flex-col sm:flex-row justify-center items-center gap-6 p-4 sm:p-6 border-t border-white/10">
+        <div className="flex items-center gap-4">
+          <p className="text-xs sm:text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400 hidden sm:inline">Rows per page:</span>
+            <Select value={String(itemsPerPage)} onValueChange={(val) => { setItemsPerPage(Number(val)); setCurrentPage(1); }}>
+              <SelectTrigger className="h-8 w-[70px] bg-transparent border-white/10 text-white text-xs">
+                <SelectValue placeholder={String(itemsPerPage)} />
+              </SelectTrigger>
+              <SelectContent className="bg-gray-900 border-white/10 text-white">
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="25">25</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white">
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages || totalPages === 0} className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white">
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+        </div>
+      </CardFooter>
     </Card>
   );
 }
@@ -535,9 +584,11 @@ function CashTallyListTab({ clientId, entityId, token, toast, readOnly = false }
   const location = useLocation();
   const [entriesList, setEntriesList] = useState([]);
   const [listLoading, setListLoading] = useState(true);
-  const [datePreset, setDatePreset] = useState('all_time');
+  const [datePreset, setDatePreset] = useState('last_30_days');
   const [dateRange, setDateRange] = useState({ from: null, to: null });
   const [searchTerm, setSearchTerm] = useState('');
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const loadEntriesList = useCallback(async () => {
     if (!clientId || !token) return;
@@ -568,6 +619,11 @@ function CashTallyListTab({ clientId, entityId, token, toast, readOnly = false }
         const d = new Date(e.report_date);
         const vDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
+        if (datePreset === 'all_time' || datePreset === 'last_year') {
+          const lastYear = new Date(today);
+          lastYear.setDate(lastYear.getDate() - 365);
+          return vDate >= lastYear && vDate <= today;
+        }
         if (datePreset === 'today') return vDate.getTime() === today.getTime();
         if (datePreset === 'yesterday') {
           const yesterday = new Date(today);
@@ -623,6 +679,14 @@ function CashTallyListTab({ clientId, entityId, token, toast, readOnly = false }
     return list;
   }, [entriesList, datePreset, dateRange, searchTerm]);
 
+  useEffect(() => { setCurrentPage(1); }, [searchTerm, datePreset, dateRange]);
+
+  const totalPages = Math.ceil((filteredList?.length || 0) / itemsPerPage);
+  const paginatedList = filteredList.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   return (
     <Card className="glass-card mt-4">
       <CardHeader className="p-4 sm:p-6">
@@ -634,11 +698,11 @@ function CashTallyListTab({ clientId, entityId, token, toast, readOnly = false }
                 <SelectTrigger className="w-full sm:w-[160px] h-11 rounded-full glass-input px-4">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-gray-400" />
-                    <SelectValue placeholder="All Time" />
+                    <SelectValue placeholder="Last Year" />
                   </div>
                 </SelectTrigger>
                 <SelectContent className="bg-gray-900 border-white/10 text-white rounded-2xl">
-                  <SelectItem value="all_time">All Time</SelectItem>
+                  <SelectItem value="last_year">Last Year</SelectItem>
                   <SelectItem value="today">Today</SelectItem>
                   <SelectItem value="yesterday">Yesterday</SelectItem>
                   <SelectItem value="last_7_days">Last 7 Days</SelectItem>
@@ -684,10 +748,10 @@ function CashTallyListTab({ clientId, entityId, token, toast, readOnly = false }
               <TableBody>
                 {filteredList.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={2} className="text-center text-gray-400 py-8 text-sm">No entries found.</TableCell>
+                    <TableCell colSpan={4} className="text-center text-gray-400 py-8 text-sm">No entries found.</TableCell>
                   </TableRow>
                 ) : (
-                  filteredList.map((entry) => (
+                  paginatedList.map((entry) => (
                     <TableRow
                       key={entry.report_date}
                       className="cursor-pointer transition-colors hover:bg-white/5 border-white/10"
@@ -705,6 +769,33 @@ function CashTallyListTab({ clientId, entityId, token, toast, readOnly = false }
           </div>
         )}
       </CardContent>
+      <CardFooter className="flex flex-col sm:flex-row justify-center items-center gap-6 p-4 sm:p-6 border-t border-white/10">
+        <div className="flex items-center gap-4">
+          <p className="text-xs sm:text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400 hidden sm:inline">Rows per page:</span>
+            <Select value={String(itemsPerPage)} onValueChange={(val) => { setItemsPerPage(Number(val)); setCurrentPage(1); }}>
+              <SelectTrigger className="h-8 w-[70px] bg-transparent border-white/10 text-white text-xs">
+                <SelectValue placeholder={String(itemsPerPage)} />
+              </SelectTrigger>
+              <SelectContent className="bg-gray-900 border-white/10 text-white">
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="25">25</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white">
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages || totalPages === 0} className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white">
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+        </div>
+      </CardFooter>
     </Card>
   );
 }
@@ -915,11 +1006,12 @@ function CashierReportListTab({ clientId, token, toast }) {
   const location = useLocation();
   const [entriesList, setEntriesList] = useState([]);
   const [listLoading, setListLoading] = useState(true);
-  const [datePreset, setDatePreset] = useState('all_time');
+  const [datePreset, setDatePreset] = useState('last_30_days');
   const [dateRange, setDateRange] = useState({ from: null, to: null });
   const [searchTerm, setSearchTerm] = useState('');
 
-  const ITEMS_PER_PAGE = 10;
+  // removed static ITEMS_PER_PAGE
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
 
   const loadList = useCallback(async () => {
@@ -953,6 +1045,11 @@ function CashierReportListTab({ clientId, token, toast }) {
         const vDate = new Date(d);
         vDate.setHours(0, 0, 0, 0);
 
+        if (datePreset === 'all_time' || datePreset === 'last_year') {
+          const lastYear = new Date(today);
+          lastYear.setDate(lastYear.getDate() - 365);
+          return vDate >= lastYear && vDate <= today;
+        }
         if (datePreset === 'today') return vDate.getTime() === todayTime;
         if (datePreset === 'yesterday') {
           const yesterday = new Date(today);
@@ -1010,10 +1107,10 @@ function CashierReportListTab({ clientId, token, toast }) {
 
   useEffect(() => { setCurrentPage(1); }, [searchTerm, datePreset, dateRange]);
 
-  const totalPages = Math.ceil((filteredList?.length || 0) / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil((filteredList?.length || 0) / itemsPerPage);
   const paginatedList = filteredList.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
   );
 
   return (
@@ -1027,11 +1124,11 @@ function CashierReportListTab({ clientId, token, toast }) {
                 <SelectTrigger className="w-full sm:w-[160px] h-11 rounded-full glass-input px-4">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-gray-400" />
-                    <SelectValue placeholder="All Time" />
+                    <SelectValue placeholder="Last Year" />
                   </div>
                 </SelectTrigger>
                 <SelectContent className="bg-gray-900 border-white/10 text-white rounded-2xl">
-                  <SelectItem value="all_time">All Time</SelectItem>
+                  <SelectItem value="last_year">Last Year</SelectItem>
                   <SelectItem value="today">Today</SelectItem>
                   <SelectItem value="yesterday">Yesterday</SelectItem>
                   <SelectItem value="last_7_days">Last 7 Days</SelectItem>
@@ -1104,8 +1201,24 @@ function CashierReportListTab({ clientId, token, toast }) {
           </div>
         )}
       </CardContent>
-      <CardFooter className="flex flex-row justify-center items-center gap-3 p-4 sm:p-6 border-t border-white/10">
-        <div><p className="text-xs sm:text-sm text-gray-400">Page {currentPage} of {totalPages}</p></div>
+      <CardFooter className="flex flex-col sm:flex-row justify-center items-center gap-6 p-4 sm:p-6 border-t border-white/10">
+        <div className="flex items-center gap-4">
+          <p className="text-xs sm:text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400 hidden sm:inline">Rows per page:</span>
+            <Select value={String(itemsPerPage)} onValueChange={(val) => { setItemsPerPage(Number(val)); setCurrentPage(1); }}>
+              <SelectTrigger className="h-8 w-[70px] bg-transparent border-white/10 text-white text-xs">
+                <SelectValue placeholder={String(itemsPerPage)} />
+              </SelectTrigger>
+              <SelectContent className="bg-gray-900 border-white/10 text-white">
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="25">25</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white">
             <ChevronLeft className="w-4 h-4" />
@@ -1481,7 +1594,7 @@ function CashierReportTab({ clientId, token, toast }) {
 
 function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, readOnly = false }) {
   const [viewMode, setViewMode] = useState('pending');
-  const [datePreset, setDatePreset] = useState('all_time');
+  const [datePreset, setDatePreset] = useState('last_30_days');
   const [dateRange, setDateRange] = useState({ from: null, to: null });
   const [searchTerm, setSearchTerm] = useState('');
   const [items, setItems] = useState([]);
@@ -1573,12 +1686,17 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
 
   const pmName = (id) => paymentMethods.find(p => p.id === id)?.name || id;
   const applyDateFilter = (list) => {
-    if (datePreset === 'all_time') return list;
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     return list.filter(row => {
       const d = new Date(row.date);
       const vDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+      if (datePreset === 'all_time' || datePreset === 'last_year') {
+        const lastYear = new Date(today);
+        lastYear.setDate(lastYear.getDate() - 365);
+        return vDate >= lastYear && vDate <= today;
+      }
       if (datePreset === 'today') return vDate.getTime() === today.getTime();
       if (datePreset === 'yesterday') {
         const yesterday = new Date(today);
@@ -1641,7 +1759,7 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
   const historyItems = useMemo(() => applySearch(applyDateFilter(items.filter(row => row.status === 'approved'))), [items, datePreset, dateRange, searchTerm, usersMap]);
   const displayItems = viewMode === 'pending' ? pendingItems : historyItems;
 
-  const ITEMS_PER_PAGE = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [activePage, setActivePage] = useState(1);
   const [historyPage, setHistoryPage] = useState(1);
 
@@ -1656,10 +1774,10 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
     setHistoryPage(1);
   }, [searchTerm, datePreset, dateRange, viewMode]);
 
-  const totalPages = Math.ceil(displayItems.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(displayItems.length / itemsPerPage);
   const paginatedItems = displayItems.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
   );
 
   const showActionColumn = viewMode === 'pending' && !readOnly && (isAdminView ? displayItems.some(row => row.status === 'pending') : true);
@@ -1673,6 +1791,16 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
     }
     return 'Pending Admin';
   };
+  const getHandoverStatusColor = (row) => {
+    if (row.status === 'approved') return 'bg-green-500/20 text-green-400 border-green-500/50';
+    if (row.status === 'rejected') return 'bg-red-500/20 text-red-400 border-red-500/50';
+    if (!isAdminView) {
+      if (row.client_user_status === 'pending') return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50';
+      return 'bg-orange-500/20 text-orange-400 border-orange-500/50';
+    }
+    return 'bg-amber-500/20 text-amber-400 border-amber-500/50';
+  };
+
   const colSpan = showActionColumn ? 9 : 8;
   const isBreakdownEditable = (row) => {
     if (readOnly) return false;
@@ -1716,11 +1844,11 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
                 <SelectTrigger className="w-full sm:w-[160px] h-11 rounded-full glass-input px-4">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-gray-400" />
-                    <SelectValue placeholder="All Time" />
+                    <SelectValue placeholder="Last Year" />
                   </div>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all_time">All Time</SelectItem>
+                  <SelectItem value="last_year">Last Year</SelectItem>
                   <SelectItem value="today">Today</SelectItem>
                   <SelectItem value="yesterday">Yesterday</SelectItem>
                   <SelectItem value="last_7_days">Last 7 Days</SelectItem>
@@ -1791,9 +1919,9 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
                         ₹ {Number(row.as_per_system).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </button>
                     </TableCell>
-                    <TableCell className="text-xs sm:text-sm text-white">₹ {Number(row.variance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
+                    <TableCell className={`text-xs sm:text-sm ${getVarianceColor(row.variance)}`}>₹ {Number(row.variance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
                     <TableCell className="text-xs sm:text-sm">
-                      <span className={`inline-flex px-2 py-0.5 rounded text-xs sm:text-sm ${row.status === 'approved' ? 'bg-green-500/20 text-green-400' : row.status === 'rejected' ? 'bg-red-500/20 text-red-400' : '!bg-amber-500/20 text-amber-400'}`}>
+                      <span className={`inline-flex items-center justify-center text-center px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-medium border h-auto min-h-[1.5rem] whitespace-normal leading-tight ${getHandoverStatusColor(row)}`}>
                         {statusLabel(row)}
                       </span>
                     </TableCell>
@@ -1811,8 +1939,24 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
           </Table>
         </div>
       </CardContent>
-      <CardFooter className="flex flex-row justify-center items-center gap-3 p-4 sm:p-6 border-t border-white/10">
-        <div><p className="text-xs sm:text-sm text-gray-400">Page {currentPage} of {totalPages}</p></div>
+      <CardFooter className="flex flex-col sm:flex-row justify-center items-center gap-6 p-4 sm:p-6 border-t border-white/10">
+        <div className="flex items-center gap-4">
+          <p className="text-xs sm:text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400 hidden sm:inline">Rows per page:</span>
+            <Select value={String(itemsPerPage)} onValueChange={(val) => { setItemsPerPage(Number(val)); setCurrentPage(1); }}>
+              <SelectTrigger className="h-8 w-[70px] bg-transparent border-white/10 text-white text-xs">
+                <SelectValue placeholder={String(itemsPerPage)} />
+              </SelectTrigger>
+              <SelectContent className="bg-gray-900 border-white/10 text-white">
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="25">25</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white">
             <ChevronLeft className="w-4 h-4" />
@@ -1972,7 +2116,7 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
                           </TableRow>
                           <TableRow className="bg-white/5">
                             <TableCell className="py-1 font-medium">Difference</TableCell>
-                            <TableCell className="text-right py-1 font-medium">
+                            <TableCell className={`text-right py-1 font-medium ${getVarianceColor(parseFloat(editValues.physical_cash_at_desk || 0) - (row.cash_collection || 0))}`}>
                               ₹ {(parseFloat(editValues.physical_cash_at_desk || 0) - (row.cash_collection || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                             </TableCell>
                           </TableRow>
@@ -2106,6 +2250,7 @@ function ReportTab({ clientId, entityId, entityName, token, toast }) {
   const closingBalance = openingBalance + cashInHandover + cashInOther - cashOut;
   const denomDetails = cashTally?.denomination_details && typeof cashTally.denomination_details === 'object' ? cashTally.denomination_details : {};
   const denomTotal = denominations.reduce((sum, d) => sum + (Number(d.value) || 0) * (Number(denomDetails[d.id]) || 0), 0);
+  const cashVariance = denomTotal - closingBalance;
 
   const cashVoucherTotal = cashVouchers.reduce((s, v) => s + (Number(v.amount) || 0), 0);
   const debitVoucherTotal = debitVouchers.reduce((s, v) => s + (Number(v.amount) || 0), 0);
@@ -2143,6 +2288,7 @@ function ReportTab({ clientId, entityId, entityName, token, toast }) {
           cash_in_other: cashInOther,
           cash_out: cashOut,
           closing_balance: closingBalance,
+          variance: cashVariance,
           remarks: cashTally?.remarks || '',
         },
         denominations: denominations.map(d => {
@@ -2233,7 +2379,7 @@ function ReportTab({ clientId, entityId, entityName, token, toast }) {
                         <TableCell className="text-xs sm:text-sm text-white">{bank.account_number || '—'}</TableCell>
                         <TableCell className="text-xs sm:text-sm text-white text-right">₹ {Number(opening).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
                         <TableCell className="text-xs sm:text-sm text-white text-right">₹ {Number(closing).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
-                        <TableCell className={`text-xs sm:text-sm text-right ${variance >= 0 ? 'text-green-400' : 'text-white'}`}>₹ {Number(variance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
+                        <TableCell className={`text-xs sm:text-sm text-right ${getVarianceColor(variance)}`}>₹ {Number(variance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
                       </TableRow>
                     ))}
                     <TableRow className="!bg-amber-500/20 border-white/10 font-medium">
@@ -2241,7 +2387,7 @@ function ReportTab({ clientId, entityId, entityName, token, toast }) {
                       <TableCell className="text-xs sm:text-sm text-white">—</TableCell>
                       <TableCell className="text-xs sm:text-sm text-white text-right">₹ {bankOpeningTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
                       <TableCell className="text-xs sm:text-sm text-white text-right">₹ {bankClosingTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
-                      <TableCell className={`text-xs sm:text-sm text-right ${bankVarianceTotal >= 0 ? 'text-green-400' : 'text-white'}`}>₹ {bankVarianceTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell className={`text-xs sm:text-sm text-right ${getVarianceColor(bankVarianceTotal)}`}>₹ {bankVarianceTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
                     </TableRow>
                   </TableBody>
                 </Table>
@@ -2266,6 +2412,10 @@ function ReportTab({ clientId, entityId, entityName, token, toast }) {
                       <TableRow className="border-white/10"><TableCell className="text-xs sm:text-sm text-white">Cash In - Others</TableCell><TableCell className="text-xs sm:text-sm text-white text-right">₹ {cashInOther.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell></TableRow>
                       <TableRow className="border-white/10"><TableCell className="text-xs sm:text-sm text-white">Cash Out</TableCell><TableCell className="text-xs sm:text-sm text-white text-right">₹ {cashOut.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell></TableRow>
                       <TableRow className="!bg-amber-500/20 border-white/10"><TableCell className="text-xs sm:text-sm font-medium text-white">Closing Balance</TableCell><TableCell className="text-xs sm:text-sm font-medium text-white text-right">₹ {closingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell></TableRow>
+                      <TableRow className="border-white/10">
+                        <TableCell className="text-xs sm:text-sm font-medium text-white">Variance</TableCell>
+                        <TableCell className={`text-xs sm:text-sm font-medium text-right ${getVarianceColor(cashVariance)}`}>₹ {cashVariance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
+                      </TableRow>
                     </TableBody>
                   </Table>
                   <p className="text-gray-400 text-sm mt-2 px-2">Cash Tally Remarks: {cashTally?.remarks || 'No Remarks'}</p>
@@ -2326,7 +2476,7 @@ function ReportTab({ clientId, entityId, entityName, token, toast }) {
                           <TableCell className="text-xs sm:text-sm text-white">{v.voucher_id || '—'}</TableCell>
                           <TableCell className="text-xs sm:text-sm text-white">{v.beneficiary_name || '—'}</TableCell>
                           <TableCell className="text-xs sm:text-sm text-white">{v.remarks || '—'}</TableCell>
-                          <TableCell className="text-xs sm:text-sm text-blue-400 text-right">₹ {Number(v.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
+                          <TableCell className="text-xs sm:text-sm text-white text-right">₹ {Number(v.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
                         </TableRow>
                       ))
                     )}
@@ -2369,7 +2519,7 @@ function ReportTab({ clientId, entityId, entityName, token, toast }) {
                           <TableCell className="text-xs sm:text-sm text-white">{v.from_bank_account_number || '—'}</TableCell>
                           <TableCell className="text-xs sm:text-sm text-white">{v.beneficiary_name || '—'}</TableCell>
                           <TableCell className="text-xs sm:text-sm text-white">{v.remarks || '—'}</TableCell>
-                          <TableCell className="text-xs sm:text-sm text-blue-400 text-right">₹ {Number(v.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
+                          <TableCell className="text-xs sm:text-sm text-white text-right">₹ {Number(v.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
                         </TableRow>
                       ))
                     )}

@@ -289,7 +289,7 @@ const BeneficiaryDetailsPage = () => {
         <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 sm:p-6">
           <div>
             <CardTitle className="text-lg sm:text-xl md:text-2xl">{beneficiaryName}</CardTitle>
-            <CardDescription className="text-sm sm:text-base">{beneficiary.beneficiary_type === 'individual' ? 'Individual' : 'Company'}</CardDescription>
+            <CardDescription className="text-sm sm:text-base">{beneficiary.beneficiary_type === 'individual' ? 'Individual' : 'Business'}</CardDescription>
           </div>
           <div className="flex items-center space-x-2 w-full sm:w-auto">
             <Label htmlFor="show-details" className="text-white text-sm sm:text-base">Show Details</Label>
@@ -299,14 +299,11 @@ const BeneficiaryDetailsPage = () => {
         {showDetails && (
           <CardContent className="p-4 sm:p-6 pt-0">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 text-sm">
-              <div className="space-y-1"><p className="text-gray-400 text-xs sm:text-sm">Email</p><p className="text-sm sm:text-base">{beneficiary.email || 'No email'}</p></div>
               <div className="space-y-1"><p className="text-gray-400 text-xs sm:text-sm">Phone</p><p className="text-sm sm:text-base">{beneficiary.phone}</p></div>
-              <div className="space-y-1"><p className="text-gray-400 text-xs sm:text-sm">PAN</p><p className="text-sm sm:text-base">{beneficiary.pan || 'N/A'}</p></div>
               <div className="space-y-1"><p className="text-gray-400 text-xs sm:text-sm">Aadhar</p><p className="text-sm sm:text-base">{beneficiary.aadhar || 'N/A'}</p></div>
               {beneficiary.beneficiary_type === 'company' && (
                 <>
                   <div className="space-y-1"><p className="text-gray-400 text-xs sm:text-sm">GSTIN</p><p className="text-sm sm:text-base">{beneficiary.gstin || 'N/A'}</p></div>
-                  <div className="space-y-1"><p className="text-gray-400 text-xs sm:text-sm">Proprietor Name</p><p className="text-sm sm:text-base">{beneficiary.proprietor_name || 'N/A'}</p></div>
                 </>
               )}
             </div>
@@ -465,7 +462,7 @@ const BeneficiaryDetailsPage = () => {
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="individual">Individual</SelectItem>
-                    <SelectItem value="company">Company</SelectItem>
+                    <SelectItem value="company">Business</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -473,19 +470,13 @@ const BeneficiaryDetailsPage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div><Label htmlFor="name">Name</Label><Input name="name" id="name" defaultValue={editableBeneficiary.name} required /></div>
                   <div><Label htmlFor="phone">Phone</Label><Input name="phone" id="phone" type="tel" defaultValue={editableBeneficiary.phone} required /></div>
-                  <div className="md:col-span-2"><Label htmlFor="email">Email</Label><Input name="email" id="email" type="email" defaultValue={editableBeneficiary.email} /></div>
                   <div><Label htmlFor="aadhar">Aadhar</Label><Input name="aadhar" id="aadhar" defaultValue={editableBeneficiary.aadhar} required /></div>
-                  <div><Label htmlFor="pan">PAN</Label><Input name="pan" id="pan" defaultValue={editableBeneficiary.pan} required /></div>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div><Label htmlFor="company_name">Company Name</Label><Input name="company_name" id="company_name" defaultValue={editableBeneficiary.company_name} required /></div>
+                  <div><Label htmlFor="company_name">Business Name</Label><Input name="company_name" id="company_name" defaultValue={editableBeneficiary.company_name} required /></div>
                   <div><Label htmlFor="phone">Phone</Label><Input name="phone" id="phone" type="tel" defaultValue={editableBeneficiary.phone} required /></div>
-                  <div className="md:col-span-2"><Label htmlFor="email">Email Address</Label><Input name="email" id="email" type="email" defaultValue={editableBeneficiary.email} /></div>
                   <div><Label htmlFor="gstin">GSTIN</Label><Input name="gstin" id="gstin" defaultValue={editableBeneficiary.gstin} required /></div>
-                  <div><Label htmlFor="pan">PAN</Label><Input name="pan" id="pan" defaultValue={editableBeneficiary.pan} required /></div>
-                  <div><Label htmlFor="aadhar">Aadhar (of Proprietor)</Label><Input name="aadhar" id="aadhar" defaultValue={editableBeneficiary.aadhar} required /></div>
-                  <div><Label htmlFor="proprietor_name">Proprietor Name</Label><Input name="proprietor_name" id="proprietor_name" defaultValue={editableBeneficiary.proprietor_name} required /></div>
                 </div>
               )}
               <DialogFooter>

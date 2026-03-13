@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
-import { Plus, Users, User, Banknote, Building, Search, Loader2, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
+import { Plus, Users, User, Banknote, Building, Search, Loader2, ChevronLeft, ChevronRight, Eye, ArrowLeft } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth.jsx';
@@ -56,7 +56,7 @@ const BeneficiaryForm = ({ onAdd, onCancel, isEdit, beneficiary, isSaving }) => 
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="individual">Individual</SelectItem>
-            <SelectItem value="company">Company</SelectItem>
+            <SelectItem value="company">Business</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -73,13 +73,11 @@ const BeneficiaryForm = ({ onAdd, onCancel, isEdit, beneficiary, isSaving }) => 
 
       {beneficiaryType === 'company' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div><Label htmlFor="company_name">Company Name</Label><Input name="company_name" id="company_name" required /></div>
+          <div><Label htmlFor="company_name">Business Name</Label><Input name="company_name" id="company_name" required /></div>
           <div><Label htmlFor="phone">Phone</Label><Input name="phone" id="phone" type="tel" required /></div>
           <div className="md:col-span-2"><Label htmlFor="email">Email Address <span className="text-gray-400 text-xs">(Optional)</span></Label><Input name="email" id="email" type="email" /></div>
           <div><Label htmlFor="gstin">GSTIN</Label><Input name="gstin" id="gstin" required /></div>
           <div><Label htmlFor="pan">PAN</Label><Input name="pan" id="pan" required /></div>
-          <div><Label htmlFor="aadhar">Aadhar (of Proprietor)</Label><Input name="aadhar" id="aadhar" required /></div>
-          <div><Label htmlFor="proprietor_name">Proprietor Name</Label><Input name="proprietor_name" id="proprietor_name" required /></div>
         </div>
       )}
 
@@ -132,9 +130,8 @@ const AddBankAccountForm = ({ beneficiary, onAddBankAccount, onCancel }) => {
 };
 
 
-const Beneficiaries = ({ entityId, quickAction, clearQuickAction }) => {
-  const PAGE_SIZE = 10;
-
+const Beneficiaries = ({ entityId, entityName, quickAction, clearQuickAction }) => {
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [beneficiaries, setBeneficiaries] = useState([]);
   const [allBeneficiaries, setAllBeneficiaries] = useState([]); // Store all fetched data
   const [isLoading, setIsLoading] = useState(true);
@@ -265,13 +262,13 @@ const Beneficiaries = ({ entityId, quickAction, clearQuickAction }) => {
   }, [searchTerm, beneficiaries, activeTab, activeFilters, filterValues]);
 
   const totalPages = useMemo(() => {
-    return Math.max(1, Math.ceil(filteredBeneficiaries.length / PAGE_SIZE));
-  }, [filteredBeneficiaries.length, PAGE_SIZE]);
+    return Math.max(1, Math.ceil(filteredBeneficiaries.length / itemsPerPage));
+  }, [filteredBeneficiaries.length, itemsPerPage]);
 
   const paginatedBeneficiaries = useMemo(() => {
-    const startIndex = (currentPage - 1) * PAGE_SIZE;
-    return filteredBeneficiaries.slice(startIndex, startIndex + PAGE_SIZE);
-  }, [filteredBeneficiaries, currentPage, PAGE_SIZE]);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredBeneficiaries.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredBeneficiaries, currentPage, itemsPerPage]);
 
   // Reset pagination when switching tab, searching, or filters change
   useEffect(() => {
@@ -393,9 +390,23 @@ const Beneficiaries = ({ entityId, quickAction, clearQuickAction }) => {
   }
 
   const PaginationFooter = () => (
-    <CardFooter className="flex flex-row justify-center items-center gap-3  pt-4 px-4 sm:px-6 pb-4 sm:pb-6 border-t border-white/10">
-      <div>
+    <CardFooter className="flex flex-col sm:flex-row justify-center items-center gap-6 p-4 sm:p-6 border-t border-white/10">
+      <div className="flex items-center gap-4">
         <p className="text-xs sm:text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-400 hidden sm:inline">Rows per page:</span>
+          <Select value={String(itemsPerPage)} onValueChange={(val) => { setItemsPerPage(Number(val)); setCurrentPage(1); }}>
+            <SelectTrigger className="h-8 w-[70px] bg-transparent border-white/10 text-white text-xs">
+              <SelectValue placeholder={String(itemsPerPage)} />
+            </SelectTrigger>
+            <SelectContent className="bg-gray-900 border-white/10 text-white">
+              <SelectItem value="10">10</SelectItem>
+              <SelectItem value="25">25</SelectItem>
+              <SelectItem value="50">50</SelectItem>
+              <SelectItem value="100">100</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
       <div className="flex items-center gap-2">
         <Button
@@ -411,7 +422,7 @@ const Beneficiaries = ({ entityId, quickAction, clearQuickAction }) => {
           variant="outline"
           size="icon"
           onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-          disabled={currentPage === totalPages}
+          disabled={currentPage === totalPages || totalPages === 0}
           className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
         >
           <ChevronRight className="w-4 h-4" />
@@ -424,6 +435,9 @@ const Beneficiaries = ({ entityId, quickAction, clearQuickAction }) => {
     <div className="p-4 sm:p-6 lg:p-8 h-full flex flex-col overflow-hidden">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="flex-1 flex flex-col min-h-0">
         <div className="page-header">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/finance')} className="h-10 w-10 border border-white/10 hover:bg-white/10 rounded-full shrink-0">
+            <ArrowLeft className="h-6 w-6 text-white" />
+          </Button>
           <h1 className="page-title">Beneficiaries</h1>
         </div>
 
@@ -432,7 +446,7 @@ const Beneficiaries = ({ entityId, quickAction, clearQuickAction }) => {
             <Loader2 className="w-8 h-8 animate-spin text-white" />
           </div>
         ) : (
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col min-h-0">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col min-h-0">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 flex-wrap w-full">
               <TabsList>
                 <TabsTrigger value="individual">
@@ -441,36 +455,39 @@ const Beneficiaries = ({ entityId, quickAction, clearQuickAction }) => {
                 </TabsTrigger>
                 <TabsTrigger value="company">
                   <Building className="w-4 h-4 mr-2" />
-                  Company
+                  Business
                 </TabsTrigger>
               </TabsList>
               <div className="flex items-center gap-2 w-full sm:w-auto">
-
                 <Button onClick={() => setShowAddDialog(true)} className="h-9 sm:h-10 text-sm sm:text-base whitespace-nowrap">
                   <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
                   <span className="hidden sm:inline">Add New</span>
                   <span className="sm:hidden">Add</span>
                 </Button>
-                <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
-    <AnimatedSearch
-        placeholder="Search by name, email, phone, or PAN..."
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-    />
-</div>
               </div>
             </div>
             <TabsContent value="individual" className="flex-1 flex flex-col min-h-0 mt-0 h-full">
-                <Card className="glass-card overflow-hidden flex-1 flex flex-col min-h-0">
-                    <CardContent className="p-0 flex-1 overflow-auto no-scrollbar">
+              <Card className="glass-card overflow-hidden flex-1 flex flex-col min-h-0">
+                <CardHeader className="p-4 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <CardTitle className="font-semibold tracking-tight text-lg text-white mb-0">Individual Beneficiaries</CardTitle>
+                    <CardDescription className="text-gray-400 mt-1">Manage individual payees for {entityName}</CardDescription>
+                  </div>
+                  <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+                    <AnimatedSearch
+                      placeholder="Search beneficiaries..."
+                      value={searchTerm}
+                      onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                    />
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0 flex-1 overflow-auto no-scrollbar">
                   <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
                           <TableHead className="text-xs sm:text-sm">Name</TableHead>
-                          <TableHead className="text-xs sm:text-sm hidden sm:table-cell">Email</TableHead>
                           <TableHead className="text-xs sm:text-sm">Phone</TableHead>
-                          <TableHead className="text-xs sm:text-sm hidden md:table-cell">PAN</TableHead>
                           <TableHead className="text-xs sm:text-sm">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -487,13 +504,9 @@ const Beneficiaries = ({ entityId, quickAction, clearQuickAction }) => {
                               <TableCell className="text-xs sm:text-sm">
                                 <div className="flex flex-col sm:block">
                                   <span className="font-medium">{b.name}</span>
-                                  <span className="text-gray-400 text-xs sm:hidden mt-1">{b.email || '-'}</span>
-                                  <span className="text-gray-400 text-xs sm:hidden mt-1">PAN: {b.pan || 'N/A'}</span>
                                 </div>
                               </TableCell>
-                              <TableCell className="text-xs sm:text-sm hidden sm:table-cell">{b.email || '-'}</TableCell>
                               <TableCell className="text-xs sm:text-sm">{b.phone}</TableCell>
-                              <TableCell className="text-xs sm:text-sm hidden md:table-cell">{b.pan || 'N/A'}</TableCell>
                               <TableCell>
                                 <Link to={`/beneficiaries/${b.id}`}>
                                   <Button size="icon" variant="ghost" className="h-8 w-8 sm:h-9 sm:w-9">
@@ -506,22 +519,33 @@ const Beneficiaries = ({ entityId, quickAction, clearQuickAction }) => {
                         )}
                       </TableBody>
                     </Table>
-                    </div>
+                  </div>
                 </CardContent>
                 <PaginationFooter />
               </Card>
             </TabsContent>
             <TabsContent value="company" className="flex-1 flex flex-col min-h-0 mt-0 h-full">
-                <Card className="glass-card overflow-hidden flex-1 flex flex-col min-h-0">
-                    <CardContent className="p-0 flex-1 overflow-auto no-scrollbar">
+              <Card className="glass-card overflow-hidden flex-1 flex flex-col min-h-0">
+                <CardHeader className="p-4 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <CardTitle className="font-semibold tracking-tight text-lg text-white mb-0">Business Beneficiaries</CardTitle>
+                    <CardDescription className="text-gray-400 mt-1">Manage business payees for {entityName}</CardDescription>
+                  </div>
+                  <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+                    <AnimatedSearch
+                      placeholder="Search beneficiaries..."
+                      value={searchTerm}
+                      onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                    />
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0 flex-1 overflow-auto no-scrollbar">
                   <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="text-xs sm:text-sm">Company Name</TableHead>
-                          <TableHead className="text-xs sm:text-sm hidden sm:table-cell">Email</TableHead>
+                          <TableHead className="text-xs sm:text-sm">Business Name</TableHead>
                           <TableHead className="text-xs sm:text-sm">Phone</TableHead>
-                          <TableHead className="text-xs sm:text-sm hidden md:table-cell">PAN</TableHead>
                           <TableHead className="text-xs sm:text-sm">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -538,13 +562,9 @@ const Beneficiaries = ({ entityId, quickAction, clearQuickAction }) => {
                               <TableCell className="text-xs sm:text-sm">
                                 <div className="flex flex-col sm:block">
                                   <span className="font-medium">{b.company_name}</span>
-                                  <span className="text-gray-400 text-xs sm:hidden mt-1">{b.email || '-'}</span>
-                                  <span className="text-gray-400 text-xs sm:hidden mt-1">PAN: {b.pan || 'N/A'}</span>
                                 </div>
                               </TableCell>
-                              <TableCell className="text-xs sm:text-sm hidden sm:table-cell">{b.email || '-'}</TableCell>
                               <TableCell className="text-xs sm:text-sm">{b.phone}</TableCell>
-                              <TableCell className="text-xs sm:text-sm hidden md:table-cell">{b.pan || 'N/A'}</TableCell>
                               <TableCell>
                                 <Link to={`/beneficiaries/${b.id}`}>
                                   <Button size="icon" variant="ghost" className="h-8 w-8 sm:h-9 sm:w-9">

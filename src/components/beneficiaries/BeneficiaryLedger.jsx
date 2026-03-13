@@ -139,7 +139,7 @@ const BeneficiaryLedger = ({ entityId }) => {
 
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
-    const pageSize = 10;
+    const [pageSize, setPageSize] = useState(10);
 
     // Sort state
     const [sortColumn, setSortColumn] = useState('name');
@@ -566,42 +566,56 @@ const BeneficiaryLedger = ({ entityId }) => {
                     </CardContent>
 
                     {/* Pagination */}
-                    <div className="p-4 sm:p-6 border-t border-white/5 flex flex-row justify-center items-center gap-4">
-                        <p className="text-xs sm:text-sm text-gray-400">
-                            Page {currentPage} of {totalPages || 1}
-                        </p>
+                    <div className="p-4 sm:p-6 border-t border-white/5 flex flex-col sm:flex-row justify-between items-center gap-4">
                         <div className="flex items-center gap-2">
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
-                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                disabled={currentPage === 1}
+                            <span className="text-xs sm:text-sm text-gray-400">Rows per page:</span>
+                            <Select
+                                value={pageSize.toString()}
+                                onValueChange={(val) => {
+                                    setPageSize(parseInt(val));
+                                    setCurrentPage(1);
+                                }}
                             >
-                                <ChevronLeft className="w-4 h-4" />
-                            </Button>
-                            {/* <div className="flex items-center gap-1">
-                                {[...Array(totalPages)].map((_, i) => (
-                                    <Button
-                                        key={i}
-                                        variant={currentPage === i + 1 ? "default" : "ghost"}
-                                        className={`h-8 w-8 sm:h-9 sm:w-9 rounded-xl text-xs ${currentPage === i + 1 ? 'bg-primary text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
-                                        onClick={() => setCurrentPage(i + 1)}
-                                    >
-                                        {i + 1}
-                                    </Button>
-                                )).slice(Math.max(0, currentPage - 3), Math.min(totalPages, currentPage + 2))}
-                            </div> */}
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
-                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                                disabled={currentPage === totalPages || totalPages === 0}
-                            >
-                                <ChevronRight className="w-4 h-4" />
-                            </Button>
+                                <SelectTrigger className="h-8 w-16 sm:w-20 bg-transparent border-white/10 text-white rounded-xl text-xs sm:text-sm">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="bg-gray-900 border-white/10 text-white rounded-xl min-w-[5rem]">
+                                    {[10, 25, 50, 100].map((size) => (
+                                        <SelectItem key={size} value={size.toString()} className="text-xs sm:text-sm focus:bg-white/10 focus:text-white rounded-lg">
+                                            {size}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
+
+                        <div className="flex flex-row justify-center items-center gap-4">
+                            <p className="text-xs sm:text-sm text-gray-400">
+                                Page {currentPage} of {totalPages || 1}
+                            </p>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
+                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                    disabled={currentPage === 1}
+                                >
+                                    <ChevronLeft className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
+                                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                    disabled={currentPage === totalPages || totalPages === 0}
+                                >
+                                    <ChevronRight className="w-4 h-4" />
+                                </Button>
+                            </div>
+                        </div>
+
+                        <div className="hidden sm:block w-[120px]"></div>
                     </div>
                 </Card>
             </motion.div>

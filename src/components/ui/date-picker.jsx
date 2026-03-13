@@ -66,6 +66,10 @@ export function DatePicker({ value, onChange, disabled: customDisabled, ...props
     }
 
     if (parsedDate) {
+      if (isDateDisabled(parsedDate)) {
+        // Do not update state or trigger onChange if date is disabled
+        return;
+      }
       setDate(parsedDate);
       if (onChange) onChange(parsedDate);
     }

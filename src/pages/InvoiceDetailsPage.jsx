@@ -982,21 +982,23 @@ const InvoiceDetailsPage = () => {
                                                 <Label htmlFor="amount">Amount</Label>
                                                 <Input name="amount" type="number" step="0.01" defaultValue={editedInvoice.amount} />
                                             </div>
-                                            <div>
-                                                <Label htmlFor="cgst">CGST</Label>
-                                                <Input name="cgst" type="number" step="0.01" defaultValue={editedInvoice.cgst} onChange={(e) => setEditedInvoice(p => ({ ...p, cgst: e.target.value, sgst: e.target.value }))} />
-                                            </div>
-                                            <div>
-                                                <Label htmlFor="sgst">SGST</Label>
-                                                <Input name="sgst" type="number" step="0.01" value={editedInvoice.sgst} onChange={(e) => setEditedInvoice(p => ({ ...p, sgst: e.target.value, cgst: e.target.value }))} />
-                                            </div>
-                                            <div>
-                                                <Label htmlFor="igst">IGST</Label>
-                                                <Input name="igst" type="number" step="0.01" defaultValue={editedInvoice.igst} />
-                                            </div>
-                                            <div>
-                                                <Label htmlFor="roundoff">Roundoff</Label>
-                                                <Input name="roundoff" type="number" step="0.01" defaultValue={editedInvoice.roundoff || 0} onChange={(e) => setEditedInvoice(p => ({ ...p, roundoff: e.target.value }))} />
+                                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                                                <div>
+                                                    <Label htmlFor="cgst">CGST</Label>
+                                                    <Input name="cgst" type="number" step="0.01" defaultValue={editedInvoice.cgst} onChange={(e) => setEditedInvoice(p => ({ ...p, cgst: e.target.value, sgst: e.target.value }))} />
+                                                </div>
+                                                <div>
+                                                    <Label htmlFor="sgst">SGST</Label>
+                                                    <Input name="sgst" type="number" step="0.01" value={editedInvoice.sgst} onChange={(e) => setEditedInvoice(p => ({ ...p, sgst: e.target.value, cgst: e.target.value }))} />
+                                                </div>
+                                                <div>
+                                                    <Label htmlFor="igst">IGST</Label>
+                                                    <Input name="igst" type="number" step="0.01" defaultValue={editedInvoice.igst} />
+                                                </div>
+                                                <div>
+                                                    <Label htmlFor="roundoff">Roundoff</Label>
+                                                    <Input name="roundoff" type="number" step="0.01" defaultValue={editedInvoice.roundoff || 0} onChange={(e) => setEditedInvoice(p => ({ ...p, roundoff: e.target.value }))} />
+                                                </div>
                                             </div>
                                             <div>
                                                 <Label htmlFor="remarks">Remarks</Label>
@@ -1294,21 +1296,25 @@ const InvoiceDetailsPage = () => {
                                         <Label htmlFor="amount" className="text-sm">Amount</Label>
                                         <Input name="amount" type="number" step="0.01" defaultValue={editedInvoice.amount} className="text-sm" />
                                     </div>
-                                    <div>
-                                        <Label htmlFor="cgst" className="text-sm">CGST</Label>
-                                        <Input name="cgst" type="number" step="0.01" defaultValue={editedInvoice.cgst} onChange={(e) => setEditedInvoice(p => ({ ...p, cgst: e.target.value, sgst: e.target.value }))} className="text-sm" />
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <Label htmlFor="cgst" className="text-sm">CGST</Label>
+                                            <Input name="cgst" type="number" step="0.01" defaultValue={editedInvoice.cgst} onChange={(e) => setEditedInvoice(p => ({ ...p, cgst: e.target.value, sgst: e.target.value }))} className="text-sm" />
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="sgst" className="text-sm">SGST</Label>
+                                            <Input name="sgst" type="number" step="0.01" value={editedInvoice.sgst} onChange={(e) => setEditedInvoice(p => ({ ...p, sgst: e.target.value, cgst: e.target.value }))} className="text-sm" />
+                                        </div>
                                     </div>
-                                    <div>
-                                        <Label htmlFor="sgst" className="text-sm">SGST</Label>
-                                        <Input name="sgst" type="number" step="0.01" value={editedInvoice.sgst} onChange={(e) => setEditedInvoice(p => ({ ...p, sgst: e.target.value, cgst: e.target.value }))} className="text-sm" />
-                                    </div>
-                                    <div>
-                                        <Label htmlFor="igst" className="text-sm">IGST</Label>
-                                        <Input name="igst" type="number" step="0.01" defaultValue={editedInvoice.igst} className="text-sm" />
-                                    </div>
-                                    <div>
-                                        <Label htmlFor="roundoff" className="text-sm">Roundoff</Label>
-                                        <Input name="roundoff" type="number" step="0.01" defaultValue={editedInvoice.roundoff || 0} onChange={(e) => setEditedInvoice(p => ({ ...p, roundoff: e.target.value }))} className="text-sm" />
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <Label htmlFor="igst" className="text-sm">IGST</Label>
+                                            <Input name="igst" type="number" step="0.01" defaultValue={editedInvoice.igst} className="text-sm" />
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="roundoff" className="text-sm">Roundoff</Label>
+                                            <Input name="roundoff" type="number" step="0.01" defaultValue={editedInvoice.roundoff || 0} onChange={(e) => setEditedInvoice(p => ({ ...p, roundoff: e.target.value }))} className="text-sm" />
+                                        </div>
                                     </div>
                                     <div>
                                         <Label htmlFor="remarks" className="text-sm">Remarks</Label>
