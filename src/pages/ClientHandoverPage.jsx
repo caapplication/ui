@@ -339,7 +339,7 @@ function BankTallyListTab({ clientId, token, toast, readOnly = false }) {
               <TableBody>
                 {filteredList.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={3} className="text-center text-gray-400 py-8 text-sm">No entries found.</TableCell>
+                    <TableCell colSpan={5} className="text-center text-gray-400 py-8 text-sm">No entries found.</TableCell>
                   </TableRow>
                 ) : (
                   paginatedList.map((entry) => (
@@ -816,16 +816,19 @@ function CashTallyListTab({ clientId, entityId, token, toast, readOnly = false }
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent border-white/10">
-                  <TableHead className="text-xs sm:text-sm text-gray-300">Date</TableHead>
-                  <TableHead className="text-xs sm:text-sm text-gray-300">Closing</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300">Date & Time</TableHead>
                   <TableHead className="text-xs sm:text-sm text-gray-300">Updated By</TableHead>
-                  <TableHead className="text-xs sm:text-sm text-gray-300">Time</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300">Opening Balance</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300">Cash In</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300">Cash Out</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300">Closing Balance</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300">Variance</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredList.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-gray-400 py-8 text-sm">No entries found.</TableCell>
+                    <TableCell colSpan={7} className="text-center text-gray-400 py-8 text-sm">No entries found.</TableCell>
                   </TableRow>
                 ) : (
                   paginatedList.map((entry) => (
@@ -834,10 +837,28 @@ function CashTallyListTab({ clientId, entityId, token, toast, readOnly = false }
                       className="cursor-pointer transition-colors hover:bg-white/5 border-white/10"
                       onClick={() => navigate('entry/' + encodeURIComponent(entry.report_date))}
                     >
-                      <TableCell className="text-xs sm:text-sm text-white">{toDDMMYYYY(entry.report_date)}</TableCell>
-                      <TableCell className="text-xs sm:text-sm text-white">₹ {(entry.closing_balance ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
-                      <TableCell className="text-xs sm:text-sm text-white">{entry.updated_by_name || '—'}</TableCell>
-                      <TableCell className="text-xs sm:text-sm text-white">{formatTime(entry.updated_at)}</TableCell>
+                      <TableCell className="text-xs sm:text-sm text-white whitespace-nowrap">
+                        {toDDMMYYYY(entry.report_date)}
+                        <span className="block text-xs text-gray-400 mt-0.5">{formatTime(entry.updated_at)}</span>
+                      </TableCell>
+                      <TableCell className="text-xs sm:text-sm text-white whitespace-nowrap">{entry.updated_by_name || '—'}</TableCell>
+                      <TableCell className="text-xs sm:text-sm text-white whitespace-nowrap">
+                        ₹ {(entry.opening_balance ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className="text-xs sm:text-sm text-white whitespace-nowrap">
+                        ₹ {(entry.cash_in ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className="text-xs sm:text-sm text-white whitespace-nowrap">
+                        ₹ {(entry.cash_out ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className="text-xs sm:text-sm text-white whitespace-nowrap">
+                        ₹ {(entry.closing_balance ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className={`text-xs sm:text-sm whitespace-nowrap font-medium ${
+                        (entry.variance ?? 0) > 0 ? 'text-green-400' : (entry.variance ?? 0) < 0 ? 'text-red-400' : 'text-white'
+                      }`}>
+                        ₹ {(entry.variance ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -941,7 +962,7 @@ function CashTallyFormPage({ clientId, entityId, token, toast, readOnly = false 
     const units = getUnits(d.id);
     return sum + (Number(d.value) || 0) * (Number(units) || 0);
   }, 0);
-  const varianceAmount = closingBalance - denominationTotal;
+  const varianceAmount = denominationTotal - closingBalance;
 
   const handleSubmit = async () => {
     if (!clientId || !token) return;
@@ -1010,23 +1031,23 @@ function CashTallyFormPage({ clientId, entityId, token, toast, readOnly = false 
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-5 gap-4">
               <div className="flex flex-col gap-1.5">
                 <Label className="text-gray-400 text-xs min-h-[32px] flex items-end">Opening Balance</Label>
-                <Input type="number" readOnly className="h-9 sm:h-10 text-sm glass-input !w-auto  bg-white/5 text-white" value={openingBalance} />
+                <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input !w-auto bg-white/5 text-white" value={(openingBalance ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label className="text-gray-400 text-xs min-h-[32px] flex items-end">Cash In – Approved handover</Label>
-                <Input type="number" readOnly className="h-9 sm:h-10 text-sm glass-input !w-auto  bg-white/5 text-white" value={cashInHandover || ''} placeholder="—" />
+                <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input !w-auto bg-white/5 text-white" value={(cashInHandover ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} placeholder="—" />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label className="text-gray-400 text-xs min-h-[32px] flex items-end">Cash In – Other</Label>
-                <Input type="number" min={0} step={0.01} readOnly={isReadOnly} className={`h-9 sm:h-10 text-sm glass-input !w-auto text-white ${isReadOnly ? 'bg-white/5 cursor-default' : ''}`} value={cashInOther} onChange={e => setCashInOther(e.target.value)} placeholder="0" />
+                <Input type="text" readOnly={isReadOnly} className={`h-9 sm:h-10 text-sm glass-input !w-auto text-white ${isReadOnly ? 'bg-white/5 cursor-default' : ''}`} value={isReadOnly ? (parseFloat(cashInOther) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : cashInOther} onChange={e => setCashInOther(e.target.value)} placeholder="0" />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label className="text-gray-400 text-xs min-h-[32px] flex items-end">Cash Out</Label>
-                <Input type="number" readOnly className="h-9 sm:h-10 text-sm glass-input !w-auto bg-white/5 text-white" value={cashOut} />
+                <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input !w-auto bg-white/5 text-white" value={(cashOut ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label className="text-gray-400 text-xs min-h-[32px] flex items-end">Closing Balance</Label>
-                <Input type="number" readOnly className="h-9 sm:h-10 text-sm glass-input !w-auto bg-white/5 text-white" value={closingBalance} />
+                <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input !w-auto bg-white/5 text-white" value={(closingBalance ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} />
               </div>
             </div>
           </div>
@@ -1064,18 +1085,31 @@ function CashTallyFormPage({ clientId, entityId, token, toast, readOnly = false 
                           </TableRow>
                         );
                       })}
+                      <TableRow className="border-t-2 border-white/10 hover:bg-transparent">
+                        <TableCell className="py-8"></TableCell>
+                        <TableCell className="py-8"></TableCell>
+                        <TableCell className="py-8">
+                          <div className="flex flex-col items-start">
+                            <div className="w-64 space-y-3">
+                               <Input 
+                                type="text" 
+                                readOnly 
+                                className="h-10 sm:h-12 text-lg glass-input w-full bg-white/5 text-white font-bold text-center border-white/10" 
+                                value={denominationTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })} 
+                              />
+                              <div className="text-left pl-1">
+                                <span className={`text-xs font-bold whitespace-nowrap ${
+                                  Math.abs(varianceAmount) < 0.01 ? 'text-green-400' : varianceAmount > 0 ? 'text-yellow-400' : 'text-red-400'
+                                }`}>
+                                  Variance: ₹ {varianceAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </TableCell>
+                      </TableRow>
                     </TableBody>
                   </Table>
-                </div>
-                <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-white/10">
-                  <div>
-                    <Label className="text-gray-400 text-sm">Total Amount ₹</Label>
-                    <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input mt-1 bg-amber-500/10 text-white" value={denominationTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })} />
-                  </div>
-                  <div>
-                    <Label className="text-gray-400 text-sm">Variance Amount ₹</Label>
-                    <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input mt-1 bg-amber-500/10 text-white" value={varianceAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })} />
-                  </div>
                 </div>
               </>
             )}
