@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useSocket } from '@/contexts/SocketContext.jsx';
@@ -50,6 +50,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
+import AnimatedSearch from '@/components/ui/AnimatedSearch';
 
 const getStatusVariant = (status) => {
     switch (status) {
@@ -116,6 +117,18 @@ const TaskDashboardPage = () => {
     // const [newSubtask, setNewSubtask] = useState('');
     const [comments, setComments] = useState([]);
     const [newComment, setNewComment] = useState('');
+    const [chatSearchTerm, setChatSearchTerm] = useState('');
+
+    const filteredComments = useMemo(() => {
+        if (!chatSearchTerm.trim()) return comments;
+        const term = chatSearchTerm.toLowerCase();
+        return comments.filter(comment =>
+            (comment.message && comment.message.toLowerCase().includes(term)) ||
+            (comment.user_name && comment.user_name.toLowerCase().includes(term)) ||
+            (comment.attachment_name && comment.attachment_name.toLowerCase().includes(term))
+        );
+    }, [comments, chatSearchTerm]);
+
     const [isLoadingComments, setIsLoadingComments] = useState(false);
     const [selectedFile, setSelectedFile] = useState(null);
     const [filePreview, setFilePreview] = useState(null);
@@ -2667,7 +2680,16 @@ const TaskDashboardPage = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 lg:grid-rows-2 gap-4 md:gap-6 h-auto xl:h-full min-h-0 overflow-visible  ">
                         {/* Task Chat - Full width on mobile, 2 cols on desktop */}
                         <Card className="glass-pane card-hover flex flex-col overflow-hidden rounded-2xl md:col-span-2 xl:row-span-2 h-[500px] xl:h-full">
-                            <CardHeader className="flex-shrink-0"><CardTitle className="flex items-center gap-2"><MessageSquare className="w-5 h-5" /> Task Chat</CardTitle></CardHeader>
+                            <CardHeader className="flex-shrink-0 flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className="flex items-center gap-2">
+                                    <MessageSquare className="w-5 h-5" /> Task Chat
+                                </CardTitle>
+                                <AnimatedSearch
+                                    value={chatSearchTerm}
+                                    onChange={(e) => setChatSearchTerm(e.target.value)}
+                                    placeholder="Search comments..."
+                                />
+                            </CardHeader>
                             <CardContent className="flex-1 flex flex-col overflow-hidden min-h-0">
                                 <div ref={chatContainerRef} className="flex-1 overflow-y-auto space-y-4 mb-4 pr-2 min-h-0" style={{ overflowX: 'visible' }}>
                                     {isLoadingComments ? (
@@ -2675,7 +2697,8 @@ const TaskDashboardPage = () => {
                                             <Loader2 className="w-8 h-8 animate-spin text-primary" />
                                         </div>
                                     ) : comments.length > 0 ? (
-                                        comments.map((comment, index) => {
+                                        filteredComments.length > 0 ? (
+                                            filteredComments.map((comment, index) => {
                                             // Robust ID comparison
                                             const currentUserId = (user?.id || user?.sub || user?.user_id) ? String(user?.id || user?.sub || user?.user_id).toLowerCase() : '';
                                             const commentUserId = comment.user_id ? String(comment.user_id).toLowerCase() : '';
@@ -2921,6 +2944,9 @@ const TaskDashboardPage = () => {
                                                 </div>
                                             );
                                         })
+                                    ) : (
+                                        <div className="text-center py-8 text-gray-400">No matching comments found.</div>
+                                    )
                                     ) : (
                                         <div className="text-center py-8 text-gray-400">No comments yet. Start the conversation!</div>
                                     )}
