@@ -137,18 +137,12 @@ export const getUnreadNoticeCount = async (token) => {
       headers: getAuthHeaders(token),
     });
     const data = await handleResponse(response);
-    // Return only unread_comments count, not closure_requests
-    // This ensures the dot only shows for actual unread chat messages
-    // Handle both cases: when unread_comments exists, or fallback to 0 if only count exists
-    const unreadComments = (typeof data.unread_comments === 'number')
-      ? data.unread_comments
-      : ((typeof data.count === 'number' && typeof data.unread_comments === 'undefined') ? 0 : 0);
-
-    // console.log('[getUnreadNoticeCount] Full response:', data);
-    // console.log('[getUnreadNoticeCount] unread_comments:', data.unread_comments, 'closure_requests:', data.closure_requests, 'total count:', data.count);
-    // console.log('[getUnreadNoticeCount] Returning unread comments:', unreadComments);
-
-    return unreadComments;
+    
+    // Calculate total including chats and closure requests
+    const total = (data.unread_comments || 0) + (data.closure_requests || 0);
+    
+    // Fallback to data.count if none of the above are present
+    return total || data.count || 0;
   } catch (error) {
     console.error('[getUnreadNoticeCount] Error:', error);
     return 0;

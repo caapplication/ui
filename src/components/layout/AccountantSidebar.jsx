@@ -67,27 +67,25 @@ const AccountantSidebar = ({ isCollapsed, setIsCollapsed, isOpen, setIsOpen }) =
   useEffect(() => {
     if (socket) {
       const handleUnreadUpdate = (data) => {
-        if (typeof data.count === 'number') {
-          if (data.count > unreadCount) {
-            setIsBlinking(true);
-            setTimeout(() => setIsBlinking(false), 3000);
-          }
-          setUnreadCount(data.count);
+        const total = (data.unread_comments || 0) + (data.assigned_tasks || 0) + (data.closure_requests || 0);
+        const finalCount = total || data.count || 0;
+        
+        if (finalCount > unreadCount) {
+          setIsBlinking(true);
+          setTimeout(() => setIsBlinking(false), 3000);
         }
+        setUnreadCount(finalCount);
       };
 
       const handleNoticeUnreadUpdate = (data) => {
-        /* console.log('[AccountantSidebar] Socket notice_unread_update received:', data); */
-        // Use unread_comments (chat messages) only, not closure_requests
-        const unreadComments = typeof data.unread_comments === 'number' 
-          ? data.unread_comments 
-          : (typeof data.count === 'number' ? data.count : 0);
-        /* console.log('[AccountantSidebar] Parsed unread comments from socket:', unreadComments, 'current state:', unreadNoticeCount); */
-        if (unreadComments > unreadNoticeCount) {
+        const total = (data.unread_comments || 0) + (data.closure_requests || 0);
+        const finalCount = total || data.count || 0;
+        
+        if (finalCount > unreadNoticeCount) {
           setIsNoticeBlinking(true);
           setTimeout(() => setIsNoticeBlinking(false), 3000);
         }
-        setUnreadNoticeCount(unreadComments);
+        setUnreadNoticeCount(finalCount);
       };
 
       socket.on('global_unread_update', handleUnreadUpdate);
