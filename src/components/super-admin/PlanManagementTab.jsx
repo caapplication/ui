@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,7 +23,7 @@ const PlanManagementTab = () => {
   
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
-  const [newPlan, setNewPlan] = useState({
+  const initialPlanState = {
     name: '',
     description: '',
     plan_type: 'CLIENT',
@@ -31,9 +31,11 @@ const PlanManagementTab = () => {
     one_time_price: 0,
     is_recurring: true,
     module_ids: []
-  });
+  };
 
-  const fetchData = async () => {
+  const [newPlan, setNewPlan] = useState(initialPlanState);
+
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const [plansRes, modulesRes] = await Promise.all([
@@ -47,13 +49,20 @@ const PlanManagementTab = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.access_token, toast]);
 
   useEffect(() => {
-    if (user?.access_token) {
-      fetchData();
-    }
-  }, [user]);
+    fetchData();
+  }, [fetchData]);
+
+  const uniqueModules = useMemo(() => {
+    const seen = new Set();
+    return modules.filter(mod => {
+      if (!mod.id || seen.has(mod.id)) return false;
+      seen.add(mod.id);
+      return true;
+    });
+  }, [modules]);
 
   const handleCreatePlan = async (e) => {
     e.preventDefault();
@@ -62,15 +71,7 @@ const PlanManagementTab = () => {
       await createAdminPlan(newPlan, user.access_token);
       toast({ title: 'Success', description: `Plan "${newPlan.name}" created successfully.` });
       setIsCreateModalOpen(false);
-      setNewPlan({
-        name: '',
-        description: '',
-        plan_type: 'CLIENT',
-        monthly_price: 0,
-        one_time_price: 0,
-        is_recurring: true,
-        module_ids: []
-      });
+      setNewPlan(initialPlanState);
       fetchData();
     } catch (err) {
       toast({ title: 'Creation Failed', description: err.message, variant: 'destructive' });
@@ -79,31 +80,36 @@ const PlanManagementTab = () => {
     }
   };
 
-  const toggleModuleSelection = (moduleId) => {
+  const toggleModuleSelection = useCallback((moduleId) => {
     setNewPlan(prev => ({
       ...prev,
       module_ids: prev.module_ids.includes(moduleId)
         ? prev.module_ids.filter(id => id !== moduleId)
         : [...prev.module_ids, moduleId]
     }));
-  };
+  }, []);
 
-  if (loading) {
-    return (
-      <div className="h-64 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+  const handleOpenChange = (open) => {
+    setIsCreateModalOpen(open);
+    if (!open) {
+      setNewPlan(initialPlanState);
+    }
+  };
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      {loading && plans.length === 0 ? (
+        <div className="h-64 flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      ) : (
+        <>
+          <div className="flex justify-between items-center">
         <div>
           <h2 className="text-xl font-semibold text-white">Bundled Plans</h2>
           <p className="text-gray-400 text-sm">Create pre-defined module packages for agencies and clients.</p>
         </div>
-        <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+        <Dialog open={isCreateModalOpen} onOpenChange={handleOpenChange}>
           <DialogTrigger asChild>
             <Button className="bg-primary text-white gap-2">
               <Plus className="w-4 h-4" /> Create New Plan
@@ -201,26 +207,25 @@ const PlanManagementTab = () => {
                   </Badge>
                 </label>
                 <div className="grid grid-cols-2 gap-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
-                  {modules.map(mod => (
-                    <div 
+                  {uniqueModules.map(mod => (
+                    <label 
                       key={mod.id}
                       className={`flex items-center gap-3 p-2 rounded border cursor-pointer transition-all ${
                         newPlan.module_ids.includes(mod.id) 
                         ? 'bg-primary/20 border-primary/50 text-white' 
                         : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
                       }`}
-                      onClick={() => toggleModuleSelection(mod.id)}
                     >
                       <Checkbox 
                         checked={newPlan.module_ids.includes(mod.id)} 
                         onCheckedChange={() => toggleModuleSelection(mod.id)}
                         className="border-white/20"
                       />
-                      <div className="overflow-hidden">
+                      <div className="overflow-hidden flex-1">
                         <div className="text-xs font-semibold truncate">{mod.name}</div>
                         <div className="text-[10px] text-gray-500 truncate">₹{mod.monthly_price_inr}/mo</div>
                       </div>
-                    </div>
+                    </label>
                   ))}
                 </div>
               </div>
@@ -292,6 +297,8 @@ const PlanManagementTab = () => {
           </TableBody>
         </Table>
       </Card>
+        </>
+      )}
     </div>
   );
 };

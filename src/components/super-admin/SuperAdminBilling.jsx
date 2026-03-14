@@ -275,7 +275,7 @@ const SuperAdminBilling = () => {
                       <TableCell className="text-sm text-gray-400 max-w-[200px] truncate" title={mod.description}>{mod.description}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className="bg-white/5 text-gray-300 border-white/10 text-[10px] uppercase">
-                          {mod.is_default_free ? 'Free Core' : 'Paid Add-on'}
+                          {mod.is_default_free ? 'Core' : 'Add On'}
                         </Badge>
                       </TableCell>
                       <TableCell className="font-mono text-blue-400 font-medium">₹{mod.monthly_price_inr}</TableCell>
@@ -294,7 +294,10 @@ const SuperAdminBilling = () => {
                           {editingModule?.id === mod.id && (
                             <DialogContent className="glass-effect border-white/10 text-white">
                               <DialogHeader>
-                                <DialogTitle>Edit Module: {mod.name}</DialogTitle>
+                                <DialogTitle className="flex items-center gap-2">
+                                  Edit Module: {mod.name}
+                                  <Badge variant="outline" className="text-[10px] uppercase">{mod.is_default_free ? 'Core' : 'Add On'}</Badge>
+                                </DialogTitle>
                               </DialogHeader>
                               <form onSubmit={handleUpdateModule} className="space-y-4 py-4">
                                 <div className="space-y-2">
@@ -311,8 +314,8 @@ const SuperAdminBilling = () => {
                                 </div>
                                 <div className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10">
                                   <div className="space-y-0.5">
-                                    <label className="text-sm font-medium text-white">Default Free (Core)</label>
-                                    <p className="text-xs text-gray-400">If ON, this module is free for all agencies.</p>
+                                    <label className="text-sm font-medium text-white">Default Free (Core Service)</label>
+                                    <p className="text-xs text-gray-400">If ON, this is a core service free for all agencies.</p>
                                   </div>
                                   <input 
                                     type="checkbox" 
