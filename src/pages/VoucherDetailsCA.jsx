@@ -46,6 +46,16 @@ const DetailItem = ({ label, value }) => (
     </div>
 );
 
+const DetailItemBank = ({ label, line1, line2 }) => (
+    <div className="flex justify-between items-start py-2 border-b border-white/10">
+        <p className="text-sm text-gray-400">{label}</p>
+        <div className="text-right">
+            <p className="text-sm font-semibold text-white capitalize">{line1}</p>
+            {line2 && <p className="text-xs text-gray-400 mt-1 uppercase">{line2}</p>}
+        </div>
+    </div>
+);
+
 
 
 const VoucherDetailsCA = () => {
@@ -1388,76 +1398,57 @@ const VoucherDetailsCA = () => {
                                                                     )
                                                             }
                                                         />
-                                                        {(voucherDetails.voucher_type === 'debit' && voucherDetails.payment_type !== 'cash') && (
+                                                        {(voucherDetails.voucher_type === 'debit' && (voucherDetails.payment_type === 'bank_transfer' || voucherDetails.payment_type === 'cheque')) && (
                                                             <>
-                                                                <DetailItem
-                                                                    label="From Bank Account"
-                                                                    value={
-                                                                        (() => {
-                                                                            // Use voucher directly if voucherDetails doesn't have the fields
-                                                                            const source = voucher || voucherDetails;
-                                                                            const fromId = source.from_bank_account_id;
-                                                                            const fromName = source.from_bank_account_name;
-                                                                            const fromNumber = source.from_bank_account_number;
+                                                                {(() => {
+                                                                    const source = voucher || voucherDetails;
+                                                                    const fromId = source.from_bank_account_id;
+                                                                    const fromName = source.from_bank_account_name;
+                                                                    const fromNumber = source.from_bank_account_number;
 
-                                                                            // Priority 1: Use snapshot data first (most reliable, always available after save)
-                                                                            if (fromName && fromName.trim()) {
-                                                                                return `${fromName}${fromNumber ? ' - ' + fromNumber : ''}`.trim();
-                                                                            }
+                                                                    let bankLine1 = '-';
+                                                                    let bankLine2 = '';
 
-                                                                            // Priority 2: Try to find in fetched bank accounts array (if loaded)
-                                                                            if (fromId && fromId !== '0' && fromBankAccounts?.length > 0) {
-                                                                                const fromBank = fromBankAccounts.find(
-                                                                                    acc => String(acc.id) === String(fromId)
-                                                                                );
-                                                                                if (fromBank) {
-                                                                                    return `${fromBank.bank_name} - ${fromBank.account_number}`;
-                                                                                }
-                                                                            }
-
-                                                                            // Priority 3: Show ID if available
-                                                                            if (fromId && fromId !== '0') {
-                                                                                return String(fromId);
-                                                                            }
-
-                                                                            return '-';
-                                                                        })()
+                                                                    if (fromName && fromName.trim()) {
+                                                                        bankLine1 = fromName.trim();
+                                                                        bankLine2 = fromNumber ? fromNumber.trim() : '';
+                                                                    } else if (fromId && fromId !== '0' && fromBankAccounts?.length > 0) {
+                                                                        const fromBank = fromBankAccounts.find(acc => String(acc.id) === String(fromId));
+                                                                        if (fromBank) {
+                                                                            bankLine1 = fromBank.bank_name;
+                                                                            bankLine2 = fromBank.account_number;
+                                                                        }
+                                                                    } else if (fromId && fromId !== '0') {
+                                                                        bankLine1 = String(fromId);
                                                                     }
-                                                                />
-                                                                <DetailItem
-                                                                    label="To Bank Account"
-                                                                    value={
-                                                                        (() => {
-                                                                            // Use voucher directly if voucherDetails doesn't have the fields
-                                                                            const source = voucher || voucherDetails;
-                                                                            const toId = source.to_bank_account_id;
-                                                                            const toName = source.to_bank_account_name;
-                                                                            const toNumber = source.to_bank_account_number;
 
-                                                                            // Priority 1: Use snapshot data first (most reliable, always available after save)
-                                                                            if (toName && toName.trim()) {
-                                                                                return `${toName}${toNumber ? ' - ' + toNumber : ''}`.trim();
-                                                                            }
+                                                                    return <DetailItemBank label="From Bank Account" line1={bankLine1} line2={bankLine2} />;
+                                                                })()}
 
-                                                                            // Priority 2: Try to find in fetched bank accounts array (if loaded)
-                                                                            if (toId && toId !== '0' && toBankAccounts?.length > 0) {
-                                                                                const toBank = toBankAccounts.find(
-                                                                                    acc => String(acc.id) === String(toId)
-                                                                                );
-                                                                                if (toBank) {
-                                                                                    return `${toBank.bank_name} - ${toBank.account_number}`;
-                                                                                }
-                                                                            }
+                                                                {(() => {
+                                                                    const source = voucher || voucherDetails;
+                                                                    const toId = source.to_bank_account_id;
+                                                                    const toName = source.to_bank_account_name;
+                                                                    const toNumber = source.to_bank_account_number;
 
-                                                                            // Priority 3: Show ID if available
-                                                                            if (toId && toId !== '0') {
-                                                                                return String(toId);
-                                                                            }
+                                                                    let bankLine1 = '-';
+                                                                    let bankLine2 = '';
 
-                                                                            return '-';
-                                                                        })()
+                                                                    if (toName && toName.trim()) {
+                                                                        bankLine1 = toName.trim();
+                                                                        bankLine2 = toNumber ? toNumber.trim() : '';
+                                                                    } else if (toId && toId !== '0' && toBankAccounts?.length > 0) {
+                                                                        const toBank = toBankAccounts.find(acc => String(acc.id) === String(toId));
+                                                                        if (toBank) {
+                                                                            bankLine1 = toBank.bank_name;
+                                                                            bankLine2 = toBank.account_number;
+                                                                        }
+                                                                    } else if (toId && toId !== '0') {
+                                                                        bankLine1 = String(toId);
                                                                     }
-                                                                />
+
+                                                                    return <DetailItemBank label="To Bank Account" line1={bankLine1} line2={bankLine2} />;
+                                                                })()}
                                                             </>
                                                         )}
                                                         <DetailItem label="Amount" value={formatCurrencyINR(voucherDetails.amount)} />
