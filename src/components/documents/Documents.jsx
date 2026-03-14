@@ -3200,12 +3200,12 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                 {isMutating ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Sharing...
+                    Collaborating...
                   </>
                 ) : (
                   <>
                     <UserPlus className="w-4 h-4 mr-2" />
-                    Share with {selectedUsers.length > 0 ? `${selectedUsers.length} ` : ''}User{selectedUsers.length !== 1 ? 's' : ''}
+                    Collaborate
                   </>
                 )}
               </Button>
