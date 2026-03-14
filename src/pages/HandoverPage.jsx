@@ -34,7 +34,7 @@ const HandoverPage = () => {
   const [imprestAmount, setImprestAmount] = useState('');
   const [lessPayment, setLessPayment] = useState('');
   const [remarks, setRemarks] = useState('');
-  
+
   // Filtering and Pagination
   const [searchTerm, setSearchTerm] = useState('');
   const [datePreset, setDatePreset] = useState('last_30_days');
@@ -53,7 +53,7 @@ const HandoverPage = () => {
     // Resolve date range based on preset
     const now = new Date();
     const today = startOfToday();
-    
+
     if (datePreset === 'today') {
       from = format(today, 'yyyy-MM-dd');
       to = format(today, 'yyyy-MM-dd');
@@ -110,7 +110,7 @@ const HandoverPage = () => {
     let result = [...list];
     if (searchTerm) {
       const term = searchTerm.toLowerCase().trim();
-      result = result.filter(item => 
+      result = result.filter(item =>
         (item.created_by_name || '').toLowerCase().includes(term) ||
         (item.department_name || '').toLowerCase().includes(term) ||
         (item.remarks || '').toLowerCase().includes(term) ||
@@ -353,11 +353,10 @@ const HandoverPage = () => {
                         </button>
                       </TableCell>
                       <TableCell className="text-center text-xs">
-                        <span className={`inline-flex items-center justify-center px-4 py-1.5 rounded-full font-bold tracking-widest uppercase border transition-all ${
-                          row.status === 'approved' ? 'bg-green-500/10 text-green-400 border-green-500/20 group-hover:bg-green-500/20' :
-                          row.status === 'rejected' ? 'bg-red-500/10 text-red-400 border-red-500/20 group-hover:bg-red-500/20' :
-                          'bg-amber-500/10 text-amber-400 border-amber-500/20 group-hover:bg-amber-500/20'
-                        }`}>
+                        <span className={`inline-flex items-center justify-center px-4 py-1.5 rounded-full font-bold tracking-widest uppercase border transition-all ${row.status === 'approved' ? 'bg-green-500/10 text-green-400 border-green-500/20 group-hover:bg-green-500/20' :
+                            row.status === 'rejected' ? 'bg-red-500/10 text-red-400 border-red-500/20 group-hover:bg-red-500/20' :
+                              'bg-amber-500/10 text-amber-400 border-amber-500/20 group-hover:bg-amber-500/20'
+                          }`}>
                           {row.status}
                         </span>
                       </TableCell>
@@ -388,20 +387,20 @@ const HandoverPage = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button 
-              variant="outline" 
-              size="icon" 
-              onClick={() => { setSkip(Math.max(0, skip - itemsPerPage)); window.scrollTo(0, 0); }} 
-              disabled={skip === 0} 
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => { setSkip(Math.max(0, skip - itemsPerPage)); window.scrollTo(0, 0); }}
+              disabled={skip === 0}
               className="h-9 w-9 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
             >
               <ChevronLeft className="w-4 h-4" />
             </Button>
-            <Button 
-              variant="outline" 
-              size="icon" 
-              onClick={() => { setSkip(skip + itemsPerPage); window.scrollTo(0, 0); }} 
-              disabled={skip + itemsPerPage >= filteredList.length} 
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => { setSkip(skip + itemsPerPage); window.scrollTo(0, 0); }}
+              disabled={skip + itemsPerPage >= filteredList.length}
               className="h-9 w-9 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
             >
               <ChevronRight className="w-4 h-4" />
@@ -418,11 +417,10 @@ const HandoverPage = () => {
               {editingRow && <p className="text-sm text-gray-400 mt-1">{isViewOnly ? 'View only — handover already approved.' : 'Edit amounts and save when not yet approved.'}</p>}
             </div>
             {editingRow && (
-              <span className={`px-4 py-1.5 rounded-full text-sm font-bold border ${
-                editingRow.status === 'approved' ? 'bg-green-500/20 text-green-400 border-green-500/50' :
-                editingRow.status === 'rejected' ? 'bg-red-500/20 text-red-400 border-red-500/50' :
-                'bg-amber-500/20 text-amber-400 border-amber-500/50'
-              }`}>
+              <span className={`px-4 py-1.5 rounded-full text-sm font-bold border ${editingRow.status === 'approved' ? 'bg-green-500/20 text-green-400 border-green-500/50' :
+                  editingRow.status === 'rejected' ? 'bg-red-500/20 text-red-400 border-red-500/50' :
+                    'bg-amber-500/20 text-amber-400 border-amber-500/50'
+                }`}>
                 {editingRow.status === 'pending' ? 'PENDING' : editingRow.status === 'approved' ? 'APPROVED' : 'REJECTED'}
               </span>
             )}
@@ -439,7 +437,7 @@ const HandoverPage = () => {
                 />
               </div>
               <div className="flex flex-col gap-2 w-full">
-                <Label className="text-gray-400 text-[10px] font-bold uppercase tracking-wider pl-1">Departmen</Label>
+                <Label className="text-gray-400 text-[10px] font-bold uppercase tracking-wider pl-1">Department</Label>
                 <Input
                   readOnly
                   className="cursor-default opacity-90 h-10 sm:h-11 w-full font-medium"
