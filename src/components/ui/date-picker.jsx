@@ -13,7 +13,7 @@ import {
 
 import { subDays, isAfter, isBefore, startOfToday } from 'date-fns';
 
-export function DatePicker({ value, onChange, disabled: customDisabled, ...props }) {
+export function DatePicker({ value, onChange, disabled: customDisabled, className, ...props }) {
     const [date, setDate] = useState(value ? new Date(value) : null);
     const [inputValue, setInputValue] = useState(value ? format(new Date(value), 'dd/MM/yyyy') : '');
     const [popoverOpen, setPopoverOpen] = useState(false);
@@ -85,7 +85,7 @@ export function DatePicker({ value, onChange, disabled: customDisabled, ...props
   return (
     <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
       <PopoverTrigger asChild>
-        <div className="relative">
+        <div className={cn("relative", className)}>
           <Input
             ref={inputRef}
             type="text"
@@ -104,7 +104,7 @@ export function DatePicker({ value, onChange, disabled: customDisabled, ...props
           onSelect={handleDateSelect}
           disabled={isDateDisabled}
           {...props}
-          className="bg-transparent text-white"
+          className="bg-transparent text-white p-3"
         />
       </PopoverContent>
     </Popover>

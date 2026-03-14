@@ -38,6 +38,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Search, MoreVertical, Calendar, ArrowLeftRight, ArrowLeft, Loader2, Check, X, ChevronLeft, ChevronRight, Paperclip, Upload, Download } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import AnimatedSearch from '@/components/ui/AnimatedSearch';
+import { DatePicker } from '@/components/ui/date-picker';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 
 const toDDMMYYYY = (dateStr) => {
@@ -58,9 +59,9 @@ const formatTime = (utcString) => {
 
 const getVarianceColor = (val) => {
   const num = Number(val) || 0;
-  if (num > 0.001) return 'text-green-400';
   if (num < -0.001) return 'text-red-400';
-  return 'text-yellow-400';
+  if (num > 0.001) return 'text-yellow-400';
+  return 'text-green-400';
 };
 
 const ClientHandoverPage = ({ entityId, entityName }) => {
@@ -492,14 +493,22 @@ function BankTallyFormPage({ clientId, token, toast, readOnly = false }) {
 
   return (
     <div className="space-y-4">
-      <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white -ml-2" onClick={() => navigate(isNew ? '..' : '../..', { relative: 'path' })}>
-        <ArrowLeft className="mr-2 h-4 w-4" /> Back to list
-      </Button>
       <Card className="glass-card border-white/5 overflow-hidden">
         <CardHeader className="p-4 sm:p-6 flex flex-row flex-wrap items-center justify-between gap-4">
-          <div>
-            <CardTitle className="text-lg sm:text-xl text-white">{isNew ? 'New entry' : 'View / Update'}</CardTitle>
-            <CardDescription className="text-sm text-gray-400">Opening and closing balance by bank account.</CardDescription>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-gray-400 hover:text-white hover:bg-white/10 rounded-full"
+              onClick={() => navigate(isNew ? '..' : '../..', { relative: 'path' })}
+              title="Back to list"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div>
+              <CardTitle className="text-lg sm:text-xl text-white">{isNew ? 'New entry' : 'View / Update'}</CardTitle>
+              <CardDescription className="text-sm text-gray-400">Opening and closing balance by bank account.</CardDescription>
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Input type="date" className="glass-input max-w-[200px]" value={reportDate} readOnly />
@@ -516,10 +525,10 @@ function BankTallyFormPage({ clientId, token, toast, readOnly = false }) {
               <TableHeader>
                 <TableRow className="hover:bg-transparent border-white/10">
                   <TableHead className="text-xs sm:text-sm text-gray-300">Bank</TableHead>
-                  <TableHead className="text-xs sm:text-sm text-gray-300">Account</TableHead>
-                  <TableHead className="text-xs sm:text-sm text-gray-300">Opening Balance</TableHead>
-                  <TableHead className="text-xs sm:text-sm text-gray-300">Closing Balance</TableHead>
-                  <TableHead className="text-xs sm:text-sm text-gray-300">Difference</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300 text-center">Account No.</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300 text-center">Opening Balance</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300 text-center">Closing Balance</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300 text-center">Variance</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -536,15 +545,22 @@ function BankTallyFormPage({ clientId, token, toast, readOnly = false }) {
                       return (
                         <TableRow key={bank.id} className="border-white/10">
                           <TableCell className="text-xs sm:text-sm font-medium text-white">{bank.bank_name || '—'}</TableCell>
-                          <TableCell className="text-xs sm:text-sm text-gray-300">{bank.account_number || '—'}</TableCell>
-                          <TableCell>
-                            <Input type="number" readOnly className="h-9 sm:h-10 text-sm glass-input w-28 sm:w-32 bg-white/5 text-white" value={opening} />
+                          <TableCell className="text-xs sm:text-sm text-gray-300 text-center">{bank.account_number || '—'}</TableCell>
+                          <TableCell className="text-center">
+                            <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input w-32 sm:w-44 bg-white/5 text-white text-center mx-auto" value={opening.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} />
                           </TableCell>
-                          <TableCell>
-                            <Input type="number" min={0} step={0.01} readOnly={isReadOnly} className={`h-9 sm:h-10 text-sm glass-input w-28 sm:w-32 text-white ${isReadOnly ? 'bg-white/5 cursor-default' : ''}`} value={closingVal} onChange={e => setClosing(bank.id, e.target.value)} placeholder="Closing" />
+                          <TableCell className="text-center">
+                            <Input type="number" min={0} step={0.01} readOnly={isReadOnly} className={`h-9 sm:h-10 text-sm glass-input w-32 sm:w-44 text-white text-center mx-auto ${isReadOnly ? 'bg-white/5 cursor-default' : ''}`} value={closingVal} onChange={e => setClosing(bank.id, e.target.value)} placeholder="Closing" />
                           </TableCell>
-                          <TableCell>
-                            <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input w-28 sm:w-32 bg-white/5 text-white" value={diff != null ? diff.toLocaleString('en-IN', { minimumFractionDigits: 2 }) : '—'} />
+                          <TableCell className="text-center">
+                            <Input 
+                              type="text" 
+                              readOnly 
+                              className={`h-9 sm:h-10 text-sm glass-input w-32 sm:w-44 bg-white/5 text-center font-bold mx-auto ${
+                                diff > 0 ? 'text-green-400' : diff < 0 ? 'text-red-400' : 'text-white'
+                              }`} 
+                              value={diff != null ? Math.round(diff).toLocaleString('en-IN') : '—'} 
+                            />
                           </TableCell>
                         </TableRow>
                       );
@@ -556,15 +572,22 @@ function BankTallyFormPage({ clientId, token, toast, readOnly = false }) {
                       return (
                         <TableRow className="border-white/10 !bg-amber-500/20 font-medium">
                           <TableCell className="text-xs sm:text-sm text-white">Total</TableCell>
-                          <TableCell className="text-xs sm:text-sm text-gray-300">—</TableCell>
-                          <TableCell>
-                            <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input w-28 sm:w-32 bg-white/5 text-white font-medium" value={totalOpening.toLocaleString('en-IN', { minimumFractionDigits: 2 })} />
+                          <TableCell className="text-xs sm:text-sm text-gray-300 text-center">—</TableCell>
+                          <TableCell className="text-center">
+                            <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input w-32 sm:w-44 bg-white/5 text-white font-medium text-center mx-auto" value={totalOpening.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} />
                           </TableCell>
-                          <TableCell>
-                            <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input w-28 sm:w-32 bg-white/5 text-white font-medium" value={totalClosing.toLocaleString('en-IN', { minimumFractionDigits: 2 })} />
+                          <TableCell className="text-center">
+                            <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input w-32 sm:w-44 bg-white/5 text-white font-medium text-center mx-auto" value={totalClosing.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} />
                           </TableCell>
-                          <TableCell>
-                            <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input w-28 sm:w-32 bg-white/5 text-white font-medium" value={totalDiff.toLocaleString('en-IN', { minimumFractionDigits: 2 })} />
+                          <TableCell className="text-center">
+                            <Input 
+                              type="text" 
+                              readOnly 
+                              className={`h-9 sm:h-10 text-sm glass-input w-32 sm:w-44 bg-white/5 font-bold text-center mx-auto ${
+                                totalDiff > 0 ? 'text-green-400' : totalDiff < 0 ? 'text-red-400' : 'text-white'
+                              }`} 
+                              value={Math.round(totalDiff).toLocaleString('en-IN')} 
+                            />
                           </TableCell>
                         </TableRow>
                       );
@@ -898,14 +921,22 @@ function CashTallyFormPage({ clientId, entityId, token, toast, readOnly = false 
 
   return (
     <div className="space-y-4">
-      <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white -ml-2" onClick={() => navigate(isNew ? '..' : '../..', { relative: 'path' })}>
-        <ArrowLeft className="mr-2 h-4 w-4" /> Back to list
-      </Button>
       <Card className="glass-card border-white/5">
         <CardHeader className="p-4 sm:p-6 flex flex-row flex-wrap items-center justify-between gap-4">
-          <div>
-            <CardTitle className="text-lg sm:text-xl text-white">{isNew ? 'New entry' : 'View / Update'}</CardTitle>
-            <CardDescription className="text-sm text-gray-400">Cash in hand, denomination breakdown and remarks.</CardDescription>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-gray-400 hover:text-white hover:bg-white/10 rounded-full"
+              onClick={() => navigate(isNew ? '..' : '../..', { relative: 'path' })}
+              title="Back to list"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div>
+              <CardTitle className="text-lg sm:text-xl text-white">{isNew ? 'New entry' : 'View / Update'}</CardTitle>
+              <CardDescription className="text-sm text-gray-400">Cash in hand, denomination breakdown and remarks.</CardDescription>
+            </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <Input type="date" className="glass-input max-w-[200px]" value={reportDate} readOnly />
@@ -1017,6 +1048,7 @@ function CashierReportListTab({ clientId, token, toast }) {
   // removed static ITEMS_PER_PAGE
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
+  const [activeTab, setActiveTab] = useState('pending'); // 'pending' or 'history'
 
   const loadList = useCallback(async () => {
     if (!clientId || !token) return;
@@ -1040,6 +1072,14 @@ function CashierReportListTab({ clientId, token, toast }) {
 
   const filteredList = useMemo(() => {
     let list = entriesList;
+
+    // Filter by active tab (Pending vs History)
+    if (activeTab === 'pending') {
+      list = list.filter(e => e.status !== 'Verified');
+    } else {
+      list = list.filter(e => e.status === 'Verified');
+    }
+
     if (datePreset !== 'all_time') {
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -1107,9 +1147,9 @@ function CashierReportListTab({ clientId, token, toast }) {
       list = list.filter(e => toDDMMYYYY(e.report_date).toLowerCase().includes(t) || (e.report_date || '').toString().includes(t) || (e.remarks || '').toLowerCase().includes(t));
     }
     return list;
-  }, [entriesList, datePreset, dateRange, searchTerm]);
+  }, [entriesList, datePreset, dateRange, searchTerm, activeTab]);
 
-  useEffect(() => { setCurrentPage(1); }, [searchTerm, datePreset, dateRange]);
+  useEffect(() => { setCurrentPage(1); }, [searchTerm, datePreset, dateRange, activeTab]);
 
   const totalPages = Math.ceil((filteredList?.length || 0) / itemsPerPage);
   const paginatedList = filteredList.slice(
@@ -1122,7 +1162,28 @@ function CashierReportListTab({ clientId, token, toast }) {
       <CardHeader className="p-4 sm:p-6">
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-2 sm:gap-4 justify-between w-full">
-            <CardTitle className="text-lg sm:text-xl text-white">Cashier Report</CardTitle>
+            <div className="flex p-1 rounded-lg border border-white/10 backdrop-blur-sm">
+              <button
+                type="button"
+                onClick={() => setActiveTab('pending')}
+                className={`px-3 py-1 text-sm font-medium rounded-md transition-all ${activeTab === 'pending'
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40'
+                  }`}
+              >
+                Pending
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('history')}
+                className={`px-3 py-1 text-sm font-medium rounded-md transition-all ${activeTab === 'history'
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40'
+                  }`}
+              >
+                History
+              </button>
+            </div>
             <div className="flex flex-wrap items-center gap-2 sm:gap-4 flex-1 justify-end">
               <Select value={datePreset} onValueChange={setDatePreset}>
                 <SelectTrigger className="w-full sm:w-[190px] h-11 rounded-full glass-input px-4">
@@ -1177,6 +1238,7 @@ function CashierReportListTab({ clientId, token, toast }) {
                   <TableHead className="text-xs sm:text-sm text-gray-300">Cashier Report Total</TableHead>
                   <TableHead className="text-xs sm:text-sm text-gray-300">Variance</TableHead>
                   <TableHead className="text-xs sm:text-sm text-gray-300">Remarks</TableHead>
+                  <TableHead className="text-left text-xs sm:text-sm text-gray-300">Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1191,14 +1253,26 @@ function CashierReportListTab({ clientId, token, toast }) {
                       className="cursor-pointer transition-colors hover:bg-white/5"
                       onClick={() => navigate('entry/' + encodeURIComponent(report.report_date))}
                     >
-                      <TableCell className="text-xs sm:text-sm text-white">{toDDMMYYYY(report.report_date)}</TableCell>
+                      <TableCell className="text-xs sm:text-sm text-white">
+                        <div>{toDDMMYYYY(report.report_date)}</div>
+                        <div className="text-[10px] text-gray-400">{formatTime(report.created_at)}</div>
+                      </TableCell>
                       <TableCell className="text-xs sm:text-sm text-white">{report.created_by_name || '—'}</TableCell>
-                      <TableCell className="text-xs sm:text-sm text-white">₹ {Number(report.handover_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
-                      <TableCell className="text-xs sm:text-sm text-white">₹ {Number(report.cashier_report_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
-                      <TableCell className={`text-xs sm:text-sm font-medium ${report.variance !== 0 ? 'text-amber-400' : 'text-white'}`}>
-                        ₹ {Number(report.variance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      <TableCell className="text-xs sm:text-sm text-white">₹ {Number(report.handover_total || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</TableCell>
+                      <TableCell className="text-xs sm:text-sm text-white">₹ {Number(report.cashier_report_total || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</TableCell>
+                      <TableCell className={`text-xs sm:text-sm font-medium ${getVarianceColor(report.variance)}`}>
+                        ₹ {Number(report.variance || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                       </TableCell>
                       <TableCell className="text-xs sm:text-sm text-white max-w-[200px] truncate" title={report.remarks || ''}>{report.remarks || '—'}</TableCell>
+                      <TableCell className="text-left">
+                        <span className={`inline-flex items-center justify-center text-center px-2 py-1 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium border h-auto min-h-[1.5rem] whitespace-normal leading-tight ${
+                          report.status === 'Verified' 
+                            ? 'bg-green-500/20 text-green-400 border-green-500/50' 
+                            : 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50'
+                        }`}>
+                          {activeTab === 'history' ? 'Verified' : 'Pending Approval'}
+                        </span>
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -1245,6 +1319,14 @@ function CashierReportFormPage({ clientId, token, toast }) {
   const isNew = !reportDateParam || reportDateParam === 'new';
   const [selectedDate, setSelectedDate] = useState(isNew ? today : reportDateParam);
   const reportDate = selectedDate;
+
+  useEffect(() => {
+    if (reportDateParam && reportDateParam !== 'new') {
+      setSelectedDate(reportDateParam);
+    } else if (reportDateParam === 'new') {
+      setSelectedDate(new Date().toISOString().slice(0, 10));
+    }
+  }, [reportDateParam]);
 
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [departments, setDepartments] = useState([]);
@@ -1410,21 +1492,42 @@ function CashierReportFormPage({ clientId, token, toast }) {
 
   return (
     <div className="space-y-4">
-      <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white -ml-2" onClick={() => navigate(isNew ? '..' : '../..', { relative: 'path' })}>
-        <ArrowLeft className="mr-2 h-4 w-4" /> Back to list
-      </Button>
       <Card className="glass-card border-white/5">
         <CardHeader className="p-4 sm:p-6 flex flex-row flex-wrap items-center justify-between gap-4">
-          <div>
-            <CardTitle className="text-lg sm:text-xl text-white">{isNew ? 'New report' : 'View / Update'}</CardTitle>
-            <CardDescription className="text-sm text-gray-400">Enter amounts by department and payment method for the selected date.</CardDescription>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-gray-400 hover:text-white hover:bg-white/10 rounded-full"
+              onClick={() => navigate(isNew ? '..' : '../..', { relative: 'path' })}
+              title="Back to list"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-lg sm:text-xl text-white">{isNew ? 'New report' : 'View / Update'}</CardTitle>
+                {readOnly && <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 whitespace-nowrap">Handover approved — view only</span>}
+              </div>
+              <CardDescription className="text-sm text-gray-400">Enter amounts by department and payment method for the selected date.</CardDescription>
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Input type="date" className="h-9 sm:h-10 text-sm glass-input w-40 text-white" value={reportDate} readOnly={!isNew} onChange={e => setSelectedDate(e.target.value)} />
+            <DatePicker
+              value={reportDate}
+              onChange={(newDate) => {
+                if (!newDate) return;
+                const dateStr = format(newDate, 'yyyy-MM-dd');
+                setSelectedDate(dateStr);
+                if (!isNew) {
+                  navigate(`../${encodeURIComponent(dateStr)}`, { relative: 'path', replace: true });
+                }
+              }}
+              className="w-40"
+            />
             <Button onClick={handleSubmit} disabled={submitting || readOnly} className="h-9 sm:h-10 text-sm">
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Submit
             </Button>
-            {readOnly && <span className="text-xs text-amber-400">Handover approved — view only</span>}
           </div>
         </CardHeader>
         <CardContent className="p-0 space-y-4">
@@ -1452,15 +1555,15 @@ function CashierReportFormPage({ clientId, token, toast }) {
                           <Input type="number" min={0} step={0.01} readOnly={readOnly} className={`h-9 sm:h-10 text-sm glass-input !w-24 !pl-3 text-white ${readOnly ? 'cursor-default opacity-90' : ''}`} value={getCell(d.id, p.id)} onChange={e => setCell(d.id, p.id, e.target.value)} />
                         </TableCell>
                       ))}
-                      <TableCell className="text-xs sm:text-sm font-medium text-white bg-amber-500/10">{rowTotal(d.id).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell className="text-xs sm:text-sm font-medium text-white bg-amber-500/10">{Math.round(rowTotal(d.id)).toLocaleString('en-IN')}</TableCell>
                     </TableRow>
                   ))}
                   <TableRow className="border-white/10 bg-amber-500/10 font-medium">
                     <TableCell className="text-xs sm:text-sm text-gray-300">Total</TableCell>
                     {paymentMethods.map(p => (
-                      <TableCell key={p.id} className="text-xs sm:text-sm text-white">{colTotal(p.id).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell key={p.id} className="text-xs sm:text-sm text-white">{Math.round(colTotal(p.id)).toLocaleString('en-IN')}</TableCell>
                     ))}
-                    <TableCell className="text-xs sm:text-sm text-white">{grandTotal().toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
+                    <TableCell className="text-xs sm:text-sm text-white">{Math.round(grandTotal()).toLocaleString('en-IN')}</TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
@@ -1914,20 +2017,23 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
               ) : (
                 paginatedItems.map((row) => (
                   <TableRow key={row.handover_id} className="border-white/10">
-                    <TableCell className="text-xs sm:text-sm text-white">{toDDMMYYYY(row.date)}</TableCell>
+                    <TableCell className="text-xs sm:text-sm text-white">
+                      <div>{toDDMMYYYY(row.date)}</div>
+                      <div className="text-[10px] text-gray-400">{formatTime(row.created_at)}</div>
+                    </TableCell>
                     <TableCell className="text-xs sm:text-sm text-white">{usersMap[row.created_by_user_id] || row.created_by_name || '—'}</TableCell>
                     <TableCell className="text-xs sm:text-sm text-white">{row.department_name || '—'}</TableCell>
                     <TableCell className="text-xs sm:text-sm">
                       <button type="button" className="text-left underline decoration-dotted hover:no-underline cursor-pointer text-white" onClick={() => setBreakdownModal({ type: 'department', row })}>
-                        ₹ {Number(row.as_per_department).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        ₹ {Number(row.as_per_department).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                       </button>
                     </TableCell>
                     <TableCell className="text-xs sm:text-sm">
                       <button type="button" className="text-left underline decoration-dotted hover:no-underline cursor-pointer text-white" onClick={() => setBreakdownModal({ type: 'system', row })}>
-                        ₹ {Number(row.as_per_system).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        ₹ {Number(row.as_per_system).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                       </button>
                     </TableCell>
-                    <TableCell className={`text-xs sm:text-sm ${getVarianceColor(row.variance)}`}>₹ {Number(row.variance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
+                    <TableCell className={`text-xs sm:text-sm ${getVarianceColor(row.variance)}`}>₹ {Number(row.variance).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</TableCell>
                     <TableCell className="text-xs sm:text-sm">
                       <span className={`inline-flex items-center justify-center text-center px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-medium border h-auto min-h-[1.5rem] whitespace-normal leading-tight ${getHandoverStatusColor(row)}`}>
                         {statusLabel(row)}
