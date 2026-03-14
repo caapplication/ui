@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from '@/components/ui/button';
@@ -6,6 +6,9 @@ import { Badge } from '@/components/ui/badge';
 import { Repeat, Loader2 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CardFooter } from '@/components/ui/card';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 const FREQUENCY_LABELS = {
   daily: 'Daily',
@@ -16,6 +19,14 @@ const FREQUENCY_LABELS = {
 
 const RecurringTaskList = ({ recurringTasks, onEdit, onDelete, isLoading = false, clients = [], teamMembers = [] }) => {
   const navigate = useNavigate();
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  const totalPages = Math.ceil(recurringTasks.length / itemsPerPage);
+  const paginatedTasks = useMemo(() => {
+    return recurringTasks.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  }, [recurringTasks, currentPage, itemsPerPage]);
+
   const getClientName = (clientId) => {
     if (!clientId) return 'N/A';
     if (!Array.isArray(clients)) return 'N/A';
@@ -157,7 +168,7 @@ const RecurringTaskList = ({ recurringTasks, onEdit, onDelete, isLoading = false
             </TableRow>
           </TableHeader>
           <TableBody>
-            {recurringTasks.map((task) => {
+            {paginatedTasks.map((task) => {
               const createdByInfo = getUserInfo(task.created_by);
               const updatedByInfo = getUserInfo(task.updated_by || task.created_by);
               const assignedToInfo = getUserInfo(task.assigned_to);
@@ -302,6 +313,33 @@ const RecurringTaskList = ({ recurringTasks, onEdit, onDelete, isLoading = false
           </TableBody>
         </Table>
       </div>
+      <CardFooter className="flex flex-col sm:flex-row justify-center items-center gap-6 p-4 sm:p-6 border-t border-white/10">
+        <div className="flex items-center gap-4">
+          <span className="text-sm text-gray-400 font-medium">Page {currentPage} of {totalPages > 0 ? totalPages : 1}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400 hidden sm:inline">Rows per page:</span>
+            <Select value={String(itemsPerPage)} onValueChange={(val) => { setItemsPerPage(Number(val)); setCurrentPage(1); }}>
+              <SelectTrigger className="h-8 w-[70px] bg-transparent border-white/10 text-white text-xs">
+                <SelectValue placeholder={String(itemsPerPage)} />
+              </SelectTrigger>
+              <SelectContent className="bg-gray-900 border-white/10 text-white">
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="25">25</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white">
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages || totalPages === 0} className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white">
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+        </div>
+      </CardFooter>
     </div>
   );
 };
