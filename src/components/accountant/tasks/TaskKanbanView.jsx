@@ -894,12 +894,12 @@ const TaskKanbanView = forwardRef(({
                                                                 <h4
                                                                     key={task._last_unread_update || 'static'}
                                                                     className={`font-medium text-sm flex-1 mr-2 flex items-center gap-1.5 ${task.has_unread_messages
-                                                                        ? (task._last_unread_update ? 'text-orange-500 animate-blink-3s' : 'text-orange-500')
+                                                                        ? 'text-orange-500'
                                                                         : 'text-white'
                                                                         }`}
                                                                 >
                                                                     {task.has_unread_messages && (
-                                                                        <Bell className="w-3.5 h-3.5 fill-current flex-shrink-0" />
+                                                                        <Bell className="w-3.5 h-3.5 fill-current flex-shrink-0 animate-bell-shake" />
                                                                     )}
                                                                     {task.title}
                                                                 </h4>
