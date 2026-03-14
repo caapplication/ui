@@ -178,6 +178,21 @@ const ActivityLog = ({ itemId, itemType, showFilter = true, excludeTypes = [] })
 
     return (
         <div className="space-y-4">
+            {/* minimalist download icon when filters are hidden */}
+            {!showFilter && logs.length > 0 && (
+                <div className="flex justify-end mb-2">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={handleDownloadCSV}
+                        className="h-8 w-8 text-gray-400 hover:text-white"
+                        title="Download Activity Log"
+                    >
+                        <Download className="w-4 h-4" />
+                    </Button>
+                </div>
+            )}
+
             {/* Filters and Download - Only show if showFilter is true */}
             {showFilter && (
                 <div className="flex flex-col flex-wrap sm:flex-row gap-4 items-start sm:items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
