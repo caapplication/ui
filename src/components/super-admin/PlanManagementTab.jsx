@@ -22,6 +22,7 @@ const PlanManagementTab = () => {
   const [loading, setLoading] = useState(true);
   
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [viewingPlan, setViewingPlan] = useState(null);
   const [createLoading, setCreateLoading] = useState(false);
   const initialPlanState = {
     name: '',
@@ -333,7 +334,11 @@ const PlanManagementTab = () => {
                     )}
                   </TableCell>
                   <TableCell>
-                    <div className="flex flex-wrap gap-1 max-w-[250px]">
+                    <div 
+                      className="flex flex-wrap gap-1 max-w-[250px] cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={() => setViewingPlan(plan)}
+                      title="Click to view all modules"
+                    >
                       {plan.modules.slice(0, 3).map(m => (
                         <Badge key={m.id} className="text-[9px] bg-white/5 border-white/10 text-gray-300 h-4 px-1.5">{m.name}</Badge>
                       ))}
@@ -353,6 +358,85 @@ const PlanManagementTab = () => {
           </TableBody>
         </Table>
       </Card>
+
+      {/* Plan Details Modal */}
+      <Dialog open={!!viewingPlan} onOpenChange={(open) => !open && setViewingPlan(null)}>
+        <DialogContent className="glass-effect border-white/10 text-white max-w-2xl">
+          {viewingPlan && (
+            <>
+              <DialogHeader>
+                <div className="flex items-center justify-between pr-6">
+                  <DialogTitle className="text-2xl font-bold text-white">{viewingPlan.name}</DialogTitle>
+                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
+                    {viewingPlan.plan_type}
+                  </Badge>
+                </div>
+                <DialogDescription className="text-gray-400 mt-2 text-base">
+                  {viewingPlan.description || "No description provided."}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-6 py-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+                    <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Pricing Model</div>
+                    <div className="text-lg font-semibold flex items-center gap-2">
+                       {viewingPlan.is_recurring ? (
+                         <>
+                           <span className="text-blue-400">₹{viewingPlan.monthly_price_inr}</span>
+                           <span className="text-xs text-gray-500 font-normal">/ month per agency</span>
+                         </>
+                       ) : (
+                         <>
+                           <span className="text-amber-500">₹{viewingPlan.one_time_price_inr}</span>
+                           <span className="text-xs text-gray-500 font-normal">one-time setup fee</span>
+                         </>
+                       )}
+                    </div>
+                  </div>
+                  <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+                    <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Status</div>
+                    <div className="flex items-center gap-2">
+                       <div className={`w-2 h-2 rounded-full ${viewingPlan.is_active ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
+                       <span className={viewingPlan.is_active ? "text-green-500" : "text-red-500"}>
+                         {viewingPlan.is_active ? "Currently Active" : "Disabled"}
+                       </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="text-sm font-medium flex items-center gap-2 text-white">
+                    Included Modules
+                    <Badge variant="outline" className="text-[10px] text-primary border-primary/30">
+                      {viewingPlan.modules.length} Total
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {viewingPlan.modules.map(mod => (
+                      <div key={mod.id} className="flex items-center gap-3 p-3 rounded-lg bg-white/5 border border-white/10 group hover:border-primary/30 transition-colors">
+                        <div className="p-1.5 rounded-md bg-primary/10 text-primary">
+                          <CheckCircle2 className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium text-white group-hover:text-primary transition-colors">{mod.name}</div>
+                          <div className="text-[10px] text-gray-500">Full Access Included</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setViewingPlan(null)} className="w-full border-white/10 text-white hover:bg-white/5">
+                  Close Details
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
         </>
       )}
     </div>

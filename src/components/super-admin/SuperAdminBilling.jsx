@@ -10,14 +10,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useToast } from '@/components/ui/use-toast';
 import { getAdminModules, updateAdminModule, getAdminInvoices, markInvoicePaid, generateMonthlyInvoices } from '@/lib/api/admin';
+import { useSearchParams } from 'react-router-dom';
 import { Loader2, Receipt, Package, DollarSign, Calendar, Edit2, PlayCircle, CheckCircle, Component } from 'lucide-react';
 import PlanManagementTab from '@/components/super-admin/PlanManagementTab.jsx';
 
 const SuperAdminBilling = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
   
-  const [activeTab, setActiveTab] = useState('invoices');
+  const activeTab = searchParams.get('tab') || 'invoices';
+  const setActiveTab = (tab) => {
+    setSearchParams({ tab });
+  };
+
+  // Ensure tab is set in URL on first load
+  useEffect(() => {
+    if (!searchParams.get('tab')) {
+      setSearchParams({ tab: 'invoices' }, { replace: true });
+    }
+  }, []);
   
   // Modules State
   const [modules, setModules] = useState([]);
