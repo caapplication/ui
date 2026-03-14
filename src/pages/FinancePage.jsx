@@ -157,7 +157,7 @@ const FinancePage = () => {
       <div className="flex flex-wrap justify-between items-center gap-4 mb-6 lg:mb-8">
         <h1 className="page-title">Finances</h1>
         <div className="flex flex-wrap items-center gap-2">
-          {user.role === 'CA_ACCOUNTANT' && (
+          {['CA_ACCOUNTANT', 'CA_TEAM'].includes(user.role) && (
             <Button onClick={() => setIsExportModalOpen(true)} disabled={isDataLoading || !selectedClient} className="h-9 rounded-full bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm w-full sm:w-auto justify-center">
               <Download className="w-4 h-4 mr-1" />
               Export
