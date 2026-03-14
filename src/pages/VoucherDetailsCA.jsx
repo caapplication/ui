@@ -1593,28 +1593,10 @@ const VoucherDetailsCA = () => {
                 </ResizablePanel >
             </ResizablePanelGroup >
 
-            {/* Fixed navigation buttons at bottom corners - aligned on same line */}
-            {
-                hasVouchers && (
-                    <>
-                        {/* Previous button at bottom left (after sidebar) */}
-                        <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                handleNavigate(1);
-                            }}
-                            disabled={currentIndex === filteredVouchers.length - 1}
-                            className="hidden md:flex fixed bottom-4 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg z-[50]"
-                            style={{
-                                left: sidebarWidth <= 150 ? `${sidebarWidth + 16}px` : '20rem' // Dynamic positioning when collapsed (sidebar width + 16px margin), left-80 (20rem) when expanded
-                            }}
-                        >
-                            <ChevronLeft className="h-5 w-5" />
-                        </Button>
-                        {/* Next button at bottom right corner */}
+            {/* Centered navigation buttons at bottom */}
+            {hasVouchers && (
+                <div className="fixed bottom-6 left-0 right-0 flex justify-center items-center z-[100] pointer-events-none px-4 sm:px-0">
+                    <div className="flex items-center gap-4 sm:gap-6 pointer-events-auto backdrop-blur-xl p-1 px-2 rounded-full transition-all transform hover:scale-[1.02]">
                         <Button
                             variant="outline"
                             size="icon"
@@ -1624,42 +1606,34 @@ const VoucherDetailsCA = () => {
                                 handleNavigate(-1);
                             }}
                             disabled={currentIndex === 0 || currentIndex === -1}
-                            className="hidden md:flex fixed bottom-4 right-4 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg z-[50]"
+                            className="h-10 w-10 sm:h-12 sm:w-12 rounded-full hover:bg-white/10 text-white disabled:opacity-20 transition-all active:scale-95"
                         >
-                            <ChevronRight className="h-5 w-5" />
+                            <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6" />
                         </Button>
-                        {/* Mobile navigation buttons */}
-                        <div className="flex md:hidden fixed bottom-4 left-4 right-4 justify-between z-[50] gap-2 pointer-events-none">
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    handleNavigate(1);
-                                }}
-                                disabled={currentIndex === filteredVouchers.length - 1}
-                                className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg flex-1 pointer-events-auto"
-                            >
-                                <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
-                            </Button>
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    handleNavigate(-1);
-                                }}
-                                disabled={currentIndex === 0 || currentIndex === -1}
-                                className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg flex-1 pointer-events-auto"
-                            >
-                                <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
-                            </Button>
+                        
+                        <div className="flex flex-col items-center min-w-[60px] sm:min-w-[80px]">
+                            <span className="text-[10px] sm:text-xs font-medium uppercase tracking-wider text-gray-500">Voucher</span>
+                            <div className="text-sm sm:text-base font-bold text-white tabular-nums">
+                                {currentIndex + 1} <span className="text-gray-500 font-normal mx-1">/</span> {filteredVouchers.length}
+                            </div>
                         </div>
-                    </>
-                )
-            }
+
+                        <Button
+                                variant="outline"
+                            size="icon" 
+                            onClick={(e) => {
+                                e.preventDefault(); 
+                                e.stopPropagation();
+                                handleNavigate(1);
+                            }}
+                            disabled={currentIndex === filteredVouchers.length - 1}
+                            className="h-10 w-10 sm:h-12 sm:w-12 rounded-full hover:bg-white/10 text-white disabled:opacity-20 transition-all active:scale-95"
+                        >
+                            <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6" />
+                        </Button>
+                    </div>
+                </div>
+            )}
 
             <Dialog open={showDeleteDialog} onOpenChange={isDeleting ? undefined : setShowDeleteDialog}>
                 <DialogContent>

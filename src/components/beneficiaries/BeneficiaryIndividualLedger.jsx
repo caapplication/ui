@@ -58,12 +58,13 @@ import {
 const TIME_FRAME_PRESETS = [
     { key: 'today', label: 'Today' },
     { key: 'yesterday', label: 'Yesterday' },
-    { key: 'last_7_days', label: 'Last 7 Days' },
-    { key: 'last_30_days', label: 'Last 30 Days' },
-    { key: 'this_month', label: 'This Month' },
-    { key: 'last_month', label: 'Last Month' },
-    { key: 'last_3_months', label: 'Last 3 Months' },
-    { key: 'last_year', label: 'Last Year' },
+    { key: 'last_7_days', label: 'Last 7 days' },
+    { key: 'last_30_days', label: 'Last 30 days' },
+    { key: 'this_month', label: 'This month' },
+    { key: 'last_month', label: 'Last month' },
+    { key: 'last_3_months', label: 'Last 3 month' },
+    { key: 'last_6_months', label: 'Last 6 month' },
+    { key: 'last_year', label: 'Last year' },
     { key: 'custom', label: 'Custom' },
 ];
 
@@ -78,15 +79,17 @@ function getDateRange(preset, start, end) {
         case 'yesterday':
             return { from: startOfDay(subDays(now, 1)), to: endOfDay(subDays(now, 1)) };
         case 'last_7_days':
-            return { from: startOfDay(subDays(now, 7)), to: todayEnd };
+            return { from: startOfDay(subDays(now, 6)), to: todayEnd };
         case 'last_30_days':
-            return { from: startOfDay(subDays(now, 30)), to: todayEnd };
+            return { from: startOfDay(subDays(now, 29)), to: todayEnd };
         case 'this_month':
             return { from: startOfMonth(now), to: endOfMonth(now) };
         case 'last_month':
             return { from: startOfMonth(subMonths(now, 1)), to: endOfMonth(subMonths(now, 1)) };
         case 'last_3_months':
             return { from: startOfDay(subMonths(now, 3)), to: todayEnd };
+        case 'last_6_months':
+            return { from: startOfDay(subMonths(now, 6)), to: todayEnd };
         case 'last_year': {
             const lastYearStart = new Date(now);
             lastYearStart.setDate(lastYearStart.getDate() - 365);
@@ -472,7 +475,7 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
                             </SelectTrigger>
                             <SelectContent>
                                 {TIME_FRAME_PRESETS.map(preset => (
-                                    <SelectItem key={preset.key} value={preset.key} className="text-xs">
+                                    <SelectItem key={preset.key} value={preset.key} className="">
                                         {preset.label}
                                     </SelectItem>
                                 ))}

@@ -25,6 +25,59 @@ import {
 } from "@/components/ui/alert-dialog";
 import { AlertDialogTrigger } from '@radix-ui/react-alert-dialog';
 import AnimatedSearch from '@/components/ui/AnimatedSearch';
+import {
+    startOfDay,
+    endOfDay,
+    subDays,
+    subMonths,
+    startOfMonth,
+    endOfMonth,
+    startOfYear
+} from 'date-fns';
+
+const TIME_FRAME_PRESETS = [
+    { value: 'today', label: 'Today' },
+    { value: 'yesterday', label: 'Yesterday' },
+    { value: 'last_7_days', label: 'Last 7 days' },
+    { value: 'last_30_days', label: 'Last 30 days' },
+    { value: 'this_month', label: 'This month' },
+    { value: 'last_month', label: 'Last month' },
+    { value: 'last_3_months', label: 'Last 3 month' },
+    { value: 'last_6_months', label: 'Last 6 month' },
+    { value: 'last_year', label: 'Last year' },
+    { value: 'custom', label: 'Custom' },
+];
+
+function getDateRange(preset) {
+    const now = new Date();
+    const todayStart = startOfDay(now);
+    const todayEnd = endOfDay(now);
+
+    switch (preset) {
+        case 'today':
+            return { from: todayStart, to: todayEnd };
+        case 'yesterday':
+            return { from: startOfDay(subDays(now, 1)), to: endOfDay(subDays(now, 1)) };
+        case 'last_7_days':
+            return { from: startOfDay(subDays(now, 6)), to: todayEnd };
+        case 'last_30_days':
+            return { from: startOfDay(subDays(now, 29)), to: todayEnd };
+        case 'this_month':
+            return { from: startOfMonth(now), to: endOfMonth(now) };
+        case 'last_month': {
+            const lastMonth = subMonths(now, 1);
+            return { from: startOfMonth(lastMonth), to: endOfMonth(lastMonth) };
+        }
+        case 'last_3_months':
+            return { from: startOfMonth(subMonths(now, 2)), to: todayEnd };
+        case 'last_6_months':
+            return { from: startOfMonth(subMonths(now, 5)), to: todayEnd };
+        case 'last_year':
+            return { from: startOfYear(now), to: todayEnd };
+        default:
+            return null;
+    }
+}
 
 // Blinking animation style
 const blinkStyle = `
@@ -47,7 +100,17 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
     const [taskCollaborators, setTaskCollaborators] = useState({}); // { taskId: [collaboratorIds] }
     const fetchedCollaboratorsRef = useRef(new Set()); // Track which tasks we've fetched collaborators for
     const [clientIdFilter, setClientIdFilter] = useState('all');
-    const [dateRange, setDateRange] = useState(undefined);
+    const [dateRange, setDateRange] = useState(getDateRange('last_30_days'));
+    const [timeFrame, setTimeFrame] = useState('last_30_days');
+
+    useEffect(() => {
+        if (timeFrame !== 'custom' && timeFrame !== 'all') {
+            const range = getDateRange(timeFrame);
+            setDateRange(range);
+        } else if (timeFrame === 'all') {
+            setDateRange(undefined);
+        }
+    }, [timeFrame]);
 
     const getStatusVariant = (status) => {
         switch (status) {
@@ -428,7 +491,7 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
 
 
                             {/* Clear Logic for new filters */}
-                            {(dateRange || clientIdFilter !== 'all') && (
+                            {/* {(dateRange || clientIdFilter !== 'all') && (
                                 <Button
                                     variant="ghost"
                                     size="icon"
@@ -441,7 +504,7 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                                 >
                                     <X className="h-4 w-4" />
                                 </Button>
-                            )}
+                            )} */}
                             {!isHistoryView && (
                                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                                     <SelectTrigger className="glass-input w-full sm:w-[160px] h-11 rounded-full">
@@ -482,19 +545,37 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                                     <SelectItem value="collaborates">Collaborates</SelectItem>
                                 </SelectContent>
                             </Select>
+                            <Select value={timeFrame} onValueChange={setTimeFrame}>
+                                <SelectTrigger className="glass-input w-full sm:w-[160px] h-11 rounded-full">
+                                    <CalendarIcon className="w-4 h-4 mr-2 opacity-50" />
+                                    <SelectValue placeholder="Time Frame" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {/* <SelectItem value="all">All Time</SelectItem> */}
+                                    {TIME_FRAME_PRESETS.map(preset => (
+                                        <SelectItem key={preset.value} value={preset.value}>
+                                            {preset.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                             {/* Date Range Filter */}
-                            <DateRangePicker
-                                dateRange={dateRange}
-                                onChange={setDateRange}
-                                className="w-full sm:w-[250px]"
-                            />
-                            <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
-    <AnimatedSearch
-        placeholder="Search tasks..."
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-    />
-</div>
+                            {timeFrame === 'custom' && (
+                                <DateRangePicker
+                                    dateRange={dateRange}
+                                    onChange={setDateRange}
+                                    className="w-full sm:max-w-[280px] "
+                                />
+                            )}
+
+                            {/* Search Bar */}
+                            <div className="relative shrink-0">
+                                <AnimatedSearch
+                                    placeholder="Search tasks..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>
