@@ -8,7 +8,7 @@ import RecurringTaskExpandedView from '@/components/accountant/tasks/RecurringTa
 import { listOrgUsers } from '@/lib/api/organisation';
 import * as pdfjsLib from 'pdfjs-dist';
 import { useToast } from '@/components/ui/use-toast';
-import { Loader2, ArrowLeft, Paperclip, Clock, Calendar as CalendarIcon, User, Tag, Flag, CheckCircle, FileText, List, MessageSquare, Briefcase, Users, Play, Square, History, Plus, Trash2, Send, Edit2, Bell, UserPlus, X, Download, Image as ImageIcon, Maximize2, Repeat, LayoutGrid, CheckCircle2, XCircle } from 'lucide-react';
+import { Loader2, ArrowLeft, Paperclip, Clock, Calendar as CalendarIcon, User, Tag, Flag, CheckCircle, FileText, List, MessageSquare, Briefcase, Users, Play, Square, History, Plus, Trash2, Send, Edit2, Bell, UserPlus, Check, X, Download, Image as ImageIcon, Maximize2, Repeat, LayoutGrid, CheckCircle2, XCircle } from 'lucide-react';
 import { Combobox } from '@/components/ui/combobox';
 import imageCompression from 'browser-image-compression';
 import { Badge } from '@/components/ui/badge';
@@ -2599,7 +2599,7 @@ const TaskDashboardPage = () => {
 
                                                         {/* Creator Closure Actions - Show when stage is 'Request to Close' */}
                                                         {isTaskCreator && (stages.find(s => String(s.id) === String(task.stage_id))?.name || '').toLowerCase() === 'request to close' && (
-                                                            <div className="flex items-center gap-1 ml-2">
+                                                            <div className="flex items-center gap-2 ml-2">
                                                                 <Button
                                                                     onClick={async () => {
                                                                         const completeStage = stages.find(s => (s.name || '').toLowerCase() === 'complete' || (s.name || '').toLowerCase() === 'completed');
@@ -2609,12 +2609,12 @@ const TaskDashboardPage = () => {
                                                                             toast({ title: "Error", description: "Complete stage not found", variant: "destructive" });
                                                                         }
                                                                     }}
-                                                                    variant="outline"
+                                                                    variant="secondary"
                                                                     size="icon"
-                                                                    className="h-8 w-8 bg-green-500/20 text-green-300 border-green-500/50 hover:bg-green-500/30"
+                                                                    className="h-8 w-16 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full border-none shadow-lg"
                                                                     title="Approve & Complete"
                                                                 >
-                                                                    <CheckCircle2 className="w-4 h-4" />
+                                                                    <Check className="w-5 h-5 font-bold" />
                                                                 </Button>
                                                                 <Button
                                                                     onClick={async () => {
@@ -2625,12 +2625,12 @@ const TaskDashboardPage = () => {
                                                                             toast({ title: "Error", description: "'Need Review' stage not found", variant: "destructive" });
                                                                         }
                                                                     }}
-                                                                    variant="outline"
+                                                                    variant="destructive"
                                                                     size="icon"
-                                                                    className="h-8 w-8 bg-red-500/20 text-red-300 border-red-500/50 hover:bg-red-500/30"
+                                                                    className="h-8 w-16 bg-[#ef4444] hover:bg-[#dc2626] text-white rounded-full border-none shadow-lg"
                                                                     title="Reject & Request Review"
                                                                 >
-                                                                    <XCircle className="w-4 h-4" />
+                                                                    <X className="w-5 h-5 font-bold" />
                                                                 </Button>
                                                             </div>
                                                         )}

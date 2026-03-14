@@ -42,7 +42,9 @@ export function DatePicker({ value, onChange, disabled: customDisabled, classNam
   useEffect(() => {
     if (popoverOpen && inputRef.current) {
       setTimeout(() => {
-        inputRef.current.focus();
+        if (inputRef.current) {
+          inputRef.current.focus();
+        }
       }, 0);
     }
   }, [popoverOpen]);
