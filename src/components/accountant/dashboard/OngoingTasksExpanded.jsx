@@ -37,12 +37,13 @@ import { differenceInDays, subDays } from 'date-fns';
 const TIME_FRAME_PRESETS = [
     { label: 'Today', value: 'today' },
     { label: 'Yesterday', value: 'yesterday' },
-    { label: 'Last 7 Days', value: 'last_7_days' },
-    { label: 'Last 30 Days', value: 'last_30_days' },
-    { label: 'This Month', value: 'this_month' },
-    { label: 'Last Month', value: 'last_month' },
-    { label: 'Last 3 Months', value: 'last_3_months' },
-    { label: 'Last Year', value: 'last_year' },
+    { label: 'Last 7 days', value: 'last_7_days' },
+    { label: 'Last 30 days', value: 'last_30_days' },
+    { label: 'This month', value: 'this_month' },
+    { label: 'Last month', value: 'last_month' },
+    { label: 'Last 3 month', value: 'last_3_months' },
+    { label: 'Last 6 month', value: 'last_6_months' },
+    { label: 'Last year', value: 'last_year' },
     { label: 'Custom', value: 'custom' },
 ];
 
@@ -113,6 +114,7 @@ const OngoingTasksExpanded = () => {
                     case 'this_month': days = new Date().getDate(); break;
                     case 'last_month': days = new Date().getDate() + 30; break;
                     case 'last_3_months': days = 90; break;
+                    case 'last_6_months': days = 180; break;
                     case 'last_year': days = 365; break;
                     default: days = 30; break;
                 }
@@ -206,7 +208,7 @@ const OngoingTasksExpanded = () => {
                         <SelectTrigger className="glass-input max-w-[170px]">
                             <SelectValue placeholder="Time frame" />
                         </SelectTrigger>
-                        <SelectContent className="bg-[#1a1a2e] border-white/10 text-white rounded-xl">
+                        <SelectContent className="">
                             {TIME_FRAME_PRESETS.map(preset => (
                                 <SelectItem key={preset.value} value={preset.value} className="hover:bg-white/10 focus:bg-white/10 cursor-pointer rounded-lg">
                                     {preset.label}
@@ -220,7 +222,7 @@ const OngoingTasksExpanded = () => {
                             <DateRangePicker
                                 dateRange={dateRange}
                                 onChange={setDateRange}
-                                className="w-full sm:w-[260px] glass-input h-9 rounded-full"
+                                className="w-full sm:w-[280px] glass-input h-9 rounded-full !p-0"
                             />
                         </div>
                     )}

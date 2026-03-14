@@ -39,6 +39,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
+import { 
+    Select, 
+    SelectContent, 
+    SelectItem, 
+    SelectTrigger, 
+    SelectValue 
+} from "@/components/ui/select";
 import {
     BarChart,
     Bar,
@@ -211,9 +218,9 @@ const Dashboard = ({
     const [isLoading, setIsLoading] = useState(true);
     const [vouchers, setVouchers] = useState([]);
     // Expiring docs moved to Documents section Renewals tab
-    const [expensePeriod, setExpensePeriod] = useState("30days");
+    const [expensePeriod, setExpensePeriod] = useState("last_30_days");
     const [dateRange, setDateRange] = useState({
-        from: new Date(new Date().setDate(new Date().getDate() - 30)),
+        from: new Date(new Date().setDate(new Date().getDate() - 29)),
         to: new Date()
     });
     const [fundInHand, setFundInHand] = useState(null);
@@ -265,10 +272,11 @@ const Dashboard = ({
                 fromDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
                 toDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 23, 59, 59, 999);
                 break;
-            case "7days":
-                fromDate = new Date(now); fromDate.setDate(now.getDate() - 7); break;
+            case "last_7_days":
+                fromDate = new Date(now); fromDate.setDate(now.getDate() - 6); break;
             case "30days":
-                fromDate = new Date(now); fromDate.setDate(now.getDate() - 30); break;
+            case "last_30_days":
+                fromDate = new Date(now); fromDate.setDate(now.getDate() - 29); break;
             case "this_month":
                 fromDate = new Date(now.getFullYear(), now.getMonth(), 1); break;
             case "last_month":
@@ -276,9 +284,15 @@ const Dashboard = ({
                 toDate = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
                 break;
             case "3months":
+            case "last_3_months":
                 fromDate = new Date(now); fromDate.setMonth(now.getMonth() - 3); break;
+            case "6months":
+            case "last_6_months":
+                fromDate = new Date(now); fromDate.setMonth(now.getMonth() - 6); break;
+            case "last_year":
+                fromDate = new Date(now); fromDate.setDate(now.getDate() - 365); break;
             default:
-                fromDate = new Date(now); fromDate.setDate(now.getDate() - 30);
+                fromDate = new Date(now); fromDate.setDate(now.getDate() - 29);
         }
 
         const fromDateStr = fromDate ? fromDate.toISOString() : null;
@@ -294,11 +308,17 @@ const Dashboard = ({
                 break;
             case "today": daysToFetch = 1; break;
             case "yesterday": daysToFetch = 2; break;
-            case "7days": daysToFetch = 7; break;
-            case "30days": daysToFetch = 30; break;
+            case "7days":
+            case "last_7_days": daysToFetch = 7; break;
+            case "30days":
+            case "last_30_days": daysToFetch = 30; break;
             case "this_month": daysToFetch = 31; break;
             case "last_month": daysToFetch = 62; break;
-            case "3months": daysToFetch = 90; break;
+            case "3months":
+            case "last_3_months": daysToFetch = 90; break;
+            case "6months":
+            case "last_6_months": daysToFetch = 180; break;
+            case "last_year": daysToFetch = 365; break;
             default: daysToFetch = 30;
         }
 
@@ -481,15 +501,18 @@ const Dashboard = ({
                 previousStartDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 2);
                 previousEndDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 2, 23, 59, 59, 999);
                 break;
+
+            case "last_7_days":
             case "7days":
-                currentStartDate = new Date(now); currentStartDate.setDate(now.getDate() - 7);
+                currentStartDate = new Date(now); currentStartDate.setDate(now.getDate() - 6);
                 previousEndDate = new Date(currentStartDate);
-                previousStartDate = new Date(now); previousStartDate.setDate(now.getDate() - 14);
+                previousStartDate = new Date(now); previousStartDate.setDate(now.getDate() - 13);
                 break;
+            case "last_30_days":
             case "30days":
-                currentStartDate = new Date(now); currentStartDate.setDate(now.getDate() - 30);
+                currentStartDate = new Date(now); currentStartDate.setDate(now.getDate() - 29);
                 previousEndDate = new Date(currentStartDate);
-                previousStartDate = new Date(now); previousStartDate.setDate(now.getDate() - 60);
+                previousStartDate = new Date(now); previousStartDate.setDate(now.getDate() - 59);
                 break;
             case "this_month":
                 currentStartDate = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -502,13 +525,24 @@ const Dashboard = ({
                 previousStartDate = new Date(now.getFullYear(), now.getMonth() - 2, 1);
                 previousEndDate = new Date(now.getFullYear(), now.getMonth() - 1, 0, 23, 59, 59, 999);
                 break;
+            case "last_3_months":
             case "3months":
                 currentStartDate = new Date(now); currentStartDate.setMonth(now.getMonth() - 3);
                 previousEndDate = new Date(currentStartDate);
                 previousStartDate = new Date(now); previousStartDate.setMonth(now.getMonth() - 6);
                 break;
+            case "last_6_months":
+                currentStartDate = new Date(now); currentStartDate.setMonth(now.getMonth() - 6);
+                previousEndDate = new Date(currentStartDate);
+                previousStartDate = new Date(now); previousStartDate.setMonth(now.getMonth() - 12);
+                break;
+            case "last_year":
+                currentStartDate = new Date(now); currentStartDate.setFullYear(now.getFullYear() - 1);
+                previousEndDate = new Date(currentStartDate);
+                previousStartDate = new Date(now); previousStartDate.setFullYear(now.getFullYear() - 2);
+                break;
             default:
-                currentStartDate = new Date(now); currentStartDate.setDate(now.getDate() - 30);
+                currentStartDate = new Date(now); currentStartDate.setDate(now.getDate() - 29);
         }
 
         const currentTotal = vouchers.reduce((sum, voucher) => {
@@ -541,26 +575,33 @@ const Dashboard = ({
 
     const getPeriodLabel = () => {
         switch (expensePeriod) {
-            case "custom": return "Custom Range";
+            case "custom": return "Custom";
             case "today": return "Today";
             case "yesterday": return "Yesterday";
-            case "7days": return "Last 7 Days";
-            case "30days": return "Last 30 Days";
-            case "this_month": return "This Month";
-            case "last_month": return "Last Month";
-            case "3months": return "Last 3 Months";
-            default: return "Last 30 Days";
+            case "7days":
+            case "last_7_days": return "Last 7 days";
+            case "30days":
+            case "last_30_days": return "Last 30 days";
+            case "this_month": return "This month";
+            case "last_month": return "Last month";
+            case "3months":
+            case "last_3_months": return "Last 3 month";
+            case "last_6_months": return "Last 6 month";
+            case "last_year": return "Last year";
+            default: return "Last 30 days";
         }
     };
 
     const expenseMenuItems = [
         { value: "today", label: "Today", selected: expensePeriod === "today" },
         { value: "yesterday", label: "Yesterday", selected: expensePeriod === "yesterday" },
-        { value: "7days", label: "Last 7 Days", selected: expensePeriod === "7days" },
-        { value: "30days", label: "Last 30 Days", selected: expensePeriod === "30days" },
-        { value: "this_month", label: "This Month", selected: expensePeriod === "this_month" },
-        { value: "last_month", label: "Last Month", selected: expensePeriod === "last_month" },
-        { value: "3months", label: "Last 3 Months", selected: expensePeriod === "3months" },
+        { value: "last_7_days", label: "Last 7 days", selected: expensePeriod === "last_7_days" || expensePeriod === "7days" },
+        { value: "last_30_days", label: "Last 30 days", selected: expensePeriod === "last_30_days" || expensePeriod === "30days" },
+        { value: "this_month", label: "This month", selected: expensePeriod === "this_month" },
+        { value: "last_month", label: "Last month", selected: expensePeriod === "last_month" },
+        { value: "last_3_months", label: "Last 3 month", selected: expensePeriod === "last_3_months" || expensePeriod === "3months" },
+        { value: "last_6_months", label: "Last 6 month", selected: expensePeriod === "last_6_months" },
+        { value: "last_year", label: "Last year", selected: expensePeriod === "last_year" },
         { value: "custom", label: "Custom", selected: expensePeriod === "custom" },
     ];
     const expenseStats = calculateExpenseStats();
@@ -797,37 +838,28 @@ const Dashboard = ({
                         </h1>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-4">
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className=""
-                                >
+                    <div className="flex flex-wrap items-center gap-3">
+                        <Select value={expensePeriod} onValueChange={setExpensePeriod}>
+                            <SelectTrigger className="w-full sm:w-[190px] h-11 rounded-full glass-input px-4">
+                                <div className="flex items-center gap-2">
                                     <Calendar className="w-4 h-4 text-gray-400" />
-                                    <span>{getPeriodLabel()}</span>
-                                    <ChevronDown className="w-4 h-4 text-gray-400" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="min-w-[160px] bg-[#0b0c0e] border-white/10 text-white">
+                                    <SelectValue placeholder="Time Frame" />
+                                </div>
+                            </SelectTrigger>
+                            <SelectContent>
                                 {expenseMenuItems.map((item) => (
-                                    <DropdownMenuItem
-                                        key={item.value}
-                                        onClick={() => setExpensePeriod(item.value)}
-                                        className={item.selected ? "bg-primary/20 font-semibold" : ""}
-                                    >
-                                        {item.selected && <span className="mr-2 text-blue-400">✓</span>}
+                                    <SelectItem key={item.value} value={item.value}>
                                         {item.label}
-                                    </DropdownMenuItem>
+                                    </SelectItem>
                                 ))}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                            </SelectContent>
+                        </Select>
 
                         {expensePeriod === "custom" && (
                             <DateRangePicker
                                 dateRange={dateRange}
                                 onChange={(range) => setDateRange(range)}
+                                className="w-[260px]"
                             />
                         )}
                     </div>

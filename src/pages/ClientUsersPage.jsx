@@ -898,16 +898,16 @@ const TeamActivityLog = ({ entityId }) => {
 
     return (
         <div className="flex flex-col glass-pane rounded-lg overflow-hidden">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-4 border-b border-white/5 shrink-0">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 p-4 border-b border-white/5 shrink-0">
                 <h3 className="text-lg font-semibold text-white">Activity Log</h3>
-                <div className="w-full sm:w-64 relative">
-                    <Search className="search-icon" />
-                    <Input
-                        placeholder="Search logs..."
-                        className="glass-input pl-10 w-full"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                    <div className="relative shrink-0">
+                        <AnimatedSearch
+                            placeholder="Search logs..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
                 </div>
             </div>
 

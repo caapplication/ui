@@ -180,6 +180,10 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onViewInvoic
           const last3Months = new Date(today);
           last3Months.setMonth(last3Months.getMonth() - 3);
           if (invDate < last3Months) match = false;
+        } else if (datePreset === 'last_6_months') {
+          const last6Months = new Date(today);
+          last6Months.setMonth(last6Months.getMonth() - 6);
+          if (invDate < last6Months) match = false;
         } else if (datePreset === 'custom') {
           const from = dateRange?.from ? new Date(dateRange.from) : null;
           const to = dateRange?.to ? new Date(dateRange.to) : null;
@@ -226,31 +230,29 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onViewInvoic
     <Card className="glass-card mt-4">
       <CardHeader className="p-4 sm:p-6">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-<div className="flex p-1 rounded-lg border border-white/10 backdrop-blur-sm w-fit">
-  <button
-    type="button"
-    onClick={() => setViewMode('active')}
-    className={`px-3 py-1 text-sm font-medium rounded-md transition-all ${
-      viewMode === 'active'
-        ? 'bg-primary text-primary-foreground shadow-sm'
-        : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40'
-    }`}
-  >
-    Active
-  </button>
+          <div className="flex p-1 rounded-lg border border-white/10 backdrop-blur-sm w-fit">
+            <button
+              type="button"
+              onClick={() => setViewMode('active')}
+              className={`px-3 py-1 text-sm font-medium rounded-md transition-all ${viewMode === 'active'
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40'
+                }`}
+            >
+              Active
+            </button>
 
-  <button
-    type="button"
-    onClick={() => setViewMode('history')}
-    className={`px-3 py-1 text-sm font-medium rounded-md transition-all ${
-      viewMode === 'history'
-        ? 'bg-primary text-primary-foreground shadow-sm'
-        : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40'
-    }`}
-  >
-    History
-  </button>
-</div>
+            <button
+              type="button"
+              onClick={() => setViewMode('history')}
+              className={`px-3 py-1 text-sm font-medium rounded-md transition-all ${viewMode === 'history'
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40'
+                }`}
+            >
+              History
+            </button>
+          </div>
           <div className="flex items-center gap-3 w-full lg:w-auto lg:justify-end">
             <div className=" w-full ">
               <Select value={datePreset} onValueChange={setDatePreset}>
@@ -263,12 +265,13 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onViewInvoic
                 <SelectContent>
                   <SelectItem value="today">Today</SelectItem>
                   <SelectItem value="yesterday">Yesterday</SelectItem>
-                  <SelectItem value="last_7_days">Last 7 Days</SelectItem>
-                  <SelectItem value="last_30_days">Last 30 Days</SelectItem>
-                  <SelectItem value="this_month">This Month</SelectItem>
-                  <SelectItem value="last_month">Last Month</SelectItem>
-                  <SelectItem value="last_3_months">Last 3 Months</SelectItem>
-                  <SelectItem value="last_year">Last Year</SelectItem>
+                  <SelectItem value="last_7_days">Last 7 days</SelectItem>
+                  <SelectItem value="last_30_days">Last 30 days</SelectItem>
+                  <SelectItem value="this_month">This month</SelectItem>
+                  <SelectItem value="last_month">Last month</SelectItem>
+                  <SelectItem value="last_3_months">Last 3 month</SelectItem>
+                  <SelectItem value="last_6_months">Last 6 month</SelectItem>
+                  <SelectItem value="last_year">Last year</SelectItem>
                   <SelectItem value="custom">Custom</SelectItem>
                 </SelectContent>
               </Select>

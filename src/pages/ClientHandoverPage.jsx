@@ -221,6 +221,11 @@ function BankTallyListTab({ clientId, token, toast, readOnly = false }) {
           last3.setMonth(last3.getMonth() - 3);
           return vDate >= last3 && vDate <= today;
         }
+        if (datePreset === 'last_6_months') {
+          const last6 = new Date(today);
+          last6.setMonth(last6.getMonth() - 6);
+          return vDate >= last6 && vDate <= today;
+        }
         if (datePreset === 'custom') {
           const from = dateRange?.from ? new Date(dateRange.from) : null;
           const to = dateRange?.to ? new Date(dateRange.to) : null;
@@ -291,6 +296,7 @@ function BankTallyListTab({ clientId, token, toast, readOnly = false }) {
                   <SelectItem value="this_month">This Month</SelectItem>
                   <SelectItem value="last_month">Last Month</SelectItem>
                   <SelectItem value="last_3_months">Last 3 Months</SelectItem>
+                  <SelectItem value="last_6_months">Last 6 Months</SelectItem>
                   <SelectItem value="last_year">Last Year</SelectItem>
                   <SelectItem value="custom">Custom</SelectItem>
                 </SelectContent>
@@ -678,6 +684,11 @@ function CashTallyListTab({ clientId, entityId, token, toast, readOnly = false }
           const last3 = new Date(today);
           last3.setMonth(last3.getMonth() - 3);
           return vDate >= last3 && vDate <= today;
+        }
+        if (datePreset === 'last_6_months') {
+          const last6 = new Date(today);
+          last6.setMonth(last6.getMonth() - 6);
+          return vDate >= last6 && vDate <= today;
         }
         if (datePreset === 'custom') {
           const from = dateRange?.from ? new Date(dateRange.from) : null;
@@ -1123,6 +1134,11 @@ function CashierReportListTab({ clientId, token, toast }) {
           const last3 = new Date(today);
           last3.setMonth(last3.getMonth() - 3);
           return vDate >= last3 && vDate <= today;
+        }
+        if (datePreset === 'last_6_months') {
+          const last6 = new Date(today);
+          last6.setMonth(last6.getMonth() - 6);
+          return vDate >= last6 && vDate <= today;
         }
         if (datePreset === 'custom') {
           const from = dateRange?.from ? new Date(dateRange.from) : null;
@@ -1836,6 +1852,11 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
         last3.setMonth(last3.getMonth() - 3);
         return vDate >= last3 && vDate <= today;
       }
+      if (datePreset === 'last_6_months') {
+        const last6 = new Date(today);
+        last6.setMonth(last6.getMonth() - 6);
+        return vDate >= last6 && vDate <= today;
+      }
       if (datePreset === 'custom') {
         const from = dateRange?.from ? new Date(dateRange.from) : null;
         const to = dateRange?.to ? new Date(dateRange.to) : null;
@@ -1959,12 +1980,13 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
                 <SelectContent>
                   <SelectItem value="today">Today</SelectItem>
                   <SelectItem value="yesterday">Yesterday</SelectItem>
-                  <SelectItem value="last_7_days">Last 7 Days</SelectItem>
-                  <SelectItem value="last_30_days">Last 30 Days</SelectItem>
-                  <SelectItem value="this_month">This Month</SelectItem>
-                  <SelectItem value="last_month">Last Month</SelectItem>
-                  <SelectItem value="last_3_months">Last 3 Months</SelectItem>
-                  <SelectItem value="last_year">Last Year</SelectItem>
+                  <SelectItem value="last_7_days">Last 7 days</SelectItem>
+                  <SelectItem value="last_30_days">Last 30 days</SelectItem>
+                  <SelectItem value="this_month">This month</SelectItem>
+                  <SelectItem value="last_month">Last month</SelectItem>
+                  <SelectItem value="last_3_months">Last 3 month</SelectItem>
+                  <SelectItem value="last_6_months">Last 6 month</SelectItem>
+                  <SelectItem value="last_year">Last year</SelectItem>
                   <SelectItem value="custom">Custom</SelectItem>
                 </SelectContent>
               </Select>
