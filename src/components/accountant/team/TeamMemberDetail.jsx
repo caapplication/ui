@@ -210,9 +210,9 @@ const TeamMemberDetail = ({ member, onBack, clients = [], memberClientsMap = {} 
         const interval = task.recurrence_interval || task.interval || 1;
         const dayOfWeek = task.recurrence_day_of_week !== undefined ? task.recurrence_day_of_week : task.day_of_week;
         const dayOfMonth = task.recurrence_day_of_month !== undefined ? task.recurrence_day_of_month : task.day_of_month;
-        
+
         if (!frequency) return 'N/A';
-        
+
         let desc = `Every ${interval} ${FREQUENCY_LABELS[frequency] || frequency}`;
 
         if (frequency === 'weekly' && dayOfWeek !== null && dayOfWeek !== undefined) {
@@ -395,7 +395,7 @@ const TeamMemberDetail = ({ member, onBack, clients = [], memberClientsMap = {} 
                 {activeTab === 'tasks' && (
                     <div className="space-y-4">
                         <div className="flex flex-wrap items-center gap-2 justify-end">
-                          
+
                             <Select value={taskStatusFilter} onValueChange={setTaskStatusFilter}>
                                 <SelectTrigger className="w-36 h-9"><SelectValue placeholder="Status" /></SelectTrigger>
                                 <SelectContent>
@@ -406,13 +406,13 @@ const TeamMemberDetail = ({ member, onBack, clients = [], memberClientsMap = {} 
                                     <SelectItem value="Hold">Hold</SelectItem>
                                 </SelectContent>
                             </Select>
-                              <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
-    <AnimatedSearch
-        placeholder="Search tasks..."
-        value={taskSearch}
-        onChange={e => setTaskSearch(e.target.value)}
-    />
-</div>
+                            <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+                                <AnimatedSearch
+                                    placeholder="Search tasks..."
+                                    value={taskSearch}
+                                    onChange={e => setTaskSearch(e.target.value)}
+                                />
+                            </div>
                         </div>
                         <div className="glass-pane rounded-lg overflow-hidden border border-white/10">
                             <div className="overflow-x-auto">
@@ -553,7 +553,7 @@ const TeamMemberDetail = ({ member, onBack, clients = [], memberClientsMap = {} 
                 {activeTab === 'recurring' && (
                     <div className="space-y-4">
                         <div className="flex flex-wrap items-center gap-2 justify-end">
-                          
+
                             <Select value={recurringClientFilter} onValueChange={setRecurringClientFilter}>
                                 <SelectTrigger className="w-48 h-9">
                                     <SelectValue placeholder="Filter by Company" />
@@ -567,13 +567,13 @@ const TeamMemberDetail = ({ member, onBack, clients = [], memberClientsMap = {} 
                                     ))}
                                 </SelectContent>
                             </Select>
-                              <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
-    <AnimatedSearch
-        placeholder="Search recurring..."
-        value={recurringSearch}
-        onChange={e => setRecurringSearch(e.target.value)}
-    />
-</div>
+                            <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+                                <AnimatedSearch
+                                    placeholder="Search recurring..."
+                                    value={recurringSearch}
+                                    onChange={e => setRecurringSearch(e.target.value)}
+                                />
+                            </div>
                         </div>
                         <div className="glass-pane rounded-lg overflow-hidden border border-white/10">
                             <div className="overflow-x-auto">
@@ -739,12 +739,12 @@ const TeamMemberDetail = ({ member, onBack, clients = [], memberClientsMap = {} 
                     <div className="space-y-4">
                         <div className="flex flex-wrap items-center gap-2 justify-end">
                             <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
-    <AnimatedSearch
-        placeholder="Search clients..."
-        value={clientSearch}
-        onChange={e => setClientSearch(e.target.value)}
-    />
-</div>
+                                <AnimatedSearch
+                                    placeholder="Search clients..."
+                                    value={clientSearch}
+                                    onChange={e => setClientSearch(e.target.value)}
+                                />
+                            </div>
                         </div>
                         <div className="glass-pane rounded-lg overflow-hidden border border-white/10">
                             <Table>

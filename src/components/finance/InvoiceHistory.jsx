@@ -254,14 +254,13 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onViewInvoic
           <div className="flex items-center gap-3 w-full lg:w-auto lg:justify-end">
             <div className=" w-full ">
               <Select value={datePreset} onValueChange={setDatePreset}>
-                <SelectTrigger className="w-full glass-input h-11 rounded-full text-white focus:ring-primary/20 px-4">
+                <SelectTrigger className="w-full sm:w-[190px] glass-input h-11 rounded-full text-white focus:ring-primary/20 px-4">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-gray-400" />
                     <SelectValue placeholder="Last Year" />
                   </div>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="last_year">Last Year</SelectItem>
                   <SelectItem value="today">Today</SelectItem>
                   <SelectItem value="yesterday">Yesterday</SelectItem>
                   <SelectItem value="last_7_days">Last 7 Days</SelectItem>
@@ -269,6 +268,7 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onViewInvoic
                   <SelectItem value="this_month">This Month</SelectItem>
                   <SelectItem value="last_month">Last Month</SelectItem>
                   <SelectItem value="last_3_months">Last 3 Months</SelectItem>
+                  <SelectItem value="last_year">Last Year</SelectItem>
                   <SelectItem value="custom">Custom</SelectItem>
                 </SelectContent>
               </Select>
@@ -368,7 +368,7 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onViewInvoic
       </CardContent>
       <CardFooter className="flex flex-col sm:flex-row justify-center items-center gap-6 p-4 sm:p-6 border-t border-white/10">
         <div className="flex items-center gap-4">
-          <p className="text-xs sm:text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
+          <span className="text-sm text-gray-400 font-medium">Page {currentPage} of {totalPages > 0 ? totalPages : 1}</span>
           <div className="flex items-center gap-2">
             <span className="text-xs text-gray-400 hidden sm:inline">Rows per page:</span>
             <Select value={String(itemsPerPage)} onValueChange={(val) => { setItemsPerPage(Number(val)); setCurrentPage(1); }}>

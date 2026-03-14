@@ -45,7 +45,8 @@ const TIME_FRAME_PRESETS = [
     { label: 'This Month', value: 'this_month' },
     { label: 'Last Month', value: 'last_month' },
     { label: 'Last 3 Months', value: 'last_3_months' },
-    { label: 'Custom Range', value: 'custom' },
+    { label: 'Last Year', value: 'last_year' },
+    { label: 'Custom', value: 'custom' },
 ];
 
 const getDateRange = (preset, start, end) => {
@@ -70,6 +71,11 @@ const getDateRange = (preset, start, end) => {
             return { start: startOfMonth(lastMonth), end: endOfMonth(lastMonth) };
         case 'last_3_months':
             return { start: startOfMonth(subMonths(today, 2)), end: endOfMonth(today) };
+        case 'last_year':
+            const startOfLastYearMonth = startOfMonth(subMonths(today, 11)); // e.g if currently March, going back 11 months gives April of last year
+            const lastYearStart = new Date(today);
+            lastYearStart.setDate(lastYearStart.getDate() - 365);
+            return { start: startOfDay(lastYearStart), end: endOfToday };
         case 'custom':
             return {
                 start: start ? startOfDay(start) : null,

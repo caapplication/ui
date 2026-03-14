@@ -414,7 +414,7 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                         <div className="flex flex-col lg:flex-row gap-2 w-full xl:w-auto flex-wrap items-center">
                             {/* Client Filter */}
                             <Select value={clientIdFilter} onValueChange={setClientIdFilter}>
-                                <SelectTrigger className="glass-input w-full sm:w-[160px]">
+                                <SelectTrigger className="glass-input w-full sm:w-[160px] h-11 rounded-full">
                                     <SelectValue placeholder="Client" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -444,7 +444,7 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                             )}
                             {!isHistoryView && (
                                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                                    <SelectTrigger className="glass-input w-full sm:w-[160px]">
+                                    <SelectTrigger className="glass-input w-full sm:w-[160px] h-11 rounded-full">
                                         <SelectValue placeholder="Filter by status" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -472,7 +472,7 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                                 </Select>
                             )}
                             <Select value={userFilter} onValueChange={setUserFilter}>
-                                <SelectTrigger className="glass-input w-full sm:w-[160px]">
+                                <SelectTrigger className="glass-input w-full sm:w-[160px] h-11 rounded-full">
                                     <SelectValue placeholder="Filter by user" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -486,7 +486,7 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                             <DateRangePicker
                                 dateRange={dateRange}
                                 onChange={setDateRange}
-                                className="w-full sm:w-[200px]"
+                                className="w-full sm:w-[250px]"
                             />
                             <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
     <AnimatedSearch

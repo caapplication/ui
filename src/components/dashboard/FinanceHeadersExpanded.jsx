@@ -75,6 +75,11 @@ const FinanceHeadersExpanded = ({ entityId }) => {
                 return { start: startOfMonth(lastMonth), end: endOfMonth(lastMonth) };
             case 'last_3_months':
                 return { start: startOfMonth(subMonths(today, 2)), end: endOfMonth(today) };
+            case 'last_year': {
+                const lastYearStart = new Date(today);
+                lastYearStart.setDate(today.getDate() - 365);
+                return { start: startOfDay(lastYearStart), end: endOfToday };
+            }
             case 'custom':
                 return {
                     start: start ? startOfDay(start) : null,
@@ -234,7 +239,8 @@ const FinanceHeadersExpanded = ({ entityId }) => {
                                 <SelectItem value="this_month" className="text-xs">This Month</SelectItem>
                                 <SelectItem value="last_month" className="text-xs">Last Month</SelectItem>
                                 <SelectItem value="last_3_months" className="text-xs">Last 3 Months</SelectItem>
-                                <SelectItem value="custom" className="text-xs">Custom Range</SelectItem>
+                                <SelectItem value="last_year" className="text-xs">Last Year</SelectItem>
+                                <SelectItem value="custom" className="text-xs">Custom</SelectItem>
                             </SelectContent>
                         </Select>
 
