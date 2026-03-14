@@ -749,8 +749,9 @@ const ClientUsersPage = ({ entityId }) => {
                         <p className="text-sm text-gray-400 mb-4">
                             Select users from your organization to add to this entity.
                         </p>
-                        <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+                        <div className="relative w-full sm:w-auto mb-4 flex-grow sm:flex-grow-0">
                             <AnimatedSearch
+                            className='!w-full'
                                 placeholder="Search users by name or email..."
                                 value={existingUserSearchTerm}
                                 onChange={(e) => setExistingUserSearchTerm(e.target.value)}

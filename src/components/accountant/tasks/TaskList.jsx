@@ -472,8 +472,9 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
         <div className="h-full flex flex-col">
             <div className={cn("rounded-lg flex-grow flex flex-col overflow-hidden", !isHistoryView && "glass-pane")}>
                 <div className="p-4 border-b border-white/10">
-                    <div className={cn("flex flex-col xl:flex-row items-start lg:items-center gap-4", isHistoryView ? "justify-end" : "justify-between")}>
-                        {!isHistoryView && <h2 className="text-xl font-semibold">All Tasks</h2>}
+            <div className='flex justify-between items-center'>  {!isHistoryView && <h2 className="text-xl font-semibold">All Tasks</h2>}
+                    <div className={cn("flex flex-col xl:flex-row items-start lg:items-center gap-4", isHistoryView ? "justify-end" : "justify-end")}>
+
                         <div className="flex flex-col lg:flex-row gap-2 w-full xl:w-auto flex-wrap items-center">
                             {/* Client Filter */}
                             <Select value={clientIdFilter} onValueChange={setClientIdFilter}>
@@ -577,7 +578,7 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                                 />
                             </div>
                         </div>
-                    </div>
+                    </div></div>
                 </div>
                 <div className="flex-grow relative min-h-0 overflow-x-auto overflow-y-auto">
                     <Table className="w-full min-w-[1000px]">

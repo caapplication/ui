@@ -457,7 +457,7 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
                             // variant="outline"
                             size="sm"
                             onClick={handleExport}
-                            className="h-9 rounded-full bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm"
+                            className=" rounded-full bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm"
                         >
                             <Download className="w-4 h-4" />
                             <span>Export</span>
