@@ -37,7 +37,23 @@ const SuperAdminBilling = () => {
     try {
       setModulesLoading(true);
       const data = await getAdminModules(user.access_token);
-      setModules(data);
+      
+      // Implement sorting: CA first, then CLIENT. Free first within each.
+      const sortedModules = [...data].sort((a, b) => {
+        // 1. Module Type: CA (alphabetically first) before CLIENT
+        if (a.module_type !== b.module_type) {
+          return a.module_type.localeCompare(b.module_type);
+        }
+        
+        // 2. Default Free: true before false
+        if (a.is_default_free && !b.is_default_free) return -1;
+        if (!a.is_default_free && b.is_default_free) return 1;
+        
+        // 3. Optional: Name as tertiary sort
+        return a.name.localeCompare(b.name);
+      });
+      
+      setModules(sortedModules);
     } catch (err) {
       toast({ title: 'Error', description: 'Failed to load modules', variant: 'destructive' });
     } finally {
@@ -72,7 +88,8 @@ const SuperAdminBilling = () => {
         name: editingModule.name,
         description: editingModule.description,
         monthly_price_inr: parseFloat(editingModule.monthly_price_inr),
-        is_active: editingModule.is_active
+        is_active: editingModule.is_active,
+        is_default_free: editingModule.is_default_free
       }, user.access_token);
       toast({ title: 'Success', description: 'Module updated correctly.' });
       setEditingModule(null);
@@ -290,7 +307,19 @@ const SuperAdminBilling = () => {
                                 </div>
                                 <div className="space-y-2">
                                   <label className="text-sm font-medium flex items-center gap-1"><DollarSign className="w-3.5 h-3.5"/> Monthly Price (INR)</label>
-                                  <Input type="number" step="0.01" value={editingModule.monthly_price_inr} onChange={e => setEditingModule({...editingModule, monthly_price_inr: e.target.value})} className="bg-white/5 border-white/10 font-mono" required disabled={mod.is_default_free} />
+                                  <Input type="number" step="0.01" value={editingModule.monthly_price_inr} onChange={e => setEditingModule({...editingModule, monthly_price_inr: e.target.value})} className="bg-white/5 border-white/10 font-mono" required />
+                                </div>
+                                <div className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10">
+                                  <div className="space-y-0.5">
+                                    <label className="text-sm font-medium text-white">Default Free (Core)</label>
+                                    <p className="text-xs text-gray-400">If ON, this module is free for all agencies.</p>
+                                  </div>
+                                  <input 
+                                    type="checkbox" 
+                                    checked={editingModule.is_default_free} 
+                                    onChange={e => setEditingModule({...editingModule, is_default_free: e.target.checked})}
+                                    className="w-4 h-4 rounded border-white/10 bg-white/5 text-primary focus:ring-primary focus:ring-offset-gray-900"
+                                  />
                                 </div>
                                 <DialogFooter>
                                   <Button type="button" variant="ghost" onClick={() => setEditingModule(null)}>Cancel</Button>
