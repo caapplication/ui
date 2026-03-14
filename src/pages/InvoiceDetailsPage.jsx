@@ -982,21 +982,23 @@ const InvoiceDetailsPage = () => {
                                                 <Label htmlFor="amount">Amount</Label>
                                                 <Input name="amount" type="number" step="0.01" defaultValue={editedInvoice.amount} />
                                             </div>
-                                            <div>
-                                                <Label htmlFor="cgst">CGST</Label>
-                                                <Input name="cgst" type="number" step="0.01" defaultValue={editedInvoice.cgst} onChange={(e) => setEditedInvoice(p => ({ ...p, cgst: e.target.value, sgst: e.target.value }))} />
-                                            </div>
-                                            <div>
-                                                <Label htmlFor="sgst">SGST</Label>
-                                                <Input name="sgst" type="number" step="0.01" value={editedInvoice.sgst} onChange={(e) => setEditedInvoice(p => ({ ...p, sgst: e.target.value, cgst: e.target.value }))} />
-                                            </div>
-                                            <div>
-                                                <Label htmlFor="igst">IGST</Label>
-                                                <Input name="igst" type="number" step="0.01" defaultValue={editedInvoice.igst} />
-                                            </div>
-                                            <div>
-                                                <Label htmlFor="roundoff">Roundoff</Label>
-                                                <Input name="roundoff" type="number" step="0.01" defaultValue={editedInvoice.roundoff || 0} onChange={(e) => setEditedInvoice(p => ({ ...p, roundoff: e.target.value }))} />
+                                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                                                <div>
+                                                    <Label htmlFor="cgst">CGST</Label>
+                                                    <Input name="cgst" type="number" step="0.01" defaultValue={editedInvoice.cgst} onChange={(e) => setEditedInvoice(p => ({ ...p, cgst: e.target.value, sgst: e.target.value }))} />
+                                                </div>
+                                                <div>
+                                                    <Label htmlFor="sgst">SGST</Label>
+                                                    <Input name="sgst" type="number" step="0.01" value={editedInvoice.sgst} onChange={(e) => setEditedInvoice(p => ({ ...p, sgst: e.target.value, cgst: e.target.value }))} />
+                                                </div>
+                                                <div>
+                                                    <Label htmlFor="igst">IGST</Label>
+                                                    <Input name="igst" type="number" step="0.01" defaultValue={editedInvoice.igst} />
+                                                </div>
+                                                <div>
+                                                    <Label htmlFor="roundoff">Roundoff</Label>
+                                                    <Input name="roundoff" type="number" step="0.01" defaultValue={editedInvoice.roundoff || 0} onChange={(e) => setEditedInvoice(p => ({ ...p, roundoff: e.target.value }))} />
+                                                </div>
                                             </div>
                                             <div>
                                                 <Label htmlFor="remarks">Remarks</Label>
@@ -1294,21 +1296,25 @@ const InvoiceDetailsPage = () => {
                                         <Label htmlFor="amount" className="text-sm">Amount</Label>
                                         <Input name="amount" type="number" step="0.01" defaultValue={editedInvoice.amount} className="text-sm" />
                                     </div>
-                                    <div>
-                                        <Label htmlFor="cgst" className="text-sm">CGST</Label>
-                                        <Input name="cgst" type="number" step="0.01" defaultValue={editedInvoice.cgst} onChange={(e) => setEditedInvoice(p => ({ ...p, cgst: e.target.value, sgst: e.target.value }))} className="text-sm" />
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <Label htmlFor="cgst" className="text-sm">CGST</Label>
+                                            <Input name="cgst" type="number" step="0.01" defaultValue={editedInvoice.cgst} onChange={(e) => setEditedInvoice(p => ({ ...p, cgst: e.target.value, sgst: e.target.value }))} className="text-sm" />
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="sgst" className="text-sm">SGST</Label>
+                                            <Input name="sgst" type="number" step="0.01" value={editedInvoice.sgst} onChange={(e) => setEditedInvoice(p => ({ ...p, sgst: e.target.value, cgst: e.target.value }))} className="text-sm" />
+                                        </div>
                                     </div>
-                                    <div>
-                                        <Label htmlFor="sgst" className="text-sm">SGST</Label>
-                                        <Input name="sgst" type="number" step="0.01" value={editedInvoice.sgst} onChange={(e) => setEditedInvoice(p => ({ ...p, sgst: e.target.value, cgst: e.target.value }))} className="text-sm" />
-                                    </div>
-                                    <div>
-                                        <Label htmlFor="igst" className="text-sm">IGST</Label>
-                                        <Input name="igst" type="number" step="0.01" defaultValue={editedInvoice.igst} className="text-sm" />
-                                    </div>
-                                    <div>
-                                        <Label htmlFor="roundoff" className="text-sm">Roundoff</Label>
-                                        <Input name="roundoff" type="number" step="0.01" defaultValue={editedInvoice.roundoff || 0} onChange={(e) => setEditedInvoice(p => ({ ...p, roundoff: e.target.value }))} className="text-sm" />
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <Label htmlFor="igst" className="text-sm">IGST</Label>
+                                            <Input name="igst" type="number" step="0.01" defaultValue={editedInvoice.igst} className="text-sm" />
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="roundoff" className="text-sm">Roundoff</Label>
+                                            <Input name="roundoff" type="number" step="0.01" defaultValue={editedInvoice.roundoff || 0} onChange={(e) => setEditedInvoice(p => ({ ...p, roundoff: e.target.value }))} className="text-sm" />
+                                        </div>
                                     </div>
                                     <div>
                                         <Label htmlFor="remarks" className="text-sm">Remarks</Label>
@@ -1471,11 +1477,10 @@ const InvoiceDetailsPage = () => {
                 </div>
             </div>
 
-            {/* Fixed navigation buttons at bottom corners - aligned on same line */}
-            {
-                hasInvoices && (
-                    <>
-                        {/* Previous button at bottom left (after sidebar) */}
+            {/* Centered navigation buttons at bottom */}
+            {hasInvoices && (
+                <div className="fixed bottom-6 left-0 right-0 flex justify-center items-center z-[100] pointer-events-none px-4 sm:px-0">
+                    <div className="flex items-center gap-4 sm:gap-6 pointer-events-auto backdrop-blur-xl p-1 px-2 rounded-full transition-all transform hover:scale-[1.02]">
                         <Button
                             variant="outline"
                             size="icon"
@@ -1485,14 +1490,18 @@ const InvoiceDetailsPage = () => {
                                 handleNavigate(-1);
                             }}
                             disabled={currentIndex === 0 || currentIndex === -1}
-                            className="hidden md:flex fixed bottom-4 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg z-[50]"
-                            style={{
-                                left: sidebarWidth <= 150 ? `${sidebarWidth + 16}px` : '20rem' // Dynamic positioning when collapsed (sidebar width + 16px margin), left-80 (20rem) when expanded
-                            }}
+                            className="h-10 w-10 sm:h-12 sm:w-12 rounded-full hover:bg-white/10 text-white disabled:opacity-20 transition-all active:scale-95"
                         >
-                            <ChevronLeft className="h-5 w-5" />
+                            <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6" />
                         </Button>
-                        {/* Next button at bottom right corner */}
+                        
+                        <div className="flex flex-col items-center min-w-[60px] sm:min-w-[80px]">
+                            <span className="text-[10px] sm:text-xs font-medium uppercase tracking-wider text-gray-500">Invoice</span>
+                            <div className="text-sm sm:text-base font-bold text-white tabular-nums">
+                                {currentIndex + 1} <span className="text-gray-500 font-normal mx-1">/</span> {invoices.length}
+                            </div>
+                        </div>
+
                         <Button
                             variant="outline"
                             size="icon"
@@ -1502,42 +1511,13 @@ const InvoiceDetailsPage = () => {
                                 handleNavigate(1);
                             }}
                             disabled={currentIndex === invoices.length - 1}
-                            className="hidden md:flex fixed bottom-4 right-4 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg z-[50]"
+                            className="h-10 w-10 sm:h-12 sm:w-12 rounded-full hover:bg-white/10 text-white disabled:opacity-20 transition-all active:scale-95"
                         >
-                            <ChevronRight className="h-5 w-5" />
+                            <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6" />
                         </Button>
-                        {/* Mobile navigation buttons */}
-                        <div className="flex md:hidden fixed bottom-4 left-4 right-4 justify-between z-[50] gap-2 pointer-events-none">
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    handleNavigate(-1);
-                                }}
-                                disabled={currentIndex === 0 || currentIndex === -1}
-                                className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg flex-1 pointer-events-auto"
-                            >
-                                <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
-                            </Button>
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    handleNavigate(1);
-                                }}
-                                disabled={currentIndex === invoices.length - 1}
-                                className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white disabled:opacity-30 backdrop-blur-sm shadow-lg flex-1 pointer-events-auto"
-                            >
-                                <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
-                            </Button>
-                        </div>
-                    </>
-                )
-            }
+                    </div>
+                </div>
+            )}
             <Dialog open={showDeleteDialog} onOpenChange={isDeleting ? undefined : setShowDeleteDialog}>
                 <DialogContent>
                     <DialogHeader>

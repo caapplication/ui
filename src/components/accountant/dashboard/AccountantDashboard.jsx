@@ -50,7 +50,7 @@ const StatCard = ({ title, value, description, icon, color, delay, trend, meta, 
             <div className="flex items-center gap-3 mb-1">
               <div className="text-2xl sm:text-3xl font-bold text-white">
                 {suffix && <span className="text-xl mr-1">{suffix}</span>}
-                {typeof value === 'number' ? value.toLocaleString() : value}
+                {typeof value === 'number' ? Math.round(value).toLocaleString() : value}
               </div>
               {trend && (
                 <div className={`${trend.isBad ? 'text-red-500' : 'text-green-500'}`}>
@@ -145,7 +145,7 @@ const DetailBlock = ({ title, subtitle, count, data, columns, onViewMore, delay,
                       </div>
                       <div className={`col-span-4 text-right font-semibold text-xs sm:text-sm ${isCurrentUser ? 'text-blue-200' : 'text-red-100'
                         }`}>
-                        {typeof row.col2 === 'number' ? row.col2.toLocaleString() : row.col2}
+                        {typeof row.col2 === 'number' ? Math.round(row.col2).toLocaleString() : row.col2}
                       </div>
                     </div>
                   );
@@ -290,7 +290,6 @@ const AccountantDashboard = () => {
         // Get all clients for this CA
         const allClients = Array.isArray(clientsData) ? clientsData : (clientsData?.results || []);
 
-        // Fetch invoices for all clients and calculate current month totals
         for (const client of allClients) {
           try {
             const invoices = await getClientBillingInvoices(client.id, agencyId, token);
@@ -322,8 +321,8 @@ const AccountantDashboard = () => {
         clientUsers: Array.isArray(clientUsersData) ? clientUsersData.length : 0,
         myTeam: Array.isArray(teamData) ? teamData.length : 0,
         services: Array.isArray(servicesData) ? servicesData.length : 0,
-        revenue: totalRevenue,
-        due: totalDue
+        revenue: Math.round(totalRevenue),
+        due: Math.round(totalDue)
       });
 
       // Process Trend Data - use data from the 4 analytics APIs

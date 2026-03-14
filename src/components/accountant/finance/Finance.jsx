@@ -332,7 +332,7 @@ const AccountantFinance = () => {
                 className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}
               />
             </Button>
-            {user.role === 'CA_ACCOUNTANT' && (
+            {['CA_ACCOUNTANT', 'CA_TEAM'].includes(user.role) && (
               <Button onClick={() => setIsExportModalOpen(true)} disabled={isLoading || !selectedEntity || selectedEntity === 'all'}>
                 Export to Tally
               </Button>

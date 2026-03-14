@@ -61,11 +61,13 @@ import AnimatedSearch from '@/components/ui/AnimatedSearch';
 const TIME_FRAME_PRESETS = [
     { key: 'today', label: 'Today' },
     { key: 'yesterday', label: 'Yesterday' },
-    { key: 'last7', label: 'Last 7 Days' },
-    { key: 'last30', label: 'Last 30 Days' },
-    { key: 'thisMonth', label: 'This Month' },
-    { key: 'lastMonth', label: 'Last Month' },
-    { key: 'last3Months', label: 'Last 3 Months' },
+    { key: 'last_7_days', label: 'Last 7 days' },
+    { key: 'last_30_days', label: 'Last 30 days' },
+    { key: 'this_month', label: 'This month' },
+    { key: 'last_month', label: 'Last month' },
+    { key: 'last_3_months', label: 'Last 3 month' },
+    { key: 'last_6_months', label: 'Last 6 month' },
+    { key: 'last_year', label: 'Last year' },
     { key: 'custom', label: 'Custom' },
 ];
 
@@ -79,16 +81,23 @@ function getDateRange(preset, start, end) {
             return { from: todayStart, to: todayEnd };
         case 'yesterday':
             return { from: startOfDay(subDays(now, 1)), to: endOfDay(subDays(now, 1)) };
-        case 'last7':
+        case 'last_7_days':
             return { from: startOfDay(subDays(now, 6)), to: todayEnd };
-        case 'last30':
+        case 'last_30_days':
             return { from: startOfDay(subDays(now, 29)), to: todayEnd };
-        case 'thisMonth':
+        case 'this_month':
             return { from: startOfMonth(now), to: endOfMonth(now) };
-        case 'lastMonth':
+        case 'last_month':
             return { from: startOfMonth(subMonths(now, 1)), to: endOfMonth(subMonths(now, 1)) };
-        case 'last3Months':
+        case 'last_3_months':
             return { from: startOfDay(subMonths(now, 3)), to: todayEnd };
+        case 'last_6_months':
+            return { from: startOfDay(subMonths(now, 6)), to: todayEnd };
+        case 'last_year': {
+            const lastYearStart = new Date(now);
+            lastYearStart.setDate(lastYearStart.getDate() - 365);
+            return { from: startOfDay(lastYearStart), to: todayEnd };
+        }
         case 'custom':
             return { from: start ? startOfDay(start) : null, to: end ? endOfDay(end) : null };
         default:
@@ -139,7 +148,7 @@ const BeneficiaryLedger = ({ entityId }) => {
 
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
-    const pageSize = 10;
+    const [pageSize, setPageSize] = useState(10);
 
     // Sort state
     const [sortColumn, setSortColumn] = useState('name');
@@ -566,42 +575,56 @@ const BeneficiaryLedger = ({ entityId }) => {
                     </CardContent>
 
                     {/* Pagination */}
-                    <div className="p-4 sm:p-6 border-t border-white/5 flex flex-row justify-center items-center gap-4">
-                        <p className="text-xs sm:text-sm text-gray-400">
-                            Page {currentPage} of {totalPages || 1}
-                        </p>
+                    <div className="p-4 sm:p-6 border-t border-white/5 flex flex-col sm:flex-row justify-between items-center gap-4">
                         <div className="flex items-center gap-2">
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
-                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                disabled={currentPage === 1}
+                            <span className="text-xs sm:text-sm text-gray-400">Rows per page:</span>
+                            <Select
+                                value={pageSize.toString()}
+                                onValueChange={(val) => {
+                                    setPageSize(parseInt(val));
+                                    setCurrentPage(1);
+                                }}
                             >
-                                <ChevronLeft className="w-4 h-4" />
-                            </Button>
-                            {/* <div className="flex items-center gap-1">
-                                {[...Array(totalPages)].map((_, i) => (
-                                    <Button
-                                        key={i}
-                                        variant={currentPage === i + 1 ? "default" : "ghost"}
-                                        className={`h-8 w-8 sm:h-9 sm:w-9 rounded-xl text-xs ${currentPage === i + 1 ? 'bg-primary text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
-                                        onClick={() => setCurrentPage(i + 1)}
-                                    >
-                                        {i + 1}
-                                    </Button>
-                                )).slice(Math.max(0, currentPage - 3), Math.min(totalPages, currentPage + 2))}
-                            </div> */}
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
-                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                                disabled={currentPage === totalPages || totalPages === 0}
-                            >
-                                <ChevronRight className="w-4 h-4" />
-                            </Button>
+                                <SelectTrigger className="h-8 w-16 sm:w-20 bg-transparent border-white/10 text-white rounded-xl text-xs sm:text-sm">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="bg-gray-900 border-white/10 text-white rounded-xl min-w-[5rem]">
+                                    {[10, 25, 50, 100].map((size) => (
+                                        <SelectItem key={size} value={size.toString()} className="text-xs sm:text-sm focus:bg-white/10 focus:text-white rounded-lg">
+                                            {size}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
+
+                        <div className="flex flex-row justify-center items-center gap-4">
+                            <p className="text-xs sm:text-sm text-gray-400">
+                                Page {currentPage} of {totalPages || 1}
+                            </p>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
+                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                    disabled={currentPage === 1}
+                                >
+                                    <ChevronLeft className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
+                                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                    disabled={currentPage === totalPages || totalPages === 0}
+                                >
+                                    <ChevronRight className="w-4 h-4" />
+                                </Button>
+                            </div>
+                        </div>
+
+                        <div className="hidden sm:block w-[120px]"></div>
                     </div>
                 </Card>
             </motion.div>

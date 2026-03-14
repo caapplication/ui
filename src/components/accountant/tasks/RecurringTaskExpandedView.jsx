@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { getTaskDetails, getTaskHistory, getTaskCollaborators, updateTask, addTaskCollaborator, removeTaskCollaborator } from '@/lib/api';
 import { useToast } from '@/components/ui/use-toast';
-import { Loader2, Calendar as CalendarIcon, User, Tag, Flag, CheckCircle, Briefcase, Users, Repeat, Edit2, UserPlus, X, History, Plus, Trash2, CheckCircle2 } from 'lucide-react';
+import { Loader2, Calendar as CalendarIcon, User, Tag, Flag, CheckCircle, Briefcase, Users, Repeat, Edit2, UserPlus, X, History, Plus, Trash2, CheckCircle2, Download } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -465,6 +465,65 @@ const RecurringTaskExpandedView = ({ task, onEdit, onDelete, onRefresh }) => {
         );
     };
 
+    const handleExportActivityLog = () => {
+        if (!history || history.length === 0) {
+            toast({
+                title: 'No activity found',
+                description: 'There are no activity logs to download.',
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        const headers = ['Timestamp', 'Updated By', 'Action', 'Details'];
+        const csvRows = [
+            headers.join(','),
+            ...history.map(item => {
+                const timestamp = format(item.created_at ? new Date(item.created_at) : new Date(), 'dd MMM yyyy, HH:mm');
+                const userInfo = getUserInfo(item.user_id, teamMembers);
+                const updater = userInfo.name;
+                const action = item.action || 'Performed action';
+                
+                let details = '';
+                if (item.from_value && item.to_value && Object.keys(item.from_value).length > 0) {
+                    details = Object.keys(item.from_value)
+                        .map(field => {
+                            const fromDisplay = formatFieldValue(field, item.from_value[field]);
+                            const toDisplay = formatFieldValue(field, item.to_value[field]);
+                            return `${formatFieldName(field)}: ${fromDisplay} \u2192 ${toDisplay}`;
+                        })
+                        .join(' | ');
+                } else if (item.details) {
+                    details = item.details;
+                }
+
+                return [
+                    `"${timestamp}"`,
+                    `"${updater.replace(/"/g, '""')}"`,
+                    `"${action.replace(/"/g, '""')}"`,
+                    `"${details.replace(/"/g, '""')}"`
+                ].join(',');
+            })
+        ];
+
+        const csvContent = csvRows.join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', `recurring_task_${task.task_number || task.id}_activity_log_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        toast({
+            title: 'Export Success',
+            description: 'Activity log has been downloaded as CSV.',
+        });
+    };
+
     if (!task) return null;
 
     const createdByInfo = getUserInfo(task.created_by, teamMembers);
@@ -648,7 +707,7 @@ const RecurringTaskExpandedView = ({ task, onEdit, onDelete, onRefresh }) => {
                                             value={newChecklistItem}
                                             onChange={(e) => setNewChecklistItem(e.target.value)}
                                             onKeyPress={(e) => e.key === 'Enter' && !isAddingChecklistItem && handleAddChecklistItem()}
-                                            className="glass-input"
+                                            className="glass-input !w-full"
                                             disabled={isAddingChecklistItem}
                                         />
                                     </div>
@@ -968,10 +1027,21 @@ const RecurringTaskExpandedView = ({ task, onEdit, onDelete, onRefresh }) => {
                 {/* Activity Log - Column 4, Row 2 (col-span-1, row-span-1) - Blue Box */}
                 <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col md:col-span-1 lg:col-span-1 lg:row-span-1 border-2 border-blue-500/50 h-[400px] lg:h-full max-h-full">
                     <CardHeader className="flex-shrink-0">
-                        <CardTitle className="flex items-center gap-2">
-                            <History className="w-5 h-5" />
-                            Activity Log
-                        </CardTitle>
+                        <div className="flex items-center justify-between">
+                            <CardTitle className="flex items-center gap-2">
+                                <History className="w-5 h-5" />
+                                Activity Log
+                            </CardTitle>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-white/70 hover:text-white"
+                                onClick={handleExportActivityLog}
+                                title="Download Activity Log"
+                            >
+                                <Download className="w-4 h-4" />
+                            </Button>
+                        </div>
                     </CardHeader>
                     <CardContent className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden flex flex-col pr-2 recurring-task-scroll" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255, 255, 255, 0.3) rgba(255, 255, 255, 0.1)' }}>
                         {isLoadingHistory ? (

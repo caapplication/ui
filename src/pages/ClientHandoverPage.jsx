@@ -38,6 +38,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Search, MoreVertical, Calendar, ArrowLeftRight, ArrowLeft, Loader2, Check, X, ChevronLeft, ChevronRight, Paperclip, Upload, Download } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import AnimatedSearch from '@/components/ui/AnimatedSearch';
+import { DatePicker } from '@/components/ui/date-picker';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 
 const toDDMMYYYY = (dateStr) => {
@@ -54,6 +55,13 @@ const formatTime = (utcString) => {
     const d = new Date(utcString);
     return format(d, 'hh:mm a');
   } catch { return utcString; }
+};
+
+const getVarianceColor = (val) => {
+  const num = Number(val) || 0;
+  if (num < -0.001) return 'text-red-400';
+  if (num > 0.001) return 'text-yellow-400';
+  return 'text-green-400';
 };
 
 const ClientHandoverPage = ({ entityId, entityName }) => {
@@ -129,9 +137,11 @@ function BankTallyListTab({ clientId, token, toast, readOnly = false }) {
   const [listLoading, setListLoading] = useState(true);
   const [banks, setBanks] = useState([]);
   const [banksLoaded, setBanksLoaded] = useState(false);
-  const [datePreset, setDatePreset] = useState('all_time');
+  const [datePreset, setDatePreset] = useState('last_30_days');
   const [dateRange, setDateRange] = useState({ from: null, to: null });
   const [searchTerm, setSearchTerm] = useState('');
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const loadBanks = useCallback(async () => {
     if (!clientId || !token) return;
@@ -176,6 +186,11 @@ function BankTallyListTab({ clientId, token, toast, readOnly = false }) {
         const d = new Date(e.report_date);
         const vDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
+        if (datePreset === 'all_time' || datePreset === 'last_year') {
+          const lastYear = new Date(today);
+          lastYear.setDate(lastYear.getDate() - 365);
+          return vDate >= lastYear && vDate <= today;
+        }
         if (datePreset === 'today') return vDate.getTime() === today.getTime();
         if (datePreset === 'yesterday') {
           const yesterday = new Date(today);
@@ -206,6 +221,11 @@ function BankTallyListTab({ clientId, token, toast, readOnly = false }) {
           last3.setMonth(last3.getMonth() - 3);
           return vDate >= last3 && vDate <= today;
         }
+        if (datePreset === 'last_6_months') {
+          const last6 = new Date(today);
+          last6.setMonth(last6.getMonth() - 6);
+          return vDate >= last6 && vDate <= today;
+        }
         if (datePreset === 'custom') {
           const from = dateRange?.from ? new Date(dateRange.from) : null;
           const to = dateRange?.to ? new Date(dateRange.to) : null;
@@ -231,6 +251,14 @@ function BankTallyListTab({ clientId, token, toast, readOnly = false }) {
     return list;
   }, [entriesList, datePreset, dateRange, searchTerm]);
 
+  useEffect(() => { setCurrentPage(1); }, [searchTerm, datePreset, dateRange]);
+
+  const totalPages = Math.ceil((filteredList?.length || 0) / itemsPerPage);
+  const paginatedList = filteredList.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   if (!banksLoaded) {
     return (
       <div className="py-8 flex justify-center">
@@ -254,14 +282,13 @@ function BankTallyListTab({ clientId, token, toast, readOnly = false }) {
             <CardTitle className="text-lg sm:text-xl text-white">Bank Tally</CardTitle>
             <div className="flex flex-wrap items-center gap-2 sm:gap-4 flex-1 justify-end">
               <Select value={datePreset} onValueChange={setDatePreset}>
-                <SelectTrigger className="w-full sm:w-[160px] h-11 rounded-full glass-input px-4">
+                <SelectTrigger className="w-full sm:w-[190px] h-11 rounded-full glass-input px-4">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-gray-400" />
-                    <SelectValue placeholder="All Time" />
+                    <SelectValue placeholder="Last Year" />
                   </div>
                 </SelectTrigger>
                 <SelectContent className="bg-gray-900 border-white/10 text-white rounded-2xl">
-                  <SelectItem value="all_time">All Time</SelectItem>
                   <SelectItem value="today">Today</SelectItem>
                   <SelectItem value="yesterday">Yesterday</SelectItem>
                   <SelectItem value="last_7_days">Last 7 Days</SelectItem>
@@ -269,16 +296,12 @@ function BankTallyListTab({ clientId, token, toast, readOnly = false }) {
                   <SelectItem value="this_month">This Month</SelectItem>
                   <SelectItem value="last_month">Last Month</SelectItem>
                   <SelectItem value="last_3_months">Last 3 Months</SelectItem>
+                  <SelectItem value="last_6_months">Last 6 Months</SelectItem>
+                  <SelectItem value="last_year">Last Year</SelectItem>
                   <SelectItem value="custom">Custom</SelectItem>
                 </SelectContent>
               </Select>
-              <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
-                <AnimatedSearch
-                  placeholder="Date..."
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                />
-              </div>
+
               {datePreset === 'custom' && (
                 <DateRangePicker
                   dateRange={dateRange}
@@ -286,6 +309,14 @@ function BankTallyListTab({ clientId, token, toast, readOnly = false }) {
                   className="w-full sm:w-auto"
                 />
               )}
+
+              <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+                <AnimatedSearch
+                  placeholder="Date..."
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -298,26 +329,41 @@ function BankTallyListTab({ clientId, token, toast, readOnly = false }) {
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent border-white/10">
-                  <TableHead className="text-xs sm:text-sm text-gray-300">Date</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300">Date & Time</TableHead>
                   <TableHead className="text-xs sm:text-sm text-gray-300">Updated By</TableHead>
-                  <TableHead className="text-xs sm:text-sm text-gray-300">Time</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300">Opening Balance</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300">Closing Balance</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300">Variance</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredList.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={1} className="text-center text-gray-400 py-8 text-sm">No entries found.</TableCell>
+                    <TableCell colSpan={5} className="text-center text-gray-400 py-8 text-sm">No entries found.</TableCell>
                   </TableRow>
                 ) : (
-                  filteredList.map((entry) => (
+                  paginatedList.map((entry) => (
                     <TableRow
                       key={entry.report_date}
                       className="cursor-pointer transition-colors hover:bg-white/5 border-white/10"
                       onClick={() => navigate('entry/' + encodeURIComponent(entry.report_date))}
                     >
-                      <TableCell className="text-xs sm:text-sm text-white">{toDDMMYYYY(entry.report_date)}</TableCell>
-                      <TableCell className="text-xs sm:text-sm text-white">{entry.updated_by_name || '—'}</TableCell>
-                      <TableCell className="text-xs sm:text-sm text-white">{formatTime(entry.updated_at)}</TableCell>
+                      <TableCell className="text-xs sm:text-sm text-white whitespace-nowrap">
+                        {toDDMMYYYY(entry.report_date)}
+                        <span className="block text-xs text-gray-400 mt-0.5">{formatTime(entry.updated_at)}</span>
+                      </TableCell>
+                      <TableCell className="text-xs sm:text-sm text-white whitespace-nowrap">{entry.updated_by_name || '—'}</TableCell>
+                      <TableCell className="text-xs sm:text-sm text-white whitespace-nowrap">
+                        ₹ {(entry.opening_balance ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className="text-xs sm:text-sm text-white whitespace-nowrap">
+                        ₹ {(entry.closing_balance ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className={`text-xs sm:text-sm font-bold whitespace-nowrap ${
+                        (entry.variance ?? 0) > 0 ? 'text-green-400' : (entry.variance ?? 0) < 0 ? 'text-red-400' : 'text-white'
+                      }`}>
+                        {entry.variance != null ? Math.round(entry.variance).toLocaleString('en-IN') : '—'}
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -326,6 +372,33 @@ function BankTallyListTab({ clientId, token, toast, readOnly = false }) {
           </div>
         )}
       </CardContent>
+      <CardFooter className="flex flex-col sm:flex-row justify-center items-center gap-6 p-4 sm:p-6 border-t border-white/10">
+        <div className="flex items-center gap-4">
+          <p className="text-xs sm:text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400 hidden sm:inline">Rows per page:</span>
+            <Select value={String(itemsPerPage)} onValueChange={(val) => { setItemsPerPage(Number(val)); setCurrentPage(1); }}>
+              <SelectTrigger className="h-8 w-[70px] bg-transparent border-white/10 text-white text-xs">
+                <SelectValue placeholder={String(itemsPerPage)} />
+              </SelectTrigger>
+              <SelectContent className="bg-gray-900 border-white/10 text-white">
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="25">25</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white">
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages || totalPages === 0} className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white">
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+        </div>
+      </CardFooter>
     </Card>
   );
 }
@@ -441,17 +514,37 @@ function BankTallyFormPage({ clientId, token, toast, readOnly = false }) {
 
   return (
     <div className="space-y-4">
-      <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white -ml-2" onClick={() => navigate(isNew ? '..' : '../..', { relative: 'path' })}>
-        <ArrowLeft className="mr-2 h-4 w-4" /> Back to list
-      </Button>
       <Card className="glass-card border-white/5 overflow-hidden">
         <CardHeader className="p-4 sm:p-6 flex flex-row flex-wrap items-center justify-between gap-4">
-          <div>
-            <CardTitle className="text-lg sm:text-xl text-white">{isNew ? 'New entry' : 'View / Update'}</CardTitle>
-            <CardDescription className="text-sm text-gray-400">Opening and closing balance by bank account.</CardDescription>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-gray-400 hover:text-white hover:bg-white/10 rounded-full"
+              onClick={() => navigate(isNew ? '..' : '../..', { relative: 'path' })}
+              title="Back to list"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div>
+              <CardTitle className="text-lg sm:text-xl text-white">{isNew ? 'New entry' : 'View / Update'}</CardTitle>
+              <CardDescription className="text-sm text-gray-400">Opening and closing balance by bank account.</CardDescription>
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Input type="date" className="glass-input max-w-[200px]" value={reportDate} readOnly />
+            <DatePicker
+              value={reportDate}
+              onChange={(newDate) => {
+                if (!newDate) return;
+                const dateStr = format(newDate, 'yyyy-MM-dd');
+                if (isNew) {
+                  navigate(`../entry/${encodeURIComponent(dateStr)}`, { relative: 'path', replace: true });
+                } else {
+                  navigate(`../${encodeURIComponent(dateStr)}`, { relative: 'path', replace: true });
+                }
+              }}
+              className="w-40"
+            />
             {!isReadOnly && (
               <Button onClick={handleSave} disabled={saving} className="h-9 sm:h-10 text-sm">
                 {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save
@@ -465,10 +558,10 @@ function BankTallyFormPage({ clientId, token, toast, readOnly = false }) {
               <TableHeader>
                 <TableRow className="hover:bg-transparent border-white/10">
                   <TableHead className="text-xs sm:text-sm text-gray-300">Bank</TableHead>
-                  <TableHead className="text-xs sm:text-sm text-gray-300">Account</TableHead>
-                  <TableHead className="text-xs sm:text-sm text-gray-300">Opening Balance</TableHead>
-                  <TableHead className="text-xs sm:text-sm text-gray-300">Closing Balance</TableHead>
-                  <TableHead className="text-xs sm:text-sm text-gray-300">Difference</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300 text-center">Account No.</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300 text-center">Opening Balance</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300 text-center">Closing Balance</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300 text-center">Variance</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -485,15 +578,34 @@ function BankTallyFormPage({ clientId, token, toast, readOnly = false }) {
                       return (
                         <TableRow key={bank.id} className="border-white/10">
                           <TableCell className="text-xs sm:text-sm font-medium text-white">{bank.bank_name || '—'}</TableCell>
-                          <TableCell className="text-xs sm:text-sm text-gray-300">{bank.account_number || '—'}</TableCell>
-                          <TableCell>
-                            <Input type="number" readOnly className="h-9 sm:h-10 text-sm glass-input w-28 sm:w-32 bg-white/5 text-white" value={opening} />
+                          <TableCell className="text-xs sm:text-sm text-gray-300 text-center">{bank.account_number || '—'}</TableCell>
+                          <TableCell className="text-center">
+                            <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input w-32 sm:w-44 bg-white/5 text-white text-center mx-auto" value={opening.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} />
                           </TableCell>
-                          <TableCell>
-                            <Input type="number" min={0} step={0.01} readOnly={isReadOnly} className={`h-9 sm:h-10 text-sm glass-input w-28 sm:w-32 text-white ${isReadOnly ? 'bg-white/5 cursor-default' : ''}`} value={closingVal} onChange={e => setClosing(bank.id, e.target.value)} placeholder="Closing" />
+                          <TableCell className="text-center">
+                            <Input 
+                              type="text" 
+                              readOnly={isReadOnly} 
+                              className={`h-9 sm:h-10 text-sm glass-input w-32 sm:w-44 text-white text-center mx-auto ${isReadOnly ? 'bg-white/5 cursor-default' : ''}`} 
+                              value={closingVal !== '' && closingVal != null && !isNaN(closingVal) ? Number(closingVal).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : closingVal} 
+                              onChange={(e) => {
+                                const raw = e.target.value.replace(/,/g, '');
+                                if (raw === '' || /^\d*\.?\d*$/.test(raw)) {
+                                  setClosing(bank.id, raw);
+                                }
+                              }} 
+                              placeholder="Closing" 
+                            />
                           </TableCell>
-                          <TableCell>
-                            <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input w-28 sm:w-32 bg-white/5 text-white" value={diff != null ? diff.toLocaleString('en-IN', { minimumFractionDigits: 2 }) : '—'} />
+                          <TableCell className="text-center">
+                            <Input 
+                              type="text" 
+                              readOnly 
+                              className={`h-9 sm:h-10 text-sm glass-input w-32 sm:w-44 bg-white/5 text-center font-bold mx-auto ${
+                                diff > 0 ? 'text-green-400' : diff < 0 ? 'text-red-400' : 'text-white'
+                              }`} 
+                              value={diff != null ? Math.round(diff).toLocaleString('en-IN') : '—'} 
+                            />
                           </TableCell>
                         </TableRow>
                       );
@@ -505,15 +617,22 @@ function BankTallyFormPage({ clientId, token, toast, readOnly = false }) {
                       return (
                         <TableRow className="border-white/10 !bg-amber-500/20 font-medium">
                           <TableCell className="text-xs sm:text-sm text-white">Total</TableCell>
-                          <TableCell className="text-xs sm:text-sm text-gray-300">—</TableCell>
-                          <TableCell>
-                            <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input w-28 sm:w-32 bg-white/5 text-white font-medium" value={totalOpening.toLocaleString('en-IN', { minimumFractionDigits: 2 })} />
+                          <TableCell className="text-xs sm:text-sm text-gray-300 text-center">—</TableCell>
+                          <TableCell className="text-center">
+                            <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input w-32 sm:w-44 bg-white/5 text-white font-medium text-center mx-auto" value={totalOpening.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} />
                           </TableCell>
-                          <TableCell>
-                            <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input w-28 sm:w-32 bg-white/5 text-white font-medium" value={totalClosing.toLocaleString('en-IN', { minimumFractionDigits: 2 })} />
+                          <TableCell className="text-center">
+                            <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input w-32 sm:w-44 bg-white/5 text-white font-medium text-center mx-auto" value={totalClosing.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} />
                           </TableCell>
-                          <TableCell>
-                            <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input w-28 sm:w-32 bg-white/5 text-white font-medium" value={totalDiff.toLocaleString('en-IN', { minimumFractionDigits: 2 })} />
+                          <TableCell className="text-center">
+                            <Input 
+                              type="text" 
+                              readOnly 
+                              className={`h-9 sm:h-10 text-sm glass-input w-32 sm:w-44 bg-white/5 font-bold text-center mx-auto ${
+                                totalDiff > 0 ? 'text-green-400' : totalDiff < 0 ? 'text-red-400' : 'text-white'
+                              }`} 
+                              value={Math.round(totalDiff).toLocaleString('en-IN')} 
+                            />
                           </TableCell>
                         </TableRow>
                       );
@@ -535,9 +654,11 @@ function CashTallyListTab({ clientId, entityId, token, toast, readOnly = false }
   const location = useLocation();
   const [entriesList, setEntriesList] = useState([]);
   const [listLoading, setListLoading] = useState(true);
-  const [datePreset, setDatePreset] = useState('all_time');
+  const [datePreset, setDatePreset] = useState('last_30_days');
   const [dateRange, setDateRange] = useState({ from: null, to: null });
   const [searchTerm, setSearchTerm] = useState('');
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const loadEntriesList = useCallback(async () => {
     if (!clientId || !token) return;
@@ -568,6 +689,11 @@ function CashTallyListTab({ clientId, entityId, token, toast, readOnly = false }
         const d = new Date(e.report_date);
         const vDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
+        if (datePreset === 'all_time' || datePreset === 'last_year') {
+          const lastYear = new Date(today);
+          lastYear.setDate(lastYear.getDate() - 365);
+          return vDate >= lastYear && vDate <= today;
+        }
         if (datePreset === 'today') return vDate.getTime() === today.getTime();
         if (datePreset === 'yesterday') {
           const yesterday = new Date(today);
@@ -598,6 +724,11 @@ function CashTallyListTab({ clientId, entityId, token, toast, readOnly = false }
           last3.setMonth(last3.getMonth() - 3);
           return vDate >= last3 && vDate <= today;
         }
+        if (datePreset === 'last_6_months') {
+          const last6 = new Date(today);
+          last6.setMonth(last6.getMonth() - 6);
+          return vDate >= last6 && vDate <= today;
+        }
         if (datePreset === 'custom') {
           const from = dateRange?.from ? new Date(dateRange.from) : null;
           const to = dateRange?.to ? new Date(dateRange.to) : null;
@@ -623,6 +754,14 @@ function CashTallyListTab({ clientId, entityId, token, toast, readOnly = false }
     return list;
   }, [entriesList, datePreset, dateRange, searchTerm]);
 
+  useEffect(() => { setCurrentPage(1); }, [searchTerm, datePreset, dateRange]);
+
+  const totalPages = Math.ceil((filteredList?.length || 0) / itemsPerPage);
+  const paginatedList = filteredList.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   return (
     <Card className="glass-card mt-4">
       <CardHeader className="p-4 sm:p-6">
@@ -631,14 +770,13 @@ function CashTallyListTab({ clientId, entityId, token, toast, readOnly = false }
             <CardTitle className="text-lg sm:text-xl text-white">Cash Tally</CardTitle>
             <div className="flex flex-wrap items-center gap-2 sm:gap-4 flex-1 justify-end">
               <Select value={datePreset} onValueChange={setDatePreset}>
-                <SelectTrigger className="w-full sm:w-[160px] h-11 rounded-full glass-input px-4">
+                <SelectTrigger className="w-full sm:w-[190px] h-11 rounded-full glass-input px-4">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-gray-400" />
-                    <SelectValue placeholder="All Time" />
+                    <SelectValue placeholder="Last Year" />
                   </div>
                 </SelectTrigger>
                 <SelectContent className="bg-gray-900 border-white/10 text-white rounded-2xl">
-                  <SelectItem value="all_time">All Time</SelectItem>
                   <SelectItem value="today">Today</SelectItem>
                   <SelectItem value="yesterday">Yesterday</SelectItem>
                   <SelectItem value="last_7_days">Last 7 Days</SelectItem>
@@ -646,16 +784,11 @@ function CashTallyListTab({ clientId, entityId, token, toast, readOnly = false }
                   <SelectItem value="this_month">This Month</SelectItem>
                   <SelectItem value="last_month">Last Month</SelectItem>
                   <SelectItem value="last_3_months">Last 3 Months</SelectItem>
+                  <SelectItem value="last_year">Last Year</SelectItem>
                   <SelectItem value="custom">Custom</SelectItem>
                 </SelectContent>
               </Select>
-              <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
-                <AnimatedSearch
-                  placeholder="Date, Closing..."
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                />
-              </div>
+
               {datePreset === 'custom' && (
                 <DateRangePicker
                   dateRange={dateRange}
@@ -663,6 +796,14 @@ function CashTallyListTab({ clientId, entityId, token, toast, readOnly = false }
                   className="w-full sm:w-auto"
                 />
               )}
+
+              <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+                <AnimatedSearch
+                  placeholder="Date, Closing..."
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -675,28 +816,49 @@ function CashTallyListTab({ clientId, entityId, token, toast, readOnly = false }
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent border-white/10">
-                  <TableHead className="text-xs sm:text-sm text-gray-300">Date</TableHead>
-                  <TableHead className="text-xs sm:text-sm text-gray-300">Closing</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300">Date & Time</TableHead>
                   <TableHead className="text-xs sm:text-sm text-gray-300">Updated By</TableHead>
-                  <TableHead className="text-xs sm:text-sm text-gray-300">Time</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300">Opening Balance</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300">Cash In</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300">Cash Out</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300">Closing Balance</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300">Variance</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredList.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={2} className="text-center text-gray-400 py-8 text-sm">No entries found.</TableCell>
+                    <TableCell colSpan={7} className="text-center text-gray-400 py-8 text-sm">No entries found.</TableCell>
                   </TableRow>
                 ) : (
-                  filteredList.map((entry) => (
+                  paginatedList.map((entry) => (
                     <TableRow
                       key={entry.report_date}
                       className="cursor-pointer transition-colors hover:bg-white/5 border-white/10"
                       onClick={() => navigate('entry/' + encodeURIComponent(entry.report_date))}
                     >
-                      <TableCell className="text-xs sm:text-sm text-white">{toDDMMYYYY(entry.report_date)}</TableCell>
-                      <TableCell className="text-xs sm:text-sm text-white">₹ {(entry.closing_balance ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
-                      <TableCell className="text-xs sm:text-sm text-white">{entry.updated_by_name || '—'}</TableCell>
-                      <TableCell className="text-xs sm:text-sm text-white">{formatTime(entry.updated_at)}</TableCell>
+                      <TableCell className="text-xs sm:text-sm text-white whitespace-nowrap">
+                        {toDDMMYYYY(entry.report_date)}
+                        <span className="block text-xs text-gray-400 mt-0.5">{formatTime(entry.updated_at)}</span>
+                      </TableCell>
+                      <TableCell className="text-xs sm:text-sm text-white whitespace-nowrap">{entry.updated_by_name || '—'}</TableCell>
+                      <TableCell className="text-xs sm:text-sm text-white whitespace-nowrap">
+                        ₹ {(entry.opening_balance ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className="text-xs sm:text-sm text-white whitespace-nowrap">
+                        ₹ {(entry.cash_in ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className="text-xs sm:text-sm text-white whitespace-nowrap">
+                        ₹ {(entry.cash_out ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className="text-xs sm:text-sm text-white whitespace-nowrap">
+                        ₹ {(entry.closing_balance ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className={`text-xs sm:text-sm whitespace-nowrap font-medium ${
+                        (entry.variance ?? 0) > 0 ? 'text-green-400' : (entry.variance ?? 0) < 0 ? 'text-red-400' : 'text-white'
+                      }`}>
+                        ₹ {(entry.variance ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -705,6 +867,33 @@ function CashTallyListTab({ clientId, entityId, token, toast, readOnly = false }
           </div>
         )}
       </CardContent>
+      <CardFooter className="flex flex-col sm:flex-row justify-center items-center gap-6 p-4 sm:p-6 border-t border-white/10">
+        <div className="flex items-center gap-4">
+          <p className="text-xs sm:text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400 hidden sm:inline">Rows per page:</span>
+            <Select value={String(itemsPerPage)} onValueChange={(val) => { setItemsPerPage(Number(val)); setCurrentPage(1); }}>
+              <SelectTrigger className="h-8 w-[70px] bg-transparent border-white/10 text-white text-xs">
+                <SelectValue placeholder={String(itemsPerPage)} />
+              </SelectTrigger>
+              <SelectContent className="bg-gray-900 border-white/10 text-white">
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="25">25</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white">
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages || totalPages === 0} className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white">
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+        </div>
+      </CardFooter>
     </Card>
   );
 }
@@ -773,7 +962,7 @@ function CashTallyFormPage({ clientId, entityId, token, toast, readOnly = false 
     const units = getUnits(d.id);
     return sum + (Number(d.value) || 0) * (Number(units) || 0);
   }, 0);
-  const varianceAmount = closingBalance - denominationTotal;
+  const varianceAmount = denominationTotal - closingBalance;
 
   const handleSubmit = async () => {
     if (!clientId || !token) return;
@@ -803,17 +992,37 @@ function CashTallyFormPage({ clientId, entityId, token, toast, readOnly = false 
 
   return (
     <div className="space-y-4">
-      <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white -ml-2" onClick={() => navigate(isNew ? '..' : '../..', { relative: 'path' })}>
-        <ArrowLeft className="mr-2 h-4 w-4" /> Back to list
-      </Button>
       <Card className="glass-card border-white/5">
         <CardHeader className="p-4 sm:p-6 flex flex-row flex-wrap items-center justify-between gap-4">
-          <div>
-            <CardTitle className="text-lg sm:text-xl text-white">{isNew ? 'New entry' : 'View / Update'}</CardTitle>
-            <CardDescription className="text-sm text-gray-400">Cash in hand, denomination breakdown and remarks.</CardDescription>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-gray-400 hover:text-white hover:bg-white/10 rounded-full"
+              onClick={() => navigate(isNew ? '..' : '../..', { relative: 'path' })}
+              title="Back to list"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div>
+              <CardTitle className="text-lg sm:text-xl text-white">{isNew ? 'New entry' : 'View / Update'}</CardTitle>
+              <CardDescription className="text-sm text-gray-400">Cash in hand, denomination breakdown and remarks.</CardDescription>
+            </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <Input type="date" className="glass-input max-w-[200px]" value={reportDate} readOnly />
+            <DatePicker
+              value={reportDate}
+              onChange={(newDate) => {
+                if (!newDate) return;
+                const dateStr = format(newDate, 'yyyy-MM-dd');
+                if (isNew) {
+                  navigate(`../entry/${encodeURIComponent(dateStr)}`, { relative: 'path', replace: true });
+                } else {
+                  navigate(`../${encodeURIComponent(dateStr)}`, { relative: 'path', replace: true });
+                }
+              }}
+              className="w-40"
+            />
           </div>
         </CardHeader>
         <CardContent className="space-y-6 pt-0">
@@ -822,23 +1031,23 @@ function CashTallyFormPage({ clientId, entityId, token, toast, readOnly = false 
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-5 gap-4">
               <div className="flex flex-col gap-1.5">
                 <Label className="text-gray-400 text-xs min-h-[32px] flex items-end">Opening Balance</Label>
-                <Input type="number" readOnly className="h-9 sm:h-10 text-sm glass-input !w-auto  bg-white/5 text-white" value={openingBalance} />
+                <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input !w-auto bg-white/5 text-white" value={(openingBalance ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label className="text-gray-400 text-xs min-h-[32px] flex items-end">Cash In – Approved handover</Label>
-                <Input type="number" readOnly className="h-9 sm:h-10 text-sm glass-input !w-auto  bg-white/5 text-white" value={cashInHandover || ''} placeholder="—" />
+                <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input !w-auto bg-white/5 text-white" value={(cashInHandover ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} placeholder="—" />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label className="text-gray-400 text-xs min-h-[32px] flex items-end">Cash In – Other</Label>
-                <Input type="number" min={0} step={0.01} readOnly={isReadOnly} className={`h-9 sm:h-10 text-sm glass-input !w-auto text-white ${isReadOnly ? 'bg-white/5 cursor-default' : ''}`} value={cashInOther} onChange={e => setCashInOther(e.target.value)} placeholder="0" />
+                <Input type="text" readOnly={isReadOnly} className={`h-9 sm:h-10 text-sm glass-input !w-auto text-white ${isReadOnly ? 'bg-white/5 cursor-default' : ''}`} value={isReadOnly ? (parseFloat(cashInOther) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : cashInOther} onChange={e => setCashInOther(e.target.value)} placeholder="0" />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label className="text-gray-400 text-xs min-h-[32px] flex items-end">Cash Out</Label>
-                <Input type="number" readOnly className="h-9 sm:h-10 text-sm glass-input !w-auto bg-white/5 text-white" value={cashOut} />
+                <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input !w-auto bg-white/5 text-white" value={(cashOut ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label className="text-gray-400 text-xs min-h-[32px] flex items-end">Closing Balance</Label>
-                <Input type="number" readOnly className="h-9 sm:h-10 text-sm glass-input !w-auto bg-white/5 text-white" value={closingBalance} />
+                <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input !w-auto bg-white/5 text-white" value={(closingBalance ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} />
               </div>
             </div>
           </div>
@@ -876,18 +1085,31 @@ function CashTallyFormPage({ clientId, entityId, token, toast, readOnly = false 
                           </TableRow>
                         );
                       })}
+                      <TableRow className="border-t-2 border-white/10 hover:bg-transparent">
+                        <TableCell className="py-8"></TableCell>
+                        <TableCell className="py-8"></TableCell>
+                        <TableCell className="py-8">
+                          <div className="flex flex-col items-start">
+                            <div className="w-64 space-y-3">
+                               <Input 
+                                type="text" 
+                                readOnly 
+                                className="h-10 sm:h-12 text-lg glass-input w-full bg-white/5 text-white font-bold text-center border-white/10" 
+                                value={denominationTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })} 
+                              />
+                              <div className="text-left pl-1">
+                                <span className={`text-xs font-bold whitespace-nowrap ${
+                                  Math.abs(varianceAmount) < 0.01 ? 'text-green-400' : varianceAmount > 0 ? 'text-yellow-400' : 'text-red-400'
+                                }`}>
+                                  Variance: ₹ {varianceAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </TableCell>
+                      </TableRow>
                     </TableBody>
                   </Table>
-                </div>
-                <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-white/10">
-                  <div>
-                    <Label className="text-gray-400 text-sm">Total Amount ₹</Label>
-                    <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input mt-1 bg-amber-500/10 text-white" value={denominationTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })} />
-                  </div>
-                  <div>
-                    <Label className="text-gray-400 text-sm">Variance Amount ₹</Label>
-                    <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input mt-1 bg-amber-500/10 text-white" value={varianceAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })} />
-                  </div>
                 </div>
               </>
             )}
@@ -915,12 +1137,14 @@ function CashierReportListTab({ clientId, token, toast }) {
   const location = useLocation();
   const [entriesList, setEntriesList] = useState([]);
   const [listLoading, setListLoading] = useState(true);
-  const [datePreset, setDatePreset] = useState('all_time');
+  const [datePreset, setDatePreset] = useState('last_30_days');
   const [dateRange, setDateRange] = useState({ from: null, to: null });
   const [searchTerm, setSearchTerm] = useState('');
 
-  const ITEMS_PER_PAGE = 10;
+  // removed static ITEMS_PER_PAGE
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
+  const [activeTab, setActiveTab] = useState('pending'); // 'pending' or 'history'
 
   const loadList = useCallback(async () => {
     if (!clientId || !token) return;
@@ -944,6 +1168,14 @@ function CashierReportListTab({ clientId, token, toast }) {
 
   const filteredList = useMemo(() => {
     let list = entriesList;
+
+    // Filter by active tab (Pending vs History)
+    if (activeTab === 'pending') {
+      list = list.filter(e => e.status !== 'Verified');
+    } else {
+      list = list.filter(e => e.status === 'Verified');
+    }
+
     if (datePreset !== 'all_time') {
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -953,6 +1185,11 @@ function CashierReportListTab({ clientId, token, toast }) {
         const vDate = new Date(d);
         vDate.setHours(0, 0, 0, 0);
 
+        if (datePreset === 'all_time' || datePreset === 'last_year') {
+          const lastYear = new Date(today);
+          lastYear.setDate(lastYear.getDate() - 365);
+          return vDate >= lastYear && vDate <= today;
+        }
         if (datePreset === 'today') return vDate.getTime() === todayTime;
         if (datePreset === 'yesterday') {
           const yesterday = new Date(today);
@@ -983,6 +1220,11 @@ function CashierReportListTab({ clientId, token, toast }) {
           last3.setMonth(last3.getMonth() - 3);
           return vDate >= last3 && vDate <= today;
         }
+        if (datePreset === 'last_6_months') {
+          const last6 = new Date(today);
+          last6.setMonth(last6.getMonth() - 6);
+          return vDate >= last6 && vDate <= today;
+        }
         if (datePreset === 'custom') {
           const from = dateRange?.from ? new Date(dateRange.from) : null;
           const to = dateRange?.to ? new Date(dateRange.to) : null;
@@ -1006,14 +1248,14 @@ function CashierReportListTab({ clientId, token, toast }) {
       list = list.filter(e => toDDMMYYYY(e.report_date).toLowerCase().includes(t) || (e.report_date || '').toString().includes(t) || (e.remarks || '').toLowerCase().includes(t));
     }
     return list;
-  }, [entriesList, datePreset, dateRange, searchTerm]);
+  }, [entriesList, datePreset, dateRange, searchTerm, activeTab]);
 
-  useEffect(() => { setCurrentPage(1); }, [searchTerm, datePreset, dateRange]);
+  useEffect(() => { setCurrentPage(1); }, [searchTerm, datePreset, dateRange, activeTab]);
 
-  const totalPages = Math.ceil((filteredList?.length || 0) / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil((filteredList?.length || 0) / itemsPerPage);
   const paginatedList = filteredList.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
   );
 
   return (
@@ -1021,17 +1263,37 @@ function CashierReportListTab({ clientId, token, toast }) {
       <CardHeader className="p-4 sm:p-6">
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-2 sm:gap-4 justify-between w-full">
-            <CardTitle className="text-lg sm:text-xl text-white">Cashier Report</CardTitle>
+            <div className="flex p-1 rounded-lg border border-white/10 backdrop-blur-sm">
+              <button
+                type="button"
+                onClick={() => setActiveTab('pending')}
+                className={`px-3 py-1 text-sm font-medium rounded-md transition-all ${activeTab === 'pending'
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40'
+                  }`}
+              >
+                Pending
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('history')}
+                className={`px-3 py-1 text-sm font-medium rounded-md transition-all ${activeTab === 'history'
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40'
+                  }`}
+              >
+                History
+              </button>
+            </div>
             <div className="flex flex-wrap items-center gap-2 sm:gap-4 flex-1 justify-end">
               <Select value={datePreset} onValueChange={setDatePreset}>
-                <SelectTrigger className="w-full sm:w-[160px] h-11 rounded-full glass-input px-4">
+                <SelectTrigger className="w-full sm:w-[190px] h-11 rounded-full glass-input px-4">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-gray-400" />
-                    <SelectValue placeholder="All Time" />
+                    <SelectValue placeholder="Last Year" />
                   </div>
                 </SelectTrigger>
                 <SelectContent className="bg-gray-900 border-white/10 text-white rounded-2xl">
-                  <SelectItem value="all_time">All Time</SelectItem>
                   <SelectItem value="today">Today</SelectItem>
                   <SelectItem value="yesterday">Yesterday</SelectItem>
                   <SelectItem value="last_7_days">Last 7 Days</SelectItem>
@@ -1039,16 +1301,11 @@ function CashierReportListTab({ clientId, token, toast }) {
                   <SelectItem value="this_month">This Month</SelectItem>
                   <SelectItem value="last_month">Last Month</SelectItem>
                   <SelectItem value="last_3_months">Last 3 Months</SelectItem>
+                  <SelectItem value="last_year">Last Year</SelectItem>
                   <SelectItem value="custom">Custom</SelectItem>
                 </SelectContent>
               </Select>
-              <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
-                <AnimatedSearch
-                  placeholder="Date, Remarks..."
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                />
-              </div>
+
               {datePreset === 'custom' && (
                 <DateRangePicker
                   dateRange={dateRange}
@@ -1056,6 +1313,14 @@ function CashierReportListTab({ clientId, token, toast }) {
                   className="w-full sm:w-auto"
                 />
               )}
+
+              <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+                <AnimatedSearch
+                  placeholder="Date, Remarks..."
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -1074,6 +1339,7 @@ function CashierReportListTab({ clientId, token, toast }) {
                   <TableHead className="text-xs sm:text-sm text-gray-300">Cashier Report Total</TableHead>
                   <TableHead className="text-xs sm:text-sm text-gray-300">Variance</TableHead>
                   <TableHead className="text-xs sm:text-sm text-gray-300">Remarks</TableHead>
+                  <TableHead className="text-left text-xs sm:text-sm text-gray-300">Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1088,14 +1354,26 @@ function CashierReportListTab({ clientId, token, toast }) {
                       className="cursor-pointer transition-colors hover:bg-white/5"
                       onClick={() => navigate('entry/' + encodeURIComponent(report.report_date))}
                     >
-                      <TableCell className="text-xs sm:text-sm text-white">{toDDMMYYYY(report.report_date)}</TableCell>
+                      <TableCell className="text-xs sm:text-sm text-white">
+                        <div>{toDDMMYYYY(report.report_date)}</div>
+                        <div className="text-[10px] text-gray-400">{formatTime(report.created_at)}</div>
+                      </TableCell>
                       <TableCell className="text-xs sm:text-sm text-white">{report.created_by_name || '—'}</TableCell>
-                      <TableCell className="text-xs sm:text-sm text-white">₹ {Number(report.handover_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
-                      <TableCell className="text-xs sm:text-sm text-white">₹ {Number(report.cashier_report_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
-                      <TableCell className={`text-xs sm:text-sm font-medium ${report.variance !== 0 ? 'text-amber-400' : 'text-white'}`}>
-                        ₹ {Number(report.variance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      <TableCell className="text-xs sm:text-sm text-white">₹ {Number(report.handover_total || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</TableCell>
+                      <TableCell className="text-xs sm:text-sm text-white">₹ {Number(report.cashier_report_total || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</TableCell>
+                      <TableCell className={`text-xs sm:text-sm font-medium ${getVarianceColor(report.variance)}`}>
+                        ₹ {Number(report.variance || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                       </TableCell>
                       <TableCell className="text-xs sm:text-sm text-white max-w-[200px] truncate" title={report.remarks || ''}>{report.remarks || '—'}</TableCell>
+                      <TableCell className="text-left">
+                        <span className={`inline-flex items-center justify-center text-center px-2 py-1 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium border h-auto min-h-[1.5rem] whitespace-normal leading-tight ${
+                          report.status === 'Verified' 
+                            ? 'bg-green-500/20 text-green-400 border-green-500/50' 
+                            : 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50'
+                        }`}>
+                          {activeTab === 'history' ? 'Verified' : 'Pending Approval'}
+                        </span>
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -1104,8 +1382,24 @@ function CashierReportListTab({ clientId, token, toast }) {
           </div>
         )}
       </CardContent>
-      <CardFooter className="flex flex-row justify-center items-center gap-3 p-4 sm:p-6 border-t border-white/10">
-        <div><p className="text-xs sm:text-sm text-gray-400">Page {currentPage} of {totalPages}</p></div>
+      <CardFooter className="flex flex-col sm:flex-row justify-center items-center gap-6 p-4 sm:p-6 border-t border-white/10">
+        <div className="flex items-center gap-4">
+          <p className="text-xs sm:text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400 hidden sm:inline">Rows per page:</span>
+            <Select value={String(itemsPerPage)} onValueChange={(val) => { setItemsPerPage(Number(val)); setCurrentPage(1); }}>
+              <SelectTrigger className="h-8 w-[70px] bg-transparent border-white/10 text-white text-xs">
+                <SelectValue placeholder={String(itemsPerPage)} />
+              </SelectTrigger>
+              <SelectContent className="bg-gray-900 border-white/10 text-white">
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="25">25</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white">
             <ChevronLeft className="w-4 h-4" />
@@ -1126,6 +1420,14 @@ function CashierReportFormPage({ clientId, token, toast }) {
   const isNew = !reportDateParam || reportDateParam === 'new';
   const [selectedDate, setSelectedDate] = useState(isNew ? today : reportDateParam);
   const reportDate = selectedDate;
+
+  useEffect(() => {
+    if (reportDateParam && reportDateParam !== 'new') {
+      setSelectedDate(reportDateParam);
+    } else if (reportDateParam === 'new') {
+      setSelectedDate(new Date().toISOString().slice(0, 10));
+    }
+  }, [reportDateParam]);
 
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [departments, setDepartments] = useState([]);
@@ -1291,21 +1593,42 @@ function CashierReportFormPage({ clientId, token, toast }) {
 
   return (
     <div className="space-y-4">
-      <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white -ml-2" onClick={() => navigate(isNew ? '..' : '../..', { relative: 'path' })}>
-        <ArrowLeft className="mr-2 h-4 w-4" /> Back to list
-      </Button>
       <Card className="glass-card border-white/5">
         <CardHeader className="p-4 sm:p-6 flex flex-row flex-wrap items-center justify-between gap-4">
-          <div>
-            <CardTitle className="text-lg sm:text-xl text-white">{isNew ? 'New report' : 'View / Update'}</CardTitle>
-            <CardDescription className="text-sm text-gray-400">Enter amounts by department and payment method for the selected date.</CardDescription>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-gray-400 hover:text-white hover:bg-white/10 rounded-full"
+              onClick={() => navigate(isNew ? '..' : '../..', { relative: 'path' })}
+              title="Back to list"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-lg sm:text-xl text-white">{isNew ? 'New report' : 'View / Update'}</CardTitle>
+                {readOnly && <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 whitespace-nowrap">Handover approved — view only</span>}
+              </div>
+              <CardDescription className="text-sm text-gray-400">Enter amounts by department and payment method for the selected date.</CardDescription>
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Input type="date" className="h-9 sm:h-10 text-sm glass-input w-40 text-white" value={reportDate} readOnly={!isNew} onChange={e => setSelectedDate(e.target.value)} />
+            <DatePicker
+              value={reportDate}
+              onChange={(newDate) => {
+                if (!newDate) return;
+                const dateStr = format(newDate, 'yyyy-MM-dd');
+                setSelectedDate(dateStr);
+                if (!isNew) {
+                  navigate(`../${encodeURIComponent(dateStr)}`, { relative: 'path', replace: true });
+                }
+              }}
+              className="w-40"
+            />
             <Button onClick={handleSubmit} disabled={submitting || readOnly} className="h-9 sm:h-10 text-sm">
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Submit
             </Button>
-            {readOnly && <span className="text-xs text-amber-400">Handover approved — view only</span>}
           </div>
         </CardHeader>
         <CardContent className="p-0 space-y-4">
@@ -1333,15 +1656,15 @@ function CashierReportFormPage({ clientId, token, toast }) {
                           <Input type="number" min={0} step={0.01} readOnly={readOnly} className={`h-9 sm:h-10 text-sm glass-input !w-24 !pl-3 text-white ${readOnly ? 'cursor-default opacity-90' : ''}`} value={getCell(d.id, p.id)} onChange={e => setCell(d.id, p.id, e.target.value)} />
                         </TableCell>
                       ))}
-                      <TableCell className="text-xs sm:text-sm font-medium text-white bg-amber-500/10">{rowTotal(d.id).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell className="text-xs sm:text-sm font-medium text-white bg-amber-500/10">{Math.round(rowTotal(d.id)).toLocaleString('en-IN')}</TableCell>
                     </TableRow>
                   ))}
                   <TableRow className="border-white/10 bg-amber-500/10 font-medium">
                     <TableCell className="text-xs sm:text-sm text-gray-300">Total</TableCell>
                     {paymentMethods.map(p => (
-                      <TableCell key={p.id} className="text-xs sm:text-sm text-white">{colTotal(p.id).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell key={p.id} className="text-xs sm:text-sm text-white">{Math.round(colTotal(p.id)).toLocaleString('en-IN')}</TableCell>
                     ))}
-                    <TableCell className="text-xs sm:text-sm text-white">{grandTotal().toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
+                    <TableCell className="text-xs sm:text-sm text-white">{Math.round(grandTotal()).toLocaleString('en-IN')}</TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
@@ -1481,7 +1804,7 @@ function CashierReportTab({ clientId, token, toast }) {
 
 function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, readOnly = false }) {
   const [viewMode, setViewMode] = useState('pending');
-  const [datePreset, setDatePreset] = useState('all_time');
+  const [datePreset, setDatePreset] = useState('last_30_days');
   const [dateRange, setDateRange] = useState({ from: null, to: null });
   const [searchTerm, setSearchTerm] = useState('');
   const [items, setItems] = useState([]);
@@ -1573,12 +1896,17 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
 
   const pmName = (id) => paymentMethods.find(p => p.id === id)?.name || id;
   const applyDateFilter = (list) => {
-    if (datePreset === 'all_time') return list;
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     return list.filter(row => {
       const d = new Date(row.date);
       const vDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+      if (datePreset === 'all_time' || datePreset === 'last_year') {
+        const lastYear = new Date(today);
+        lastYear.setDate(lastYear.getDate() - 365);
+        return vDate >= lastYear && vDate <= today;
+      }
       if (datePreset === 'today') return vDate.getTime() === today.getTime();
       if (datePreset === 'yesterday') {
         const yesterday = new Date(today);
@@ -1608,6 +1936,11 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
         const last3 = new Date(today);
         last3.setMonth(last3.getMonth() - 3);
         return vDate >= last3 && vDate <= today;
+      }
+      if (datePreset === 'last_6_months') {
+        const last6 = new Date(today);
+        last6.setMonth(last6.getMonth() - 6);
+        return vDate >= last6 && vDate <= today;
       }
       if (datePreset === 'custom') {
         const from = dateRange?.from ? new Date(dateRange.from) : null;
@@ -1641,7 +1974,7 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
   const historyItems = useMemo(() => applySearch(applyDateFilter(items.filter(row => row.status === 'approved'))), [items, datePreset, dateRange, searchTerm, usersMap]);
   const displayItems = viewMode === 'pending' ? pendingItems : historyItems;
 
-  const ITEMS_PER_PAGE = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [activePage, setActivePage] = useState(1);
   const [historyPage, setHistoryPage] = useState(1);
 
@@ -1656,10 +1989,10 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
     setHistoryPage(1);
   }, [searchTerm, datePreset, dateRange, viewMode]);
 
-  const totalPages = Math.ceil(displayItems.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(displayItems.length / itemsPerPage);
   const paginatedItems = displayItems.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
   );
 
   const showActionColumn = viewMode === 'pending' && !readOnly && (isAdminView ? displayItems.some(row => row.status === 'pending') : true);
@@ -1673,6 +2006,16 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
     }
     return 'Pending Admin';
   };
+  const getHandoverStatusColor = (row) => {
+    if (row.status === 'approved') return 'bg-green-500/20 text-green-400 border-green-500/50';
+    if (row.status === 'rejected') return 'bg-red-500/20 text-red-400 border-red-500/50';
+    if (!isAdminView) {
+      if (row.client_user_status === 'pending') return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50';
+      return 'bg-orange-500/20 text-orange-400 border-orange-500/50';
+    }
+    return 'bg-amber-500/20 text-amber-400 border-amber-500/50';
+  };
+
   const colSpan = showActionColumn ? 9 : 8;
   const isBreakdownEditable = (row) => {
     if (readOnly) return false;
@@ -1713,31 +2056,26 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
             </div>
             <div className="flex flex-wrap items-center gap-2 sm:gap-4 flex-1 justify-end">
               <Select value={datePreset} onValueChange={setDatePreset}>
-                <SelectTrigger className="w-full sm:w-[160px] h-11 rounded-full glass-input px-4">
+                <SelectTrigger className="w-full sm:w-[190px] h-11 rounded-full glass-input px-4">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-gray-400" />
-                    <SelectValue placeholder="All Time" />
+                    <SelectValue placeholder="Last Year" />
                   </div>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all_time">All Time</SelectItem>
                   <SelectItem value="today">Today</SelectItem>
                   <SelectItem value="yesterday">Yesterday</SelectItem>
-                  <SelectItem value="last_7_days">Last 7 Days</SelectItem>
-                  <SelectItem value="last_30_days">Last 30 Days</SelectItem>
-                  <SelectItem value="this_month">This Month</SelectItem>
-                  <SelectItem value="last_month">Last Month</SelectItem>
-                  <SelectItem value="last_3_months">Last 3 Months</SelectItem>
+                  <SelectItem value="last_7_days">Last 7 days</SelectItem>
+                  <SelectItem value="last_30_days">Last 30 days</SelectItem>
+                  <SelectItem value="this_month">This month</SelectItem>
+                  <SelectItem value="last_month">Last month</SelectItem>
+                  <SelectItem value="last_3_months">Last 3 month</SelectItem>
+                  <SelectItem value="last_6_months">Last 6 month</SelectItem>
+                  <SelectItem value="last_year">Last year</SelectItem>
                   <SelectItem value="custom">Custom</SelectItem>
                 </SelectContent>
               </Select>
-              <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
-                <AnimatedSearch
-                  placeholder="Date, Department, Created by..."
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                />
-              </div>
+
               {datePreset === 'custom' && (
                 <DateRangePicker
                   dateRange={dateRange}
@@ -1745,6 +2083,14 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
                   className="w-full sm:w-auto"
                 />
               )}
+
+              <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+                <AnimatedSearch
+                  placeholder="Date, Department, Created by..."
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -1778,22 +2124,25 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
               ) : (
                 paginatedItems.map((row) => (
                   <TableRow key={row.handover_id} className="border-white/10">
-                    <TableCell className="text-xs sm:text-sm text-white">{toDDMMYYYY(row.date)}</TableCell>
+                    <TableCell className="text-xs sm:text-sm text-white">
+                      <div>{toDDMMYYYY(row.date)}</div>
+                      <div className="text-[10px] text-gray-400">{formatTime(row.created_at)}</div>
+                    </TableCell>
                     <TableCell className="text-xs sm:text-sm text-white">{usersMap[row.created_by_user_id] || row.created_by_name || '—'}</TableCell>
                     <TableCell className="text-xs sm:text-sm text-white">{row.department_name || '—'}</TableCell>
                     <TableCell className="text-xs sm:text-sm">
                       <button type="button" className="text-left underline decoration-dotted hover:no-underline cursor-pointer text-white" onClick={() => setBreakdownModal({ type: 'department', row })}>
-                        ₹ {Number(row.as_per_department).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        ₹ {Number(row.as_per_department).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                       </button>
                     </TableCell>
                     <TableCell className="text-xs sm:text-sm">
                       <button type="button" className="text-left underline decoration-dotted hover:no-underline cursor-pointer text-white" onClick={() => setBreakdownModal({ type: 'system', row })}>
-                        ₹ {Number(row.as_per_system).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        ₹ {Number(row.as_per_system).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                       </button>
                     </TableCell>
-                    <TableCell className="text-xs sm:text-sm text-white">₹ {Number(row.variance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
+                    <TableCell className={`text-xs sm:text-sm ${getVarianceColor(row.variance)}`}>₹ {Number(row.variance).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</TableCell>
                     <TableCell className="text-xs sm:text-sm">
-                      <span className={`inline-flex px-2 py-0.5 rounded text-xs sm:text-sm ${row.status === 'approved' ? 'bg-green-500/20 text-green-400' : row.status === 'rejected' ? 'bg-red-500/20 text-red-400' : '!bg-amber-500/20 text-amber-400'}`}>
+                      <span className={`inline-flex items-center justify-center text-center px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-medium border h-auto min-h-[1.5rem] whitespace-normal leading-tight ${getHandoverStatusColor(row)}`}>
                         {statusLabel(row)}
                       </span>
                     </TableCell>
@@ -1811,8 +2160,24 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
           </Table>
         </div>
       </CardContent>
-      <CardFooter className="flex flex-row justify-center items-center gap-3 p-4 sm:p-6 border-t border-white/10">
-        <div><p className="text-xs sm:text-sm text-gray-400">Page {currentPage} of {totalPages}</p></div>
+      <CardFooter className="flex flex-col sm:flex-row justify-center items-center gap-6 p-4 sm:p-6 border-t border-white/10">
+        <div className="flex items-center gap-4">
+          <p className="text-xs sm:text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400 hidden sm:inline">Rows per page:</span>
+            <Select value={String(itemsPerPage)} onValueChange={(val) => { setItemsPerPage(Number(val)); setCurrentPage(1); }}>
+              <SelectTrigger className="h-8 w-[70px] bg-transparent border-white/10 text-white text-xs">
+                <SelectValue placeholder={String(itemsPerPage)} />
+              </SelectTrigger>
+              <SelectContent className="bg-gray-900 border-white/10 text-white">
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="25">25</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white">
             <ChevronLeft className="w-4 h-4" />
@@ -1972,7 +2337,7 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
                           </TableRow>
                           <TableRow className="bg-white/5">
                             <TableCell className="py-1 font-medium">Difference</TableCell>
-                            <TableCell className="text-right py-1 font-medium">
+                            <TableCell className={`text-right py-1 font-medium ${getVarianceColor(parseFloat(editValues.physical_cash_at_desk || 0) - (row.cash_collection || 0))}`}>
                               ₹ {(parseFloat(editValues.physical_cash_at_desk || 0) - (row.cash_collection || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                             </TableCell>
                           </TableRow>
@@ -2106,6 +2471,7 @@ function ReportTab({ clientId, entityId, entityName, token, toast }) {
   const closingBalance = openingBalance + cashInHandover + cashInOther - cashOut;
   const denomDetails = cashTally?.denomination_details && typeof cashTally.denomination_details === 'object' ? cashTally.denomination_details : {};
   const denomTotal = denominations.reduce((sum, d) => sum + (Number(d.value) || 0) * (Number(denomDetails[d.id]) || 0), 0);
+  const cashVariance = denomTotal - closingBalance;
 
   const cashVoucherTotal = cashVouchers.reduce((s, v) => s + (Number(v.amount) || 0), 0);
   const debitVoucherTotal = debitVouchers.reduce((s, v) => s + (Number(v.amount) || 0), 0);
@@ -2143,6 +2509,7 @@ function ReportTab({ clientId, entityId, entityName, token, toast }) {
           cash_in_other: cashInOther,
           cash_out: cashOut,
           closing_balance: closingBalance,
+          variance: cashVariance,
           remarks: cashTally?.remarks || '',
         },
         denominations: denominations.map(d => {
@@ -2233,7 +2600,7 @@ function ReportTab({ clientId, entityId, entityName, token, toast }) {
                         <TableCell className="text-xs sm:text-sm text-white">{bank.account_number || '—'}</TableCell>
                         <TableCell className="text-xs sm:text-sm text-white text-right">₹ {Number(opening).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
                         <TableCell className="text-xs sm:text-sm text-white text-right">₹ {Number(closing).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
-                        <TableCell className={`text-xs sm:text-sm text-right ${variance >= 0 ? 'text-green-400' : 'text-white'}`}>₹ {Number(variance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
+                        <TableCell className={`text-xs sm:text-sm text-right ${getVarianceColor(variance)}`}>₹ {Number(variance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
                       </TableRow>
                     ))}
                     <TableRow className="!bg-amber-500/20 border-white/10 font-medium">
@@ -2241,7 +2608,7 @@ function ReportTab({ clientId, entityId, entityName, token, toast }) {
                       <TableCell className="text-xs sm:text-sm text-white">—</TableCell>
                       <TableCell className="text-xs sm:text-sm text-white text-right">₹ {bankOpeningTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
                       <TableCell className="text-xs sm:text-sm text-white text-right">₹ {bankClosingTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
-                      <TableCell className={`text-xs sm:text-sm text-right ${bankVarianceTotal >= 0 ? 'text-green-400' : 'text-white'}`}>₹ {bankVarianceTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell className={`text-xs sm:text-sm text-right ${getVarianceColor(bankVarianceTotal)}`}>₹ {bankVarianceTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
                     </TableRow>
                   </TableBody>
                 </Table>
@@ -2266,6 +2633,10 @@ function ReportTab({ clientId, entityId, entityName, token, toast }) {
                       <TableRow className="border-white/10"><TableCell className="text-xs sm:text-sm text-white">Cash In - Others</TableCell><TableCell className="text-xs sm:text-sm text-white text-right">₹ {cashInOther.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell></TableRow>
                       <TableRow className="border-white/10"><TableCell className="text-xs sm:text-sm text-white">Cash Out</TableCell><TableCell className="text-xs sm:text-sm text-white text-right">₹ {cashOut.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell></TableRow>
                       <TableRow className="!bg-amber-500/20 border-white/10"><TableCell className="text-xs sm:text-sm font-medium text-white">Closing Balance</TableCell><TableCell className="text-xs sm:text-sm font-medium text-white text-right">₹ {closingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell></TableRow>
+                      <TableRow className="border-white/10">
+                        <TableCell className="text-xs sm:text-sm font-medium text-white">Variance</TableCell>
+                        <TableCell className={`text-xs sm:text-sm font-medium text-right ${getVarianceColor(cashVariance)}`}>₹ {cashVariance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
+                      </TableRow>
                     </TableBody>
                   </Table>
                   <p className="text-gray-400 text-sm mt-2 px-2">Cash Tally Remarks: {cashTally?.remarks || 'No Remarks'}</p>
@@ -2326,7 +2697,7 @@ function ReportTab({ clientId, entityId, entityName, token, toast }) {
                           <TableCell className="text-xs sm:text-sm text-white">{v.voucher_id || '—'}</TableCell>
                           <TableCell className="text-xs sm:text-sm text-white">{v.beneficiary_name || '—'}</TableCell>
                           <TableCell className="text-xs sm:text-sm text-white">{v.remarks || '—'}</TableCell>
-                          <TableCell className="text-xs sm:text-sm text-blue-400 text-right">₹ {Number(v.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
+                          <TableCell className="text-xs sm:text-sm text-white text-right">₹ {Number(v.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
                         </TableRow>
                       ))
                     )}
@@ -2369,7 +2740,7 @@ function ReportTab({ clientId, entityId, entityName, token, toast }) {
                           <TableCell className="text-xs sm:text-sm text-white">{v.from_bank_account_number || '—'}</TableCell>
                           <TableCell className="text-xs sm:text-sm text-white">{v.beneficiary_name || '—'}</TableCell>
                           <TableCell className="text-xs sm:text-sm text-white">{v.remarks || '—'}</TableCell>
-                          <TableCell className="text-xs sm:text-sm text-blue-400 text-right">₹ {Number(v.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
+                          <TableCell className="text-xs sm:text-sm text-white text-right">₹ {Number(v.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</TableCell>
                         </TableRow>
                       ))
                     )}

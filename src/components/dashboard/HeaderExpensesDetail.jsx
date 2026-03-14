@@ -40,13 +40,13 @@ import AnimatedSearch from '../ui/AnimatedSearch';
 const TIME_FRAME_PRESETS = [
     { label: 'Today', value: 'today' },
     { label: 'Yesterday', value: 'yesterday' },
-    { label: 'Last 7 Days', value: 'last7' },
-    { label: 'Last 30 Days', value: 'last30' },
-    { label: 'This Month', value: 'thisMonth' },
-    { label: 'Last Month', value: 'lastMonth' },
-    { label: 'Last 3 Months', value: 'last3Months' },
-    { label: 'Last 6 Months', value: 'last6Months' },
-    { label: 'This Year', value: 'thisYear' },
+    { label: 'Last 7 days', value: 'last_7_days' },
+    { label: 'Last 30 days', value: 'last_30_days' },
+    { label: 'This month', value: 'this_month' },
+    { label: 'Last month', value: 'last_month' },
+    { label: 'Last 3 month', value: 'last_3_months' },
+    { label: 'Last 6 month', value: 'last_6_months' },
+    { label: 'Last year', value: 'last_year' },
     { label: 'Custom', value: 'custom' },
 ];
 
@@ -61,35 +61,38 @@ const getDateRange = (preset, customStart, customEnd) => {
             y.setDate(y.getDate() - 1);
             return { start: y, end: startOfToday };
         }
-        case 'last7': {
+        case 'last_7_days': {
             const d = new Date(startOfToday);
             d.setDate(d.getDate() - 7);
             return { start: d, end: now };
         }
-        case 'last30': {
+        case 'last_30_days': {
             const d = new Date(startOfToday);
             d.setDate(d.getDate() - 30);
             return { start: d, end: now };
         }
-        case 'thisMonth':
+        case 'this_month':
             return { start: new Date(now.getFullYear(), now.getMonth(), 1), end: now };
-        case 'lastMonth': {
+        case 'last_month': {
             const s = new Date(now.getFullYear(), now.getMonth() - 1, 1);
             const e = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
             return { start: s, end: e };
         }
-        case 'last3Months': {
+        case 'last_3_months': {
             const d = new Date(startOfToday);
             d.setMonth(d.getMonth() - 3);
             return { start: d, end: now };
         }
-        case 'last6Months': {
+        case 'last_6_months': {
             const d = new Date(startOfToday);
             d.setMonth(d.getMonth() - 6);
             return { start: d, end: now };
         }
-        case 'thisYear':
-            return { start: new Date(now.getFullYear(), 0, 1), end: now };
+        case 'last_year': {
+            const d = new Date(startOfToday);
+            d.setDate(d.getDate() - 365);
+            return { start: d, end: now };
+        }
         case 'custom':
             return {
                 start: customStart ? startOfDay(customStart) : null,
@@ -111,7 +114,7 @@ const HeaderExpensesDetail = ({ entityId }) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [sortColumn, setSortColumn] = useState('created_date');
     const [sortDirection, setSortDirection] = useState('desc');
-    const [timeFrame, setTimeFrame] = useState('thisYear');
+    const [timeFrame, setTimeFrame] = useState('last_30_days');
     const [customStartDate, setCustomStartDate] = useState(null);
     const [customEndDate, setCustomEndDate] = useState(null);
     const [dateError, setDateError] = useState('');

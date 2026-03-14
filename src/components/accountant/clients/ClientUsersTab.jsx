@@ -6,7 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Filter, UserPlus, Search, Loader2 } from 'lucide-react';
+import { Filter, UserPlus, Search, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { resendToken, inviteEntityUser, listEntityUsers, deleteEntityUser, deleteInvitedOrgUser, listOrgUsers, addEntityUsers, listAllAccessibleEntityUsers } from '@/lib/api/organisation';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -26,6 +26,8 @@ const ClientUsersTab = ({ client, onUserInvited, onUserDeleted }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [userFilter, setUserFilter] = useState('all'); // all, joined, invited
     const [isInviting, setIsInviting] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
 
     // State to store users fetched for this entity
     const [users, setUsers] = useState({ invited_users: [], joined_users: [] });
@@ -93,6 +95,16 @@ const ClientUsersTab = ({ client, onUserInvited, onUserDeleted }) => {
 
         return filtered;
     }, [allUsers, userFilter, searchTerm]);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, userFilter]);
+
+    const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+    const paginatedUsers = filteredUsers.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+    );
 
     // Handler for Resend Invite
     const handleResendInvite = async (userObj) => {
@@ -298,8 +310,8 @@ const ClientUsersTab = ({ client, onUserInvited, onUserDeleted }) => {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {filteredUsers.length > 0 ? (
-                                filteredUsers.map(u => (
+                            {paginatedUsers.length > 0 ? (
+                                paginatedUsers.map(u => (
                                     <TableRow key={u.user_id}>
                                         <TableCell>{u.email}</TableCell>
                                         <TableCell>
@@ -394,6 +406,54 @@ const ClientUsersTab = ({ client, onUserInvited, onUserDeleted }) => {
                             )}
                         </TableBody>
                     </Table>
+                </div>
+            )}
+
+            {/* Pagination */}
+            {!loadingUsers && filteredUsers.length > 0 && (
+                <div className="flex flex-col sm:flex-row justify-center items-center gap-6 p-4 border-t border-white/10 shrink-0 bg-transparent">
+                    <div className="flex items-center gap-4">
+                        <span className="text-sm text-gray-400 font-medium">
+                            Page {currentPage} of {totalPages > 0 ? totalPages : 1}
+                        </span>
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-400 hidden sm:inline">Rows per page:</span>
+                            <Select value={String(itemsPerPage)} onValueChange={(val) => {
+                                setItemsPerPage(Number(val));
+                                setCurrentPage(1);
+                            }}>
+                                <SelectTrigger className="h-8 w-[70px] bg-transparent border-white/10 text-white text-xs">
+                                    <SelectValue placeholder={String(itemsPerPage)} />
+                                </SelectTrigger>
+                                <SelectContent className="bg-gray-900 border-white/10 text-white">
+                                    <SelectItem value="10">10</SelectItem>
+                                    <SelectItem value="25">25</SelectItem>
+                                    <SelectItem value="50">50</SelectItem>
+                                    <SelectItem value="100">100</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                            disabled={currentPage === 1}
+                            className="h-9 w-9 rounded-full bg-transparent border-white/20 hover:bg-white/10 text-white"
+                        >
+                            <ChevronLeft className="w-4 h-4" />
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                            disabled={currentPage === totalPages || totalPages === 0}
+                            className="h-9 w-9 rounded-full bg-transparent border-white/20 hover:bg-white/10 text-white"
+                        >
+                            <ChevronRight className="w-4 h-4" />
+                        </Button>
+                    </div>
                 </div>
             )}
 

@@ -166,7 +166,7 @@ const Sidebar = ({ currentEntity, setCurrentEntity, isCollapsed, setIsCollapsed,
       blinking: isNoticeBlinking 
     },
     { id: 'users', path: '/users', label: 'Manage Team', icon: UserCog, hidden: user?.role === 'CLIENT_USER' },
-    { id: 'bill-payment', path: '/bill-payment', label: 'Bill & Payment', icon: Receipt, hidden: user?.role === 'CLIENT_USER' },
+    { id: 'bill-payment', path: '/bill-payment', label: 'Bill & Payment', icon: Receipt, hidden: !['CLIENT_MASTER_ADMIN', 'CLIENT_USER', 'CLIENT_ADMIN', 'AGENCY_ADMIN', 'CA_ADMIN'].includes(user?.role) },
     { id: 'settings', path: '/settings', label: 'Settings', icon: Settings, hidden: user?.role === 'CLIENT_USER' },
     { id: 'beneficiaries', path: '/beneficiaries', label: 'Beneficiaries', icon: Users, hidden: user?.role === 'CLIENT_USER' || user?.role === 'CLIENT_MASTER_ADMIN' },
     { id: 'organisation-bank', path: '/organisation-bank', label: 'Organisation Bank', icon: Banknote, hidden: user?.role === 'CLIENT_USER' || user?.role === 'CLIENT_MASTER_ADMIN' },

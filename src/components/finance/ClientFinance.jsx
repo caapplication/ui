@@ -607,15 +607,7 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction, entityName: en
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => fetchData(true)}
-                disabled={isRefreshing}
-                className="h-11 w-11 min-w-[44px] rounded-full bg-white/5 border-white/10 text-white hover:bg-white/10 shadow-lg"
-              >
-                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-              </Button>
+
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="default" className="h-11 px-8 rounded-full bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/30 flex-1 sm:flex-none font-semibold">
@@ -624,19 +616,19 @@ const ClientFinance = ({ entityId, quickAction, clearQuickAction, entityName: en
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="bg-gray-900 border-white/10 text-white rounded-2xl p-1">
-                  <DropdownMenuItem onClick={() => setShowVoucherDialog(true)} className="hover:bg-white/10 cursor-pointer py-3 px-4 rounded-xl">
+                  <DropdownMenuItem onClick={() => setShowVoucherDialog(true)} className="hover:bg-white/10 cursor-pointer py-1 px-4 rounded-xl">
                     Voucher
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setShowInvoiceDialog(true)} className="hover:bg-white/10 cursor-pointer py-3 px-4 rounded-xl">
+                  <DropdownMenuItem onClick={() => setShowInvoiceDialog(true)} className="hover:bg-white/10 cursor-pointer py-1 px-4 rounded-xl">
                     Invoice
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/finance/bank-tally/new')}>
+                  <DropdownMenuItem onClick={() => navigate('/finance/bank-tally/new')} className="hover:bg-white/10 cursor-pointer py-1 px-4 rounded-xl text-white">
                     Bank Tally
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/finance/cash-tally/new')}>
+                  <DropdownMenuItem onClick={() => navigate('/finance/cash-tally/new')} className="hover:bg-white/10 cursor-pointer py-1 px-4 rounded-xl text-white">
                     Cash Tally
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/finance/cashier/new')}>
+                  <DropdownMenuItem onClick={() => navigate('/finance/cashier/new')} className="hover:bg-white/10 cursor-pointer py-1 px-4 rounded-xl text-white">
                     Cashier Report
                   </DropdownMenuItem>
                 </DropdownMenuContent>

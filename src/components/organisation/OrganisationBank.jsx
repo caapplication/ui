@@ -5,16 +5,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
-import { Plus, Trash2, Loader2, RefreshCw, Eye, EyeOff, ToggleLeft, ToggleRight, ChevronLeft, ChevronRight, FilePen, CheckCircle, XCircle, Search } from 'lucide-react';
+import { Plus, Trash2, Loader2, Eye, EyeOff, ToggleLeft, ToggleRight, ChevronLeft, ChevronRight, FilePen, CheckCircle, XCircle, Search, ArrowLeft } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { getOrganisationBankAccounts, addOrganisationBankAccount, updateOrganisationBankAccount, deleteOrganisationBankAccount } from '@/lib/api';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useNavigate } from 'react-router-dom';
 import AnimatedSearch from '@/components/ui/AnimatedSearch';
 
-const ITEMS_PER_PAGE = 10;
+
 
 const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction, organisationBankAccounts }) => {
   const [bankAccounts, setBankAccounts] = useState(organisationBankAccounts || []);
@@ -31,7 +32,9 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction,
   const [activeTab, setActiveTab] = useState("active");
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { toast } = useToast();
 
   const fetchBankAccounts = useCallback(async () => {
@@ -174,10 +177,10 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction,
     );
   });
 
-  const totalPages = Math.ceil(accountsToDisplay.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(accountsToDisplay.length / itemsPerPage);
   const paginatedAccounts = accountsToDisplay.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
   );
 
   useEffect(() => {
@@ -294,9 +297,23 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction,
           </div>
         )}
       </CardContent>
-      <CardFooter className="flex flex-row justify-center items-center gap-3 p-4 sm:p-6 border-t border-white/10">
-        <div>
+      <CardFooter className="flex flex-col sm:flex-row justify-center items-center gap-6 p-4 sm:p-6 border-t border-white/10">
+        <div className="flex items-center gap-4">
           <p className="text-xs sm:text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400 hidden sm:inline">Rows per page:</span>
+            <Select value={String(itemsPerPage)} onValueChange={(val) => { setItemsPerPage(Number(val)); setCurrentPage(1); }}>
+              <SelectTrigger className="h-8 w-[70px] bg-transparent border-white/10 text-white text-xs">
+                <SelectValue placeholder={String(itemsPerPage)} />
+              </SelectTrigger>
+              <SelectContent className="bg-gray-900 border-white/10 text-white">
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="25">25</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white">
@@ -314,6 +331,9 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction,
     <div className="p-4 sm:p-6 lg:p-8">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
         <div className="page-header">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/finance')} className="h-10 w-10 border border-white/10 hover:bg-white/10 rounded-full shrink-0">
+            <ArrowLeft className="h-6 w-6 text-white" />
+          </Button>
           <h1 className="page-title">Organisation Bank Accounts</h1>
         </div>
 
@@ -330,9 +350,7 @@ const OrganisationBank = ({ entityId, entityName, quickAction, clearQuickAction,
               </TabsTrigger>
             </TabsList>
             <div className="flex items-center gap-2 w-full sm:w-auto">
-              <Button variant="outline" size="icon" onClick={fetchBankAccounts} disabled={isLoading} className="h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0">
-                <RefreshCw className={`w-4 h-4 sm:w-5 sm:h-5 ${isLoading ? 'animate-spin' : ''}`} />
-              </Button>
+
               <Button onClick={() => setShowAddDialog(true)} className="h-9 sm:h-10 text-sm sm:text-base flex-1 sm:flex-initial">
                 <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
                 <span className="hidden sm:inline">Add Bank Account</span>

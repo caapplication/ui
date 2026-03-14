@@ -203,9 +203,11 @@ const HandoverPage = () => {
                     </button>
                   </TableCell>
                   <TableCell>
-                    <span className={`inline-flex px-2 py-0.5 rounded text-sm ${row.status === 'approved' ? 'bg-green-500/20 text-green-400' :
-                      row.status === 'rejected' ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'
-                      }`}>
+                    <span className={`inline-flex items-center justify-center text-center px-3 py-1 rounded-full text-xs font-medium border h-auto min-h-[1.5rem] whitespace-normal leading-tight ${
+                      row.status === 'approved' ? 'bg-green-500/20 text-green-400 border-green-500/50' :
+                      row.status === 'rejected' ? 'bg-red-500/20 text-red-400 border-red-500/50' : 
+                      'bg-amber-500/20 text-amber-400 border-amber-500/50'
+                    }`}>
                       {row.status === 'pending' ? 'Pending' : row.status === 'approved' ? 'Approved' : 'Rejected'}
                     </span>
                   </TableCell>

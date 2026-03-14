@@ -6,6 +6,8 @@ import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { DatePicker } from '@/components/ui/date-picker';
+import { format as formatDate } from 'date-fns';
 
 // Helper functions for localStorage caching
 const getCache = (key) => {
@@ -28,8 +30,8 @@ const setCache = (key, data) => {
 const ActivityLog = ({ itemId, itemType, showFilter = true, excludeTypes = [] }) => {
     const [logs, setLogs] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [startDate, setStartDate] = useState('');
-    const [endDate, setEndDate] = useState('');
+    const [startDate, setStartDate] = useState(null);
+    const [endDate, setEndDate] = useState(null);
     const { user } = useAuth();
     const { toast } = useToast();
 
@@ -59,9 +61,14 @@ const ActivityLog = ({ itemId, itemType, showFilter = true, excludeTypes = [] })
         }
 
         try {
-            // Convert date strings to ISO format for API
-            const startDateISO = startDate ? new Date(startDate).toISOString() : null;
-            const endDateISO = endDate ? new Date(endDate + 'T23:59:59').toISOString() : null; // Include time to cover entire day
+            // Convert date objects to ISO format for API
+            const startDateISO = startDate ? startDate.toISOString() : null;
+            let endDateISO = null;
+            if (endDate) {
+                const end = new Date(endDate);
+                end.setHours(23, 59, 59, 999);
+                endDateISO = end.toISOString();
+            }
 
             // Note: getActivityLog needs to be updated to accept signal if we want true network cancellation,
             // but for now we can at least preventing state updates from race conditions.
@@ -178,28 +185,41 @@ const ActivityLog = ({ itemId, itemType, showFilter = true, excludeTypes = [] })
 
     return (
         <div className="space-y-4">
-            {/* Filters and Download - Only show if showFilter is true */}
+            {/* minimalist download icon when filters are hidden */}
+            {!showFilter && logs.length > 0 && (
+                <div className="flex justify-end mb-2">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={handleDownloadCSV}
+                        className="h-8 w-8 text-gray-400 hover:text-white"
+                        title="Download Activity Log"
+                    >
+                        <Download className="w-4 h-4" />
+                    </Button>
+                </div>
+            )}
+
             {showFilter && (
-                <div className="flex flex-col flex-wrap sm:flex-row gap-4 items-start sm:items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
-                    <div className="flex flex-col sm:flex-row gap-4 flex-1">
-                        <div className="flex items-center gap-2">
-                            <Label htmlFor="start-date" className="text-sm text-gray-400 whitespace-nowrap">From:</Label>
-                            <Input
-                                id="start-date"
-                                type="date"
+                <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between p-4 glass-card bg-white/5 border border-white/10 rounded-xl mb-6">
+                    <div className="flex flex-col sm:flex-row gap-6 items-center flex-1 w-full lg:w-auto">
+                        <div className="flex items-center gap-3 w-full sm:w-auto">
+                            <Label htmlFor="start-date" className="text-sm font-medium text-gray-400 whitespace-nowrap">From:</Label>
+                            <DatePicker
                                 value={startDate}
-                                onChange={(e) => setStartDate(e.target.value)}
-                                className="w-auto"
+                                onChange={setStartDate}
+                                className="w-full sm:w-[180px]"
+                                placeholder="Start Date"
                             />
                         </div>
-                        <div className="flex items-center gap-2">
-                            <Label htmlFor="end-date" className="text-sm text-gray-400 whitespace-nowrap">To:</Label>
-                            <Input
-                                id="end-date"
-                                type="date"
+                        <div className="flex items-center gap-3 w-full sm:w-auto">
+                            <Label htmlFor="end-date" className="text-sm font-medium text-gray-400 whitespace-nowrap">To:</Label>
+                            <DatePicker
                                 value={endDate}
-                                onChange={(e) => setEndDate(e.target.value)}
-                                className="w-auto"
+                                onChange={setEndDate}
+                                className="w-full sm:w-[180px]"
+                                placeholder="End Date"
+                                disabled={(date) => startDate && date < startDate}
                             />
                         </div>
                         {(startDate || endDate) && (
@@ -207,21 +227,20 @@ const ActivityLog = ({ itemId, itemType, showFilter = true, excludeTypes = [] })
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => {
-                                    setStartDate('');
-                                    setEndDate('');
+                                    setStartDate(null);
+                                    setEndDate(null);
                                 }}
-                                className="text-gray-400 hover:text-white"
+                                className="text-gray-400 hover:text-white h-10 w-full sm:w-auto"
                             >
                                 Clear Filters
                             </Button>
                         )}
                     </div>
                     <Button
-                      
                         size="sm"
                         onClick={handleDownloadCSV}
                         disabled={logs.length === 0}
-                        className="flex items-center gap-2"
+                        className="w-full lg:w-auto flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-lg shadow-blue-500/20 px-6 h-10 rounded-full shrink-0"
                     >
                         <Download className="w-4 h-4" />
                         Download CSV

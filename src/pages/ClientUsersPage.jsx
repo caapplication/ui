@@ -605,21 +605,21 @@ const ClientUsersPage = ({ entityId }) => {
                     </DialogHeader>
                     <div className="py-4 space-y-4">
                         <div className="space-y-2 text-left">
-                            <Label htmlFor="email" className="text-gray-300">Email Address</Label>
+                            <Label htmlFor="email" className="text-gray-300 block">Email Address</Label>
                             <Input
                                 id="email"
                                 type="email"
                                 placeholder="colleague@company.com"
-                                className="mt-2 glass-input !w-full"
+                                className="glass-input !w-full h-11 px-4"
                                 value={inviteEmail}
                                 onChange={(e) => setInviteEmail(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleInviteUser()}
                             />
                         </div>
                         <div className="space-y-2 text-left">
-                            <Label className="text-gray-300">User Role</Label>
+                            <Label className="text-gray-300 block">User Role</Label>
                             <Select value={inviteRole} onValueChange={(v) => { setInviteRole(v); if (v !== 'CLIENT_HANDOVER') setInviteDepartmentId(''); }}>
-                                <SelectTrigger className="mt-2 glass-input border-white/10 text-white !w-full">
+                                <SelectTrigger className="glass-input border-white/10 text-white !w-full h-11 px-4">
                                     <SelectValue placeholder="Select role" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -629,12 +629,15 @@ const ClientUsersPage = ({ entityId }) => {
                             </Select>
                         </div>
                         {inviteRole === 'CLIENT_HANDOVER' && (
-                            <div className="space-y-2 text-left">
-                                <Label className="text-gray-300">Department</Label>
+                            <div className="space-y-2 text-left flex flex-col w-full">
+                                <Label className="text-gray-300 block">Department</Label>
                                 <Popover open={deptPopoverOpen} onOpenChange={setDeptPopoverOpen}>
                                     <PopoverTrigger asChild>
-                                        <Button variant="outline" className="w-full justify-start text-left font-normal mt-2 glass-input border-white/10 text-white" disabled={isInviting}>
-                                            {departmentsList.find(d => String(d.id) === String(inviteDepartmentId))?.name || "Select department"}
+                                        <Button variant="outline" className="glass-input border-white/10 text-white !w-full h-11 px-4 justify-between text-left font-normal" disabled={isInviting}>
+                                            <span className="truncate">
+                                                {departmentsList.find(d => String(d.id) === String(inviteDepartmentId))?.name || "Select department"}
+                                            </span>
+                                            <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
@@ -746,8 +749,9 @@ const ClientUsersPage = ({ entityId }) => {
                         <p className="text-sm text-gray-400 mb-4">
                             Select users from your organization to add to this entity.
                         </p>
-                        <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+                        <div className="relative w-full sm:w-auto mb-4 flex-grow sm:flex-grow-0">
                             <AnimatedSearch
+                            className='!w-full'
                                 placeholder="Search users by name or email..."
                                 value={existingUserSearchTerm}
                                 onChange={(e) => setExistingUserSearchTerm(e.target.value)}
@@ -895,16 +899,16 @@ const TeamActivityLog = ({ entityId }) => {
 
     return (
         <div className="flex flex-col glass-pane rounded-lg overflow-hidden">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-4 border-b border-white/5 shrink-0">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 p-4 border-b border-white/5 shrink-0">
                 <h3 className="text-lg font-semibold text-white">Activity Log</h3>
-                <div className="w-full sm:w-64 relative">
-                    <Search className="search-icon" />
-                    <Input
-                        placeholder="Search logs..."
-                        className="glass-input pl-10 w-full"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                    <div className="relative shrink-0">
+                        <AnimatedSearch
+                            placeholder="Search logs..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
                 </div>
             </div>
 

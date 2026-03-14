@@ -1248,6 +1248,8 @@ const TaskDashboardPage = () => {
         const commentText = newComment.trim() || '';
         const fileToSend = selectedFile;
 
+        if (!commentText && !fileToSend) return; // Prevent sending blank messages
+
         setIsSendingComment(true);
 
         // Don't clear inputs yet - wait for success
@@ -1566,6 +1568,93 @@ const TaskDashboardPage = () => {
             </div>
         );
     }
+
+    const handleExportActivityLog = () => {
+        if (!history || history.length === 0) {
+            toast({
+                title: 'No activity found',
+                description: 'There are no activity logs to download.',
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        const filteredHistory = history.filter(item =>
+            item.event_type !== 'comment_added' &&
+            item.event_type !== 'comment_updated' &&
+            item.event_type !== 'comment_deleted'
+        );
+
+        if (filteredHistory.length === 0) {
+            toast({
+                title: 'No activity logs',
+                description: 'There are no activity logs to download (excluding comments).',
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        // CSV Creation
+        const headers = ['Timestamp', 'Updated By', 'Action', 'Details'];
+        const csvRows = [
+            headers.join(','),
+            ...filteredHistory.map(item => {
+                const timestamp = format(new Date(item.created_at), 'dd MMM yyyy, HH:mm');
+                const activityCreator = getUserInfo(item.user_id);
+                const updater = activityCreator.name;
+                
+                // Construct activity text similar to eventText logic
+                let eventText = item.action || 'Performed action';
+                if (item.event_type === 'stage_changed') {
+                    const fromStage = stages.find(s => s.id === item.from_value?.stage_id)?.name || 'Unknown';
+                    const toStage = stages.find(s => s.id === item.to_value?.stage_id)?.name || 'Unknown';
+                    eventText = `Stage changed from "${fromStage}" to "${toStage}"`;
+                } else if (item.event_type === 'status_changed') {
+                    eventText = `Status changed from "${item.from_value?.status}" to "${item.to_value?.status}"`;
+                } else if (item.details) {
+                    eventText = item.details;
+                }
+
+                // Handle detailed changes for the details column
+                let details = '';
+                if (item.from_value && item.to_value && Object.keys(item.from_value).length > 0) {
+                    details = Object.keys(item.from_value)
+                        .filter(field => field !== 'stage_id' && field !== 'status')
+                        .map(field => {
+                            const fromDisplay = formatFieldValue(field, item.from_value[field]);
+                            const toDisplay = formatFieldValue(field, item.to_value[field]);
+                            return `${formatFieldName(field)}: ${fromDisplay} \u2192 ${toDisplay}`;
+                        })
+                        .join(' | ');
+                }
+
+                // Escape values for CSV
+                return [
+                    `"${timestamp}"`,
+                    `"${updater.replace(/"/g, '""')}"`,
+                    `"${eventText.replace(/"/g, '""')}"`,
+                    `"${details.replace(/"/g, '""')}"`
+                ].join(',');
+            })
+        ];
+
+        const csvContent = csvRows.join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', `task_${task.task_number || taskId}_activity_log_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        toast({
+            title: 'Export Success',
+            description: 'Activity log has been downloaded as CSV.',
+        });
+    };
 
     if (isLoading) {
         return (
@@ -2909,8 +2998,8 @@ const TaskDashboardPage = () => {
                                     />
                                     <Button
                                         onClick={handleSendComment}
-                                        disabled={isSendingComment || isCompleted}
-                                        className={`flex-shrink-0 h-10 w-10 rounded-full p-0 ${isCompleted ? 'bg-gray-600 cursor-not-allowed text-gray-400' : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white'}`}
+                                        disabled={isSendingComment || isCompleted || (!newComment.trim() && !selectedFile)}
+                                        className={`flex-shrink-0 h-10 w-10 rounded-full p-0 ${(isCompleted || isSendingComment || (!newComment.trim() && !selectedFile)) ? 'bg-gray-600 cursor-not-allowed text-gray-400' : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white'}`}
                                     >
                                         {isSendingComment ? (
                                             <Loader2 className="w-5 h-5 animate-spin" />
@@ -3352,9 +3441,20 @@ const TaskDashboardPage = () => {
                         {/* Activity Log - Column 4, Row 2 (col-span-1, row-span-1) - Blue Box */}
                         <Card className="glass-pane card-hover overflow-hidden rounded-2xl flex flex-col md:col-span-1 lg:col-span-1 lg:row-span-1 border-2 border-blue-500/50 h-[400px] lg:h-full">
                             <CardHeader className="flex-shrink-0">
-                                <CardTitle className="flex items-center gap-2">
-                                    <History className="w-5 h-5" />
-                                    Activity Log
+                                <CardTitle className="flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2">
+                                        <History className="w-5 h-5" />
+                                        Activity Log
+                                    </div>
+                                    <Button
+                                        variant="default"
+                                        size="icon"
+                                        className="h-8 w-8 text-white/70 hover:text-white"
+                                        onClick={handleExportActivityLog}
+                                        title="Download Activity Log"
+                                    >
+                                        <Download className="w-4 h-4" />
+                                    </Button>
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col pr-2">

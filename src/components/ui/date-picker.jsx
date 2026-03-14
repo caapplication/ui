@@ -13,7 +13,7 @@ import {
 
 import { subDays, isAfter, isBefore, startOfToday } from 'date-fns';
 
-export function DatePicker({ value, onChange, disabled: customDisabled, ...props }) {
+export function DatePicker({ value, onChange, disabled: customDisabled, className, ...props }) {
     const [date, setDate] = useState(value ? new Date(value) : null);
     const [inputValue, setInputValue] = useState(value ? format(new Date(value), 'dd/MM/yyyy') : '');
     const [popoverOpen, setPopoverOpen] = useState(false);
@@ -66,6 +66,10 @@ export function DatePicker({ value, onChange, disabled: customDisabled, ...props
     }
 
     if (parsedDate) {
+      if (isDateDisabled(parsedDate)) {
+        // Do not update state or trigger onChange if date is disabled
+        return;
+      }
       setDate(parsedDate);
       if (onChange) onChange(parsedDate);
     }
@@ -81,26 +85,26 @@ export function DatePicker({ value, onChange, disabled: customDisabled, ...props
   return (
     <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
       <PopoverTrigger asChild>
-        <div className="relative">
+        <div className={cn("relative", className)}>
           <Input
             ref={inputRef}
             type="text"
             placeholder="DD/MM/YYYY"
             value={inputValue}
             onChange={handleInputChange}
-            className="pr-10 h-11 rounded-full bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:ring-primary/20"
+            className="pr-10 h-10 rounded-full bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:ring-primary/20 cursor-pointer hover:bg-white/10 transition-colors"
           />
-          <CalendarIcon className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <CalendarIcon className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
         </div>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0 overflow-hidden" onOpenAutoFocus={(e) => e.preventDefault()}>
+      <PopoverContent className="w-auto p-0 glass-card border-white/10 shadow-2xl rounded-2xl overflow-hidden" onOpenAutoFocus={(e) => e.preventDefault()}>
         <Calendar
           mode="single"
           selected={date}
           onSelect={handleDateSelect}
           disabled={isDateDisabled}
           {...props}
-          className="bg-transparent text-white"
+          className="bg-transparent text-white p-3"
         />
       </PopoverContent>
     </Popover>

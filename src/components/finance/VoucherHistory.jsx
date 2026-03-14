@@ -13,7 +13,7 @@ import { getVoucherAttachment, updateVoucher } from '@/lib/api';
 import { getFinanceHeaders } from '@/lib/api/settings';
 import { formatCurrencyINR } from '@/lib/utils';
 
-const ITEMS_PER_PAGE = 10;
+// removed static ITEMS_PER_PAGE
 
 const formatDate = (dateString) => {
     const localDate = new Date(dateString);
@@ -43,16 +43,16 @@ const formatStatus = (status) => {
 const getStatusColor = (status) => {
     switch (status) {
         case 'verified':
-            return 'bg-green-500/20 text-green-400 border-green-500/30';
+            return 'bg-green-500/20 text-green-400 border-green-500/50';
         case 'rejected_by_ca':
         case 'rejected_by_master_admin':
-            return 'bg-red-500/20 text-red-400 border-red-500/30';
+            return 'bg-red-500/20 text-red-400 border-red-500/50';
         case 'pending_ca_approval':
-            return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+            return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50';
         case 'pending_master_admin_approval':
-            return 'bg-orange-500/20 text-orange-400 border-orange-500/30';
+            return 'bg-orange-500/20 text-orange-400 border-orange-500/50';
         default:
-            return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+            return 'bg-gray-500/20 text-gray-400 border-gray-500/50';
     }
 };
 
@@ -69,6 +69,7 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
     const [voucherToDelete, setVoucherToDelete] = useState(null);
     const [activePage, setActivePage] = useState(1);
     const [historyPage, setHistoryPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
     const [financeHeaders, setFinanceHeaders] = useState([]);
     const { user } = useAuth();
     const { toast } = useToast();
@@ -132,7 +133,7 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                     match = false;
                 }
             }
-            if (datePreset !== 'all_time') {
+            if (datePreset !== 'all_time' && datePreset !== 'last_year') {
                 const vDate = new Date(v.created_date);
                 const now = new Date();
                 const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -161,6 +162,10 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                     const last3Months = new Date(today);
                     last3Months.setMonth(last3Months.getMonth() - 3);
                     if (vDate < last3Months) match = false;
+                } else if (datePreset === 'last_6_months') {
+                    const last6Months = new Date(today);
+                    last6Months.setMonth(last6Months.getMonth() - 6);
+                    if (vDate < last6Months) match = false;
                 } else if (datePreset === 'custom') {
                     const from = dateRange?.from ? new Date(dateRange.from) : null;
                     const to = dateRange?.to ? new Date(dateRange.to) : null;
@@ -176,15 +181,23 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                         if (vDate > toEnd) match = false;
                     }
                 }
+            } else {
+                // all_time or last_year: limit to 365 days
+                const vDate = new Date(v.created_date);
+                const now = new Date();
+                const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                const lastYear = new Date(today);
+                lastYear.setDate(lastYear.getDate() - 365);
+                if (vDate < lastYear || vDate > today) match = false;
             }
             return match;
         });
     }, [vouchers, searchTerm, typeFilter, datePreset, dateRange, viewMode]);
 
-    const totalPages = Math.ceil(sortedAndFilteredVouchers.length / ITEMS_PER_PAGE);
+    const totalPages = Math.ceil(sortedAndFilteredVouchers.length / itemsPerPage);
     const paginatedVouchers = sortedAndFilteredVouchers.slice(
-        (currentPage - 1) * ITEMS_PER_PAGE,
-        currentPage * ITEMS_PER_PAGE
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
     );
 
     // Reset to page 1 when filters change
@@ -211,31 +224,29 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
             <CardHeader className="p-4 sm:p-6">
                 <div className="flex flex-col gap-4">
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-         <div className="flex p-1 rounded-lg border border-white/10 backdrop-blur-sm w-fit">
-  <button
-    type="button"
-    onClick={() => setViewMode('active')}
-    className={`px-3 py-1 text-sm font-medium rounded-md transition-all ${
-      viewMode === 'active'
-        ? 'bg-primary text-primary-foreground shadow-sm'
-        : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40'
-    }`}
-  >
-    Active
-  </button>
+                        <div className="flex p-1 rounded-lg border border-white/10 backdrop-blur-sm w-fit">
+                            <button
+                                type="button"
+                                onClick={() => setViewMode('active')}
+                                className={`px-3 py-1 text-sm font-medium rounded-md transition-all ${viewMode === 'active'
+                                        ? 'bg-primary text-primary-foreground shadow-sm'
+                                        : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40'
+                                    }`}
+                            >
+                                Active
+                            </button>
 
-  <button
-    type="button"
-    onClick={() => setViewMode('history')}
-    className={`px-3 py-1 text-sm font-medium rounded-md transition-all ${
-      viewMode === 'history'
-        ? 'bg-primary text-primary-foreground shadow-sm'
-        : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40'
-    }`}
-  >
-    History
-  </button>
-</div>
+                            <button
+                                type="button"
+                                onClick={() => setViewMode('history')}
+                                className={`px-3 py-1 text-sm font-medium rounded-md transition-all ${viewMode === 'history'
+                                        ? 'bg-primary text-primary-foreground shadow-sm'
+                                        : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40'
+                                    }`}
+                            >
+                                History
+                            </button>
+                        </div>
 
                         <div className="flex flex-wrap items-center justify-end gap-3 w-full lg:w-auto">
                             <div className="flex-1 min-w-[140px] sm:flex-none">
@@ -255,17 +266,19 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                                 <SelectTrigger className="w-full sm:w-[190px] h-11 rounded-full glass-input px-4">
                                     <div className="flex items-center gap-2">
                                         <Calendar className="w-4 h-4 text-gray-400" />
-                                        <SelectValue placeholder="All Time" />
+                                        <SelectValue placeholder="Last Year" />
                                     </div>
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="today">Today</SelectItem>
                                     <SelectItem value="yesterday">Yesterday</SelectItem>
-                                    <SelectItem value="last_7_days">Last 7 Days</SelectItem>
-                                    <SelectItem value="last_30_days">Last 30 Days</SelectItem>
-                                    <SelectItem value="this_month">This Month</SelectItem>
-                                    <SelectItem value="last_month">Last Month</SelectItem>
-                                    <SelectItem value="last_3_months">Last 3 Months</SelectItem>
+                                    <SelectItem value="last_7_days">Last 7 days</SelectItem>
+                                    <SelectItem value="last_30_days">Last 30 days</SelectItem>
+                                    <SelectItem value="this_month">This month</SelectItem>
+                                    <SelectItem value="last_month">Last month</SelectItem>
+                                    <SelectItem value="last_3_months">Last 3 month</SelectItem>
+                                    <SelectItem value="last_6_months">Last 6 month</SelectItem>
+                                    <SelectItem value="last_year">Last year</SelectItem>
                                     <SelectItem value="custom">Custom</SelectItem>
                                 </SelectContent>
                             </Select>
@@ -305,7 +318,7 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                             {paginatedVouchers.map(voucher => {
                                 const { date, time } = formatDate(voucher.created_date);
                                 return (
-                                    <TableRow key={voucher.id} onClick={() => onViewVoucher({ ...voucher, isReadOnly: viewMode === 'history' }, searchTerm || typeFilter !== 'all' || datePreset !== 'all_time', sortedAndFilteredVouchers)} className={`transition-colors cursor-pointer ${voucher.is_ready ? '' : ''}`}>
+                                    <TableRow key={voucher.id} onClick={() => onViewVoucher({ ...voucher, isReadOnly: viewMode === 'history' }, searchTerm || typeFilter !== 'all' || (datePreset !== 'all_time' && datePreset !== 'last_year'), sortedAndFilteredVouchers)} className={`transition-colors cursor-pointer ${voucher.is_ready ? '' : ''}`}>
                                         <TableCell className="text-xs sm:text-sm">
                                             <div>{date}</div>
                                             <div className="text-xs text-gray-400">{time}</div>
@@ -338,15 +351,29 @@ const VoucherHistory = ({ vouchers, onDeleteVoucher, onEditVoucher, onViewVouche
                 </div>
                 {paginatedVouchers.length === 0 && <p className="text-center text-gray-400 py-8 text-sm sm:text-base">No vouchers found.</p>}
             </CardContent>
-            <CardFooter className="flex flex-row justify-center items-center gap-3 p-4 sm:p-6 border-t border-white/10">
-                <div>
-                    <p className="text-xs sm:text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
+            <CardFooter className="flex flex-col sm:flex-row justify-center items-center gap-6 p-4 sm:p-6 border-t border-white/10">
+                <div className="flex items-center gap-4">
+                    <span className="text-sm text-gray-400 font-medium">Page {currentPage} of {totalPages > 0 ? totalPages : 1}</span>
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-400 hidden sm:inline">Rows per page:</span>
+                        <Select value={String(itemsPerPage)} onValueChange={(val) => { setItemsPerPage(Number(val)); setCurrentPage(1); }}>
+                            <SelectTrigger className="h-8 w-[70px] bg-transparent border-white/10 text-white text-xs">
+                                <SelectValue placeholder={String(itemsPerPage)} />
+                            </SelectTrigger>
+                            <SelectContent className="bg-gray-900 border-white/10 text-white">
+                                <SelectItem value="10">10</SelectItem>
+                                <SelectItem value="25">25</SelectItem>
+                                <SelectItem value="50">50</SelectItem>
+                                <SelectItem value="100">100</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
                 <div className="flex items-center gap-2">
                     <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white">
                         <ChevronLeft className="w-4 h-4" />
                     </Button>
-                    <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white">
+                    <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages || totalPages === 0} className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white">
                         <ChevronRight className="w-4 h-4" />
                     </Button>
                 </div>

@@ -22,7 +22,7 @@ const StatCard = ({ title, value, description, icon, color, delay }) => {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <div className="text-4xl font-bold text-white">{value}</div>
+                    <div className="text-4xl font-bold text-white">{typeof value === 'number' ? Math.round(value).toLocaleString() : value}</div>
                     <p className="text-xs text-gray-400 mt-1">{description}</p>
                 </CardContent>
             </Card>
@@ -32,7 +32,7 @@ const StatCard = ({ title, value, description, icon, color, delay }) => {
 
 const TransactionItem = ({ transaction }) => {
     const isCredit = transaction.voucher_type === 'cash';
-    const amount = parseFloat(transaction.amount).toFixed(2);
+    const amount = Math.round(parseFloat(transaction.amount));
     return (
         <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg hover:bg-white/10 transition-colors duration-300">
             <div>

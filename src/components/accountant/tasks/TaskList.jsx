@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Plus, MoreVertical, Edit, Trash2, Bell, UserPlus, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { Search, Plus, MoreVertical, Edit, Trash2, Bell, UserPlus, ChevronLeft, ChevronRight, Loader2, ArrowUpDown } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -25,6 +25,59 @@ import {
 } from "@/components/ui/alert-dialog";
 import { AlertDialogTrigger } from '@radix-ui/react-alert-dialog';
 import AnimatedSearch from '@/components/ui/AnimatedSearch';
+import {
+    startOfDay,
+    endOfDay,
+    subDays,
+    subMonths,
+    startOfMonth,
+    endOfMonth,
+    startOfYear
+} from 'date-fns';
+
+const TIME_FRAME_PRESETS = [
+    { value: 'today', label: 'Today' },
+    { value: 'yesterday', label: 'Yesterday' },
+    { value: 'last_7_days', label: 'Last 7 days' },
+    { value: 'last_30_days', label: 'Last 30 days' },
+    { value: 'this_month', label: 'This month' },
+    { value: 'last_month', label: 'Last month' },
+    { value: 'last_3_months', label: 'Last 3 month' },
+    { value: 'last_6_months', label: 'Last 6 month' },
+    { value: 'last_year', label: 'Last year' },
+    { value: 'custom', label: 'Custom' },
+];
+
+function getDateRange(preset) {
+    const now = new Date();
+    const todayStart = startOfDay(now);
+    const todayEnd = endOfDay(now);
+
+    switch (preset) {
+        case 'today':
+            return { from: todayStart, to: todayEnd };
+        case 'yesterday':
+            return { from: startOfDay(subDays(now, 1)), to: endOfDay(subDays(now, 1)) };
+        case 'last_7_days':
+            return { from: startOfDay(subDays(now, 6)), to: todayEnd };
+        case 'last_30_days':
+            return { from: startOfDay(subDays(now, 29)), to: todayEnd };
+        case 'this_month':
+            return { from: startOfMonth(now), to: endOfMonth(now) };
+        case 'last_month': {
+            const lastMonth = subMonths(now, 1);
+            return { from: startOfMonth(lastMonth), to: endOfMonth(lastMonth) };
+        }
+        case 'last_3_months':
+            return { from: startOfMonth(subMonths(now, 2)), to: todayEnd };
+        case 'last_6_months':
+            return { from: startOfMonth(subMonths(now, 5)), to: todayEnd };
+        case 'last_year':
+            return { from: startOfYear(now), to: todayEnd };
+        default:
+            return null;
+    }
+}
 
 // Blinking animation style
 const blinkStyle = `
@@ -47,7 +100,26 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
     const [taskCollaborators, setTaskCollaborators] = useState({}); // { taskId: [collaboratorIds] }
     const fetchedCollaboratorsRef = useRef(new Set()); // Track which tasks we've fetched collaborators for
     const [clientIdFilter, setClientIdFilter] = useState('all');
-    const [dateRange, setDateRange] = useState(undefined);
+    const [dateRange, setDateRange] = useState(getDateRange('last_30_days'));
+    const [timeFrame, setTimeFrame] = useState('last_30_days');
+    const [sortConfig, setSortConfig] = useState({ key: 'due_date', direction: 'asc' });
+
+    const requestSort = (key) => {
+        let direction = 'asc';
+        if (sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    useEffect(() => {
+        if (timeFrame !== 'custom' && timeFrame !== 'all') {
+            const range = getDateRange(timeFrame);
+            setDateRange(range);
+        } else if (timeFrame === 'all') {
+            setDateRange(undefined);
+        }
+    }, [timeFrame]);
 
     const getStatusVariant = (status) => {
         switch (status) {
@@ -305,28 +377,43 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
             return statusMatch && userMatch && searchMatch && clientMatch && dateMatch;
         });
 
-        // Sort: tasks with notifications first (sorted by updated_at descending), then others
+        // Sort: tasks with notifications first, then by sortConfig, then fallback to updated_at
         return filtered.sort((a, b) => {
             const aHasNotification = a.has_unread_messages || false;
             const bHasNotification = b.has_unread_messages || false;
 
-            // If both have notifications, sort by updated_at (latest first)
-            if (aHasNotification && bHasNotification) {
-                const aUpdated = a.updated_at ? new Date(a.updated_at).getTime() : 0;
-                const bUpdated = b.updated_at ? new Date(b.updated_at).getTime() : 0;
-                return bUpdated - aUpdated; // Descending (newest first)
-            }
-
-            // If only one has notification, it comes first
+            // Priority 1: Notifications always first
             if (aHasNotification && !bHasNotification) return -1;
             if (!aHasNotification && bHasNotification) return 1;
 
-            // Neither has notification, maintain original order (or sort by updated_at descending)
+            // Priority 2: Sort by configured key
+            const { key, direction } = sortConfig;
+            const isAsc = direction === 'asc';
+
+            if (key === 'due_date') {
+                const aDate = a.due_date ? new Date(a.due_date).getTime() : (isAsc ? Infinity : -Infinity);
+                const bDate = b.due_date ? new Date(b.due_date).getTime() : (isAsc ? Infinity : -Infinity);
+                if (aDate !== bDate) return isAsc ? aDate - bDate : bDate - aDate;
+            } else if (key === 'id') {
+                const aId = a.task_number || parseInt(String(a.id || '').replace(/[^\d]/g, '')) || 0;
+                const bId = b.task_number || parseInt(String(b.id || '').replace(/[^\d]/g, '')) || 0;
+                if (aId !== bId) return isAsc ? aId - bId : bId - aId;
+            } else if (key === 'updated_at') {
+                const aTime = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+                const bTime = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+                if (aTime !== bTime) return isAsc ? aTime - bTime : bTime - aTime;
+            } else if (key === 'created_at') {
+                const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+                const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+                if (aTime !== bTime) return isAsc ? aTime - bTime : bTime - aTime;
+            }
+
+            // Priority 3: Default fallback to latest update
             const aUpdated = a.updated_at ? new Date(a.updated_at).getTime() : 0;
             const bUpdated = b.updated_at ? new Date(b.updated_at).getTime() : 0;
             return bUpdated - aUpdated;
         });
-    }, [tasks, statusFilter, userFilter, searchTerm, clients, stages, currentUserId, taskCollaborators, clientIdFilter, dateRange, isHistoryView]);
+    }, [tasks, statusFilter, userFilter, searchTerm, clients, stages, currentUserId, taskCollaborators, clientIdFilter, dateRange, isHistoryView, sortConfig]);
 
     // Pagination calculations
     const totalPages = Math.ceil(filteredTasks.length / pageSize);
@@ -409,12 +496,13 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
         <div className="h-full flex flex-col">
             <div className={cn("rounded-lg flex-grow flex flex-col overflow-hidden", !isHistoryView && "glass-pane")}>
                 <div className="p-4 border-b border-white/10">
-                    <div className={cn("flex flex-col xl:flex-row items-start lg:items-center gap-4", isHistoryView ? "justify-end" : "justify-between")}>
-                        {!isHistoryView && <h2 className="text-xl font-semibold">All Tasks</h2>}
-                        <div className="flex flex-col lg:flex-row gap-2 w-full xl:w-auto flex-wrap items-center">
+            <div className='flex justify-between items-center'>  {!isHistoryView && <h2 className="text-xl font-semibold">All Tasks</h2>}
+                    <div className={cn("flex flex-row w-full flex-wrap items-center gap-4 flex-1 justify-end", isHistoryView ? "justify-end" : "justify-end")}>
+
+                        <div className="flex flex-row gap-2 w-full flex-wrap items-center justify-end">
                             {/* Client Filter */}
                             <Select value={clientIdFilter} onValueChange={setClientIdFilter}>
-                                <SelectTrigger className="glass-input w-full sm:w-[160px]">
+                                <SelectTrigger className="glass-input w-full sm:w-[160px] h-11 rounded-full">
                                     <SelectValue placeholder="Client" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -428,7 +516,7 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
 
 
                             {/* Clear Logic for new filters */}
-                            {(dateRange || clientIdFilter !== 'all') && (
+                            {/* {(dateRange || clientIdFilter !== 'all') && (
                                 <Button
                                     variant="ghost"
                                     size="icon"
@@ -441,10 +529,10 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                                 >
                                     <X className="h-4 w-4" />
                                 </Button>
-                            )}
+                            )} */}
                             {!isHistoryView && (
                                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                                    <SelectTrigger className="glass-input w-full sm:w-[160px]">
+                                    <SelectTrigger className="glass-input w-full sm:w-[160px] h-11 rounded-full">
                                         <SelectValue placeholder="Filter by status" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -472,7 +560,7 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                                 </Select>
                             )}
                             <Select value={userFilter} onValueChange={setUserFilter}>
-                                <SelectTrigger className="glass-input w-full sm:w-[160px]">
+                                <SelectTrigger className="glass-input w-full sm:w-[160px] h-11 rounded-full">
                                     <SelectValue placeholder="Filter by user" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -482,32 +570,82 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                                     <SelectItem value="collaborates">Collaborates</SelectItem>
                                 </SelectContent>
                             </Select>
+                            <Select value={timeFrame} onValueChange={setTimeFrame}>
+                                <SelectTrigger className="glass-input w-full sm:w-[160px] h-11 rounded-full">
+                                    <CalendarIcon className="w-4 h-4 mr-2 opacity-50" />
+                                    <SelectValue placeholder="Time Frame" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {/* <SelectItem value="all">All Time</SelectItem> */}
+                                    {TIME_FRAME_PRESETS.map(preset => (
+                                        <SelectItem key={preset.value} value={preset.value}>
+                                            {preset.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                             {/* Date Range Filter */}
-                            <DateRangePicker
-                                dateRange={dateRange}
-                                onChange={setDateRange}
-                                className="w-full sm:w-[200px]"
-                            />
-                            <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
-    <AnimatedSearch
-        placeholder="Search tasks..."
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-    />
-</div>
+                            {timeFrame === 'custom' && (
+                                <DateRangePicker
+                                    dateRange={dateRange}
+                                    onChange={setDateRange}
+                                    className="w-full sm:max-w-[280px] "
+                                />
+                            )}
+
+                            {/* Search Bar */}
+                            <div className="relative shrink-0">
+                                <AnimatedSearch
+                                    placeholder="Search tasks..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                />
+                            </div>
                         </div>
-                    </div>
+                    </div></div>
                 </div>
                 <div className="flex-grow relative min-h-0 overflow-x-auto overflow-y-auto">
                     <Table className="w-full min-w-[1000px]">
                         <TableHeader>
-                            <TableRow>
-                                <TableHead className="w-24">T.ID</TableHead>
+                            <TableRow className="border-white/10">
+                                <TableHead 
+                                    className="w-24 cursor-pointer hover:text-white transition-colors"
+                                    onClick={() => requestSort('id')}
+                                >
+                                    <div className="flex items-center gap-2">
+                                        T.ID
+                                        <ArrowUpDown className={cn("h-3 w-3", sortConfig.key === 'id' ? "text-primary" : "text-gray-500")} />
+                                    </div>
+                                </TableHead>
                                 <TableHead>TASK DETAILS</TableHead>
-                                <TableHead className="hidden lg:table-cell">LAST UPDATE BY</TableHead>
-                                <TableHead className="hidden md:table-cell">CREATED BY</TableHead>
+                                <TableHead 
+                                    className="hidden lg:table-cell cursor-pointer hover:text-white transition-colors"
+                                    onClick={() => requestSort('updated_at')}
+                                >
+                                    <div className="flex items-center gap-2">
+                                        LAST UPDATE BY
+                                        <ArrowUpDown className={cn("h-3 w-3", sortConfig.key === 'updated_at' ? "text-primary" : "text-gray-500")} />
+                                    </div>
+                                </TableHead>
+                                <TableHead 
+                                    className="hidden md:table-cell cursor-pointer hover:text-white transition-colors"
+                                    onClick={() => requestSort('created_at')}
+                                >
+                                    <div className="flex items-center gap-2">
+                                        CREATED BY
+                                        <ArrowUpDown className={cn("h-3 w-3", sortConfig.key === 'created_at' ? "text-primary" : "text-gray-500")} />
+                                    </div>
+                                </TableHead>
                                 <TableHead className="hidden sm:table-cell">ASSIGNED TO</TableHead>
-                                <TableHead className="hidden md:table-cell">DUE DATE</TableHead>
+                                <TableHead 
+                                    className="hidden md:table-cell cursor-pointer hover:text-white transition-colors"
+                                    onClick={() => requestSort('due_date')}
+                                >
+                                    <div className="flex items-center gap-2">
+                                        DUE DATE
+                                        <ArrowUpDown className={cn("h-3 w-3", sortConfig.key === 'due_date' ? "text-primary" : "text-gray-500")} />
+                                    </div>
+                                </TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>

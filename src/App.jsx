@@ -340,7 +340,7 @@ const ProtectedContent = () => {
               />
               <Route
                 path="/beneficiaries"
-                element={<Beneficiaries entityId={currentEntity} quickAction={null} clearQuickAction={() => { }} />}
+                element={<Beneficiaries entityId={currentEntity} entityName={getEntityName(currentEntity)} quickAction={null} clearQuickAction={() => { }} />}
               />
               <Route
                 path="/beneficiaries/ledger"

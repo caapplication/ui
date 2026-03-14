@@ -40,12 +40,14 @@ import AnimatedSearch from '@/components/ui/AnimatedSearch';
 const TIME_FRAME_PRESETS = [
     { label: 'Today', value: 'today' },
     { label: 'Yesterday', value: 'yesterday' },
-    { label: 'Last 7 Days', value: 'last_7_days' },
-    { label: 'Last 30 Days', value: 'last_30_days' },
-    { label: 'This Month', value: 'this_month' },
-    { label: 'Last Month', value: 'last_month' },
-    { label: 'Last 3 Months', value: 'last_3_months' },
-    { label: 'Custom Range', value: 'custom' },
+    { label: 'Last 7 days', value: 'last_7_days' },
+    { label: 'Last 30 days', value: 'last_30_days' },
+    { label: 'This month', value: 'this_month' },
+    { label: 'Last month', value: 'last_month' },
+    { label: 'Last 3 month', value: 'last_3_months' },
+    { label: 'Last 6 month', value: 'last_6_months' },
+    { label: 'Last year', value: 'last_year' },
+    { label: 'Custom', value: 'custom' },
 ];
 
 const getDateRange = (preset, start, end) => {
@@ -70,6 +72,13 @@ const getDateRange = (preset, start, end) => {
             return { start: startOfMonth(lastMonth), end: endOfMonth(lastMonth) };
         case 'last_3_months':
             return { start: startOfMonth(subMonths(today, 2)), end: endOfMonth(today) };
+        case 'last_6_months':
+            return { start: startOfMonth(subMonths(today, 5)), end: endOfMonth(today) };
+        case 'last_year':
+            const startOfLastYearMonth = startOfMonth(subMonths(today, 11)); // e.g if currently March, going back 11 months gives April of last year
+            const lastYearStart = new Date(today);
+            lastYearStart.setDate(lastYearStart.getDate() - 365);
+            return { start: startOfDay(lastYearStart), end: endOfToday };
         case 'custom':
             return {
                 start: start ? startOfDay(start) : null,
@@ -250,7 +259,7 @@ const RecentTransactionsExpanded = ({ entityId }) => {
                             </SelectTrigger>
                             <SelectContent>
                                 {TIME_FRAME_PRESETS.map(preset => (
-                                    <SelectItem key={preset.value} value={preset.value} className="text-xs">
+                                    <SelectItem key={preset.value} value={preset.value} className="">
                                         {preset.label}
                                     </SelectItem>
                                 ))}

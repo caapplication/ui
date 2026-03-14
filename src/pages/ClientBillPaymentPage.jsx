@@ -419,7 +419,7 @@ const ClientBillPaymentPage = ({ entityId }) => {
                             {/* Export Button */}
                             <Button
                                 onClick={handleExportCSV}
-                                className="gap-2 bg-blue-600 hover:bg-blue-700 border-0 text-white font-semibold rounded-full px-6 shadow-md transition-all h-9"
+                                className="gap-2 bg-blue-600 hover:bg-blue-700 border-0 text-white font-semibold rounded-full px-6 shadow-md transition-all "
                             >
                                 <Download className="w-4 h-4" />
                                 Export

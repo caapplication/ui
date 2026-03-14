@@ -31,13 +31,20 @@ import {
 } from '@/components/ui/select';
 import { getTaskDashboardAnalytics } from '@/lib/api';
 import AnimatedSearch from '@/components/ui/AnimatedSearch';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
+import { differenceInDays, subDays } from 'date-fns';
 
 const TIME_FRAME_PRESETS = [
-    { label: 'Last 7 Days', value: 7 },
-    { label: 'Last 15 Days', value: 15 },
-    { label: 'Last 30 Days', value: 30 },
-    { label: 'Last 60 Days', value: 60 },
-    { label: 'Last 90 Days', value: 90 },
+    { label: 'Today', value: 'today' },
+    { label: 'Yesterday', value: 'yesterday' },
+    { label: 'Last 7 days', value: 'last_7_days' },
+    { label: 'Last 30 days', value: 'last_30_days' },
+    { label: 'This month', value: 'this_month' },
+    { label: 'Last month', value: 'last_month' },
+    { label: 'Last 3 month', value: 'last_3_months' },
+    { label: 'Last 6 month', value: 'last_6_months' },
+    { label: 'Last year', value: 'last_year' },
+    { label: 'Custom', value: 'custom' },
 ];
 
 const OngoingTasksExpanded = () => {
@@ -47,7 +54,8 @@ const OngoingTasksExpanded = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [data, setData] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
-    const [timeFrame, setTimeFrame] = useState(30);
+    const [timeFrame, setTimeFrame] = useState('last_30_days');
+    const [dateRange, setDateRange] = useState({ from: subDays(new Date(), 30), to: new Date() });
     const itemsPerPage = 10;
     const { toast } = useToast();
 
@@ -94,7 +102,25 @@ const OngoingTasksExpanded = () => {
             const token = user.access_token;
             const agencyId = user.agency_id;
 
-            const analytics = await getTaskDashboardAnalytics(timeFrame, agencyId, token)
+            let days = 30;
+            if (timeFrame === 'custom') {
+                days = dateRange?.from ? differenceInDays(new Date(), dateRange.from) || 1 : 30;
+            } else {
+                switch (timeFrame) {
+                    case 'today': days = 1; break;
+                    case 'yesterday': days = 2; break;
+                    case 'last_7_days': days = 7; break;
+                    case 'last_30_days': days = 30; break;
+                    case 'this_month': days = new Date().getDate(); break;
+                    case 'last_month': days = new Date().getDate() + 30; break;
+                    case 'last_3_months': days = 90; break;
+                    case 'last_6_months': days = 180; break;
+                    case 'last_year': days = 365; break;
+                    default: days = 30; break;
+                }
+            }
+
+            const analytics = await getTaskDashboardAnalytics(days, agencyId, token)
                 .catch(() => ({ ongoing_stats: [] }));
 
             // Map API response to component data shape, hide "General / No Entity" (entity_id === null)
@@ -118,7 +144,7 @@ const OngoingTasksExpanded = () => {
         } finally {
             setLoading(false);
         }
-    }, [user, timeFrame]);
+    }, [user, timeFrame, dateRange]);
 
     useEffect(() => {
         fetchData();
@@ -182,7 +208,7 @@ const OngoingTasksExpanded = () => {
                         <SelectTrigger className="glass-input max-w-[170px]">
                             <SelectValue placeholder="Time frame" />
                         </SelectTrigger>
-                        <SelectContent className="bg-[#1a1a2e] border-white/10 text-white rounded-xl">
+                        <SelectContent className="">
                             {TIME_FRAME_PRESETS.map(preset => (
                                 <SelectItem key={preset.value} value={preset.value} className="hover:bg-white/10 focus:bg-white/10 cursor-pointer rounded-lg">
                                     {preset.label}
@@ -190,6 +216,16 @@ const OngoingTasksExpanded = () => {
                             ))}
                         </SelectContent>
                     </Select>
+
+                    {timeFrame === 'custom' && (
+                        <div className="w-full sm:w-auto">
+                            <DateRangePicker
+                                dateRange={dateRange}
+                                onChange={setDateRange}
+                                className="w-full sm:w-[280px] glass-input h-9 rounded-full !p-0"
+                            />
+                        </div>
+                    )}
 
                     <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
     <AnimatedSearch

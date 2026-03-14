@@ -38,7 +38,7 @@ const BeneficiaryForm = ({ onAdd, onCancel, isEdit, beneficiary, isSaving }) => 
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="individual">Individual</SelectItem>
-                        <SelectItem value="company">Company</SelectItem>
+                        <SelectItem value="company">Business</SelectItem>
                     </SelectContent>
                 </Select>
             </div>
@@ -47,21 +47,15 @@ const BeneficiaryForm = ({ onAdd, onCancel, isEdit, beneficiary, isSaving }) => 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div><Label htmlFor="name">Name</Label><Input name="name" id="name" required /></div>
                     <div><Label htmlFor="phone">Phone</Label><Input name="phone" id="phone" type="tel" required /></div>
-                    <div className="md:col-span-2"><Label htmlFor="email">Email <span className="text-gray-400 text-xs">(Optional)</span></Label><Input name="email" id="email" type="email" /></div>
                     <div><Label htmlFor="aadhar">Aadhar</Label><Input name="aadhar" id="aadhar" required /></div>
-                    <div><Label htmlFor="pan">PAN</Label><Input name="pan" id="pan" required /></div>
                 </div>
             )}
 
             {beneficiaryType === 'company' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div><Label htmlFor="company_name">Company Name</Label><Input name="company_name" id="company_name" required /></div>
+                    <div><Label htmlFor="company_name">Business Name</Label><Input name="company_name" id="company_name" required /></div>
                     <div><Label htmlFor="phone">Phone</Label><Input name="phone" id="phone" type="tel" required /></div>
-                    <div className="md:col-span-2"><Label htmlFor="email">Email Address <span className="text-gray-400 text-xs">(Optional)</span></Label><Input name="email" id="email" type="email" /></div>
                     <div><Label htmlFor="gstin">GSTIN</Label><Input name="gstin" id="gstin" required /></div>
-                    <div><Label htmlFor="pan">PAN</Label><Input name="pan" id="pan" required /></div>
-                    <div><Label htmlFor="aadhar">Aadhar (of Proprietor)</Label><Input name="aadhar" id="aadhar" required /></div>
-                    <div><Label htmlFor="proprietor_name">Proprietor Name</Label><Input name="proprietor_name" id="proprietor_name" required /></div>
                 </div>
             )}
 

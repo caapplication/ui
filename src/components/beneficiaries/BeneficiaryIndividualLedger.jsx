@@ -58,11 +58,13 @@ import {
 const TIME_FRAME_PRESETS = [
     { key: 'today', label: 'Today' },
     { key: 'yesterday', label: 'Yesterday' },
-    { key: 'last7', label: 'Last 7 Days' },
-    { key: 'last30', label: 'Last 30 Days' },
-    { key: 'thisMonth', label: 'This Month' },
-    { key: 'lastMonth', label: 'Last Month' },
-    { key: 'last3Months', label: 'Last 3 Months' },
+    { key: 'last_7_days', label: 'Last 7 days' },
+    { key: 'last_30_days', label: 'Last 30 days' },
+    { key: 'this_month', label: 'This month' },
+    { key: 'last_month', label: 'Last month' },
+    { key: 'last_3_months', label: 'Last 3 month' },
+    { key: 'last_6_months', label: 'Last 6 month' },
+    { key: 'last_year', label: 'Last year' },
     { key: 'custom', label: 'Custom' },
 ];
 
@@ -76,16 +78,23 @@ function getDateRange(preset, start, end) {
             return { from: todayStart, to: todayEnd };
         case 'yesterday':
             return { from: startOfDay(subDays(now, 1)), to: endOfDay(subDays(now, 1)) };
-        case 'last7':
+        case 'last_7_days':
             return { from: startOfDay(subDays(now, 6)), to: todayEnd };
-        case 'last30':
+        case 'last_30_days':
             return { from: startOfDay(subDays(now, 29)), to: todayEnd };
-        case 'thisMonth':
+        case 'this_month':
             return { from: startOfMonth(now), to: endOfMonth(now) };
-        case 'lastMonth':
+        case 'last_month':
             return { from: startOfMonth(subMonths(now, 1)), to: endOfMonth(subMonths(now, 1)) };
-        case 'last3Months':
+        case 'last_3_months':
             return { from: startOfDay(subMonths(now, 3)), to: todayEnd };
+        case 'last_6_months':
+            return { from: startOfDay(subMonths(now, 6)), to: todayEnd };
+        case 'last_year': {
+            const lastYearStart = new Date(now);
+            lastYearStart.setDate(lastYearStart.getDate() - 365);
+            return { from: startOfDay(lastYearStart), to: todayEnd };
+        }
         case 'custom':
             return { from: start ? startOfDay(start) : null, to: end ? endOfDay(end) : null };
         default:
@@ -162,14 +171,14 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
     const [beneficiary, setBeneficiary] = useState(null);
     const [transactions, setTransactions] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
-    const [timeFrame, setTimeFrame] = useState('last30');
+    const [timeFrame, setTimeFrame] = useState('last_30_days');
     const [customStartDate, setCustomStartDate] = useState(null);
     const [customEndDate, setCustomEndDate] = useState(null);
     const [dateError, setDateError] = useState('');
     const [sortColumn, setSortColumn] = useState('date');
     const [sortDirection, setSortDirection] = useState('desc');
     const [currentPage, setCurrentPage] = useState(1);
-    const pageSize = 10;
+    const [pageSize, setPageSize] = useState(10);
 
     const fetchData = useCallback(async () => {
         if (!user?.access_token || !organizationId || !entityId || !beneficiaryId) return;
@@ -288,7 +297,7 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
     };
 
     const filteredAndSortedData = useMemo(() => {
-        const { from, to } = getDateRange(timeFrame, customStartDate, customEndDate);
+        const { from, to } = getDateRange(timeFrame, customStartDate, customEndDate) || {};
 
         let result = transactions.filter(tx => {
             const search = searchTerm.toLowerCase();
@@ -448,7 +457,7 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
                             // variant="outline"
                             size="sm"
                             onClick={handleExport}
-                            className="h-9 rounded-full bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm"
+                            className=" rounded-full bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm"
                         >
                             <Download className="w-4 h-4" />
                             <span>Export</span>
@@ -466,12 +475,31 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
                             </SelectTrigger>
                             <SelectContent>
                                 {TIME_FRAME_PRESETS.map(preset => (
-                                    <SelectItem key={preset.key} value={preset.key} className="text-xs">
+                                    <SelectItem key={preset.key} value={preset.key} className="">
                                         {preset.label}
                                     </SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
+
+                        {timeFrame === 'custom' && (
+                            <div className="flex flex-col items-end gap-2">
+                                <DateRangePicker
+                                    dateRange={{ from: customStartDate, to: customEndDate }}
+                                    onChange={(range) => {
+                                        setCustomStartDate(range?.from);
+                                        setCustomEndDate(range?.to);
+                                    }}
+                                />
+                                {dateError && (
+                                    <div className="flex items-center gap-1.5 text-[10px] text-red-400 bg-red-400/10 px-2 py-1 rounded-lg border border-red-400/20">
+                                        <AlertCircle className="w-3 h-3" />
+                                        {dateError}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
                         <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
                             <AnimatedSearch
                                 value={searchTerm}
@@ -480,24 +508,6 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
                             />
                         </div>
                     </div>
-
-                    {timeFrame === 'custom' && (
-                        <div className="flex flex-col items-end gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
-                            <DateRangePicker 
-                                dateRange={{ from: customStartDate, to: customEndDate }}
-                                onChange={(range) => {
-                                    setCustomStartDate(range?.from);
-                                    setCustomEndDate(range?.to);
-                                }}
-                            />
-                            {dateError && (
-                                <div className="flex items-center gap-1.5 text-[10px] text-red-400 bg-red-400/10 px-2 py-1 rounded-lg border border-red-400/20">
-                                    <AlertCircle className="w-3 h-3" />
-                                    {dateError}
-                                </div>
-                            )}
-                        </div>
-                    )}
                 </div>
             </div>
 
@@ -641,30 +651,56 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
 
                 {/* Pagination */}
                 {totalPages > 1 && (
-                    <div className="p-4 sm:p-6 border-t border-white/5 flex justify-center items-center gap-3">
-                        <div>
-                            <p className="text-xs sm:text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
-                        </div>
+                    <div className="p-4 sm:p-6 border-t border-white/5 flex flex-col sm:flex-row justify-between items-center gap-4">
                         <div className="flex items-center gap-2">
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-8 w-8 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
-                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                disabled={currentPage === 1}
+                            <span className="text-xs sm:text-sm text-gray-400">Rows per page:</span>
+                            <Select
+                                value={pageSize.toString()}
+                                onValueChange={(val) => {
+                                    setPageSize(parseInt(val));
+                                    setCurrentPage(1);
+                                }}
                             >
-                                <ChevronLeft className="w-4 h-4" />
-                            </Button>
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-8 w-8 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
-                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                                disabled={currentPage === totalPages}
-                            >
-                                <ChevronRight className="w-4 h-4" />
-                            </Button>
+                                <SelectTrigger className="h-8 w-16 sm:w-20 bg-transparent border-white/10 text-white rounded-xl text-xs sm:text-sm">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="bg-gray-900 border-white/10 text-white rounded-xl min-w-[5rem]">
+                                    {[10, 25, 50, 100].map((size) => (
+                                        <SelectItem key={size} value={size.toString()} className="text-xs sm:text-sm focus:bg-white/10 focus:text-white rounded-lg">
+                                            {size}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
+
+                        <div className="flex flex-row justify-center items-center gap-4">
+                            <div>
+                                <p className="text-xs sm:text-sm text-gray-400">Page {currentPage} of {totalPages}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-8 w-8 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
+                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                    disabled={currentPage === 1}
+                                >
+                                    <ChevronLeft className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-8 w-8 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
+                                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                    disabled={currentPage === totalPages}
+                                >
+                                    <ChevronRight className="w-4 h-4" />
+                                </Button>
+                            </div>
+                        </div>
+
+                        <div className="hidden sm:block w-[120px]"></div>
                     </div>
                 )}
             </Card>
