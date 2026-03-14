@@ -385,6 +385,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
   const [selectedTemplateForApply, setSelectedTemplateForApply] = useState(null);
   const [selectedClientsForTemplate, setSelectedClientsForTemplate] = useState([]);
   const [templateClientSearch, setTemplateClientSearch] = useState('');
+  const [sortBy, setSortBy] = useState('recent'); // 'recent', 'name-asc', 'name-desc'
 
   // Initialize collabSelectedClientId when user changes
   useEffect(() => {
@@ -831,8 +832,31 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
       );
     }
 
-    return filtered;
-  }, [currentFolder, searchTerm, activeTab, sharedDocuments, currentFolderId]);
+    // Apply Sorting
+    return [...filtered].sort((a, b) => {
+      if (sortBy === 'name-asc') {
+        return a.name.localeCompare(b.name);
+      } else if (sortBy === 'name-desc') {
+        return b.name.localeCompare(a.name);
+      } else if (sortBy === 'recent') {
+        // Sort by created_at (most recent first)
+        const dateA = a.created_at ? new Date(a.created_at) : null;
+        const dateB = b.created_at ? new Date(b.created_at) : null;
+        
+        if (dateA && dateB) {
+          if (dateB - dateA !== 0) return dateB - dateA;
+        } else if (dateA) {
+          return -1;
+        } else if (dateB) {
+          return 1;
+        }
+        
+        // Fallback to id if dates are missing or equal
+        return (b.id || 0) - (a.id || 0);
+      }
+      return 0;
+    });
+  }, [currentFolder, searchTerm, activeTab, sharedDocuments, currentFolderId, sortBy]);
 
   const handleUpload = async (e) => {
     e.preventDefault();
@@ -863,6 +887,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
       file_type: file.type || 'Unknown',
       size: file.size,
       expiry_date: withoutExpiryDate ? null : (shareExpiryDate ? shareExpiryDate.toISOString().split('T')[0] : null),
+      created_at: new Date().toISOString(),
       folder_id: currentFolderId === 'root' ? null : currentFolderId
     };
 
@@ -1006,6 +1031,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
       name: newFolderName,
       is_folder: true,
       children: [],
+      created_at: new Date().toISOString(),
       parent_id: currentFolderId === 'root' ? null : currentFolderId
     };
 
@@ -2364,13 +2390,23 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
               </>
             )}
 
-            <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
-    <AnimatedSearch
-        placeholder="Search..."
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-    />
-</div>
+            <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0 flex items-center gap-2">
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="w-[120px] h-9 sm:h-10 bg-white/5 backdrop-blur-sm border-white/10 text-white rounded-full hover:bg-white/10 hover:text-white transition-all shadow-lg border">
+                  <SelectValue placeholder="Sort" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#0b0c0e] border-white/10 text-white rounded-2xl shadow-2xl overflow-hidden">
+                  <SelectItem value="recent">Recent</SelectItem>
+                  <SelectItem value="name-asc">A-Z</SelectItem>
+                  <SelectItem value="name-desc">Z-A</SelectItem>
+                </SelectContent>
+              </Select>
+              <AnimatedSearch
+                placeholder="Search..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
 
           </div>
         </div>
@@ -2634,8 +2670,8 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                       Without expiry date
                     </Label>
                   </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="renewal-expiry-date" className="text-right">
+                  <div className="space-y-2">
+                    <Label htmlFor="renewal-expiry-date">
                       Expiry Date <span className="text-red-500">*</span>
                     </Label>
                     <DatePicker
@@ -2647,6 +2683,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                         }
                       }}
                       disabled={(date) => date < new Date().setHours(0, 0, 0, 0)}
+                      className="w-full"
                     />
                   </div>
                 </div>
@@ -2744,8 +2781,8 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                       Without expiry date
                     </Label>
                   </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="expiry-date" className="text-right">
+                  <div className="space-y-2">
+                    <Label htmlFor="expiry-date">
                       Expiry Date <span className="text-red-500">*</span>
                     </Label>
                     <DatePicker
@@ -2757,6 +2794,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                         }
                       }}
                       disabled={(date) => date < new Date().setHours(0, 0, 0, 0)}
+                      className="w-full"
                     />
                   </div>
                 </div>
@@ -2850,9 +2888,6 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
               <DialogTitle className="text-white text-lg font-semibold">Share link</DialogTitle>
             </div>
             <div className="flex items-center space-x-2">
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <User className="w-4 h-4 text-gray-400" />
-              </Button>
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShareDialogOpen(false)}>
                 <X className="w-4 h-4 text-gray-400" />
               </Button>
@@ -3165,12 +3200,12 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                 {isMutating ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Sharing...
+                    Collaborating...
                   </>
                 ) : (
                   <>
                     <UserPlus className="w-4 h-4 mr-2" />
-                    Share with {selectedUsers.length > 0 ? `${selectedUsers.length} ` : ''}User{selectedUsers.length !== 1 ? 's' : ''}
+                    Collaborate
                   </>
                 )}
               </Button>
