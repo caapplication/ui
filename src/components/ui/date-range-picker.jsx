@@ -13,7 +13,6 @@ import {
 export function DateRangePicker({ dateRange, onChange, className, placeholder = "Pick a date" }) {
     const [open, setOpen] = useState(false);
     const [tempRange, setTempRange] = useState(dateRange);
-
     const today = startOfToday();
     const minDate = subDays(today, 365);
 
@@ -61,7 +60,7 @@ export function DateRangePicker({ dateRange, onChange, className, placeholder = 
                         )}
                     </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 overflow-hidden" align="end">
+                <PopoverContent className="w-auto p-0 glass-card border-white/10 shadow-2xl" align="end">
                     <div className="p-1">
                         <Calendar
                             initialFocus
@@ -77,17 +76,17 @@ export function DateRangePicker({ dateRange, onChange, className, placeholder = 
                         />
                     </div>
                     <div className="flex items-center justify-end gap-2 p-3 border-t border-white/10 bg-white/5">
-                        <Button 
-                            variant="ghost" 
-                            size="sm" 
+                        <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={handleClear}
                             className="text-gray-400 hover:text-white hover:bg-white/10 h-8 text-xs"
                         >
                             <X className="mr-1 h-3 w-3" />
                             Clear
                         </Button>
-                        <Button 
-                            size="sm" 
+                        <Button
+                            size="sm"
                             onClick={handleApply}
                             className="bg-primary text-white hover:bg-primary/90 h-8 text-xs px-4"
                         >

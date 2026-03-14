@@ -276,14 +276,13 @@ function BankTallyListTab({ clientId, token, toast, readOnly = false }) {
             <CardTitle className="text-lg sm:text-xl text-white">Bank Tally</CardTitle>
             <div className="flex flex-wrap items-center gap-2 sm:gap-4 flex-1 justify-end">
               <Select value={datePreset} onValueChange={setDatePreset}>
-                <SelectTrigger className="w-full sm:w-[160px] h-11 rounded-full glass-input px-4">
+                <SelectTrigger className="w-full sm:w-[190px] h-11 rounded-full glass-input px-4">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-gray-400" />
                     <SelectValue placeholder="Last Year" />
                   </div>
                 </SelectTrigger>
                 <SelectContent className="bg-gray-900 border-white/10 text-white rounded-2xl">
-                  <SelectItem value="last_year">Last Year</SelectItem>
                   <SelectItem value="today">Today</SelectItem>
                   <SelectItem value="yesterday">Yesterday</SelectItem>
                   <SelectItem value="last_7_days">Last 7 Days</SelectItem>
@@ -291,16 +290,11 @@ function BankTallyListTab({ clientId, token, toast, readOnly = false }) {
                   <SelectItem value="this_month">This Month</SelectItem>
                   <SelectItem value="last_month">Last Month</SelectItem>
                   <SelectItem value="last_3_months">Last 3 Months</SelectItem>
+                  <SelectItem value="last_year">Last Year</SelectItem>
                   <SelectItem value="custom">Custom</SelectItem>
                 </SelectContent>
               </Select>
-              <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
-                <AnimatedSearch
-                  placeholder="Date..."
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                />
-              </div>
+
               {datePreset === 'custom' && (
                 <DateRangePicker
                   dateRange={dateRange}
@@ -308,6 +302,14 @@ function BankTallyListTab({ clientId, token, toast, readOnly = false }) {
                   className="w-full sm:w-auto"
                 />
               )}
+
+              <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+                <AnimatedSearch
+                  placeholder="Date..."
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -695,14 +697,13 @@ function CashTallyListTab({ clientId, entityId, token, toast, readOnly = false }
             <CardTitle className="text-lg sm:text-xl text-white">Cash Tally</CardTitle>
             <div className="flex flex-wrap items-center gap-2 sm:gap-4 flex-1 justify-end">
               <Select value={datePreset} onValueChange={setDatePreset}>
-                <SelectTrigger className="w-full sm:w-[160px] h-11 rounded-full glass-input px-4">
+                <SelectTrigger className="w-full sm:w-[190px] h-11 rounded-full glass-input px-4">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-gray-400" />
                     <SelectValue placeholder="Last Year" />
                   </div>
                 </SelectTrigger>
                 <SelectContent className="bg-gray-900 border-white/10 text-white rounded-2xl">
-                  <SelectItem value="last_year">Last Year</SelectItem>
                   <SelectItem value="today">Today</SelectItem>
                   <SelectItem value="yesterday">Yesterday</SelectItem>
                   <SelectItem value="last_7_days">Last 7 Days</SelectItem>
@@ -710,16 +711,11 @@ function CashTallyListTab({ clientId, entityId, token, toast, readOnly = false }
                   <SelectItem value="this_month">This Month</SelectItem>
                   <SelectItem value="last_month">Last Month</SelectItem>
                   <SelectItem value="last_3_months">Last 3 Months</SelectItem>
+                  <SelectItem value="last_year">Last Year</SelectItem>
                   <SelectItem value="custom">Custom</SelectItem>
                 </SelectContent>
               </Select>
-              <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
-                <AnimatedSearch
-                  placeholder="Date, Closing..."
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                />
-              </div>
+
               {datePreset === 'custom' && (
                 <DateRangePicker
                   dateRange={dateRange}
@@ -727,6 +723,14 @@ function CashTallyListTab({ clientId, entityId, token, toast, readOnly = false }
                   className="w-full sm:w-auto"
                 />
               )}
+
+              <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+                <AnimatedSearch
+                  placeholder="Date, Closing..."
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -1121,14 +1125,13 @@ function CashierReportListTab({ clientId, token, toast }) {
             <CardTitle className="text-lg sm:text-xl text-white">Cashier Report</CardTitle>
             <div className="flex flex-wrap items-center gap-2 sm:gap-4 flex-1 justify-end">
               <Select value={datePreset} onValueChange={setDatePreset}>
-                <SelectTrigger className="w-full sm:w-[160px] h-11 rounded-full glass-input px-4">
+                <SelectTrigger className="w-full sm:w-[190px] h-11 rounded-full glass-input px-4">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-gray-400" />
                     <SelectValue placeholder="Last Year" />
                   </div>
                 </SelectTrigger>
                 <SelectContent className="bg-gray-900 border-white/10 text-white rounded-2xl">
-                  <SelectItem value="last_year">Last Year</SelectItem>
                   <SelectItem value="today">Today</SelectItem>
                   <SelectItem value="yesterday">Yesterday</SelectItem>
                   <SelectItem value="last_7_days">Last 7 Days</SelectItem>
@@ -1136,16 +1139,11 @@ function CashierReportListTab({ clientId, token, toast }) {
                   <SelectItem value="this_month">This Month</SelectItem>
                   <SelectItem value="last_month">Last Month</SelectItem>
                   <SelectItem value="last_3_months">Last 3 Months</SelectItem>
+                  <SelectItem value="last_year">Last Year</SelectItem>
                   <SelectItem value="custom">Custom</SelectItem>
                 </SelectContent>
               </Select>
-              <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
-                <AnimatedSearch
-                  placeholder="Date, Remarks..."
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                />
-              </div>
+
               {datePreset === 'custom' && (
                 <DateRangePicker
                   dateRange={dateRange}
@@ -1153,6 +1151,14 @@ function CashierReportListTab({ clientId, token, toast }) {
                   className="w-full sm:w-auto"
                 />
               )}
+
+              <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+                <AnimatedSearch
+                  placeholder="Date, Remarks..."
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -1841,14 +1847,13 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
             </div>
             <div className="flex flex-wrap items-center gap-2 sm:gap-4 flex-1 justify-end">
               <Select value={datePreset} onValueChange={setDatePreset}>
-                <SelectTrigger className="w-full sm:w-[160px] h-11 rounded-full glass-input px-4">
+                <SelectTrigger className="w-full sm:w-[190px] h-11 rounded-full glass-input px-4">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-gray-400" />
                     <SelectValue placeholder="Last Year" />
                   </div>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="last_year">Last Year</SelectItem>
                   <SelectItem value="today">Today</SelectItem>
                   <SelectItem value="yesterday">Yesterday</SelectItem>
                   <SelectItem value="last_7_days">Last 7 Days</SelectItem>
@@ -1856,16 +1861,11 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
                   <SelectItem value="this_month">This Month</SelectItem>
                   <SelectItem value="last_month">Last Month</SelectItem>
                   <SelectItem value="last_3_months">Last 3 Months</SelectItem>
+                  <SelectItem value="last_year">Last Year</SelectItem>
                   <SelectItem value="custom">Custom</SelectItem>
                 </SelectContent>
               </Select>
-              <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
-                <AnimatedSearch
-                  placeholder="Date, Department, Created by..."
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                />
-              </div>
+
               {datePreset === 'custom' && (
                 <DateRangePicker
                   dateRange={dateRange}
@@ -1873,6 +1873,14 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
                   className="w-full sm:w-auto"
                 />
               )}
+
+              <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
+                <AnimatedSearch
+                  placeholder="Date, Department, Created by..."
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                />
+              </div>
             </div>
           </div>
         </div>

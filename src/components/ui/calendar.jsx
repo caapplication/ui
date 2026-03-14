@@ -16,7 +16,7 @@ function Calendar({
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
-      className={cn("p-4 bg-[#0b0c0e] rounded-2xl", className)}
+      className={cn("p-4 bg-transparent rounded-2xl", className)}
       classNames={{
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-8 sm:space-y-0",
         month: "space-y-4",
@@ -26,7 +26,7 @@ function Calendar({
         nav: "flex items-center",
         nav_button: cn(
           buttonVariants({ variant: "ghost" }),
-          "h-8 w-8 bg-white/5 p-0 text-white hover:bg-white/10 hover:text-white transition-colors border border-white/10"
+          "h-8 w-8 bg-white/5 p-0 text-white hover:bg-white/10 hover:text-white transition-colors border border-white/10 rounded-lg"
         ),
         nav_button_previous: "",
         nav_button_next: "",
@@ -35,16 +35,16 @@ function Calendar({
         head_row: "flex mb-2",
         head_cell: "text-gray-500 rounded-md w-10 font-medium text-[0.8rem] uppercase tracking-wider",
         row: "flex w-full mt-1",
-        cell: "h-10 w-10 text-center text-sm p-0 relative [&:has([aria-selected])]:bg-primary/10 first:[&:has([aria-selected])]:rounded-l-full last:[&:has([aria-selected])]:rounded-r-full [&:has([aria-selected].day-range-end)]:rounded-r-full [&:has([aria-selected].day-range-start)]:rounded-l-full focus-within:relative focus-within:z-20",
+        cell: "h-10 w-10 text-center text-sm p-0 relative [&:has([aria-selected])]:bg-primary/5 first:[&:has([aria-selected])]:rounded-l-full last:[&:has([aria-selected])]:rounded-r-full [&:has([aria-selected].day-range-end)]:rounded-r-full [&:has([aria-selected].day-range-start)]:rounded-l-full focus-within:relative focus-within:z-20",
         day: cn(
           buttonVariants({ variant: "ghost" }),
-          "h-10 w-10 p-0 font-normal text-white hover:bg-white/10 transition-all rounded-full"
+          "h-10 w-10 p-0 font-normal text-white hover:bg-white/20 transition-all rounded-full border border-transparent hover:border-white/10"
         ),
-        day_selected: "bg-primary !text-white hover:bg-primary hover:text-white focus:bg-primary focus:text-white rounded-full font-semibold shadow-lg shadow-primary/20",
-        day_today: "bg-white/10 text-white border border-white/20",
+        day_selected: "bg-primary/80 !text-white hover:bg-primary hover:text-white focus:bg-primary focus:text-white rounded-full font-bold shadow-[0_0_15px_rgba(var(--primary-rgb),0.5)] border border-primary/50 backdrop-blur-md",
+        day_today: "bg-white/5 text-white border border-white/20 shadow-inner",
         day_outside: "text-gray-600 opacity-50",
         day_disabled: "text-gray-700 opacity-30 cursor-not-allowed",
-        day_range_middle: "aria-selected:bg-primary/20 aria-selected:!text-white font-medium !rounded-none",
+        day_range_middle: "aria-selected:bg-primary/10 aria-selected:!text-white font-medium !rounded-none",
         day_hidden: "invisible",
         ...classNames,
       }}
@@ -54,7 +54,7 @@ function Calendar({
         Caption: ({ displayMonth, ...props }) => {
           const { fromYear, toYear } = useDayPicker();
           const { goToMonth, nextMonth, previousMonth } = useNavigation();
-          
+
           const currentYear = displayMonth.getFullYear();
           const startYear = fromYear || currentYear - 10;
           const endYear = toYear || currentYear + 10;

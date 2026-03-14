@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Plus, Copy, Trash2, MoreVertical, ExternalLink, Eye, EyeOff, Loader2, Edit } from 'lucide-react';
+import { Search, Plus, Copy, Trash2, MoreVertical, ExternalLink, Eye, EyeOff, Loader2, Edit, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
 import NewPasswordDialog from './NewPasswordDialog';
 import {
@@ -44,6 +45,8 @@ const ClientPasswordsTab = ({ client }) => {
     const [revealedPasswords, setRevealedPasswords] = useState({});
     const [isLoading, setIsLoading] = useState(true);
     const [isMutating, setIsMutating] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
 
     const fetchPasswords = useCallback(async () => {
         setIsLoading(true);
@@ -136,6 +139,16 @@ const ClientPasswordsTab = ({ client }) => {
         });
     }, [passwords, searchTerm]);
 
+    const totalPages = Math.ceil(filteredPasswords.length / itemsPerPage);
+    const paginatedPasswords = filteredPasswords.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+    );
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm]);
+
     return (
         <div className="glass-pane rounded-lg overflow-hidden flex flex-col h-full">
             <div className="flex justify-end items-center p-4 sm:p-4 pb-0 sm:pb-0  mb-4 gap-3">
@@ -165,7 +178,7 @@ const ClientPasswordsTab = ({ client }) => {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {filteredPasswords.map(p => {
+                            {paginatedPasswords.map(p => {
                                 const isRevealed = !!revealedPasswords[p.id];
                                 return (
                                     <TableRow key={p.id}>
@@ -240,11 +253,58 @@ const ClientPasswordsTab = ({ client }) => {
                     </Table>
                 )}
                 {!isLoading && filteredPasswords.length === 0 && (
-                    <div className="text-center py-10 text-gray-500 font-medium">
+                    <div className="text-center py-10 text-gray-500 font-medium font-mono">
                         {searchTerm ? `No passwords found matching "${searchTerm}"` : "No passwords found. Click \"New\" to add one."}
                     </div>
                 )}
             </div>
+
+            {filteredPasswords.length > 0 && (
+                <div className="flex flex-col sm:flex-row justify-center items-center gap-6 p-4 border-t border-white/10 shrink-0 bg-transparent">
+                    <div className="flex items-center gap-4">
+                        <span className="text-sm text-gray-400 font-medium">
+                            Page {currentPage} of {totalPages > 0 ? totalPages : 1}
+                        </span>
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-400 hidden sm:inline">Rows per page:</span>
+                            <Select value={String(itemsPerPage)} onValueChange={(val) => { 
+                                setItemsPerPage(Number(val)); 
+                                setCurrentPage(1); 
+                            }}>
+                                <SelectTrigger className="h-8 w-[70px] bg-transparent border-white/10 text-white text-xs">
+                                    <SelectValue placeholder={String(itemsPerPage)} />
+                                </SelectTrigger>
+                                <SelectContent className="bg-gray-900 border-white/10 text-white">
+                                    <SelectItem value="10">10</SelectItem>
+                                    <SelectItem value="25">25</SelectItem>
+                                    <SelectItem value="50">50</SelectItem>
+                                    <SelectItem value="100">100</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                            disabled={currentPage === 1}
+                            className="h-9 w-9 rounded-full bg-transparent border-white/20 hover:bg-white/10 text-white"
+                        >
+                            <ChevronLeft className="w-4 h-4" />
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                            disabled={currentPage === totalPages || totalPages === 0}
+                            className="h-9 w-9 rounded-full bg-transparent border-white/20 hover:bg-white/10 text-white"
+                        >
+                            <ChevronRight className="w-4 h-4" />
+                        </Button>
+                    </div>
+                </div>
+            )}
 
             <NewPasswordDialog
                 isOpen={isPasswordDialogOpen}

@@ -11,6 +11,7 @@ import { listTasks, createTask, updateTask, deleteTask as apiDeleteTask, listCli
 import { AnimatePresence, motion } from 'framer-motion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { useOrganisation } from '@/hooks/useOrganisation';
 import {
     Dialog,
@@ -540,7 +541,7 @@ const TaskManagementPage = ({ entityId, entityName }) => {
                         <Link to="/tasks/recurring">
                             <Button
                                 variant="outline"
-                                className= " glass-input max-w-[200px] text-white border-white/20 hover:bg-white/10 rounded-lg"
+                                className= "glass-input max-w-[200px] text-white border-white/20 hover:bg-white/10 rounded-full h-11"
                             >
                                 <Repeat className="w-4 h-4 sm:mr-2" />
                                 <span className=" hidden sm:inline">Recurring Tasks</span>
@@ -549,12 +550,12 @@ const TaskManagementPage = ({ entityId, entityName }) => {
                         <Button
                             onClick={() => setShowHistoryDialog(true)}
                             variant="outline"
-                            className= " glass-input max-w-[150px] text-white border-white/20 hover:bg-white/10 rounded-lg"
+                            className= "glass-input max-w-[150px] text-white border-white/20 hover:bg-white/10 rounded-full h-11"
                         >
                             <History className="w-4 h-4 sm:mr-2" />
                             <span className="hidden sm:inline">History</span>
                         </Button>
-                        <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1">
+                        <div className="flex items-center gap-1 bg-white/5 rounded-full p-1 h-11">
                             <Button
                                 variant={viewMode === 'list' ? 'default' : 'ghost'}
                                 size="sm"
@@ -564,7 +565,10 @@ const TaskManagementPage = ({ entityId, entityName }) => {
                                     localStorage.setItem('taskViewMode', 'list');
                                     localStorage.setItem('taskView', 'list');
                                 }}
-                                className={viewMode === 'list' ? 'bg-white/10  glass-input max-w-[100px]' : ' glass-input max-w-[100px]'}
+                                className={cn(
+                                    "rounded-full px-4 h-9",
+                                    viewMode === 'list' ? 'bg-white/10 text-white' : 'text-gray-400'
+                                )}
                             >
                                 <List className="w-4 h-4 sm:mr-2" />
                                 <span className="hidden sm:inline">List</span>
@@ -578,13 +582,16 @@ const TaskManagementPage = ({ entityId, entityName }) => {
                                     localStorage.setItem('taskViewMode', 'kanban');
                                     localStorage.setItem('taskView', 'kanban');
                                 }}
-                                className={viewMode === 'kanban' ? 'bg-white/10' : ''}
+                                className={cn(
+                                    "rounded-full px-4 h-9",
+                                    viewMode === 'kanban' ? 'bg-white/10 text-white' : 'text-gray-400'
+                                )}
                             >
                                 <LayoutGrid className="w-4 h-4 sm:mr-2" />
                                 <span className="hidden sm:inline">Kanban</span>
                             </Button>
                         </div>
-                        <Button onClick={handleAddNew} className="h-9 rounded-full bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-4 shadow-sm w-full sm:w-auto justify-center">
+                        <Button onClick={handleAddNew} className="h-11 rounded-full bg-white/5 border-white/10 text-white hover:bg-white/10 gap-2 px-6 shadow-sm w-full sm:w-auto justify-center">
                             <Plus className="w-4 h-4 sm:mr-2" />
                             <span className="hidden sm:inline">New Task</span>
                         </Button>

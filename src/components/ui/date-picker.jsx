@@ -97,7 +97,7 @@ export function DatePicker({ value, onChange, disabled: customDisabled, ...props
           <CalendarIcon className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
         </div>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0 overflow-hidden" onOpenAutoFocus={(e) => e.preventDefault()}>
+      <PopoverContent className="w-auto p-0  border border-white/20 bg-black/70 backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] rounded-2xl overflow-hidden" onOpenAutoFocus={(e) => e.preventDefault()}>
         <Calendar
           mode="single"
           selected={date}

@@ -31,13 +31,19 @@ import {
 } from '@/components/ui/select';
 import { getTaskDashboardAnalytics } from '@/lib/api';
 import AnimatedSearch from '@/components/ui/AnimatedSearch';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
+import { differenceInDays, subDays } from 'date-fns';
 
 const TIME_FRAME_PRESETS = [
-    { label: 'Last 7 Days', value: 7 },
-    { label: 'Last 15 Days', value: 15 },
-    { label: 'Last 30 Days', value: 30 },
-    { label: 'Last 60 Days', value: 60 },
-    { label: 'Last 90 Days', value: 90 },
+    { label: 'Today', value: 'today' },
+    { label: 'Yesterday', value: 'yesterday' },
+    { label: 'Last 7 Days', value: 'last_7_days' },
+    { label: 'Last 30 Days', value: 'last_30_days' },
+    { label: 'This Month', value: 'this_month' },
+    { label: 'Last Month', value: 'last_month' },
+    { label: 'Last 3 Months', value: 'last_3_months' },
+    { label: 'Last Year', value: 'last_year' },
+    { label: 'Custom', value: 'custom' },
 ];
 
 const OngoingTasksExpanded = () => {
@@ -47,7 +53,8 @@ const OngoingTasksExpanded = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [data, setData] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
-    const [timeFrame, setTimeFrame] = useState(30);
+    const [timeFrame, setTimeFrame] = useState('last_30_days');
+    const [dateRange, setDateRange] = useState({ from: subDays(new Date(), 30), to: new Date() });
     const itemsPerPage = 10;
     const { toast } = useToast();
 
@@ -94,7 +101,24 @@ const OngoingTasksExpanded = () => {
             const token = user.access_token;
             const agencyId = user.agency_id;
 
-            const analytics = await getTaskDashboardAnalytics(timeFrame, agencyId, token)
+            let days = 30;
+            if (timeFrame === 'custom') {
+                days = dateRange?.from ? differenceInDays(new Date(), dateRange.from) || 1 : 30;
+            } else {
+                switch (timeFrame) {
+                    case 'today': days = 1; break;
+                    case 'yesterday': days = 2; break;
+                    case 'last_7_days': days = 7; break;
+                    case 'last_30_days': days = 30; break;
+                    case 'this_month': days = new Date().getDate(); break;
+                    case 'last_month': days = new Date().getDate() + 30; break;
+                    case 'last_3_months': days = 90; break;
+                    case 'last_year': days = 365; break;
+                    default: days = 30; break;
+                }
+            }
+
+            const analytics = await getTaskDashboardAnalytics(days, agencyId, token)
                 .catch(() => ({ ongoing_stats: [] }));
 
             // Map API response to component data shape, hide "General / No Entity" (entity_id === null)
@@ -118,7 +142,7 @@ const OngoingTasksExpanded = () => {
         } finally {
             setLoading(false);
         }
-    }, [user, timeFrame]);
+    }, [user, timeFrame, dateRange]);
 
     useEffect(() => {
         fetchData();
@@ -190,6 +214,16 @@ const OngoingTasksExpanded = () => {
                             ))}
                         </SelectContent>
                     </Select>
+
+                    {timeFrame === 'custom' && (
+                        <div className="w-full sm:w-auto">
+                            <DateRangePicker
+                                dateRange={dateRange}
+                                onChange={setDateRange}
+                                className="w-full sm:w-[260px] glass-input h-9 rounded-full"
+                            />
+                        </div>
+                    )}
 
                     <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
     <AnimatedSearch
