@@ -1248,6 +1248,8 @@ const TaskDashboardPage = () => {
         const commentText = newComment.trim() || '';
         const fileToSend = selectedFile;
 
+        if (!commentText && !fileToSend) return; // Prevent sending blank messages
+
         setIsSendingComment(true);
 
         // Don't clear inputs yet - wait for success
@@ -2996,8 +2998,8 @@ const TaskDashboardPage = () => {
                                     />
                                     <Button
                                         onClick={handleSendComment}
-                                        disabled={isSendingComment || isCompleted}
-                                        className={`flex-shrink-0 h-10 w-10 rounded-full p-0 ${isCompleted ? 'bg-gray-600 cursor-not-allowed text-gray-400' : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white'}`}
+                                        disabled={isSendingComment || isCompleted || (!newComment.trim() && !selectedFile)}
+                                        className={`flex-shrink-0 h-10 w-10 rounded-full p-0 ${(isCompleted || isSendingComment || (!newComment.trim() && !selectedFile)) ? 'bg-gray-600 cursor-not-allowed text-gray-400' : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white'}`}
                                     >
                                         {isSendingComment ? (
                                             <Loader2 className="w-5 h-5 animate-spin" />
