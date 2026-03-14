@@ -163,7 +163,7 @@ body {
 }
 
 .glass-input {
-  @apply pl-9 h-9 text-sm w-full sm:w-[250px];
+  @apply pl-9 h-10 text-sm w-full sm:w-[250px];
 }
 
 .page-header {
