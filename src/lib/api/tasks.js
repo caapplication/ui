@@ -36,7 +36,10 @@ export const getUnreadNotificationCount = async (agencyId, token) => {
             headers: getAuthHeaders(token, 'application/json', agencyId),
         });
         const data = await handleResponse(response);
-        return data.count;
+        // Calculate total including chats, assignments and closure requests
+        const total = (data.unread_comments || 0) + (data.assigned_tasks || 0) + (data.closure_requests || 0);
+        // Fallback to data.count if none of the above are present (legacy support)
+        return total || data.count || 0;
     } catch (error) {
         console.warn('Failed to fetch unread count:', error);
         return 0;

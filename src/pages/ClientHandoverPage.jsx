@@ -1090,7 +1090,7 @@ function CashTallyFormPage({ clientId, entityId, token, toast, readOnly = false 
                               <Input
                                 type="text"
                                 readOnly
-                                className="h-10 sm:h-12 text-lg glass-input w-full bg-white/5 text-white font-bold text-center border-white/10"
+                                className="h-10 sm:h-12 text-lg glass-input w-full bg-white/5 text-white font-bold text-start border-white/10 px-4"
                                 value={denominationTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                               />
                               <div className="text-left pl-1">

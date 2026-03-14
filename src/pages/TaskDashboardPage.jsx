@@ -2475,13 +2475,10 @@ const TaskDashboardPage = () => {
                                             ? 'bg-pink-100 dark:bg-pink-900/30'
                                             : ''
                                             }`}
-                                            style={task.has_unread_messages ? {
-                                                animation: 'vibrate 0.8s ease-in-out infinite'
-                                            } : {}}
                                         >
                                             {task.has_unread_messages && (
                                                 <Bell
-                                                    className="w-4 h-4 text-red-500"
+                                                    className="w-4 h-4 text-red-500 animate-bell-shake"
                                                 />
                                             )}
                                             <span className={`font-medium text-sm ${task.has_unread_messages
@@ -3027,7 +3024,7 @@ const TaskDashboardPage = () => {
                                                 </Button>
                                             </DialogTrigger>
                                         )}
-                                        <DialogContent className="glass-pane">
+                                        <DialogContent className="glass-pane ">
                                             <DialogHeader>
                                                 <DialogTitle>Add New Checklist Item</DialogTitle>
                                                 <DialogDescription>Enter the checklist item name below</DialogDescription>
@@ -3038,7 +3035,7 @@ const TaskDashboardPage = () => {
                                                     value={newChecklistItem}
                                                     onChange={(e) => setNewChecklistItem(e.target.value)}
                                                     onKeyPress={(e) => e.key === 'Enter' && !isAddingChecklistItem && handleAddChecklistItem()}
-                                                    className="glass-input"
+                                                    className="glass-input !w-full"
                                                     disabled={isAddingChecklistItem}
                                                 />
                                             </div>
