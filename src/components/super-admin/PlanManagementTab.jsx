@@ -66,6 +66,21 @@ const PlanManagementTab = () => {
 
   const handleCreatePlan = async (e) => {
     e.preventDefault();
+    
+    // Validation
+    if (!newPlan.name.trim()) {
+      toast({ title: 'Validation Error', description: 'Plan name is required.', variant: 'destructive' });
+      return;
+    }
+    if (!newPlan.description.trim()) {
+      toast({ title: 'Validation Error', description: 'Description is required.', variant: 'destructive' });
+      return;
+    }
+    if (newPlan.module_ids.length === 0) {
+      toast({ title: 'Validation Error', description: 'At least one module must be selected.', variant: 'destructive' });
+      return;
+    }
+
     try {
       setCreateLoading(true);
       await createAdminPlan(newPlan, user.access_token);
@@ -115,7 +130,7 @@ const PlanManagementTab = () => {
               <Plus className="w-4 h-4" /> Create New Plan
             </Button>
           </DialogTrigger>
-          <DialogContent className="glass-effect border-white/10 text-white max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="glass-effect border-white/10 text-white max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create Bundled Plan</DialogTitle>
               <DialogDescription className="text-gray-400">
@@ -125,7 +140,7 @@ const PlanManagementTab = () => {
             <form onSubmit={handleCreatePlan} className="space-y-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Plan Name</label>
+                  <label className="text-sm font-medium">Plan Name <span className="text-red-400">*</span></label>
                   <Input 
                     placeholder="e.g. Basic CA Suite" 
                     value={newPlan.name} 
@@ -135,7 +150,7 @@ const PlanManagementTab = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Target Type</label>
+                  <label className="text-sm font-medium">Target Type <span className="text-red-400">*</span></label>
                   <Select value={newPlan.plan_type} onValueChange={v => setNewPlan({...newPlan, plan_type: v})}>
                     <SelectTrigger className="bg-white/5 border-white/10">
                       <SelectValue />
@@ -149,7 +164,7 @@ const PlanManagementTab = () => {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Description</label>
+                <label className="text-sm font-medium">Description <span className="text-red-400">*</span></label>
                 <Input 
                   placeholder="What does this plan include?" 
                   value={newPlan.description} 
@@ -201,32 +216,73 @@ const PlanManagementTab = () => {
 
               <div className="space-y-3">
                 <label className="text-sm font-medium flex items-center gap-2">
-                  Include Modules 
+                  Include Modules <span className="text-red-400">*</span>
                   <Badge variant="outline" className="text-[10px] text-primary border-primary/30">
                     {newPlan.module_ids.length} Selected
                   </Badge>
                 </label>
-                <div className="grid grid-cols-2 gap-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
-                  {uniqueModules.map(mod => (
-                    <label 
-                      key={mod.id}
-                      className={`flex items-center gap-3 p-2 rounded border cursor-pointer transition-all ${
-                        newPlan.module_ids.includes(mod.id) 
-                        ? 'bg-primary/20 border-primary/50 text-white' 
-                        : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
-                      }`}
-                    >
-                      <Checkbox 
-                        checked={newPlan.module_ids.includes(mod.id)} 
-                        onCheckedChange={() => toggleModuleSelection(mod.id)}
-                        className="border-white/20"
-                      />
-                      <div className="overflow-hidden flex-1">
-                        <div className="text-xs font-semibold truncate">{mod.name}</div>
-                        <div className="text-[10px] text-gray-500 truncate">₹{mod.monthly_price_inr}/mo</div>
-                      </div>
-                    </label>
-                  ))}
+                <div className="max-h-[300px] overflow-y-auto pr-2 custom-scrollbar space-y-4">
+                  {/* CA Modules */}
+                  <div>
+                    <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
+                       <div className="h-px flex-1 bg-white/5"></div>
+                       Core Infrastructure
+                       <div className="h-px flex-1 bg-white/5"></div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {uniqueModules.filter(m => m.module_type === 'CA').map(mod => (
+                        <label 
+                          key={mod.id}
+                          className={`flex items-start gap-2 p-2 rounded border cursor-pointer transition-all ${
+                            newPlan.module_ids.includes(mod.id) 
+                            ? 'bg-primary/20 border-primary/50 text-white' 
+                            : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                          }`}
+                        >
+                          <Checkbox 
+                            checked={newPlan.module_ids.includes(mod.id)} 
+                            onCheckedChange={() => toggleModuleSelection(mod.id)}
+                            className="mt-0.5 border-white/20"
+                          />
+                          <div className="overflow-hidden flex-1">
+                            <div className="text-[11px] font-semibold truncate leading-tight" title={mod.name}>{mod.name}</div>
+                            <div className="text-[9px] text-gray-500 truncate">₹{mod.monthly_price_inr}/mo</div>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Client Modules */}
+                  <div>
+                    <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
+                       <div className="h-px flex-1 bg-white/5"></div>
+                       Service Add-ons
+                       <div className="h-px flex-1 bg-white/5"></div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {uniqueModules.filter(m => m.module_type !== 'CA').map(mod => (
+                        <label 
+                          key={mod.id}
+                          className={`flex items-start gap-2 p-2 rounded border cursor-pointer transition-all ${
+                            newPlan.module_ids.includes(mod.id) 
+                            ? 'bg-primary/20 border-primary/50 text-white' 
+                            : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                          }`}
+                        >
+                          <Checkbox 
+                            checked={newPlan.module_ids.includes(mod.id)} 
+                            onCheckedChange={() => toggleModuleSelection(mod.id)}
+                            className="mt-0.5 border-white/20"
+                          />
+                          <div className="overflow-hidden flex-1">
+                            <div className="text-[11px] font-semibold truncate leading-tight" title={mod.name}>{mod.name}</div>
+                            <div className="text-[9px] text-gray-500 truncate">₹{mod.monthly_price_inr}/mo</div>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
 
