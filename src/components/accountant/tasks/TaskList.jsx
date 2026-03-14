@@ -224,6 +224,31 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
         }
     };
 
+    const getDueDateBadgeColor = (dateString) => {
+        if (!dateString) return 'bg-gray-500/20 text-gray-300 border-gray-500/50';
+        try {
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) return 'bg-gray-500/20 text-gray-300 border-gray-500/50';
+
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const due = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+            const diffTime = due.getTime() - today.getTime();
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            if (diffDays < 0) {
+                return 'bg-red-500/20 text-red-300 border-red-500/50'; // Overdue
+            } else if (diffDays <= 3) {
+                return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/50'; // Due within 3 days
+            } else {
+                return 'bg-green-500/20 text-green-300 border-green-500/50'; // Due more than 3 days
+            }
+        } catch {
+            return 'bg-gray-500/20 text-gray-300 border-gray-500/50';
+        }
+    };
+
     const formatTimeAgo = (dateString) => {
         if (!dateString) return 'N/A';
         try {
@@ -806,7 +831,7 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                                                             <span className="text-xs text-transparent italic select-none">
                                                                 &nbsp;
                                                             </span>
-                                                            <Badge variant="outline" className={`${getDateBadgeColor(task.due_date)} text-xs w-fit italic`}>
+                                                            <Badge variant="outline" className={`${getDueDateBadgeColor(task.due_date)} text-xs w-fit italic`}>
                                                                 {formatTimeUntil(task.due_date)}
                                                             </Badge>
                                                         </>
