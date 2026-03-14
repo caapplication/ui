@@ -323,9 +323,11 @@ function BankTallyListTab({ clientId, token, toast, readOnly = false }) {
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent border-white/10">
-                  <TableHead className="text-xs sm:text-sm text-gray-300">Date</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300">Date & Time</TableHead>
                   <TableHead className="text-xs sm:text-sm text-gray-300">Updated By</TableHead>
-                  <TableHead className="text-xs sm:text-sm text-gray-300">Time</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300">Opening Balance</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300">Closing Balance</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-gray-300">Variance</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -340,9 +342,22 @@ function BankTallyListTab({ clientId, token, toast, readOnly = false }) {
                       className="cursor-pointer transition-colors hover:bg-white/5 border-white/10"
                       onClick={() => navigate('entry/' + encodeURIComponent(entry.report_date))}
                     >
-                      <TableCell className="text-xs sm:text-sm text-white">{toDDMMYYYY(entry.report_date)}</TableCell>
-                      <TableCell className="text-xs sm:text-sm text-white">{entry.updated_by_name || '—'}</TableCell>
-                      <TableCell className="text-xs sm:text-sm text-white">{formatTime(entry.updated_at)}</TableCell>
+                      <TableCell className="text-xs sm:text-sm text-white whitespace-nowrap">
+                        {toDDMMYYYY(entry.report_date)}
+                        <span className="block text-xs text-gray-400 mt-0.5">{formatTime(entry.updated_at)}</span>
+                      </TableCell>
+                      <TableCell className="text-xs sm:text-sm text-white whitespace-nowrap">{entry.updated_by_name || '—'}</TableCell>
+                      <TableCell className="text-xs sm:text-sm text-white whitespace-nowrap">
+                        ₹ {(entry.opening_balance ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className="text-xs sm:text-sm text-white whitespace-nowrap">
+                        ₹ {(entry.closing_balance ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className={`text-xs sm:text-sm font-bold whitespace-nowrap ${
+                        (entry.variance ?? 0) > 0 ? 'text-green-400' : (entry.variance ?? 0) < 0 ? 'text-red-400' : 'text-white'
+                      }`}>
+                        {entry.variance != null ? Math.round(entry.variance).toLocaleString('en-IN') : '—'}
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -511,7 +526,19 @@ function BankTallyFormPage({ clientId, token, toast, readOnly = false }) {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Input type="date" className="glass-input max-w-[200px]" value={reportDate} readOnly />
+            <DatePicker
+              value={reportDate}
+              onChange={(newDate) => {
+                if (!newDate) return;
+                const dateStr = format(newDate, 'yyyy-MM-dd');
+                if (isNew) {
+                  navigate(`../entry/${encodeURIComponent(dateStr)}`, { relative: 'path', replace: true });
+                } else {
+                  navigate(`../${encodeURIComponent(dateStr)}`, { relative: 'path', replace: true });
+                }
+              }}
+              className="w-40"
+            />
             {!isReadOnly && (
               <Button onClick={handleSave} disabled={saving} className="h-9 sm:h-10 text-sm">
                 {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save
@@ -550,7 +577,19 @@ function BankTallyFormPage({ clientId, token, toast, readOnly = false }) {
                             <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input w-32 sm:w-44 bg-white/5 text-white text-center mx-auto" value={opening.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} />
                           </TableCell>
                           <TableCell className="text-center">
-                            <Input type="number" min={0} step={0.01} readOnly={isReadOnly} className={`h-9 sm:h-10 text-sm glass-input w-32 sm:w-44 text-white text-center mx-auto ${isReadOnly ? 'bg-white/5 cursor-default' : ''}`} value={closingVal} onChange={e => setClosing(bank.id, e.target.value)} placeholder="Closing" />
+                            <Input 
+                              type="text" 
+                              readOnly={isReadOnly} 
+                              className={`h-9 sm:h-10 text-sm glass-input w-32 sm:w-44 text-white text-center mx-auto ${isReadOnly ? 'bg-white/5 cursor-default' : ''}`} 
+                              value={closingVal !== '' && closingVal != null && !isNaN(closingVal) ? Number(closingVal).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : closingVal} 
+                              onChange={(e) => {
+                                const raw = e.target.value.replace(/,/g, '');
+                                if (raw === '' || /^\d*\.?\d*$/.test(raw)) {
+                                  setClosing(bank.id, raw);
+                                }
+                              }} 
+                              placeholder="Closing" 
+                            />
                           </TableCell>
                           <TableCell className="text-center">
                             <Input 
@@ -939,7 +978,19 @@ function CashTallyFormPage({ clientId, entityId, token, toast, readOnly = false 
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <Input type="date" className="glass-input max-w-[200px]" value={reportDate} readOnly />
+            <DatePicker
+              value={reportDate}
+              onChange={(newDate) => {
+                if (!newDate) return;
+                const dateStr = format(newDate, 'yyyy-MM-dd');
+                if (isNew) {
+                  navigate(`../entry/${encodeURIComponent(dateStr)}`, { relative: 'path', replace: true });
+                } else {
+                  navigate(`../${encodeURIComponent(dateStr)}`, { relative: 'path', replace: true });
+                }
+              }}
+              className="w-40"
+            />
           </div>
         </CardHeader>
         <CardContent className="space-y-6 pt-0">
