@@ -168,7 +168,7 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
     const [beneficiary, setBeneficiary] = useState(null);
     const [transactions, setTransactions] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
-    const [timeFrame, setTimeFrame] = useState('last30');
+    const [timeFrame, setTimeFrame] = useState('last_30_days');
     const [customStartDate, setCustomStartDate] = useState(null);
     const [customEndDate, setCustomEndDate] = useState(null);
     const [dateError, setDateError] = useState('');
@@ -294,7 +294,7 @@ const BeneficiaryIndividualLedger = ({ entityId }) => {
     };
 
     const filteredAndSortedData = useMemo(() => {
-        const { from, to } = getDateRange(timeFrame, customStartDate, customEndDate);
+        const { from, to } = getDateRange(timeFrame, customStartDate, customEndDate) || {};
 
         let result = transactions.filter(tx => {
             const search = searchTerm.toLowerCase();
