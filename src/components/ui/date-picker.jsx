@@ -23,8 +23,8 @@ export function DatePicker({ value, onChange, disabled: customDisabled, classNam
     const minDate = subDays(today, 365);
 
     const isDateDisabled = (date) => {
-        // First check if it's outside the global 365-day range
-        const isOutsideRange = isAfter(date, today) || isBefore(date, minDate);
+        // Only check if it's way in the past (more than 365 days)
+        const isOutsideRange = isBefore(date, minDate);
         if (isOutsideRange) return true;
 
         // Then check custom disabled logic if provided
@@ -92,7 +92,7 @@ export function DatePicker({ value, onChange, disabled: customDisabled, classNam
             placeholder="DD/MM/YYYY"
             value={inputValue}
             onChange={handleInputChange}
-            className="pr-10 h-11 rounded-full bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:ring-primary/20 cursor-pointer hover:bg-white/10 transition-colors"
+            className="pr-10 h-10 rounded-full bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:ring-primary/20 cursor-pointer hover:bg-white/10 transition-colors"
           />
           <CalendarIcon className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
         </div>
