@@ -253,7 +253,7 @@ const InvoiceHistory = ({ invoices, onDeleteInvoice, onEditInvoice, onViewInvoic
               History
             </button>
           </div>
-          <div className="flex items-center gap-3 w-full lg:w-auto lg:justify-end">
+          <div className="flex flex-wrap md:flex-nowrap items-center gap-3 w-full lg:w-auto lg:justify-end">
             <div className=" w-full ">
               <Select value={datePreset} onValueChange={setDatePreset}>
                 <SelectTrigger className="w-full sm:w-[190px] glass-input h-11 rounded-full text-white focus:ring-primary/20 px-4">

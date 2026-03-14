@@ -259,7 +259,7 @@ const RecentTransactionsExpanded = ({ entityId }) => {
                             </SelectTrigger>
                             <SelectContent>
                                 {TIME_FRAME_PRESETS.map(preset => (
-                                    <SelectItem key={preset.value} value={preset.value} className="text-xs">
+                                    <SelectItem key={preset.value} value={preset.value} className="">
                                         {preset.label}
                                     </SelectItem>
                                 ))}

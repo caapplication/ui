@@ -234,16 +234,16 @@ const FinanceHeadersExpanded = ({ entityId }) => {
                                 <SelectValue placeholder="Time Frame" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="today" className="text-xs">Today</SelectItem>
-                                <SelectItem value="yesterday" className="text-xs">Yesterday</SelectItem>
-                                <SelectItem value="last_7_days" className="text-xs">Last 7 Days</SelectItem>
-                                <SelectItem value="last_30_days" className="text-xs">Last 30 Days</SelectItem>
-                                <SelectItem value="this_month" className="text-xs">This Month</SelectItem>
-                                <SelectItem value="last_month" className="text-xs">Last Month</SelectItem>
-                                <SelectItem value="last_3_months" className="text-xs">Last 3 Months</SelectItem>
-                                <SelectItem value="last_6_months" className="text-xs">Last 6 Months</SelectItem>
-                                <SelectItem value="last_year" className="text-xs">Last Year</SelectItem>
-                                <SelectItem value="custom" className="text-xs">Custom</SelectItem>
+                                <SelectItem value="today" className="">Today</SelectItem>
+                                <SelectItem value="yesterday" className="">Yesterday</SelectItem>
+                                <SelectItem value="last_7_days" className="">Last 7 Days</SelectItem>
+                                <SelectItem value="last_30_days" className="">Last 30 Days</SelectItem>
+                                <SelectItem value="this_month" className="">This Month</SelectItem>
+                                <SelectItem value="last_month" className="">Last Month</SelectItem>
+                                <SelectItem value="last_3_months" className="">Last 3 Months</SelectItem>
+                                <SelectItem value="last_6_months" className="">Last 6 Months</SelectItem>
+                                <SelectItem value="last_year" className="">Last Year</SelectItem>
+                                <SelectItem value="custom" className="">Custom</SelectItem>
                             </SelectContent>
                         </Select>
 
