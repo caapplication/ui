@@ -364,7 +364,7 @@ const AgencyDetails = () => {
           variant="ghost"
           size="icon"
           className="text-gray-400 hover:text-white bg-white/5 border border-white/10"
-          onClick={() => navigate('/super-admin/agencies')}
+          onClick={() => navigate(-1)}
         >
           <ArrowLeft className="w-5 h-5" />
         </Button>
