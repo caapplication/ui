@@ -10,7 +10,10 @@ import { jwtDecode } from "jwt-decode";
 const getDefaultAuthValue = () => ({
   user: null,
   loading: false,
-  login: async () => { },
+  login: async () => { 
+    console.warn('useAuth.login was called outside AuthProvider. This is a fallback.');
+    return { twoFactorEnabled: false }; 
+  },
   verifyOtpAndFinishLogin: async () => { },
   logout: () => { },
   updateUser: () => { },

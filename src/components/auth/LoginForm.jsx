@@ -26,7 +26,7 @@ const LoginForm = () => {
     try {
       const result = await login(email, password);
 
-      if (result.twoFactorEnabled) {
+      if (result && result.twoFactorEnabled) {
         navigate('/verify-2fa', { state: { loginData: result.loginData } });
       } else {
         toast({
