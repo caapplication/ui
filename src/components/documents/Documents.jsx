@@ -842,7 +842,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
         // Sort by created_at (most recent first)
         const dateA = a.created_at ? new Date(a.created_at) : null;
         const dateB = b.created_at ? new Date(b.created_at) : null;
-        
+
         if (dateA && dateB) {
           if (dateB - dateA !== 0) return dateB - dateA;
         } else if (dateA) {
@@ -850,7 +850,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
         } else if (dateB) {
           return 1;
         }
-        
+
         // Fallback to id if dates are missing or equal
         return (b.id || 0) - (a.id || 0);
       }
@@ -2609,7 +2609,10 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
           }}>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle className="break-all pr-6 mb-2">Renew Document: {renewalDoc?.name}</DialogTitle>
+                <DialogTitle className="flex flex-col gap-1 pr-6 mb-2">
+                  <span>Renew Document</span>
+                  <span className="text-sm font-normal text-muted-foreground break-all">{renewalDoc?.name}</span>
+                </DialogTitle>
                 <DialogDescription>
                   Upload a new file to replace the expired/expiring document. The old document will be deleted and the new one will be saved in the same location.
                 </DialogDescription>
@@ -2724,7 +2727,12 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
             }
           }}>
             <DialogContent>
-              <DialogHeader><DialogTitle className="break-all pr-6">Upload Document to {currentFolder?.name}</DialogTitle></DialogHeader>
+              <DialogHeader>
+                <DialogTitle className="flex flex-col gap-1 pr-6">
+                  <span>Upload Document</span>
+                  <span className="text-sm font-normal text-muted-foreground break-all">to {currentFolder?.name}</span>
+                </DialogTitle>
+              </DialogHeader>
               <form onSubmit={handleUpload} className="space-y-4 py-4">
                 <div>
                   <Label htmlFor="file">Select File</Label>
@@ -3477,12 +3485,12 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                   <Label>2. Select Clients ({selectedClientsForTemplate.length})</Label>
                   {/* Search clients */}
                   <div className="relative w-full sm:w-auto flex-grow sm:flex-grow-0">
-    <AnimatedSearch
-        placeholder="Search clients..."
-        value={templateClientSearch || ''}
-        onChange={(e) => setTemplateClientSearch(e.target.value)}
-    />
-</div>
+                    <AnimatedSearch
+                      placeholder="Search clients..."
+                      value={templateClientSearch || ''}
+                      onChange={(e) => setTemplateClientSearch(e.target.value)}
+                    />
+                  </div>
                   <div className="h-[200px] overflow-y-auto border border-gray-700 rounded-md bg-gray-800/50 p-2 space-y-1 custom-scrollbar">
                     {clientsForFilter
                       .filter(client => !templateClientSearch || client.name.toLowerCase().includes(templateClientSearch.toLowerCase()))
