@@ -2614,7 +2614,7 @@ const Documents = ({ entityId, quickAction, clearQuickAction }) => {
                   <span className="text-sm font-normal text-muted-foreground break-all">{renewalDoc?.name}</span>
                 </DialogTitle>
                 <DialogDescription>
-                  Upload a new file to replace the expired/expiring document. The old document will be deleted and the new one will be saved in the same location.
+                  Upload a new file to renew this document. The existing document will be kept as a historical record, and a new one will be saved with the updated expiry date. No data will be deleted.
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleRenewal} className="space-y-4 py-4">
