@@ -36,6 +36,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { CardFooter } from '@/components/ui/card';
 import {
     Popover,
     PopoverContent,
@@ -218,7 +219,7 @@ const TodayProgressExpanded = () => {
     const [customEndDate, setCustomEndDate] = useState(null);
     const [dateError, setDateError] = useState('');
     const [expandedRowId, setExpandedRowId] = useState(null);
-    const itemsPerPage = 10;
+    const [itemsPerPage, setItemsPerPage] = useState(10);
     const { toast } = useToast();
 
     // Check if accessed from dashboard click (viewing own activities only)
@@ -645,39 +646,33 @@ const TodayProgressExpanded = () => {
                 </div>
             </div>
 
-            {/* Pagination */}
-            {totalPages > 1 && (
-                <div className="p-4 sm:p-6 border-t border-white/5 flex justify-center items-center gap-3 rounded-b-3xl">
-                    <p className="text-xs text-gray-400">
-                        Page {currentPage} of {totalPages}
-                    </p>
+            <CardFooter className="flex flex-col sm:flex-row justify-center items-center gap-6 p-4 sm:p-6 border-t border-white/10 mt-6">
+                <div className="flex items-center gap-4">
+                    <span className="text-sm text-gray-400 font-medium">Page {currentPage} of {totalPages > 0 ? totalPages : 1}</span>
                     <div className="flex items-center gap-2">
-                        <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
-                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                            disabled={currentPage === 1}
-                        >
-                            <ChevronLeft className="w-4 h-4" />
-                        </Button>
-                        {/* <div className="flex items-center gap-1.5 px-3 py-1 bg-white/5 rounded-lg border border-white/10">
-                            <span className="text-xs font-bold text-white">{currentPage}</span>
-                            <span className="text-[10px] text-gray-500">/</span>
-                            <span className="text-[10px] text-gray-500 font-medium">{totalPages}</span>
-                        </div> */}
-                        <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
-                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                            disabled={currentPage === totalPages}
-                        >
-                            <ChevronRight className="w-4 h-4" />
-                        </Button>
+                        <span className="text-xs text-gray-400 hidden sm:inline">Rows per page:</span>
+                        <Select value={String(itemsPerPage)} onValueChange={(val) => { setItemsPerPage(Number(val)); setCurrentPage(1); }}>
+                            <SelectTrigger className="h-8 w-[70px] bg-transparent border-white/10 text-white text-xs">
+                                <SelectValue placeholder={String(itemsPerPage)} />
+                            </SelectTrigger>
+                            <SelectContent className="bg-gray-900 border-white/10 text-white">
+                                <SelectItem value="10">10</SelectItem>
+                                <SelectItem value="25">25</SelectItem>
+                                <SelectItem value="50">50</SelectItem>
+                                <SelectItem value="100">100</SelectItem>
+                            </SelectContent>
+                        </Select>
                     </div>
                 </div>
-            )}
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white">
+                        <ChevronLeft className="w-4 h-4" />
+                    </Button>
+                    <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages || totalPages === 0} className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white">
+                        <ChevronRight className="w-4 h-4" />
+                    </Button>
+                </div>
+            </CardFooter>
         </div>
     );
 };

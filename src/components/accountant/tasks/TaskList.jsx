@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Search, Plus, MoreVertical, Edit, Trash2, Bell, UserPlus, ChevronLeft, ChevronRight, Loader2, ArrowUpDown } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardFooter } from '@/components/ui/card';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { format, formatDistanceToNow, formatDistanceStrict } from 'date-fns';
 import { useAuth } from '@/hooks/useAuth.jsx';
@@ -96,7 +97,7 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
     const [statusFilter, setStatusFilter] = useState('all');
     const [userFilter, setUserFilter] = useState('all'); // 'all', 'created_by_me', 'assigned_to_me', 'collaborates'
     const [currentPage, setCurrentPage] = useState(1);
-    const [pageSize, setPageSize] = useState(25);
+    const [pageSize, setPageSize] = useState(10);
     const [taskCollaborators, setTaskCollaborators] = useState({}); // { taskId: [collaboratorIds] }
     const fetchedCollaboratorsRef = useRef(new Set()); // Track which tasks we've fetched collaborators for
     const [clientIdFilter, setClientIdFilter] = useState('all');
@@ -848,43 +849,33 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                     </Table>
                 </div>
                 {filteredTasks.length > 0 && (
-                    <div className="p-4 sm:p-6 border-t border-white/5 flex flex-row justify-center items-center gap-4">
-                        <p className="text-xs sm:text-sm text-gray-400">
-                            Page {currentPage} of {totalPages || 1} {filteredTasks.length > 0}
-                        </p>
+                    <CardFooter className="flex flex-col sm:flex-row justify-center items-center gap-6 p-4 sm:p-6 border-t border-white/10">
+                        <div className="flex items-center gap-4">
+                            <span className="text-sm text-gray-400 font-medium">Page {currentPage} of {totalPages > 0 ? totalPages : 1}</span>
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-gray-400 hidden sm:inline">Rows per page:</span>
+                                <Select value={String(pageSize)} onValueChange={(val) => { setPageSize(Number(val)); setCurrentPage(1); }}>
+                                    <SelectTrigger className="h-8 w-[70px] bg-transparent border-white/10 text-white text-xs">
+                                        <SelectValue placeholder={String(pageSize)} />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-gray-900 border-white/10 text-white">
+                                        <SelectItem value="10">10</SelectItem>
+                                        <SelectItem value="25">25</SelectItem>
+                                        <SelectItem value="50">50</SelectItem>
+                                        <SelectItem value="100">100</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
                         <div className="flex items-center gap-2">
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
-                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                disabled={currentPage === 1}
-                            >
+                            <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white">
                                 <ChevronLeft className="w-4 h-4" />
                             </Button>
-                            {/* <div className="flex items-center gap-1">
-                                {[...Array(totalPages)].map((_, i) => (
-                                    <Button
-                                        key={i}
-                                        variant={currentPage === i + 1 ? "default" : "ghost"}
-                                        className={`h-8 w-8 sm:h-9 sm:w-9 rounded-xl text-xs ${currentPage === i + 1 ? 'bg-primary text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
-                                        onClick={() => setCurrentPage(i + 1)}
-                                    >
-                                        {i + 1}
-                                    </Button>
-                                )).slice(Math.max(0, currentPage - 3), Math.min(totalPages, currentPage + 2))}
-                            </div> */}
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white"
-                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                                disabled={currentPage === totalPages || totalPages === 0}
-                            >
+                            <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages || totalPages === 0} className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-white/10 bg-transparent hover:bg-white/10 text-white">
                                 <ChevronRight className="w-4 h-4" />
                             </Button>
                         </div>
-                    </div>
+                    </CardFooter>
                 )}
             </div>
         </div>
