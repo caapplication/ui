@@ -23,8 +23,8 @@ export function DatePicker({ value, onChange, disabled: customDisabled, classNam
     const minDate = subDays(today, 365);
 
     const isDateDisabled = (date) => {
-        // First check if it's outside the global 365-day range
-        const isOutsideRange = isAfter(date, today) || isBefore(date, minDate);
+        // Only check if it's way in the past (more than 365 days)
+        const isOutsideRange = isBefore(date, minDate);
         if (isOutsideRange) return true;
 
         // Then check custom disabled logic if provided

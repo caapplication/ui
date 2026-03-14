@@ -3,28 +3,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
-import { Checkbox } from '@/components/ui/checkbox';
 import { DatePicker } from '@/components/ui/date-picker';
-import { Calendar as CalendarIcon, Loader2, Plus, Trash2, X } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
+import { Loader2, X, Plus, Trash2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { format } from 'date-fns';
+import { format, isBefore, startOfToday } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Combobox } from '@/components/ui/combobox';
 import { useAuth } from '@/hooks/useAuth';
-import { listOrgUsers, listTeamMembers } from '@/lib/api';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { listTeamMembers } from '@/lib/api';
 
 const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, task, stages = [], selectedOrg, isRecurringOnly = false, fixedServiceId = null }) => {
   const { toast } = useToast();
@@ -575,11 +563,13 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
         <div className="glass-pane p-4 rounded-lg">
           <h2 className="text-xl font-semibold mb-4 border-b border-white/10 pb-2">Task Details</h2>
           <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
               <div>
-                <Label htmlFor="title">Task Title*</Label>
+                <Label htmlFor="title">Task Details*</Label>
                 <Input id="title" name="title" placeholder="e.g., File annual tax returns" value={formData.title} onChange={handleChange} required disabled={isSaving} />
               </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="assigned_user_id" className="mb-2 flex items-center gap-2">
                   Assign To*
@@ -609,65 +599,63 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
                   disabled={isSaving || loadingUsers || loadingClientUsers || (formData.client_id && assignToOptions.length === 0)}
                 />
               </div>
-            </div>
-
-            {!formData.is_recurring && (
               <div>
                 <Label htmlFor="due_date" className="mb-2">Due Date</Label>
                 <DatePicker
                   value={formData.due_date}
                   onChange={(d) => handleDateChange('due_date', d)}
-                  disabled={(date) => date < new Date().setHours(0, 0, 0, 0)}
+                  disabled={(date) => isBefore(date, startOfToday())}
                 />
               </div>
-            )}
-
-            {!isRecurringOnly && user?.role === 'CA_ACCOUNTANT' && (
-              <div>
-                <Label htmlFor="service_id" className="mb-2">Service</Label>
-                <Select name="service_id" onValueChange={(v) => handleSelectChange('service_id', v)} value={formData.service_id || ''} disabled={isSaving || !!fixedServiceId}>
-                  <SelectTrigger><SelectValue placeholder="Select a service (optional)" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    {services && services.length > 0 ? (
-                      services.map(service => (
-                        <SelectItem key={service.id} value={service.id}>{service.name}</SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem value="no-services" disabled>No services found</SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            {!isRecurringOnly && (user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
-              <div>
-                <Label htmlFor="client_id" className="mb-2">Client</Label>
-                <Combobox
-                  options={clients.map(c => ({
-                    value: String(c.id),
-                    label: c.name || c.email
-                  }))}
-                  value={formData.client_id ? String(formData.client_id) : ''}
-                  onValueChange={(value) => {
-                    setFormData(prev => ({
-                      ...prev,
-                      client_id: value || '', // Allow clearing the client
-                      assigned_user_id: '' // Reset assignee when client changes
-                    }));
-                  }}
-                  placeholder="Select a client (optional)"
-                  searchPlaceholder="Search clients..."
-                  emptyText="No clients found."
-                  disabled={isSaving}
-                />
-              </div>
-            )}
+            </div>
           </div>
+        </div>
 
-          {/* Recurrence Fields merged here when isRecurringOnly is true */}
-          {isRecurringOnly && formData.is_recurring && (
+        {/* Commented out sections per user request */}
+        {/*
+        {!isRecurringOnly && user?.role === 'CA_ACCOUNTANT' && (
+          <div className="glass-pane p-4 rounded-lg">
+            <Label htmlFor="service_id" className="mb-2">Service</Label>
+            <Select name="service_id" onValueChange={(v) => handleSelectChange('service_id', v)} value={formData.service_id || ''} disabled={isSaving || !!fixedServiceId}>
+              <SelectTrigger><SelectValue placeholder="Select a service (optional)" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                {services && services.length > 0 ? (
+                  services.map(service => (
+                    <SelectItem key={service.id} value={service.id}>{service.name}</SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="no-services" disabled>No services found</SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {!isRecurringOnly && (user?.role === 'CA_ACCOUNTANT' || user?.role === 'CA_TEAM') && (
+          <div className="glass-pane p-4 rounded-lg">
+            <Label htmlFor="client_id" className="mb-2">Client</Label>
+            <Combobox
+              options={clients.map(c => ({
+                value: String(c.id),
+                label: c.name || c.email
+              }))}
+              value={formData.client_id ? String(formData.client_id) : ''}
+              onValueChange={(value) => {
+                setFormData(prev => ({
+                  ...prev,
+                  client_id: value || '',
+                  assigned_user_id: ''
+                }));
+              }}
+              placeholder="Select a client (optional)"
+              searchPlaceholder="Search clients..."
+              emptyText="No clients found."
+              disabled={isSaving}
+            />
+          </div>
+        )}
+           {isRecurringOnly && formData.is_recurring && (
             <div className="space-y-6 pt-4 border-t border-white/10 mt-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
@@ -812,7 +800,6 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
                     type="button"
                     onClick={(e) => {
                       e.preventDefault();
-                      e.stopPropagation();
                       const input = document.getElementById('new-checklist-item');
                       if (input && input.value.trim()) {
                         const itemName = input.value.trim();
@@ -821,7 +808,6 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
                           checklist_items: [...prev.checklist_items, { name: itemName, is_completed: false }]
                         }));
                         input.value = '';
-                        setTimeout(() => input.focus(), 0);
                       }
                     }}
                     disabled={isSaving}
@@ -829,22 +815,18 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
                     Add
                   </Button>
                 </div>
-
                 <div className="space-y-2">
                   {formData.checklist_items.map((item, index) => (
                     <div key={index} className="flex items-center gap-3 p-3 rounded-md bg-white/5 border border-white/10">
-                      <Input
-                        value={item.name}
-                        onChange={(e) => updateChecklistItem(index, 'name', e.target.value)}
-                        placeholder="Checklist item name"
-                        className="flex-grow bg-transparent border-none focus-visible:ring-0"
-                        disabled={isSaving}
-                        style={{ textDecoration: item.is_completed ? 'line-through' : 'none', opacity: item.is_completed ? 0.6 : 1 }}
-                      />
+                      <span className="flex-grow">{item.name}</span>
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => removeChecklistItem(index)}
+                        onClick={() => {
+                          const newItems = [...formData.checklist_items];
+                          newItems.splice(index, 1);
+                          setFormData(prev => ({ ...prev, checklist_items: newItems }));
+                        }}
                         disabled={isSaving}
                         className="h-8 w-8 text-red-400 hover:text-red-500"
                       >
@@ -874,117 +856,9 @@ const NewTaskForm = ({ onSave, onCancel, clients, services, teamMembers, tags, t
                 Make this task recurring
               </Label>
             </div>
-
-            {formData.is_recurring && (
-              <div className="space-y-4 mt-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="recurrence_frequency">Frequency</Label>
-                    <Select
-                      name="recurrence_frequency"
-                      onValueChange={(v) => {
-                        handleSelectChange('recurrence_frequency', v);
-                        if (v !== 'daily') handleSelectChange('recurrence_time', '09:00');
-                        if (v !== 'weekly') handleSelectChange('recurrence_day_of_week', null);
-                        if (!['monthly', 'quarterly', 'half_yearly', 'yearly'].includes(v)) handleSelectChange('recurrence_day_of_month', null);
-                        if (!['quarterly', 'half_yearly', 'yearly'].includes(v)) handleSelectChange('recurrence_start_month', null);
-                      }}
-                      value={formData.recurrence_frequency}
-                      disabled={isSaving}
-                    >
-                      <SelectTrigger><SelectValue placeholder="Select frequency" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="daily">Daily</SelectItem>
-                        <SelectItem value="weekly">Weekly</SelectItem>
-                        <SelectItem value="monthly">Monthly</SelectItem>
-                        <SelectItem value="quarterly">Quarterly</SelectItem>
-                        <SelectItem value="half_yearly">Half Yearly</SelectItem>
-                        <SelectItem value="yearly">Yearly</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {formData.recurrence_frequency === 'daily' && (
-                    <div>
-                      <Label htmlFor="recurrence_time">Time</Label>
-                      <Input id="recurrence_time_bottom" name="recurrence_time" type="time" value={formData.recurrence_time || '09:00'} onChange={(e) => handleSelectChange('recurrence_time', e.target.value)} disabled={isSaving} />
-                    </div>
-                  )}
-
-                  {formData.recurrence_frequency === 'weekly' && (
-                    <div>
-                      <Label htmlFor="recurrence_day_of_week">Day of Week</Label>
-                      <Select name="recurrence_day_of_week" onValueChange={(v) => handleSelectChange('recurrence_day_of_week', parseInt(v))} value={formData.recurrence_day_of_week !== null ? String(formData.recurrence_day_of_week) : ''} disabled={isSaving}>
-                        <SelectTrigger><SelectValue placeholder="Select day" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="0">Monday</SelectItem>
-                          <SelectItem value="1">Tuesday</SelectItem>
-                          <SelectItem value="2">Wednesday</SelectItem>
-                          <SelectItem value="3">Thursday</SelectItem>
-                          <SelectItem value="4">Friday</SelectItem>
-                          <SelectItem value="5">Saturday</SelectItem>
-                          <SelectItem value="6">Sunday</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-
-                  {formData.recurrence_frequency === 'monthly' && (
-                    <div>
-                      <Label htmlFor="recurrence_day_of_month">Day of Month (1-31)</Label>
-                      <Select name="recurrence_day_of_month" onValueChange={(v) => handleSelectChange('recurrence_day_of_month', parseInt(v))} value={formData.recurrence_day_of_month !== null ? String(formData.recurrence_day_of_month) : ''} disabled={isSaving}>
-                        <SelectTrigger><SelectValue placeholder="Select day" /></SelectTrigger>
-                        <SelectContent>
-                          {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
-                            <SelectItem key={day} value={String(day)}>{day}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-
-                  {['quarterly', 'half_yearly', 'yearly'].includes(formData.recurrence_frequency) && (
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="recurrence_start_month">{formData.recurrence_frequency === 'yearly' ? 'Month' : 'Start Month'}</Label>
-                        <Select name="recurrence_start_month" onValueChange={(v) => handleSelectChange('recurrence_start_month', parseInt(v))} value={formData.recurrence_start_month !== null ? String(formData.recurrence_start_month) : ''} disabled={isSaving}>
-                          <SelectTrigger><SelectValue placeholder="Select month" /></SelectTrigger>
-                          <SelectContent>
-                            {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map((m, i) => (
-                              <SelectItem key={i} value={String(i)}>{m}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label htmlFor="recurrence_day_of_month">Day</Label>
-                        <Select name="recurrence_day_of_month" onValueChange={(v) => handleSelectChange('recurrence_day_of_month', parseInt(v))} value={formData.recurrence_day_of_month !== null ? String(formData.recurrence_day_of_month) : ''} disabled={isSaving}>
-                          <SelectTrigger><SelectValue placeholder="Select day" /></SelectTrigger>
-                          <SelectContent>
-                            {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
-                              <SelectItem key={day} value={String(day)}>{day}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <Label htmlFor="due_date_offset">{formData.recurrence_frequency === 'daily' ? 'Due after (hours)' : 'Due after (days)'}</Label>
-                    <Input id="due_date_offset_bottom" name="due_date_offset" type="number" value={formData.due_date_offset || 0} onChange={(e) => handleSelectChange('due_date_offset', parseInt(e.target.value) || 0)} disabled={isSaving} />
-                  </div>
-                  <div>
-                    <Label htmlFor="target_date_offset">{formData.recurrence_frequency === 'daily' ? 'Target after (hours)' : 'Target after (days)'}</Label>
-                    <Input id="target_date_offset_bottom" name="target_date_offset" type="number" value={formData.target_date_offset || ''} onChange={(e) => handleSelectChange('target_date_offset', e.target.value === '' ? null : parseInt(e.target.value))} placeholder="Optional" disabled={isSaving} />
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         )}
+        */}
 
         <div className="flex justify-end pt-6 border-t border-white/10">
           <Button type="submit" disabled={isSaving}>

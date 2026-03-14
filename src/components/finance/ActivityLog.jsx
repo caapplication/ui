@@ -210,6 +210,7 @@ const ActivityLog = ({ itemId, itemType, showFilter = true, excludeTypes = [] })
                                 onChange={setStartDate}
                                 className="w-full sm:w-[180px]"
                                 placeholder="Start Date"
+                                disabled={(date) => isBefore(date, subDays(startOfToday(), 365)) || isAfter(date, startOfToday())}
                             />
                         </div>
                         <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -219,7 +220,7 @@ const ActivityLog = ({ itemId, itemType, showFilter = true, excludeTypes = [] })
                                 onChange={setEndDate}
                                 className="w-full sm:w-[180px]"
                                 placeholder="End Date"
-                                disabled={(date) => startDate && date < startDate}
+                                disabled={(date) => (startDate && isBefore(date, startDate)) || isAfter(date, startOfToday())}
                             />
                         </div>
                         {(startDate || endDate) && (
