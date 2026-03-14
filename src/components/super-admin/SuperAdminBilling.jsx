@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useToast } from '@/components/ui/use-toast';
 import { getAdminModules, updateAdminModule, getAdminInvoices, markInvoicePaid, generateMonthlyInvoices } from '@/lib/api/admin';
-import { Loader2, Receipt, Package, DollarSign, Calendar, Edit2, PlayCircle, CheckCircle } from 'lucide-react';
+import { Loader2, Receipt, Package, DollarSign, Calendar, Edit2, PlayCircle, CheckCircle, Component } from 'lucide-react';
+import PlanManagementTab from '@/components/super-admin/PlanManagementTab.jsx';
 
 const SuperAdminBilling = () => {
   const { user } = useAuth();
@@ -128,6 +129,9 @@ const SuperAdminBilling = () => {
           </TabsTrigger>
           <TabsTrigger value="modules" className="flex items-center gap-2">
             <Package className="w-4 h-4" /> App Modules
+          </TabsTrigger>
+          <TabsTrigger value="plans" className="flex items-center gap-2">
+            <Component className="w-4 h-4" /> Bundled Plans
           </TabsTrigger>
         </TabsList>
 
@@ -305,6 +309,10 @@ const SuperAdminBilling = () => {
               </Table>
             </CardContent>
           </Card>
+        </TabsContent>
+        {/* PLANS TAB */}
+        <TabsContent value="plans" className="space-y-4">
+          <PlanManagementTab />
         </TabsContent>
       </Tabs>
     </div>

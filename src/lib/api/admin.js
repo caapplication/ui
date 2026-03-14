@@ -163,9 +163,48 @@ export const toggleAgencyModule = async (agencyId, params, token) => {
   const searchParams = new URLSearchParams();
   searchParams.append('module_id', params.module_id);
   if (params.entity_id) searchParams.append('entity_id', params.entity_id);
+  if (params.custom_price !== undefined) searchParams.append('custom_price', params.custom_price);
+  if (params.is_free !== undefined) searchParams.append('is_free', params.is_free);
   
   const response = await fetch(`${FINANCE_API_BASE_URL}/api/admin/agencies/${agencyId}/subscriptions/toggle?${searchParams.toString()}`, {
     method: 'POST',
+    headers: getAuthHeaders(token)
+  });
+  return handleResponse(response);
+};
+
+export const getAdminPlans = async (token) => {
+  const response = await fetch(`${FINANCE_API_BASE_URL}/api/admin/plans`, {
+    headers: getAuthHeaders(token)
+  });
+  return handleResponse(response);
+};
+
+export const createAdminPlan = async (planData, token) => {
+  const response = await fetch(`${FINANCE_API_BASE_URL}/api/admin/plans`, {
+    method: 'POST',
+    headers: getAuthHeaders(token, 'application/json'),
+    body: JSON.stringify(planData)
+  });
+  return handleResponse(response);
+};
+
+export const assignPlanToAgency = async (agencyId, params, token) => {
+  const searchParams = new URLSearchParams();
+  searchParams.append('plan_id', params.plan_id);
+  if (params.entity_id) searchParams.append('entity_id', params.entity_id);
+  if (params.custom_price !== undefined) searchParams.append('custom_price', params.custom_price);
+  if (params.is_free !== undefined) searchParams.append('is_free', params.is_free);
+
+  const response = await fetch(`${FINANCE_API_BASE_URL}/api/admin/agencies/${agencyId}/plans/assign?${searchParams.toString()}`, {
+    method: 'POST',
+    headers: getAuthHeaders(token)
+  });
+  return handleResponse(response);
+};
+
+export const listAgencyEntities = async (agencyId, token) => {
+  const response = await fetch(`${FINANCE_API_BASE_URL}/api/entities/?agency_id=${agencyId}`, {
     headers: getAuthHeaders(token)
   });
   return handleResponse(response);

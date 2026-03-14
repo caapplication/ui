@@ -37,6 +37,7 @@ import { getAgencyDetails, lockUser, unlockUser, inviteCA } from '@/lib/api/admi
 import { useToast } from '@/components/ui/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AgencySubscriptionsTab from '@/components/super-admin/AgencySubscriptionsTab.jsx';
+import AgencyClientsTab from '@/components/super-admin/AgencyClientsTab.jsx';
 
 const AgencyDetails = () => {
   const { id } = useParams();
@@ -509,9 +510,7 @@ const AgencyDetails = () => {
         </TabsContent>
 
         <TabsContent value="clients_tab" className="pt-6">
-          <Card className="glass-card overflow-hidden">
-            <ClientTable clients={data.clients || []} />
-          </Card>
+          <AgencyClientsTab agencyId={id} />
         </TabsContent>
 
         <TabsContent value="subscriptions" className="pt-6">
