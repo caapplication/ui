@@ -348,8 +348,18 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
             if (statusFilter !== 'all') {
                 const filterLower = statusFilter.toLowerCase();
 
-                // Match if stage name or status matches the filter
-                statusMatch = (taskStageName === filterLower) || (taskStatus === filterLower);
+                if (filterLower === 'overdue') {
+                    const now = new Date();
+                    const dueDate = task.due_date ? new Date(task.due_date) : null;
+                    // Overdue if due_date is in the past and task is not completed
+                    const isCompleted = taskStageName === 'complete' || taskStageName === 'completed' || taskStatus === 'complete' || taskStatus === 'completed';
+                    statusMatch = dueDate && dueDate < now && !isCompleted;
+                } else if (filterLower === 'unread') {
+                    statusMatch = task.has_unread_messages === true;
+                } else {
+                    // Match if stage name or status matches the filter
+                    statusMatch = (taskStageName === filterLower) || (taskStatus === filterLower);
+                }
             }
 
             // Handle user filter
@@ -563,6 +573,8 @@ const TaskList = ({ tasks, clients, services, teamMembers, stages = [], onAddNew
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="all">All Statuses</SelectItem>
+                                        <SelectItem value="overdue">Overdue</SelectItem>
+                                        <SelectItem value="unread">Unread</SelectItem>
                                         {stages && stages.length > 0 ? (
                                             // Dynamically populate from stages
                                             stages
