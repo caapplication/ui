@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { motion } from 'framer-motion';
+import { useSearchParams } from 'react-router-dom';
 import {
   Users,
   Search,
@@ -35,12 +35,37 @@ import AnimatedSearch from '../ui/AnimatedSearch';
 const AdminUserList = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [roleFilter, setRoleFilter] = useState('ALL');
+
+  const searchQuery = searchParams.get('search') || '';
+  const roleFilter = searchParams.get('role') || 'ALL';
+  const currentPage = parseInt(searchParams.get('page') || '1', 10);
+
+  const setSearchQuery = (q) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (q) newParams.set('search', q);
+    else newParams.delete('search');
+    newParams.set('page', '1'); // Reset page on search
+    setSearchParams(newParams);
+  };
+
+  const setRoleFilter = (role) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (role && role !== 'ALL') newParams.set('role', role);
+    else newParams.delete('role');
+    newParams.set('page', '1'); // Reset page on filter
+    setSearchParams(newParams);
+  };
+
+  const setCurrentPage = (page) => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set('page', String(page));
+    setSearchParams(newParams);
+  };
+
   const [actionLoading, setActionLoading] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
   const fetchUsers = async () => {
@@ -96,9 +121,6 @@ const AdminUserList = () => {
     return matchesSearch && matchesRole;
   }) : [];
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, roleFilter]);
 
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
   const paginatedUsers = filteredUsers.slice(

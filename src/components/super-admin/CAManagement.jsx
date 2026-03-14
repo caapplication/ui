@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { motion } from 'framer-motion';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import {
   Users,
   Search,
@@ -41,15 +41,32 @@ import AnimatedSearch from '@/components/ui/AnimatedSearch';
 const CAManagement = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [cas, setCas] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [actionLoading, setActionLoading] = useState(null); // stores userId currently being toggled
+
+  const searchQuery = searchParams.get('search') || '';
+  const currentPage = parseInt(searchParams.get('page') || '1', 10);
+
+  const setSearchQuery = (q) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (q) newParams.set('search', q);
+    else newParams.delete('search');
+    newParams.set('page', '1');
+    setSearchParams(newParams);
+  };
+
+  const setCurrentPage = (page) => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set('page', String(page));
+    setSearchParams(newParams);
+  };
+
+  const [actionLoading, setActionLoading] = useState(null);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [agencies, setAgencies] = useState([]);
   const [inviteData, setInviteData] = useState({ email: '', agencyId: '' });
   const [inviteLoading, setInviteLoading] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
   const fetchCAs = async () => {
@@ -179,9 +196,6 @@ const CAManagement = () => {
     ca.email?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery]);
 
   const totalPages = Math.ceil(filteredCAs.length / itemsPerPage);
   const paginatedCAs = filteredCAs.slice(

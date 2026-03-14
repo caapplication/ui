@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft,
   Building,
@@ -16,7 +16,8 @@ import {
   Lock,
   Unlock,
   RefreshCcw,
-  Plus
+  Plus,
+  CheckCircle2
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -42,11 +43,52 @@ import AgencyClientsTab from '@/components/super-admin/AgencyClientsTab.jsx';
 const AgencyDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { toast } = useToast();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeUserFilter, setActiveUserFilter] = useState('all');
+  
+  const activeTab = searchParams.get('tab') || 'overview';
+  const activeUserFilter = searchParams.get('filter') || 'all';
+
+  const setActiveTab = (tab) => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set('tab', tab);
+    // Only keep 'filter' if we are on the 'users' tab
+    if (tab !== 'users') {
+      newParams.delete('filter');
+    }
+    setSearchParams(newParams);
+  };
+
+  const setActiveUserFilter = (filter) => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set('filter', filter);
+    setSearchParams(newParams);
+  };
+
+  // Ensure default tab/filter is set in URL and cleanup invalid combinations
+  useEffect(() => {
+    const newParams = new URLSearchParams(searchParams);
+    let changed = false;
+    
+    if (!searchParams.get('tab')) {
+      newParams.set('tab', 'overview');
+      changed = true;
+    }
+
+    const currentTab = newParams.get('tab');
+    if (currentTab !== 'users' && searchParams.get('filter')) {
+      newParams.delete('filter');
+      changed = true;
+    }
+
+    if (changed) {
+      setSearchParams(newParams, { replace: true });
+    }
+  }, []);
+
   const [actionLoading, setActionLoading] = useState(null);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
@@ -344,8 +386,8 @@ const AgencyDetails = () => {
         </div>
       </div>
 
-      <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="flex gap-2 sm:gap-4 mb-6 w-fit justify-start">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="flex gap-2 sm:gap-4 mb-6 w-fit justify-start bg-white/5 border border-white/10 p-1">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="admins">Admins</TabsTrigger>
           <TabsTrigger value="users">Users</TabsTrigger>
