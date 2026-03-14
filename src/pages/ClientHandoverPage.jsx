@@ -359,9 +359,8 @@ function BankTallyListTab({ clientId, token, toast, readOnly = false }) {
                       <TableCell className="text-xs sm:text-sm text-white whitespace-nowrap">
                         ₹ {(entry.closing_balance ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </TableCell>
-                      <TableCell className={`text-xs sm:text-sm font-bold whitespace-nowrap ${
-                        (entry.variance ?? 0) > 0 ? 'text-green-400' : (entry.variance ?? 0) < 0 ? 'text-red-400' : 'text-white'
-                      }`}>
+                      <TableCell className={`text-xs sm:text-sm font-bold whitespace-nowrap ${(entry.variance ?? 0) > 0 ? 'text-green-400' : (entry.variance ?? 0) < 0 ? 'text-red-400' : 'text-white'
+                        }`}>
                         {entry.variance != null ? Math.round(entry.variance).toLocaleString('en-IN') : '—'}
                       </TableCell>
                     </TableRow>
@@ -583,28 +582,27 @@ function BankTallyFormPage({ clientId, token, toast, readOnly = false }) {
                             <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input w-32 sm:w-44 bg-white/5 text-white text-center mx-auto" value={opening.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} />
                           </TableCell>
                           <TableCell className="text-center">
-                            <Input 
-                              type="text" 
-                              readOnly={isReadOnly} 
-                              className={`h-9 sm:h-10 text-sm glass-input w-32 sm:w-44 text-white text-center mx-auto ${isReadOnly ? 'bg-white/5 cursor-default' : ''}`} 
-                              value={closingVal !== '' && closingVal != null && !isNaN(closingVal) ? Number(closingVal).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : closingVal} 
+                            <Input
+                              type="text"
+                              readOnly={isReadOnly}
+                              className={`h-9 sm:h-10 text-sm glass-input w-32 sm:w-44 text-white text-center mx-auto ${isReadOnly ? 'bg-white/5 cursor-default' : ''}`}
+                              value={closingVal !== '' && closingVal != null && !isNaN(closingVal) ? Number(closingVal).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : closingVal}
                               onChange={(e) => {
                                 const raw = e.target.value.replace(/,/g, '');
                                 if (raw === '' || /^\d*\.?\d*$/.test(raw)) {
                                   setClosing(bank.id, raw);
                                 }
-                              }} 
-                              placeholder="Closing" 
+                              }}
+                              placeholder="Closing"
                             />
                           </TableCell>
                           <TableCell className="text-center">
-                            <Input 
-                              type="text" 
-                              readOnly 
-                              className={`h-9 sm:h-10 text-sm glass-input w-32 sm:w-44 bg-white/5 text-center font-bold mx-auto ${
-                                diff > 0 ? 'text-green-400' : diff < 0 ? 'text-red-400' : 'text-white'
-                              }`} 
-                              value={diff != null ? Math.round(diff).toLocaleString('en-IN') : '—'} 
+                            <Input
+                              type="text"
+                              readOnly
+                              className={`h-9 sm:h-10 text-sm glass-input w-32 sm:w-44 bg-white/5 text-center font-bold mx-auto ${diff > 0 ? 'text-green-400' : diff < 0 ? 'text-red-400' : 'text-white'
+                                }`}
+                              value={diff != null ? Math.round(diff).toLocaleString('en-IN') : '—'}
                             />
                           </TableCell>
                         </TableRow>
@@ -625,13 +623,12 @@ function BankTallyFormPage({ clientId, token, toast, readOnly = false }) {
                             <Input type="text" readOnly className="h-9 sm:h-10 text-sm glass-input w-32 sm:w-44 bg-white/5 text-white font-medium text-center mx-auto" value={totalClosing.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} />
                           </TableCell>
                           <TableCell className="text-center">
-                            <Input 
-                              type="text" 
-                              readOnly 
-                              className={`h-9 sm:h-10 text-sm glass-input w-32 sm:w-44 bg-white/5 font-bold text-center mx-auto ${
-                                totalDiff > 0 ? 'text-green-400' : totalDiff < 0 ? 'text-red-400' : 'text-white'
-                              }`} 
-                              value={Math.round(totalDiff).toLocaleString('en-IN')} 
+                            <Input
+                              type="text"
+                              readOnly
+                              className={`h-9 sm:h-10 text-sm glass-input w-32 sm:w-44 bg-white/5 font-bold text-center mx-auto ${totalDiff > 0 ? 'text-green-400' : totalDiff < 0 ? 'text-red-400' : 'text-white'
+                                }`}
+                              value={Math.round(totalDiff).toLocaleString('en-IN')}
                             />
                           </TableCell>
                         </TableRow>
@@ -854,9 +851,8 @@ function CashTallyListTab({ clientId, entityId, token, toast, readOnly = false }
                       <TableCell className="text-xs sm:text-sm text-white whitespace-nowrap">
                         ₹ {(entry.closing_balance ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </TableCell>
-                      <TableCell className={`text-xs sm:text-sm whitespace-nowrap font-medium ${
-                        (entry.variance ?? 0) > 0 ? 'text-green-400' : (entry.variance ?? 0) < 0 ? 'text-red-400' : 'text-white'
-                      }`}>
+                      <TableCell className={`text-xs sm:text-sm whitespace-nowrap font-medium ${(entry.variance ?? 0) > 0 ? 'text-green-400' : (entry.variance ?? 0) < 0 ? 'text-red-400' : 'text-white'
+                        }`}>
                         ₹ {(entry.variance ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </TableCell>
                     </TableRow>
@@ -1091,16 +1087,15 @@ function CashTallyFormPage({ clientId, entityId, token, toast, readOnly = false 
                         <TableCell className="py-8">
                           <div className="flex flex-col items-start">
                             <div className="w-64 space-y-3">
-                               <Input 
-                                type="text" 
-                                readOnly 
-                                className="h-10 sm:h-12 text-lg glass-input w-full bg-white/5 text-white font-bold text-center border-white/10" 
-                                value={denominationTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })} 
+                              <Input
+                                type="text"
+                                readOnly
+                                className="h-10 sm:h-12 text-lg glass-input w-full bg-white/5 text-white font-bold text-center border-white/10"
+                                value={denominationTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                               />
                               <div className="text-left pl-1">
-                                <span className={`text-xs font-bold whitespace-nowrap ${
-                                  Math.abs(varianceAmount) < 0.01 ? 'text-green-400' : varianceAmount > 0 ? 'text-yellow-400' : 'text-red-400'
-                                }`}>
+                                <span className={`text-xs font-bold whitespace-nowrap ${Math.abs(varianceAmount) < 0.01 ? 'text-green-400' : varianceAmount > 0 ? 'text-yellow-400' : 'text-red-400'
+                                  }`}>
                                   Variance: ₹ {varianceAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                 </span>
                               </div>
@@ -1366,11 +1361,10 @@ function CashierReportListTab({ clientId, token, toast }) {
                       </TableCell>
                       <TableCell className="text-xs sm:text-sm text-white max-w-[200px] truncate" title={report.remarks || ''}>{report.remarks || '—'}</TableCell>
                       <TableCell className="text-left">
-                        <span className={`inline-flex items-center justify-center text-center px-2 py-1 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium border h-auto min-h-[1.5rem] whitespace-normal leading-tight ${
-                          report.status === 'Verified' 
-                            ? 'bg-green-500/20 text-green-400 border-green-500/50' 
+                        <span className={`inline-flex items-center justify-center text-center px-2 py-1 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium border h-auto min-h-[1.5rem] whitespace-normal leading-tight ${report.status === 'Verified'
+                            ? 'bg-green-500/20 text-green-400 border-green-500/50'
                             : 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50'
-                        }`}>
+                          }`}>
                           {activeTab === 'history' ? 'Verified' : 'Pending Approval'}
                         </span>
                       </TableCell>
@@ -2255,10 +2249,10 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
               paymentMethods.forEach(p => { defaultEdit[p.id] = breakdown[p.id] != null ? String(breakdown[p.id]) : ''; });
               const editValues = breakdownEdit[row.handover_id] ?? defaultEdit;
               const editRemarks = (breakdownEdit[row.handover_id + '_remarks'] !== undefined) ? breakdownEdit[row.handover_id + '_remarks'] : (row.handover_remarks || '');
-              
-              const setEdit = (key, value) => setBreakdownEdit(prev => ({ 
-                ...prev, 
-                [row.handover_id]: { ...(prev[row.handover_id] || defaultEdit), [key]: value } 
+
+              const setEdit = (key, value) => setBreakdownEdit(prev => ({
+                ...prev,
+                [row.handover_id]: { ...(prev[row.handover_id] || defaultEdit), [key]: value }
               }));
               const setEditRem = (v) => setBreakdownEdit(prev => ({ ...prev, [row.handover_id + '_remarks']: v }));
               const handleSaveBreakdown = async () => {
@@ -2383,12 +2377,28 @@ function HandoverTab({ clientId, token, toast, isAdminView = false, userRole, re
                     </div>
                   </div>
 
-                  <div>
-                    <Label className="text-sm text-gray-400">Remarks</Label>
-                    {viewOnly || !editable ? (
-                      <p className="text-sm text-white mt-1">{editRemarks || '—'}</p>
-                    ) : (
-                      <Input className="mt-1 h-9 text-sm glass-input text-white" value={editRemarks} onChange={e => setEditRem(e.target.value)} placeholder="Remarks" />
+                  <div className="space-y-3">
+                    <div>
+                      <Label className="text-sm text-gray-400">Remarks</Label>
+                      {viewOnly || !editable ? (
+                        <p className="text-sm text-white mt-1">{editRemarks || '—'}</p>
+                      ) : (
+                        <Input className="mt-1 h-9 text-sm glass-input text-white" value={editRemarks} onChange={e => setEditRem(e.target.value)} placeholder="Remarks" />
+                      )}
+                    </div>
+
+                    {(row.approval_remark || row.rejection_remark) && (
+                      <div className="p-3 rounded-lg border border-blue-500/20 bg-blue-500/5">
+                        <Label className="text-blue-400 text-[10px] font-bold uppercase tracking-wider">Finance (Review) Remarks</Label>
+                        <p className="text-xs text-white mt-1 italic whitespace-pre-wrap">{row.approval_remark || row.rejection_remark}</p>
+                      </div>
+                    )}
+
+                    {(row.approval_remark_admin || row.rejection_remark_admin) && (
+                      <div className="p-3 rounded-lg border border-purple-500/20 bg-purple-500/5">
+                        <Label className="text-purple-400 text-[10px] font-bold uppercase tracking-wider">Admin (Review) Remarks</Label>
+                        <p className="text-xs text-white mt-1 italic whitespace-pre-wrap">{row.approval_remark_admin || row.rejection_remark_admin}</p>
+                      </div>
                     )}
                   </div>
                   {editable && !viewOnly && (
